@@ -1,5 +1,10 @@
--e .env
+.env
+.env.*
+!.env.example
 venv/
 __pycache__/
+*.pyc
 *.db
+*.db-wal
+*.db-shm
 *.log

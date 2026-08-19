@@ -4,6 +4,7 @@ Handles persistent chat history, long-term knowledge memory, reminders, and sett
 """
 
 import aiosqlite
+import sqlite3
 import os
 import json
 from datetime import datetime
@@ -12,9 +13,19 @@ from typing import List, Dict, Any, Optional
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
 
+def get_sync_db():
+    """Get a standard synchronous SQLite connection with Row factory and WAL mode."""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    return conn
+
+
 async def init_db():
-    """Initialize SQLite database tables."""
+    """Initialize SQLite database tables and enable WAL mode."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA journal_mode=WAL;")
+        
         # Chat History
         await db.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
@@ -52,16 +63,155 @@ async def init_db():
             )
         """)
         
-        # User Settings (e.g. voice_mode, preferred_model)
+        # Scheduled Recurring Cron Tasks / Watchdog
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS scheduled_cron_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                prompt_instruction TEXT NOT NULL,
+                interval_minutes INTEGER NOT NULL DEFAULT 60,
+                is_active INTEGER DEFAULT 1,
+                last_run DATETIME,
+                next_run DATETIME NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Subagent Background Tasks
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS subagent_tasks (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                task_description TEXT NOT NULL,
+                status TEXT DEFAULT 'running',
+                result TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME
+            )
+        """)
+
+        # User Settings (e.g. voice_mode, preferred_model, prompt)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS user_settings (
                 user_id INTEGER PRIMARY KEY,
                 voice_reply INTEGER DEFAULT 0,
                 system_prompt_override TEXT,
-                model_name TEXT DEFAULT 'gemini-2.5-flash'
+                model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
             )
         """)
         await db.commit()
+
+
+# --- Cron / Recurring Task Functions ---
+def add_cron_job_sync(user_id: int, chat_id: int, title: str, prompt_instruction: str, interval_minutes: int) -> int:
+    """Synchronously add a recurring cron job."""
+    from datetime import datetime, timedelta
+    next_run = (datetime.now() + timedelta(minutes=interval_minutes)).strftime("%Y-%m-%d %H:%M:%S")
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO scheduled_cron_jobs (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def list_cron_jobs_sync(user_id: int) -> List[Dict[str, Any]]:
+    """List all recurring cron jobs for a user."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run 
+            FROM scheduled_cron_jobs 
+            WHERE user_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_cron_job_sync(user_id: int, job_id: int) -> bool:
+    """Delete a recurring cron job."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("DELETE FROM scheduled_cron_jobs WHERE id = ? AND user_id = ?", (job_id, user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+async def get_due_cron_jobs() -> List[Dict[str, Any]]:
+    """Get all active recurring cron jobs whose next_run is due."""
+    from datetime import datetime
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes 
+            FROM scheduled_cron_jobs 
+            WHERE is_active = 1 AND next_run <= ?
+            """,
+            (now_str,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def update_cron_job_after_run(job_id: int, interval_minutes: int):
+    """Update last_run and advance next_run for a recurring cron job."""
+    from datetime import datetime, timedelta
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    next_run = (datetime.now() + timedelta(minutes=interval_minutes)).strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE scheduled_cron_jobs SET last_run = ?, next_run = ? WHERE id = ?",
+            (now_str, next_run, job_id)
+        )
+        await db.commit()
+
+
+# --- Subagent Task Storage ---
+def save_subagent_task_sync(task_id: str, user_id: int, chat_id: int, role: str, description: str):
+    """Save initial subagent task."""
+    with get_sync_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO subagent_tasks (id, user_id, chat_id, role, task_description, status)
+            VALUES (?, ?, ?, ?, ?, 'running')
+            """,
+            (task_id, user_id, chat_id, role, description)
+        )
+        conn.commit()
+
+
+def update_subagent_task_sync(task_id: str, status: str, result: str):
+    """Update subagent completion result."""
+    with get_sync_db() as conn:
+        conn.execute(
+            """
+            UPDATE subagent_tasks 
+            SET status = ?, result = ?, finished_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, result, task_id)
+        )
+        conn.commit()
+
+
+def get_subagent_task_sync(task_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve subagent task status."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("SELECT * FROM subagent_tasks WHERE id = ?", (task_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 # --- Chat History Functions ---
@@ -101,8 +251,26 @@ async def clear_user_chat_history(user_id: int):
 
 
 # --- Long-Term Knowledge Memory Functions ---
+def save_memory_fact_sync(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
+    """Synchronously save or update a persistent memory fact (for tools)."""
+    with get_sync_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO knowledge_memory (user_id, category, key_topic, content, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id, key_topic) DO UPDATE SET
+                content = excluded.content,
+                category = excluded.category,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, category.strip().lower(), key_topic.strip().lower(), content.strip())
+        )
+        conn.commit()
+    return f"Memori '{key_topic}' berhasil disimpan dalam kategori '{category}'."
+
+
 async def save_memory_fact(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
-    """Save or update a persistent fact/memory."""
+    """Async save or update a persistent fact/memory."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
@@ -113,10 +281,26 @@ async def save_memory_fact(user_id: int, key_topic: str, content: str, category:
                 category = excluded.category,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (user_id, category, key_topic.strip().lower(), content.strip())
+            (user_id, category.strip().lower(), key_topic.strip().lower(), content.strip())
         )
         await db.commit()
         return f"Memori '{key_topic}' berhasil disimpan."
+
+
+def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
+    """Synchronously search memories for a specific user."""
+    with get_sync_db() as conn:
+        pattern = f"%{query.strip().lower()}%"
+        cursor = conn.execute(
+            """
+            SELECT category, key_topic, content, updated_at FROM knowledge_memory 
+            WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
+            ORDER BY updated_at DESC
+            """,
+            (user_id, pattern, pattern)
+        )
+        rows = cursor.fetchall()
+        return [{"category": r["category"], "key_topic": r["key_topic"], "content": r["content"]} for r in rows]
 
 
 async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
@@ -132,7 +316,7 @@ async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
 
 
 async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
-    """Search long-term memories matching query."""
+    """Search long-term memories matching query for a user."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         search_pattern = f"%{query.strip().lower()}%"
@@ -140,6 +324,7 @@ async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
             """
             SELECT category, key_topic, content FROM knowledge_memory 
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
+            ORDER BY updated_at DESC
             """,
             (user_id, search_pattern, search_pattern)
         ) as cursor:
@@ -159,6 +344,20 @@ async def delete_memory(user_id: int, key_topic: str) -> bool:
 
 
 # --- Reminders / Scheduled Tasks ---
+def add_reminder_sync(user_id: int, chat_id: int, reminder_time_iso: str, message: str) -> int:
+    """Synchronously add a scheduled reminder (for tools)."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO reminders (user_id, chat_id, reminder_time, message)
+            VALUES (?, ?, ?, ?)
+            """,
+            (user_id, chat_id, reminder_time_iso, message)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
 async def add_reminder(user_id: int, chat_id: int, reminder_time_iso: str, message: str) -> int:
     """Add a scheduled reminder."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -227,3 +426,4 @@ async def toggle_voice_setting(user_id: int) -> bool:
         )
         await db.commit()
     return bool(new_val)
+

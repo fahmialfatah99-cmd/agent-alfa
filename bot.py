@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Ultra-Advanced Telegram AI Agent Bot
-Powered by Google Gemini 2.5 & Autonomous Function Calling
+Ultra-Advanced Telegram AI Agent Bot (Surpassing Hermes Agent & OpenClaw)
+Powered by Google Gemini API & Autonomous Real Tool Execution.
+
 Features:
+- Full Multi-User Context Isolation via contextvars
+- Real Subprocess Python Sandbox & Matplotlib Data Plotter (auto-delivered as photos)
+- Ultra-Fast Desktop Screenshot & Hardware Webcam Frame Capture
+- Full File & Code Workspace Intelligence (grep, find, read, write)
+- Deep Live Web Intelligence (DuckDuckGo search, URL content scraper)
 - Native Multimodal: Voice Notes, Photos/Vision, Documents (PDF/Code/Data)
-- Autonomous Agent Tools: System Monitoring, Bash Execution, Live Web Search, Long-term Memory, Reminders
-- Natural Indonesian/English TTS Voice Responses (Edge-TTS)
-- Persistent SQLite Database for Chat History & Long-Term Memories
+- High-fidelity Natural Voice Audio Notes (Edge-TTS)
+- Persistent SQLite Database with WAL Mode for Chat History & Long-Term Memories
 - Proactive Background Cron & Reminder Dispatcher
-- Interactive Telegram Inline Menu
-- Multi-layer Whitelist Security
+- Safe Telegram Markdown/HTML Formatter with Zero Entity Parsing Errors
+- Interactive Telegram Control Center & Inline Menus
 """
 
 import os
@@ -17,8 +22,9 @@ import sys
 import io
 import asyncio
 import logging
+import glob
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from dotenv import load_dotenv
 from telegram import (
@@ -39,7 +45,13 @@ from telegram.ext import (
 # Local modules
 import database
 import tools
-from tools import AVAILABLE_TOOLS, get_system_stats
+from tools import (
+    AVAILABLE_TOOLS,
+    get_system_stats,
+    current_user_id_var,
+    current_chat_id_var,
+    SANDBOX_DIR
+)
 import tts_engine
 
 # Load environment
@@ -62,13 +74,23 @@ ALLOWED_USER_IDS = [
     int(uid.strip()) for uid in raw_allowed_users.split(",") if uid.strip().isdigit()
 ]
 
-# Load Dynamic System Prompt from ~/.alfa/system_prompt.txt if present
+# Load Dynamic System Prompt from file, .env, or smart default
 ALFA_PROMPT_PATH = os.path.expanduser("~/.alfa/system_prompt.txt")
+ENV_SYSTEM_INSTRUCTION = os.getenv("SYSTEM_INSTRUCTION", "").strip()
+
 if os.path.exists(ALFA_PROMPT_PATH):
     with open(ALFA_PROMPT_PATH, "r", encoding="utf-8") as f:
-        SYSTEM_PROMPT = f.read().strip()
+        BASE_SYSTEM_PROMPT = f.read().strip()
+elif ENV_SYSTEM_INSTRUCTION:
+    BASE_SYSTEM_PROMPT = ENV_SYSTEM_INSTRUCTION
 else:
-    SYSTEM_PROMPT = """You are ALFA-CORE, an advanced autonomous Linux systems operator powered by Gemini API, serving both Terminal CLI and Telegram interfaces."""
+    BASE_SYSTEM_PROMPT = (
+        "You are ALFA-CORE, an elite autonomous AI systems operator and personal assistant powered by Gemini API. "
+        "You have direct access to Linux tools including bash execution, python sandbox with data plotting, "
+        "desktop screenshot, webcam capture, web search & scraping, file workspace intelligence, long-term memory, "
+        "and scheduled reminders. Always provide accurate, concise, and helpful responses in Indonesian or English as requested. "
+        "Format code and lists cleanly."
+    )
 
 
 # Initialize Gemini Client
@@ -77,7 +99,7 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
     try:
         from google import genai
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        logger.info("Google GenAI client initialized.")
+        logger.info("Google GenAI client initialized successfully.")
     except Exception as e:
         logger.error(f"Failed to initialize GenAI client: {e}")
 
@@ -89,34 +111,91 @@ def is_authorized(user_id: int) -> bool:
     return user_id in ALLOWED_USER_IDS
 
 
-def split_message(text: str, max_length: int = 4000) -> List[str]:
-    """Split long response into safe Telegram message chunks."""
+def split_message(text: str, max_length: int = 3900) -> List[str]:
+    """Split long response into safe Telegram message chunks without breaking code fences."""
     if len(text) <= max_length:
         return [text]
     chunks = []
     lines = text.split("\n")
     current_chunk = ""
+    in_code_block = False
+    code_block_lang = ""
+
     for line in lines:
-        if len(current_chunk) + len(line) + 1 > max_length:
+        if line.strip().startswith("```"):
+            if not in_code_block:
+                in_code_block = True
+                code_block_lang = line.strip()[3:]
+            else:
+                in_code_block = False
+
+        if len(current_chunk) + len(line) + 2 > max_length:
             if current_chunk:
+                if in_code_block:
+                    current_chunk += "\n```"
                 chunks.append(current_chunk)
                 current_chunk = ""
+                if in_code_block:
+                    current_chunk = f"```{code_block_lang}\n"
+
             while len(line) > max_length:
                 chunks.append(line[:max_length])
                 line = line[max_length:]
-            current_chunk = line
+            current_chunk += line if not current_chunk else "\n" + line
         else:
             if current_chunk:
                 current_chunk += "\n" + line
             else:
                 current_chunk = line
+
     if current_chunk:
         chunks.append(current_chunk)
     return chunks
 
 
-async def send_typing_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE, stop_event: asyncio.Event, action=constants.ChatAction.TYPING):
-    """Keep sending chat action while processing."""
+async def safe_send_message(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    text: str,
+    reply_to_message_id: Optional[int] = None,
+    reply_markup: Optional[InlineKeyboardMarkup] = None
+):
+    """
+    Safely send message to Telegram with automatic chunking and fallback to plain text
+    if Markdown parsing fails.
+    """
+    chunks = split_message(text)
+    for i, chunk in enumerate(chunks):
+        markup = reply_markup if i == len(chunks) - 1 else None
+        reply_id = reply_to_message_id if i == 0 else None
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=chunk,
+                parse_mode=constants.ParseMode.MARKDOWN,
+                reply_to_message_id=reply_id,
+                reply_markup=markup
+            )
+        except Exception:
+            try:
+                # Fallback to plain text without parse mode
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=chunk,
+                    reply_to_message_id=reply_id,
+                    reply_markup=markup
+                )
+            except Exception as e:
+                logger.error(f"Failed to send message chunk: {e}")
+
+
+async def send_typing_loop(
+    chat_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+    stop_event: asyncio.Event,
+    action=constants.ChatAction.TYPING
+):
+    """Keep sending chat action indicator while processing."""
     while not stop_event.is_set():
         try:
             await context.bot.send_chat_action(chat_id=chat_id, action=action)
@@ -129,10 +208,12 @@ async def send_typing_loop(chat_id: int, context: ContextTypes.DEFAULT_TYPE, sto
 async def run_agent_turn(
     user_id: int,
     user_prompt: str,
-    multimodal_parts: Optional[list] = None
+    multimodal_parts: Optional[list] = None,
+    chat_id: Optional[int] = None
 ) -> str:
     """
-    Executes an autonomous agent turn with memory context, tool calling, and multimodal inputs.
+    Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
+    Propagates contextvars for per-user tool isolation.
     """
     global gemini_client
     if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
@@ -145,8 +226,12 @@ async def run_agent_turn(
         except Exception as e:
             return f"❌ Gagal menginisialisasi Google GenAI: {e}"
 
+    # Set context variables for tools
+    current_user_id_var.set(user_id)
+    current_chat_id_var.set(chat_id or user_id)
+
     # 1. Fetch recent chat history from SQLite
-    history_rows = await database.get_recent_chat_history(user_id, limit=10)
+    history_rows = await database.get_recent_chat_history(user_id, limit=12)
     
     # 2. Build contents payload
     from google.genai import types
@@ -174,16 +259,20 @@ async def run_agent_turn(
     display_user_text = user_prompt or "[Lampiran Media]"
     await database.save_chat_message(user_id, "user", display_user_text)
 
-    # 5. Call Gemini with Agent Tools and robust fast model fallback
-    candidate_models = [GEMINI_MODEL, "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"]
-    # De-duplicate while preserving order
+    # 5. Fetch user settings for prompt override / preferred model
+    user_settings = await database.get_user_settings(user_id)
+    system_instruction = user_settings.get("system_prompt_override") or BASE_SYSTEM_PROMPT
+    preferred_model = user_settings.get("model_name") or GEMINI_MODEL
+
+    # 6. Call Gemini with Agent Tools and fast fallback chain
+    candidate_models = [preferred_model, "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
     for model_name in models_to_try:
         try:
             config = types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=system_instruction,
                 temperature=0.7,
                 tools=AVAILABLE_TOOLS,
             )
@@ -201,7 +290,7 @@ async def run_agent_turn(
             return reply_text
 
         except Exception as e:
-            logger.warning(f"Model {model_name} failed: {e}. Trying fallback if available...")
+            logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
             last_error = e
 
     logger.error(f"All candidate models failed: {last_error}", exc_info=True)
@@ -212,6 +301,7 @@ async def run_agent_turn(
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     user = update.effective_user
+    chat_id = update.effective_chat.id
     if not is_authorized(user.id):
         await update.message.reply_text(
             f"⛔ *Akses Ditolak*\n\nID Anda: `{user.id}` belum terdaftar di whitelist bot.",
@@ -225,10 +315,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🧠 Memori", callback_data="btn_memory"),
         ],
         [
+            InlineKeyboardButton("📈 Python Sandbox", callback_data="btn_python_info"),
             InlineKeyboardButton("🎙️ Toggle Voice", callback_data="btn_toggle_voice"),
-            InlineKeyboardButton("🧹 Reset Sesi", callback_data="btn_clear"),
         ],
         [
+            InlineKeyboardButton("🧹 Reset Sesi", callback_data="btn_clear"),
             InlineKeyboardButton("📖 Bantuan & Tools", callback_data="btn_help"),
         ]
     ]
@@ -236,25 +327,29 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_text = (
         f"🤖 **Personal Autonomous AI Agent**\n"
-        f"Halo, **{user.first_name}**! Saya asisten AI pribadi berbasis **Gemini 2.5** yang terhubung langsung dengan sistem Linux Anda.\n\n"
-        f"⚡ **Fitur Super-Canggih Aktif:**\n"
-        f"• 🎙️ **Voice Notes:** Kirim pesan suara, saya akan mendengar & menjawab.\n"
-        f"• 👁️ **Vision / Gambar:** Kirim foto/screenshot untuk dianalisis.\n"
-        f"• 📄 **Dokumen & PDF:** Kirim berkas untuk dirangkum/diolah.\n"
-        f"• 🛠️ **Autonomous Tools:** Monitoring sistem, eksekusi bash, web search, memori permanen, pengingat otomatis.\n\n"
-        f"Kirimkan pesan apa saja langsung ke chat ini!"
+        f"Halo, **{user.first_name}**! Saya asisten AI otonom pribadi berbasis **Google Gemini API** yang terhubung langsung dengan mesin Linux Anda.\n\n"
+        f"⚡ **Kemampuan & Tools Aktif (100% Real):**\n"
+        f"• 🐍 **Python Sandbox & Data Plotter:** Eksekusi script & pembuatan grafik visual otomatis.\n"
+        f"• 🖥️ **Desktop & Webcam Vision:** Screenshot layar desktop & snapshot webcam real-time.\n"
+        f"• 🎙️ **Voice Notes (STT & TTS):** Kirim suara, AI membalas dengan suara natural Edge-TTS.\n"
+        f"• 🌐 **Deep Web Intelligence:** DuckDuckGo search & ekstraksi konten artikel web.\n"
+        f"• 🔍 **Workspace Intelligence:** Grep, find files, read/write file lokal.\n"
+        f"• 🧠 **Persistent Long-Term Memory:** Memori permanen terisolasi per akun.\n"
+        f"• ⏰ **Proactive Reminders:** Pengingat otomatis terjadwal.\n\n"
+        f"Kirimkan pesan, pertanyaan, perintah bash, atau voice note langsung ke chat ini!"
     )
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, welcome_text, reply_markup=reply_markup)
 
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /menu command."""
     user = update.effective_user
+    chat_id = update.effective_chat.id
     if not is_authorized(user.id):
         return
 
     settings = await database.get_user_settings(user.id)
-    voice_status = "Aktif (ON) 🔊" if settings.get("voice_reply") else "Nonaktif (OFF) 🔇"
+    voice_status = "ON 🔊" if settings.get("voice_reply") else "OFF 🔇"
 
     keyboard = [
         [
@@ -263,83 +358,95 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton(f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"),
-            InlineKeyboardButton("🧹 Reset Konteks", callback_data="btn_clear"),
+            InlineKeyboardButton("📈 Python & Plot", callback_data="btn_python_info"),
         ],
         [
+            InlineKeyboardButton("🧹 Reset Konteks", callback_data="btn_clear"),
             InlineKeyboardButton("❓ Daftar Perintah", callback_data="btn_help"),
         ]
     ]
-    await update.message.reply_text("🎛️ **Menu Kontrol Agent:**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, "🎛️ **Menu Kontrol Autonomous Agent:**", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats command."""
-    if not is_authorized(update.effective_user.id):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
         return
 
     stats = get_system_stats()
     text = (
-        f"📊 **Status Server / Laptop:**\n\n"
+        f"📊 **Status Server / Laptop Real-Time:**\n\n"
         f"• **CPU:** `{stats.get('cpu')}`\n"
         f"• **RAM:** `{stats.get('ram')}`\n"
+        f"• **Swap:** `{stats.get('swap')}`\n"
         f"• **Disk:** `{stats.get('disk')}`\n"
+        f"• **Power/Baterai:** `{stats.get('battery')}`\n"
+        f"• **IP Addr:** `{stats.get('ip_addresses')}`\n"
         f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-        f"🔥 **Top Proses:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_processes', [])])
+        f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])]) + "\n\n"
+        f"⚡ **Top CPU:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_cpu_processes', [])])
     )
-    await update.message.reply_text(text, parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, text)
 
 
 async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /memory command."""
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
 
     memories = await database.get_all_memories(user_id)
     if not memories:
-        await update.message.reply_text(
-            "🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_\"Ingat bahwa port backend saya adalah 8000\"_",
-            parse_mode=constants.ParseMode.MARKDOWN
+        await safe_send_message(
+            context,
+            chat_id,
+            "🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_\"Ingat bahwa port database staging adalah 5433\"_"
         )
         return
 
-    text = "🧠 **Memori Jangka Panjang Tersimpan:**\n\n"
+    text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
     for m in memories:
         text += f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
 
-    chunks = split_message(text)
-    for c in chunks:
-        await update.message.reply_text(c, parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, text)
 
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /clear command."""
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
 
     await database.clear_user_chat_history(user_id)
-    await update.message.reply_text("🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!", parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, "🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!")
 
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /id command."""
     user = update.effective_user
-    await update.message.reply_text(
-        f"👤 **Nama:** {user.full_name}\n🆔 **Telegram ID:** `{user.id}`\n💬 **Chat ID:** `{update.effective_chat.id}`",
-        parse_mode=constants.ParseMode.MARKDOWN
+    chat_id = update.effective_chat.id
+    text = (
+        f"👤 **Nama:** {user.full_name}\n"
+        f"🆔 **Telegram ID:** `{user.id}`\n"
+        f"💬 **Chat ID:** `{chat_id}`"
     )
+    await safe_send_message(context, chat_id, text)
 
 
 async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /voice toggle command."""
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
 
     is_on = await database.toggle_voice_setting(user_id)
     status_str = "AKTIF 🔊 (Bot akan membalas dengan Voice Note & Teks)" if is_on else "NONAKTIF 🔇 (Bot membalas teks saja)"
-    await update.message.reply_text(f"🎙️ **Mode Suara:** {status_str}", parse_mode=constants.ParseMode.MARKDOWN)
+    await safe_send_message(context, chat_id, f"🎙️ **Mode Suara:** {status_str}")
 
 
 # --- Callback Query Handler for Inline Buttons ---
@@ -349,6 +456,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
 
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         await query.edit_message_text("⛔ Akses ditolak.")
         return
@@ -357,61 +465,178 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     if data == "btn_stats":
         stats = get_system_stats()
         text = (
-            f"📊 **Status Server / Laptop:**\n\n"
+            f"📊 **Status Server / Laptop Real-Time:**\n\n"
             f"• **CPU:** `{stats.get('cpu')}`\n"
             f"• **RAM:** `{stats.get('ram')}`\n"
+            f"• **Swap:** `{stats.get('swap')}`\n"
             f"• **Disk:** `{stats.get('disk')}`\n"
+            f"• **Power:** `{stats.get('battery')}`\n"
+            f"• **IP:** `{stats.get('ip_addresses')}`\n"
             f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-            f"🔥 **Top Proses:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_processes', [])])
+            f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])])
         )
-        await query.message.reply_text(text, parse_mode=constants.ParseMode.MARKDOWN)
+        await safe_send_message(context, chat_id, text)
 
     elif data == "btn_memory":
         memories = await database.get_all_memories(user_id)
         if not memories:
-            await query.message.reply_text("🧠 Memori masih kosong.", parse_mode=constants.ParseMode.MARKDOWN)
+            await safe_send_message(context, chat_id, "🧠 Memori jangka panjang masih kosong.")
         else:
-            text = "🧠 **Memori Tersimpan:**\n\n"
+            text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
             for m in memories:
-                text += f"• *[{m['category'].upper()}]* `{m['key_topic']}`: {m['content']}\n"
-            await query.message.reply_text(text, parse_mode=constants.ParseMode.MARKDOWN)
+                text += f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
+            await safe_send_message(context, chat_id, text)
 
     elif data == "btn_toggle_voice":
         is_on = await database.toggle_voice_setting(user_id)
         status_str = "AKTIF 🔊" if is_on else "NONAKTIF 🔇"
-        await query.message.reply_text(f"🎙️ Mode Balasan Suara sekarang: **{status_str}**", parse_mode=constants.ParseMode.MARKDOWN)
+        await safe_send_message(context, chat_id, f"🎙️ Mode Balasan Suara sekarang: **{status_str}**")
+
+    elif data == "btn_python_info":
+        info_text = (
+            "📈 **Python Sandbox & Data Plotter:**\n\n"
+            "Anda dapat meminta bot untuk:\n"
+            "• Menghitung data kompleks, rumus matematika, atau simulasi.\n"
+            "• Membuat grafik statistik / visualisasi (misal: *'Buatkan grafik perbandingan penjualan 2024-2026'*).\n"
+            "• Menjalankan snippet kode Python secara langsung.\n"
+            "Grafik yang dihasilkan akan otomatis dikirimkan sebagai gambar langsung ke chat Telegram!"
+        )
+        await safe_send_message(context, chat_id, info_text)
 
     elif data == "btn_clear":
         await database.clear_user_chat_history(user_id)
-        await query.message.reply_text("🧹 Konteks percakapan telah direset.", parse_mode=constants.ParseMode.MARKDOWN)
+        await safe_send_message(context, chat_id, "🧹 Konteks percakapan telah direset.")
 
     elif data == "btn_help":
         help_text = (
-            "📖 **Daftar Perintah & Fitur:**\n\n"
+            "📖 **Daftar Perintah & Panduan Interaksi:**\n\n"
             "• `/menu` - Tampilkan tombol kontrol utama\n"
-            "• `/stats` - Cek performa CPU, RAM, & Disk Linux\n"
+            "• `/stats` - Cek performa CPU, RAM, Disk, & Baterai\n"
             "• `/memory` - Cek data memori jangka panjang\n"
             "• `/voice` - Hidupkan/matikan respon suara\n"
             "• `/clear` - Hapus riwayat chat (mulai sesi baru)\n"
-            "• `/id` - Cek ID Telegram Anda\n\n"
-            "💬 **Tips Interaksi:**\n"
-            "- Kirim pesan suara (Voice Note) untuk bicara langsung dengan AI.\n"
-            "- Kirim foto kode/diagram untuk dianalisis.\n"
-            "- Minta AI menjalankan perintah Linux (misal: *'cek file di folder Unduhan'*).\n"
-            "- Minta AI browsing (misal: *'cari berita AI terkini hari ini'*)."
+            "• `/id` - Cek ID Telegram & Chat ID\n\n"
+            "💬 **Contoh Perintah AI:**\n"
+            "- *'Ambil screenshot desktop sekarang'* -> Mengirim foto layar aktif.\n"
+            "- *'Ambil foto webcam'* -> Mengambil snapshot kamera hardware.\n"
+            "- *'Buatkan grafik plot fungsi sinus dan cosinus'* -> Menghasilkan gambar grafik.\n"
+            "- *'Cari informasi berita AI terkini hari ini'* -> Browsing real-time.\n"
+            "- *'Ingat bahwa email dev saya adalah admin@example.com'* -> Simpan memori.\n"
+            "- *'Ingatkan saya jam 18:00 untuk evaluasi project'* -> Set pengingat otomatis."
         )
-        await query.message.reply_text(help_text, parse_mode=constants.ParseMode.MARKDOWN)
+        await safe_send_message(context, chat_id, help_text)
+
+
+# --- Media & Document Artifact Auto-Dispatcher ---
+async def check_and_send_media_artifacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Checks if any screenshot, webcam frame, Python chart, or document (PDF, Excel, PPTX, ZIP)
+    was created and dispatches it directly to the Telegram user.
+    """
+    chat_id = update.effective_chat.id
+    if not os.path.exists(SANDBOX_DIR):
+        return
+
+    # 1. Standard named media
+    named_media = [
+        ("desktop_screen.png", "🖥️ Tangkapan Layar Desktop"),
+        ("webcam_frame.jpg", "📷 Foto Kamera Webcam"),
+        ("generated_plot.png", "📊 Grafik Visualisasi Data (Python)"),
+        ("browser_screenshot.png", "🌐 Tangkapan Layar Browser (Camofox)"),
+    ]
+
+    for filename, caption in named_media:
+        full_path = os.path.join(SANDBOX_DIR, filename)
+        if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
+            try:
+                with open(full_path, "rb") as photo_file:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo_file,
+                        caption=caption
+                    )
+            except Exception as send_err:
+                logger.error(f"Failed to send media artifact {filename}: {send_err}")
+            finally:
+                try:
+                    os.remove(full_path)
+                except OSError:
+                    pass
+
+    # 2. Check all other documents and images in sandbox
+    for fname in os.listdir(SANDBOX_DIR):
+        fpath = os.path.join(SANDBOX_DIR, fname)
+        if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
+            continue
+        ext = os.path.splitext(fname)[1].lower()
+        if ext in ['.pdf', '.xlsx', '.pptx', '.zip', '.csv', '.json', '.txt', '.html']:
+            try:
+                with open(fpath, "rb") as df:
+                    await context.bot.send_document(
+                        chat_id=chat_id,
+                        document=df,
+                        caption=f"📄 Berkas Dokumen: {fname}"
+                    )
+            except Exception as doc_err:
+                logger.error(f"Failed to send document {fname}: {doc_err}")
+            finally:
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
+        elif ext in ['.png', '.jpg', '.jpeg']:
+            try:
+                with open(fpath, "rb") as pf:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=pf,
+                        caption=f"📸 Berkas Gambar: {fname}"
+                    )
+            except Exception as img_err:
+                logger.error(f"Failed to send image {fname}: {img_err}")
+            finally:
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
+
+
+def should_reply_with_text_instead_of_voice(text: str) -> bool:
+    """
+    Decide whether an AI response is best delivered as Text rather than a Voice Note.
+    Returns True (send Text) if the reply contains code blocks, tables, commands, or heavy technical data.
+    Returns False (send Voice Note) for conversational speech, summaries, and explanations.
+    """
+    # 1. Code blocks or raw command snippets
+    if "```" in text:
+        return True
+    
+    # 2. Markdown tables
+    if "\n|" in text and ("|---" in text or "|:---" in text or "---|" in text):
+        return True
+        
+    # 3. Multiple URLs/links
+    import re
+    urls = re.findall(r"https?://\S+", text)
+    if len(urls) >= 2:
+        return True
+        
+    # 4. Long structured technical lists (>900 chars with multiple bullet points)
+    if len(text) > 900 and (text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3):
+        return True
+        
+    return False
 
 
 # --- Multimodal & Message Handlers ---
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text messages."""
+    """Handle incoming text messages."""
     if not update.message or not update.message.text:
         return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ Akses ditolak.")
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist.")
         return
 
     user_text = update.message.text.strip()
@@ -421,58 +646,47 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
 
     try:
-        reply = await run_agent_turn(user_id=user_id, user_prompt=user_text)
+        reply = await run_agent_turn(user_id=user_id, user_prompt=user_text, chat_id=chat_id)
     finally:
         stop_typing.set()
         await typing_task
 
     # Send text response
-    chunks = split_message(reply)
-    for chunk in chunks:
-        try:
-            await update.message.reply_text(chunk, parse_mode=constants.ParseMode.MARKDOWN)
-        except Exception:
-            await update.message.reply_text(chunk)
+    await safe_send_message(context, chat_id, reply)
 
-    # Auto-send any generated media artifacts (screenshot / webcam frame)
+    # Auto-send any generated media/doc artifacts
     await check_and_send_media_artifacts(update, context)
 
-    # If voice mode enabled, generate and send voice note
+    # If voice mode enabled and content is conversational, send voice note
     settings = await database.get_user_settings(user_id)
-    if settings.get("voice_reply"):
+    if settings.get("voice_reply") and not should_reply_with_text_instead_of_voice(reply):
+        voice_path = None
         try:
             await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as voice_file:
                 await update.message.reply_voice(voice=voice_file)
-            if os.path.exists(voice_path):
-                os.remove(voice_path)
         except Exception as tts_err:
             logger.error(f"TTS sending error: {tts_err}")
-
-
-async def check_and_send_media_artifacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Checks if any screenshot or webcam frame was generated and sends it directly as a photo."""
-    sandbox_dir = "/dev/shm/alfa_sandbox"
-    media_files = ["desktop_screen.png", "webcam_frame.jpg"]
-    for m_file in media_files:
-        full_path = os.path.join(sandbox_dir, m_file)
-        if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
-            try:
-                caption = "🖥️ Tangkapan Layar Desktop" if "screen" in m_file else "📷 Foto Kamera Webcam"
-                with open(full_path, "rb") as f:
-                    await update.message.reply_photo(photo=f, caption=caption)
-                os.remove(full_path)
-            except Exception as send_err:
-                logger.error(f"Failed to send media artifact {full_path}: {send_err}")
+        finally:
+            if voice_path and os.path.exists(voice_path):
+                try:
+                    os.remove(voice_path)
+                except OSError:
+                    pass
 
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming Voice Notes / Audio."""
+    """
+    Handle incoming Voice Notes & Audio.
+    Smart Adaptive Reply: Sends ONLY ONE response (either Voice Note OR Text) based on content.
+    """
+    if not update.message:
+        return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ Akses ditolak.")
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
 
     voice = update.message.voice or update.message.audio
@@ -483,47 +697,60 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE))
 
     try:
-        # Download voice file
+        # Download voice audio
         file_obj = await context.bot.get_file(voice.file_id)
         voice_bytes_io = io.BytesIO()
         await file_obj.download_to_memory(voice_bytes_io)
         voice_bytes = voice_bytes_io.getvalue()
 
         from google.genai import types
-        # Create audio part for Gemini 2.5
-        audio_part = types.Part.from_bytes(data=voice_bytes, mime_type="audio/ogg")
+        mime = getattr(voice, "mime_type", None) or "audio/ogg"
+        audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
-        prompt = "Dengarkan rekaman suara di atas, pahami pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
-        reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part])
+        prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
+        reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
     finally:
         stop_typing.set()
         await typing_task
 
-    # Send text reply
-    chunks = split_message(reply)
-    for chunk in chunks:
-        try:
-            await update.message.reply_text(chunk, parse_mode=constants.ParseMode.MARKDOWN)
-        except Exception:
-            await update.message.reply_text(chunk)
+    # Auto-send any generated media artifacts
+    await check_and_send_media_artifacts(update, context)
 
-    # Always reply with voice for voice queries!
-    try:
-        voice_path = await tts_engine.text_to_speech_ogg(reply)
-        with open(voice_path, "rb") as vf:
-            await update.message.reply_voice(voice=vf)
-        if os.path.exists(voice_path):
-            os.remove(voice_path)
-    except Exception as e:
-        logger.error(f"TTS voice reply error: {e}")
+    # Adaptive Single Reply Decision
+    prefer_text = should_reply_with_text_instead_of_voice(reply)
+    sent_voice = False
+
+    if not prefer_text:
+        voice_path = None
+        try:
+            await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
+            voice_path = await tts_engine.text_to_speech_ogg(reply)
+            with open(voice_path, "rb") as vf:
+                await update.message.reply_voice(voice=vf)
+            sent_voice = True
+        except Exception as e:
+            logger.error(f"TTS voice reply error: {e}, falling back to text")
+            sent_voice = False
+        finally:
+            if voice_path and os.path.exists(voice_path):
+                try:
+                    os.remove(voice_path)
+                except OSError:
+                    pass
+
+    # If response is better as text (has code/tables/urls) or TTS failed, send ONLY as text
+    if not sent_voice:
+        await safe_send_message(context, chat_id, reply)
 
 
 async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming photos & images."""
+    """Handle incoming photos & images for vision analysis."""
+    if not update.message:
+        return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ Akses ditolak.")
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
 
     photos = update.message.photo
@@ -531,89 +758,110 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     caption = update.message.caption or "Analisis gambar ini secara detail."
+    best_photo = photos[-1]
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO))
 
     try:
-        # Download highest resolution photo
-        highest_photo = photos[-1]
-        file_obj = await context.bot.get_file(highest_photo.file_id)
+        photo_file = await context.bot.get_file(best_photo.file_id)
         photo_bytes_io = io.BytesIO()
-        await file_obj.download_to_memory(photo_bytes_io)
+        await photo_file.download_to_memory(photo_bytes_io)
         photo_bytes = photo_bytes_io.getvalue()
 
         from google.genai import types
         image_part = types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg")
 
-        reply = await run_agent_turn(user_id=user_id, user_prompt=caption, multimodal_parts=[image_part])
+        reply = await run_agent_turn(user_id=user_id, user_prompt=caption, multimodal_parts=[image_part], chat_id=chat_id)
     finally:
         stop_typing.set()
         await typing_task
 
-    chunks = split_message(reply)
-    for chunk in chunks:
-        try:
-            await update.message.reply_text(chunk, parse_mode=constants.ParseMode.MARKDOWN)
-        except Exception:
-            await update.message.reply_text(chunk)
+    await safe_send_message(context, chat_id, reply)
+    await check_and_send_media_artifacts(update, context)
 
 
 async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming documents (PDF, text, code, csv)."""
+    """
+    Handle incoming documents (PDF, TXT, code, Excel, CSV, and long Audio meeting files).
+    """
+    if not update.message:
+        return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ Akses ditolak.")
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
 
     doc = update.message.document
     if not doc:
         return
 
-    caption = update.message.caption or f"Tolong baca dan analisis dokumen '{doc.file_name}' ini."
+    caption = update.message.caption or "Analisis isi dokumen ini secara mendalam."
+    file_name = doc.file_name or "file.bin"
+    mime_type = doc.mime_type or "application/octet-stream"
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT))
 
     try:
-        file_obj = await context.bot.get_file(doc.file_id)
+        doc_file = await context.bot.get_file(doc.file_id)
         doc_bytes_io = io.BytesIO()
-        await file_obj.download_to_memory(doc_bytes_io)
+        await doc_file.download_to_memory(doc_bytes_io)
         doc_bytes = doc_bytes_io.getvalue()
 
         from google.genai import types
-        mime_type = doc.mime_type or "application/octet-stream"
+        
+        # Audio meeting recording file (.mp3, .m4a, .wav, .aac, .ogg)
+        if mime_type.startswith("audio/") or any(file_name.lower().endswith(ext) for ext in ['.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg']):
+            audio_part = types.Part.from_bytes(data=doc_bytes, mime_type=mime_type if mime_type.startswith("audio/") else "audio/mp3")
+            prompt = (
+                f"Ini adalah rekaman audio/rapat '{file_name}'.\n"
+                f"Instruksi Khusus: {caption}\n\n"
+                f"Tugas Anda:\n"
+                f"1. Buatkan Ringkasan Eksekutif (Executive Summary).\n"
+                f"2. Notulen Rapat lengkap dengan poin-poin diskusi utama.\n"
+                f"3. Keputusan Penting yang diambil.\n"
+                f"4. Daftar Tindak Lanjut / Action Items beserta PIC/tanggung jawab jika disebutkan."
+            )
+            reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
 
-        if "pdf" in mime_type:
-            doc_part = types.Part.from_bytes(data=doc_bytes, mime_type="application/pdf")
-            multimodal_parts = [doc_part]
-            prompt = f"Dokumen PDF '{doc.file_name}': {caption}"
+        # PDF Document
+        elif file_name.lower().endswith(".pdf") or mime_type == "application/pdf":
+            try:
+                import pypdf
+                reader = pypdf.PdfReader(io.BytesIO(doc_bytes))
+                extracted_text = ""
+                for page_num, page in enumerate(reader.pages[:20]):
+                    extracted_text += f"\n--- Halaman {page_num + 1} ---\n" + (page.extract_text() or "")
+                
+                prompt = f"Isi Dokumen PDF '{file_name}':\n```\n{extracted_text[:12000]}\n```\n\nInstruksi: {caption}"
+                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
+            except Exception:
+                pdf_part = types.Part.from_bytes(data=doc_bytes, mime_type="application/pdf")
+                prompt = f"Dokumen PDF '{file_name}': {caption}"
+                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[pdf_part], chat_id=chat_id)
+
+        # Text / Code / CSV Document
         else:
-            # Try to decode as text
             try:
                 text_content = doc_bytes.decode("utf-8", errors="replace")
-                multimodal_parts = None
-                prompt = f"Isi dokumen '{doc.file_name}':\n```\n{text_content[:8000]}\n```\n\nInstruksi: {caption}"
+                prompt = f"Isi file '{file_name}':\n```\n{text_content[:10000]}\n```\n\nInstruksi: {caption}"
+                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
             except Exception:
                 doc_part = types.Part.from_bytes(data=doc_bytes, mime_type=mime_type)
-                multimodal_parts = [doc_part]
-                prompt = f"Dokumen '{doc.file_name}': {caption}"
+                prompt = f"Dokumen '{file_name}': {caption}"
+                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[doc_part], chat_id=chat_id)
 
-        reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=multimodal_parts)
     finally:
         stop_typing.set()
         await typing_task
 
-    chunks = split_message(reply)
-    for chunk in chunks:
-        try:
-            await update.message.reply_text(chunk, parse_mode=constants.ParseMode.MARKDOWN)
-        except Exception:
-            await update.message.reply_text(chunk)
+    await safe_send_message(context, chat_id, reply)
+    await check_and_send_media_artifacts(update, context)
 
 
-# --- Background Reminder / Cron Dispatcher ---
+# --- Background Proactive Reminder Dispatcher ---
 async def proactive_reminder_loop(application: Application):
     """Background task to poll and send scheduled reminders."""
     logger.info("Proactive reminder dispatcher started.")
@@ -627,27 +875,111 @@ async def proactive_reminder_loop(application: Application):
                 rem_time = r["reminder_time"]
 
                 alert_text = (
-                    f"⏰ **PENGINGAT OTOMATIS (REMINDER)**\n\n"
+                    f"⏰ **PENGINGAT OTOMATIS (REMINDER #{rem_id})**\n\n"
                     f"📌 **Pesan:** {msg}\n"
                     f"🕒 **Waktu:** `{rem_time}`"
                 )
                 try:
-                    await application.bot.send_message(chat_id=chat_id, text=alert_text, parse_mode=constants.ParseMode.MARKDOWN)
+                    await safe_send_message(application, chat_id, alert_text)
                     await database.mark_reminder_executed(rem_id)
                     logger.info(f"Dispatched reminder #{rem_id} to chat {chat_id}")
                 except Exception as send_err:
                     logger.error(f"Failed to dispatch reminder #{rem_id}: {send_err}")
+                    # Mark as executed so it won't lock the queue
+                    await database.mark_reminder_executed(rem_id)
         except Exception as e:
             logger.error(f"Error in reminder loop: {e}")
 
         await asyncio.sleep(20)
 
 
+# --- Background Proactive Recurring Cron & Watchdog Dispatcher ---
+async def proactive_cron_watchdog_loop(application: Application):
+    """Background task to execute scheduled recurring cron tasks & proactive watchdogs."""
+    logger.info("Proactive cron watchdog loop started.")
+    while True:
+        try:
+            due_jobs = await database.get_due_cron_jobs()
+            for job in due_jobs:
+                job_id = job["id"]
+                user_id = job["user_id"]
+                chat_id = job["chat_id"]
+                title = job["title"]
+                prompt = job["prompt_instruction"]
+                interval = job["interval_minutes"]
+
+                logger.info(f"Executing recurring cron task #{job_id}: '{title}' for user {user_id}")
+                await database.update_cron_job_after_run(job_id, interval)
+
+                cron_prompt = (
+                    f"[TUGAS TERJADWAL OTONOM: {title.upper()}]\n"
+                    f"Instruksi: {prompt}\n\n"
+                    f"Jalankan tugas ini secara otonom menggunakan tools yang relevan dan laporkan hasilnya dengan rapi."
+                )
+                try:
+                    result = await run_agent_turn(user_id=user_id, user_prompt=cron_prompt, chat_id=chat_id)
+                    header = f"⏰ **[WATCHDOG / CRON TASK #{job_id}: {title.upper()}]**\n\n{result}"
+                    await safe_send_message(application, chat_id, header)
+
+                    # Send any generated documents/images
+                    for fname in os.listdir(SANDBOX_DIR):
+                        fpath = os.path.join(SANDBOX_DIR, fname)
+                        if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
+                            ext = os.path.splitext(fname)[1].lower()
+                            if ext in ['.png', '.jpg', '.jpeg']:
+                                with open(fpath, "rb") as pf:
+                                    await application.bot.send_photo(chat_id=chat_id, photo=pf, caption=f"📸 Lampiran Cron: {fname}")
+                            elif ext in ['.pdf', '.xlsx', '.pptx', '.zip', '.csv', '.json', '.txt']:
+                                with open(fpath, "rb") as df:
+                                    await application.bot.send_document(chat_id=chat_id, document=df, caption=f"📄 Dokumen Cron: {fname}")
+                            try:
+                                os.remove(fpath)
+                            except OSError:
+                                pass
+                except Exception as run_err:
+                    logger.error(f"Error executing cron job #{job_id}: {run_err}")
+        except Exception as e:
+            logger.error(f"Error in cron watchdog loop: {e}")
+
+        await asyncio.sleep(25)
+
+
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
-    # Start background reminder dispatcher
+    
+    # Connect Subagent swarm to Telegram app instance
+    import subagents
+    subagents.set_telegram_app(application)
+    
+    # Start background dispatchers
     asyncio.create_task(proactive_reminder_loop(application))
+    asyncio.create_task(proactive_cron_watchdog_loop(application))
+
+
+# --- Additional Command Handlers ---
+async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """List scheduled recurring tasks."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
+        return
+
+    jobs = database.list_cron_jobs_sync(user_id)
+    if not jobs:
+        await safe_send_message(context, chat_id, "⏰ Belum ada tugas berulang (cron/watchdog) yang aktif.\n\nContoh membuat: *'Jadwalkan pantau server tiap 30 menit'*.")
+        return
+
+    text = f"⏰ **Daftar Tugas Berulang & Watchdog ({len(jobs)} tugas):**\n\n"
+    for j in jobs:
+        status_icon = "🟢 Aktif" if j['is_active'] else "🔴 Nonaktif"
+        text += f"• **#{j['id']} {j['title']}** ({status_icon})\n"
+        text += f"  - Interval: Setiap {j['interval_minutes']} menit\n"
+        text += f"  - Instruksi: `{j['prompt_instruction']}`\n"
+        text += f"  - Jadwal Berikutnya: `{j['next_run']}`\n\n"
+
+    await safe_send_message(context, chat_id, text)
 
 
 def main():
@@ -659,7 +991,7 @@ def main():
     if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
         print("⚠️ PERINGATAN: GEMINI_API_KEY belum diisi di .env.")
 
-    print("🚀 Menginisialisasi Autonomous AI Agent Bot...")
+    print("🚀 Menginisialisasi Ultra-Advanced Telegram AI Agent Bot...")
     application = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
@@ -672,6 +1004,8 @@ def main():
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("memory", memory_command))
+    application.add_handler(CommandHandler("cron", cron_command))
+    application.add_handler(CommandHandler("tasks", cron_command))
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("reset", clear_command))
     application.add_handler(CommandHandler("id", id_command))

@@ -8,24 +8,33 @@ import re
 import tempfile
 import edge_tts
 import logging
+from typing import Optional
 
 logger = logging.getLogger("TTSEngine")
 
-# Available voices:
-# id-ID-GadisNeural (Female Indonesian)
-# id-ID-ArdiNeural (Male Indonesian)
-# en-US-AriaNeural (Female English)
+# Available high-quality neural voices
+VOICE_MAP = {
+    "id_female": "id-ID-GadisNeural",
+    "id_male": "id-ID-ArdiNeural",
+    "en_female": "en-US-AriaNeural",
+    "en_male": "en-US-GuyNeural",
+}
 DEFAULT_VOICE = "id-ID-GadisNeural"
 
 
 def clean_markdown_for_tts(text: str) -> str:
-    """Strip markdown symbols and code blocks for smooth speech reading."""
-    # Remove code blocks
-    text = re.sub(r"```[\s\S]*?```", " [cuplikan kode] ", text)
+    """Strip markdown symbols, links, emojis, and code blocks for smooth speech reading."""
+    # Replace code blocks with spoken summary
+    text = re.sub(r"```[\s\S]*?```", " [cuplikan kode terlampir pada teks] ", text)
     text = re.sub(r"`[^`]*`", " ", text)
-    # Remove bold, italics, links, headers
+    # Strip links and keep text
     text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
-    text = re.sub(r"[\*\_~#>`-]", " ", text)
+    # Strip markdown formatting
+    text = re.sub(r"[\*\_~#>`|]", " ", text)
+    # Strip URL addresses
+    text = re.sub(r"https?://\S+", " ", text)
+    # Strip bullet points
+    text = re.sub(r"^\s*[-•*]\s+", "", text, flags=re.MULTILINE)
     # Normalize spaces
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -33,16 +42,17 @@ def clean_markdown_for_tts(text: str) -> str:
 
 async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     """
-    Convert text to an audio file (.ogg / .mp3) suitable for Telegram voice notes.
+    Convert text to an audio file (.mp3) suitable for Telegram voice notes.
     Returns the path to the temporary audio file.
+    Caller MUST remove the returned temp_path in a finally block.
     """
     clean_text = clean_markdown_for_tts(text)
-    if not clean_text:
-        clean_text = "Baik, pesan telah diterima."
+    if not clean_text or len(clean_text) < 2:
+        clean_text = "Baik, permintaan Anda telah selesai diproses."
 
-    # Limit TTS length to first 800 characters to prevent huge files
-    if len(clean_text) > 800:
-        clean_text = clean_text[:800] + " ...dan rincian selengkapnya telah saya sertakan dalam teks."
+    # Limit TTS length to first 850 characters to prevent overly long voice notes
+    if len(clean_text) > 850:
+        clean_text = clean_text[:850] + " ...dan rincian selengkapnya telah saya sertakan dalam teks."
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     temp_path = temp_file.name
@@ -55,5 +65,9 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     except Exception as e:
         logger.error(f"TTS generation error: {e}")
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
         raise e
+
