@@ -1280,6 +1280,43 @@ def control_linux_hardware(action: str, value: str = "") -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+def send_file_to_chat(file_path: str, caption: str = "") -> Dict[str, Any]:
+    """
+    Send an existing file (document, PDF, photo, video, audio, ZIP, code script, data file)
+    from the computer filesystem directly to the Telegram user chat.
+    Use this tool when the user asks to send, upload, or transfer a specific file from disk to Telegram.
+    
+    Args:
+        file_path: Absolute or relative path to the local file (e.g. '~/Documents/invoice.pdf', '~/Downloads/video.mp4', '~/Downloads/archive.zip', 'bot.py').
+        caption: Optional description or caption to accompany the file in chat.
+    """
+    try:
+        import shutil
+        expanded = os.path.expanduser(file_path)
+        if not os.path.isabs(expanded):
+            expanded = os.path.join(os.path.expanduser("~"), file_path)
+            
+        if not os.path.exists(expanded) or not os.path.isfile(expanded):
+            return {"status": "error", "message": f"File tidak ditemukan di path: {file_path}"}
+            
+        file_size_mb = os.path.getsize(expanded) / (1024 * 1024)
+        if file_size_mb > 50:
+            return {"status": "error", "message": f"Ukuran file ({round(file_size_mb, 1)} MB) melebihi batas upload Telegram Bot API (50 MB)."}
+            
+        base_name = os.path.basename(expanded)
+        dest_path = os.path.join(SANDBOX_DIR, base_name)
+        shutil.copyfile(expanded, dest_path)
+        
+        return {
+            "status": "success",
+            "message": f"File '{base_name}' ({round(file_size_mb, 2)} MB) berhasil disiapkan dan akan otomatis terkirim ke Telegram.",
+            "file_name": base_name,
+            "caption": caption
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal memproses file: {str(e)}"}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
     get_system_stats,
@@ -1304,6 +1341,7 @@ AVAILABLE_TOOLS = [
     generate_excel_spreadsheet,
     generate_presentation_pptx,
     control_linux_hardware,
+    send_file_to_chat,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,

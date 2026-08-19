@@ -563,28 +563,13 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
                 except OSError:
                     pass
 
-    # 2. Check all other documents and images in sandbox
+    # 2. Check all other files in sandbox (images, docs, code, archives, audio, video)
     for fname in os.listdir(SANDBOX_DIR):
         fpath = os.path.join(SANDBOX_DIR, fname)
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
         ext = os.path.splitext(fname)[1].lower()
-        if ext in ['.pdf', '.xlsx', '.pptx', '.zip', '.csv', '.json', '.txt', '.html']:
-            try:
-                with open(fpath, "rb") as df:
-                    await context.bot.send_document(
-                        chat_id=chat_id,
-                        document=df,
-                        caption=f"📄 Berkas Dokumen: {fname}"
-                    )
-            except Exception as doc_err:
-                logger.error(f"Failed to send document {fname}: {doc_err}")
-            finally:
-                try:
-                    os.remove(fpath)
-                except OSError:
-                    pass
-        elif ext in ['.png', '.jpg', '.jpeg']:
+        if ext in ['.png', '.jpg', '.jpeg', '.webp']:
             try:
                 with open(fpath, "rb") as pf:
                     await context.bot.send_photo(
@@ -594,6 +579,21 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
                     )
             except Exception as img_err:
                 logger.error(f"Failed to send image {fname}: {img_err}")
+            finally:
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
+        else:
+            try:
+                with open(fpath, "rb") as df:
+                    await context.bot.send_document(
+                        chat_id=chat_id,
+                        document=df,
+                        caption=f"📄 Berkas: {fname}"
+                    )
+            except Exception as doc_err:
+                logger.error(f"Failed to send document {fname}: {doc_err}")
             finally:
                 try:
                     os.remove(fpath)
