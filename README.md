@@ -1,9 +1,19 @@
-# Telegram AI Agent Bot (Tier-Max Sovereign Autonomous Assistant)
+# Telegram AI Agent Bot (GOD MODE: Sovereign Autonomous Assistant)
 
-Integrasi Bot Telegram Otonom tingkat lanjut berbasis Python dengan model AI Google Gemini, dilengkapi dengan eksekusi tools riil, OS-level computer use, browser stealth automation, subagent swarm delegator, proactive cron watchdogs, document generator, IoT hardware remote, dan audio meeting transcription.
+Integrasi Bot Telegram Otonom tercanggih berbasis Python dengan model AI Google Gemini, dilengkapi dengan 52+ tools otonom, Vision Loop Computer Use, Self-Evolution Engine, Proactive System Guardian 24/7, OS-level automation, browser stealth automation, subagent swarm delegator, proactive cron watchdogs, document generator, IoT hardware remote, dan audio meeting transcription.
 
-## ✨ Fitur & Kemampuan Utama
-- 🖥️ **OS-Level Computer Use:** Simulasi klik mouse koordinat pixel desktop (`desktop_click_coordinate`), pengetikan keyboard/hotkey (`desktop_type_keys`), dan peluncuran software GUI (`desktop_launch_app`).
+## ⚡ Kemampuan God Mode
+- 🧿 **Vision-Guided Autonomous Computer Use (`vision_click_target`):** Loop otonom berbasis penglihatan — mengambil screenshot desktop, menganalisis elemen UI via Gemini Vision, mengklik target secara akurat, lalu mengambil screenshot verifikasi.
+- 🧬 **Self-Evolution Engine (`self_add_new_tool`):** Bot mampu menulis, memvalidasi sintaksis, menginjeksi, dan mendaftarkan *tool baru ke dalam basis kodenya sendiri* tanpa perlu diedit manual oleh manusia.
+- 🔄 **Self-Restart (`self_restart_service`):** Memulai ulang systemd servicenya secara mandiri dalam hitungan detik setelah menerapkan pembaruan atau tool baru.
+- 🛡️ **24/7 Proactive System Guardian (`proactive_system_guardian_config`):** Daemon latar belakang yang memantau kesehatan CPU, RAM, Disk, dan Baterai secara terus-menerus serta mengeksekusi tindakan protektif mandiri (seperti mematikan proses boros RAM & mengirimkan alert instan).
+
+## ✨ Fitur & Kemampuan Utama Lainnya
+- 🖥️ **OS-Level Computer Use:** Simulasi klik mouse koordinat pixel desktop, pengetikan keyboard/hotkey, dan peluncuran software GUI.
+- 📦 **File & Folder Operations:** ZIP seluruh direktori (`compress_folder_to_zip`), unduh URL (`download_file_from_url`), dan kirim berkas apa saja ke chat (`send_file_to_chat`).
+- 🎬 **Screen Recorder:** Perekaman video layar desktop (.mp4) langsung ke Telegram (`record_desktop_screen`).
+- 📋 **System Clipboard & Notifikasi:** Baca/tulis clipboard Wayland/X11 serta kirim notifikasi pop-up fisik ke layar monitor (`show_desktop_notification`).
+- 🌐 **DevOps & Remote:** Eksekusi SSH ke server remote (`ssh_execute_command`), operasi Git langsung dari chat (`git_operations`), query basis data SQLite (`query_database`), dan pengirim email SMTP (`send_email`).
 - 🦊 **Camofox Browser Automation:** Membuka web, membaca struktur aksesibilitas, mengklik link/tombol, mengetik form, dan menangkap screenshot web otonom.
 - 🤖 **Autonomous Subagent Swarm:** Agen pendelegasi mandiri yang menjalankan tugas riset/coding kompleks di latar belakang dan mengirimkan laporan lengkap begitu selesai.
 - ⏰ **Proactive Cron & Watchdog Scheduler:** Penjadwalan tugas berulang otonom (monitor server, pantau kripto/saham, daily tech briefing) langsung ke chat.

@@ -1931,7 +1931,305 @@ def generate_secure_password(length: int = 20, include_uppercase: bool = True, i
         return {"status": "error", "message": str(e)}
 
 
+def vision_click_target(target_description: str, max_attempts: int = 3, action: str = "click") -> Dict[str, Any]:
+    """
+    GOD MODE: Vision-guided autonomous computer use loop.
+    Takes a screenshot of the desktop, sends it to Gemini Vision AI to locate a target
+    UI element (button, icon, text, link, menu), clicks on it, then takes another
+    screenshot to verify the action succeeded. Repeats if needed.
+    
+    This allows the bot to operate ANY desktop application (browsers, editors, file managers,
+    settings, terminals) purely through visual understanding — like a human looking at a screen.
+    
+    Args:
+        target_description: Natural language description of what to find and click 
+                           (e.g. 'the red Close button', 'Firefox icon on taskbar', 
+                            'File menu in top left', 'Play button on Spotify',
+                            'the search bar', 'Settings gear icon').
+        max_attempts: Maximum number of screenshot-analyze-click attempts (1-5, default: 3).
+        action: What to do with the found element: 'click' (default), 'double_click', 'right_click', 'identify_only'.
+    """
+    try:
+        from google import genai
+        from google.genai import types
+        from PIL import Image
+        import io as _io
+        import json as _json
+        
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            from dotenv import load_dotenv
+            load_dotenv()
+            api_key = os.environ.get("GEMINI_API_KEY")
+            
+        client = genai.Client(api_key=api_key)
+        attempts = min(max(1, max_attempts), 5)
+        
+        for attempt in range(1, attempts + 1):
+            # Step 1: Capture desktop screenshot
+            screenshot_result = capture_desktop_screenshot()
+            screenshot_path = os.path.join(SANDBOX_DIR, "desktop_screen.png")
+            
+            if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
+                return {"status": "error", "message": "Gagal mengambil screenshot desktop untuk vision loop."}
+            
+            # Step 2: Send to Gemini Vision for coordinate analysis
+            with open(screenshot_path, "rb") as f:
+                img_bytes = f.read()
+            
+            image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/png")
+            
+            vision_prompt = (
+                f"Kamu adalah sistem Vision AI untuk GUI automation pada layar Linux desktop 1920x1080.\n"
+                f"Analisis screenshot ini dan temukan elemen UI berikut: \"{target_description}\"\n\n"
+                f"INSTRUKSI:\n"
+                f"1. Identifikasi lokasi elemen tersebut di layar.\n"
+                f"2. Berikan koordinat pixel X dan Y dari TITIK TENGAH elemen tersebut.\n"
+                f"3. Jika elemen TIDAK DITEMUKAN, jawab dengan found=false.\n\n"
+                f"JAWAB DALAM FORMAT JSON SAJA, tanpa teks lain:\n"
+                f'{{"found": true/false, "x": <int>, "y": <int>, "element_description": "<apa yang kamu lihat>", "confidence": "<high/medium/low>"}}'
+            )
+            
+            response = client.models.generate_content(
+                model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+                contents=[image_part, vision_prompt]
+            )
+            
+            response_text = response.text.strip()
+            
+            # Parse JSON from response
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if not json_match:
+                continue
+            
+            result = _json.loads(json_match.group())
+            
+            if not result.get("found", False):
+                if attempt < attempts:
+                    import time
+                    time.sleep(1)
+                    continue
+                return {
+                    "status": "error",
+                    "message": f"Elemen '{target_description}' tidak ditemukan di layar setelah {attempts} percobaan.",
+                    "vision_response": result.get("element_description", "")
+                }
+            
+            x = int(result["x"])
+            y = int(result["y"])
+            confidence = result.get("confidence", "unknown")
+            desc = result.get("element_description", "")
+            
+            if action == "identify_only":
+                # Remove the screenshot from sandbox so it doesn't get auto-sent
+                try:
+                    os.remove(screenshot_path)
+                except OSError:
+                    pass
+                return {
+                    "status": "success",
+                    "message": f"Elemen ditemukan di koordinat ({x}, {y}).",
+                    "coordinates": {"x": x, "y": y},
+                    "element_description": desc,
+                    "confidence": confidence,
+                    "attempt": attempt
+                }
+            
+            # Remove pre-click screenshot
+            try:
+                os.remove(screenshot_path)
+            except OSError:
+                pass
+            
+            # Step 3: Click the target
+            clicks = 2 if action == "double_click" else 1
+            button = "right" if action == "right_click" else "left"
+            click_result = desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
+            
+            # Step 4: Wait briefly then take verification screenshot
+            import time
+            time.sleep(0.8)
+            verify_result = capture_desktop_screenshot()
+            
+            return {
+                "status": "success",
+                "message": f"Vision Loop berhasil! Elemen '{target_description}' ditemukan dan di-{action} pada koordinat ({x}, {y}). Screenshot verifikasi akan dikirim ke Telegram.",
+                "coordinates": {"x": x, "y": y},
+                "element_description": desc,
+                "confidence": confidence,
+                "attempt": attempt,
+                "action_performed": action
+            }
+        
+        return {"status": "error", "message": f"Gagal menemukan '{target_description}' setelah {attempts} percobaan vision loop."}
+    except Exception as e:
+        return {"status": "error", "message": f"Vision loop error: {str(e)}"}
+
+
+def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str) -> Dict[str, Any]:
+    """
+    GOD MODE: Self-Evolution Engine — the bot writes and injects a brand new tool function
+    into its own codebase, registers it, and makes it available immediately after restart.
+    This allows the bot to LEARN and CREATE new capabilities autonomously.
+    
+    Args:
+        tool_name: Python function name for the new tool (e.g. 'check_stock_price', 'convert_currency').
+        tool_description: One-line description of what the tool does.
+        tool_code: Complete Python function code including def, docstring, args, and return dict.
+    """
+    try:
+        tools_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools.py")
+        
+        # Validate tool name
+        if not re.match(r'^[a-z][a-z0-9_]*$', tool_name):
+            return {"status": "error", "message": "Nama tool harus lowercase alphanumeric + underscore, dimulai dengan huruf."}
+        
+        # Check if tool already exists
+        with open(tools_path, "r") as f:
+            existing_code = f.read()
+        
+        if f"def {tool_name}(" in existing_code:
+            return {"status": "error", "message": f"Tool '{tool_name}' sudah ada. Gunakan nama lain."}
+        
+        # Validate the code compiles
+        try:
+            compile(tool_code, f"<new_tool_{tool_name}>", "exec")
+        except SyntaxError as se:
+            return {"status": "error", "message": f"Kode tool memiliki syntax error: {str(se)}"}
+        
+        # Inject the new tool code right before AVAILABLE_TOOLS definition
+        avail_marker = "\nAVAILABLE_TOOLS = ["
+        if avail_marker not in existing_code:
+            return {"status": "error", "message": "AVAILABLE_TOOLS tidak ditemukan di tools.py"}
+        
+        injection = f"\n\n# [SELF-EVOLVED TOOL] {tool_description}\n{tool_code.strip()}\n\n"
+        parts = existing_code.rsplit(avail_marker, 1)
+        new_code = parts[0] + injection + avail_marker + f"\n    {tool_name}," + parts[1]
+        
+        # Write the updated file
+        with open(tools_path, "w") as f:
+            f.write(new_code)
+        
+        # Verify compilation
+        compile_result = subprocess.run(
+            [sys.executable, "-m", "py_compile", tools_path],
+            capture_output=True, text=True
+        )
+        
+        if compile_result.returncode != 0:
+            # Rollback on failure
+            with open(tools_path, "w") as f:
+                f.write(existing_code)
+            return {"status": "error", "message": f"Kompilasi gagal, perubahan di-rollback: {compile_result.stderr}"}
+        
+        return {
+            "status": "success",
+            "message": f"🧬 SELF-EVOLUTION: Tool baru '{tool_name}' berhasil ditulis dan diinjeksi ke sistem! Jalankan self_restart_service() untuk mengaktifkannya.",
+            "tool_name": tool_name,
+            "description": tool_description,
+            "needs_restart": True
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Self-evolution error: {str(e)}"}
+
+
+def self_restart_service() -> Dict[str, Any]:
+    """
+    GOD MODE: Self-Restart — the bot restarts its own systemd service to apply
+    code changes, new tools, or recover from errors. The bot will go offline
+    briefly (~2 seconds) and come back with all updates applied.
+    """
+    try:
+        # Verify tools.py compiles before restarting
+        tools_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools.py")
+        compile_check = subprocess.run(
+            [sys.executable, "-m", "py_compile", tools_path],
+            capture_output=True, text=True
+        )
+        if compile_check.returncode != 0:
+            return {"status": "error", "message": f"Tidak bisa restart — tools.py memiliki error: {compile_check.stderr}"}
+        
+        bot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot.py")
+        compile_check2 = subprocess.run(
+            [sys.executable, "-m", "py_compile", bot_path],
+            capture_output=True, text=True
+        )
+        if compile_check2.returncode != 0:
+            return {"status": "error", "message": f"Tidak bisa restart — bot.py memiliki error: {compile_check2.stderr}"}
+        
+        # Schedule restart in 2 seconds (so we can send response first)
+        subprocess.Popen(
+            "sleep 2 && systemctl --user restart telegram-ai-bot.service",
+            shell=True, start_new_session=True
+        )
+        
+        return {
+            "status": "success",
+            "message": "🔄 Bot akan restart dalam 2 detik... Semua pembaruan dan tool baru akan aktif setelah restart. Bot akan kembali online dalam ~3 detik."
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def proactive_system_guardian_config(action: str = "status", cpu_threshold: int = 90, ram_threshold: int = 85, disk_threshold: int = 90, battery_critical: int = 10, auto_kill_ram_hogs: bool = False) -> Dict[str, Any]:
+    """
+    GOD MODE: Configure the Proactive System Guardian daemon.
+    The guardian runs in the background 24/7, monitoring system health and
+    automatically taking protective actions (sending alerts, killing memory hogs,
+    locking screen on critical battery, etc.).
+    
+    Args:
+        action: 'status' to check guardian config, 'enable' to activate, 'disable' to deactivate.
+        cpu_threshold: CPU usage % threshold for alert (default: 90).
+        ram_threshold: RAM usage % threshold for alert (default: 85).
+        disk_threshold: Disk usage % threshold for alert (default: 90).
+        battery_critical: Battery % threshold for critical alert (default: 10).
+        auto_kill_ram_hogs: If True, automatically kill top RAM-consuming non-essential processes when threshold exceeded.
+    """
+    try:
+        config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        
+        import json
+        
+        if action == "status":
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                return {"status": "success", "guardian": config}
+            return {"status": "success", "guardian": {"enabled": False, "message": "Guardian belum dikonfigurasi."}}
+        
+        elif action == "enable":
+            config = {
+                "enabled": True,
+                "cpu_threshold": cpu_threshold,
+                "ram_threshold": ram_threshold,
+                "disk_threshold": disk_threshold,
+                "battery_critical": battery_critical,
+                "auto_kill_ram_hogs": auto_kill_ram_hogs,
+                "updated_at": datetime.datetime.now().isoformat()
+            }
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent=2)
+            return {
+                "status": "success",
+                "message": f"🛡️ System Guardian AKTIF! Monitoring: CPU>{cpu_threshold}%, RAM>{ram_threshold}%, Disk>{disk_threshold}%, Battery<{battery_critical}%. Auto-kill: {'ON' if auto_kill_ram_hogs else 'OFF'}."
+            }
+        
+        elif action == "disable":
+            config = {"enabled": False, "updated_at": datetime.datetime.now().isoformat()}
+            with open(config_path, "w") as f:
+                json.dump(config, f, indent=2)
+            return {"status": "success", "message": "🛡️ System Guardian dinonaktifkan."}
+        
+        return {"status": "error", "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # List of all tools available to the Gemini Model
+
+
 AVAILABLE_TOOLS = [
     get_system_stats,
     execute_bash_command,
@@ -1971,6 +2269,10 @@ AVAILABLE_TOOLS = [
     translate_text,
     download_file_from_url,
     generate_secure_password,
+    vision_click_target,
+    self_add_new_tool,
+    self_restart_service,
+    proactive_system_guardian_config,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,

@@ -23,6 +23,7 @@ import io
 import asyncio
 import logging
 import glob
+import psutil
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
@@ -944,6 +945,86 @@ async def proactive_cron_watchdog_loop(application: Application):
         await asyncio.sleep(25)
 
 
+# --- GOD MODE: Proactive System Guardian Daemon ---
+async def proactive_system_guardian_loop(application: Application):
+    """Background daemon that monitors system health 24/7 and takes autonomous protective actions."""
+    logger.info("🛡️ God Mode: System Guardian daemon started.")
+    import json as _json
+    config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
+    
+    while True:
+        try:
+            if not os.path.exists(config_path):
+                await asyncio.sleep(30)
+                continue
+            
+            with open(config_path, "r") as f:
+                config = _json.load(f)
+            
+            if not config.get("enabled", False):
+                await asyncio.sleep(30)
+                continue
+            
+            alerts = []
+            
+            # Check CPU
+            cpu_pct = psutil.cpu_percent(interval=1)
+            cpu_thresh = config.get("cpu_threshold", 90)
+            if cpu_pct > cpu_thresh:
+                alerts.append(f"🔴 **CPU** sangat tinggi: {cpu_pct}% (threshold: {cpu_thresh}%)")
+            
+            # Check RAM
+            ram = psutil.virtual_memory()
+            ram_thresh = config.get("ram_threshold", 85)
+            if ram.percent > ram_thresh:
+                alert_msg = f"🔴 **RAM** kritis: {ram.percent}% ({round(ram.used / (1024**3), 1)}/{round(ram.total / (1024**3), 1)} GB)"
+                alerts.append(alert_msg)
+                
+                # Auto-kill RAM hogs if enabled
+                if config.get("auto_kill_ram_hogs", False):
+                    protected = {"python3", "systemd", "gnome-shell", "Xwayland", "pipewire", "dbus-daemon", "telegram-ai"}
+                    killed = []
+                    procs = sorted(psutil.process_iter(['pid', 'name', 'memory_info']), 
+                                   key=lambda p: (p.info.get('memory_info') or type('', (), {'rss': 0})).rss, reverse=True)
+                    for p in procs[:5]:
+                        try:
+                            pname = p.info.get('name', '')
+                            if not any(prot in pname.lower() for prot in protected):
+                                mem_mb = round(p.info['memory_info'].rss / (1024*1024), 1)
+                                if mem_mb > 500:  # Only kill if using >500MB
+                                    p.terminate()
+                                    killed.append(f"{pname} ({mem_mb}MB)")
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            continue
+                    if killed:
+                        alerts.append(f"⚡ **Auto-Kill:** {', '.join(killed)}")
+            
+            # Check Disk
+            disk = psutil.disk_usage("/")
+            disk_thresh = config.get("disk_threshold", 90)
+            if disk.percent > disk_thresh:
+                alerts.append(f"🔴 **Disk** hampir penuh: {disk.percent}% ({round(disk.free / (1024**3), 1)} GB tersisa)")
+            
+            # Check Battery
+            battery = psutil.sensors_battery()
+            batt_thresh = config.get("battery_critical", 10)
+            if battery and not battery.power_plugged and battery.percent <= batt_thresh:
+                alerts.append(f"🔴 **Baterai KRITIS:** {battery.percent}% — Tidak sedang mengisi!")
+            
+            # Send alerts to all authorized users
+            if alerts:
+                alert_text = f"🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
+                for uid_str in AUTHORIZED_USERS:
+                    try:
+                        await safe_send_message(application, int(uid_str), alert_text)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"Guardian daemon error: {e}")
+        
+        await asyncio.sleep(30)
+
+
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
@@ -955,6 +1036,7 @@ async def post_init(application: Application):
     # Start background dispatchers
     asyncio.create_task(proactive_reminder_loop(application))
     asyncio.create_task(proactive_cron_watchdog_loop(application))
+    asyncio.create_task(proactive_system_guardian_loop(application))
 
 
 # --- Additional Command Handlers ---
