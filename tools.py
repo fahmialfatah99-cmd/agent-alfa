@@ -1317,6 +1317,620 @@ def send_file_to_chat(file_path: str, caption: str = "") -> Dict[str, Any]:
         return {"status": "error", "message": f"Gagal memproses file: {str(e)}"}
 
 
+def compress_folder_to_zip(folder_path: str, output_filename: str = "archive.zip") -> Dict[str, Any]:
+    """
+    Compress an entire folder/directory into a ZIP archive and send it to Telegram.
+    Use this when the user wants to send a whole folder, backup a project, or archive files.
+    
+    Args:
+        folder_path: Path to the folder to compress (e.g. '~/Documents/project', '/home/fahmial/telegram-ai-bot').
+        output_filename: Output ZIP filename (default: archive.zip).
+    """
+    try:
+        import shutil
+        expanded = os.path.expanduser(folder_path)
+        if not os.path.isdir(expanded):
+            return {"status": "error", "message": f"Folder tidak ditemukan: {folder_path}"}
+        
+        safe_name = output_filename.replace(".zip", "")
+        zip_base = os.path.join(SANDBOX_DIR, safe_name)
+        result_path = shutil.make_archive(zip_base, 'zip', expanded)
+        
+        size_mb = os.path.getsize(result_path) / (1024 * 1024)
+        if size_mb > 50:
+            os.remove(result_path)
+            return {"status": "error", "message": f"Ukuran ZIP ({round(size_mb, 1)} MB) melebihi batas Telegram (50 MB)."}
+        
+        return {
+            "status": "success",
+            "message": f"Folder '{os.path.basename(expanded)}' berhasil di-compress menjadi '{safe_name}.zip' ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram.",
+            "file_path": result_path
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
+    """
+    Record the Linux desktop screen as an MP4 video for a specified duration and send to Telegram.
+    
+    Args:
+        duration_seconds: Recording duration in seconds (1-60, default: 10).
+    """
+    try:
+        duration = max(1, min(60, duration_seconds))
+        output_path = os.path.join(SANDBOX_DIR, "screen_recording.mp4")
+        
+        # Try Wayland wf-recorder first
+        res = subprocess.run(
+            f"timeout {duration + 2} wf-recorder -d /dev/dri/renderD128 -f {output_path} --duration {duration} 2>/dev/null",
+            shell=True, capture_output=True, text=True, timeout=duration + 10
+        )
+        if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            size_mb = os.path.getsize(output_path) / (1024 * 1024)
+            return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
+        
+        # Fallback to ffmpeg with PipeWire
+        res = subprocess.run(
+            f"timeout {duration + 5} ffmpeg -y -video_size 1920x1080 -framerate 15 -f x11grab -i :0 -t {duration} -c:v libx264 -preset ultrafast -crf 28 {output_path} 2>/dev/null",
+            shell=True, capture_output=True, text=True, timeout=duration + 15
+        )
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            size_mb = os.path.getsize(output_path) / (1024 * 1024)
+            return {"status": "success", "message": f"Rekaman layar {duration}s berhasil via ffmpeg ({round(size_mb, 2)} MB)."}
+        
+        return {"status": "error", "message": "Gagal merekam layar. Pastikan wf-recorder atau ffmpeg terinstall."}
+    except subprocess.TimeoutExpired:
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            return {"status": "success", "message": "Rekaman layar berhasil (timeout graceful)."}
+        return {"status": "error", "message": "Timeout saat merekam layar."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def read_clipboard() -> Dict[str, Any]:
+    """
+    Read the current content of the Linux desktop clipboard (copy-paste buffer).
+    """
+    try:
+        # Try Wayland wl-paste
+        res = subprocess.run("wl-paste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null",
+                             shell=True, capture_output=True, text=True, timeout=3)
+        content = res.stdout.strip()
+        if content:
+            return {"status": "success", "clipboard_content": content[:5000]}
+        return {"status": "success", "clipboard_content": "(Clipboard kosong)"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def write_to_clipboard(text: str) -> Dict[str, Any]:
+    """
+    Write/copy text to the Linux desktop clipboard so it can be pasted (Ctrl+V) anywhere.
+    
+    Args:
+        text: The text string to copy to clipboard.
+    """
+    try:
+        proc = subprocess.Popen("wl-copy 2>/dev/null || xclip -selection clipboard 2>/dev/null",
+                                shell=True, stdin=subprocess.PIPE, text=True)
+        proc.communicate(input=text, timeout=3)
+        return {"status": "success", "message": f"Teks berhasil disalin ke clipboard ({len(text)} karakter). Siap di-paste (Ctrl+V)."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def show_desktop_notification(title: str, message: str, urgency: str = "normal") -> Dict[str, Any]:
+    """
+    Show a popup notification on the Linux desktop screen (visible on the physical monitor).
+    
+    Args:
+        title: Notification title.
+        message: Notification body text.
+        urgency: 'low', 'normal', or 'critical'.
+    """
+    try:
+        subprocess.run(
+            ["notify-send", f"--urgency={urgency}", "--app-name=TelegramAI", title, message],
+            capture_output=True, text=True, timeout=3
+        )
+        return {"status": "success", "message": f"Notifikasi desktop '{title}' berhasil ditampilkan di layar."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def ssh_execute_command(host: str, command: str, username: str = "", port: int = 22, key_path: str = "") -> Dict[str, Any]:
+    """
+    Execute a command on a remote Linux server via SSH and return the output.
+    Use this for remote server management, deployment, monitoring, etc.
+    
+    Args:
+        host: Remote server hostname or IP address.
+        command: Shell command to execute on the remote server.
+        username: SSH username (defaults to current user if empty).
+        port: SSH port (default: 22).
+        key_path: Path to SSH private key file (defaults to ~/.ssh/id_rsa if empty).
+    """
+    try:
+        import paramiko
+        
+        ssh_user = username or os.environ.get("USER", "root")
+        ssh_key = os.path.expanduser(key_path) if key_path else os.path.expanduser("~/.ssh/id_rsa")
+        
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+        connect_kwargs = {"hostname": host, "port": port, "username": ssh_user, "timeout": 10}
+        if os.path.exists(ssh_key):
+            connect_kwargs["key_filename"] = ssh_key
+        
+        client.connect(**connect_kwargs)
+        stdin, stdout, stderr = client.exec_command(command, timeout=30)
+        
+        out = stdout.read().decode("utf-8", errors="replace").strip()
+        err = stderr.read().decode("utf-8", errors="replace").strip()
+        exit_code = stdout.channel.recv_exit_status()
+        client.close()
+        
+        return {
+            "status": "success",
+            "host": host,
+            "exit_code": exit_code,
+            "stdout": out[:8000],
+            "stderr": err[:2000] if err else ""
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"SSH error: {str(e)}"}
+
+
+def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
+    """
+    Execute a SQL query on a local SQLite database file and return the results as a table.
+    
+    Args:
+        db_path: Path to the SQLite database file (e.g. '~/data/app.db', 'bot_database.db').
+        sql_query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE, etc.).
+    """
+    try:
+        import sqlite3
+        expanded = os.path.expanduser(db_path)
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"Database file tidak ditemukan: {db_path}"}
+        
+        conn = sqlite3.connect(expanded)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(sql_query)
+        
+        query_upper = sql_query.strip().upper()
+        if query_upper.startswith("SELECT") or query_upper.startswith("PRAGMA") or query_upper.startswith("WITH"):
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            data = [dict(row) for row in rows[:100]]
+            conn.close()
+            return {
+                "status": "success",
+                "columns": columns,
+                "row_count": len(data),
+                "total_available": len(rows) if len(rows) <= 100 else f"{len(rows)}+ (showing first 100)",
+                "data": data
+            }
+        else:
+            conn.commit()
+            affected = cursor.rowcount
+            conn.close()
+            return {"status": "success", "message": f"Query berhasil dieksekusi. {affected} baris terpengaruh."}
+    except Exception as e:
+        return {"status": "error", "message": f"SQL error: {str(e)}"}
+
+
+def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> Dict[str, Any]:
+    """
+    Send an email via SMTP (supports Gmail, Outlook, custom SMTP servers).
+    Requires SMTP_EMAIL and SMTP_PASSWORD environment variables in .env file.
+    
+    Args:
+        to: Recipient email address.
+        subject: Email subject line.
+        body: Email body text (supports plain text).
+        attachment_path: Optional file path to attach.
+    """
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.base import MIMEBase
+        from email import encoders
+        
+        smtp_email = os.environ.get("SMTP_EMAIL", "")
+        smtp_password = os.environ.get("SMTP_PASSWORD", "")
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        
+        if not smtp_email or not smtp_password:
+            return {"status": "error", "message": "SMTP_EMAIL dan SMTP_PASSWORD belum dikonfigurasi di file .env. Tambahkan: SMTP_EMAIL=xxx@gmail.com dan SMTP_PASSWORD=your_app_password"}
+        
+        msg = MIMEMultipart()
+        msg["From"] = smtp_email
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+        
+        if attachment_path:
+            expanded = os.path.expanduser(attachment_path)
+            if os.path.exists(expanded):
+                with open(expanded, "rb") as f:
+                    part = MIMEBase("application", "octet-stream")
+                    part.set_payload(f.read())
+                    encoders.encode_base64(part)
+                    part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(expanded)}")
+                    msg.attach(part)
+        
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.starttls()
+        server.login(smtp_email, smtp_password)
+        server.sendmail(smtp_email, to, msg.as_string())
+        server.quit()
+        
+        return {"status": "success", "message": f"Email berhasil dikirim ke {to} dengan subjek '{subject}'."}
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengirim email: {str(e)}"}
+
+
+def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
+    """
+    List currently running processes on the system, sorted by memory usage.
+    
+    Args:
+        filter_name: Optional filter to show only processes matching this name (e.g. 'chrome', 'python', 'code').
+    """
+    try:
+        procs = []
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info', 'status', 'username']):
+            try:
+                info = p.info
+                mem_mb = round(info['memory_info'].rss / (1024 * 1024), 1) if info.get('memory_info') else 0
+                if filter_name and filter_name.lower() not in (info.get('name') or '').lower():
+                    continue
+                procs.append({
+                    "pid": info['pid'],
+                    "name": info['name'],
+                    "cpu_percent": info.get('cpu_percent', 0),
+                    "memory_mb": mem_mb,
+                    "status": info.get('status', ''),
+                    "user": info.get('username', '')
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        
+        procs.sort(key=lambda x: x['memory_mb'], reverse=True)
+        top = procs[:30]
+        total_mem = sum(p['memory_mb'] for p in procs)
+        
+        return {
+            "status": "success",
+            "total_processes": len(procs),
+            "total_memory_mb": round(total_mem, 1),
+            "top_processes": top
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def kill_process(pid_or_name: str) -> Dict[str, Any]:
+    """
+    Terminate/kill a running process by PID number or process name.
+    
+    Args:
+        pid_or_name: Process ID (e.g. '12345') or process name (e.g. 'chrome', 'firefox', 'spotify').
+    """
+    try:
+        killed = []
+        if pid_or_name.isdigit():
+            pid = int(pid_or_name)
+            p = psutil.Process(pid)
+            name = p.name()
+            p.terminate()
+            killed.append(f"PID {pid} ({name})")
+        else:
+            for p in psutil.process_iter(['pid', 'name']):
+                try:
+                    if pid_or_name.lower() in p.info['name'].lower():
+                        p.terminate()
+                        killed.append(f"PID {p.info['pid']} ({p.info['name']})")
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        
+        if killed:
+            return {"status": "success", "message": f"Proses berhasil dihentikan: {', '.join(killed)}"}
+        return {"status": "error", "message": f"Proses '{pid_or_name}' tidak ditemukan."}
+    except psutil.NoSuchProcess:
+        return {"status": "error", "message": f"Proses dengan PID/nama '{pid_or_name}' tidak ditemukan."}
+    except psutil.AccessDenied:
+        return {"status": "error", "message": f"Akses ditolak. Coba jalankan dengan sudo."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
+    """
+    Edit, convert, or transform an image file using Pillow and send the result to Telegram.
+    
+    Args:
+        file_path: Path to the source image file.
+        action: Edit action to perform. Options:
+                - 'resize': Resize image (params: 'WIDTHxHEIGHT', e.g. '800x600')
+                - 'crop': Crop image (params: 'LEFT,TOP,RIGHT,BOTTOM', e.g. '100,100,500,400')
+                - 'rotate': Rotate image (params: degrees, e.g. '90', '180', '270')
+                - 'grayscale': Convert to black & white
+                - 'flip_horizontal': Flip horizontally
+                - 'flip_vertical': Flip vertically
+                - 'convert': Convert format (params: target format, e.g. 'PNG', 'JPEG', 'WEBP')
+                - 'watermark': Add text watermark (params: watermark text)
+                - 'thumbnail': Create thumbnail (params: 'WIDTHxHEIGHT', e.g. '200x200')
+                - 'blur': Apply blur effect
+                - 'sharpen': Sharpen image
+                - 'info': Get image metadata (dimensions, format, size)
+        params: Parameters for the action (depends on action type).
+    """
+    try:
+        from PIL import Image, ImageFilter, ImageDraw, ImageFont
+        
+        expanded = os.path.expanduser(file_path)
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"File gambar tidak ditemukan: {file_path}"}
+        
+        img = Image.open(expanded)
+        base_name = os.path.splitext(os.path.basename(expanded))[0]
+        act = action.strip().lower()
+        
+        if act == "info":
+            return {
+                "status": "success",
+                "format": img.format,
+                "size": f"{img.width}x{img.height}",
+                "mode": img.mode,
+                "file_size_kb": round(os.path.getsize(expanded) / 1024, 1)
+            }
+        elif act == "resize":
+            w, h = [int(x) for x in params.lower().split("x")]
+            img = img.resize((w, h), Image.LANCZOS)
+        elif act == "crop":
+            coords = [int(x.strip()) for x in params.split(",")]
+            img = img.crop(tuple(coords))
+        elif act == "rotate":
+            degrees = int(params)
+            img = img.rotate(degrees, expand=True)
+        elif act == "grayscale":
+            img = img.convert("L")
+        elif act == "flip_horizontal":
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        elif act == "flip_vertical":
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        elif act == "convert":
+            pass  # handled below by save format
+        elif act == "watermark":
+            draw = ImageDraw.Draw(img)
+            text = params or "AI Agent Watermark"
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+            except Exception:
+                font = ImageFont.load_default()
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            x = img.width - tw - 20
+            y = img.height - th - 20
+            draw.text((x, y), text, fill=(255, 255, 255, 180), font=font)
+        elif act == "thumbnail":
+            w, h = [int(x) for x in params.lower().split("x")]
+            img.thumbnail((w, h), Image.LANCZOS)
+        elif act == "blur":
+            img = img.filter(ImageFilter.GaussianBlur(radius=5))
+        elif act == "sharpen":
+            img = img.filter(ImageFilter.SHARPEN)
+        else:
+            return {"status": "error", "message": f"Aksi '{action}' tidak dikenal."}
+        
+        if act == "convert":
+            fmt = params.strip().upper()
+            ext = fmt.lower()
+            if fmt == "JPEG":
+                ext = "jpg"
+                img = img.convert("RGB")
+        else:
+            fmt = img.format or "PNG"
+            ext = fmt.lower()
+            if ext == "jpeg":
+                ext = "jpg"
+        
+        if act != "convert" and img.mode == "RGBA" and fmt == "JPEG":
+            img = img.convert("RGB")
+            
+        out_name = f"{base_name}_edited.{ext}"
+        out_path = os.path.join(SANDBOX_DIR, out_name)
+        img.save(out_path, format=fmt if act == "convert" else None)
+        
+        return {
+            "status": "success",
+            "message": f"Gambar berhasil di-{act} dan disimpan sebagai '{out_name}'. Akan dikirim ke Telegram.",
+            "file_path": out_path
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengedit gambar: {str(e)}"}
+
+
+def git_operations(action: str, repo_path: str = ".", message: str = "", remote: str = "origin", branch: str = "") -> Dict[str, Any]:
+    """
+    Perform Git operations on a local repository directly from Telegram.
+    
+    Args:
+        action: Git action to perform. Options:
+                - 'status': Show git status (modified, staged, untracked files)
+                - 'log': Show recent commit history
+                - 'pull': Pull latest changes from remote
+                - 'add_all': Stage all changes (git add .)
+                - 'commit': Commit staged changes (requires message parameter)
+                - 'push': Push commits to remote
+                - 'diff': Show unstaged changes
+                - 'branch': List branches
+                - 'stash': Stash current changes
+                - 'stash_pop': Pop stashed changes
+        repo_path: Path to git repository (default: current directory).
+        message: Commit message (required for 'commit' action).
+        remote: Remote name (default: 'origin').
+        branch: Branch name (optional).
+    """
+    try:
+        expanded = os.path.expanduser(repo_path)
+        
+        cmd_map = {
+            "status": "git status --porcelain -b",
+            "log": "git log --oneline --graph -n 15",
+            "pull": f"git pull {remote} {branch}".strip(),
+            "add_all": "git add -A",
+            "commit": f'git commit -m "{message}"' if message else 'echo "ERROR: commit message required"',
+            "push": f"git push {remote} {branch}".strip(),
+            "diff": "git diff --stat",
+            "branch": "git branch -a",
+            "stash": "git stash",
+            "stash_pop": "git stash pop",
+        }
+        
+        act = action.strip().lower()
+        cmd = cmd_map.get(act)
+        if not cmd:
+            return {"status": "error", "message": f"Git action '{action}' tidak dikenal. Pilihan: {', '.join(cmd_map.keys())}"}
+        
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30)
+        output = res.stdout.strip() or res.stderr.strip()
+        
+        return {
+            "status": "success" if res.returncode == 0 else "error",
+            "action": act,
+            "output": output[:6000],
+            "exit_code": res.returncode
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def translate_text(text: str, target_lang: str = "en", source_lang: str = "auto") -> Dict[str, Any]:
+    """
+    Translate text between languages using Google Translate.
+    
+    Args:
+        text: Text to translate.
+        target_lang: Target language code (e.g. 'en' English, 'id' Indonesian, 'ja' Japanese, 'ko' Korean, 'zh-CN' Chinese, 'ar' Arabic, 'fr' French, 'de' German, 'es' Spanish).
+        source_lang: Source language code (default: 'auto' for auto-detect).
+    """
+    try:
+        from deep_translator import GoogleTranslator
+        
+        translated = GoogleTranslator(source=source_lang, target=target_lang).translate(text[:4500])
+        return {
+            "status": "success",
+            "original": text[:500],
+            "translated": translated,
+            "source_language": source_lang,
+            "target_language": target_lang
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menerjemahkan: {str(e)}"}
+
+
+def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
+    """
+    Download a file from a URL on the internet to the local computer and optionally send it to Telegram.
+    Supports direct file links (images, PDFs, ZIPs, videos, audio, executables, etc.).
+    
+    Args:
+        url: Direct download URL.
+        filename: Optional filename to save as (auto-detected from URL if empty).
+    """
+    try:
+        import httpx
+        
+        if not filename:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            filename = os.path.basename(parsed.path) or "downloaded_file"
+        
+        dest_path = os.path.join(SANDBOX_DIR, filename)
+        
+        with httpx.Client(follow_redirects=True, timeout=60) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+            with open(dest_path, "wb") as f:
+                f.write(resp.content)
+        
+        size_mb = os.path.getsize(dest_path) / (1024 * 1024)
+        
+        if size_mb > 50:
+            return {
+                "status": "success",
+                "message": f"File '{filename}' ({round(size_mb, 2)} MB) berhasil diunduh ke {dest_path}. Terlalu besar untuk dikirim via Telegram (>50MB), tetapi tersedia di disk lokal.",
+                "file_path": dest_path,
+                "sent_to_telegram": False
+            }
+        
+        return {
+            "status": "success",
+            "message": f"File '{filename}' ({round(size_mb, 2)} MB) berhasil diunduh dan akan dikirim ke Telegram.",
+            "file_path": dest_path,
+            "sent_to_telegram": True
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengunduh: {str(e)}"}
+
+
+def generate_secure_password(length: int = 20, include_uppercase: bool = True, include_digits: bool = True, include_special: bool = True, count: int = 1) -> Dict[str, Any]:
+    """
+    Generate one or more cryptographically secure random passwords.
+    
+    Args:
+        length: Password length (8-128 characters, default: 20).
+        include_uppercase: Include uppercase letters (default: True).
+        include_digits: Include digits (default: True).
+        include_special: Include special characters !@#$%^&* (default: True).
+        count: Number of passwords to generate (1-10, default: 1).
+    """
+    try:
+        import secrets
+        import string
+        
+        length = max(8, min(128, length))
+        count = max(1, min(10, count))
+        
+        chars = string.ascii_lowercase
+        if include_uppercase:
+            chars += string.ascii_uppercase
+        if include_digits:
+            chars += string.digits
+        if include_special:
+            chars += "!@#$%^&*_+-=?."
+        
+        passwords = []
+        for _ in range(count):
+            pw = ''.join(secrets.choice(chars) for _ in range(length))
+            passwords.append(pw)
+        
+        # Calculate entropy
+        import math
+        entropy = round(math.log2(len(chars)) * length, 1)
+        strength = "Sangat Kuat 🟢" if entropy > 80 else "Kuat 🔵" if entropy > 60 else "Cukup 🟡" if entropy > 40 else "Lemah 🔴"
+        
+        return {
+            "status": "success",
+            "passwords": passwords,
+            "length": length,
+            "entropy_bits": entropy,
+            "strength": strength,
+            "charset_size": len(chars)
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
     get_system_stats,
@@ -1342,6 +1956,21 @@ AVAILABLE_TOOLS = [
     generate_presentation_pptx,
     control_linux_hardware,
     send_file_to_chat,
+    compress_folder_to_zip,
+    record_desktop_screen,
+    read_clipboard,
+    write_to_clipboard,
+    show_desktop_notification,
+    ssh_execute_command,
+    query_database,
+    send_email,
+    list_running_processes,
+    kill_process,
+    edit_image,
+    git_operations,
+    translate_text,
+    download_file_from_url,
+    generate_secure_password,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,
