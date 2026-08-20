@@ -557,20 +557,40 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         help_text = (
             "📖 **Daftar Perintah & Panduan Interaksi:**\n\n"
             "• `/menu` - Tampilkan tombol kontrol utama\n"
+            "• `/wa` - Kontrol & pantau WhatsApp Google Sheets Bot\n"
             "• `/stats` - Cek performa CPU, RAM, Disk, & Baterai\n"
             "• `/memory` - Cek data memori jangka panjang\n"
+            "• `/proactive` - Cek/atur inisiatif mandiri ambient bot\n"
             "• `/voice` - Hidupkan/matikan respon suara\n"
             "• `/clear` - Hapus riwayat chat (mulai sesi baru)\n"
             "• `/id` - Cek ID Telegram & Chat ID\n\n"
             "💬 **Contoh Perintah AI:**\n"
             "- *'Ambil screenshot desktop sekarang'* -> Mengirim foto layar aktif.\n"
-            "- *'Ambil foto webcam'* -> Mengambil snapshot kamera hardware.\n"
+            "- *'Cek status bot whatsapp'* -> Melihat kondisi wa-sheets-bot.\n"
+            "- *'Restart wa sheets bot'* -> Merestart service WhatsApp bot.\n"
             "- *'Buatkan grafik plot fungsi sinus dan cosinus'* -> Menghasilkan gambar grafik.\n"
             "- *'Cari informasi berita AI terkini hari ini'* -> Browsing real-time.\n"
             "- *'Ingat bahwa email dev saya adalah admin@example.com'* -> Simpan memori.\n"
             "- *'Ingatkan saya jam 18:00 untuk evaluasi project'* -> Set pengingat otomatis."
         )
         await safe_send_message(context, chat_id, help_text)
+
+    elif data == "btn_wa_status":
+        res = tools.manage_wa_sheets_bot("status")
+        st = "🟢 RUNNING (Aktif)" if res.get("is_running") else "🔴 STOPPED (Mati)"
+        await safe_send_message(context, chat_id, f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```")
+
+    elif data == "btn_wa_restart":
+        res = tools.manage_wa_sheets_bot("restart")
+        await safe_send_message(context, chat_id, f"🔄 {res.get('message', 'Restart diproses.')}")
+
+    elif data == "btn_wa_start":
+        res = tools.manage_wa_sheets_bot("start")
+        await safe_send_message(context, chat_id, f"▶️ {res.get('message', 'Start diproses.')}")
+
+    elif data == "btn_wa_stop":
+        res = tools.manage_wa_sheets_bot("stop")
+        await safe_send_message(context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}")
 
 
 # --- Media & Document Artifact Auto-Dispatcher ---
@@ -1204,6 +1224,41 @@ async def proactive_ambient_agent_loop(application: Application):
         await asyncio.sleep(600)  # Check every 10 minutes
 
 
+# --- WhatsApp Sheets Bot Ecosystem Watchdog ---
+async def proactive_ecosystem_watchdog_loop(application: Application):
+    """
+    Background watchdog that ensures wa-sheets-bot is automatically kept alive
+    whenever an active internet connection is present.
+    """
+    logger.info("📱 WhatsApp Sheets Bot Ecosystem Watchdog started.")
+    import socket
+    
+    def is_internet_connected():
+        try:
+            socket.create_connection(("1.1.1.1", 53), timeout=3)
+            return True
+        except OSError:
+            return False
+            
+    while True:
+        try:
+            online = await asyncio.to_thread(is_internet_connected)
+            if online:
+                res = await asyncio.to_thread(
+                    lambda: subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
+                )
+                state = res.stdout.strip()
+                if state in ["inactive", "failed"]:
+                    logger.info("🌐 Internet connected & wa-sheets-bot is offline. Auto-starting wa-sheets-bot.service...")
+                    await asyncio.to_thread(
+                        lambda: subprocess.run(["systemctl", "--user", "start", "wa-sheets-bot.service"], capture_output=True, text=True)
+                    )
+        except Exception as e:
+            logger.error(f"Ecosystem watchdog error: {e}")
+            
+        await asyncio.sleep(60)
+
+
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
@@ -1218,6 +1273,7 @@ async def post_init(application: Application):
     asyncio.create_task(proactive_system_guardian_loop(application))
     asyncio.create_task(proactive_focus_session_loop(application))
     asyncio.create_task(proactive_ambient_agent_loop(application))
+    asyncio.create_task(proactive_ecosystem_watchdog_loop(application))
 
 
 # --- Additional Command Handlers ---
@@ -1267,6 +1323,39 @@ async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send_message(context, chat_id, text)
 
 
+async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /wa or /washeets command to control WhatsApp Google Sheets Bot."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    res = tools.manage_wa_sheets_bot("status")
+    is_running = res.get("is_running", False)
+    status_icon = "🟢 RUNNING (Aktif)" if is_running else "🔴 STOPPED (Mati)"
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🔄 Restart WA Bot", callback_data="btn_wa_restart"),
+            InlineKeyboardButton("📊 Cek Status", callback_data="btn_wa_status"),
+        ],
+        [
+            InlineKeyboardButton("▶️ Start WA Bot", callback_data="btn_wa_start"),
+            InlineKeyboardButton("⏹️ Stop WA Bot", callback_data="btn_wa_stop"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    text = (
+        f"📱 **Manajer WhatsApp Google Sheets Bot:**\n\n"
+        f"• **Status:** {status_icon}\n"
+        f"• **Auto-Start Saat Boot/Internet:** `{'Aktif 🟢' if res.get('enabled_on_boot') else 'Nonaktif 🔴'}`\n"
+        f"• **Service Name:** `wa-sheets-bot.service`\n\n"
+        f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
+    )
+    await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
+
+
 def main():
     """Main application launcher."""
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token_here":
@@ -1287,6 +1376,8 @@ def main():
     # Command handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
+    application.add_handler(CommandHandler("wa", wa_command))
+    application.add_handler(CommandHandler("washeets", wa_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("cron", cron_command))
@@ -1313,3 +1404,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

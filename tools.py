@@ -3134,6 +3134,59 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
         return {"status": "error", "message": f"Proactive config error: {str(e)}"}
 
 
+def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
+    """
+    ECOSYSTEM INTEGRATION: WhatsApp Google Sheets Bot Controller.
+    Controls and monitors the wa-sheets-bot systemd user service.
+    Can check status, start, stop, restart, enable auto-start, or view live logs.
+    
+    Args:
+        action: 'status' (check running state & memory), 'start', 'stop', 'restart', 'logs' (recent 20 lines), 'enable' (enable autostart on boot).
+    """
+    try:
+        act = action.lower().strip()
+        svc_name = "wa-sheets-bot.service"
+        
+        if act == "status":
+            res_active = subprocess.run(["systemctl", "--user", "is-active", svc_name], capture_output=True, text=True)
+            res_enabled = subprocess.run(["systemctl", "--user", "is-enabled", svc_name], capture_output=True, text=True)
+            res_status = subprocess.run(["systemctl", "--user", "status", svc_name, "--no-pager", "-n", "5"], capture_output=True, text=True)
+            
+            is_act = res_active.stdout.strip() == "active"
+            return {
+                "status": "success",
+                "service": svc_name,
+                "is_running": is_act,
+                "state": res_active.stdout.strip(),
+                "enabled_on_boot": res_enabled.stdout.strip() == "enabled",
+                "details": res_status.stdout.strip()
+            }
+            
+        elif act in ["start", "stop", "restart", "enable", "disable"]:
+            res = subprocess.run(["systemctl", "--user", act, svc_name], capture_output=True, text=True)
+            if res.returncode == 0:
+                time.sleep(1)
+                res_active = subprocess.run(["systemctl", "--user", "is-active", svc_name], capture_output=True, text=True)
+                return {
+                    "status": "success",
+                    "message": f"Service '{svc_name}' berhasil di-{act}! Status saat ini: {res_active.stdout.strip()}.",
+                    "current_state": res_active.stdout.strip()
+                }
+            return {"status": "error", "message": f"Gagal mengeksekusi {act}: {res.stderr}"}
+            
+        elif act == "logs":
+            res_logs = subprocess.run(["journalctl", "--user", "-u", svc_name, "-n", "25", "--no-pager"], capture_output=True, text=True)
+            return {
+                "status": "success",
+                "service": svc_name,
+                "logs": res_logs.stdout.strip()
+            }
+            
+        return {"status": "error", "message": f"Aksi '{action}' tidak dikenal. Gunakan: status, start, stop, restart, logs, enable."}
+    except Exception as e:
+        return {"status": "error", "message": f"Manage wa-sheets-bot error: {str(e)}"}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
     get_system_stats,
@@ -3193,6 +3246,7 @@ AVAILABLE_TOOLS = [
     libreoffice_create_document,
     libreoffice_extract_document_text,
     proactive_ambient_agent_config,
+    manage_wa_sheets_bot,
     self_add_new_tool,
     self_restart_service,
     proactive_system_guardian_config,
