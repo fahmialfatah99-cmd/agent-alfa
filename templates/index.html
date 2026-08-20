@@ -998,7 +998,129 @@
                         <div class="flex items-center gap-3 text-slate-400">
                             <span id="hq-turn-counter">Putaran: 0/0</span>
                             <span>•</span>
-                            <span id="hq-active-model-tag" class="text-cyan-300 font-bold">5 Model Aktif</span>
+                            <span id="hq-active-model-tag" class="text-cyan-300 font-bold">6 Model Aktif</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== REAL-TIME AGENT ACTIVITY & AUTONOMOUS DISPATCHER ==================== -->
+            <div id="agent-activity-panel" class="glass-card rounded-2xl border border-cyan-500/30 overflow-hidden space-y-5 p-6 relative shadow-2xl">
+                <!-- Header Toolbar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 via-cyan-500/20 to-dark-950 border border-emerald-500/40 flex items-center justify-center text-xl shadow-glow-emerald">
+                            🔴
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white font-mono tracking-wide">LIVE AGENT TELEMETRY & REAL-TIME WORK MONITOR</h3>
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span> REAL-TIME FEED
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 font-mono">Pantauan langsung aktivitas nyata tiap agen: eksekusi bash/terminal, operasi file, audit sistem, dan subagent background.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchAgentActivity(true)" class="px-3 py-1.5 rounded-xl bg-dark-950 hover:bg-dark-900 border border-white/10 text-slate-200 text-xs font-mono font-bold flex items-center gap-1.5 transition-all">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i> Refresh Feed
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 6 Agents Real-Time Status Cards -->
+                <div id="live-agent-state-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <!-- Dynamic state pills -->
+                </div>
+
+                <!-- Main Work Area: 2 Columns (Direct Dispatcher & Live Activity Stream) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-2">
+                    
+                    <!-- Left: Direct Autonomous Task Dispatcher (5 Cols) -->
+                    <div class="lg:col-span-5 space-y-4 bg-dark-950/70 p-4 rounded-2xl border border-white/5 flex flex-col justify-between">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                                <h4 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-1.5">
+                                    <span>⚡</span> TUGASKAN AGENT EKSEKUSI LANGSUNG
+                                </h4>
+                                <span class="text-[10px] text-slate-500 font-mono">Autonomous ReAct</span>
+                            </div>
+
+                            <!-- Agent Selector -->
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-mono text-slate-300">Pilih Agent Penanggung Jawab:</label>
+                                <select id="exec-agent-select" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-cyan-500">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+
+                            <!-- Task Instruction Textarea -->
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-mono text-slate-300">Instruksi Tugas / Perintah Sistem:</label>
+                                <textarea id="exec-task-input" rows="3" placeholder="Contoh: Periksa status git repository dan cek 5 proses pemakan RAM terbesar..." class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-sans focus:outline-none focus:border-cyan-500"></textarea>
+                            </div>
+
+                            <!-- Fast Preset Buttons -->
+                            <div class="space-y-1">
+                                <span class="text-[10px] text-slate-500 font-mono">⚡ Preset Perintah Cepat:</span>
+                                <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                                    <button type="button" onclick="setExecPreset('Cek status git dan riwayat commit terakhir di repository', 2)" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-white/5 transition-all">💻 Status Git (Code Crafter)</button>
+                                    <button type="button" onclick="setExecPreset('Audit penggunaan RAM, CPU, dan 5 proses teratas', 3)" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/5 transition-all">🛡️ Audit RAM & CPU (System Auditor)</button>
+                                    <button type="button" onclick="setExecPreset('Cek kapasitas disk dan ukuran folder proyek', 2)" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-white/5 transition-all">📊 Analisis Disk (Code Crafter)</button>
+                                    <button type="button" onclick="setExecPreset('Riset status model AI terbaru di web', 4)" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 transition-all">🔍 Riset Web (Researcher Prime)</button>
+                                    <button type="button" onclick="setExecPreset('Triage status antrian pesan dan first response', 6)" class="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-300 hover:text-blue-300 border border-white/5 transition-all">🌊 Triage Queue (Laguna Co-Pilot)</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Run Execution Button -->
+                        <div class="pt-3">
+                            <button id="btn-run-exec" onclick="runAutonomousTask()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-dark-950 text-xs font-bold font-mono flex items-center justify-center gap-2 shadow-glow-emerald transition-all">
+                                <span>▶️ Eksekusi Tugas Sekarang</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Activity Stream / Telemetry Feed & Execution Result (7 Cols) -->
+                    <div class="lg:col-span-7 space-y-3 flex flex-col justify-between">
+                        
+                        <!-- Real-time Live Result Terminal (shows when task executed) -->
+                        <div id="live-exec-terminal-card" class="hidden p-4 rounded-2xl bg-dark-950 border border-emerald-500/40 space-y-2 shadow-2xl transition-all">
+                            <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <span id="exec-res-avatar" class="text-base">🤖</span>
+                                    <span id="exec-res-agent-name" class="text-xs font-bold text-emerald-400 font-mono">Agent Name</span>
+                                    <span id="exec-res-tool-badge" class="px-2 py-0.2 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">TOOL EXECUTED</span>
+                                </div>
+                                <span id="exec-res-duration" class="text-[10px] font-mono text-slate-400">0 ms</span>
+                            </div>
+                            
+                            <!-- Terminal Output Box -->
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-mono text-slate-500">Output Terminal / Tool:</span>
+                                <pre id="exec-res-output" class="p-2.5 rounded-xl bg-black/80 border border-white/10 text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-36 custom-scrollbar whitespace-pre-wrap"></pre>
+                            </div>
+
+                            <!-- Agent Casual Analysis Report -->
+                            <div class="pt-1 space-y-1">
+                                <span class="text-[10px] font-mono text-slate-400">Laporan Agent:</span>
+                                <div id="exec-res-report" class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none bg-dark-900/60 p-2.5 rounded-xl border border-white/5"></div>
+                            </div>
+                        </div>
+
+                        <!-- Live Telemetry Stream / Activity Log List -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-slate-300 font-mono flex items-center gap-1.5">
+                                    <i data-lucide="activity" class="w-3.5 h-3.5 text-cyan-400"></i> FEED AKTIVITAS NYATA (LIVE EVENT STREAM)
+                                </h4>
+                                <span id="activity-count-badge" class="text-[10px] text-slate-500 font-mono">-- Events</span>
+                            </div>
+
+                            <div id="live-activity-feed-list" class="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                                <!-- Dynamic Activity Items -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1592,7 +1714,7 @@
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') fetchArtifacts();
             if (tabId === 'guardian') fetchGuardian();
-            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); }
+            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchAgentActivity(); }
             if (tabId === 'keys') fetchKeys();
             
             lucide.createIcons();
@@ -3397,6 +3519,194 @@
             }
         }
 
+        // ==================== REAL-TIME AGENT ACTIVITY & AUTONOMOUS DISPATCHER ====================
+        let allActivityData = [];
+
+        async function fetchAgentActivity(isManual = false) {
+            try {
+                const res = await fetch('/api/agent-activity');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allActivityData = data.activities || [];
+                    renderAgentStateCards(data.agent_states || []);
+                    renderActivityFeed(data.activities || []);
+                    populateExecAgentSelect();
+                    
+                    const badge = document.getElementById('activity-count-badge');
+                    if (badge) badge.innerText = `${allActivityData.length} Aksi Terekam`;
+                    
+                    if (isManual) showToast('Live Telemetry Agent diperbarui', 'info');
+                }
+            } catch (err) {
+                console.error('Error fetching agent activity:', err);
+            }
+        }
+
+        function populateExecAgentSelect() {
+            const sel = document.getElementById('exec-agent-select');
+            if (!sel || allAgentsData.length === 0) return;
+            const currentVal = sel.value;
+            sel.innerHTML = allAgentsData.map(a => `
+                <option value="${a.id}" ${currentVal == a.id ? 'selected' : ''}>
+                    ${a.avatar_emoji || '🤖'} ${a.name} — [${a.provider.toUpperCase()} / ${a.role}]
+                </option>
+            `).join('');
+        }
+
+        function renderAgentStateCards(agentStates) {
+            const container = document.getElementById('live-agent-state-cards');
+            if (!container) return;
+            
+            const colorBorders = {
+                cyan: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/5',
+                emerald: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5',
+                violet: 'border-violet-500/30 text-violet-400 bg-violet-500/5',
+                amber: 'border-amber-500/30 text-amber-400 bg-amber-500/5',
+                rose: 'border-rose-500/30 text-rose-400 bg-rose-500/5',
+                blue: 'border-blue-500/30 text-blue-400 bg-blue-500/5'
+            };
+
+            container.innerHTML = agentStates.map(a => {
+                const col = colorBorders[a.color_theme] || colorBorders.cyan;
+                return `
+                    <div onclick="setExecPreset('', ${a.id})" class="p-3 rounded-xl bg-dark-900/90 border ${col} space-y-1.5 cursor-pointer hover:scale-105 transition-all shadow-md group" title="Klik untuk tugaskan ${a.name}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-lg">${a.avatar_emoji || '🤖'}</span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white font-mono truncate group-hover:text-cyan-300">${a.name}</div>
+                            <div class="text-[9px] text-slate-400 truncate">${a.role}</div>
+                        </div>
+                        <div class="pt-1 border-t border-white/5 flex items-center justify-between text-[9px] font-mono text-slate-300">
+                            <span class="px-1.5 py-0.2 rounded bg-white/5 truncate font-semibold text-cyan-300">${a.current_state}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderActivityFeed(activities) {
+            const list = document.getElementById('live-activity-feed-list');
+            if (!list) return;
+            if (activities.length === 0) {
+                list.innerHTML = '<div class="text-slate-500 text-center py-6 font-mono text-xs">Belum ada aktivitas yang terekam.</div>';
+                return;
+            }
+
+            const actionBadges = {
+                bash_exec: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                audit: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                research: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+                planning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                triage: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                tool_call: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+                orchestrating: 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+            };
+
+            list.innerHTML = activities.map(act => {
+                const badgeClass = actionBadges[act.action_type] || 'bg-white/5 text-slate-300 border-white/10';
+                
+                return `
+                    <div class="p-3 rounded-xl bg-dark-900/80 border border-white/5 hover:border-cyan-500/30 transition-all space-y-1.5 group">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">🤖</span>
+                                <span class="text-xs font-bold text-white font-mono">${act.agent_name}</span>
+                                <span class="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold uppercase ${badgeClass}">${act.action_type}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                                <span>${act.duration_ms ? Math.round(act.duration_ms) + 'ms' : ''}</span>
+                                <span>•</span>
+                                <span>${(act.created_at || '').split(' ')[1] || act.created_at}</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-300 font-sans">${act.description}</p>
+                        ${act.tool_input ? `
+                            <div class="p-1.5 rounded-lg bg-black/60 border border-white/5 text-[10px] font-mono text-emerald-300 truncate">
+                                <span class="text-slate-500">$</span> ${act.tool_input}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function setExecPreset(instruction, agentId) {
+            if (instruction) {
+                document.getElementById('exec-task-input').value = instruction;
+            }
+            if (agentId) {
+                document.getElementById('exec-agent-select').value = agentId;
+            }
+            document.getElementById('exec-task-input').focus();
+        }
+
+        async function runAutonomousTask() {
+            const agentId = document.getElementById('exec-agent-select').value;
+            const instruction = document.getElementById('exec-task-input').value.trim();
+            if (!instruction) {
+                showToast('Masukkan instruksi tugas yang ingin dieksekusi.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-run-exec');
+            const termCard = document.getElementById('live-exec-terminal-card');
+            const termOutput = document.getElementById('exec-res-output');
+            const reportBox = document.getElementById('exec-res-report');
+            const agentNameEl = document.getElementById('exec-res-agent-name');
+            const avatarEl = document.getElementById('exec-res-avatar');
+            const durationEl = document.getElementById('exec-res-duration');
+            const toolBadgeEl = document.getElementById('exec-res-tool-badge');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Mengeksekusi Tools & Host...';
+            
+            termCard.classList.remove('hidden');
+            termOutput.innerText = '⚙️ Mengirim instruksi ke Agent ReAct engine...\nMenjalankan analisa sistem & memilih tool...';
+            reportBox.innerHTML = '<span class="text-slate-400 italic">Menunggu laporan akhir dari agent...</span>';
+            
+            playTurnStartSfx();
+
+            // Highlight agent pod in War Room
+            const activePod = document.getElementById(`hq-pod-${agentId}`);
+            if (activePod) activePod.classList.add('speaking-aura', 'scale-105');
+
+            try {
+                const res = await fetch(`/api/agents/${agentId}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instruction })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    agentNameEl.innerText = `${data.agent_name} (${data.role})`;
+                    avatarEl.innerText = allAgentsData.find(a => a.id == agentId)?.avatar_emoji || '🤖';
+                    durationEl.innerText = `${data.duration_ms} ms`;
+                    toolBadgeEl.innerText = data.tool_called ? `TOOL: ${data.tool_called}` : 'DIRECT EXEC';
+                    
+                    termOutput.innerText = data.tool_output || `Tool ${data.tool_called} dieksekusi dengan sukses.\nInput: ${data.tool_input || 'N/A'}`;
+                    reportBox.innerHTML = marked.parse(data.agent_report || 'Tugas selesai.');
+                    
+                    playConsensusSfx();
+                    showToast(`Tugas berhasil dieksekusi oleh ${data.agent_name}!`, 'success');
+                    fetchAgentActivity();
+                } else {
+                    termOutput.innerText = `Error: ${data.message || data.detail || 'Gagal eksekusi'}`;
+                    showToast('Gagal eksekusi tugas', 'error');
+                }
+            } catch (err) {
+                termOutput.innerText = `Connection Error: ${err.message}`;
+                showToast(`Gagal: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>▶️ Eksekusi Tugas Sekarang</span>';
+                if (activePod) activePod.classList.remove('speaking-aura', 'scale-105');
+                lucide.createIcons();
+            }
+        }
+
         let currentActiveModalMeeting = null;
 
         async function viewMeetingDetails(id) {
@@ -3738,9 +4048,11 @@
             fetchAgents();
             fetchKeys();
             fetchMeetings();
+            fetchAgentActivity();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
             setInterval(fetchWaReports, 8000);
+            setInterval(fetchAgentActivity, 4000);
         });
     </script>
 </body>

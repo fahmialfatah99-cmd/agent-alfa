@@ -131,6 +131,19 @@ def init_db_sync():
                 status TEXT DEFAULT 'completed',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS agent_activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id INTEGER,
+                agent_name TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                tool_name TEXT,
+                tool_input TEXT,
+                tool_output TEXT,
+                status TEXT DEFAULT 'success',
+                duration_ms REAL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         
         # Seed default API key from environment if empty
@@ -450,6 +463,51 @@ def get_subagent_task_sync(task_id: str) -> Optional[Dict[str, Any]]:
         cursor = conn.execute("SELECT * FROM subagent_tasks WHERE id = ?", (task_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
+
+
+def list_subagent_tasks_sync(limit: int = 20) -> List[Dict[str, Any]]:
+    """List recent subagent autonomous background tasks."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM subagent_tasks 
+            ORDER BY created_at DESC LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def log_agent_activity_sync(agent_id: Optional[int], agent_name: str, action_type: str, 
+                            description: str, tool_name: Optional[str] = None, 
+                            tool_input: Optional[str] = None, tool_output: Optional[str] = None, 
+                            status: str = "success", duration_ms: float = 0.0) -> int:
+    """Record an agent tool execution or real-time activity log."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO agent_activity_logs (agent_id, agent_name, action_type, description, tool_name, tool_input, tool_output, status, duration_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (agent_id, agent_name, action_type, description, tool_name, tool_input, tool_output, status, duration_ms)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def list_agent_activities_sync(limit: int = 30) -> List[Dict[str, Any]]:
+    """List recent agent activity logs and tool executions."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM agent_activity_logs 
+            ORDER BY id DESC LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
 
 
 # --- Chat History Functions ---
