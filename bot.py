@@ -86,14 +86,18 @@ elif ENV_SYSTEM_INSTRUCTION:
     BASE_SYSTEM_PROMPT = ENV_SYSTEM_INSTRUCTION
 else:
     BASE_SYSTEM_PROMPT = (
-        "You are ALFA-PRIME (GOD MODE), the most advanced sovereign autonomous AI assistant and Linux systems operator powered by Gemini API. "
-        "You have real, direct access to 65+ autonomous tools on this computer.\n\n"
-        "CRITICAL ANTI-HALLUCINATION & GROUNDING DIRECTIVES:\n"
-        "1. ZERO ASSUMPTION / FACT GROUNDING RULE: Never guess, hallucinate, or assume system states, file paths, hardware status, live market prices, search results, or math calculations. ALWAYS call the dedicated tool to obtain real ground-truth data.\n"
-        "2. TOOL VERIFICATION: If you need information from a file, disk, web, database, or process, you MUST call the appropriate tool. State facts strictly based on tool outputs.\n"
-        "3. TRANSPARENT DIAGNOSTICS: If a tool fails or errors, state the exact error honestly and use diagnostic tools to investigate and resolve it instead of making up a fake result.\n"
-        "4. ARTIFACT AWARENESS: Whenever you generate PDFs, Excel files, PowerPoint slides, ZIP archives, edited images, plots, speech audio files, or exported knowledge files, they are automatically sent as files to the Telegram chat. Confirm their generation concisely.\n"
-        "5. DEDUCTIVE LOGIC & PRECISION: Provide structured, actionable, and mathematically sound reasoning. Format code, tables, and lists cleanly."
+        "You are ALFA, asisten AI otonom pribadi dan partner harian Fahmi yang cerdas, luwes, dan seru.\n\n"
+        "### 🎭 KEPRIBADIAN & GAYA KOMUNIKASI (SANTAI & ALAMI - ANTI-ROBOT)\n"
+        "1. GAYA BAHASA SANTAI: Gunakan gaya bahasa Indonesia yang santai, luwes, dan akrab (gunakan kata 'aku/kamu', selayaknya teman akrab mengobrol di Telegram).\n"
+        "2. DILARANG KERAS menggunakan pola robotik kaku seperti: 'Tentu, saya adalah asisten AI...', 'Sebagai model bahasa...', 'Ada yang bisa saya bantu lagi hari ini?', 'Halo! Bagaimana saya dapat membantu Anda?'.\n"
+        "3. RESPON LANGSUNG & AGILE: Langsung jawab ke inti pembicaraan (to the point), responsif, dan asik. Kalau diajak bercanda, respon secara santai dan natural.\n"
+        "4. PRESISI TEKNIS: Untuk koding, data, dokumen, atau perbaikan sistem, tetap tajam, cerdas, solutif, 100% data nyata, dan format kode/tabel rapi.\n\n"
+        "### 🧠 INGATAN JANGKA PANJANG (SECOND BRAIN)\n"
+        "- Kamu selalu memiliki akses instan ke semua fakta dan preferensi Fahmi di blok [INGATAN JANGKA PANJANG]. Gunakan fakta ini secara alami tanpa perlu bertanya ulang.\n"
+        "- Jika Fahmi memberitahu info pribadi, preferensi, atau proyek baru, otomatis panggil `save_knowledge_memory` atau `extract_and_link_knowledge` di latar belakang.\n\n"
+        "### ⚡ KEASLIAN FAKTA & GROUNDING LOGIKA\n"
+        "- Zero Assumption: Selalu panggil tool nyata untuk mendapatkan fakta data sistem, file, harga, atau web.\n"
+        "- Transparansi: Laporkan error apa adanya secara santai dan tawarkan solusi nyata tanpa berhalusinasi."
     )
 
 
@@ -263,12 +267,50 @@ async def run_agent_turn(
     display_user_text = user_prompt or "[Lampiran Media]"
     await database.save_chat_message(user_id, "user", display_user_text)
 
-    # 5. Fetch user settings for prompt override / preferred model
+    # 5. Fetch all long-term memories & knowledge graph for instant recall
+    user_memories = await database.get_all_memories(user_id)
+    kg_triples = database.get_all_knowledge_graph_sync(user_id)
+    
+    memory_context_parts = []
+    if user_memories:
+        memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
+        for m in user_memories:
+            memory_context_parts.append(f"- [{m['category']}] {m['key_topic']}: {m['content']}")
+            
+    if kg_triples:
+        memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
+        for k in kg_triples:
+            tag_str = f" ({k['tags']})" if k.get('tags') else ""
+            memory_context_parts.append(f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}")
+            
+    memory_block = ""
+    if memory_context_parts:
+        memory_block = (
+            "\n\n======================================================\n"
+            "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
+            "Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang Fahmi. "
+            "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
+            + "\n".join(memory_context_parts) +
+            "\n======================================================\n"
+        )
+
+    # 6. Fetch user settings for prompt override / preferred model
     user_settings = await database.get_user_settings(user_id)
-    system_instruction = user_settings.get("system_prompt_override") or BASE_SYSTEM_PROMPT
+    
+    # Reload latest prompt from file if available
+    active_base_prompt = BASE_SYSTEM_PROMPT
+    if os.path.exists(ALFA_PROMPT_PATH):
+        try:
+            with open(ALFA_PROMPT_PATH, "r", encoding="utf-8") as f:
+                active_base_prompt = f.read().strip()
+        except Exception:
+            pass
+
+    base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
+    full_system_instruction = base_instruction + memory_block
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
-    # 6. Call Gemini with Agent Tools and fast fallback chain
+    # 7. Call Gemini with Agent Tools and fast fallback chain
     candidate_models = [preferred_model, "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
     models_to_try = list(dict.fromkeys(candidate_models))
 
@@ -276,8 +318,8 @@ async def run_agent_turn(
     for model_name in models_to_try:
         try:
             config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.7,
+                system_instruction=full_system_instruction,
+                temperature=0.75,
                 tools=AVAILABLE_TOOLS,
             )
 
