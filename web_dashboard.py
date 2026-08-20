@@ -1,11 +1,13 @@
 """
-ALFA SOVEREIGN COMMAND CENTER - Web Dashboard
+ALFA SOVEREIGN COMMAND CENTER - Web Dashboard (PRO-MAX Edition)
 High-performance FastAPI web dashboard with luxury dark glassmorphic UI,
-live telemetry, 71+ tools explorer, service management, and memory visualizer.
+live telemetry timeline, 72+ tools explorer, service orchestrator,
+artifact gallery, and second brain visualizer.
 """
 
 import os
 import sys
+import glob
 import json
 import time
 import inspect
@@ -16,7 +18,7 @@ from typing import Dict, Any, List, Optional
 
 import psutil
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -27,7 +29,7 @@ import tools
 import database
 import bot
 
-app = FastAPI(title="ALFA Sovereign Command Center", version="2.0.0")
+app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -89,7 +91,6 @@ async def get_stats():
         disk = psutil.disk_usage("/")
         battery = psutil.sensors_battery()
         
-        net = psutil.net_io_counters()
         uptime_secs = int(time.time() - psutil.boot_time())
         hours, remainder = divmod(uptime_secs, 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -97,11 +98,13 @@ async def get_stats():
         # Check active background services
         tb_res = subprocess.run(["systemctl", "--user", "is-active", "telegram-ai-bot.service"], capture_output=True, text=True)
         wa_res = subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
+        dash_res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
 
         return {
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "uptime": f"{hours}j {minutes}m {seconds}d",
+            "uptime_seconds": uptime_secs,
             "cpu": {
                 "percent": cpu_pct,
                 "cores": cpu_count,
@@ -131,9 +134,10 @@ async def get_stats():
             },
             "services": {
                 "telegram_bot": tb_res.stdout.strip() == "active",
-                "wa_sheets_bot": wa_res.stdout.strip() == "active"
+                "wa_sheets_bot": wa_res.stdout.strip() == "active",
+                "dashboard": dash_res.stdout.strip() == "active"
             },
-            "top_ram_processes": raw_stats.get("top_ram_processes", [])[:6]
+            "top_ram_processes": raw_stats.get("top_ram_processes", [])[:8]
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -141,7 +145,7 @@ async def get_stats():
 
 @app.get("/api/tools")
 async def get_tools_list():
-    """Get list of all 71 registered tools with descriptions, args, and categories."""
+    """Get list of all registered tools with descriptions, args, and categories."""
     tools_list = []
     for t in tools.AVAILABLE_TOOLS:
         name = t.__name__
@@ -214,10 +218,11 @@ async def execute_tool(payload: Dict[str, Any]):
 
 @app.get("/api/services")
 async def get_services_status():
-    """Get detailed status of all bot services."""
+    """Get detailed status of all ecosystem services."""
     services = [
         {"name": "telegram-ai-bot.service", "title": "ALFA Telegram AI Agent (God Mode)"},
-        {"name": "wa-sheets-bot.service", "title": "WhatsApp Google Sheets Bot"}
+        {"name": "wa-sheets-bot.service", "title": "WhatsApp Google Sheets Bot"},
+        {"name": "alfa-dashboard.service", "title": "ALFA Web Command Center (Port 8080)"}
     ]
     results = []
     for s in services:
@@ -246,7 +251,7 @@ async def service_action(payload: Dict[str, Any]):
     if action not in ["start", "stop", "restart", "enable", "disable"]:
         raise HTTPException(status_code=400, detail="Invalid action")
         
-    allowed_services = ["telegram-ai-bot.service", "wa-sheets-bot.service"]
+    allowed_services = ["telegram-ai-bot.service", "wa-sheets-bot.service", "alfa-dashboard.service"]
     if service_name not in allowed_services:
         raise HTTPException(status_code=403, detail="Unauthorized service management")
         
@@ -264,7 +269,7 @@ async def service_action(payload: Dict[str, Any]):
 
 
 @app.get("/api/services/logs")
-async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 40):
+async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 50):
     """Fetch live service journalctl logs."""
     res = subprocess.run(["journalctl", "--user", "-u", service, "-n", str(lines), "--no-pager"], capture_output=True, text=True)
     return {
@@ -317,6 +322,90 @@ async def add_memory(payload: Dict[str, Any]):
         return {"status": "success", "result": res}
 
 
+@app.post("/api/memory/delete")
+async def delete_memory(payload: Dict[str, Any]):
+    """Delete a memory fact by key."""
+    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    key_topic = payload.get("key_topic")
+    if not key_topic:
+        raise HTTPException(status_code=400, detail="key_topic is required")
+        
+    import aiosqlite
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("DELETE FROM knowledge_memory WHERE user_id = ? AND key_topic = ?", (uid, key_topic))
+        await db.commit()
+        
+    return {"status": "success", "message": f"Fakta '{key_topic}' berhasil dihapus."}
+
+
+@app.get("/api/brain/export")
+async def export_brain():
+    """Export complete Second Brain knowledge as Markdown and JSON."""
+    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    memories = await database.get_all_memories(uid)
+    kg = database.get_all_knowledge_graph_sync(uid)
+    
+    md_lines = ["# 🧠 ALFA SECOND BRAIN KNOWLEDGE EXPORT\n", f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n## 📝 Permanent Facts & Memories\n"]
+    for m in memories:
+        md_lines.append(f"- **[{m['category'].upper()}] {m['key_topic']}**: {m['content']}")
+        
+    md_lines.append("\n## 🕸️ Semantic Knowledge Graph\n")
+    for k in kg:
+        md_lines.append(f"- `{k['entity']}` ──*({k['relation']})*──> `{k['target_value']}` [{k['category']}]")
+        
+    return {
+        "status": "success",
+        "markdown": "\n".join(md_lines),
+        "json": {
+            "user_id": uid,
+            "exported_at": datetime.now().isoformat(),
+            "memories": memories,
+            "knowledge_graph": kg
+        }
+    }
+
+
+@app.get("/api/artifacts")
+async def list_artifacts():
+    """List recent artifacts (images, PDFs, documents, audio) generated by tools."""
+    search_dirs = [
+        "/dev/shm/alfa_sandbox",
+        "/home/fahmial/output",
+        os.path.expanduser("~/.alfa")
+    ]
+    artifacts = []
+    valid_exts = {".png", ".jpg", ".jpeg", ".pdf", ".odt", ".ods", ".odp", ".docx", ".xlsx", ".pptx", ".mp3", ".mp4", ".csv", ".json", ".zip"}
+    
+    for s_dir in search_dirs:
+        if os.path.exists(s_dir):
+            for root, _, files in os.walk(s_dir):
+                for f in files:
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in valid_exts:
+                        full_p = os.path.join(root, f)
+                        st = os.stat(full_p)
+                        artifacts.append({
+                            "name": f,
+                            "path": full_p,
+                            "size_kb": round(st.st_size / 1024, 1),
+                            "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                            "extension": ext[1:].upper(),
+                            "is_image": ext in [".png", ".jpg", ".jpeg"]
+                        })
+                        
+    artifacts = sorted(artifacts, key=lambda x: x["modified"], reverse=True)[:30]
+    return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
+
+
+@app.get("/api/artifacts/download")
+async def download_artifact(path: str):
+    """Safely download an artifact file."""
+    if not os.path.exists(path) or not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, filename=os.path.basename(path))
+
+
 @app.get("/api/guardian/config")
 async def get_guardian_config():
     """Get configuration for System Guardian & Ambient Proactive Agent."""
@@ -350,7 +439,7 @@ async def update_guardian_config(payload: Dict[str, Any]):
             quiet_hours_start=p.get("quiet_hours_start", 23),
             quiet_hours_end=p.get("quiet_hours_end", 7)
         )
-    return {"status": "success", "message": "Konfigurasi Guardian & Proaktif berhasil diperbarui!"}
+    return {"status": "success", "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!"}
 
 
 @app.post("/api/chat")
@@ -372,5 +461,5 @@ async def chat_with_agent(payload: Dict[str, Any]):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("DASHBOARD_PORT", "8080"))
-    print(f"🚀 Launching ALFA Sovereign Command Center on http://0.0.0.0:{port}")
+    print(f"🚀 Launching ALFA Sovereign Command Center Pro-Max on http://0.0.0.0:{port}")
     uvicorn.run("web_dashboard:app", host="0.0.0.0", port=port, reload=False)
