@@ -13,6 +13,99 @@ from typing import List, Dict, Any, Optional
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
 
+def init_db_sync():
+    """Synchronously ensure all SQLite tables and indices exist."""
+    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS chat_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS knowledge_memory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                category TEXT DEFAULT 'general',
+                key_topic TEXT NOT NULL,
+                content TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, key_topic)
+            );
+            CREATE TABLE IF NOT EXISTS reminders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                reminder_time TEXT NOT NULL,
+                message TEXT NOT NULL,
+                is_executed INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS scheduled_cron_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                prompt_instruction TEXT NOT NULL,
+                interval_minutes INTEGER NOT NULL DEFAULT 60,
+                is_active INTEGER DEFAULT 1,
+                last_run DATETIME,
+                next_run DATETIME NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS subagent_tasks (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                task_description TEXT NOT NULL,
+                status TEXT DEFAULT 'running',
+                result TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME
+            );
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id INTEGER PRIMARY KEY,
+                voice_reply INTEGER DEFAULT 0,
+                system_prompt_override TEXT,
+                model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
+            );
+            CREATE TABLE IF NOT EXISTS knowledge_graph (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                entity TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                target_value TEXT NOT NULL,
+                category TEXT DEFAULT 'general',
+                tags TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, entity, relation)
+            );
+            CREATE TABLE IF NOT EXISTS focus_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                end_time DATETIME NOT NULL,
+                status TEXT DEFAULT 'active',
+                notes TEXT,
+                is_notified INTEGER DEFAULT 0
+            );
+        """)
+        conn.commit()
+
+
+# Auto-initialize database tables synchronously on import
+try:
+    init_db_sync()
+except Exception:
+    pass
+
+
 def get_sync_db():
     """Get a standard synchronous SQLite connection with Row factory and WAL mode."""
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -101,6 +194,37 @@ async def init_db():
                 voice_reply INTEGER DEFAULT 0,
                 system_prompt_override TEXT,
                 model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
+            )
+        """)
+
+        # Semantic Knowledge Graph
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_graph (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                entity TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                target_value TEXT NOT NULL,
+                category TEXT DEFAULT 'general',
+                tags TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, entity, relation)
+            )
+        """)
+
+        # Focus & Productivity Sessions (Pomodoro)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS focus_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                end_time DATETIME NOT NULL,
+                status TEXT DEFAULT 'active',
+                notes TEXT,
+                is_notified INTEGER DEFAULT 0
             )
         """)
         await db.commit()
@@ -426,4 +550,140 @@ async def toggle_voice_setting(user_id: int) -> bool:
         )
         await db.commit()
     return bool(new_val)
+
+
+# --- Knowledge Graph (Semantic Relations & Second Brain) ---
+def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target_value: str, category: str = "general", tags: str = "") -> Dict[str, Any]:
+    """Synchronously insert or update a semantic relation in the knowledge graph."""
+    with get_sync_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO knowledge_graph (user_id, entity, relation, target_value, category, tags)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, entity, relation) DO UPDATE SET 
+                target_value = excluded.target_value,
+                category = excluded.category,
+                tags = excluded.tags,
+                created_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, entity, relation, target_value, category, tags)
+        )
+        conn.commit()
+    return {
+        "status": "success",
+        "entity": entity,
+        "relation": relation,
+        "target_value": target_value,
+        "category": category,
+        "tags": tags
+    }
+
+
+def search_knowledge_graph_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
+    """Synchronously search the knowledge graph by entity, relation, target, or tags."""
+    pattern = f"%{query}%"
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT entity, relation, target_value, category, tags, created_at
+            FROM knowledge_graph
+            WHERE user_id = ? AND (entity LIKE ? OR relation LIKE ? OR target_value LIKE ? OR tags LIKE ?)
+            ORDER BY created_at DESC LIMIT 25
+            """,
+            (user_id, pattern, pattern, pattern, pattern)
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_all_knowledge_graph_sync(user_id: int) -> List[Dict[str, Any]]:
+    """Retrieve all semantic relations in user's knowledge graph."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT entity, relation, target_value, category, tags, created_at
+            FROM knowledge_graph
+            WHERE user_id = ?
+            ORDER BY category, entity
+            """,
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def export_full_second_brain_sync(user_id: int) -> Dict[str, Any]:
+    """Export complete user knowledge base: facts + semantic knowledge graph."""
+    with get_sync_db() as conn:
+        # Facts
+        c1 = conn.execute("SELECT category, key_topic, content, updated_at FROM knowledge_memory WHERE user_id = ?", (user_id,))
+        facts = [dict(r) for r in c1.fetchall()]
+        # Relations
+        c2 = conn.execute("SELECT entity, relation, target_value, category, tags, created_at FROM knowledge_graph WHERE user_id = ?", (user_id,))
+        relations = [dict(r) for r in c2.fetchall()]
+        
+        return {
+            "user_id": user_id,
+            "exported_at": datetime.now().isoformat(),
+            "total_facts": len(facts),
+            "total_relations": len(relations),
+            "facts": facts,
+            "knowledge_graph": relations
+        }
+
+
+# --- Focus & Productivity Sessions (Pomodoro) ---
+def start_focus_session_sync(user_id: int, chat_id: int, title: str, duration_minutes: int, notes: str = "") -> Dict[str, Any]:
+    """Synchronously create and start a focus session."""
+    from datetime import datetime, timedelta
+    start_dt = datetime.now()
+    end_dt = start_dt + timedelta(minutes=duration_minutes)
+    end_iso = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+    
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO focus_sessions (user_id, chat_id, title, duration_minutes, end_time, status, notes)
+            VALUES (?, ?, ?, ?, ?, 'active', ?)
+            """,
+            (user_id, chat_id, title, duration_minutes, end_iso, notes)
+        )
+        conn.commit()
+        session_id = cursor.lastrowid
+        
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "title": title,
+        "duration_minutes": duration_minutes,
+        "end_time": end_iso
+    }
+
+
+async def get_due_focus_sessions() -> List[Dict[str, Any]]:
+    """Retrieve active focus sessions that have reached their end_time."""
+    now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, user_id, chat_id, title, duration_minutes, end_time, notes
+            FROM focus_sessions
+            WHERE status = 'active' AND is_notified = 0 AND end_time <= ?
+            """,
+            (now_iso,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def mark_focus_session_completed(session_id: int):
+    """Mark a focus session as completed and notified."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE focus_sessions SET status = 'completed', is_notified = 1 WHERE id = ?",
+            (session_id,)
+        )
+        await db.commit()
+
 

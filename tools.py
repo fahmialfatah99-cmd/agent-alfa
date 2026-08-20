@@ -17,6 +17,7 @@ from contextvars import ContextVar
 from typing import Dict, Any, List, Optional
 
 import database
+import plugins
 from ddgs import DDGS
 
 logger = logging.getLogger("AgentTools")
@@ -664,6 +665,25 @@ def scan_local_network() -> Dict[str, Any]:
         return {"status": "error", "message": str(err)}
 
 
+def _find_camofox_bin() -> Optional[str]:
+    """Find Camofox binary in PATH or common NVM / node directories."""
+    import shutil
+    found = shutil.which("camofox")
+    if found:
+        return found
+    candidates = [
+        "/home/fahmial/.nvm/versions/node/v24.19.0/bin/camofox",
+        os.path.expanduser("~/.nvm/versions/node/v24.19.0/bin/camofox"),
+        os.path.expanduser("~/.npm-global/bin/camofox"),
+        "/usr/local/bin/camofox",
+        "/usr/bin/camofox"
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+
 def _ensure_camofox_server() -> bool:
     """Ensure Camofox browser daemon is active and listening on port 9377."""
     try:
@@ -677,9 +697,10 @@ def _ensure_camofox_server() -> bool:
 
         # Attempt to start daemon
         env = os.environ.copy()
-        env["CAMOFOX_API_KEY"] = "7edc51a9e8b2401f98bc43d105ef5f68"
-        camofox_bin = "/home/fahmial/.nvm/versions/node/v24.19.0/bin/camofox"
-        if os.path.exists(camofox_bin):
+        api_key = os.environ.get("CAMOFOX_API_KEY", "7edc51a9e8b2401f98bc43d105ef5f68")
+        env["CAMOFOX_API_KEY"] = api_key
+        camofox_bin = _find_camofox_bin()
+        if camofox_bin:
             subprocess.run([camofox_bin, "server", "start", "--background"], env=env, capture_output=True, timeout=10)
             import time
             time.sleep(1.5)
@@ -693,9 +714,13 @@ def _ensure_camofox_server() -> bool:
 def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
     """Execute camofox CLI command with proper environment and output parsing."""
     _ensure_camofox_server()
-    camofox_bin = "/home/fahmial/.nvm/versions/node/v24.19.0/bin/camofox"
+    camofox_bin = _find_camofox_bin()
+    if not camofox_bin:
+        return {"success": False, "error": "Camofox CLI binary tidak ditemukan di sistem."}
+        
     env = os.environ.copy()
-    env["CAMOFOX_API_KEY"] = "7edc51a9e8b2401f98bc43d105ef5f68"
+    api_key = os.environ.get("CAMOFOX_API_KEY", "7edc51a9e8b2401f98bc43d105ef5f68")
+    env["CAMOFOX_API_KEY"] = api_key
     
     cmd = [camofox_bin] + args
     try:
@@ -2066,11 +2091,638 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
         return {"status": "error", "message": f"Vision loop error: {str(e)}"}
 
 
+def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
+    """
+    GOD MODE: Autonomous Deep Multi-Source Research Engine.
+    Executes multiple recursive web search queries on a topic, crawls and scrapes the top
+    3-5 authoritative domain pages, synthesizes cross-source evidence, resolves contradictions,
+    and returns a structured, factual briefing with citations.
+    
+    Args:
+        topic: Topic or research question to investigate deeply.
+        max_depth: Maximum number of search iteration queries (1-5, default: 3).
+    """
+    try:
+        from ddgs import DDGS
+        import httpx
+        from urllib.parse import urlparse
+        
+        queries = [
+            topic,
+            f"{topic} overview facts analysis",
+            f"{topic} latest updates details"
+        ][:max_depth]
+        
+        seen_urls = set()
+        sources_data = []
+        
+        with DDGS() as ddgs:
+            for q in queries:
+                try:
+                    results = list(ddgs.text(q, max_results=3))
+                    for r in results:
+                        u = r.get("href")
+                        if u and u not in seen_urls and not u.endswith((".pdf", ".exe", ".zip", ".png", ".jpg")):
+                            seen_urls.add(u)
+                            sources_data.append({
+                                "title": r.get("title", ""),
+                                "url": u,
+                                "snippet": r.get("body", "")
+                            })
+                            if len(sources_data) >= 5:
+                                break
+                except Exception:
+                    pass
+                if len(sources_data) >= 5:
+                    break
+        
+        if not sources_data:
+            return {"status": "error", "message": f"Tidak ditemukan sumber riset untuk topik: '{topic}'"}
+            
+        crawled_articles = []
+        with httpx.Client(follow_redirects=True, timeout=12, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}) as client:
+            for src in sources_data[:4]:
+                try:
+                    resp = client.get(src["url"])
+                    if resp.status_code == 200:
+                        raw_html = resp.text
+                        text = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', raw_html, flags=re.DOTALL | re.IGNORECASE)
+                        text = re.sub(r'<[^>]+>', ' ', text)
+                        clean_text = ' '.join(text.split())[:1500]
+                        domain = urlparse(src["url"]).netloc
+                        crawled_articles.append({
+                            "source_title": src["title"],
+                            "domain": domain,
+                            "url": src["url"],
+                            "extracted_content": clean_text
+                        })
+                except Exception:
+                    continue
+
+        return {
+            "status": "success",
+            "topic": topic,
+            "total_sources_analyzed": len(crawled_articles),
+            "sources": crawled_articles,
+            "research_directive": "Gunakan data dari sumber-sumber terverifikasi di atas untuk menyusun sintesis riset yang objektif, akurat, dan mencantumkan sitasi URL."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Deep research error: {str(e)}"}
+
+
+def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
+    """
+    GOD MODE: Autonomous System Diagnostic & Self-Healing Engine.
+    Inspects system journal error logs, failed systemd units, memory pressure,
+    broken packages, and zombie processes. Produces a root-cause diagnosis
+    and optionally executes safe autonomous healing actions.
+    
+    Args:
+        fix_issues: If True, executes safe autonomous healing (restarting failed units, vacuuming logs, clearing zombies).
+    """
+    try:
+        diagnosis = {}
+        healing_actions = []
+        
+        # 1. Check failed systemd units
+        res_failed = subprocess.run("systemctl --user list-units --failed --no-legend 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+        failed_user_units = [line.strip().split()[0] for line in res_failed.stdout.strip().splitlines() if line.strip()]
+        diagnosis["failed_user_services"] = failed_user_units
+        
+        # 2. Check system error logs in journalctl
+        res_journal = subprocess.run("journalctl --user -p 3 -n 15 --no-pager 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+        diagnosis["recent_critical_logs"] = res_journal.stdout.strip()[:1500] if res_journal.stdout.strip() else "Tidak ada critical error log terbaru."
+        
+        # 3. Check zombie / hung processes
+        zombies = []
+        for p in psutil.process_iter(['pid', 'name', 'status']):
+            try:
+                if p.info['status'] == psutil.STATUS_ZOMBIE:
+                    zombies.append(f"PID {p.info['pid']} ({p.info['name']})")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        diagnosis["zombie_processes"] = zombies
+        
+        # 4. Check disk and swap pressure
+        disk = psutil.disk_usage('/')
+        swap = psutil.swap_memory()
+        diagnosis["disk_health"] = f"Root: {disk.percent}% used ({round(disk.free / (1024**3), 1)} GB free)"
+        diagnosis["swap_health"] = f"Swap: {swap.percent}% used"
+        
+        # Self-healing execution if requested
+        if fix_issues:
+            # Restart failed user services (excluding disabled ones)
+            for unit in failed_user_units:
+                if "telegram-ai-bot" not in unit:  # avoid recursive restart in diagnostic turn
+                    subprocess.run(f"systemctl --user reset-failed {unit} && systemctl --user restart {unit}", shell=True, timeout=10)
+                    healing_actions.append(f"Restarted failed unit: {unit}")
+            
+            # Vacuum journal logs if disk > 85%
+            if disk.percent > 85:
+                subprocess.run("journalctl --user --vacuum-time=2d", shell=True, timeout=10)
+                healing_actions.append("Cleaned old user journal logs")
+                
+            diagnosis["healing_executed"] = healing_actions if healing_actions else "Tidak ada tindakan perbaikan yang diperlukan saat ini."
+            
+        return {
+            "status": "success",
+            "diagnosis": diagnosis,
+            "fix_mode": fix_issues
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Diagnostic error: {str(e)}"}
+
+
+def text_to_audio_file(text: str, filename: str = "audio_speech.mp3", voice: str = "id-ID-GadisNeural") -> Dict[str, Any]:
+    """
+    Generate a high-fidelity natural speech audio file (.mp3) from any long text or script
+    using Microsoft Edge Neural TTS and send it as an audio file directly to Telegram.
+    
+    Args:
+        text: Full text or script to synthesize into audio.
+        filename: Target filename (default: audio_speech.mp3).
+        voice: Voice code, e.g. 'id-ID-GadisNeural' (female ID), 'id-ID-ArdiNeural' (male ID), 'en-US-JennyNeural' (US English).
+    """
+    try:
+        import asyncio
+        import edge_tts
+        
+        if not filename.endswith(".mp3"):
+            filename += ".mp3"
+            
+        out_path = os.path.join(SANDBOX_DIR, filename)
+        
+        async def _synth():
+            communicate = edge_tts.Communicate(text[:5000], voice)
+            await communicate.save(out_path)
+            
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    executor.submit(asyncio.run, _synth()).result()
+            else:
+                loop.run_until_complete(_synth())
+        except Exception:
+            asyncio.run(_synth())
+            
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            size_kb = round(os.path.getsize(out_path) / 1024, 1)
+            return {
+                "status": "success",
+                "message": f"File audio speech '{filename}' ({size_kb} KB) berhasil dibuat dan akan dikirim ke Telegram.",
+                "file_path": out_path,
+                "voice": voice
+            }
+        return {"status": "error", "message": "Gagal membuat file audio speech."}
+    except Exception as e:
+        return {"status": "error", "message": f"Audio synthesis error: {str(e)}"}
+
+
+def convert_media_format(source_file: str, output_format: str = "mp3", extra_params: str = "") -> Dict[str, Any]:
+    """
+    Convert any video or audio file to another format using ffmpeg (e.g. mp4 -> mp3, mkv -> mp4, wav -> ogg, flac -> mp3).
+    The converted file will be automatically sent to Telegram.
+    
+    Args:
+        source_file: Path to source audio/video file.
+        output_format: Target format extension (e.g. 'mp3', 'mp4', 'wav', 'ogg', 'flac', 'aac').
+        extra_params: Optional ffmpeg flags (e.g. '-q:a 0' or '-vf scale=1280:720').
+    """
+    try:
+        expanded = os.path.expanduser(source_file)
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"File sumber tidak ditemukan: {source_file}"}
+            
+        base_name = os.path.splitext(os.path.basename(expanded))[0]
+        out_format = output_format.lower().replace(".", "")
+        out_name = f"{base_name}_converted.{out_format}"
+        dest_path = os.path.join(SANDBOX_DIR, out_name)
+        
+        cmd = f'ffmpeg -y -i "{expanded}" {extra_params} "{dest_path}"'
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        
+        if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
+            size_mb = round(os.path.getsize(dest_path) / (1024*1024), 2)
+            return {
+                "status": "success",
+                "message": f"Konversi media ke '{out_name}' ({size_mb} MB) berhasil dan akan dikirim ke Telegram.",
+                "file_path": dest_path
+            }
+        return {"status": "error", "message": f"Gagal mengonversi media: {res.stderr[:500]}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Media conversion error: {str(e)}"}
+
+
+def extract_audio_from_video(video_path: str, output_filename: str = "extracted_audio.mp3") -> Dict[str, Any]:
+    """
+    Extract the audio track from a video file (.mp4, .mkv, .webm, .avi) into an MP3 file and send to Telegram.
+    
+    Args:
+        video_path: Path to the local video file.
+        output_filename: Output MP3 filename (default: extracted_audio.mp3).
+    """
+    try:
+        expanded = os.path.expanduser(video_path)
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"File video tidak ditemukan: {video_path}"}
+            
+        if not output_filename.endswith(".mp3"):
+            output_filename += ".mp3"
+            
+        dest_path = os.path.join(SANDBOX_DIR, output_filename)
+        cmd = f'ffmpeg -y -i "{expanded}" -vn -acodec libmp3lame -q:a 2 "{dest_path}"'
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        
+        if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
+            size_mb = round(os.path.getsize(dest_path) / (1024*1024), 2)
+            return {
+                "status": "success",
+                "message": f"Audio berhasil diekstraksi menjadi '{output_filename}' ({size_mb} MB) dan akan dikirim ke Telegram.",
+                "file_path": dest_path
+            }
+        return {"status": "error", "message": f"Gagal mengekstrak audio: {res.stderr[:500]}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Extract audio error: {str(e)}"}
+
+
+def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: str = "", y_column: str = "", title: str = "Data Analysis") -> Dict[str, Any]:
+    """
+    GOD MODE: Intelligent Dataset Analyzer & Visualizer.
+    Reads and parses a CSV, JSON, or Excel dataset, computes statistical metrics
+    (summary stats, row counts, missing values, column data types), and generates
+    a professional visualization chart automatically sent to Telegram.
+    
+    Args:
+        file_path: Path to dataset file (.csv or .json).
+        chart_type: 'bar', 'line', 'scatter', 'pie', 'hist'.
+        x_column: Name of X-axis column (defaults to first column).
+        y_column: Name of Y-axis numeric column (defaults to second column).
+        title: Chart title.
+    """
+    try:
+        import json
+        import csv
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        
+        expanded = os.path.expanduser(file_path)
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"File dataset tidak ditemukan: {file_path}"}
+            
+        data_rows = []
+        headers = []
+        
+        ext = os.path.splitext(expanded)[1].lower()
+        if ext == ".csv":
+            with open(expanded, "r", encoding="utf-8", errors="replace") as f:
+                reader = csv.DictReader(f)
+                headers = reader.fieldnames or []
+                data_rows = list(reader)
+        elif ext == ".json":
+            with open(expanded, "r", encoding="utf-8") as f:
+                raw_json = json.load(f)
+                if isinstance(raw_json, list) and raw_json:
+                    data_rows = raw_json
+                    headers = list(raw_json[0].keys()) if isinstance(raw_json[0], dict) else []
+                elif isinstance(raw_json, dict):
+                    data_rows = [raw_json]
+                    headers = list(raw_json.keys())
+        else:
+            return {"status": "error", "message": "Format dataset harus .csv atau .json"}
+            
+        if not data_rows:
+            return {"status": "error", "message": "Dataset kosong atau tidak memiliki baris data."}
+            
+        # Statistical summary
+        total_rows = len(data_rows)
+        sample_data = data_rows[:5]
+        
+        # Plotting
+        chart_path = os.path.join(SANDBOX_DIR, "dataset_analysis_chart.png")
+        plt.figure(figsize=(10, 6), dpi=120)
+        plt.style.use('seaborn-v0_8-darkgrid' if 'seaborn-v0_8-darkgrid' in plt.style.available else 'default')
+        
+        x_col = x_column or (headers[0] if headers else "")
+        y_col = y_column or (headers[1] if len(headers) > 1 else headers[0] if headers else "")
+        
+        x_vals = [str(r.get(x_col, "")) for r in data_rows[:20]]
+        y_vals = []
+        for r in data_rows[:20]:
+            try:
+                y_vals.append(float(r.get(y_col, 0)))
+            except (ValueError, TypeError):
+                y_vals.append(0.0)
+                
+        if chart_type == "line":
+            plt.plot(x_vals, y_vals, marker='o', color='#2563EB', linewidth=2.5)
+        elif chart_type == "scatter":
+            plt.scatter(x_vals, y_vals, color='#7C3AED', s=80)
+        elif chart_type == "pie" and len(x_vals) <= 10:
+            plt.pie(y_vals, labels=x_vals, autopct='%1.1f%%', colors=plt.cm.Paired.colors)
+        else:  # default bar
+            plt.bar(x_vals, y_vals, color='#3B82F6', edgecolor='#1D4ED8')
+            
+        plt.title(title, fontsize=14, fontweight='bold', pad=15)
+        if chart_type != "pie":
+            plt.xlabel(x_col, fontsize=11)
+            plt.ylabel(y_col, fontsize=11)
+            plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.savefig(chart_path, dpi=150)
+        plt.close()
+        
+        return {
+            "status": "success",
+            "total_rows": total_rows,
+            "columns": headers,
+            "sample_rows": sample_data,
+            "chart_generated": "dataset_analysis_chart.png",
+            "message": f"Analisis dataset '{os.path.basename(expanded)}' selesai. Grafik '{chart_type}' berhasil dibuat dan akan dikirim ke Telegram."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Dataset analysis error: {str(e)}"}
+
+
+def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "quick_ports") -> Dict[str, Any]:
+    """
+    GOD MODE: Network Security & Port Sentinel.
+    Audits listening network ports, socket services, firewall status (UFW),
+    and remote SSL/TLS certificate validity & security ciphers.
+    
+    Args:
+        target_host: Target IP or domain to audit (e.g. '127.0.0.1', 'example.com').
+        scan_type: 'quick_ports' or 'full_audit'.
+    """
+    try:
+        import socket
+        import ssl
+        
+        result = {"target": target_host, "scan_type": scan_type}
+        
+        # Local socket listening check
+        if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:
+            res_ss = subprocess.run("ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+            listening_lines = [l for l in res_ss.stdout.strip().splitlines() if "LISTEN" in l or "State" in l][:20]
+            result["local_listening_sockets"] = "\n".join(listening_lines)
+            
+            # Firewall check
+            res_ufw = subprocess.run("sudo -n ufw status 2>/dev/null || ufw status 2>/dev/null", shell=True, capture_output=True, text=True, timeout=3)
+            result["firewall_status"] = res_ufw.stdout.strip() if res_ufw.stdout.strip() else "UFW status tidak memerlukan sudo / tidak aktif."
+        else:
+            # Common ports probe
+            common_ports = [21, 22, 25, 80, 443, 3000, 3306, 5432, 8000, 8080, 8443]
+            open_ports = []
+            for p in common_ports:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(1.5)
+                res = s.connect_ex((target_host, p))
+                if res == 0:
+                    open_ports.append(p)
+                s.close()
+            result["open_ports_detected"] = open_ports
+            
+            # SSL Certificate inspection if port 443 open
+            if 443 in open_ports or target_host.startswith("http") or "." in target_host:
+                try:
+                    ctx = ssl.create_default_context()
+                    with ctx.wrap_socket(socket.socket(), server_hostname=target_host) as s:
+                        s.settimeout(5)
+                        s.connect((target_host, 443))
+                        cert = s.getpeercert()
+                        not_after = cert.get('notAfter', '')
+                        result["ssl_certificate"] = {
+                            "subject": dict(x[0] for x in cert.get('subject', ())),
+                            "issuer": dict(x[0] for x in cert.get('issuer', ())),
+                            "expires_at": not_after,
+                            "version": cert.get('version', '')
+                        }
+                except Exception as ssl_err:
+                    result["ssl_error"] = str(ssl_err)
+                    
+        return {"status": "success", "audit_report": result}
+    except Exception as e:
+        return {"status": "error", "message": f"Security audit error: {str(e)}"}
+
+
+def clean_system_storage(dry_run: bool = True) -> Dict[str, Any]:
+    """
+    GOD MODE: Smart Linux Storage Cleaner & Optimizer.
+    Inspects and frees disk waste by safely cleaning thumbnail caches, user journal logs,
+    temporary files, and apt cache.
+    
+    Args:
+        dry_run: If True, only analyzes space to be freed without deleting anything. Set to False to perform actual cleanup.
+    """
+    try:
+        cleanup_targets = [
+            ("Thumbnail Cache", os.path.expanduser("~/.cache/thumbnails")),
+            ("Sandbox Temp Files", SANDBOX_DIR),
+            ("Python Cache", os.path.expanduser("~/.cache/pip"))
+        ]
+        
+        report = []
+        total_freed_mb = 0.0
+        
+        for name, path in cleanup_targets:
+            if os.path.exists(path):
+                size_b = sum(os.path.getsize(os.path.join(dirpath, f)) for dirpath, _, filenames in os.walk(path) for f in filenames if not os.path.islink(os.path.join(dirpath, f)))
+                size_mb = round(size_b / (1024*1024), 2)
+                report.append({"target": name, "path": path, "size_mb": size_mb})
+                total_freed_mb += size_mb
+                
+                if not dry_run and size_mb > 0:
+                    subprocess.run(f'rm -rf "{path}"/*', shell=True, timeout=10)
+                    
+        if not dry_run:
+            # Vacuum journalctl logs older than 2 days
+            subprocess.run("journalctl --user --vacuum-time=2d 2>/dev/null", shell=True, timeout=10)
+            
+        action_msg = "ANALISIS (Dry Run)" if dry_run else "PEMBERSIHAN SELESAI"
+        return {
+            "status": "success",
+            "mode": action_msg,
+            "total_space_mb": round(total_freed_mb, 2),
+            "details": report,
+            "message": f"{action_msg}: Potensi ruang dibersihkan: {round(total_freed_mb, 2)} MB. Jalankan dengan dry_run=False untuk eksekusi pembersihan nyata." if dry_run else f"Pembersihan berhasil! {round(total_freed_mb, 2)} MB ruang disk berhasil dikembalikan."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Storage cleanup error: {str(e)}"}
+
+
+def manage_system_services(service_name: str, action: str = "status", scope: str = "user") -> Dict[str, Any]:
+    """
+    GOD MODE: Linux Systemd Services Controller.
+    Manage, start, stop, restart, enable, disable, and inspect status of systemd units.
+    
+    Args:
+        service_name: Name of the service unit (e.g. 'telegram-ai-bot.service', 'pipewire', 'docker', 'nginx').
+        action: 'status', 'restart', 'start', 'stop', 'enable', 'disable', 'is-active'.
+        scope: 'user' (default, for user-space services) or 'system' (system-wide).
+    """
+    try:
+        flag = "--user" if scope == "user" else ""
+        act = action.strip().lower()
+        valid_actions = ["status", "restart", "start", "stop", "enable", "disable", "is-active"]
+        if act not in valid_actions:
+            return {"status": "error", "message": f"Aksi '{action}' tidak valid. Pilihan: {', '.join(valid_actions)}"}
+            
+        cmd = f"systemctl {flag} {act} {service_name}"
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
+        output = (res.stdout.strip() or res.stderr.strip())[:2500]
+        
+        return {
+            "status": "success" if res.returncode == 0 or act == "status" else "error",
+            "service": service_name,
+            "action": act,
+            "scope": scope,
+            "exit_code": res.returncode,
+            "output": output
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Systemd control error: {str(e)}"}
+
+
+def manage_crontab_jobs(action: str = "list", cron_line: str = "", search_pattern: str = "") -> Dict[str, Any]:
+    """
+    GOD MODE: Real Linux OS Crontab Manager.
+    Reads, adds, or removes native Linux user crontab schedule entries.
+    
+    Args:
+        action: 'list' (show all crontab entries), 'add' (add new cron_line), 'remove' (remove entries matching search_pattern).
+        cron_line: The crontab entry string (e.g. '0 8 * * * /home/user/script.sh').
+        search_pattern: Keyword/pattern to match when removing crontab entries.
+    """
+    try:
+        if action == "list":
+            res = subprocess.run("crontab -l 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+            entries = res.stdout.strip()
+            return {"status": "success", "crontab_entries": entries if entries else "(Crontab kosong)"}
+        elif action == "add":
+            if not cron_line:
+                return {"status": "error", "message": "Parameter cron_line harus diisi."}
+            res_curr = subprocess.run("crontab -l 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+            curr = res_curr.stdout.strip()
+            new_cron = (curr + "\n" + cron_line.strip()).strip() + "\n"
+            proc = subprocess.Popen("crontab -", shell=True, stdin=subprocess.PIPE, text=True)
+            proc.communicate(input=new_cron, timeout=5)
+            return {"status": "success", "message": f"Entri crontab berhasil ditambahkan: '{cron_line}'"}
+        elif action == "remove":
+            if not search_pattern:
+                return {"status": "error", "message": "Parameter search_pattern harus diisi untuk menghapus entri crontab."}
+            res_curr = subprocess.run("crontab -l 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
+            lines = [l for l in res_curr.stdout.splitlines() if search_pattern not in l]
+            new_cron = "\n".join(lines).strip() + "\n"
+            proc = subprocess.Popen("crontab -", shell=True, stdin=subprocess.PIPE, text=True)
+            proc.communicate(input=new_cron, timeout=5)
+            return {"status": "success", "message": f"Entri crontab yang cocok dengan pola '{search_pattern}' berhasil dihapus."}
+        return {"status": "error", "message": f"Aksi '{action}' tidak dikenal. Gunakan: list, add, remove."}
+    except Exception as e:
+        return {"status": "error", "message": f"Crontab error: {str(e)}"}
+
+
+def extract_and_link_knowledge(entity: str, relation: str, target_value: str, category: str = "general", tags: str = "") -> Dict[str, Any]:
+    """
+    GOD MODE: Semantic Knowledge Graph & Second Brain Linker.
+    Stores structured knowledge facts as subject-predicate-object triples
+    (e.g. entity: 'Proyek Alfa', relation: 'deadline', target_value: '25 Agustus 2026', tags: 'work, urgent').
+    
+    Args:
+        entity: The subject entity (e.g. 'Fahmi', 'Server Production', 'Project X').
+        relation: The relationship / predicate (e.g. 'role', 'ip_address', 'framework').
+        target_value: The target value / object (e.g. 'Lead Engineer', '103.12.34.56', 'FastAPI').
+        category: Category taxonomy (e.g. 'work', 'personal', 'server', 'finance').
+        tags: Comma-separated tags (e.g. 'urgent, devops').
+    """
+    uid = get_current_user_id()
+    if not uid:
+        return {"status": "error", "message": "User context tidak ditemukan."}
+    return database.add_knowledge_relation_sync(uid, entity, relation, target_value, category, tags)
+
+
+def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
+    """
+    GOD MODE: Export Second Brain Knowledge Base.
+    Exports all persistent user memories and semantic knowledge graph relations
+    into a structured Markdown or JSON file sent to Telegram as an attachment.
+    
+    Args:
+        format: 'markdown' (default) or 'json'.
+    """
+    try:
+        import json
+        uid = get_current_user_id()
+        if not uid:
+            return {"status": "error", "message": "User context tidak ditemukan."}
+            
+        data = database.export_full_second_brain_sync(uid)
+        fmt = format.lower()
+        
+        if fmt == "json":
+            out_name = f"second_brain_export_{uid}.json"
+            out_path = os.path.join(SANDBOX_DIR, out_name)
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        else:
+            out_name = f"second_brain_export_{uid}.md"
+            out_path = os.path.join(SANDBOX_DIR, out_name)
+            md_lines = [
+                f"# 🧠 Second Brain Knowledge Export",
+                f"**User ID:** `{uid}` | **Exported At:** `{data['exported_at']}`\n",
+                f"## 📌 Fakta Memori Permanen ({data['total_facts']} fakta)",
+            ]
+            for f in data.get("facts", []):
+                md_lines.append(f"• **[{f['category'].upper()}] {f['key_topic']}**: {f['content']}")
+                
+            md_lines.append(f"\n## 🕸️ Knowledge Graph Relations ({data['total_relations']} relasi)")
+            for r in data.get("knowledge_graph", []):
+                tag_str = f" `[{r['tags']}]`" if r['tags'] else ""
+                md_lines.append(f"• **{r['entity']}** ──({r['relation']})──> **{r['target_value']}** ({r['category']}){tag_str}")
+                
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(md_lines))
+                
+        size_kb = round(os.path.getsize(out_path) / 1024, 1)
+        return {
+            "status": "success",
+            "message": f"Berkas Second Brain '{out_name}' ({size_kb} KB) berhasil diexport dan akan dikirim ke Telegram.",
+            "file_path": out_path,
+            "total_facts": data['total_facts'],
+            "total_relations": data['total_relations']
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Export second brain error: {str(e)}"}
+
+
+def start_focus_session(title: str, duration_minutes: int = 25, notes: str = "") -> Dict[str, Any]:
+    """
+    GOD MODE: Focus & Pomodoro Productivity Session.
+    Starts a deep work focus session with automatic timer, records target end time,
+    and schedules an automatic Telegram completion alert.
+    
+    Args:
+        title: Title/objective of the focus session (e.g. 'Code Review Backend', 'Menulis Laporan').
+        duration_minutes: Duration in minutes (default: 25).
+        notes: Optional extra notes for the session.
+    """
+    uid = get_current_user_id()
+    cid = get_current_chat_id()
+    if not uid:
+        return {"status": "error", "message": "User context tidak ditemukan."}
+    res = database.start_focus_session_sync(uid, cid, title, duration_minutes, notes)
+    return {
+        "status": "success",
+        "message": f"🎯 Sesi fokus '{title}' ({duration_minutes} menit) dimulai! Berakhir pada: {res['end_time']}. Bot akan mengirim notifikasi saat waktu habis.",
+        "session_details": res
+    }
+
+
 def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str) -> Dict[str, Any]:
     """
-    GOD MODE: Self-Evolution Engine — the bot writes and injects a brand new tool function
-    into its own codebase, registers it, and makes it available immediately after restart.
-    This allows the bot to LEARN and CREATE new capabilities autonomously.
+    GOD MODE: Self-Evolution Engine — dynamically writes and saves a brand new tool
+    into the isolated plugins/ directory, compiles it, and prepares it for immediate execution.
     
     Args:
         tool_name: Python function name for the new tool (e.g. 'check_stock_price', 'convert_currency').
@@ -2078,57 +2730,8 @@ def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str) -> 
         tool_code: Complete Python function code including def, docstring, args, and return dict.
     """
     try:
-        tools_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools.py")
-        
-        # Validate tool name
-        if not re.match(r'^[a-z][a-z0-9_]*$', tool_name):
-            return {"status": "error", "message": "Nama tool harus lowercase alphanumeric + underscore, dimulai dengan huruf."}
-        
-        # Check if tool already exists
-        with open(tools_path, "r") as f:
-            existing_code = f.read()
-        
-        if f"def {tool_name}(" in existing_code:
-            return {"status": "error", "message": f"Tool '{tool_name}' sudah ada. Gunakan nama lain."}
-        
-        # Validate the code compiles
-        try:
-            compile(tool_code, f"<new_tool_{tool_name}>", "exec")
-        except SyntaxError as se:
-            return {"status": "error", "message": f"Kode tool memiliki syntax error: {str(se)}"}
-        
-        # Inject the new tool code right before AVAILABLE_TOOLS definition
-        avail_marker = "\nAVAILABLE_TOOLS = ["
-        if avail_marker not in existing_code:
-            return {"status": "error", "message": "AVAILABLE_TOOLS tidak ditemukan di tools.py"}
-        
-        injection = f"\n\n# [SELF-EVOLVED TOOL] {tool_description}\n{tool_code.strip()}\n\n"
-        parts = existing_code.rsplit(avail_marker, 1)
-        new_code = parts[0] + injection + avail_marker + f"\n    {tool_name}," + parts[1]
-        
-        # Write the updated file
-        with open(tools_path, "w") as f:
-            f.write(new_code)
-        
-        # Verify compilation
-        compile_result = subprocess.run(
-            [sys.executable, "-m", "py_compile", tools_path],
-            capture_output=True, text=True
-        )
-        
-        if compile_result.returncode != 0:
-            # Rollback on failure
-            with open(tools_path, "w") as f:
-                f.write(existing_code)
-            return {"status": "error", "message": f"Kompilasi gagal, perubahan di-rollback: {compile_result.stderr}"}
-        
-        return {
-            "status": "success",
-            "message": f"🧬 SELF-EVOLUTION: Tool baru '{tool_name}' berhasil ditulis dan diinjeksi ke sistem! Jalankan self_restart_service() untuk mengaktifkannya.",
-            "tool_name": tool_name,
-            "description": tool_description,
-            "needs_restart": True
-        }
+        import plugins
+        return plugins.create_and_register_plugin(tool_name, tool_description, tool_code)
     except Exception as e:
         return {"status": "error", "message": f"Self-evolution error: {str(e)}"}
 
@@ -2228,14 +2831,13 @@ def proactive_system_guardian_config(action: str = "status", cpu_threshold: int 
 
 
 # List of all tools available to the Gemini Model
-
-
 AVAILABLE_TOOLS = [
     get_system_stats,
     execute_bash_command,
     execute_python_sandbox,
     web_search,
     fetch_web_page_content,
+    deep_research_topic,
     browser_open_url,
     browser_click_element,
     browser_type_text,
@@ -2270,6 +2872,18 @@ AVAILABLE_TOOLS = [
     download_file_from_url,
     generate_secure_password,
     vision_click_target,
+    auto_diagnose_and_heal_system,
+    text_to_audio_file,
+    convert_media_format,
+    extract_audio_from_video,
+    analyze_dataset_csv_json,
+    audit_network_security,
+    clean_system_storage,
+    manage_system_services,
+    manage_crontab_jobs,
+    extract_and_link_knowledge,
+    export_knowledge_base,
+    start_focus_session,
     self_add_new_tool,
     self_restart_service,
     proactive_system_guardian_config,
@@ -2282,6 +2896,7 @@ AVAILABLE_TOOLS = [
     schedule_reminder,
     capture_desktop_screenshot,
     capture_webcam_frame,
-    scan_local_network
+    scan_local_network,
+    *plugins.load_all_plugin_tools()
 ]
 

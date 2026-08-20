@@ -86,11 +86,14 @@ elif ENV_SYSTEM_INSTRUCTION:
     BASE_SYSTEM_PROMPT = ENV_SYSTEM_INSTRUCTION
 else:
     BASE_SYSTEM_PROMPT = (
-        "You are ALFA-CORE, an elite autonomous AI systems operator and personal assistant powered by Gemini API. "
-        "You have direct access to Linux tools including bash execution, python sandbox with data plotting, "
-        "desktop screenshot, webcam capture, web search & scraping, file workspace intelligence, long-term memory, "
-        "and scheduled reminders. Always provide accurate, concise, and helpful responses in Indonesian or English as requested. "
-        "Format code and lists cleanly."
+        "You are ALFA-PRIME (GOD MODE), the most advanced sovereign autonomous AI assistant and Linux systems operator powered by Gemini API. "
+        "You have real, direct access to 65+ autonomous tools on this computer.\n\n"
+        "CRITICAL ANTI-HALLUCINATION & GROUNDING DIRECTIVES:\n"
+        "1. ZERO ASSUMPTION / FACT GROUNDING RULE: Never guess, hallucinate, or assume system states, file paths, hardware status, live market prices, search results, or math calculations. ALWAYS call the dedicated tool to obtain real ground-truth data.\n"
+        "2. TOOL VERIFICATION: If you need information from a file, disk, web, database, or process, you MUST call the appropriate tool. State facts strictly based on tool outputs.\n"
+        "3. TRANSPARENT DIAGNOSTICS: If a tool fails or errors, state the exact error honestly and use diagnostic tools to investigate and resolve it instead of making up a fake result.\n"
+        "4. ARTIFACT AWARENESS: Whenever you generate PDFs, Excel files, PowerPoint slides, ZIP archives, edited images, plots, speech audio files, or exported knowledge files, they are automatically sent as files to the Telegram chat. Confirm their generation concisely.\n"
+        "5. DEDUCTIVE LOGIC & PRECISION: Provide structured, actionable, and mathematically sound reasoning. Format code, tables, and lists cleanly."
     )
 
 
@@ -1014,15 +1017,48 @@ async def proactive_system_guardian_loop(application: Application):
             # Send alerts to all authorized users
             if alerts:
                 alert_text = f"🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
-                for uid_str in AUTHORIZED_USERS:
+                for uid in ALLOWED_USER_IDS:
                     try:
-                        await safe_send_message(application, int(uid_str), alert_text)
+                        await safe_send_message(application, uid, alert_text)
                     except Exception:
                         pass
         except Exception as e:
             logger.error(f"Guardian daemon error: {e}")
         
         await asyncio.sleep(30)
+
+
+# --- Background Focus & Pomodoro Watchdog ---
+async def proactive_focus_session_loop(application: Application):
+    """Background task to poll and notify completed focus/pomodoro sessions."""
+    logger.info("🎯 Proactive focus session watchdog started.")
+    while True:
+        try:
+            due_sessions = await database.get_due_focus_sessions()
+            for s in due_sessions:
+                s_id = s["id"]
+                chat_id = s["chat_id"]
+                title = s["title"]
+                duration = s["duration_minutes"]
+                notes = s.get("notes", "")
+                
+                alert_text = (
+                    f"🎉 **[SESI FOKUS SELESAI!]**\n\n"
+                    f"🎯 **Target:** {title}\n"
+                    f"⏱️ **Durasi:** {duration} menit\n"
+                    f"📝 **Catatan:** {notes if notes else 'Kerja bagus! Istirahatlah sejenak (5-10 menit) sebelum melanjutkan.'}"
+                )
+                try:
+                    await safe_send_message(application, chat_id, alert_text)
+                    await database.mark_focus_session_completed(s_id)
+                    logger.info(f"Dispatched focus session completion #{s_id} to chat {chat_id}")
+                except Exception as send_err:
+                    logger.error(f"Failed to dispatch focus session #{s_id}: {send_err}")
+                    await database.mark_focus_session_completed(s_id)
+        except Exception as e:
+            logger.error(f"Error in focus session loop: {e}")
+            
+        await asyncio.sleep(15)
 
 
 async def post_init(application: Application):
@@ -1037,6 +1073,7 @@ async def post_init(application: Application):
     asyncio.create_task(proactive_reminder_loop(application))
     asyncio.create_task(proactive_cron_watchdog_loop(application))
     asyncio.create_task(proactive_system_guardian_loop(application))
+    asyncio.create_task(proactive_focus_session_loop(application))
 
 
 # --- Additional Command Handlers ---

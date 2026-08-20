@@ -1,30 +1,26 @@
-# Telegram AI Agent Bot (GOD MODE: Sovereign Autonomous Assistant)
+# Telegram AI Agent Bot (TIER-GOD MAX: Sovereign Autonomous Assistant)
 
-Integrasi Bot Telegram Otonom tercanggih berbasis Python dengan model AI Google Gemini, dilengkapi dengan 52+ tools otonom, Vision Loop Computer Use, Self-Evolution Engine, Proactive System Guardian 24/7, OS-level automation, browser stealth automation, subagent swarm delegator, proactive cron watchdogs, document generator, IoT hardware remote, dan audio meeting transcription.
+Integrasi Bot Telegram Otonom tercanggih berbasis Python dengan model AI Google Gemini, dilengkapi dengan **65+ tools otonom**, Grounded Anti-Hallucination ReAct Engine, Vision Loop Computer Use, Self-Evolution Plugin System, Proactive 24/7 System & Focus Watchdogs, OS-level Linux automation, browser stealth automation, subagent swarm delegator, document generator, IoT hardware remote, dan audio meeting transcription.
 
-## ⚡ Kemampuan God Mode
-- 🧿 **Vision-Guided Autonomous Computer Use (`vision_click_target`):** Loop otonom berbasis penglihatan — mengambil screenshot desktop, menganalisis elemen UI via Gemini Vision, mengklik target secara akurat, lalu mengambil screenshot verifikasi.
-- 🧬 **Self-Evolution Engine (`self_add_new_tool`):** Bot mampu menulis, memvalidasi sintaksis, menginjeksi, dan mendaftarkan *tool baru ke dalam basis kodenya sendiri* tanpa perlu diedit manual oleh manusia.
-- 🔄 **Self-Restart (`self_restart_service`):** Memulai ulang systemd servicenya secara mandiri dalam hitungan detik setelah menerapkan pembaruan atau tool baru.
-- 🛡️ **24/7 Proactive System Guardian (`proactive_system_guardian_config`):** Daemon latar belakang yang memantau kesehatan CPU, RAM, Disk, dan Baterai secara terus-menerus serta mengeksekusi tindakan protektif mandiri (seperti mematikan proses boros RAM & mengirimkan alert instan).
+## 🧠 Arsitektur Anti-Halusinasi & Logika Asli (Grounded ReAct Engine)
+- **Zero-Assumption Directive:** AI dilarang menebak fakta, kondisi file, status sistem, atau data web tanpa grounding dari eksekusi tool nyata.
+- **Deep Multi-Source Fact Checking (`deep_research_topic`):** Menggali dan menyintesis data dari berbagai domain web independen dengan sitasi resmi.
+- **Autonomous Self-Diagnostic & Healing (`auto_diagnose_and_heal_system`):** Melakukan investigasi error log sistem secara jujur dan memperbaikinya secara otonom.
 
-## ✨ Fitur & Kemampuan Utama Lainnya
-- 🖥️ **OS-Level Computer Use:** Simulasi klik mouse koordinat pixel desktop, pengetikan keyboard/hotkey, dan peluncuran software GUI.
-- 📦 **File & Folder Operations:** ZIP seluruh direktori (`compress_folder_to_zip`), unduh URL (`download_file_from_url`), dan kirim berkas apa saja ke chat (`send_file_to_chat`).
-- 🎬 **Screen Recorder:** Perekaman video layar desktop (.mp4) langsung ke Telegram (`record_desktop_screen`).
-- 📋 **System Clipboard & Notifikasi:** Baca/tulis clipboard Wayland/X11 serta kirim notifikasi pop-up fisik ke layar monitor (`show_desktop_notification`).
-- 🌐 **DevOps & Remote:** Eksekusi SSH ke server remote (`ssh_execute_command`), operasi Git langsung dari chat (`git_operations`), query basis data SQLite (`query_database`), dan pengirim email SMTP (`send_email`).
-- 🦊 **Camofox Browser Automation:** Membuka web, membaca struktur aksesibilitas, mengklik link/tombol, mengetik form, dan menangkap screenshot web otonom.
-- 🤖 **Autonomous Subagent Swarm:** Agen pendelegasi mandiri yang menjalankan tugas riset/coding kompleks di latar belakang dan mengirimkan laporan lengkap begitu selesai.
-- ⏰ **Proactive Cron & Watchdog Scheduler:** Penjadwalan tugas berulang otonom (monitor server, pantau kripto/saham, daily tech briefing) langsung ke chat.
-- 📄 **Document & Report Generator:** Pembuatan laporan PDF bergaya modern (ReportLab), spreadsheet Excel berformat (OpenPyXL), dan presentasi PowerPoint (PPTX) yang otomatis terkirim sebagai lampiran berkas.
-- 🎛️ **Linux Hardware & IoT Remote:** Kunci layar desktop, pengatur volume speaker & mute, kontrol media Spotify/YouTube, cek baterai detail, dan pemindai Wi-Fi/Bluetooth.
-- 🎙️ **Long Audio Meeting Transcriber & Notulen:** Transkripsi rekaman suara/rapat (.mp3, .m4a, .wav) dan penyusunan notulen rapat lengkap dengan action items.
-- 💬 **Percakapan Multi-turn & Memori Terisolasi:** Konteks riwayat chat dan fakta memori jangka panjang tersimpan persisten di SQLite (WAL Mode).
-- 🐍 **Python Sandbox & Data Plotter:** Eksekusi skrip data analytics Python dan visualisasi grafik matplotlib yang otomatis dikirim ke chat Telegram.
-- 🖥️ **Desktop Vision:** Tangkapan layar desktop instan (Wayland XDG Portal) dan kamera webcam hardware (`/dev/video0`).
-- 🎙️ **Voice Notes Cerdas (Single Reply):** Menerima pesan suara dan otomatis memilih balasan suara/teks sesuai konteks konten.
-- 🔒 **Security Whitelist:** Batasi akses bot hanya untuk akun Telegram Anda melalui `ALLOWED_USER_IDS`.
+## ⚡ Kemampuan Unggulan Generasi Baru (Next-Gen Power Tools)
+- 🌐 **Deep Multi-Source Web Research (`deep_research_topic`):** Crawling & ekstraksi 3-5 sumber web secara rekursif + sintesis laporan berbobot.
+- 🩺 **Autonomous System Healing (`auto_diagnose_and_heal_system`):** Audit error log, unit gagal, dan auto-remediasi service Linux.
+- 🎙️ **Media & Audio Studio (`text_to_audio_file`, `convert_media_format`, `extract_audio_from_video`):** Generate audio speech (.mp3) dari teks panjang via Edge-TTS, konversi media, dan ekstraksi audio dari video via ffmpeg.
+- 📊 **Dataset Analyzer & Visualizer (`analyze_dataset_csv_json`):** Analisis statistik data CSV/JSON/Excel + plotting grafik otomatis terkirim ke Telegram.
+- 🛡️ **Network Security & SSL Sentinel (`audit_network_security`):** Port scanner, socket inspector, UFW audit, dan validasi sertifikat SSL/TLS domain.
+- 🧹 **Linux Storage Cleaner (`clean_system_storage`):** Pembersihan cache thumbnail, log vacuum, dan temp files dengan metrik MB ruang yang kembali.
+- ⚙️ **Systemd & Crontab Power Manager (`manage_system_services`, `manage_crontab_jobs`):** Kontrol service Linux dan manajemen crontab OS nyata.
+- 🧠 **Second Brain & Knowledge Graph (`extract_and_link_knowledge`, `export_knowledge_base`):** Struktur relasi semantik entitas dan export database pengetahuan ke Markdown/JSON.
+- 🎯 **Pomodoro Focus Sessions (`start_focus_session`):** Pengatur timer sesi kerja produktif dengan notifikasi proaktif saat selesai.
+- 🧩 **Modular Dynamic Plugin Engine (`plugins/`):** Self-evolution tools disimpan terisolasi di `plugins/*.py` dan dimuat dinamis tanpa risiko merusak kode inti.
+- 🧿 **Vision-Guided Computer Use Loop (`vision_click_target`):** Mengambil screenshot desktop -> Gemini Vision deteksi koordinat UI -> Klik mouse -> Screenshot verifikasi.
+- 🔄 **Self-Restart (`self_restart_service`):** Restart mandiri dalam 2 detik untuk menerapkan update/plugins baru.
+- 🛡️ **24/7 Proactive System Guardian:** Daemon pemantau kesehatan CPU, RAM, Disk, dan Baterai secara nonstop + auto-kill proses boros RAM (>500MB).
 
 ---
 
