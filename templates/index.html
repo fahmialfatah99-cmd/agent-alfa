@@ -931,6 +931,7 @@
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Provider AI:</label>
                             <select id="key-provider-select" onchange="onProviderSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
                                 <option value="gemini">Google Gemini (Default)</option>
+                                <option value="nvidia">NVIDIA NIM (Llama 3.3, DeepSeek R1, Nemotron)</option>
                                 <option value="openai">OpenAI (GPT-4o, o1, etc.)</option>
                                 <option value="groq">Groq (Llama 3.3 Ultra-Fast)</option>
                                 <option value="openrouter">OpenRouter (Multi-Model Hub)</option>
@@ -940,11 +941,11 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Nama Label Key:</label>
-                            <input type="text" id="key-name-input" placeholder="Contoh: Gemini Primary, Groq Dev" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                            <input type="text" id="key-name-input" placeholder="Contoh: Gemini Primary, NVIDIA Llama 3.3, Groq Dev" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
                         </div>
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Default Model Identifier:</label>
-                            <input type="text" id="key-model-input" value="gemini-2.5-flash" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            <input type="text" id="key-model-input" value="gemini-3.5-flash-lite" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
                         </div>
                     </div>
 
@@ -1078,13 +1079,14 @@
                         <div class="grid grid-cols-2 gap-2">
                             <select id="agent-provider-input" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
                                 <option value="gemini">Gemini</option>
+                                <option value="nvidia">NVIDIA NIM</option>
                                 <option value="openai">OpenAI</option>
                                 <option value="groq">Groq</option>
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="anthropic">Anthropic</option>
                                 <option value="ollama">Ollama</option>
                             </select>
-                            <input type="text" id="agent-model-input" value="gemini-2.5-flash" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                            <input type="text" id="agent-model-input" value="gemini-3.5-flash-lite" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
                         </div>
                     </div>
                 </div>
@@ -2461,8 +2463,11 @@
             const baseInput = document.getElementById('key-baseurl-input');
 
             if (prov === 'gemini') {
-                modelInput.value = 'gemini-2.5-flash';
+                modelInput.value = 'gemini-3.5-flash-lite';
                 baseInput.value = '';
+            } else if (prov === 'nvidia') {
+                modelInput.value = 'meta/llama-3.3-70b-instruct';
+                baseInput.value = 'https://integrate.api.nvidia.com/v1';
             } else if (prov === 'openai') {
                 modelInput.value = 'gpt-4o';
                 baseInput.value = 'https://api.openai.com/v1';

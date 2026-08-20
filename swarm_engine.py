@@ -54,6 +54,8 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
             api_key = os.getenv("OPENAI_API_KEY", "")
         elif provider == "groq":
             api_key = os.getenv("GROQ_API_KEY", "")
+        elif provider in ["nvidia", "nim"]:
+            api_key = os.getenv("NVIDIA_API_KEY", "")
 
     return provider, api_key, model, base_url
 
@@ -91,13 +93,15 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         logger.error(f"All Gemini models failed for agent '{agent.get('name')}': {last_err}")
         return f"[Error: Gagal memanggil Gemini API: {str(last_err)}]"
 
-    elif provider in ["openai", "groq", "openrouter", "ollama"]:
+    elif provider in ["openai", "groq", "openrouter", "ollama", "nvidia", "nim"]:
         try:
             import httpx
             # Determine endpoint
             url = base_url
             if not url:
-                if provider == "openai":
+                if provider in ["nvidia", "nim"]:
+                    url = "https://integrate.api.nvidia.com/v1"
+                elif provider == "openai":
                     url = "https://api.openai.com/v1"
                 elif provider == "groq":
                     url = "https://api.groq.com/openai/v1"

@@ -3224,18 +3224,18 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
         return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
 
 
-def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_key: str = "", default_model: str = "gemini-2.5-flash", base_url: str = "", key_id: int = None) -> Dict[str, Any]:
+def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_key: str = "", default_model: str = "gemini-3.5-flash-lite", base_url: str = "", key_id: int = None) -> Dict[str, Any]:
     """
-    Manage API keys and multi-provider endpoints (Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama).
+    Manage API keys and multi-provider endpoints (Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama, NVIDIA NIM).
     Enables switching active keys or assigning specific provider keys to specialized agents.
     
     Args:
         action: 'list' (view all keys), 'add' (add key), 'activate' (set key active), 'delete' (remove key).
-        name: Label name for the key (e.g. 'Production Gemini', 'Groq Llama 3').
-        provider: 'gemini', 'openai', 'groq', 'openrouter', 'anthropic', 'ollama'.
-        api_key: The API secret key string.
-        default_model: Default model string (e.g. 'gemini-2.5-flash', 'gpt-4o', 'llama-3.3-70b-versatile').
-        base_url: Optional custom proxy or Ollama base URL (e.g. 'http://localhost:11434/v1').
+        name: Label name for the key (e.g. 'Production Gemini', 'NVIDIA NIM Llama 3.3', 'Groq Llama 3').
+        provider: 'gemini', 'openai', 'groq', 'openrouter', 'anthropic', 'ollama', 'nvidia'.
+        api_key: The API secret key string (e.g. nvapi-..., AIza..., sk-...).
+        default_model: Default model string (e.g. 'meta/llama-3.3-70b-instruct', 'gemini-3.5-flash-lite', 'gpt-4o').
+        base_url: Optional custom proxy or Ollama/NVIDIA NIM base URL (default for nvidia: 'https://integrate.api.nvidia.com/v1').
         key_id: Target key ID for 'activate' or 'delete'.
     """
     action = action.lower().strip()
