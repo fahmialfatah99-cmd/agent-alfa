@@ -64,6 +64,14 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     """Generate response for a specific agent using its configured provider and key."""
     provider, api_key, model, base_url = get_agent_api_client(agent)
 
+    # Enforce casual, natural human tech tone and strict token economy
+    tone_directive = (
+        "\n\n[PANDUAN OUTPUT & GAYA BICARA]:"
+        "\n1. BICARA SANTAI & GAUL: Gunakan gaya bahasa santai, luwes, natural ala software engineer/tech specialist di war room (jangan kaku, jangan formal template AI, hindari basa-basi robot seperti 'Sebagai AI...', 'Tentu saja...', 'Halo rekan-rekan...')."
+        "\n2. ON-POINT & HEMAT TOKEN: Jawaban WAJIB langsung ke inti teknis/solusi tanpa bertele-tele. Maksimal 2-4 kalimat atau bullet points ringkas padat."
+    )
+    final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
+
     if provider == "gemini":
         candidate_models = [model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
         # Remove duplicates while preserving order
@@ -80,8 +88,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     model=m,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
+                        system_instruction=final_instruction,
                         temperature=0.7,
+                        max_output_tokens=350,
                     )
                 )
                 if response and response.text:
@@ -131,10 +140,11 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": system_instruction},
+                    {"role": "system", "content": final_instruction},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.7
+                "temperature": 0.7,
+                "max_tokens": 350
             }
 
             async with httpx.AsyncClient(timeout=30.0) as http_client:
@@ -185,18 +195,17 @@ async def conduct_multi_agent_meeting(topic: str, participant_names: Optional[Li
             context_text = "\n".join(history_summary) if history_summary else "(Rapat baru saja dibuka)"
             
             prompt = (
-                f"=== TOPIK AGENDA RAPAT ===\n"
+                f"=== TOPIK AGENDA DISKUSI ===\n"
                 f"{topic}\n\n"
-                f"=== JALANNYA DISKUSI SEBELUMNYA (PUTARAN {r}) ===\n"
+                f"=== RIWAYAT OBROLAN TIM (PUTARAN {r}) ===\n"
                 f"{context_text}\n\n"
-                f"=== PERAN KAMU ===\n"
-                f"Nama: {agent['name']}\n"
-                f"Role: {agent['role']}\n"
-                f"Karakter: {agent['persona']}\n\n"
-                f"Instruksi:\n"
-                f"1. Berikan tanggapan, gagasan kritis, atau usulan solusi sesuai bidang keahlianmu.\n"
-                f"2. Bersikaplah seperti rekan kerja profesional di ruang rapat: tanggapi poin peserta lain (jika ada), beri masukan teknis atau kritisi risiko.\n"
-                f"3. Sampaikan secara ringkas, padat, lugas (2-3 paragraf) dalam bahasa Indonesia santai tapi profesional."
+                f"=== IDENTITAS KAMU ===\n"
+                f"Nama: {agent['name']} ({agent['role']})\n"
+                f"Persona: {agent['persona']}\n\n"
+                f"TUGAS KAMU:\n"
+                f"1. Berikan tanggapan/solusi teknis tajam sesuai bidang keahlianmu.\n"
+                f"2. Jika ada argumen peserta lain di atas, langsung sanggah/kritisi/dukung poinnya secara to-the-point.\n"
+                f"3. HEMAT TOKEN & ON-POINT: Tulis 2 sampai 4 kalimat padat saja. Bicara santai & luwes ala obrolan tim hacker/engineer keren, jangan pakai basa-basi robot!"
             )
 
             response_text = await generate_agent_response(
@@ -221,17 +230,17 @@ async def conduct_multi_agent_meeting(topic: str, participant_names: Optional[Li
     lead_agent = participants[0]
     consensus_prompt = (
         f"=== TOPIK RAPAT ===\n{topic}\n\n"
-        f"=== TRANSKRIP LENGKAP RAPAT TIM ===\n" + "\n".join(history_summary) + "\n\n"
-        f"Sebagai ketua rapat ({lead_agent['name']}), buatlah:\n"
-        f"1. KONSENSUS & KEPUTUSAN UTAMA RAPAT (Rangkuman kesepakatan seluruh anggota tim).\n"
-        f"2. ACTION PLAN / LANGKAH EKSEKUSI (Daftar tugas konkret terstruktur dengan penanggung jawab agent).\n"
-        f"Format dalam Markdown yang rapi dan profesional."
+        f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n" + "\n".join(history_summary) + "\n\n"
+        f"Sebagai kapten rapat ({lead_agent['name']}), buatlah rangkuman KONSENSUS & ACTION PLAN yang ON-POINT & HEMAT TOKEN:\n"
+        f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2-3 poin ringkas).\n"
+        f"2. ACTION PLAN (Tabel tugas terstruktur: No, Modul/Tugas, Penanggung Jawab, Target).\n"
+        f"Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
     )
     
     consensus_text = await generate_agent_response(
         agent=lead_agent,
         prompt=consensus_prompt,
-        system_instruction="Kamu adalah Project Director yang memimpin perumusan keputusan akhir rapat."
+        system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir rapat."
     )
 
     action_plan_text = ""
