@@ -951,8 +951,8 @@
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Provider AI:</label>
                             <select id="key-provider-select" onchange="onProviderSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
-                                <option value="gemini">Google Gemini (Default)</option>
                                 <option value="nvidia">NVIDIA NIM (Llama 3.3, DeepSeek R1, Nemotron)</option>
+                                <option value="gemini">Google Gemini (Default)</option>
                                 <option value="openai">OpenAI (GPT-4o, o1, etc.)</option>
                                 <option value="groq">Groq (Llama 3.3 Ultra-Fast)</option>
                                 <option value="openrouter">OpenRouter (Multi-Model Hub)</option>
@@ -962,11 +962,12 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Nama Label Key:</label>
-                            <input type="text" id="key-name-input" placeholder="Contoh: Gemini Primary, NVIDIA Llama 3.3, Groq Dev" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                            <input type="text" id="key-name-input" placeholder="Contoh: NVIDIA Primary, Gemini Prod, Groq Dev" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Default Model Identifier:</label>
-                            <input type="text" id="key-model-input" value="gemini-3.5-flash-lite" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Pilihan Model Valid:</label>
+                            <select id="key-model-select" onchange="onKeyModelSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"></select>
+                            <input type="text" id="key-model-custom" placeholder="Ketik model custom (cth: custom/model-id)..." class="hidden w-full mt-1.5 p-2 bg-dark-900 border border-white/10 rounded-lg text-xs text-cyan-300 font-mono">
                         </div>
                     </div>
 
@@ -974,26 +975,34 @@
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Secret API Key:</label>
                             <div class="relative">
-                                <input type="password" id="key-secret-input" placeholder="Masukkan API Key (AIzaSy..., sk-..., gsk_...)" required class="w-full p-2.5 pr-10 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <input type="password" id="key-secret-input" placeholder="Masukkan API Key (nvapi-..., AIzaSy..., sk-...)" required class="w-full p-2.5 pr-10 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
                                 <button type="button" onclick="toggleKeyVisibility('key-secret-input')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
                                     <i data-lucide="eye" class="w-4 h-4"></i>
                                 </button>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Custom Base URL (Opsional / untuk Ollama / Proxy):</label>
-                            <input type="text" id="key-baseurl-input" placeholder="https://api.openai.com/v1 atau http://localhost:11434/v1" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Custom Base URL (Otomatis terisi / opsional):</label>
+                            <input type="text" id="key-baseurl-input" placeholder="https://integrate.api.nvidia.com/v1" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between pt-2">
+                    <!-- Live Validation Feedback Badge -->
+                    <div id="key-form-validate-badge" class="hidden p-3 rounded-xl text-xs font-mono"></div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
                         <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
                             <input type="checkbox" id="key-set-active-check" checked class="w-4 h-4 rounded bg-dark-950 border-white/10 text-cyan-500 focus:ring-0">
                             <span>Jadikan API Key Aktif Default untuk provider ini</span>
                         </label>
-                        <button type="submit" class="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs font-mono transition-all flex items-center gap-2 shadow-glow-cyan">
-                            <i data-lucide="save" class="w-4 h-4"></i> Simpan API Key ke Vault
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="validateFormKey()" id="btn-validate-form-key" class="px-4 py-2.5 bg-white/5 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold rounded-xl text-xs font-mono transition-all flex items-center gap-1.5">
+                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Test Validitas Key
+                            </button>
+                            <button type="submit" class="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs font-mono transition-all flex items-center gap-2 shadow-glow-cyan">
+                                <i data-lucide="save" class="w-4 h-4"></i> Simpan API Key ke Vault
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -1018,29 +1027,26 @@
 
     <!-- Interactive Tool Execution Modal -->
     <div id="tool-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="glass-card p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 border border-cyan-500/30">
+        <div class="glass-card p-6 rounded-2xl max-w-xl w-full space-y-4 border border-cyan-500/30">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <div class="flex items-center space-x-2">
                     <i data-lucide="terminal" class="w-5 h-5 text-cyan-400"></i>
-                    <h3 id="modal-tool-name" class="text-base font-bold text-white font-mono">tool_name()</h3>
+                    <h3 id="modal-tool-title" class="text-sm font-bold text-white font-mono">Eksekusi Tool</h3>
                 </div>
                 <button onclick="closeToolModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <p id="modal-tool-desc" class="text-xs text-slate-300 leading-relaxed font-sans"></p>
-            
-            <div class="space-y-3 font-sans text-xs" id="modal-params-container">
-                <!-- Param inputs injected dynamically -->
-            </div>
-
-            <div class="flex items-center justify-end space-y-2 pt-3 border-t border-white/10 gap-3">
-                <button onclick="closeToolModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 text-xs font-semibold hover:bg-white/10">Batal</button>
-                <button onclick="executeModalTool()" id="modal-run-btn" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold text-xs flex items-center gap-1.5 shadow-glow-cyan">
-                    <i data-lucide="play" class="w-4 h-4"></i> Eksekusi Tool Sekarang
-                </button>
-            </div>
+            <form id="tool-form" onsubmit="executeToolSubmit(event)" class="space-y-4 font-sans text-xs">
+                <div id="modal-param-fields" class="space-y-3"></div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 gap-3">
+                    <button type="button" onclick="closeToolModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10">Batal</button>
+                    <button type="submit" id="btn-modal-exec" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold font-mono shadow-glow-cyan flex items-center gap-2">
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Eksekusi
+                    </button>
+                </div>
+            </form>
 
             <!-- Result Viewer -->
             <div id="modal-result-box" class="hidden space-y-2 pt-2">
@@ -1061,7 +1067,7 @@
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <div class="flex items-center space-x-2">
                     <i data-lucide="user-plus" class="w-5 h-5 text-cyan-400"></i>
-                    <h3 class="text-base font-bold text-white font-mono">KONFIGURASI AI AGENT BARU</h3>
+                    <h3 id="agent-modal-title" class="text-base font-bold text-white font-mono">KONFIGURASI AI AGENT</h3>
                 </div>
                 <button onclick="closeAgentModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
                     <i data-lucide="x" class="w-5 h-5"></i>
@@ -1069,6 +1075,8 @@
             </div>
 
             <form onsubmit="saveCustomAgentForm(event)" class="space-y-3 font-sans text-xs">
+                <input type="hidden" id="agent-edit-id" value="">
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Nama Agent *</label>
@@ -1096,19 +1104,30 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Provider & Model</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <select id="agent-provider-input" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
-                                <option value="gemini">Gemini</option>
-                                <option value="nvidia">NVIDIA NIM</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="groq">Groq</option>
-                                <option value="openrouter">OpenRouter</option>
-                                <option value="anthropic">Anthropic</option>
-                                <option value="ollama">Ollama</option>
-                            </select>
-                            <input type="text" id="agent-model-input" value="gemini-3.5-flash-lite" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
-                        </div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Tautkan ke Kunci API di Vault:</label>
+                        <select id="agent-key-source-select" onchange="onAgentKeySourceChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-cyan-500">
+                            <!-- Populated with keys from database -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Provider AI:</label>
+                        <select id="agent-provider-input" onchange="onAgentProviderChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                            <option value="nvidia">NVIDIA NIM</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="groq">Groq</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="ollama">Ollama</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Pilihan Model Valid:</label>
+                        <select id="agent-model-select" onchange="onAgentModelSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono"></select>
+                        <input type="text" id="agent-model-custom" placeholder="Ketik model custom..." class="hidden w-full mt-1.5 p-2 bg-dark-900 border border-white/10 rounded-lg text-xs text-cyan-300 font-mono">
                     </div>
                 </div>
 
@@ -1125,7 +1144,7 @@
                 <div class="flex items-center justify-end pt-3 border-t border-white/10 gap-3">
                     <button type="button" onclick="closeAgentModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10">Batal</button>
                     <button type="submit" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold font-mono shadow-glow-cyan">
-                        Simpan Agent
+                        Simpan Konfigurasi Agent
                     </button>
                 </div>
             </form>
@@ -2076,7 +2095,23 @@
         // ==========================================
         let allAgentsData = [];
         let allMeetingsData = [];
+        let allKeysData = [];
+        let modelsCatalog = {};
         let activeTestingAgentId = null;
+
+        async function fetchModelsCatalog() {
+            try {
+                const res = await fetch('/api/models');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    modelsCatalog = data.providers || {};
+                    onProviderSelectChange();
+                    onAgentProviderChange();
+                }
+            } catch (err) {
+                console.error('Fetch models error:', err);
+            }
+        }
 
         async function fetchAgents() {
             try {
@@ -2138,9 +2173,14 @@
                                         <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${col}">${a.role}</span>
                                     </div>
                                 </div>
-                                <button onclick="toggleAgent(${a.id})" class="p-1.5 rounded-lg ${isAct ? 'bg-emerald-500/10 text-emerald-400' : 'bg-dark-900 text-slate-600'} hover:opacity-80 transition-all" title="${isAct ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}">
-                                    <i data-lucide="${isAct ? 'check-circle' : 'circle-off'}" class="w-4 h-4"></i>
-                                </button>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="openAgentModal(${a.id})" class="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-cyan-300 hover:bg-white/10 transition-all" title="Edit Agent & Model">
+                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="toggleAgent(${a.id})" class="p-1.5 rounded-lg ${isAct ? 'bg-emerald-500/10 text-emerald-400' : 'bg-dark-900 text-slate-600'} hover:opacity-80 transition-all" title="${isAct ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}">
+                                        <i data-lucide="${isAct ? 'check-circle' : 'circle-off'}" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
                             </div>
                             
                             <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed font-sans">${a.persona || 'Spesialis tim AI otonom.'}</p>
@@ -2152,6 +2192,7 @@
                                 <span class="px-2 py-0.5 rounded bg-dark-950 text-slate-300 border border-white/5 text-[10px] font-mono truncate max-w-[170px]" title="${a.model}">
                                     ${a.model}
                                 </span>
+                                ${a.api_key_id ? `<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono" title="Custom Vault Key Terhubung">🔑 Custom Key</span>` : ''}
                             </div>
                         </div>
 
@@ -2197,7 +2238,105 @@
             document.querySelectorAll('input[name="meeting-agent"]').forEach(cb => cb.checked = shouldSelect);
         }
 
-        function openAgentModal() {
+        function populateModelSelect(selectEl, customEl, provider, selectedModel = '') {
+            if (!selectEl) return;
+            const models = modelsCatalog[provider] || [];
+            let optionsHtml = '';
+
+            let foundMatch = false;
+            models.forEach(m => {
+                const isSel = (m.id === selectedModel);
+                if (isSel) foundMatch = true;
+                optionsHtml += `<option value="${m.id}" ${isSel ? 'selected' : ''}>${m.name}</option>`;
+            });
+
+            optionsHtml += `<option value="__custom__" ${(!foundMatch && selectedModel) ? 'selected' : ''}>⚙️ Ketik Model Kustom / Manual...</option>`;
+            selectEl.innerHTML = optionsHtml;
+
+            if (!foundMatch && selectedModel) {
+                if (customEl) {
+                    customEl.classList.remove('hidden');
+                    customEl.value = selectedModel;
+                }
+            } else {
+                if (customEl) customEl.classList.add('hidden');
+            }
+        }
+
+        function populateAgentKeySources(selectedKeyId = null) {
+            const sel = document.getElementById('agent-key-source-select');
+            if (!sel) return;
+            let html = '<option value="default">🌐 Gunakan Default Aktif Provider</option>';
+            allKeysData.forEach(k => {
+                const isSel = (Number(selectedKeyId) === Number(k.id));
+                html += `<option value="${k.id}" ${isSel ? 'selected' : ''}>🔑 [${k.provider.toUpperCase()}] ${k.name} (${k.masked_key})</option>`;
+            });
+            sel.innerHTML = html;
+        }
+
+        function onAgentKeySourceChange() {
+            const keySourceVal = document.getElementById('agent-key-source-select').value;
+            if (keySourceVal !== 'default') {
+                const keyObj = allKeysData.find(k => Number(k.id) === Number(keySourceVal));
+                if (keyObj) {
+                    document.getElementById('agent-provider-input').value = keyObj.provider;
+                    onAgentProviderChange(keyObj.default_model);
+                }
+            }
+        }
+
+        function onAgentProviderChange(targetModel = '') {
+            const prov = document.getElementById('agent-provider-input').value;
+            const modelSelect = document.getElementById('agent-model-select');
+            const customInput = document.getElementById('agent-model-custom');
+            populateModelSelect(modelSelect, customInput, prov, targetModel);
+        }
+
+        function onAgentModelSelectChange() {
+            const sel = document.getElementById('agent-model-select');
+            const custom = document.getElementById('agent-model-custom');
+            if (sel.value === '__custom__') {
+                custom.classList.remove('hidden');
+                custom.focus();
+            } else {
+                custom.classList.add('hidden');
+            }
+        }
+
+        function openAgentModal(agentId = null) {
+            populateAgentKeySources();
+            const titleEl = document.getElementById('agent-modal-title');
+            const editIdEl = document.getElementById('agent-edit-id');
+
+            if (agentId) {
+                const a = allAgentsData.find(x => x.id === agentId);
+                if (a) {
+                    editIdEl.value = a.id;
+                    titleEl.innerText = `✏️ EDIT KONFIGURASI AGENT: ${a.name}`;
+                    document.getElementById('agent-name-input').value = a.name;
+                    document.getElementById('agent-role-input').value = a.role;
+                    document.getElementById('agent-emoji-input').value = a.avatar_emoji || '🤖';
+                    document.getElementById('agent-color-input').value = a.color_theme || 'cyan';
+                    document.getElementById('agent-persona-input').value = a.persona || '';
+                    document.getElementById('agent-sysprompt-input').value = a.system_instruction || '';
+                    
+                    populateAgentKeySources(a.api_key_id);
+                    document.getElementById('agent-provider-input').value = a.provider || 'gemini';
+                    onAgentProviderChange(a.model);
+                }
+            } else {
+                editIdEl.value = '';
+                titleEl.innerText = 'KONFIGURASI AI AGENT BARU';
+                document.getElementById('agent-name-input').value = '';
+                document.getElementById('agent-role-input').value = '';
+                document.getElementById('agent-emoji-input').value = '🤖';
+                document.getElementById('agent-color-input').value = 'cyan';
+                document.getElementById('agent-persona-input').value = '';
+                document.getElementById('agent-sysprompt-input').value = '';
+                document.getElementById('agent-provider-input').value = 'nvidia';
+                onAgentProviderChange();
+            }
+
             document.getElementById('agent-modal').classList.remove('hidden');
             document.getElementById('agent-modal').classList.add('flex');
             lucide.createIcons();
@@ -2210,30 +2349,41 @@
 
         async function saveCustomAgentForm(e) {
             e.preventDefault();
+            const editId = document.getElementById('agent-edit-id').value;
+            const modelSel = document.getElementById('agent-model-select').value;
+            const customModel = document.getElementById('agent-model-custom').value.trim();
+            const finalModel = (modelSel === '__custom__') ? customModel : modelSel;
+            const keySourceVal = document.getElementById('agent-key-source-select').value;
+            const apiKeyId = (keySourceVal === 'default') ? null : Number(keySourceVal);
+
             const payload = {
                 name: document.getElementById('agent-name-input').value.trim(),
                 role: document.getElementById('agent-role-input').value.trim(),
                 avatar_emoji: document.getElementById('agent-emoji-input').value.trim() || '🤖',
                 color_theme: document.getElementById('agent-color-input').value,
                 provider: document.getElementById('agent-provider-input').value,
-                model: document.getElementById('agent-model-input').value.trim(),
+                model: finalModel,
+                api_key_id: apiKeyId,
                 persona: document.getElementById('agent-persona-input').value.trim(),
                 system_instruction: document.getElementById('agent-sysprompt-input').value.trim()
             };
 
             try {
-                const res = await fetch('/api/agents', {
-                    method: 'POST',
+                const url = editId ? `/api/agents/${editId}` : '/api/agents';
+                const method = editId ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
-                    showToast(`Agent '${payload.name}' berhasil dibuat!`, 'success');
+                    showToast(editId ? `Konfigurasi Agent '${payload.name}' diperbarui!` : `Agent '${payload.name}' berhasil dibuat!`, 'success');
                     closeAgentModal();
                     fetchAgents();
                 } else {
-                    showToast(`Gagal membuat agent: ${data.message || 'Error'}`, 'error');
+                    showToast(`Gagal menyimpan agent: ${data.message || 'Error'}`, 'error');
                 }
             } catch (err) {
                 showToast(`Error: ${err.message}`, 'error');
@@ -2580,7 +2730,8 @@
                 const res = await fetch('/api/keys');
                 const data = await res.json();
                 if (data.status === 'success') {
-                    renderKeysGrid(data.keys || []);
+                    allKeysData = data.keys || [];
+                    renderKeysGrid(allKeysData);
                 }
             } catch (err) {
                 console.error('Fetch keys error:', err);
@@ -2682,12 +2833,65 @@
             }
         }
 
+        async function validateFormKey() {
+            const prov = document.getElementById('key-provider-select').value;
+            const key = document.getElementById('key-secret-input').value.trim();
+            const modelSel = document.getElementById('key-model-select').value;
+            const customModel = document.getElementById('key-model-custom').value.trim();
+            const model = (modelSel === '__custom__') ? customModel : modelSel;
+            const baseUrl = document.getElementById('key-baseurl-input').value.trim();
+            const badge = document.getElementById('key-form-validate-badge');
+            const btn = document.getElementById('btn-validate-form-key');
+
+            if (!key) {
+                showToast('Masukkan Secret API Key terlebih dahulu untuk diuji.', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menguji Validitas...';
+            lucide.createIcons();
+            badge.classList.remove('hidden');
+            badge.className = 'p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-mono text-xs flex items-center gap-2';
+            badge.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin text-cyan-400"></i> Menghubungi endpoint provider dan menguji API key...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/keys/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: prov, api_key: key, model: model, base_url: baseUrl })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    badge.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-xs flex items-center justify-between';
+                    badge.innerHTML = `<span>✅ <b>VALID!</b> ${data.message}</span><span>${data.duration_ms}ms</span>`;
+                    showToast('API Key dan Model valid & siap digunakan!', 'success');
+                } else {
+                    badge.className = 'p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-mono text-xs space-y-1';
+                    badge.innerHTML = `<div>❌ <b>TIDAK VALID / KONEKSI GAGAL</b></div><div class="text-[11px] text-slate-300 font-sans">${data.message || 'Cek kembali API key atau model'}</div>`;
+                    showToast('Validasi gagal: Kunci atau model tidak valid.', 'error');
+                }
+            } catch (err) {
+                badge.className = 'p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 font-mono text-xs';
+                badge.innerHTML = `❌ Network Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5"></i> Test Validitas Key';
+                lucide.createIcons();
+            }
+        }
+
         async function addApiKeyForm(e) {
             e.preventDefault();
+            const modelSel = document.getElementById('key-model-select').value;
+            const customModel = document.getElementById('key-model-custom').value.trim();
+            const model = (modelSel === '__custom__') ? customModel : modelSel;
+
             const payload = {
                 provider: document.getElementById('key-provider-select').value,
                 name: document.getElementById('key-name-input').value.trim(),
-                default_model: document.getElementById('key-model-input').value.trim(),
+                default_model: model,
                 api_key: document.getElementById('key-secret-input').value.trim(),
                 base_url: document.getElementById('key-baseurl-input').value.trim(),
                 set_active: document.getElementById('key-set-active-check').checked
@@ -2704,6 +2908,7 @@
                     showToast(`API Key '${payload.name}' tersimpan ke Vault!`, 'success');
                     document.getElementById('key-secret-input').value = '';
                     document.getElementById('key-name-input').value = '';
+                    document.getElementById('key-form-validate-badge').classList.add('hidden');
                     fetchKeys();
                 } else {
                     showToast(`Gagal menyimpan key: ${data.message || 'Error'}`, 'error');
@@ -2741,30 +2946,37 @@
 
         function onProviderSelectChange() {
             const prov = document.getElementById('key-provider-select').value;
-            const modelInput = document.getElementById('key-model-input');
+            const modelSelect = document.getElementById('key-model-select');
+            const customInput = document.getElementById('key-model-custom');
             const baseInput = document.getElementById('key-baseurl-input');
 
+            populateModelSelect(modelSelect, customInput, prov);
+
             if (prov === 'gemini') {
-                modelInput.value = 'gemini-3.5-flash-lite';
                 baseInput.value = '';
             } else if (prov === 'nvidia') {
-                modelInput.value = 'meta/llama-3.3-70b-instruct';
                 baseInput.value = 'https://integrate.api.nvidia.com/v1';
             } else if (prov === 'openai') {
-                modelInput.value = 'gpt-4o';
                 baseInput.value = 'https://api.openai.com/v1';
             } else if (prov === 'groq') {
-                modelInput.value = 'llama-3.3-70b-versatile';
                 baseInput.value = 'https://api.groq.com/openai/v1';
             } else if (prov === 'openrouter') {
-                modelInput.value = 'anthropic/claude-3.5-sonnet';
                 baseInput.value = 'https://openrouter.ai/api/v1';
             } else if (prov === 'anthropic') {
-                modelInput.value = 'claude-3-5-sonnet-20241022';
                 baseInput.value = '';
             } else if (prov === 'ollama') {
-                modelInput.value = 'llama3';
                 baseInput.value = 'http://localhost:11434/v1';
+            }
+        }
+
+        function onKeyModelSelectChange() {
+            const sel = document.getElementById('key-model-select');
+            const custom = document.getElementById('key-model-custom');
+            if (sel.value === '__custom__') {
+                custom.classList.remove('hidden');
+                custom.focus();
+            } else {
+                custom.classList.add('hidden');
             }
         }
 
@@ -2774,6 +2986,7 @@
             fetchStats();
             fetchWaQr();
             fetchWaReports();
+            fetchModelsCatalog();
             fetchAgents();
             fetchKeys();
             fetchMeetings();

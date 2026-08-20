@@ -642,6 +642,134 @@ async def test_api_key_endpoint(key_id: int):
     }
 
 
+PROVIDER_MODELS = {
+    "nvidia": [
+        {"id": "meta/llama-3.3-70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "General & Coding"},
+        {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 (Penalaran & Logic Terkuat)", "category": "Reasoning"},
+        {"id": "deepseek-ai/deepseek-v3", "name": "DeepSeek V3 (Sangat Cerdas & Cepat)", "category": "General"},
+        {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B (Optimasi NVIDIA)", "category": "General"},
+        {"id": "meta/llama-3.1-405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Raksasa)", "category": "Flagship"},
+        {"id": "meta/llama-3.1-70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "General"},
+        {"id": "meta/llama-3.1-8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Fast"},
+        {"id": "qwen/qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Dev)", "category": "Coding"},
+        {"id": "qwen/qwen2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct", "category": "General"},
+        {"id": "mistralai/mixtral-8x22b-instruct-v0.1", "name": "Mistral Mixtral 8x22B Instruct", "category": "MoE"},
+        {"id": "mistralai/mistral-large-2-instruct", "name": "Mistral Large 2 Instruct", "category": "Flagship"},
+        {"id": "microsoft/phi-3.5-moe-instruct", "name": "Microsoft Phi 3.5 MoE Instruct", "category": "Lightweight"}
+    ],
+    "gemini": [
+        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Default / Cepat & Hemat)", "category": "Flash"},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru)", "category": "Flash"},
+        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "category": "Flash"},
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "category": "Flash"},
+        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (Konteks Panjang & Analisis)", "category": "Pro"},
+        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "category": "Flash"}
+    ],
+    "openai": [
+        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "Flagship"},
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Hemat & Cepat)", "category": "Fast"},
+        {"id": "o1", "name": "OpenAI o1 (Full Reasoning)", "category": "Reasoning"},
+        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "Reasoning"},
+        {"id": "o3-mini", "name": "OpenAI o3 Mini", "category": "Reasoning"},
+        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "Flagship"}
+    ],
+    "groq": [
+        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Ultra-Fast 300+ T/s)", "category": "Fast"},
+        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Kilat)", "category": "Fast"},
+        {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k", "category": "MoE"},
+        {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B", "category": "Reasoning"},
+        {"id": "gemma2-9b-it", "name": "Gemma 2 9B IT", "category": "Google"}
+    ],
+    "openrouter": [
+        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "Anthropic"},
+        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 (via OpenRouter)", "category": "DeepSeek"},
+        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct", "category": "Meta"},
+        {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenAI"},
+        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free Tier)", "category": "Free"}
+    ],
+    "anthropic": [
+        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Menulis)", "category": "Sonnet"},
+        {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan & Cepat)", "category": "Haiku"},
+        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Kompleks)", "category": "Opus"}
+    ],
+    "ollama": [
+        {"id": "llama3", "name": "Llama 3 (Local)", "category": "Local"},
+        {"id": "deepseek-r1", "name": "DeepSeek R1 (Local)", "category": "Local"},
+        {"id": "qwen2.5-coder", "name": "Qwen 2.5 Coder (Local)", "category": "Local"},
+        {"id": "mistral", "name": "Mistral (Local)", "category": "Local"},
+        {"id": "phi3", "name": "Phi 3 (Local)", "category": "Local"}
+    ]
+}
+
+
+@app.get("/api/models")
+async def get_available_models():
+    """Get verified models list per provider."""
+    return {"status": "success", "providers": PROVIDER_MODELS}
+
+
+@app.post("/api/keys/validate")
+async def validate_raw_api_key(payload: Dict[str, Any]):
+    """Test ping connection for unsaved raw credentials before saving."""
+    provider = payload.get("provider", "gemini")
+    api_key = payload.get("api_key", "").strip()
+    model = payload.get("model", "").strip()
+    base_url = payload.get("base_url", "").strip()
+    
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key wajib diisi untuk divalidasi")
+        
+    start_t = time.time()
+    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "ollama"]:
+        try:
+            import httpx
+            url = base_url
+            if not url:
+                if provider in ["nvidia", "nim"]:
+                    url = "https://integrate.api.nvidia.com/v1"
+                elif provider == "openai":
+                    url = "https://api.openai.com/v1"
+                elif provider == "groq":
+                    url = "https://api.groq.com/openai/v1"
+                elif provider == "openrouter":
+                    url = "https://openrouter.ai/api/v1"
+                elif provider == "ollama":
+                    url = "http://localhost:11434/v1"
+            
+            target_model = model or ("meta/llama-3.3-70b-instruct" if provider in ["nvidia", "nim"] else "gpt-4o")
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            test_payload = {
+                "model": target_model,
+                "messages": [{"role": "user", "content": "Tes koneksi. Jawab: OK"}],
+                "max_tokens": 10
+            }
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                res = await client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=test_payload)
+                duration_ms = round((time.time() - start_t) * 1000, 1)
+                if res.status_code == 200:
+                    return {"status": "success", "duration_ms": duration_ms, "message": f"Koneksi {provider.upper()} ({target_model}) Berhasil ({duration_ms}ms)!"}
+                else:
+                    return {"status": "error", "status_code": res.status_code, "duration_ms": duration_ms, "message": f"HTTP {res.status_code}: {res.text[:200]}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Error: {str(e)}"}
+    else:
+        # Gemini
+        try:
+            from google import genai
+            from google.genai import types
+            target_model = model or "gemini-3.5-flash-lite"
+            client = genai.Client(api_key=api_key)
+            response = await client.aio.models.generate_content(
+                model=target_model,
+                contents="Tes koneksi",
+                config=types.GenerateContentConfig(max_output_tokens=10)
+            )
+            duration_ms = round((time.time() - start_t) * 1000, 1)
+            return {"status": "success", "duration_ms": duration_ms, "message": f"Koneksi GEMINI ({target_model}) Berhasil ({duration_ms}ms)!"}
+        except Exception as e:
+            return {"status": "error", "message": f"Error: {str(e)}"}
+
+
 # --- Autonomous AI Workforce & Custom Agent Endpoints ---
 @app.get("/api/agents")
 async def get_custom_agents():
