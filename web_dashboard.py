@@ -756,6 +756,16 @@ PROVIDER_MODELS = {
         {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)", "category": "Anthropic Sonnet", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($3.00/1M)"},
         {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
     ],
+    "9router": [
+        {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "gpt-4o", "name": "GPT-4o (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "deepseek-reasoner", "name": "DeepSeek R1 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "deepseek-chat", "name": "DeepSeek V3 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "llama-3.3-70b", "name": "Llama 3.3 70B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "qwen-2.5-coder-32b", "name": "Qwen 2.5 Coder 32B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "auto", "name": "Auto Intelligent Fallback (9Router Best Available)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 AUTO ROUTE"}
+    ],
     "ollama": [
         {"id": "deepseek-r1", "name": "DeepSeek R1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
         {"id": "llama3.3", "name": "Llama 3.3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
@@ -770,11 +780,11 @@ PROVIDER_MODELS = {
 
 @app.get("/api/models")
 async def get_available_models():
-    """Get verified models list per provider with live NVIDIA NIM discovery."""
-    # Attempt dynamic refresh from NVIDIA NIM if possible
+    """Get verified models list per provider with live discovery from NVIDIA & OpenRouter."""
+    import httpx
+    # 1. Attempt dynamic refresh from NVIDIA NIM
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=2.5) as client:
             r = await client.get("https://integrate.api.nvidia.com/v1/models")
             if r.status_code == 200:
                 live_data = r.json().get("data", [])
@@ -804,6 +814,28 @@ async def get_available_models():
     except Exception:
         pass
 
+    # 2. Attempt dynamic refresh from OpenRouter
+    try:
+        async with httpx.AsyncClient(timeout=2.5) as client:
+            r = await client.get("https://openrouter.ai/api/v1/models")
+            if r.status_code == 200:
+                live_or = r.json().get("data", [])
+                existing_or_ids = {m["id"] for m in PROVIDER_MODELS["openrouter"]}
+                for item in live_or:
+                    mid = item.get("id")
+                    mname = item.get("name", mid)
+                    if mid and mid not in existing_or_ids:
+                        is_free = ":free" in mid
+                        PROVIDER_MODELS["openrouter"].append({
+                            "id": mid,
+                            "name": f"{mname} ({mid})",
+                            "category": "OpenRouter Free" if is_free else "OpenRouter Live Catalog",
+                            "pricing": "free" if is_free else "paid",
+                            "pricing_label": "🟢 100% GRATIS" if is_free else "💎 BERBAYAR"
+                        })
+    except Exception:
+        pass
+
     return {"status": "success", "providers": PROVIDER_MODELS}
 
 
@@ -819,7 +851,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="API Key wajib diisi untuk divalidasi")
         
     start_t = time.time()
-    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "ollama", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
+    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "9router", "ollama", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
         try:
             import httpx
             url = base_url
@@ -840,6 +872,8 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                     url = "https://api.groq.com/openai/v1"
                 elif provider == "openrouter":
                     url = "https://openrouter.ai/api/v1"
+                elif provider == "9router":
+                    url = "http://localhost:20128/v1"
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
             
@@ -857,10 +891,18 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                     target_model = "qwen-plus"
                 elif provider == "groq":
                     target_model = "llama-3.3-70b-versatile"
+                elif provider == "openrouter":
+                    target_model = "deepseek/deepseek-r1:free"
+                elif provider == "9router":
+                    target_model = "auto"
                 else:
                     target_model = "gpt-4o"
 
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            if provider == "openrouter":
+                headers["HTTP-Referer"] = "https://alfa-agent.local"
+                headers["X-Title"] = "ALFA Swarm Validator"
+
             test_payload = {
                 "model": target_model,
                 "messages": [{"role": "user", "content": "Tes koneksi. Jawab: OK"}],

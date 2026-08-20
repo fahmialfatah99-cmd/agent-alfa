@@ -93,7 +93,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         logger.error(f"All Gemini models failed for agent '{agent.get('name')}': {last_err}")
         return f"[Error: Gagal memanggil Gemini API: {str(last_err)}]"
 
-    elif provider in ["openai", "groq", "openrouter", "ollama", "nvidia", "nim", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
+    elif provider in ["openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
         try:
             import httpx
             # Determine endpoint
@@ -115,6 +115,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     url = "https://api.groq.com/openai/v1"
                 elif provider == "openrouter":
                     url = "https://openrouter.ai/api/v1"
+                elif provider == "9router":
+                    url = "http://localhost:20128/v1"
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
 

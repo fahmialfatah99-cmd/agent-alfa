@@ -997,9 +997,10 @@
                                 <option value="nvidia">NVIDIA NIM (Nemotron, Llama 3.3, 127+ Models)</option>
                                 <option value="deepseek">DeepSeek Official (V3, R1 Reasoning)</option>
                                 <option value="minimax">MiniMax AI (MiniMax-01, abab6.5s)</option>
+                                <option value="openrouter">OpenRouter (Multi-Model Hub / 400+ Models)</option>
+                                <option value="9router">9Router Gateway (AI Router / Fallback Proxy)</option>
                                 <option value="gemini">Google Gemini (Default)</option>
                                 <option value="groq">Groq (Llama 3.3 Ultra-Fast 300+ T/s)</option>
-                                <option value="openrouter">OpenRouter (Multi-Model Hub)</option>
                                 <option value="qwen">Alibaba Cloud Qwen (Max, Plus, Coder)</option>
                                 <option value="moonshot">Moonshot AI / Kimi</option>
                                 <option value="openai">OpenAI (GPT-4o, o1, o3-mini)</option>
@@ -1165,9 +1166,10 @@
                             <option value="nvidia">NVIDIA NIM</option>
                             <option value="deepseek">DeepSeek Official</option>
                             <option value="minimax">MiniMax AI</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="9router">9Router Gateway</option>
                             <option value="gemini">Google Gemini</option>
                             <option value="groq">Groq</option>
-                            <option value="openrouter">OpenRouter</option>
                             <option value="qwen">Alibaba Qwen</option>
                             <option value="moonshot">Moonshot Kimi</option>
                             <option value="openai">OpenAI</option>
@@ -3036,6 +3038,8 @@
                 baseInput.value = 'https://api.groq.com/openai/v1';
             } else if (prov === 'openrouter') {
                 baseInput.value = 'https://openrouter.ai/api/v1';
+            } else if (prov === '9router') {
+                baseInput.value = 'http://localhost:20128/v1';
             } else if (prov === 'anthropic') {
                 baseInput.value = '';
             } else if (prov === 'ollama') {
