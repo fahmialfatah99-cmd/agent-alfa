@@ -65,7 +65,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     provider, api_key, model, base_url = get_agent_api_client(agent)
 
     if provider == "gemini":
-        candidate_models = [model, "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
+        candidate_models = [model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
         # Remove duplicates while preserving order
         unique_models = []
         for m in candidate_models:
