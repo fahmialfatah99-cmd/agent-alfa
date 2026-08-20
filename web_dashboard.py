@@ -561,6 +561,140 @@ async def chat_with_agent(payload: Dict[str, Any]):
     }
 
 
+# --- Multi-Provider API Key Vault Endpoints ---
+@app.get("/api/keys")
+async def get_api_keys():
+    """List all API keys with masked values."""
+    keys = database.list_api_keys_sync()
+    return {"status": "success", "total": len(keys), "keys": keys}
+
+
+@app.post("/api/keys")
+async def add_api_key_endpoint(payload: Dict[str, Any]):
+    """Add a new API key to the vault."""
+    name = payload.get("name")
+    provider = payload.get("provider", "gemini")
+    api_key = payload.get("api_key")
+    default_model = payload.get("default_model", "gemini-2.5-flash")
+    base_url = payload.get("base_url", "")
+    set_active = payload.get("set_active", True)
+    
+    if not api_key:
+        raise HTTPException(status_code=400, detail="api_key is required")
+        
+    res = database.add_api_key_sync(
+        name=name or f"{provider.capitalize()} Key",
+        provider=provider,
+        api_key=api_key,
+        default_model=default_model,
+        base_url=base_url,
+        set_active=set_active
+    )
+    return res
+
+
+@app.post("/api/keys/{key_id}/activate")
+async def activate_api_key_endpoint(key_id: int):
+    """Set an API key as active."""
+    res = database.activate_api_key_sync(key_id)
+    return res
+
+
+@app.delete("/api/keys/{key_id}")
+async def delete_api_key_endpoint(key_id: int):
+    """Delete an API key."""
+    res = database.delete_api_key_sync(key_id)
+    return res
+
+
+# --- Autonomous AI Workforce & Custom Agent Endpoints ---
+@app.get("/api/agents")
+async def get_custom_agents():
+    """List all custom agents in the workforce."""
+    agents = database.list_custom_agents_sync()
+    return {"status": "success", "total": len(agents), "agents": agents}
+
+
+@app.post("/api/agents")
+async def create_custom_agent(payload: Dict[str, Any]):
+    """Create a new specialized AI agent."""
+    name = payload.get("name")
+    role = payload.get("role")
+    persona = payload.get("persona", "")
+    system_instruction = payload.get("system_instruction", "")
+    provider = payload.get("provider", "gemini")
+    model = payload.get("model", "gemini-2.5-flash")
+    api_key_id = payload.get("api_key_id")
+    avatar_emoji = payload.get("avatar_emoji", "🤖")
+    color_theme = payload.get("color_theme", "cyan")
+    
+    if not name or not role:
+        raise HTTPException(status_code=400, detail="name and role are required")
+        
+    res = database.add_custom_agent_sync(
+        name=name,
+        role=role,
+        persona=persona or f"Spesialis {role}",
+        system_instruction=system_instruction or f"Kamu adalah {name}, {role}.",
+        provider=provider,
+        model=model,
+        api_key_id=api_key_id,
+        avatar_emoji=avatar_emoji,
+        color_theme=color_theme
+    )
+    return res
+
+
+@app.put("/api/agents/{agent_id}")
+async def update_custom_agent_endpoint(agent_id: int, payload: Dict[str, Any]):
+    """Update custom agent configuration."""
+    res = database.update_custom_agent_sync(agent_id, payload)
+    return res
+
+
+@app.delete("/api/agents/{agent_id}")
+async def delete_custom_agent_endpoint(agent_id: int):
+    """Delete a custom agent."""
+    res = database.delete_custom_agent_sync(agent_id)
+    return res
+
+
+# --- Multi-Agent Round-Table Meeting Endpoints ---
+@app.post("/api/meetings/start")
+async def start_agent_meeting(payload: Dict[str, Any]):
+    """Launch an autonomous multi-agent round-table discussion."""
+    topic = payload.get("topic")
+    if not topic:
+        raise HTTPException(status_code=400, detail="topic is required")
+        
+    participants = payload.get("participants")
+    rounds = payload.get("rounds", 2)
+    
+    import swarm_engine
+    result = await swarm_engine.conduct_multi_agent_meeting(
+        topic=topic,
+        participant_names=participants,
+        rounds=min(3, max(1, int(rounds)))
+    )
+    return result
+
+
+@app.get("/api/meetings")
+async def list_meetings(limit: int = 50):
+    """List recent multi-agent meetings."""
+    meetings = database.list_agent_meetings_sync(limit=limit)
+    return {"status": "success", "total": len(meetings), "meetings": meetings}
+
+
+@app.get("/api/meetings/{meeting_id}")
+async def get_meeting_details(meeting_id: int):
+    """Fetch complete transcript, consensus, and action plan of a meeting."""
+    details = database.get_agent_meeting_sync(meeting_id)
+    if not details:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    return {"status": "success", "meeting": details}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("DASHBOARD_PORT", "8080"))

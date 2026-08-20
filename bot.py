@@ -1454,13 +1454,111 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Akses Jaringan (HP / WiFi):** `{res.get('network_url')}`\n\n"
         f"⚡ **Fitur Dashboard:**\n"
         f"1. 📊 Live Telemetry Hardware & Gauges Real-time\n"
-        f"2. ⚡ 72+ Tools Arsenal Explorer & Interactive Runner\n"
+        f"2. ⚡ 75+ Tools Arsenal Explorer & Interactive Runner\n"
         f"3. 📱 Ecosystem Hub (Telegram & WA Sheets Bot Controller)\n"
         f"4. 🧠 Second Brain & Semantic Knowledge Graph Visualizer\n"
         f"5. 🛡️ 24/7 System Guardian & Proactive Watchdogs Config\n"
-        f"6. 💬 Live Web AI Interactive Console"
+        f"6. 💬 Live Web AI Interactive Console\n"
+        f"7. 🤖 AI Agent Workforce & Ruang Rapat (Multi-Agent Swarm)\n"
+        f"8. 🔑 Multi-Provider API Key Vault"
     )
     await safe_send_message(context, chat_id, text)
+
+
+async def keys_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /keys command to manage API keys vault."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    keys = database.list_api_keys_sync()
+    if not keys:
+        text = "🔑 **API Key Vault Kosong.** Tambahkan via Web Dashboard (http://localhost:8080) atau gunakan perintah tool."
+    else:
+        text = "🔑 **Multi-Provider API Key Vault:**\n\n"
+        for k in keys:
+            act = "🟢 *[ACTIVE]*" if k["is_active"] else "⚪"
+            text += f"{act} **{k['name']}** (`{k['provider'].upper()}`)\n"
+            text += f"   • Key: `{k['masked_key']}` | Model: `{k['default_model']}`\n\n"
+        text += "💡 _Kelola, uji koneksi, & tambah key baru dengan mudah via Web Dashboard di tab API Key Vault._"
+    await safe_send_message(context, chat_id, text)
+
+
+async def agents_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /agents or /swarm command to view autonomous AI workforce."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    agents = database.list_custom_agents_sync()
+    if not agents:
+        text = "🤖 **Belum ada AI Agent terdaftar.**"
+    else:
+        text = "🤖 **ALFA Autonomous AI Agent Workforce:**\n\n"
+        for a in agents:
+            status = "🟢 Aktif" if a.get("is_enabled", 1) else "🔴 Nonaktif"
+            text += f"{a.get('avatar_emoji', '🤖')} **{a['name']}** ({status})\n"
+            text += f"   • Role: *{a['role']}*\n"
+            text += f"   • Model: `{a['provider']}/{a['model']}`\n\n"
+        text += "💡 _Mulai rapat antar agent dengan perintah `/rapat <topik>` atau via Web Dashboard!_"
+    await safe_send_message(context, chat_id, text)
+
+
+async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /rapat or /meeting command to conduct an autonomous round-table meeting."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    topic = " ".join(context.args).strip() if context.args else ""
+    if not topic:
+        text = (
+            "🏛️ **Panduan Ruang Rapat AI Otonom:**\n\n"
+            "Format: `/rapat <topik / masalah / project yang ingin dibahas>`\n\n"
+            "**Contoh:**\n"
+            "• `/rapat Desain arsitektur database baru untuk auto-sync WhatsApp ke cloud`\n"
+            "• `/rapat Strategi meningkatkan performa agent bot dan penghematan token API`\n\n"
+            "💡 _Para agent (Alpha Lead, Code Crafter, System Auditor, dll) akan berdiskusi dan menghasilkan Action Plan!_"
+        )
+        await safe_send_message(context, chat_id, text)
+        return
+
+    init_msg = await safe_send_message(
+        context, chat_id, 
+        f"🏛️ **Membuka Ruang Rapat AI Otonom...**\n\n"
+        f"📋 **Topik:** _{topic}_\n"
+        f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu..."
+    )
+
+    try:
+        import swarm_engine
+        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2)
+        
+        # Send summary of transcript
+        transcript = result.get("dialogue_transcript", [])
+        dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
+        for d in transcript[:6]:  # Show first few highlights
+            dialogue_text += f"{d.get('avatar_emoji', '🤖')} **{d['agent_name']}** ({d['role']}):\n{d['message'][:400]}...\n\n"
+
+        await safe_send_message(context, chat_id, dialogue_text)
+
+        # Send Final Consensus & Action Plan
+        final_text = (
+            f"🎯 **KONSENSUS & KEPUTUSAN RAPAT:**\n\n"
+            f"{result.get('consensus', '')}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 **ACTION PLAN / LANGKAH KERJA:**\n\n"
+            f"{result.get('action_plan', '')}\n\n"
+            f"🌐 _Transkrip lengkap tersimpan di Web Dashboard (ID: #{result.get('meeting_id')})_"
+        )
+        await safe_send_message(context, chat_id, final_text)
+
+    except Exception as e:
+        logger.error(f"Error during Telegram /rapat meeting: {e}")
+        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}")
 
 
 def main():
@@ -1492,6 +1590,12 @@ def main():
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
     application.add_handler(CommandHandler("proactive", proactive_command))
+    application.add_handler(CommandHandler("keys", keys_command))
+    application.add_handler(CommandHandler("vault", keys_command))
+    application.add_handler(CommandHandler("agents", agents_command))
+    application.add_handler(CommandHandler("swarm", agents_command))
+    application.add_handler(CommandHandler("rapat", rapat_command))
+    application.add_handler(CommandHandler("meeting", rapat_command))
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("reset", clear_command))
     application.add_handler(CommandHandler("id", id_command))

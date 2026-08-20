@@ -95,7 +95,121 @@ def init_db_sync():
                 notes TEXT,
                 is_notified INTEGER DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                api_key TEXT NOT NULL,
+                base_url TEXT,
+                default_model TEXT NOT NULL,
+                is_active INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS custom_agents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL,
+                persona TEXT NOT NULL,
+                system_instruction TEXT NOT NULL,
+                provider TEXT NOT NULL DEFAULT 'gemini',
+                model TEXT NOT NULL DEFAULT 'gemini-2.5-flash',
+                api_key_id INTEGER,
+                avatar_emoji TEXT DEFAULT '🤖',
+                color_theme TEXT DEFAULT 'cyan',
+                is_enabled INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_meetings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                participants TEXT NOT NULL,
+                dialogue_transcript TEXT NOT NULL,
+                consensus TEXT,
+                action_plan TEXT,
+                status TEXT DEFAULT 'completed',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         """)
+        
+        # Seed default API key from environment if empty
+        row = conn.execute("SELECT COUNT(*) as count FROM api_keys").fetchone()
+        if row and row[0] == 0:
+            env_gemini_key = os.getenv("GEMINI_API_KEY", "")
+            if env_gemini_key:
+                conn.execute(
+                    """
+                    INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
+                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-2.5-flash', 1)
+                    """,
+                    (env_gemini_key,)
+                )
+
+        # Seed default autonomous workforce agents if empty
+        agent_count = conn.execute("SELECT COUNT(*) as count FROM custom_agents").fetchone()
+        if agent_count and agent_count[0] == 0:
+            default_agents = [
+                (
+                    "Alpha Lead",
+                    "Chief Orchestrator & Project Director",
+                    "Visioner, bijaksana, fokus pada tujuan akhir dan koordinasi tim.",
+                    "Kamu adalah Alpha Lead, ketua tim AI otonom. Tugasmu memimpin rapat, membagi tugas ke spesialis lain, menyelaraskan perbedaan pendapat, dan merumuskan konsensus akhir yang solutif dan realistis.",
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "👑",
+                    "cyan"
+                ),
+                (
+                    "Code Crafter",
+                    "Senior Software Architect & Fullstack Engineer",
+                    "Presisi teknis tinggi, berorientasi kode efisien, arsitektur bersih.",
+                    "Kamu adalah Code Crafter, ahli rekayasa perangkat lunak dan arsitektur kode. Tugasmu menganalisis aspek teknis, memilih algoritma/tools yang tepat, menyusun struktur modul, dan mengimplementasikan kode yang tangguh.",
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "⚡",
+                    "emerald"
+                ),
+                (
+                    "System Auditor",
+                    "Security, Performance & Quality Critic",
+                    "Kritis, teliti, mendeteksi celah keamanan, bug tersembunyi, dan bottleneck sistem.",
+                    "Kamu adalah System Auditor, penguji kritis tim. Tugasmu menguji setiap ide yang diajukan, mencari potensi kelemahan, celah keamanan, skalabilitas, dan memastikan standar kualitas terbaik.",
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "🛡️",
+                    "rose"
+                ),
+                (
+                    "Researcher Prime",
+                    "Deep Intel & Fact-Checking Specialist",
+                    "Objektif, berbasis data dan riset literatur, up-to-date dengan teknologi modern.",
+                    "Kamu adalah Researcher Prime, spesialis riset dan verifikasi data. Tugasmu menyajikan fakta ilmiah, tren teknologi terbaru, dokumentasi library resmi, dan benchmark empiris.",
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "🌐",
+                    "violet"
+                ),
+                (
+                    "Strategic Planner",
+                    "Product Strategist & UX Visionary",
+                    "Berorientasi pengguna, praktis, menyusun roadmap dan efisiensi alur kerja.",
+                    "Kamu adalah Strategic Planner, perencana produk dan strategi alur kerja. Tugasmu memastikan solusi mudah digunakan oleh manusia, memiliki dampak bisnis yang jelas, dan membagi proyek menjadi tahapan aksi konkret.",
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "💡",
+                    "amber"
+                )
+            ]
+            for name, role, persona, sys_inst, prov, model, emoji, color in default_agents:
+                conn.execute(
+                    """
+                    INSERT INTO custom_agents (name, role, persona, system_instruction, provider, model, avatar_emoji, color_theme, is_enabled)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    """,
+                    (name, role, persona, sys_inst, prov, model, emoji, color)
+                )
+
         conn.commit()
 
 
@@ -685,5 +799,236 @@ async def mark_focus_session_completed(session_id: int):
             (session_id,)
         )
         await db.commit()
+
+
+# --- API Key Multi-Provider Vault ---
+def mask_key(k: str) -> str:
+    if not k or len(k) <= 8:
+        return "••••••••"
+    return k[:4] + "••••••••" + k[-4:]
+
+
+def list_api_keys_sync() -> List[Dict[str, Any]]:
+    """List all configured API keys with masked key values."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("SELECT id, name, provider, api_key, base_url, default_model, is_active, created_at FROM api_keys ORDER BY id ASC")
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            results.append({
+                "id": r["id"],
+                "name": r["name"],
+                "provider": r["provider"],
+                "masked_key": mask_key(r["api_key"]),
+                "base_url": r["base_url"] or "",
+                "default_model": r["default_model"],
+                "is_active": bool(r["is_active"]),
+                "created_at": str(r["created_at"])
+            })
+        return results
+
+
+def add_api_key_sync(name: str, provider: str, api_key: str, default_model: str, base_url: str = "", set_active: bool = False) -> Dict[str, Any]:
+    """Add a new API key to the vault."""
+    with get_sync_db() as conn:
+        if set_active:
+            conn.execute("UPDATE api_keys SET is_active = 0 WHERE provider = ?", (provider,))
+        cursor = conn.execute(
+            """
+            INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (name, provider.lower(), api_key.strip(), base_url.strip() if base_url else None, default_model, 1 if set_active else 0)
+        )
+        conn.commit()
+        key_id = cursor.lastrowid
+    return {"status": "success", "id": key_id, "name": name, "provider": provider}
+
+
+def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
+    """Set an API key as active."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("SELECT provider FROM api_keys WHERE id = ?", (key_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {"status": "error", "message": "Key not found"}
+        prov = row["provider"]
+        conn.execute("UPDATE api_keys SET is_active = 0 WHERE provider = ?", (prov,))
+        conn.execute("UPDATE api_keys SET is_active = 1 WHERE id = ?", (key_id,))
+        conn.commit()
+    return {"status": "success", "message": f"API key #{key_id} activated"}
+
+
+def delete_api_key_sync(key_id: int) -> Dict[str, Any]:
+    """Delete an API key from the vault."""
+    with get_sync_db() as conn:
+        conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+        conn.commit()
+    return {"status": "success", "message": f"API key #{key_id} deleted"}
+
+
+def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]]:
+    """Get active API key record for a given provider."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("SELECT * FROM api_keys WHERE provider = ? AND is_active = 1 LIMIT 1", (provider.lower(),))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        # Fallback to any active key or first key
+        cursor = conn.execute("SELECT * FROM api_keys WHERE provider = ? ORDER BY id ASC LIMIT 1", (provider.lower(),))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+    return None
+
+
+# --- Custom Autonomous Agents (AI Workforce) ---
+def list_custom_agents_sync() -> List[Dict[str, Any]]:
+    """List all registered custom agents."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model, 
+                   a.api_key_id, a.avatar_emoji, a.color_theme, a.is_enabled, a.created_at,
+                   k.name as key_name
+            FROM custom_agents a
+            LEFT JOIN api_keys k ON a.api_key_id = k.id
+            ORDER BY a.id ASC
+            """
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction: str, 
+                           provider: str = "gemini", model: str = "gemini-2.5-flash", 
+                           api_key_id: Optional[int] = None, avatar_emoji: str = "🤖", 
+                           color_theme: str = "cyan") -> Dict[str, Any]:
+    """Create a new specialized AI agent in the workforce."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO custom_agents (name, role, persona, system_instruction, provider, model, api_key_id, avatar_emoji, color_theme, is_enabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (name, role, persona, system_instruction, provider, model, api_key_id, avatar_emoji, color_theme)
+        )
+        conn.commit()
+        agent_id = cursor.lastrowid
+    return {"status": "success", "id": agent_id, "name": name, "role": role}
+
+
+def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Update custom agent configuration."""
+    allowed = ["name", "role", "persona", "system_instruction", "provider", "model", "api_key_id", "avatar_emoji", "color_theme", "is_enabled"]
+    fields = []
+    values = []
+    for k, v in updates.items():
+        if k in allowed:
+            fields.append(f"{k} = ?")
+            values.append(v)
+    if not fields:
+        return {"status": "error", "message": "No valid fields to update"}
+    values.append(agent_id)
+    with get_sync_db() as conn:
+        conn.execute(f"UPDATE custom_agents SET {', '.join(fields)} WHERE id = ?", tuple(values))
+        conn.commit()
+    return {"status": "success", "message": f"Agent #{agent_id} updated"}
+
+
+def delete_custom_agent_sync(agent_id: int) -> Dict[str, Any]:
+    """Delete a custom agent."""
+    with get_sync_db() as conn:
+        conn.execute("DELETE FROM custom_agents WHERE id = ?", (agent_id,))
+        conn.commit()
+    return {"status": "success", "message": f"Agent #{agent_id} deleted"}
+
+
+def get_custom_agent_sync(name_or_id: Any) -> Optional[Dict[str, Any]]:
+    """Retrieve custom agent by name or id."""
+    with get_sync_db() as conn:
+        if isinstance(name_or_id, int) or (isinstance(name_or_id, str) and name_or_id.isdigit()):
+            cursor = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (int(name_or_id),))
+        else:
+            cursor = conn.execute("SELECT * FROM custom_agents WHERE LOWER(name) = LOWER(?)", (str(name_or_id).strip(),))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+    return None
+
+
+# --- AI Round-Table Meetings (Konferensi & Rapat Antar Agent) ---
+def create_agent_meeting_sync(title: str, topic: str, participants: List[str], 
+                              dialogue_transcript: List[Dict[str, Any]], 
+                              consensus: str, action_plan: str, 
+                              status: str = "completed") -> Dict[str, Any]:
+    """Save a completed or active multi-agent meeting."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO agent_meetings (title, topic, participants, dialogue_transcript, consensus, action_plan, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                title,
+                topic,
+                json.dumps(participants, ensure_ascii=False),
+                json.dumps(dialogue_transcript, ensure_ascii=False),
+                consensus,
+                action_plan,
+                status
+            )
+        )
+        conn.commit()
+        meeting_id = cursor.lastrowid
+    return {"status": "success", "id": meeting_id, "title": title}
+
+
+def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
+    """List recent meetings."""
+    with get_sync_db() as conn:
+        cursor = conn.execute(
+            "SELECT id, title, topic, participants, consensus, action_plan, status, created_at FROM agent_meetings ORDER BY id DESC LIMIT ?",
+            (limit,)
+        )
+        rows = cursor.fetchall()
+        results = []
+        for r in rows:
+            parts = []
+            try:
+                parts = json.loads(r["participants"])
+            except Exception:
+                pass
+            results.append({
+                "id": r["id"],
+                "title": r["title"],
+                "topic": r["topic"],
+                "participants": parts,
+                "consensus": r["consensus"] or "",
+                "action_plan": r["action_plan"] or "",
+                "status": r["status"],
+                "created_at": str(r["created_at"])
+            })
+        return results
+
+
+def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
+    """Get full details of a specific meeting including full dialogue transcript."""
+    with get_sync_db() as conn:
+        cursor = conn.execute("SELECT * FROM agent_meetings WHERE id = ?", (meeting_id,))
+        row = cursor.fetchone()
+        if row:
+            d = dict(row)
+            try:
+                d["participants"] = json.loads(d["participants"])
+            except Exception:
+                pass
+            try:
+                d["dialogue_transcript"] = json.loads(d["dialogue_transcript"])
+            except Exception:
+                pass
+            return d
+    return None
+
 
 

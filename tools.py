@@ -3218,10 +3218,159 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
             "message": f"🌐 Web Dashboard Command Center aktif! Buka di browser laptop: http://localhost:{port} atau dari HP di WiFi yang sama: http://{local_ip}:{port}",
             "local_url": f"http://localhost:{port}",
             "network_url": f"http://{local_ip}:{port}",
-            "dashboard_features": ["Live Hardware Telemetry", "72+ Tools Arsenal & Runner", "Ecosystem Services Hub", "Second Brain Memory Visualizer", "24/7 Guardian Control", "Web Live AI Console"]
+            "dashboard_features": ["Live Hardware Telemetry", "75+ Tools Arsenal & Runner", "Ecosystem Services Hub", "Second Brain Memory Visualizer", "24/7 Guardian Control", "Web Live AI Console", "AI Swarm & Rapat Antar Agent", "Multi-Provider API Key Vault"]
         }
     except Exception as e:
         return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
+
+
+def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_key: str = "", default_model: str = "gemini-2.5-flash", base_url: str = "", key_id: int = None) -> Dict[str, Any]:
+    """
+    Manage API keys and multi-provider endpoints (Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama).
+    Enables switching active keys or assigning specific provider keys to specialized agents.
+    
+    Args:
+        action: 'list' (view all keys), 'add' (add key), 'activate' (set key active), 'delete' (remove key).
+        name: Label name for the key (e.g. 'Production Gemini', 'Groq Llama 3').
+        provider: 'gemini', 'openai', 'groq', 'openrouter', 'anthropic', 'ollama'.
+        api_key: The API secret key string.
+        default_model: Default model string (e.g. 'gemini-2.5-flash', 'gpt-4o', 'llama-3.3-70b-versatile').
+        base_url: Optional custom proxy or Ollama base URL (e.g. 'http://localhost:11434/v1').
+        key_id: Target key ID for 'activate' or 'delete'.
+    """
+    action = action.lower().strip()
+    try:
+        if action == "list":
+            keys = database.list_api_keys_sync()
+            return {
+                "status": "success",
+                "total_keys": len(keys),
+                "keys": keys
+            }
+        elif action == "add":
+            if not api_key:
+                return {"status": "error", "message": "Parameter 'api_key' wajib diisi."}
+            res = database.add_api_key_sync(
+                name=name or f"{provider.capitalize()} Key",
+                provider=provider,
+                api_key=api_key,
+                default_model=default_model,
+                base_url=base_url,
+                set_active=True
+            )
+            return {"status": "success", "message": f"API Key '{name}' untuk provider '{provider}' berhasil disimpan & diaktifkan!", "key_id": res.get("id")}
+        elif action == "activate":
+            if not key_id:
+                return {"status": "error", "message": "Parameter 'key_id' wajib diisi."}
+            return database.activate_api_key_sync(key_id)
+        elif action == "delete":
+            if not key_id:
+                return {"status": "error", "message": "Parameter 'key_id' wajib diisi."}
+            return database.delete_api_key_sync(key_id)
+        else:
+            return {"status": "error", "message": f"Action tidak dikenal: {action}. Gunakan 'list', 'add', 'activate', atau 'delete'."}
+    except Exception as e:
+        return {"status": "error", "message": f"Manage API keys error: {str(e)}"}
+
+
+def manage_custom_agents(action: str, name: str = "", role: str = "", persona: str = "", system_instruction: str = "", provider: str = "gemini", model: str = "gemini-2.5-flash", avatar_emoji: str = "🤖", color_theme: str = "cyan", agent_id: int = None) -> Dict[str, Any]:
+    """
+    Manage the Autonomous AI Agent Workforce (Society of Agents).
+    Create, list, update, and configure specialized agents that can collaborate, hold meetings, and execute tasks.
+    
+    Args:
+        action: 'list' (view all agents), 'add' (create agent), 'delete' (remove agent), 'toggle' (enable/disable).
+        name: Unique name of the agent (e.g. 'Security Guard', 'Frontend Ninja').
+        role: Title / Role of the agent (e.g. 'Penetration Tester', 'Vue/React UI Specialist').
+        persona: Persona description (e.g. 'Kritis, teliti, mengutamakan performa').
+        system_instruction: Detailed system prompt for this agent.
+        provider: 'gemini', 'openai', 'groq', 'openrouter', 'ollama'.
+        model: Model identifier (default: 'gemini-2.5-flash').
+        avatar_emoji: Avatar emoji (e.g. '👑', '⚡', '🛡️', '🌐', '💡').
+        color_theme: 'cyan', 'emerald', 'violet', 'amber', 'rose', 'blue'.
+        agent_id: Target agent ID for update or delete.
+    """
+    action = action.lower().strip()
+    try:
+        if action == "list":
+            agents = database.list_custom_agents_sync()
+            return {
+                "status": "success",
+                "total_agents": len(agents),
+                "agents": agents
+            }
+        elif action == "add":
+            if not name or not role:
+                return {"status": "error", "message": "Parameter 'name' dan 'role' wajib diisi."}
+            res = database.add_custom_agent_sync(
+                name=name,
+                role=role,
+                persona=persona or f"Spesialis dalam {role}",
+                system_instruction=system_instruction or f"Kamu adalah {name}, {role}.",
+                provider=provider,
+                model=model,
+                avatar_emoji=avatar_emoji,
+                color_theme=color_theme
+            )
+            return {"status": "success", "message": f"Agent '{name}' ({role}) berhasil ditambahkan ke AI Workforce!", "agent_id": res.get("id")}
+        elif action == "delete":
+            if not agent_id:
+                return {"status": "error", "message": "Parameter 'agent_id' wajib diisi."}
+            return database.delete_custom_agent_sync(agent_id)
+        elif action == "toggle":
+            if not agent_id:
+                return {"status": "error", "message": "Parameter 'agent_id' wajib diisi."}
+            cur = database.get_custom_agent_sync(agent_id)
+            if not cur:
+                return {"status": "error", "message": "Agent tidak ditemukan"}
+            new_state = 0 if cur.get("is_enabled", 1) else 1
+            return database.update_custom_agent_sync(agent_id, {"is_enabled": new_state})
+        else:
+            return {"status": "error", "message": f"Action tidak dikenal: {action}."}
+    except Exception as e:
+        return {"status": "error", "message": f"Manage custom agents error: {str(e)}"}
+
+
+def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2) -> Dict[str, Any]:
+    """
+    Conduct an Autonomous Round-Table Conference / Meeting between multiple AI agents.
+    Agents will debate the topic turn-by-turn, challenge assumptions, brainstorm solutions,
+    and formulate a unified consensus and executable action plan.
+    
+    Args:
+        topic: The agenda / problem / project to be discussed in the meeting.
+        participants: Comma-separated agent names (e.g. 'Alpha Lead, Code Crafter, System Auditor') or empty for default team.
+        rounds: Number of discussion rounds (1 to 3, default: 2).
+    """
+    try:
+        import swarm_engine
+        part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
+        rounds_clamped = max(1, min(3, int(rounds)))
+        
+        # Run meeting asynchronously
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                result = pool.submit(
+                    lambda: asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped))
+                ).result()
+        else:
+            result = loop.run_until_complete(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped))
+            
+        return {
+            "status": "success",
+            "meeting_id": result.get("meeting_id"),
+            "title": result.get("title"),
+            "topic": topic,
+            "total_rounds": rounds_clamped,
+            "participants": result.get("participants"),
+            "total_dialogues": len(result.get("dialogue_transcript", [])),
+            "consensus": result.get("consensus"),
+            "action_plan": result.get("action_plan")
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"AI Meeting error: {str(e)}"}
 
 
 # List of all tools available to the Gemini Model
@@ -3253,6 +3402,9 @@ AVAILABLE_TOOLS = [
     compress_folder_to_zip,
     record_desktop_screen,
     read_clipboard,
+    manage_api_keys,
+    manage_custom_agents,
+    conduct_ai_meeting,
     write_to_clipboard,
     show_desktop_notification,
     ssh_execute_command,

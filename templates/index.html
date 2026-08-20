@@ -143,27 +143,33 @@
         </div>
 
         <!-- Center Tabs -->
-        <nav class="hidden lg:flex items-center space-x-1 p-1 bg-dark-900/90 rounded-xl border border-white/5">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm">
+        <nav class="hidden xl:flex items-center space-x-1 p-1 bg-dark-900/90 rounded-xl border border-white/5">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm">
                 <i data-lucide="activity" class="w-3.5 h-3.5"></i> Telemetry
             </button>
-            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
-                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools Arsenal <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">72</span>
+            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="users" class="w-3.5 h-3.5"></i> AI Swarm & Rapat
             </button>
-            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
-                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Services Hub
+            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
             </button>
-            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">75</span>
+            </button>
+            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Services
+            </button>
+            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
                 <i data-lucide="brain" class="w-3.5 h-3.5"></i> Second Brain
             </button>
-            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
-                <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> Artifacts
+            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> Files
             </button>
-            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Guardian
             </button>
-            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
-                <i data-lucide="terminal" class="w-3.5 h-3.5"></i> AI Console
+            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Console
             </button>
         </nav>
 
@@ -759,6 +765,231 @@
                     </button>
                 </form>
             </div>
+        <!-- ==================== TAB: AI SWARM & RUANG RAPAT AGENT ==================== -->
+        <section id="view-swarm" class="tab-view hidden space-y-6">
+            <!-- Header Banner & Controls -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/20">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                        </div>
+                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">AUTONOMOUS AI WORKFORCE & MEETING ROOM</h2>
+                    </div>
+                    <p class="text-xs text-slate-400">Lingkungan kolaboratif antar AI Agent spesialis yang mampu berdiskusi, merapatkan masalah, dan merumuskan Action Plan secara mandiri.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openAgentModal()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-bold font-mono flex items-center gap-2 transition-all">
+                        <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i> + Tambah Agent
+                    </button>
+                    <button onclick="scrollToMeetingRoom()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 text-xs font-bold font-mono flex items-center gap-2 shadow-glow-cyan transition-all">
+                        <i data-lucide="message-square-plus" class="w-4 h-4"></i> 🏛️ Buka Ruang Rapat
+                    </button>
+                </div>
+            </div>
+
+            <!-- Agent Workforce Roster Grid -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-300 font-mono flex items-center gap-2">
+                        <i data-lucide="bot" class="w-4 h-4 text-cyan-400"></i> ANGGOTA TIM AI SPESIALIS (WORKFORCE ROSTER)
+                    </h3>
+                    <span id="agents-count-badge" class="text-xs text-slate-500 font-mono">-- Agents</span>
+                </div>
+                <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Dynamic Agent Cards -->
+                </div>
+            </div>
+
+            <!-- Round-Table Meeting Room Interactive Panel -->
+            <div id="meeting-room-panel" class="glass-card p-6 rounded-2xl space-y-5 border border-violet-500/20 relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center text-lg">
+                            🏛️
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono">RUANG RAPAT & KONFERENSI AI OTONOM</h3>
+                            <p class="text-xs text-slate-400">Pilih agenda & undang agent untuk berdialog, berdebat, dan menyusun konsensus solusi.</p>
+                        </div>
+                    </div>
+                    <span id="meeting-status-badge" class="px-3 py-1 text-xs font-mono rounded-lg bg-white/5 text-slate-400 border border-white/10 self-start sm:self-auto font-bold">MEETING STANDBY</span>
+                </div>
+
+                <!-- Meeting Formulation Form -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Topik / Agenda Rapat yang Dibahas:</label>
+                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang strategi integrasi WhatsApp bot dengan OpenAI/Gemini multi-model dan optimalisasi performa database..." class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-sans"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Peserta Rapat yang Diundang:</label>
+                            <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-2.5 bg-dark-950 rounded-xl border border-white/5 max-h-32 overflow-y-auto custom-scrollbar text-xs">
+                                <!-- Checkbox list of agents -->
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Putaran Diskusi (Rounds):</label>
+                            <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                                <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
+                                <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
+                                <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
+                            </select>
+                            <button onclick="startAiMeeting()" id="btn-start-meeting" class="w-full mt-3 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all">
+                                <i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Dialogue Stream Container -->
+                <div id="meeting-dialogue-container" class="hidden space-y-4 pt-4 border-t border-white/5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono font-bold text-slate-300 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-violet-400 animate-ping"></span>
+                            TRANSKRIP DIALOG BERLANGSUNG
+                        </span>
+                        <span id="meeting-dialogue-count" class="text-xs text-slate-500 font-mono">0 Masukan</span>
+                    </div>
+
+                    <!-- Transcript Feed -->
+                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar p-3 bg-dark-950/80 rounded-2xl border border-white/5">
+                        <!-- Dialogue speech bubbles -->
+                    </div>
+
+                    <!-- Consensus & Action Plan Result Box -->
+                    <div id="meeting-consensus-box" class="hidden p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 shadow-glow-emerald">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-bold text-emerald-400 font-mono flex items-center gap-2">
+                                <i data-lucide="award" class="w-5 h-5"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT
+                            </h4>
+                            <button onclick="copyConsensus()" class="px-2.5 py-1 text-xs rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-semibold">Salin Hasil</button>
+                        </div>
+                        <div id="meeting-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none"></div>
+                        <div id="meeting-action-plan-text" class="text-xs text-emerald-200 leading-relaxed font-sans pt-2 border-t border-emerald-500/20"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Past Meetings Archive Table -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-white/5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-300 font-mono flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i> ARSIP RIWAYAT RAPAT & KEPUTUSAN
+                    </h3>
+                    <button onclick="fetchMeetings()" class="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="text-[11px] text-slate-400 uppercase border-b border-white/5">
+                            <tr>
+                                <th class="pb-2.5">WAKTU</th>
+                                <th class="pb-2.5">AGENDA / TOPIK</th>
+                                <th class="pb-2.5">PESERTA AGENT</th>
+                                <th class="pb-2.5">STATUS</th>
+                                <th class="pb-2.5 text-right">AKSI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="meetings-history-tbody" class="divide-y divide-white/5">
+                            <!-- Meeting archive rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB: API KEYS VAULT ==================== -->
+        <section id="view-keys" class="tab-view hidden space-y-6">
+            <!-- Header Banner -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/20">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold">
+                            <i data-lucide="key" class="w-4 h-4"></i>
+                        </div>
+                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">MULTI-PROVIDER API KEY & ENDPOINT VAULT</h2>
+                    </div>
+                    <p class="text-xs text-slate-400">Kelola kredensial API multi-provider (Google Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama). Hubungkan API key lain untuk mengganti otak agent atau membuat agent baru.</p>
+                </div>
+                <span class="px-3 py-1.5 rounded-xl bg-dark-900 border border-white/10 text-xs font-mono text-cyan-400 font-bold flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> AES Masked Storage
+                </span>
+            </div>
+
+            <!-- Add New Key Card -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-white/5">
+                <h3 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i> TAMBAH API KEY BARU KE VAULT
+                </h3>
+                <form onsubmit="addApiKeyForm(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Provider AI:</label>
+                            <select id="key-provider-select" onchange="onProviderSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <option value="gemini">Google Gemini (Default)</option>
+                                <option value="openai">OpenAI (GPT-4o, o1, etc.)</option>
+                                <option value="groq">Groq (Llama 3.3 Ultra-Fast)</option>
+                                <option value="openrouter">OpenRouter (Multi-Model Hub)</option>
+                                <option value="anthropic">Anthropic (Claude 3.5)</option>
+                                <option value="ollama">Local Ollama / Custom API</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Nama Label Key:</label>
+                            <input type="text" id="key-name-input" placeholder="Contoh: Gemini Primary, Groq Dev" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Default Model Identifier:</label>
+                            <input type="text" id="key-model-input" value="gemini-2.5-flash" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Secret API Key:</label>
+                            <div class="relative">
+                                <input type="password" id="key-secret-input" placeholder="Masukkan API Key (AIzaSy..., sk-..., gsk_...)" required class="w-full p-2.5 pr-10 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <button type="button" onclick="toggleKeyVisibility('key-secret-input')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Custom Base URL (Opsional / untuk Ollama / Proxy):</label>
+                            <input type="text" id="key-baseurl-input" placeholder="https://api.openai.com/v1 atau http://localhost:11434/v1" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                            <input type="checkbox" id="key-set-active-check" checked class="w-4 h-4 rounded bg-dark-950 border-white/10 text-cyan-500 focus:ring-0">
+                            <span>Jadikan API Key Aktif Default untuk provider ini</span>
+                        </label>
+                        <button type="submit" class="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs font-mono transition-all flex items-center gap-2 shadow-glow-cyan">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan API Key ke Vault
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Stored Keys Grid -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-300 font-mono flex items-center gap-2">
+                        <i data-lucide="database" class="w-4 h-4 text-cyan-400"></i> DAFTAR API KEY TERSIMPAN DI VAULT
+                    </h3>
+                    <button onclick="fetchKeys()" class="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <div id="keys-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Key Cards -->
+                </div>
+            </div>
         </section>
 
     </main>
@@ -798,6 +1029,104 @@
                     <span id="modal-duration-badge" class="px-2 py-0.5 text-[10px] font-mono rounded bg-white/5 text-slate-400">0ms</span>
                 </div>
                 <pre id="modal-result-json" class="p-3.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-slate-300 max-h-64 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create / Edit Custom Agent Modal -->
+    <div id="agent-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 border border-cyan-500/30">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="user-plus" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 class="text-base font-bold text-white font-mono">KONFIGURASI AI AGENT BARU</h3>
+                </div>
+                <button onclick="closeAgentModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="saveCustomAgentForm(event)" class="space-y-3 font-sans text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Nama Agent *</label>
+                        <input type="text" id="agent-name-input" placeholder="Contoh: Backend Wizard" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Role / Jabatan *</label>
+                        <input type="text" id="agent-role-input" placeholder="Contoh: Senior Python & DB Specialist" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Avatar Emoji & Warna</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="agent-emoji-input" value="🤖" class="w-12 text-center p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                            <select id="agent-color-input" class="flex-1 p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                                <option value="cyan">Cyan</option>
+                                <option value="emerald">Emerald</option>
+                                <option value="violet">Violet</option>
+                                <option value="amber">Amber</option>
+                                <option value="rose">Rose</option>
+                                <option value="blue">Blue</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Provider & Model</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="agent-provider-input" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                                <option value="gemini">Gemini</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="groq">Groq</option>
+                                <option value="openrouter">OpenRouter</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="ollama">Ollama</option>
+                            </select>
+                            <input type="text" id="agent-model-input" value="gemini-2.5-flash" class="p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Karakter / Persona</label>
+                    <input type="text" id="agent-persona-input" placeholder="Contoh: Kritis, berorientasi performa tinggi dan arsitektur modular..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-sans">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">System Instruction (Prompt Utama)</label>
+                    <textarea id="agent-sysprompt-input" rows="3" placeholder="Instruksi perilaku dan tugas spesifik agent ini..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-sans"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 gap-3">
+                    <button type="button" onclick="closeAgentModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10">Batal</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold font-mono shadow-glow-cyan">
+                        Simpan Agent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Past Meeting Full Details Modal -->
+    <div id="meeting-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 border border-violet-500/30">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                    <h3 id="m-modal-title" class="text-sm font-bold text-white font-mono">Transkrip Rapat</h3>
+                    <p id="m-modal-topic" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <button onclick="closeMeetingModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="m-modal-transcript-box" class="space-y-3 p-3 bg-dark-950 rounded-2xl border border-white/5 max-h-[400px] overflow-y-auto custom-scrollbar"></div>
+
+            <div id="m-modal-consensus-box" class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                <h4 class="text-xs font-bold text-emerald-400 font-mono">🎯 KONSENSUS & ACTION PLAN</h4>
+                <div id="m-modal-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans"></div>
             </div>
         </div>
     </div>
@@ -911,6 +1240,8 @@
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') fetchArtifacts();
             if (tabId === 'guardian') fetchGuardian();
+            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); }
+            if (tabId === 'keys') fetchKeys();
             
             lucide.createIcons();
         }
@@ -1664,6 +1995,490 @@
                 `;
             }).join('');
             lucide.createIcons();
+        // ==========================================
+        // AI AGENT WORKFORCE & SWARM CONTROLLER
+        // ==========================================
+        let allAgentsData = [];
+        let allMeetingsData = [];
+
+        async function fetchAgents() {
+            try {
+                const res = await fetch('/api/agents');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allAgentsData = data.agents || [];
+                    document.getElementById('agents-count-badge').innerText = `${allAgentsData.length} Agents Terdaftar`;
+                    renderAgentsGrid();
+                    renderMeetingParticipantsSelector();
+                }
+            } catch (err) {
+                console.error('Fetch agents error:', err);
+            }
+        }
+
+        function renderAgentsGrid() {
+            const grid = document.getElementById('agents-grid');
+            if (!grid) return;
+            if (allAgentsData.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500 font-mono text-xs">Belum ada agent. Klik tombol + Tambah Agent untuk membuat baru.</div>';
+                return;
+            }
+
+            const colorMaps = {
+                cyan: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
+                emerald: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+                violet: 'border-violet-500/30 text-violet-400 bg-violet-500/10',
+                amber: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+                rose: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+                blue: 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+            };
+
+            grid.innerHTML = allAgentsData.map(a => {
+                const col = colorMaps[a.color_theme] || colorMaps.cyan;
+                const isAct = a.is_enabled !== 0;
+                return `
+                    <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${isAct ? 'border-white/10' : 'border-white/5 opacity-60'} group hover:border-cyan-500/40">
+                        <div class="space-y-3">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-11 h-11 rounded-2xl ${col} flex items-center justify-center text-xl shadow-sm">
+                                        ${a.avatar_emoji || '🤖'}
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${a.name}</h4>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-semibold ${col}">${a.role}</span>
+                                    </div>
+                                </div>
+                                <button onclick="toggleAgent(${a.id})" class="p-1.5 rounded-lg ${isAct ? 'bg-emerald-500/10 text-emerald-400' : 'bg-dark-900 text-slate-600'} hover:opacity-80 transition-all" title="${isAct ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}">
+                                    <i data-lucide="${isAct ? 'check-circle' : 'circle-off'}" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed">${a.persona || 'Spesialis tim AI otonom.'}</p>
+                        </div>
+                        <div class="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <span class="px-2 py-0.5 rounded bg-dark-950 text-slate-400 border border-white/5 text-[11px]">${a.provider}/${a.model}</span>
+                            <button onclick="deleteAgent(${a.id}, '${a.name}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Hapus Agent">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderMeetingParticipantsSelector() {
+            const container = document.getElementById('meeting-participants-selector');
+            if (!container) return;
+            container.innerHTML = allAgentsData.filter(a => a.is_enabled !== 0).map(a => `
+                <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-dark-900 border border-white/5 cursor-pointer hover:border-cyan-500/30 text-slate-300 text-xs font-mono">
+                    <input type="checkbox" name="meeting-agent" value="${a.name}" checked class="w-3.5 h-3.5 rounded bg-dark-950 text-violet-500 focus:ring-0">
+                    <span>${a.avatar_emoji || '🤖'} ${a.name}</span>
+                </label>
+            `).join('');
+        }
+
+        function openAgentModal() {
+            document.getElementById('agent-modal').classList.remove('hidden');
+            document.getElementById('agent-modal').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeAgentModal() {
+            document.getElementById('agent-modal').classList.add('hidden');
+            document.getElementById('agent-modal').classList.remove('flex');
+        }
+
+        async function saveCustomAgentForm(e) {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById('agent-name-input').value.trim(),
+                role: document.getElementById('agent-role-input').value.trim(),
+                avatar_emoji: document.getElementById('agent-emoji-input').value.trim() || '🤖',
+                color_theme: document.getElementById('agent-color-input').value,
+                provider: document.getElementById('agent-provider-input').value,
+                model: document.getElementById('agent-model-input').value.trim(),
+                persona: document.getElementById('agent-persona-input').value.trim(),
+                system_instruction: document.getElementById('agent-sysprompt-input').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/agents', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Agent '${payload.name}' berhasil dibuat!`, 'success');
+                    closeAgentModal();
+                    fetchAgents();
+                } else {
+                    showToast(`Gagal membuat agent: ${data.message || 'Error'}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function toggleAgent(id) {
+            try {
+                const res = await fetch(`/api/agents/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_enabled: 0 })
+                });
+                fetchAgents();
+            } catch (err) {
+                showToast(`Toggle gagal: ${err.message}`, 'error');
+            }
+        }
+
+        async function deleteAgent(id, name) {
+            if (!confirm(`Hapus agent '${name}' dari AI Workforce?`)) return;
+            try {
+                const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' });
+                showToast(`Agent '${name}' dihapus`, 'info');
+                fetchAgents();
+            } catch (err) {
+                showToast(`Hapus gagal: ${err.message}`, 'error');
+            }
+        }
+
+        function scrollToMeetingRoom() {
+            document.getElementById('meeting-room-panel').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // AI Meeting Controller
+        async function startAiMeeting() {
+            const topic = document.getElementById('meeting-topic-input').value.trim();
+            if (!topic) {
+                showToast('Masukkan topik atau agenda rapat terlebih dahulu.', 'error');
+                return;
+            }
+
+            const checkedNodes = document.querySelectorAll('input[name="meeting-agent"]:checked');
+            const participants = Array.from(checkedNodes).map(n => n.value);
+            if (participants.length === 0) {
+                showToast('Pilih minimal 1 agent peserta rapat.', 'error');
+                return;
+            }
+
+            const rounds = Number(document.getElementById('meeting-rounds-select').value) || 2;
+            const btn = document.getElementById('btn-start-meeting');
+            const statusBadge = document.getElementById('meeting-status-badge');
+            const dialogueContainer = document.getElementById('meeting-dialogue-container');
+            const transcriptFeed = document.getElementById('meeting-transcript-feed');
+            const consensusBox = document.getElementById('meeting-consensus-box');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rapat Sedang Berlangsung...';
+            statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold animate-pulse';
+            statusBadge.innerText = 'DISCUSSING & DEBATING...';
+            dialogueContainer.classList.remove('hidden');
+            consensusBox.classList.add('hidden');
+            transcriptFeed.innerHTML = `
+                <div class="p-4 flex items-center justify-center space-x-3 text-violet-300 text-xs font-mono">
+                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                    <span>Memanggil agent peserta rapat dan memulai perdebatan round-table...</span>
+                </div>
+            `;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/meetings/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, participants, rounds })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    renderMeetingDialogue(data.dialogue_transcript || []);
+                    document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Masukan`;
+
+                    // Render Consensus & Action Plan
+                    const markedConsensus = marked.parse(data.consensus || 'Tidak ada konsensus.');
+                    const markedAction = marked.parse(data.action_plan || '');
+                    document.getElementById('meeting-consensus-text').innerHTML = markedConsensus;
+                    document.getElementById('meeting-action-plan-text').innerHTML = markedAction;
+                    consensusBox.classList.remove('hidden');
+
+                    statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
+                    statusBadge.innerText = 'KONSENSUS TERCAPAI ✅';
+                    showToast('Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
+                    fetchMeetings();
+                } else {
+                    transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Error: ${data.message || 'Gagal'}</div>`;
+                    statusBadge.innerText = 'RAPAT ERROR';
+                }
+            } catch (err) {
+                transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Connection error: ${err.message}</div>`;
+                statusBadge.innerText = 'RAPAT ERROR';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent';
+                lucide.createIcons();
+            }
+        }
+
+        function renderMeetingDialogue(transcript) {
+            const feed = document.getElementById('meeting-transcript-feed');
+            if (!feed) return;
+            const colorMaps = {
+                cyan: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
+                emerald: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+                violet: 'border-violet-500/30 text-violet-400 bg-violet-500/10',
+                amber: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+                rose: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+                blue: 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+            };
+
+            feed.innerHTML = transcript.map(d => {
+                const col = colorMaps[d.color_theme] || colorMaps.cyan;
+                const parsedMsg = marked.parse(d.message || '');
+                return `
+                    <div class="p-4 rounded-2xl bg-dark-900/90 border border-white/5 space-y-2 group hover:border-white/10 transition-all">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-8 h-8 rounded-xl ${col} flex items-center justify-center text-sm">
+                                    ${d.avatar_emoji || '🤖'}
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-white font-mono">${d.agent_name}</span>
+                                        <span class="px-2 py-0.2 rounded text-[9px] font-mono font-semibold uppercase ${col}">${d.role}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                                <span>Putaran ${d.round}</span>
+                                <span>•</span>
+                                <span>${d.timestamp}</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none pl-10">
+                            ${parsedMsg}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        async function fetchMeetings() {
+            try {
+                const res = await fetch('/api/meetings');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allMeetingsData = data.meetings || [];
+                    const tbody = document.getElementById('meetings-history-tbody');
+                    if (!tbody) return;
+                    if (allMeetingsData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-500 font-mono text-xs">Belum ada riwayat rapat yang tersimpan.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = allMeetingsData.map(m => `
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="py-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">${m.created_at}</td>
+                            <td class="py-3 font-medium text-white max-w-xs truncate" title="${m.topic}">${m.topic}</td>
+                            <td class="py-3">
+                                <div class="flex flex-wrap gap-1">
+                                    ${(m.participants || []).map(p => `<span class="px-1.5 py-0.2 rounded bg-dark-900 border border-white/5 text-[10px] font-mono text-slate-300">${p}</span>`).join('')}
+                                </div>
+                            </td>
+                            <td class="py-3 whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${m.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">${m.status}</span>
+                            </td>
+                            <td class="py-3 text-right whitespace-nowrap">
+                                <button onclick="viewMeetingDetails(${m.id})" class="px-2.5 py-1 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-mono font-bold flex items-center gap-1 inline-flex transition-all">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> Transkrip
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                console.error('Fetch meetings error:', err);
+            }
+        }
+
+        async function viewMeetingDetails(id) {
+            try {
+                const res = await fetch(`/api/meetings/${id}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.meeting) {
+                    const m = data.meeting;
+                    document.getElementById('m-modal-title').innerText = m.title;
+                    document.getElementById('m-modal-topic').innerText = `Agenda: ${m.topic}`;
+
+                    const box = document.getElementById('m-modal-transcript-box');
+                    box.innerHTML = (m.dialogue_transcript || []).map(d => `
+                        <div class="p-3 rounded-xl bg-dark-900 border border-white/5 space-y-1.5">
+                            <div class="flex items-center justify-between text-xs font-mono">
+                                <span class="font-bold text-cyan-400">${d.avatar_emoji || '🤖'} ${d.agent_name} (${d.role})</span>
+                                <span class="text-slate-500 text-[10px]">R${d.round} • ${d.timestamp}</span>
+                            </div>
+                            <div class="text-xs text-slate-200 leading-relaxed font-sans">${marked.parse(d.message || '')}</div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('m-modal-consensus-text').innerHTML = marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+
+                    document.getElementById('meeting-modal').classList.remove('hidden');
+                    document.getElementById('meeting-modal').classList.add('flex');
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                showToast(`Gagal memuat transkrip: ${err.message}`, 'error');
+            }
+        }
+
+        function closeMeetingModal() {
+            document.getElementById('meeting-modal').classList.add('hidden');
+            document.getElementById('meeting-modal').classList.remove('flex');
+        }
+
+        function copyConsensus() {
+            const txt = document.getElementById('meeting-consensus-text').innerText + '\n\n' + document.getElementById('meeting-action-plan-text').innerText;
+            navigator.clipboard.writeText(txt);
+            showToast('Konsensus rapat disalin ke clipboard!', 'success');
+        }
+
+        // ==========================================
+        // API KEY VAULT CONTROLLER
+        // ==========================================
+        async function fetchKeys() {
+            try {
+                const res = await fetch('/api/keys');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    renderKeysGrid(data.keys || []);
+                }
+            } catch (err) {
+                console.error('Fetch keys error:', err);
+            }
+        }
+
+        function renderKeysGrid(keys) {
+            const grid = document.getElementById('keys-grid');
+            if (!grid) return;
+            if (keys.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500 font-mono text-xs">Belum ada API Key tersimpan. Tambahkan melalui form di atas.</div>';
+                return;
+            }
+
+            grid.innerHTML = keys.map(k => `
+                <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${k.is_active ? 'border-emerald-500/40 shadow-glow-emerald' : 'border-white/5'} group">
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider ${k.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-dark-900 text-slate-400 border border-white/5'}">
+                                ${k.provider}
+                            </span>
+                            ${k.is_active 
+                                ? '<span class="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span> ACTIVE KEY</span>' 
+                                : `<button onclick="activateKey(${k.id})" class="px-2 py-0.5 rounded bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 text-[10px] font-mono transition-all">Set Aktif</button>`}
+                        </div>
+                        <h4 class="text-sm font-bold text-white font-mono">${k.name}</h4>
+                        <div class="p-2.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-cyan-300 flex items-center justify-between">
+                            <span>${k.masked_key}</span>
+                            <i data-lucide="key" class="w-3.5 h-3.5 text-slate-500"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-mono">Model: <span class="text-slate-200">${k.default_model}</span></p>
+                        ${k.base_url ? `<p class="text-[10px] text-slate-500 font-mono truncate" title="${k.base_url}">URL: ${k.base_url}</p>` : ''}
+                    </div>
+                    <div class="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                        <span class="text-[10px] text-slate-500">${k.created_at}</span>
+                        <button onclick="deleteKey(${k.id}, '${k.name}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Hapus Key">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function addApiKeyForm(e) {
+            e.preventDefault();
+            const payload = {
+                provider: document.getElementById('key-provider-select').value,
+                name: document.getElementById('key-name-input').value.trim(),
+                default_model: document.getElementById('key-model-input').value.trim(),
+                api_key: document.getElementById('key-secret-input').value.trim(),
+                base_url: document.getElementById('key-baseurl-input').value.trim(),
+                set_active: document.getElementById('key-set-active-check').checked
+            };
+
+            try {
+                const res = await fetch('/api/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`API Key '${payload.name}' tersimpan ke Vault!`, 'success');
+                    document.getElementById('key-secret-input').value = '';
+                    document.getElementById('key-name-input').value = '';
+                    fetchKeys();
+                } else {
+                    showToast(`Gagal menyimpan key: ${data.message || 'Error'}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function activateKey(id) {
+            try {
+                const res = await fetch(`/api/keys/${id}/activate`, { method: 'POST' });
+                showToast('API Key diaktifkan sebagai default provider!', 'success');
+                fetchKeys();
+            } catch (err) {
+                showToast(`Gagal aktivasi: ${err.message}`, 'error');
+            }
+        }
+
+        async function deleteKey(id, name) {
+            if (!confirm(`Hapus API Key '${name}' dari Vault?`)) return;
+            try {
+                const res = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
+                showToast(`API Key '${name}' dihapus`, 'info');
+                fetchKeys();
+            } catch (err) {
+                showToast(`Gagal hapus: ${err.message}`, 'error');
+            }
+        }
+
+        function toggleKeyVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            if (input) input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function onProviderSelectChange() {
+            const prov = document.getElementById('key-provider-select').value;
+            const modelInput = document.getElementById('key-model-input');
+            const baseInput = document.getElementById('key-baseurl-input');
+
+            if (prov === 'gemini') {
+                modelInput.value = 'gemini-2.5-flash';
+                baseInput.value = '';
+            } else if (prov === 'openai') {
+                modelInput.value = 'gpt-4o';
+                baseInput.value = 'https://api.openai.com/v1';
+            } else if (prov === 'groq') {
+                modelInput.value = 'llama-3.3-70b-versatile';
+                baseInput.value = 'https://api.groq.com/openai/v1';
+            } else if (prov === 'openrouter') {
+                modelInput.value = 'anthropic/claude-3.5-sonnet';
+                baseInput.value = 'https://openrouter.ai/api/v1';
+            } else if (prov === 'anthropic') {
+                modelInput.value = 'claude-3-5-sonnet-20241022';
+                baseInput.value = '';
+            } else if (prov === 'ollama') {
+                modelInput.value = 'llama3';
+                baseInput.value = 'http://localhost:11434/v1';
+            }
         }
 
         // Initialize telemetry & chart on load
