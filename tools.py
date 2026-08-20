@@ -1130,6 +1130,587 @@ def generate_pdf_report(title: str, summary: str, table_data: Optional[List[List
         return {"status": "error", "message": f"Gagal membuat PDF: {str(e)}"}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#                     ALFA ULTIMATE PDF-TOOLS SUITE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf") -> Dict[str, Any]:
+    """
+    Gabungkan beberapa file PDF menjadi satu dokumen PDF utuh.
+    
+    Args:
+        pdf_paths: Daftar path file PDF yang ingin digabungkan (misal: ['/tmp/doc1.pdf', '/tmp/doc2.pdf']).
+        output_filename: Nama file PDF hasil penggabungan (misal: 'merged_dokumen.pdf').
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        writer = PdfWriter()
+        merged_count = 0
+        total_pages = 0
+        
+        for p in pdf_paths:
+            exp_p = os.path.expanduser(p.strip())
+            if not os.path.exists(exp_p):
+                continue
+            reader = PdfReader(exp_p)
+            for page in reader.pages:
+                writer.add_page(page)
+                total_pages += 1
+            merged_count += 1
+            
+        if merged_count == 0:
+            return {"status": "error", "message": "Tidak ada file PDF valid yang ditemukan untuk digabungkan."}
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": f"Berhasil menggabungkan {merged_count} file PDF menjadi {total_pages} halaman.",
+            "file_path": target_path,
+            "filename": safe_name,
+            "total_pages": total_pages,
+            "file_size_bytes": os.path.getsize(target_path)
+        }
+    except Exception as e:
+        logger.error(f"Error in pdf_merge_documents: {e}")
+        return {"status": "error", "message": f"Gagal merge PDF: {str(e)}"}
+
+
+def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "") -> Dict[str, Any]:
+    """
+    Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1-3, 5, 8-10').
+    
+    Args:
+        pdf_path: Path ke file PDF yang ingin dipecah.
+        page_ranges: Rentang halaman yang ingin diekstrak (kosongkan untuk memecah semua halaman per file).
+        output_dir: Direktori output file (opsional, default ke folder sandbox).
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        from pathlib import Path
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
+            
+        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(SANDBOX_DIR, "split_pages")
+        os.makedirs(target_dir, exist_ok=True)
+        
+        reader = PdfReader(exp_p)
+        total = len(reader.pages)
+        
+        indices = []
+        if page_ranges:
+            for part in page_ranges.split(","):
+                part = part.strip()
+                if "-" in part:
+                    s, e = part.split("-", 1)
+                    s_idx = max(0, int(s.strip()) - 1)
+                    e_idx = min(total, int(e.strip()))
+                    indices.extend(range(s_idx, e_idx))
+                elif part.isdigit():
+                    idx = int(part) - 1
+                    if 0 <= idx < total:
+                        indices.append(idx)
+            indices = sorted(list(set(indices)))
+        else:
+            indices = list(range(total))
+            
+        output_files = []
+        base_stem = Path(exp_p).stem
+        for idx in indices:
+            writer = PdfWriter()
+            writer.add_page(reader.pages[idx])
+            out_file = os.path.join(target_dir, f"{base_stem}_page_{idx+1:03d}.pdf")
+            with open(out_file, "wb") as f_out:
+                writer.write(f_out)
+            output_files.append(out_file)
+            
+        return {
+            "status": "success",
+            "message": f"Berhasil memecah PDF menjadi {len(output_files)} file halaman.",
+            "output_dir": target_dir,
+            "files": output_files
+        }
+    except Exception as e:
+        logger.error(f"Error in pdf_split_document: {e}")
+        return {"status": "error", "message": f"Gagal split PDF: {str(e)}"}
+
+
+def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, Any]:
+    """
+    Ekstrak teks lengkap dari dokumen PDF secara bersih dan terstruktur.
+    
+    Args:
+        pdf_path: Path ke file PDF yang ingin dibaca teksnya.
+        page_numbers: Opsi nomor halaman spesifik (misal '1,2,5' atau '1-4').
+    """
+    try:
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
+            
+        extracted_pages = []
+        import pdfplumber
+        with pdfplumber.open(exp_p) as pdf:
+            total_pages = len(pdf.pages)
+            indices = list(range(total_pages))
+            if page_numbers:
+                req_indices = []
+                for p in page_numbers.split(","):
+                    p = p.strip()
+                    if "-" in p:
+                        s, e = p.split("-", 1)
+                        req_indices.extend(range(max(0, int(s)-1), min(total_pages, int(e))))
+                    elif p.isdigit():
+                        idx = int(p) - 1
+                        if 0 <= idx < total_pages:
+                            req_indices.append(idx)
+                indices = sorted(list(set(req_indices)))
+                
+            for idx in indices:
+                t = pdf.pages[idx].extract_text() or ""
+                extracted_pages.append(f"--- [Halaman {idx+1}/{total_pages}] ---\n{t.strip()}")
+                
+        full_text = "\n\n".join(extracted_pages)
+        return {
+            "status": "success",
+            "total_pages": total_pages,
+            "extracted_pages_count": len(extracted_pages),
+            "text_length_chars": len(full_text),
+            "text_preview": full_text[:4000],
+            "full_text": full_text
+        }
+    except Exception as e:
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(exp_p)
+            texts = [f"--- [Halaman {i+1}] ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages)]
+            full = "\n\n".join(texts)
+            return {
+                "status": "success",
+                "total_pages": len(reader.pages),
+                "text_preview": full[:4000],
+                "full_text": full
+            }
+        except Exception as err2:
+            return {"status": "error", "message": f"Gagal ekstrak teks PDF: {str(err2)}"}
+
+
+def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "protected.pdf") -> Dict[str, Any]:
+    """
+    Lindungi dan kunci file PDF dengan password menggunakan enkripsi kuat AES-256.
+    
+    Args:
+        pdf_path: Path ke file PDF yang ingin dienkripsi.
+        password: Password pengunci dokumen.
+        output_filename: Nama file output terenkripsi.
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        reader = PdfReader(exp_p)
+        writer = PdfWriter()
+        for p in reader.pages:
+            writer.add_page(p)
+            
+        writer.encrypt(user_password=password, owner_password=password, algorithm="AES-256")
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": f"Dokumen PDF berhasil dienkripsi dengan AES-256.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal enkripsi PDF: {str(e)}"}
+
+
+def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "unlocked.pdf") -> Dict[str, Any]:
+    """
+    Buka kunci PDF yang terproteksi password dan simpan salinan tanpa password.
+    
+    Args:
+        pdf_path: Path ke file PDF terenkripsi.
+        password: Password yang digunakan untuk membuka kunci.
+        output_filename: Nama file output yang sudah tidak terkunci.
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        reader = PdfReader(exp_p)
+        if reader.is_encrypted:
+            res = reader.decrypt(password)
+            if not res:
+                return {"status": "error", "message": "Password salah atau PDF tidak dapat didekripsi."}
+                
+        writer = PdfWriter()
+        for p in reader.pages:
+            writer.add_page(p)
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": "PDF berhasil didekripsi dan kunci password telah dihapus.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal dekripsi PDF: {str(e)}"}
+
+
+def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", output_filename: str = "rotated.pdf") -> Dict[str, Any]:
+    """
+    Putar orientasi halaman PDF (90, 180, atau 270 derajat searah jarum jam).
+    
+    Args:
+        pdf_path: Path ke file PDF.
+        angle: Sudut putar (90, 180, 270).
+        page_numbers: Halaman tertentu yang ingin diputar (misal '1,3-5', kosongkan untuk semua).
+        output_filename: Nama file output.
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        reader = PdfReader(exp_p)
+        writer = PdfWriter()
+        total = len(reader.pages)
+        
+        target_indices = list(range(total))
+        if page_numbers:
+            req = []
+            for p in page_numbers.split(","):
+                p = p.strip()
+                if "-" in p:
+                    s, e = p.split("-", 1)
+                    req.extend(range(max(0, int(s)-1), min(total, int(e))))
+                elif p.isdigit():
+                    idx = int(p) - 1
+                    if 0 <= idx < total:
+                        req.append(idx)
+            target_indices = list(set(req))
+            
+        for i, page in enumerate(reader.pages):
+            if i in target_indices:
+                page.rotate(angle)
+            writer.add_page(page)
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": f"Berhasil memutar {len(target_indices)} halaman PDF sebesar {angle}°.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal rotasi PDF: {str(e)}"}
+
+
+def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float = 0.2, angle: float = 45, output_filename: str = "watermarked.pdf") -> Dict[str, Any]:
+    """
+    Tambahkan stempel watermark teks diagonal transparan ke setiap halaman PDF.
+    
+    Args:
+        pdf_path: Path ke file PDF asli.
+        watermark_text: Teks watermark (misal 'CONFIDENTIAL', 'RAHASIA DOKUMEN', 'DRAFT').
+        opacity: Tingkat transparansi (0.05 sampai 0.5).
+        angle: Sudut kemiringan diagonal watermark (default 45 derajat).
+        output_filename: Nama file output.
+    """
+    try:
+        import io
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.colors import HexColor
+        
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        packet = io.BytesIO()
+        can = rl_canvas.Canvas(packet, pagesize=A4)
+        can.setFont("Helvetica-Bold", 45)
+        can.saveState()
+        can.setFillAlpha(max(0.05, min(0.9, opacity)))
+        can.setFillColor(HexColor("#64748B"))
+        can.translate(A4[0] / 2, A4[1] / 2)
+        can.rotate(angle)
+        can.drawCentredString(0, 0, watermark_text)
+        can.restoreState()
+        can.save()
+        packet.seek(0)
+        
+        wm_page = PdfReader(packet).pages[0]
+        reader = PdfReader(exp_p)
+        writer = PdfWriter()
+        
+        for p in reader.pages:
+            p.merge_page(wm_page)
+            writer.add_page(p)
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": f"Watermark '{watermark_text}' berhasil ditempelkan pada {len(reader.pages)} halaman.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal watermark PDF: {str(e)}"}
+
+
+def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", start_number: int = 1, output_filename: str = "numbered.pdf") -> Dict[str, Any]:
+    """
+    Sematkan penomoran halaman otomatis pada dokumen PDF.
+    
+    Args:
+        pdf_path: Path ke file PDF.
+        position: Posisi nomor ('bottom-center', 'bottom-right', 'bottom-left', 'top-right', 'top-center').
+        start_number: Nomor awal penomoran halaman (default 1).
+        output_filename: Nama file output.
+    """
+    try:
+        import io
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas as rl_canvas
+        from reportlab.lib.colors import HexColor
+        
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        reader = PdfReader(exp_p)
+        writer = PdfWriter()
+        total = len(reader.pages)
+        
+        for i, page in enumerate(reader.pages):
+            w = float(page.mediabox.width)
+            h = float(page.mediabox.height)
+            packet = io.BytesIO()
+            can = rl_canvas.Canvas(packet, pagesize=(w, h))
+            can.setFont("Helvetica", 10)
+            can.setFillColor(HexColor("#334155"))
+            
+            num_str = f"Halaman {start_number + i} dari {total}"
+            positions = {
+                "bottom-center": (w / 2, 25),
+                "bottom-right": (w - 40, 25),
+                "bottom-left": (40, 25),
+                "top-center": (w / 2, h - 25),
+                "top-right": (w - 40, h - 25),
+            }
+            x, y = positions.get(position, (w / 2, 25))
+            can.drawCentredString(x, y, num_str)
+            can.save()
+            packet.seek(0)
+            
+            num_page = PdfReader(packet).pages[0]
+            page.merge_page(num_page)
+            writer.add_page(page)
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        return {
+            "status": "success",
+            "message": f"Nomor halaman berhasil ditambahkan pada seluruh {total} halaman.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal memberi nomor halaman: {str(e)}"}
+
+
+def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -> Dict[str, Any]:
+    """
+    Konversi seluruh halaman PDF menjadi gambar PNG resolusi tinggi.
+    
+    Args:
+        pdf_path: Path ke file PDF.
+        dpi: Kerapatan resolusi gambar (default 150 DPI).
+        output_dir: Folder penyimpanan gambar hasil konversi.
+    """
+    try:
+        from pathlib import Path
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(SANDBOX_DIR, "pdf_images")
+        os.makedirs(target_dir, exist_ok=True)
+        
+        base_name = Path(exp_p).stem
+        out_prefix = os.path.join(target_dir, f"{base_name}_page")
+        
+        cmd = ["pdftoppm", "-png", "-r", str(dpi), exp_p, out_prefix]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        generated_images = [os.path.join(target_dir, f) for f in os.listdir(target_dir) if f.startswith(f"{base_name}_page") and f.endswith(".png")]
+        generated_images.sort()
+        
+        return {
+            "status": "success",
+            "message": f"Berhasil merender {len(generated_images)} halaman PDF menjadi gambar PNG.",
+            "output_dir": target_dir,
+            "images": generated_images
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal konversi PDF ke gambar: {str(e)}"}
+
+
+def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images_album.pdf") -> Dict[str, Any]:
+    """
+    Gabungkan kumpulan file foto/gambar (JPG, PNG, WEBP) menjadi satu dokumen PDF rapi.
+    
+    Args:
+        image_paths: Daftar path file gambar yang ingin digabungkan ke PDF.
+        output_filename: Nama file output PDF.
+    """
+    try:
+        from PIL import Image
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        
+        opened_images = []
+        for p in image_paths:
+            exp_p = os.path.expanduser(p.strip())
+            if os.path.exists(exp_p):
+                img = Image.open(exp_p).convert("RGB")
+                opened_images.append(img)
+                
+        if not opened_images:
+            return {"status": "error", "message": "Tidak ada file gambar valid yang ditemukan."}
+            
+        first = opened_images[0]
+        rest = opened_images[1:] if len(opened_images) > 1 else []
+        first.save(target_path, "PDF", resolution=100.0, save_all=True, append_images=rest)
+        
+        return {
+            "status": "success",
+            "message": f"Berhasil mengubah {len(opened_images)} gambar menjadi dokumen PDF.",
+            "file_path": target_path,
+            "filename": safe_name
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengubah gambar ke PDF: {str(e)}"}
+
+
+def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
+    """
+    Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata).
+    
+    Args:
+        pdf_path: Path ke file PDF yang ingin diinspeksi.
+    """
+    try:
+        from pypdf import PdfReader
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        reader = PdfReader(exp_p)
+        meta = reader.metadata or {}
+        
+        first_page = reader.pages[0] if reader.pages else None
+        width_pt = float(first_page.mediabox.width) if first_page else 0
+        height_pt = float(first_page.mediabox.height) if first_page else 0
+        
+        return {
+            "status": "success",
+            "file_name": os.path.basename(exp_p),
+            "file_path": exp_p,
+            "file_size_kb": round(os.path.getsize(exp_p) / 1024, 2),
+            "total_pages": len(reader.pages),
+            "is_encrypted": reader.is_encrypted,
+            "dimensions_pt": f"{width_pt:.1f} x {height_pt:.1f}",
+            "title": meta.get("/Title") or meta.title or "N/A",
+            "author": meta.get("/Author") or meta.author or "N/A",
+            "creator": meta.get("/Creator") or meta.creator or "N/A",
+            "producer": meta.get("/Producer") or meta.producer or "N/A"
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal inspeksi PDF: {str(e)}"}
+
+
+def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.pdf") -> Dict[str, Any]:
+    """
+    Kompresi dan optimalkan ukuran file PDF dengan mereduksi stream konten dan metadata berlebih.
+    
+    Args:
+        pdf_path: Path ke file PDF yang ingin dikompres.
+        output_filename: Nama file output hasil kompresi.
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+        exp_p = os.path.expanduser(pdf_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
+            
+        safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
+        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        orig_size = os.path.getsize(exp_p)
+        
+        reader = PdfReader(exp_p)
+        writer = PdfWriter()
+        for p in reader.pages:
+            p.compress_content_streams()
+            writer.add_page(p)
+            
+        with open(target_path, "wb") as f_out:
+            writer.write(f_out)
+            
+        new_size = os.path.getsize(target_path)
+        savings_pct = max(0, round((orig_size - new_size) / orig_size * 100, 1)) if orig_size > 0 else 0
+        
+        return {
+            "status": "success",
+            "message": f"PDF berhasil dikompresi. Hemat {savings_pct}% ruang penyimpanan.",
+            "file_path": target_path,
+            "filename": safe_name,
+            "original_size_kb": round(orig_size / 1024, 2),
+            "new_size_kb": round(new_size / 1024, 2),
+            "saved_percentage": savings_pct
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal kompresi PDF: {str(e)}"}
+
+
 def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[List[Any]], filename: str = "data.xlsx") -> Dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
@@ -3395,6 +3976,18 @@ AVAILABLE_TOOLS = [
     list_recurring_tasks,
     cancel_recurring_task,
     generate_pdf_report,
+    pdf_merge_documents,
+    pdf_split_document,
+    pdf_extract_full_text,
+    pdf_encrypt_password,
+    pdf_decrypt_password,
+    pdf_rotate_pages,
+    pdf_apply_watermark_text,
+    pdf_insert_page_numbers,
+    pdf_convert_to_images,
+    images_convert_to_pdf,
+    pdf_inspect_metadata,
+    pdf_compress_and_optimize,
     generate_excel_spreadsheet,
     generate_presentation_pptx,
     control_linux_hardware,

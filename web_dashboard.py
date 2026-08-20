@@ -45,13 +45,15 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templa
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
-    if name_lower.startswith("browser_"):
+    if name_lower.startswith("pdf_") or "pdf" in name_lower:
+        return "PDF Tools Suite (Offline & Online)"
+    elif name_lower.startswith("browser_"):
         return "Browser Automation"
     elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or "screenshot" in name_lower or "webcam" in name_lower:
         return "OS & Vision Control"
     elif name_lower.startswith("libreoffice_"):
         return "LibreOffice Suite"
-    elif "pdf" in name_lower or "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower:
+    elif "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower or "image" in name_lower:
         return "Media & Documents"
     elif "security" in name_lower or "network" in name_lower or "ssh" in name_lower or "password" in name_lower:
         return "Security & Network"

@@ -427,16 +427,207 @@
 
         <!-- ==================== TAB 2: TOOLS ARSENAL (72 TOOLS) ==================== -->
         <section id="view-tools" class="tab-view hidden space-y-6">
-            <!-- Search & Filters -->
-            <div class="glass-card p-4 rounded-2xl space-y-3">
+            
+            <!-- Top Hero Banner: Real Capabilities Guarantee -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/30 shadow-2xl">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-blue-500/20 to-dark-950 border border-cyan-500/40 flex items-center justify-center text-xl shadow-glow-cyan">
+                            ⚡
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-bold text-white tracking-wide font-mono">100% REAL SOVEREIGN TOOLS & PDF WORKBENCH</h2>
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> 0% DUMMY • 100% REAL EXECUTION
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400">Seluruh fungsi terhubung langsung ke Python, Linux Shell, PDF Toolkit, dan sistem host komputer kamu.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="tool-count-pill" class="px-3 py-1.5 bg-dark-950 text-cyan-400 rounded-xl border border-white/10 font-mono text-xs font-bold">-- Tools</span>
+                </div>
+            </div>
+
+            <!-- ==================== ULTIMATE PDF-TOOLS INTERACTIVE WORKBENCH ==================== -->
+            <div class="glass-card p-6 rounded-2xl space-y-5 border border-emerald-500/30 bg-emerald-500/[0.02] shadow-2xl relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-glow-emerald">
+                            📄
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white font-mono">ALFA ULTIMATE PDF-TOOLS SUITE</h3>
+                                <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">REAL OFFLINE & ONLINE ENGINES</span>
+                            </div>
+                            <p class="text-xs text-slate-400 font-mono">Manipulasi dokumen PDF nyata: Gabung, Pecah, Ekstrak Teks, Watermark, Enkripsi, Putar, dan Kompresi langsung dari website.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12 Real PDF Action Quick Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    
+                    <!-- 1. Extract Text -->
+                    <div onclick="openToolModal('pdf_extract_full_text')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-emerald-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">📑</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 font-bold">READ</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-emerald-300">Ekstrak Teks</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Baca & ambil teks lengkap seluruh halaman PDF.</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Merge PDF -->
+                    <div onclick="openToolModal('pdf_merge_documents')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-cyan-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🔀</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 font-bold">MERGE</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300">Gabung PDF</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Satukan beberapa file PDF jadi 1 dokumen.</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Split PDF -->
+                    <div onclick="openToolModal('pdf_split_document')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-amber-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">✂️</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 font-bold">SPLIT</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-amber-300">Pecah PDF</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Pisahkan halaman per lembar atau range.</p>
+                        </div>
+                    </div>
+
+                    <!-- 4. Watermark -->
+                    <div onclick="openToolModal('pdf_apply_watermark_text')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-violet-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🏷️</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-violet-500/10 text-violet-300 font-bold">STAMP</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-violet-300">Watermark Teks</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Stempel tanda diagonal transparan custom.</p>
+                        </div>
+                    </div>
+
+                    <!-- 5. Encrypt Password -->
+                    <div onclick="openToolModal('pdf_encrypt_password')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-rose-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🔒</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 font-bold">AES-256</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-rose-300">Kunci Password</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Lindungi dokumen dengan password aman.</p>
+                        </div>
+                    </div>
+
+                    <!-- 6. Decrypt Password -->
+                    <div onclick="openToolModal('pdf_decrypt_password')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-emerald-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🔓</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 font-bold">UNLOCK</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-emerald-300">Buka Kunci</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Hapus proteksi password dari file PDF.</p>
+                        </div>
+                    </div>
+
+                    <!-- 7. Rotate Pages -->
+                    <div onclick="openToolModal('pdf_rotate_pages')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-blue-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🔄</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-300 font-bold">ROTATE</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-blue-300">Putar Halaman</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Ubah orientasi sudut 90°, 180°, 270°.</p>
+                        </div>
+                    </div>
+
+                    <!-- 8. Page Numbers -->
+                    <div onclick="openToolModal('pdf_insert_page_numbers')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-cyan-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🔢</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 font-bold">NUMBER</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300">Nomor Halaman</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Sematkan penomoran otomatis di header/footer.</p>
+                        </div>
+                    </div>
+
+                    <!-- 9. PDF to Images -->
+                    <div onclick="openToolModal('pdf_convert_to_images')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-violet-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🖼️</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-violet-500/10 text-violet-300 font-bold">TO PNG</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-violet-300">PDF ke Gambar</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Render lembar PDF jadi foto PNG tajam.</p>
+                        </div>
+                    </div>
+
+                    <!-- 10. Images to PDF -->
+                    <div onclick="openToolModal('images_convert_to_pdf')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-emerald-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">📸</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 font-bold">IMG TO PDF</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-emerald-300">Gambar ke PDF</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Gabungkan galeri foto menjadi satu PDF.</p>
+                        </div>
+                    </div>
+
+                    <!-- 11. PDF Info -->
+                    <div onclick="openToolModal('pdf_inspect_metadata')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-amber-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">📊</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 font-bold">INSPECT</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-amber-300">Inspeksi Info</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Lihat ukuran, jumlah halaman & metadata.</p>
+                        </div>
+                    </div>
+
+                    <!-- 12. Compress PDF -->
+                    <div onclick="openToolModal('pdf_compress_and_optimize')" class="p-3.5 rounded-xl bg-dark-950/80 border border-white/10 hover:border-rose-400/50 hover:bg-dark-900 transition-all cursor-pointer space-y-2 group shadow-md">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xl">🗜️</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 font-bold">COMPRESS</span>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white font-mono group-hover:text-rose-300">Kompresi PDF</h4>
+                            <p class="text-[10px] text-slate-400 line-clamp-2 leading-tight">Pangkas ukuran file PDF agar hemat storage.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Search & Filters Arsenal -->
+            <div class="glass-card p-5 rounded-2xl space-y-3">
                 <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                     <div class="relative w-full md:w-96">
                         <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
                         <input type="text" id="tool-search-input" onkeyup="filterTools()" placeholder="Cari nama tool, fungsi, atau domain..." class="w-full pl-10 pr-4 py-2 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 transition-all font-sans">
                     </div>
                     <div class="text-xs font-mono text-slate-400 flex items-center gap-2">
-                        <span>Menampilkan:</span>
-                        <span id="tool-count-pill" class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/20 font-bold">72 Tools</span>
+                        <span>Kategori Aktif:</span>
+                        <span id="active-cat-name" class="text-cyan-400 font-bold">Semua</span>
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar" id="tool-category-pills">
@@ -446,7 +637,7 @@
 
             <!-- Tools Grid -->
             <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="text-slate-500 text-center py-12 col-span-full">Memuat 72 tools otonom...</div>
+                <div class="text-slate-500 text-center py-12 col-span-full">Memuat tools otonom nyata...</div>
             </div>
         </section>
 
@@ -1398,36 +1589,49 @@
 
     <!-- Interactive Tool Execution Modal -->
     <div id="tool-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-        <div class="glass-card p-6 rounded-2xl max-w-xl w-full space-y-4 border border-cyan-500/30">
+        <div class="glass-card p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 border border-cyan-500/30">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
                 <div class="flex items-center space-x-2">
                     <i data-lucide="terminal" class="w-5 h-5 text-cyan-400"></i>
-                    <h3 id="modal-tool-title" class="text-sm font-bold text-white font-mono">Eksekusi Tool</h3>
+                    <h3 id="modal-tool-name" class="text-sm font-bold text-white font-mono">Eksekusi Tool</h3>
                 </div>
                 <button onclick="closeToolModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <form id="tool-form" onsubmit="executeToolSubmit(event)" class="space-y-4 font-sans text-xs">
-                <div id="modal-param-fields" class="space-y-3"></div>
+            <p id="modal-tool-desc" class="text-xs text-slate-400 leading-relaxed font-sans bg-dark-950 p-3 rounded-xl border border-white/5"></p>
+
+            <form id="tool-form" onsubmit="executeModalTool(event)" class="space-y-4 font-sans text-xs">
+                <div id="modal-params-container" class="space-y-3"></div>
                 <div class="flex items-center justify-end pt-3 border-t border-white/10 gap-3">
-                    <button type="button" onclick="closeToolModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10">Batal</button>
-                    <button type="submit" id="btn-modal-exec" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold font-mono shadow-glow-cyan flex items-center gap-2">
-                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Eksekusi
+                    <button type="button" onclick="closeToolModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 font-mono">Batal</button>
+                    <button type="submit" id="modal-run-btn" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-dark-950 font-bold font-mono shadow-glow-cyan flex items-center gap-2 transition-all">
+                        <i data-lucide="play" class="w-4 h-4"></i> Eksekusi Tool Sekarang
                     </button>
                 </div>
             </form>
 
             <!-- Result Viewer -->
-            <div id="modal-result-box" class="hidden space-y-2 pt-2">
-                <div class="flex items-center justify-between">
+            <div id="modal-result-box" class="hidden space-y-3 pt-2">
+                <div class="flex items-center justify-between border-t border-white/10 pt-3">
                     <span class="text-xs font-semibold text-emerald-400 font-mono flex items-center gap-1.5">
                         <i data-lucide="check-circle" class="w-4 h-4"></i> Hasil Eksekusi Real-time:
                     </span>
                     <span id="modal-duration-badge" class="px-2 py-0.5 text-[10px] font-mono rounded bg-white/5 text-slate-400">0ms</span>
                 </div>
-                <pre id="modal-result-json" class="p-3.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-slate-300 max-h-64 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+                
+                <div id="modal-file-download-box" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="file-check" class="w-4 h-4 text-emerald-400"></i>
+                        <span id="modal-download-filename" class="text-xs text-white font-mono font-semibold">output.pdf</span>
+                    </div>
+                    <a id="modal-download-link" href="#" target="_blank" download class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-dark-950 rounded-lg text-xs font-bold font-mono flex items-center gap-1">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Unduh File
+                    </a>
+                </div>
+
+                <pre id="modal-result-json" class="p-3.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-emerald-300 max-h-64 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
             </div>
         </div>
     </div>
@@ -1823,6 +2027,8 @@
 
         function setCategory(cat) {
             activeCategory = cat;
+            const labelEl = document.getElementById('active-cat-name');
+            if (labelEl) labelEl.innerText = cat === 'all' ? 'Semua' : cat;
             renderCategories();
             filterTools();
         }
@@ -1856,7 +2062,7 @@
                         <h3 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${t.name}()</h3>
                         <p class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">${t.short_description}</p>
                     </div>
-                    <button onclick="openToolModal('${t.name}')" class="w-full py-2 bg-dark-950 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
+                    <button onclick="openToolModal('${t.name}')" class="w-full py-2.5 bg-dark-950 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
                         <i data-lucide="play" class="w-3.5 h-3.5"></i> Test / Jalankan Tool
                     </button>
                 </div>
@@ -1867,20 +2073,26 @@
         // Tool Modal Runner
         function openToolModal(toolName) {
             currentModalTool = allToolsData.find(t => t.name === toolName);
-            if (!currentModalTool) return;
+            if (!currentModalTool) {
+                // If not found in loaded list, fetch or find
+                showToast(`Membuka tool: ${toolName}...`, 'info');
+                return;
+            }
 
             document.getElementById('modal-tool-name').innerText = `${currentModalTool.name}()`;
             document.getElementById('modal-tool-desc').innerText = currentModalTool.full_docstring;
             document.getElementById('modal-result-box').classList.add('hidden');
+            const dlBox = document.getElementById('modal-file-download-box');
+            if (dlBox) dlBox.classList.add('hidden');
 
             const paramsBox = document.getElementById('modal-params-container');
             if (currentModalTool.parameters.length === 0) {
-                paramsBox.innerHTML = '<div class="text-slate-400 italic">Tool ini tidak memerlukan parameter input.</div>';
+                paramsBox.innerHTML = '<div class="text-slate-400 italic">Tool ini tidak memerlukan parameter input. Langsung klik eksekusi di bawah.</div>';
             } else {
                 paramsBox.innerHTML = currentModalTool.parameters.map(p => `
                     <div class="space-y-1">
                         <label class="block font-semibold text-slate-300 font-mono text-[11px]">${p.name} <span class="text-slate-500">(${p.type})</span> ${p.required ? '<span class="text-rose-400">*</span>' : ''}</label>
-                        <input type="text" id="param-${p.name}" value="${p.default !== 'None' && p.default !== null ? p.default.replace(/['"]/g, '') : ''}" placeholder="${p.name}" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-mono text-xs">
+                        <input type="text" id="param-${p.name}" value="${p.default !== 'None' && p.default !== null ? p.default.replace(/['"]/g, '') : ''}" placeholder="${p.name} (${p.type})" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 font-mono text-xs">
                     </div>
                 `).join('');
             }
@@ -1895,7 +2107,8 @@
             document.getElementById('tool-modal').classList.remove('flex');
         }
 
-        async function executeModalTool() {
+        async function executeModalTool(e) {
+            if (e && e.preventDefault) e.preventDefault();
             if (!currentModalTool) return;
             const btn = document.getElementById('modal-run-btn');
             btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Menjalankan...';
@@ -1907,7 +2120,15 @@
                     let val = el.value.trim();
                     if (val === 'True' || val === 'true') val = true;
                     else if (val === 'False' || val === 'false') val = false;
-                    else if (!isNaN(val) && val !== '') val = Number(val);
+                    else if (p.type.includes('List') || p.name.endsWith('paths') || p.name.endsWith('files')) {
+                        if (val.startsWith('[') && val.endsWith(']')) {
+                            try { val = JSON.parse(val); } catch(_) { val = val.slice(1, -1).split(',').map(s => s.trim().replace(/^['"]|['"]$/g, '')); }
+                        } else {
+                            val = val.split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
+                        }
+                    } else if (!isNaN(val) && val !== '' && !p.type.includes('str')) {
+                        val = Number(val);
+                    }
                     args[p.name] = val;
                 }
             });
@@ -1922,7 +2143,24 @@
                 document.getElementById('modal-result-json').innerText = JSON.stringify(data, null, 2);
                 document.getElementById('modal-duration-badge').innerText = `${data.duration_ms || 0}ms`;
                 document.getElementById('modal-result-box').classList.remove('hidden');
-                showToast(`Tool ${currentModalTool.name} sukses dieksekusi!`, 'success');
+
+                // Check for downloadable files
+                const resObj = data.result || {};
+                const filePath = resObj.file_path || (Array.isArray(resObj.files) && resObj.files.length > 0 ? resObj.files[0] : null);
+                const dlBox = document.getElementById('modal-file-download-box');
+                if (filePath && dlBox) {
+                    const dlLink = document.getElementById('modal-download-link');
+                    const dlName = document.getElementById('modal-download-filename');
+                    dlName.innerText = filePath.split('/').pop();
+                    dlLink.href = `/api/artifacts/download?path=${encodeURIComponent(filePath)}`;
+                    dlBox.classList.remove('hidden');
+                }
+
+                if (data.status === 'success') {
+                    showToast(`Tool ${currentModalTool.name} sukses dieksekusi!`, 'success');
+                } else {
+                    showToast(`Tool gagal: ${data.message || 'Error'}`, 'error');
+                }
             } catch (err) {
                 document.getElementById('modal-result-json').innerText = `Error: ${err.message}`;
                 document.getElementById('modal-result-box').classList.remove('hidden');
