@@ -1452,7 +1452,7 @@
                 const badge = document.getElementById('wa-auth-badge');
                 const container = document.getElementById('wa-qr-container');
 
-                if (data.status === 'READY') {
+                if (data.status === 'READY' || data.status === 'AUTHENTICATED' || data.is_ready) {
                     badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold';
                     badge.innerText = 'ONLINE (Logged In)';
                     container.innerHTML = `
@@ -1477,6 +1477,18 @@
                                 <p class="text-xs text-slate-400">Buka WhatsApp di HP > Menu Perangkat Tertaut > Tautkan Perangkat</p>
                                 <p class="text-[11px] text-slate-500 font-mono">QR refresh otomatis setiap 20 detik.</p>
                             </div>
+                        </div>
+                    `;
+                } else if (data.status === 'INITIALIZING' || data.status === 'AUTHENTICATING') {
+                    badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold pulse-dot';
+                    badge.innerText = 'MENGHUBUNGKAN (Loading)';
+                    container.innerHTML = `
+                        <div class="p-5 flex flex-col items-center space-y-3">
+                            <div class="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl animate-pulse">
+                                <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
+                            </div>
+                            <h4 class="text-sm font-bold text-white">Menghubungkan ke WhatsApp Web...</h4>
+                            <p class="text-xs text-slate-400 max-w-md">Memuat sesi tersimpan dan sinkronisasi enkripsi chat. Mohon tunggu beberapa detik...</p>
                         </div>
                     `;
                 } else {
