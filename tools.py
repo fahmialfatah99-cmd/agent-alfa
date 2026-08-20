@@ -1051,6 +1051,17 @@ def cancel_recurring_task(task_id: int) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+def get_pdf_output_dir(subfolder: str) -> str:
+    """Returns absolute path to ~/Dokumen/ALFA_PDF_TOOLS/<subfolder>/ and ensures it exists."""
+    home_dir = os.path.expanduser("~")
+    dokumen_dir = os.path.join(home_dir, "Dokumen")
+    if not os.path.exists(dokumen_dir):
+        dokumen_dir = os.path.join(home_dir, "Documents")
+    target_dir = os.path.join(dokumen_dir, "ALFA_PDF_TOOLS", subfolder)
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir
+
+
 def generate_pdf_report(title: str, summary: str, table_data: Optional[List[List[str]]] = None, filename: str = "laporan.pdf") -> Dict[str, Any]:
     """
     Generate a modern, beautifully styled PDF document report with ReportLab and automatically send it to Telegram.
@@ -1067,8 +1078,9 @@ def generate_pdf_report(title: str, summary: str, table_data: Optional[List[List
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         
+        out_dir = get_pdf_output_dir("Reports")
         safe_name = filename if filename.endswith(".pdf") else f"{filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         doc = SimpleDocTemplate(target_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         styles = getSampleStyleSheet()
@@ -1123,8 +1135,9 @@ def generate_pdf_report(title: str, summary: str, table_data: Optional[List[List
         doc.build(elements)
         return {
             "status": "success",
-            "message": f"Dokumen PDF '{safe_name}' berhasil dibuat dan akan dikirim ke Telegram.",
-            "file_path": target_path
+            "message": f"Dokumen PDF '{safe_name}' tersimpan di Dokumen/ALFA_PDF_TOOLS/Reports/.",
+            "file_path": target_path,
+            "filename": safe_name
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal membuat PDF: {str(e)}"}
@@ -1144,8 +1157,9 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
     """
     try:
         from pypdf import PdfReader, PdfWriter
+        out_dir = get_pdf_output_dir("Merge")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         writer = PdfWriter()
         merged_count = 0
@@ -1169,7 +1183,7 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
             
         return {
             "status": "success",
-            "message": f"Berhasil menggabungkan {merged_count} file PDF menjadi {total_pages} halaman.",
+            "message": f"Berhasil menggabungkan {merged_count} file PDF menjadi {total_pages} halaman di folder Dokumen/ALFA_PDF_TOOLS/Merge/.",
             "file_path": target_path,
             "filename": safe_name,
             "total_pages": total_pages,
@@ -1187,7 +1201,7 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
     Args:
         pdf_path: Path ke file PDF yang ingin dipecah.
         page_ranges: Rentang halaman yang ingin diekstrak (kosongkan untuk memecah semua halaman per file).
-        output_dir: Direktori output file (opsional, default ke folder sandbox).
+        output_dir: Direktori output file (opsional, default ke ~/Dokumen/ALFA_PDF_TOOLS/Split/).
     """
     try:
         from pypdf import PdfReader, PdfWriter
@@ -1196,7 +1210,8 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
             
-        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(SANDBOX_DIR, "split_pages")
+        base_stem = Path(exp_p).stem
+        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(get_pdf_output_dir("Split"), base_stem)
         os.makedirs(target_dir, exist_ok=True)
         
         reader = PdfReader(exp_p)
@@ -1220,7 +1235,6 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
             indices = list(range(total))
             
         output_files = []
-        base_stem = Path(exp_p).stem
         for idx in indices:
             writer = PdfWriter()
             writer.add_page(reader.pages[idx])
@@ -1231,7 +1245,7 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
             
         return {
             "status": "success",
-            "message": f"Berhasil memecah PDF menjadi {len(output_files)} file halaman.",
+            "message": f"Berhasil memecah PDF menjadi {len(output_files)} file halaman di Dokumen/ALFA_PDF_TOOLS/Split/{base_stem}/.",
             "output_dir": target_dir,
             "files": output_files
         }
@@ -1242,13 +1256,14 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
 
 def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, Any]:
     """
-    Ekstrak teks lengkap dari dokumen PDF secara bersih dan terstruktur.
+    Ekstrak teks lengkap dari dokumen PDF secara bersih dan terstruktur serta simpan salinan file .txt.
     
     Args:
         pdf_path: Path ke file PDF yang ingin dibaca teksnya.
         page_numbers: Opsi nomor halaman spesifik (misal '1,2,5' atau '1-4').
     """
     try:
+        from pathlib import Path
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
@@ -1276,8 +1291,19 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
                 extracted_pages.append(f"--- [Halaman {idx+1}/{total_pages}] ---\n{t.strip()}")
                 
         full_text = "\n\n".join(extracted_pages)
+        
+        # Save to Dokumen/ALFA_PDF_TOOLS/Extract_Text/
+        out_dir = get_pdf_output_dir("Extract_Text")
+        txt_filename = f"{Path(exp_p).stem}_extracted.txt"
+        target_path = os.path.join(out_dir, txt_filename)
+        with open(target_path, "w", encoding="utf-8") as f_txt:
+            f_txt.write(full_text)
+            
         return {
             "status": "success",
+            "message": f"Teks berhasil diekstrak dan disimpan di Dokumen/ALFA_PDF_TOOLS/Extract_Text/{txt_filename}.",
+            "file_path": target_path,
+            "filename": txt_filename,
             "total_pages": total_pages,
             "extracted_pages_count": len(extracted_pages),
             "text_length_chars": len(full_text),
@@ -1287,11 +1313,20 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
     except Exception as e:
         try:
             from pypdf import PdfReader
+            from pathlib import Path
             reader = PdfReader(exp_p)
             texts = [f"--- [Halaman {i+1}] ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages)]
             full = "\n\n".join(texts)
+            out_dir = get_pdf_output_dir("Extract_Text")
+            txt_filename = f"{Path(exp_p).stem}_extracted.txt"
+            target_path = os.path.join(out_dir, txt_filename)
+            with open(target_path, "w", encoding="utf-8") as f_txt:
+                f_txt.write(full)
             return {
                 "status": "success",
+                "message": f"Teks berhasil diekstrak dan disimpan di Dokumen/ALFA_PDF_TOOLS/Extract_Text/{txt_filename}.",
+                "file_path": target_path,
+                "filename": txt_filename,
                 "total_pages": len(reader.pages),
                 "text_preview": full[:4000],
                 "full_text": full
@@ -1315,8 +1350,9 @@ def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "p
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Encrypt")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         reader = PdfReader(exp_p)
         writer = PdfWriter()
@@ -1329,7 +1365,7 @@ def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "p
             
         return {
             "status": "success",
-            "message": f"Dokumen PDF berhasil dienkripsi dengan AES-256.",
+            "message": f"Dokumen PDF berhasil dienkripsi dengan AES-256 di Dokumen/ALFA_PDF_TOOLS/Encrypt/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1352,8 +1388,9 @@ def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "u
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Decrypt")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         reader = PdfReader(exp_p)
         if reader.is_encrypted:
@@ -1370,7 +1407,7 @@ def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "u
             
         return {
             "status": "success",
-            "message": "PDF berhasil didekripsi dan kunci password telah dihapus.",
+            "message": f"PDF berhasil didekripsi di Dokumen/ALFA_PDF_TOOLS/Decrypt/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1394,8 +1431,9 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Rotate")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         reader = PdfReader(exp_p)
         writer = PdfWriter()
@@ -1425,7 +1463,7 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
             
         return {
             "status": "success",
-            "message": f"Berhasil memutar {len(target_indices)} halaman PDF sebesar {angle}°.",
+            "message": f"Berhasil memutar {len(target_indices)} halaman PDF sebesar {angle}° di Dokumen/ALFA_PDF_TOOLS/Rotate/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1455,8 +1493,9 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Watermark")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         packet = io.BytesIO()
         can = rl_canvas.Canvas(packet, pagesize=A4)
@@ -1484,7 +1523,7 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
             
         return {
             "status": "success",
-            "message": f"Watermark '{watermark_text}' berhasil ditempelkan pada {len(reader.pages)} halaman.",
+            "message": f"Watermark '{watermark_text}' berhasil ditempelkan di Dokumen/ALFA_PDF_TOOLS/Watermark/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1512,8 +1551,9 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Page_Numbers")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         reader = PdfReader(exp_p)
         writer = PdfWriter()
@@ -1549,7 +1589,7 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
             
         return {
             "status": "success",
-            "message": f"Nomor halaman berhasil ditambahkan pada seluruh {total} halaman.",
+            "message": f"Nomor halaman berhasil ditambahkan di Dokumen/ALFA_PDF_TOOLS/Page_Numbers/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1564,7 +1604,7 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
     Args:
         pdf_path: Path ke file PDF.
         dpi: Kerapatan resolusi gambar (default 150 DPI).
-        output_dir: Folder penyimpanan gambar hasil konversi.
+        output_dir: Folder penyimpanan gambar hasil konversi (opsional, default ke ~/Dokumen/ALFA_PDF_TOOLS/PDF_to_Images/).
     """
     try:
         from pathlib import Path
@@ -1572,10 +1612,10 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
-        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(SANDBOX_DIR, "pdf_images")
+        base_name = Path(exp_p).stem
+        target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(get_pdf_output_dir("PDF_to_Images"), base_name)
         os.makedirs(target_dir, exist_ok=True)
         
-        base_name = Path(exp_p).stem
         out_prefix = os.path.join(target_dir, f"{base_name}_page")
         
         cmd = ["pdftoppm", "-png", "-r", str(dpi), exp_p, out_prefix]
@@ -1586,7 +1626,7 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
         
         return {
             "status": "success",
-            "message": f"Berhasil merender {len(generated_images)} halaman PDF menjadi gambar PNG.",
+            "message": f"Berhasil merender {len(generated_images)} halaman PDF menjadi gambar PNG di Dokumen/ALFA_PDF_TOOLS/PDF_to_Images/{base_name}/.",
             "output_dir": target_dir,
             "images": generated_images
         }
@@ -1604,8 +1644,9 @@ def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images
     """
     try:
         from PIL import Image
+        out_dir = get_pdf_output_dir("Images_to_PDF")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         
         opened_images = []
         for p in image_paths:
@@ -1623,7 +1664,7 @@ def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images
         
         return {
             "status": "success",
-            "message": f"Berhasil mengubah {len(opened_images)} gambar menjadi dokumen PDF.",
+            "message": f"Berhasil mengubah {len(opened_images)} gambar menjadi PDF di Dokumen/ALFA_PDF_TOOLS/Images_to_PDF/{safe_name}.",
             "file_path": target_path,
             "filename": safe_name
         }
@@ -1633,13 +1674,14 @@ def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images
 
 def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
     """
-    Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata).
+    Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata) dan simpan salinan JSON.
     
     Args:
         pdf_path: Path ke file PDF yang ingin diinspeksi.
     """
     try:
         from pypdf import PdfReader
+        from pathlib import Path
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
@@ -1651,7 +1693,7 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
         width_pt = float(first_page.mediabox.width) if first_page else 0
         height_pt = float(first_page.mediabox.height) if first_page else 0
         
-        return {
+        info = {
             "status": "success",
             "file_name": os.path.basename(exp_p),
             "file_path": exp_p,
@@ -1664,6 +1706,15 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
             "creator": meta.get("/Creator") or meta.creator or "N/A",
             "producer": meta.get("/Producer") or meta.producer or "N/A"
         }
+        
+        # Save json copy to Dokumen/ALFA_PDF_TOOLS/Inspect/
+        out_dir = get_pdf_output_dir("Inspect")
+        json_file = os.path.join(out_dir, f"{Path(exp_p).stem}_metadata.json")
+        with open(json_file, "w", encoding="utf-8") as f_j:
+            json.dump(info, f_j, indent=2, default=str)
+        info["saved_json_path"] = json_file
+        
+        return info
     except Exception as e:
         return {"status": "error", "message": f"Gagal inspeksi PDF: {str(e)}"}
 
@@ -1682,8 +1733,9 @@ def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
             
+        out_dir = get_pdf_output_dir("Compress")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
-        target_path = os.path.join(SANDBOX_DIR, safe_name)
+        target_path = os.path.join(out_dir, safe_name)
         orig_size = os.path.getsize(exp_p)
         
         reader = PdfReader(exp_p)
@@ -1700,7 +1752,7 @@ def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.
         
         return {
             "status": "success",
-            "message": f"PDF berhasil dikompresi. Hemat {savings_pct}% ruang penyimpanan.",
+            "message": f"PDF berhasil dikompresi di Dokumen/ALFA_PDF_TOOLS/Compress/{safe_name}. Hemat {savings_pct}% ruang penyimpanan.",
             "file_path": target_path,
             "filename": safe_name,
             "original_size_kb": round(orig_size / 1024, 2),

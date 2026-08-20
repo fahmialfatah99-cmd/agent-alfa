@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import psutil
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -216,6 +216,44 @@ async def execute_tool(payload: Dict[str, Any]):
             "tool": tool_name,
             "message": str(e)
         }
+
+
+@app.post("/api/tools/upload")
+async def upload_files_for_tools(files: List[UploadFile] = File(...)):
+    """Upload one or more files from user computer for tool processing."""
+    upload_dir = tools.get_pdf_output_dir("Uploads")
+    saved_files = []
+    
+    for f in files:
+        safe_name = os.path.basename(f.filename or "upload_file")
+        target_path = os.path.join(upload_dir, safe_name)
+        
+        # If already exists, create a unique timestamped name
+        if os.path.exists(target_path):
+            stem, ext = os.path.splitext(safe_name)
+            safe_name = f"{stem}_{int(time.time())}{ext}"
+            target_path = os.path.join(upload_dir, safe_name)
+            
+        content = await f.read()
+        with open(target_path, "wb") as out_f:
+            out_f.write(content)
+            
+        saved_files.append({
+            "filename": safe_name,
+            "original_name": f.filename,
+            "file_path": target_path,
+            "size_bytes": len(content),
+            "size_kb": round(len(content) / 1024, 2)
+        })
+        
+    return {
+        "status": "success",
+        "message": f"Berhasil mengunggah {len(saved_files)} file ke {upload_dir}",
+        "upload_dir": upload_dir,
+        "files": saved_files,
+        "primary_file_path": saved_files[0]["file_path"] if saved_files else None,
+        "all_file_paths": [sf["file_path"] for sf in saved_files]
+    }
 
 
 @app.get("/api/services")
