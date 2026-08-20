@@ -1228,7 +1228,7 @@ async def proactive_ambient_agent_loop(application: Application):
 async def proactive_ecosystem_watchdog_loop(application: Application):
     """
     Background watchdog that ensures wa-sheets-bot is automatically kept alive
-    whenever an active internet connection is present.
+    and immediately alerts Telegram if WhatsApp logs out.
     """
     logger.info("📱 WhatsApp Sheets Bot Ecosystem Watchdog started.")
     import socket
@@ -1240,10 +1240,15 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
         except OSError:
             return False
             
+    last_known_auth_status = "UNKNOWN"
+    status_file = os.path.expanduser("~/.alfa/wa_status.json")
+    primary_uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+
     while True:
         try:
             online = await asyncio.to_thread(is_internet_connected)
             if online:
+                # 1. Ensure service is active
                 res = await asyncio.to_thread(
                     lambda: subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
                 )
@@ -1253,10 +1258,53 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                     await asyncio.to_thread(
                         lambda: subprocess.run(["systemctl", "--user", "start", "wa-sheets-bot.service"], capture_output=True, text=True)
                     )
+
+                # 2. Check WhatsApp authentication status & alert if logged out
+                if os.path.exists(status_file):
+                    try:
+                        with open(status_file, "r") as f:
+                            wa_data = json.load(f)
+                        current_status = wa_data.get("status", "UNKNOWN")
+                        qr_str = wa_data.get("qr", "")
+                        
+                        # Detect transition: was READY/AUTHENTICATED, now QR_READY or LOGGED_OUT
+                        if last_known_auth_status in ["READY", "AUTHENTICATED"] and current_status in ["QR_READY", "LOGGED_OUT", "DISCONNECTED"]:
+                            logger.warning(f"🚨 WhatsApp logged out! Sending instant alarm to Telegram user {primary_uid}...")
+                            alarm_text = (
+                                "🚨 **ALARM: WhatsApp Web Logout / Sesi Terputus!**\n\n"
+                                "Bot mendeteksi sesi WhatsApp kamu telah keluar (*logged out*).\n"
+                                "📲 **QR Code baru telah siap!** Silakan scan QR code di atas atau buka di browser:\n"
+                                "👉 [http://localhost:8080](http://localhost:8080) (Tab Services Hub)\n\n"
+                                "Ketik `/wa` untuk kontrol penuh."
+                            )
+                            if qr_str:
+                                import qrcode
+                                import io
+                                img = qrcode.make(qr_str)
+                                buf = io.BytesIO()
+                                img.save(buf, format="PNG")
+                                buf.seek(0)
+                                await application.bot.send_photo(
+                                    chat_id=primary_uid,
+                                    photo=buf,
+                                    caption=alarm_text,
+                                    parse_mode="Markdown"
+                                )
+                            else:
+                                await application.bot.send_message(
+                                    chat_id=primary_uid,
+                                    text=alarm_text,
+                                    parse_mode="Markdown"
+                                )
+                                
+                        last_known_auth_status = current_status
+                    except Exception as e:
+                        logger.error(f"Error checking WA status in watchdog: {e}")
+                        
         except Exception as e:
             logger.error(f"Ecosystem watchdog error: {e}")
             
-        await asyncio.sleep(60)
+        await asyncio.sleep(15)
 
 
 async def post_init(application: Application):
@@ -1334,6 +1382,18 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_running = res.get("is_running", False)
     status_icon = "🟢 RUNNING (Aktif)" if is_running else "🔴 STOPPED (Mati)"
 
+    wa_auth_status = "UNKNOWN"
+    qr_str = ""
+    status_file = os.path.expanduser("~/.alfa/wa_status.json")
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, "r") as f:
+                wa_data = json.load(f)
+            wa_auth_status = wa_data.get("status", "UNKNOWN")
+            qr_str = wa_data.get("qr", "")
+        except Exception:
+            pass
+
     keyboard = [
         [
             InlineKeyboardButton("🔄 Restart WA Bot", callback_data="btn_wa_restart"),
@@ -1342,17 +1402,44 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("▶️ Start WA Bot", callback_data="btn_wa_start"),
             InlineKeyboardButton("⏹️ Stop WA Bot", callback_data="btn_wa_stop"),
+        ],
+        [
+            InlineKeyboardButton("🌐 Buka Web Dashboard", url="http://localhost:8080"),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    auth_desc = "✅ Terhubung (Logged In)" if wa_auth_status == "READY" else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
+
     text = (
         f"📱 **Manajer WhatsApp Google Sheets Bot:**\n\n"
-        f"• **Status:** {status_icon}\n"
+        f"• **Status Layanan:** {status_icon}\n"
+        f"• **Status Akun WA:** `{auth_desc}`\n"
         f"• **Auto-Start Saat Boot/Internet:** `{'Aktif 🟢' if res.get('enabled_on_boot') else 'Nonaktif 🔴'}`\n"
         f"• **Service Name:** `wa-sheets-bot.service`\n\n"
         f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
     )
+
+    if wa_auth_status == "QR_READY" and qr_str:
+        try:
+            import qrcode
+            import io
+            img = qrcode.make(qr_str)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            buf.seek(0)
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=buf,
+                caption=f"📲 **SCAN QR CODE WHATSAPP SEKARANG**\n\n{text}",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+        except Exception as e:
+            logger.error(f"Failed to generate QR photo: {e}")
+
+    await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard or /web command."""
     user_id = update.effective_user.id

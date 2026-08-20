@@ -442,6 +442,37 @@
                 </div>
             </div>
 
+            <!-- Real-Time WhatsApp Live QR & Auth Status Card -->
+            <div id="wa-auth-card" class="glass-card p-6 rounded-2xl space-y-4 border border-emerald-500/30 shadow-glow-emerald">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <i data-lucide="qr-code" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                WHATSAPP WEB REAL-TIME AUTHENTICATION & LIVE QR SCANNER
+                            </h3>
+                            <p class="text-xs text-slate-400">Pantau status login secara live dan scan QR code langsung dari dashboard saat sesi terputus.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="wa-auth-badge" class="px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">MEMUAT STATUS...</span>
+                        <button onclick="fetchWaQr(true)" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300 transition-all" title="Refresh QR">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="logoutWa()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all" title="Force Logout Sesi">
+                            <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout Sesi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- QR Code Display Area -->
+                <div id="wa-qr-container" class="flex flex-col items-center justify-center p-6 bg-dark-950 rounded-xl border border-white/5 space-y-4 text-center">
+                    <div class="text-slate-500 font-mono text-xs">Memeriksa status WhatsApp Web...</div>
+                </div>
+            </div>
+
             <!-- Live Terminal Journal Logs -->
             <div class="glass-card p-6 rounded-2xl space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1339,11 +1370,83 @@
             document.querySelector('#view-console form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
 
+        // WhatsApp Live Authentication & QR Controller
+        async function fetchWaQr(isManual = false) {
+            try {
+                const res = await fetch('/api/wa/qr');
+                const data = await res.json();
+                const badge = document.getElementById('wa-auth-badge');
+                const container = document.getElementById('wa-qr-container');
+
+                if (data.status === 'READY') {
+                    badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold';
+                    badge.innerText = 'ONLINE (Logged In)';
+                    container.innerHTML = `
+                        <div class="p-5 flex flex-col items-center space-y-2">
+                            <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-glow-emerald">
+                                <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                            </div>
+                            <h4 class="text-sm font-bold text-white">Akun WhatsApp Berhasil Terhubung!</h4>
+                            <p class="text-xs text-slate-400 max-w-md">Bot WhatsApp aktif memantau pesan dan mengeksekusi integrasi Google Sheets 24/7.</p>
+                        </div>
+                    `;
+                } else if (data.status === 'QR_READY' || data.qr_data_url) {
+                    badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold pulse-dot';
+                    badge.innerText = 'PERLU SCAN QR (Waiting)';
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center space-y-3">
+                            <div class="p-3 bg-white rounded-2xl shadow-2xl inline-block border-4 border-emerald-400">
+                                <img src="${data.qr_data_url}" alt="WhatsApp QR Code" class="w-64 h-64 object-contain rounded-lg">
+                            </div>
+                            <div class="space-y-1">
+                                <h4 class="text-sm font-bold text-amber-400">Silakan Scan QR Code di Atas</h4>
+                                <p class="text-xs text-slate-400">Buka WhatsApp di HP > Menu Perangkat Tertaut > Tautkan Perangkat</p>
+                                <p class="text-[11px] text-slate-500 font-mono">QR refresh otomatis setiap 20 detik.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold';
+                    badge.innerText = `${data.status} (Disconnected)`;
+                    container.innerHTML = `
+                        <div class="p-5 flex flex-col items-center space-y-3">
+                            <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xl">
+                                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                            </div>
+                            <h4 class="text-sm font-bold text-white">Sesi WhatsApp Terputus / Belum Siap</h4>
+                            <p class="text-xs text-slate-400 max-w-md">Klik tombol di bawah untuk membuat QR code baru atau cek service.</p>
+                            <button onclick="controlService('wa-sheets-bot.service', 'restart')" class="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all">
+                                🔄 Restart Service & Buat QR Code
+                            </button>
+                        </div>
+                    `;
+                }
+                lucide.createIcons();
+                if (isManual) showToast(`Status WhatsApp: ${data.status}`, 'info');
+            } catch (err) {
+                console.error('WA QR fetch error:', err);
+            }
+        }
+
+        async function logoutWa() {
+            if (!confirm('Apakah Anda yakin ingin logout sesi WhatsApp? QR code baru akan langsung dibuat.')) return;
+            try {
+                const res = await fetch('/api/wa/logout', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || 'Logout diproses, menyiapkan QR code...', 'info');
+                setTimeout(fetchWaQr, 1500);
+            } catch (err) {
+                showToast(`Gagal logout: ${err.message}`, 'error');
+            }
+        }
+
         // Initialize telemetry & chart on load
         window.addEventListener('DOMContentLoaded', () => {
             initTelemetryChart();
             fetchStats();
+            fetchWaQr();
             setInterval(fetchStats, 2000);
+            setInterval(fetchWaQr, 4000);
         });
     </script>
 </body>

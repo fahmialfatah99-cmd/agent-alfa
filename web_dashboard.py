@@ -242,6 +242,68 @@ async def get_services_status():
     return {"status": "success", "services": results}
 
 
+@app.get("/api/wa/qr")
+async def get_wa_qr():
+    """Fetch live WhatsApp QR code and authentication status."""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://localhost:3000/api/qr")
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception:
+        pass
+        
+    # Fallback to local sync file
+    status_file = os.path.expanduser("~/.alfa/wa_status.json")
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, "r") as f:
+                data = json.load(f)
+            qr_str = data.get("qr", "")
+            qr_data_url = None
+            if qr_str:
+                import qrcode
+                import io
+                import base64
+                img = qrcode.make(qr_str)
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                b64 = base64.b64encode(buf.getvalue()).decode()
+                qr_data_url = f"data:image/png;base64,{b64}"
+            return {
+                "status": data.get("status", "UNKNOWN"),
+                "is_ready": data.get("status") == "READY",
+                "qr_available": bool(qr_str),
+                "qr_string": qr_str,
+                "qr_data_url": qr_data_url,
+                "timestamp": data.get("updated_at", "")
+            }
+        except Exception:
+            pass
+            
+    return {
+        "status": "DISCONNECTED",
+        "is_ready": False,
+        "qr_available": False,
+        "qr_string": "",
+        "qr_data_url": None,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.post("/api/wa/logout")
+async def logout_wa():
+    """Trigger WhatsApp logout to force new QR generation."""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post("http://localhost:3000/api/logout")
+            return resp.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.post("/api/services/action")
 async def service_action(payload: Dict[str, Any]):
     """Start, stop, or restart a systemd user service."""
