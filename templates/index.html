@@ -143,32 +143,32 @@
         </div>
 
         <!-- Center Tabs -->
-        <nav class="hidden xl:flex items-center space-x-1 p-1 bg-dark-900/90 rounded-xl border border-white/5">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm">
+        <nav class="flex items-center space-x-1 p-1 bg-dark-900/90 rounded-xl border border-white/5 overflow-x-auto max-w-full custom-scrollbar">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm whitespace-nowrap">
                 <i data-lucide="activity" class="w-3.5 h-3.5"></i> Telemetry
             </button>
-            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="users" class="w-3.5 h-3.5"></i> AI Swarm & Rapat
             </button>
-            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
             </button>
-            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">75</span>
             </button>
-            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="layers" class="w-3.5 h-3.5"></i> Services
             </button>
-            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="brain" class="w-3.5 h-3.5"></i> Second Brain
             </button>
-            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> Files
             </button>
-            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Guardian
             </button>
-            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Console
             </button>
         </nav>
@@ -765,6 +765,8 @@
                     </button>
                 </form>
             </div>
+        </section>
+
         <!-- ==================== TAB: AI SWARM & RUANG RAPAT AGENT ==================== -->
         <section id="view-swarm" class="tab-view hidden space-y-6">
             <!-- Header Banner & Controls -->
@@ -818,14 +820,33 @@
 
                 <!-- Meeting Formulation Form -->
                 <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Topik / Agenda Rapat yang Dibahas:</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-mono font-bold text-slate-300">Topik / Agenda Rapat yang Dibahas:</label>
+                            <span class="text-[10px] text-slate-500 font-mono">Pilih preset cepat di bawah ⬇️</span>
+                        </div>
                         <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang strategi integrasi WhatsApp bot dengan OpenAI/Gemini multi-model dan optimalisasi performa database..." class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-sans"></textarea>
+                        
+                        <!-- Quick Topic Presets -->
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
+                            <span class="text-slate-500 whitespace-nowrap">💡 Topik Cepat:</span>
+                            <button type="button" onclick="setMeetingTopic('Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">🚀 Arsitektur Multi-Agent</button>
+                            <button type="button" onclick="setMeetingTopic('Evaluasi keamanan API Key Vault, enkripsi SQLite, dan mitigasi kebocoran data')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">🛡️ Audit Keamanan Vault</button>
+                            <button type="button" onclick="setMeetingTopic('Strategi optimasi latency LLM dan perbandingan efisiensi NVIDIA NIM vs Gemini')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">⚡ Optimasi NVIDIA NIM & Gemini</button>
+                            <button type="button" onclick="setMeetingTopic('Pengembangan sistem sinkronisasi real-time WhatsApp Bot dan Google Sheets')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">📋 WhatsApp Sheets Sync</button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Peserta Rapat yang Diundang:</label>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-mono font-bold text-slate-300">Peserta Rapat yang Diundang:</label>
+                                <div class="flex items-center gap-2 text-[10px] font-mono">
+                                    <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Pilih Semua</button>
+                                    <span class="text-slate-600">|</span>
+                                    <button type="button" onclick="toggleAllParticipants(false)" class="text-slate-400 hover:underline">Kosongkan</button>
+                                </div>
+                            </div>
                             <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-2.5 bg-dark-950 rounded-xl border border-white/5 max-h-32 overflow-y-auto custom-scrollbar text-xs">
                                 <!-- Checkbox list of agents -->
                             </div>
@@ -1129,6 +1150,57 @@
             <div id="m-modal-consensus-box" class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
                 <h4 class="text-xs font-bold text-emerald-400 font-mono">🎯 KONSENSUS & ACTION PLAN</h4>
                 <div id="m-modal-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direct Agent Test Chat Modal -->
+    <div id="agent-test-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-xl w-full space-y-4 border border-cyan-500/30">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div id="test-agent-avatar" class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl shadow-sm">🤖</div>
+                    <div>
+                        <h3 id="test-agent-name" class="text-sm font-bold text-white font-mono">Agent Direct Test</h3>
+                        <p id="test-agent-role" class="text-[11px] text-slate-400 font-mono"></p>
+                    </div>
+                </div>
+                <button onclick="closeAgentTestModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="test-chat-history" class="p-3.5 bg-dark-950 rounded-xl border border-white/5 min-h-[160px] max-h-[300px] overflow-y-auto custom-scrollbar text-xs font-sans space-y-2.5">
+                <div class="text-slate-500 text-center py-6 font-mono text-[11px]">Ketik pesan atau pertanyaan untuk menguji kemampuan respons dan karakter agent ini secara langsung.</div>
+            </div>
+
+            <form onsubmit="sendAgentTestMessage(event)" class="flex items-center gap-2">
+                <input type="text" id="test-chat-input" placeholder="Tanyakan sesuatu pada agent ini..." required class="flex-1 p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                <button type="submit" id="btn-send-test-agent" class="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs font-mono shadow-glow-cyan flex items-center gap-1.5 transition-all">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Kirim
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Agent System Prompt Viewer Modal -->
+    <div id="agent-prompt-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-xl w-full space-y-4 border border-violet-500/30">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="file-code" class="w-5 h-5 text-violet-400"></i>
+                    <h3 id="prompt-modal-agent-name" class="text-sm font-bold text-white font-mono">System Instruction</h3>
+                </div>
+                <button onclick="closeAgentPromptModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-2">
+                <p class="text-[11px] font-mono text-slate-400">Instruksi internal dan persona yang memandu cara berpikir agent:</p>
+                <pre id="prompt-modal-text" class="p-4 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto custom-scrollbar"></pre>
+            </div>
+            <div class="flex justify-end pt-2 border-t border-white/10">
+                <button onclick="closeAgentPromptModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-mono">Tutup</button>
             </div>
         </div>
     </div>
@@ -2004,6 +2076,7 @@
         // ==========================================
         let allAgentsData = [];
         let allMeetingsData = [];
+        let activeTestingAgentId = null;
 
         async function fetchAgents() {
             try {
@@ -2011,7 +2084,8 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     allAgentsData = data.agents || [];
-                    document.getElementById('agents-count-badge').innerText = `${allAgentsData.length} Agents Terdaftar`;
+                    const badge = document.getElementById('agents-count-badge');
+                    if (badge) badge.innerText = `${allAgentsData.length} Agents Terdaftar`;
                     renderAgentsGrid();
                     renderMeetingParticipantsSelector();
                 }
@@ -2024,28 +2098,39 @@
             const grid = document.getElementById('agents-grid');
             if (!grid) return;
             if (allAgentsData.length === 0) {
-                grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500 font-mono text-xs">Belum ada agent. Klik tombol + Tambah Agent untuk membuat baru.</div>';
+                grid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-500 font-mono text-xs glass-card rounded-2xl">Belum ada agent. Klik tombol <b>+ Tambah Agent</b> di atas untuk membuat agent baru.</div>';
                 return;
             }
 
             const colorMaps = {
-                cyan: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
-                emerald: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
-                violet: 'border-violet-500/30 text-violet-400 bg-violet-500/10',
+                cyan: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10 shadow-glow-cyan',
+                emerald: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10 shadow-glow-emerald',
+                violet: 'border-violet-500/30 text-violet-400 bg-violet-500/10 shadow-glow-violet',
                 amber: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
                 rose: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
                 blue: 'border-blue-500/30 text-blue-400 bg-blue-500/10'
             };
 
+            const providerBadges = {
+                nvidia: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                gemini: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+                openai: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+                groq: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                openrouter: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+                anthropic: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                ollama: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+            };
+
             grid.innerHTML = allAgentsData.map(a => {
                 const col = colorMaps[a.color_theme] || colorMaps.cyan;
+                const provBadge = providerBadges[a.provider] || 'bg-dark-900 text-slate-400 border-white/5';
                 const isAct = a.is_enabled !== 0;
                 return `
-                    <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${isAct ? 'border-white/10' : 'border-white/5 opacity-60'} group hover:border-cyan-500/40">
+                    <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${isAct ? 'border-white/10' : 'border-white/5 opacity-60'} group hover:border-cyan-500/40 transition-all">
                         <div class="space-y-3">
                             <div class="flex items-start justify-between">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-11 h-11 rounded-2xl ${col} flex items-center justify-center text-xl shadow-sm">
+                                    <div class="w-12 h-12 rounded-2xl ${col} flex items-center justify-center text-2xl shadow-sm">
                                         ${a.avatar_emoji || '🤖'}
                                     </div>
                                     <div>
@@ -2057,10 +2142,28 @@
                                     <i data-lucide="${isAct ? 'check-circle' : 'circle-off'}" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed">${a.persona || 'Spesialis tim AI otonom.'}</p>
+                            
+                            <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed font-sans">${a.persona || 'Spesialis tim AI otonom.'}</p>
+                            
+                            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border ${provBadge}">
+                                    ${a.provider}
+                                </span>
+                                <span class="px-2 py-0.5 rounded bg-dark-950 text-slate-300 border border-white/5 text-[10px] font-mono truncate max-w-[170px]" title="${a.model}">
+                                    ${a.model}
+                                </span>
+                            </div>
                         </div>
-                        <div class="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
-                            <span class="px-2 py-0.5 rounded bg-dark-950 text-slate-400 border border-white/5 text-[11px]">${a.provider}/${a.model}</span>
+
+                        <div class="pt-3 border-t border-white/5 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="openAgentTestModal(${a.id})" class="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[11px] font-mono font-bold flex items-center gap-1 transition-all">
+                                    <i data-lucide="message-square" class="w-3 h-3"></i> Chat Uji
+                                </button>
+                                <button onclick="viewAgentPrompt(${a.id})" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5 text-[11px] font-mono transition-all" title="Lihat System Prompt">
+                                    <i data-lucide="file-text" class="w-3 h-3"></i>
+                                </button>
+                            </div>
                             <button onclick="deleteAgent(${a.id}, '${a.name}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Hapus Agent">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
@@ -2080,6 +2183,18 @@
                     <span>${a.avatar_emoji || '🤖'} ${a.name}</span>
                 </label>
             `).join('');
+        }
+
+        function setMeetingTopic(topic) {
+            const input = document.getElementById('meeting-topic-input');
+            if (input) {
+                input.value = topic;
+                input.focus();
+            }
+        }
+
+        function toggleAllParticipants(shouldSelect) {
+            document.querySelectorAll('input[name="meeting-agent"]').forEach(cb => cb.checked = shouldSelect);
         }
 
         function openAgentModal() {
@@ -2149,6 +2264,114 @@
             }
         }
 
+        function viewAgentPrompt(id) {
+            const agent = allAgentsData.find(a => a.id === id);
+            if (!agent) return;
+            document.getElementById('prompt-modal-agent-name').innerText = `${agent.avatar_emoji || '🤖'} System Instruction: ${agent.name}`;
+            document.getElementById('prompt-modal-text').innerText = agent.system_instruction || '(Tidak ada system prompt kustom)';
+            document.getElementById('agent-prompt-modal').classList.remove('hidden');
+            document.getElementById('agent-prompt-modal').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeAgentPromptModal() {
+            document.getElementById('agent-prompt-modal').classList.add('hidden');
+            document.getElementById('agent-prompt-modal').classList.remove('flex');
+        }
+
+        function openAgentTestModal(id) {
+            const agent = allAgentsData.find(a => a.id === id);
+            if (!agent) return;
+            activeTestingAgentId = id;
+            document.getElementById('test-agent-avatar').innerText = agent.avatar_emoji || '🤖';
+            document.getElementById('test-agent-name').innerText = `Test Direct Chat: ${agent.name}`;
+            document.getElementById('test-agent-role').innerText = `${agent.role} • ${agent.provider}/${agent.model}`;
+            document.getElementById('test-chat-history').innerHTML = `
+                <div class="text-slate-500 text-center py-6 font-mono text-[11px]">
+                    Koneksi ke <b>${agent.name}</b> (${agent.provider}/${agent.model}) siap.<br>Ketik pesan di bawah untuk menguji responsnya.
+                </div>
+            `;
+            document.getElementById('agent-test-modal').classList.remove('hidden');
+            document.getElementById('agent-test-modal').classList.add('flex');
+            document.getElementById('test-chat-input').focus();
+            lucide.createIcons();
+        }
+
+        function closeAgentTestModal() {
+            document.getElementById('agent-test-modal').classList.add('hidden');
+            document.getElementById('agent-test-modal').classList.remove('flex');
+            activeTestingAgentId = null;
+        }
+
+        async function sendAgentTestMessage(e) {
+            e.preventDefault();
+            if (!activeTestingAgentId) return;
+            const input = document.getElementById('test-chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const history = document.getElementById('test-chat-history');
+            const btn = document.getElementById('btn-send-test-agent');
+
+            // User bubble
+            history.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="max-w-[85%] p-3 rounded-2xl bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 text-xs">
+                        ${message.replace(/</g, '&lt;')}
+                    </div>
+                </div>
+            `;
+            input.value = '';
+
+            // Loading bubble
+            const loadingId = 'loading-' + Date.now();
+            history.innerHTML += `
+                <div id="${loadingId}" class="flex justify-start">
+                    <div class="p-3 rounded-2xl bg-dark-900 border border-white/5 text-slate-400 text-xs font-mono flex items-center gap-2">
+                        <i data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-cyan-400"></i> Sedang berpikir...
+                    </div>
+                </div>
+            `;
+            history.scrollTop = history.scrollHeight;
+            lucide.createIcons();
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/agents/${activeTestingAgentId}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await res.json();
+                document.getElementById(loadingId)?.remove();
+
+                if (data.status === 'success') {
+                    const parsedReply = marked.parse(data.reply || '');
+                    history.innerHTML += `
+                        <div class="flex justify-start">
+                            <div class="max-w-[90%] p-3.5 rounded-2xl bg-dark-900/95 border border-white/10 text-slate-200 text-xs leading-relaxed space-y-1">
+                                <div class="flex items-center gap-2 text-[10px] font-mono text-cyan-400 pb-1 border-b border-white/5">
+                                    <span>${data.agent_name}</span>
+                                    <span>•</span>
+                                    <span>${data.duration_ms}ms</span>
+                                </div>
+                                <div class="prose prose-invert max-w-none">${parsedReply}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    history.innerHTML += `<div class="p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-mono">Error: ${data.message || 'Gagal'}</div>`;
+                }
+            } catch (err) {
+                document.getElementById(loadingId)?.remove();
+                history.innerHTML += `<div class="p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-mono">Connection error: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                history.scrollTop = history.scrollHeight;
+                lucide.createIcons();
+            }
+        }
+
         function scrollToMeetingRoom() {
             document.getElementById('meeting-room-panel').scrollIntoView({ behavior: 'smooth' });
         }
@@ -2182,8 +2405,8 @@
             dialogueContainer.classList.remove('hidden');
             consensusBox.classList.add('hidden');
             transcriptFeed.innerHTML = `
-                <div class="p-4 flex items-center justify-center space-x-3 text-violet-300 text-xs font-mono">
-                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                <div class="p-6 flex flex-col items-center justify-center space-y-2 text-violet-300 text-xs font-mono">
+                    <i data-lucide="loader" class="w-6 h-6 animate-spin text-violet-400"></i>
                     <span>Memanggil agent peserta rapat dan memulai perdebatan round-table...</span>
                 </div>
             `;
@@ -2368,38 +2591,95 @@
             const grid = document.getElementById('keys-grid');
             if (!grid) return;
             if (keys.length === 0) {
-                grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500 font-mono text-xs">Belum ada API Key tersimpan. Tambahkan melalui form di atas.</div>';
+                grid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-500 font-mono text-xs glass-card rounded-2xl">Belum ada API Key tersimpan. Tambahkan kunci baru melalui formulir di atas.</div>';
                 return;
             }
 
-            grid.innerHTML = keys.map(k => `
-                <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${k.is_active ? 'border-emerald-500/40 shadow-glow-emerald' : 'border-white/5'} group">
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider ${k.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-dark-900 text-slate-400 border border-white/5'}">
-                                ${k.provider}
-                            </span>
-                            ${k.is_active 
-                                ? '<span class="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span> ACTIVE KEY</span>' 
-                                : `<button onclick="activateKey(${k.id})" class="px-2 py-0.5 rounded bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 text-[10px] font-mono transition-all">Set Aktif</button>`}
+            const providerBadges = {
+                nvidia: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+                gemini: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+                openai: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+                groq: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                openrouter: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+                anthropic: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+                ollama: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+            };
+
+            grid.innerHTML = keys.map(k => {
+                const provBadge = providerBadges[k.provider] || 'bg-dark-900 text-slate-400 border-white/5';
+                return `
+                    <div class="glass-card p-5 rounded-2xl flex flex-col justify-between space-y-4 border ${k.is_active ? 'border-emerald-500/40 shadow-glow-emerald' : 'border-white/5'} group">
+                        <div class="space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border ${provBadge}">
+                                    ${k.provider}
+                                </span>
+                                ${k.is_active 
+                                    ? '<span class="text-[10px] font-mono text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span> ACTIVE DEFAULT</span>' 
+                                    : `<button onclick="activateKey(${k.id})" class="px-2 py-0.5 rounded bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-300 text-[10px] font-mono transition-all">Set Aktif</button>`}
+                            </div>
+                            <h4 class="text-sm font-bold text-white font-mono">${k.name}</h4>
+                            <div class="p-2.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-cyan-300 flex items-center justify-between">
+                                <span>${k.masked_key}</span>
+                                <i data-lucide="key" class="w-3.5 h-3.5 text-slate-500"></i>
+                            </div>
+                            <p class="text-[11px] text-slate-400 font-mono">Model: <span class="text-slate-200 font-semibold">${k.default_model}</span></p>
+                            ${k.base_url ? `<p class="text-[10px] text-slate-500 font-mono truncate" title="${k.base_url}">URL: ${k.base_url}</p>` : ''}
+                            
+                            <div id="key-ping-badge-${k.id}" class="hidden p-2 rounded-xl text-[10px] font-mono"></div>
                         </div>
-                        <h4 class="text-sm font-bold text-white font-mono">${k.name}</h4>
-                        <div class="p-2.5 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-cyan-300 flex items-center justify-between">
-                            <span>${k.masked_key}</span>
-                            <i data-lucide="key" class="w-3.5 h-3.5 text-slate-500"></i>
+
+                        <div class="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
+                            <button onclick="testKeyPing(${k.id})" id="btn-ping-${k.id}" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 text-[10px] font-mono font-bold flex items-center gap-1 border border-white/5 transition-all">
+                                <i data-lucide="zap" class="w-3 h-3 text-cyan-400"></i> Test Ping
+                            </button>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-slate-500">${k.created_at}</span>
+                                <button onclick="deleteKey(${k.id}, '${k.name}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Hapus Key">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
                         </div>
-                        <p class="text-[11px] text-slate-400 font-mono">Model: <span class="text-slate-200">${k.default_model}</span></p>
-                        ${k.base_url ? `<p class="text-[10px] text-slate-500 font-mono truncate" title="${k.base_url}">URL: ${k.base_url}</p>` : ''}
                     </div>
-                    <div class="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-mono">
-                        <span class="text-[10px] text-slate-500">${k.created_at}</span>
-                        <button onclick="deleteKey(${k.id}, '${k.name}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Hapus Key">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             lucide.createIcons();
+        }
+
+        async function testKeyPing(keyId) {
+            const btn = document.getElementById(`btn-ping-${keyId}`);
+            const badge = document.getElementById(`key-ping-badge-${keyId}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Ping...';
+                lucide.createIcons();
+            }
+
+            try {
+                const res = await fetch(`/api/keys/${keyId}/test`, { method: 'POST' });
+                const data = await res.json();
+                badge.classList.remove('hidden');
+
+                if (data.status === 'success') {
+                    badge.className = 'p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-[10px] flex items-center justify-between';
+                    badge.innerHTML = `<span>🟢 Connected (${data.duration_ms}ms)</span><span>${data.response.substring(0, 20)}...</span>`;
+                    showToast('Koneksi API Key terverifikasi aktif!', 'success');
+                } else {
+                    badge.className = 'p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px]';
+                    badge.innerHTML = `<span>🔴 Error: ${data.response || 'Gagal'}</span>`;
+                    showToast('Gagal memvalidasi API key.', 'error');
+                }
+            } catch (err) {
+                badge.classList.remove('hidden');
+                badge.className = 'p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px]';
+                badge.innerHTML = `<span>🔴 Network Error: ${err.message}</span>`;
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="zap" class="w-3 h-3 text-cyan-400"></i> Test Ping';
+                    lucide.createIcons();
+                }
+            }
         }
 
         async function addApiKeyForm(e) {
@@ -2488,12 +2768,15 @@
             }
         }
 
-        // Initialize telemetry & chart on load
+        // Initialize telemetry & all data on load
         window.addEventListener('DOMContentLoaded', () => {
             initTelemetryChart();
             fetchStats();
             fetchWaQr();
             fetchWaReports();
+            fetchAgents();
+            fetchKeys();
+            fetchMeetings();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
             setInterval(fetchWaReports, 8000);

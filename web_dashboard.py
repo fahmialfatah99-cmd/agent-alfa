@@ -607,6 +607,41 @@ async def delete_api_key_endpoint(key_id: int):
     return res
 
 
+@app.post("/api/keys/{key_id}/test")
+async def test_api_key_endpoint(key_id: int):
+    """Test ping connection for a stored API key."""
+    with database.get_sync_db() as conn:
+        row = conn.execute("SELECT * FROM api_keys WHERE id = ?", (key_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="API Key tidak ditemukan")
+        key_data = dict(row)
+
+    import swarm_engine
+    dummy_agent = {
+        "name": f"Tester-{key_data['provider']}",
+        "provider": key_data["provider"],
+        "model": key_data["default_model"],
+        "api_key_id": key_id
+    }
+    start_t = time.time()
+    resp = await swarm_engine.generate_agent_response(
+        agent=dummy_agent,
+        prompt="Katakan 'Koneksi Berhasil' dalam 3 kata.",
+        system_instruction="Kamu adalah modul health checker. Jawab dengan sangat singkat."
+    )
+    duration_ms = round((time.time() - start_t) * 1000, 1)
+    is_error = "[Error:" in resp or "Gagal memanggil" in resp
+
+    return {
+        "status": "error" if is_error else "success",
+        "key_id": key_id,
+        "provider": key_data["provider"],
+        "model": key_data["default_model"],
+        "duration_ms": duration_ms,
+        "response": resp
+    }
+
+
 # --- Autonomous AI Workforce & Custom Agent Endpoints ---
 @app.get("/api/agents")
 async def get_custom_agents():
@@ -657,6 +692,38 @@ async def delete_custom_agent_endpoint(agent_id: int):
     """Delete a custom agent."""
     res = database.delete_custom_agent_sync(agent_id)
     return res
+
+
+@app.post("/api/agents/{agent_id}/chat")
+async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
+    """Send a test message directly to a specific custom agent."""
+    prompt = payload.get("message")
+    if not prompt:
+        raise HTTPException(status_code=400, detail="message is required")
+        
+    with database.get_sync_db() as conn:
+        row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
+        agent_data = dict(row)
+        
+    import swarm_engine
+    start_t = time.time()
+    resp = await swarm_engine.generate_agent_response(
+        agent=agent_data,
+        prompt=prompt,
+        system_instruction=agent_data.get("system_instruction") or f"Kamu adalah {agent_data['name']}, {agent_data['role']}."
+    )
+    duration_ms = round((time.time() - start_t) * 1000, 1)
+    
+    return {
+        "status": "success",
+        "agent_name": agent_data["name"],
+        "model": agent_data["model"],
+        "provider": agent_data["provider"],
+        "duration_ms": duration_ms,
+        "reply": resp
+    }
 
 
 # --- Multi-Agent Round-Table Meeting Endpoints ---
