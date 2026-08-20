@@ -994,11 +994,15 @@
                         <div>
                             <label class="block text-[11px] font-mono text-slate-400 mb-1">Provider AI:</label>
                             <select id="key-provider-select" onchange="onProviderSelectChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
-                                <option value="nvidia">NVIDIA NIM (Llama 3.3, DeepSeek R1, Nemotron)</option>
+                                <option value="nvidia">NVIDIA NIM (Nemotron, Llama 3.3, 127+ Models)</option>
+                                <option value="deepseek">DeepSeek Official (V3, R1 Reasoning)</option>
+                                <option value="minimax">MiniMax AI (MiniMax-01, abab6.5s)</option>
                                 <option value="gemini">Google Gemini (Default)</option>
-                                <option value="openai">OpenAI (GPT-4o, o1, etc.)</option>
-                                <option value="groq">Groq (Llama 3.3 Ultra-Fast)</option>
+                                <option value="groq">Groq (Llama 3.3 Ultra-Fast 300+ T/s)</option>
                                 <option value="openrouter">OpenRouter (Multi-Model Hub)</option>
+                                <option value="qwen">Alibaba Cloud Qwen (Max, Plus, Coder)</option>
+                                <option value="moonshot">Moonshot AI / Kimi</option>
+                                <option value="openai">OpenAI (GPT-4o, o1, o3-mini)</option>
                                 <option value="anthropic">Anthropic (Claude 3.5)</option>
                                 <option value="ollama">Local Ollama / Custom API</option>
                             </select>
@@ -1159,10 +1163,14 @@
                         <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Provider AI:</label>
                         <select id="agent-provider-input" onchange="onAgentProviderChange()" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white font-mono">
                             <option value="nvidia">NVIDIA NIM</option>
+                            <option value="deepseek">DeepSeek Official</option>
+                            <option value="minimax">MiniMax AI</option>
                             <option value="gemini">Google Gemini</option>
-                            <option value="openai">OpenAI</option>
                             <option value="groq">Groq</option>
                             <option value="openrouter">OpenRouter</option>
+                            <option value="qwen">Alibaba Qwen</option>
+                            <option value="moonshot">Moonshot Kimi</option>
+                            <option value="openai">OpenAI</option>
                             <option value="anthropic">Anthropic</option>
                             <option value="ollama">Ollama</option>
                         </select>
@@ -3014,6 +3022,14 @@
                 baseInput.value = '';
             } else if (prov === 'nvidia') {
                 baseInput.value = 'https://integrate.api.nvidia.com/v1';
+            } else if (prov === 'deepseek') {
+                baseInput.value = 'https://api.deepseek.com/v1';
+            } else if (prov === 'minimax') {
+                baseInput.value = 'https://api.minimax.chat/v1';
+            } else if (prov === 'moonshot') {
+                baseInput.value = 'https://api.moonshot.cn/v1';
+            } else if (prov === 'qwen') {
+                baseInput.value = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
             } else if (prov === 'openai') {
                 baseInput.value = 'https://api.openai.com/v1';
             } else if (prov === 'groq') {

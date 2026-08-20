@@ -691,25 +691,55 @@ PROVIDER_MODELS = {
         {"id": "google/gemma-2-27b-it", "name": "Google Gemma 2 27B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "google/gemma-2-9b-it", "name": "Google Gemma 2 9B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"}
     ],
+    "deepseek": [
+        {"id": "deepseek-chat", "name": "DeepSeek-V3 671B MoE (Sangat Cerdas & Cepat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"},
+        {"id": "deepseek-reasoner", "name": "DeepSeek-R1 671B (Penalaran & Logic Terkuat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.55/1M)"},
+        {"id": "deepseek-coder", "name": "DeepSeek Coder 33B (Spesialis Kode)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"}
+    ],
+    "minimax": [
+        {"id": "MiniMax-Text-01", "name": "MiniMax-01 Flagship (Konteks Raksasa 4 Juta Token)", "category": "MiniMax AI", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Murah"},
+        {"id": "abab6.5s-chat", "name": "MiniMax abab6.5s (Ultra-Fast MoE)", "category": "MiniMax AI", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Murah"},
+        {"id": "abab6.5g-chat", "name": "MiniMax abab6.5g (General Knowledge)", "category": "MiniMax AI", "pricing": "paid", "pricing_label": "💎 BERBAYAR"},
+        {"id": "abab6.5t-chat", "name": "MiniMax abab6.5t (Long Context)", "category": "MiniMax AI", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
+    ],
+    "moonshot": [
+        {"id": "moonshot-v1-8k", "name": "Moonshot Kimi v1 8K (Cerdas & Cepat)", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL (15 RMB Bonus)"},
+        {"id": "moonshot-v1-32k", "name": "Moonshot Kimi v1 32K", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"},
+        {"id": "moonshot-v1-128k", "name": "Moonshot Kimi v1 128K (Konteks Panjang)", "category": "Moonshot Kimi", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
+    ],
+    "qwen": [
+        {"id": "qwen-max", "name": "Qwen 2.5 Max (Flagship Alibaba Cloud Terkuat)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Token"},
+        {"id": "qwen-plus", "name": "Qwen 2.5 Plus (Keseimbangan Sempurna)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH"},
+        {"id": "qwen-turbo", "name": "Qwen 2.5 Turbo (Kilat & Ringan)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH"},
+        {"id": "qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"}
+    ],
     "gemini": [
         {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Default / Ultra Cepat & Hemat)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
         {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Generasi Terbaru)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
         {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
         {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (Multimodal & Real-time)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
+        {"id": "gemini-2.0-flash-thinking-exp-01-21", "name": "Gemini 2.0 Flash Thinking Exp (Reasoning Terbuka)", "category": "Google Reasoning", "pricing": "free", "pricing_label": "🟢 GRATIS (Experimental)"},
+        {"id": "gemini-2.0-pro-exp-02-05", "name": "Gemini 2.0 Pro Experimental (Performa Tinggi)", "category": "Google Pro", "pricing": "free", "pricing_label": "🟢 GRATIS (Experimental)"},
         {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash (1 Juta Konteks Token)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
+        {"id": "gemini-1.5-flash-8b", "name": "Gemini 1.5 Flash 8B (Super Ringan)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
         {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (2 Juta Konteks Token & Analisis Kompleks)", "category": "Google Pro", "pricing": "paid", "pricing_label": "💎 BERBAYAR / Free Tier 2 RPM"}
     ],
     "groq": [
         {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "deepseek-r1-distill-qwen-32b", "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k Konteks", "category": "Groq MoE", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "gemma2-9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"}
+        {"id": "gemma2-9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "qwen-qwq-32b-preview", "name": "Qwen QwQ 32B Reasoning Preview", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"}
     ],
     "openrouter": [
         {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
         {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B Instruct (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
         {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
+        {"id": "minimax/minimax-01", "name": "MiniMax-01 4M Context (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.20/1M)"},
+        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Full 671B (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.55/1M)"},
+        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 Full (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.14/1M)"},
         {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"},
         {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"}
     ],
@@ -727,10 +757,12 @@ PROVIDER_MODELS = {
         {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
     ],
     "ollama": [
-        {"id": "llama3", "name": "Llama 3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
         {"id": "deepseek-r1", "name": "DeepSeek R1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "llama3.3", "name": "Llama 3.3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "llama3.1", "name": "Llama 3.1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
         {"id": "qwen2.5-coder", "name": "Qwen 2.5 Coder (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
         {"id": "mistral", "name": "Mistral 7B (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "gemma2", "name": "Google Gemma 2 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
         {"id": "phi3", "name": "Microsoft Phi 3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"}
     ]
 }
@@ -787,13 +819,21 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="API Key wajib diisi untuk divalidasi")
         
     start_t = time.time()
-    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "ollama"]:
+    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "ollama", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
         try:
             import httpx
             url = base_url
             if not url:
                 if provider in ["nvidia", "nim"]:
                     url = "https://integrate.api.nvidia.com/v1"
+                elif provider == "deepseek":
+                    url = "https://api.deepseek.com/v1"
+                elif provider == "minimax":
+                    url = "https://api.minimax.chat/v1"
+                elif provider in ["moonshot", "kimi"]:
+                    url = "https://api.moonshot.cn/v1"
+                elif provider in ["qwen", "dashscope"]:
+                    url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
                 elif provider == "openai":
                     url = "https://api.openai.com/v1"
                 elif provider == "groq":
@@ -803,7 +843,23 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
             
-            target_model = model or ("meta/llama-3.3-70b-instruct" if provider in ["nvidia", "nim"] else "gpt-4o")
+            target_model = model
+            if not target_model:
+                if provider in ["nvidia", "nim"]:
+                    target_model = "nvidia/llama-3.1-nemotron-70b-instruct"
+                elif provider == "deepseek":
+                    target_model = "deepseek-chat"
+                elif provider == "minimax":
+                    target_model = "MiniMax-Text-01"
+                elif provider in ["moonshot", "kimi"]:
+                    target_model = "moonshot-v1-8k"
+                elif provider in ["qwen", "dashscope"]:
+                    target_model = "qwen-plus"
+                elif provider == "groq":
+                    target_model = "llama-3.3-70b-versatile"
+                else:
+                    target_model = "gpt-4o"
+
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             test_payload = {
                 "model": target_model,
@@ -827,7 +883,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                         "status": "error",
                         "status_code": 401,
                         "duration_ms": duration_ms,
-                        "message": f"API Key {provider.upper()} tidak valid atau tidak memiliki izin akses (HTTP 401 Unauthorized). Pastikan key dimulai dengan 'nvapi-...' yang benar."
+                        "message": f"API Key {provider.upper()} tidak valid atau tidak memiliki izin akses (HTTP 401 Unauthorized)."
                     }
                 else:
                     return {"status": "error", "status_code": res.status_code, "duration_ms": duration_ms, "message": f"HTTP {res.status_code}: {res.text[:200]}"}
