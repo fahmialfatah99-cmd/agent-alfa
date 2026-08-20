@@ -738,7 +738,40 @@ PROVIDER_MODELS = {
 
 @app.get("/api/models")
 async def get_available_models():
-    """Get verified models list per provider."""
+    """Get verified models list per provider with live NVIDIA NIM discovery."""
+    # Attempt dynamic refresh from NVIDIA NIM if possible
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            r = await client.get("https://integrate.api.nvidia.com/v1/models")
+            if r.status_code == 200:
+                live_data = r.json().get("data", [])
+                existing_ids = {m["id"] for m in PROVIDER_MODELS["nvidia"]}
+                for item in live_data:
+                    mid = item.get("id")
+                    if mid and mid not in existing_ids:
+                        cat = "NVIDIA Live Models"
+                        if "nemotron" in mid:
+                            cat = "NVIDIA Nemotron Ultra"
+                        elif "llama" in mid:
+                            cat = "Meta Llama on NVIDIA"
+                        elif "mistral" in mid:
+                            cat = "Mistral on NVIDIA"
+                        elif "deepseek" in mid:
+                            cat = "DeepSeek on NVIDIA"
+                        elif "google" in mid or "gemma" in mid:
+                            cat = "Google on NVIDIA"
+                        
+                        PROVIDER_MODELS["nvidia"].append({
+                            "id": mid,
+                            "name": f"{mid} (Live NVIDIA NIM)",
+                            "category": cat,
+                            "pricing": "free_credits",
+                            "pricing_label": "🟢 GRATIS (1000 NIM Credits)"
+                        })
+    except Exception:
+        pass
+
     return {"status": "success", "providers": PROVIDER_MODELS}
 
 
@@ -782,6 +815,20 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 duration_ms = round((time.time() - start_t) * 1000, 1)
                 if res.status_code == 200:
                     return {"status": "success", "duration_ms": duration_ms, "message": f"Koneksi {provider.upper()} ({target_model}) Berhasil ({duration_ms}ms)!"}
+                elif res.status_code == 404 and provider in ["nvidia", "nim"]:
+                    return {
+                        "status": "error",
+                        "status_code": 404,
+                        "duration_ms": duration_ms,
+                        "message": f"Model '{target_model}' memerlukan izin khusus enterprise di NVIDIA NIM. Coba pilih model aktif 'nvidia/llama-3.1-nemotron-70b-instruct' atau 'meta/llama-3.3-70b-instruct' yang 100% aktif untuk akun Free NIM!"
+                    }
+                elif res.status_code == 401:
+                    return {
+                        "status": "error",
+                        "status_code": 401,
+                        "duration_ms": duration_ms,
+                        "message": f"API Key {provider.upper()} tidak valid atau tidak memiliki izin akses (HTTP 401 Unauthorized). Pastikan key dimulai dengan 'nvapi-...' yang benar."
+                    }
                 else:
                     return {"status": "error", "status_code": res.status_code, "duration_ms": duration_ms, "message": f"HTTP {res.status_code}: {res.text[:200]}"}
         except Exception as e:
