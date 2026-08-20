@@ -299,9 +299,50 @@ async def logout_wa():
         import httpx
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post("http://localhost:3000/api/logout")
-            return resp.json()
+            if resp.status_code == 200:
+                return resp.json()
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        pass
+    return {"status": "error", "message": "Failed to connect to WhatsApp bot server on port 3000"}
+
+
+@app.get("/api/wa/reports")
+async def get_wa_reports():
+    """Fetch recorded WhatsApp Google Sheets reports and format definitions."""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://localhost:3000/api/reports")
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception:
+        pass
+
+    reports_file = "/home/fahmial/wa-sheets-bot/recorded_reports.json"
+    formats_file = "/home/fahmial/wa-sheets-bot/formats.json"
+    reports_data = []
+    formats_data = []
+    if os.path.exists(reports_file):
+        try:
+            with open(reports_file, "r") as f:
+                reports_data = json.load(f)
+        except Exception:
+            pass
+    if os.path.exists(formats_file):
+        try:
+            with open(formats_file, "r") as f:
+                formats_data = json.load(f).get("formats", [])
+        except Exception:
+            pass
+
+    return {
+        "status": "success",
+        "spreadsheet_id": "1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ",
+        "formats": formats_data,
+        "total_recorded": len(reports_data),
+        "pending_queue_count": 0,
+        "reports": reports_data
+    }
 
 
 @app.post("/api/services/action")

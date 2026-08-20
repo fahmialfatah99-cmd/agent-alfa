@@ -368,16 +368,19 @@
 
         <!-- ==================== TAB 3: SERVICES & ECOSYSTEM HUB ==================== -->
         <section id="view-services" class="tab-view hidden space-y-6">
+            <!-- 1. Top Row: 3 Ecosystem Service Status Cards -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 <!-- Telegram Bot Service Card -->
-                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between hover:border-cyan-500/30 transition-all">
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">SYSTEMD USER UNIT</span>
-                            <span id="svc-stat-tb" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">RUNNING</span>
+                            <span id="svc-stat-tb" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">RUNNING</span>
                         </div>
-                        <h3 class="text-sm font-bold text-white font-mono">telegram-ai-bot.service</h3>
-                        <p class="text-xs text-slate-400 mt-1">Agent Telegram AI otonom dengan 72 tools dan Second Brain.</p>
+                        <h3 class="text-sm font-bold text-white font-mono flex items-center gap-1.5">
+                            <i data-lucide="bot" class="w-4 h-4 text-cyan-400"></i> telegram-ai-bot.service
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Autonomous AI Agent dengan 72 tools, second brain, dan ambient proactive.</p>
                         <div class="mt-3 p-2.5 bg-dark-950 rounded-xl font-mono text-[11px] text-slate-400 space-y-0.5" id="svc-details-tb">
                             Memuat...
                         </div>
@@ -386,24 +389,26 @@
                         <button onclick="controlService('telegram-ai-bot.service', 'restart')" class="flex-1 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
                             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Restart
                         </button>
-                        <button onclick="controlService('telegram-ai-bot.service', 'start')" class="py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all">
+                        <button onclick="controlService('telegram-ai-bot.service', 'start')" class="py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all" title="Start">
                             <i data-lucide="play" class="w-3.5 h-3.5"></i>
                         </button>
-                        <button onclick="controlService('telegram-ai-bot.service', 'stop')" class="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all">
+                        <button onclick="controlService('telegram-ai-bot.service', 'stop')" class="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all" title="Stop">
                             <i data-lucide="square" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- WA Sheets Bot Service Card -->
-                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between hover:border-emerald-500/30 transition-all">
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">NODE.JS + PUPPETEER</span>
-                            <span id="svc-stat-wa" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">RUNNING</span>
+                            <span id="svc-stat-wa" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">RUNNING</span>
                         </div>
-                        <h3 class="text-sm font-bold text-white font-mono">wa-sheets-bot.service</h3>
-                        <p class="text-xs text-slate-400 mt-1">Bot WhatsApp Google Sheets dengan auto-reconnect saat online.</p>
+                        <h3 class="text-sm font-bold text-white font-mono flex items-center gap-1.5">
+                            <i data-lucide="message-square" class="w-4 h-4 text-emerald-400"></i> wa-sheets-bot.service
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Bot WhatsApp Google Sheets dengan multi-format parser dan auto-reconnect.</p>
                         <div class="mt-3 p-2.5 bg-dark-950 rounded-xl font-mono text-[11px] text-slate-400 space-y-0.5" id="svc-details-wa">
                             Memuat...
                         </div>
@@ -412,23 +417,25 @@
                         <button onclick="controlService('wa-sheets-bot.service', 'restart')" class="flex-1 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
                             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Restart
                         </button>
-                        <button onclick="controlService('wa-sheets-bot.service', 'start')" class="py-2 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all">
+                        <button onclick="controlService('wa-sheets-bot.service', 'start')" class="py-2 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all" title="Start">
                             <i data-lucide="play" class="w-3.5 h-3.5"></i>
                         </button>
-                        <button onclick="controlService('wa-sheets-bot.service', 'stop')" class="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all">
+                        <button onclick="controlService('wa-sheets-bot.service', 'stop')" class="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all" title="Stop">
                             <i data-lucide="square" class="w-3.5 h-3.5"></i>
                         </button>
                     </div>
                 </div>
 
                 <!-- Web Command Center Service Card -->
-                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+                <div class="glass-card p-5 rounded-2xl space-y-4 flex flex-col justify-between hover:border-violet-500/30 transition-all">
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">FASTAPI + UVICORN</span>
-                            <span id="svc-stat-dash" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
+                            <span id="svc-stat-dash" class="px-2.5 py-0.5 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">ACTIVE</span>
                         </div>
-                        <h3 class="text-sm font-bold text-white font-mono">alfa-dashboard.service</h3>
+                        <h3 class="text-sm font-bold text-white font-mono flex items-center gap-1.5">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4 text-violet-400"></i> alfa-dashboard.service
+                        </h3>
                         <p class="text-xs text-slate-400 mt-1">Web Management Command Center berjalan di Port 8080.</p>
                         <div class="mt-3 p-2.5 bg-dark-950 rounded-xl font-mono text-[11px] text-slate-400 space-y-0.5" id="svc-details-dash">
                             Memuat...
@@ -442,7 +449,7 @@
                 </div>
             </div>
 
-            <!-- Real-Time WhatsApp Live QR & Auth Status Card -->
+            <!-- 2. Middle Row: WhatsApp Authentication Card -->
             <div id="wa-auth-card" class="glass-card p-6 rounded-2xl space-y-4 border border-emerald-500/30 shadow-glow-emerald">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
                     <div class="flex items-center space-x-3">
@@ -451,9 +458,9 @@
                         </div>
                         <div>
                             <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
-                                WHATSAPP WEB REAL-TIME AUTHENTICATION & LIVE QR SCANNER
+                                WHATSAPP REAL-TIME AUTHENTICATION & LIVE QR SCANNER
                             </h3>
-                            <p class="text-xs text-slate-400">Pantau status login secara live dan scan QR code langsung dari dashboard saat sesi terputus.</p>
+                            <p class="text-xs text-slate-400">Status koneksi sesi WhatsApp Web & auto-generate QR scanner saat logout.</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -467,13 +474,78 @@
                     </div>
                 </div>
 
-                <!-- QR Code Display Area -->
-                <div id="wa-qr-container" class="flex flex-col items-center justify-center p-6 bg-dark-950 rounded-xl border border-white/5 space-y-4 text-center">
+                <div id="wa-qr-container" class="flex flex-col items-center justify-center p-5 bg-dark-950 rounded-xl border border-white/5 space-y-3 text-center">
                     <div class="text-slate-500 font-mono text-xs">Memeriksa status WhatsApp Web...</div>
                 </div>
             </div>
 
-            <!-- Live Terminal Journal Logs -->
+            <!-- 3. Formats & Recorded Reports Management Card -->
+            <div class="glass-card p-6 rounded-2xl space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                            <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                WHATSAPP GOOGLE SHEETS LIVE RECORDED REPORTS
+                            </h3>
+                            <p class="text-xs text-slate-400">Daftar laporan real-time yang masuk dari WhatsApp dan disinkronkan ke Google Sheets.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="reports-total-badge" class="px-2.5 py-1 text-xs font-mono rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold">0 Laporan</span>
+                        <a href="https://docs.google.com/spreadsheets/d/1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ/edit" target="_blank" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Buka Google Sheets
+                        </a>
+                        <button onclick="fetchWaReports(true)" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300" title="Refresh Laporan">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Format Tabs / Filter Pills -->
+                <div class="space-y-2">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Format Laporan Terdaftar:</div>
+                    <div id="format-pills-container" class="flex flex-wrap items-center gap-2">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Search & Filter Controls -->
+                <div class="flex flex-col sm:flex-row items-center gap-3">
+                    <div class="relative flex-1 w-full">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="report-search-input" oninput="renderReportsTable()" placeholder="Cari isi laporan, pengirim, kata kunci, atau grup..." class="w-full pl-10 pr-4 py-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    </div>
+                    <select id="report-format-filter" onchange="renderReportsTable()" class="w-full sm:w-auto bg-dark-950 text-xs text-white border border-white/10 rounded-xl px-3 py-2.5 focus:outline-none font-mono">
+                        <option value="all">Semua Format Tab</option>
+                    </select>
+                </div>
+
+                <!-- Live Reports Table -->
+                <div class="overflow-x-auto custom-scrollbar rounded-xl border border-white/5 bg-dark-950">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-white/10 bg-white/[0.02] text-slate-400 font-mono text-[11px] uppercase tracking-wider">
+                                <th class="p-3.5">Waktu</th>
+                                <th class="p-3.5">Format / Tab</th>
+                                <th class="p-3.5">Pengirim</th>
+                                <th class="p-3.5">Grup / Chat</th>
+                                <th class="p-3.5">Isi Laporan</th>
+                                <th class="p-3.5 text-center">Status Sheets</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table-body" class="divide-y divide-white/5 font-sans">
+                            <tr>
+                                <td colspan="6" class="p-8 text-center text-slate-500 font-mono">Memuat rekaman laporan...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. Live Terminal Journal Logs -->
             <div class="glass-card p-6 rounded-2xl space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
@@ -1086,6 +1158,8 @@
                     }
                 }
                 fetchServiceLogs();
+                fetchWaQr();
+                fetchWaReports();
             } catch (err) {
                 showToast(`Services error: ${err.message}`, 'error');
             }
@@ -1440,13 +1514,155 @@
             }
         }
 
+        // WhatsApp Google Sheets Recorded Reports Hub
+        let waReportsData = [];
+        let waFormatsData = [];
+        let activeFormatFilter = 'all';
+
+        const formatColors = {
+            'Laporan': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/30' },
+            'TJHIN': { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/30' },
+            'IMT': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+            'SMDT': { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
+            'Recon': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
+            'Pengambilan Material': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30' },
+            'Stok': { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30' }
+        };
+
+        async function fetchWaReports(isManual = false) {
+            try {
+                const res = await fetch('/api/wa/reports');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    waReportsData = data.reports || [];
+                    waFormatsData = data.formats || [];
+                    document.getElementById('reports-total-badge').innerText = `${waReportsData.length} Laporan Tercatat`;
+                    
+                    renderFormatPills();
+                    renderReportsTable();
+                    if (isManual) showToast('Data laporan WhatsApp Google Sheets dimuat!', 'success');
+                }
+            } catch (err) {
+                console.error('Error fetching WA reports:', err);
+                if (isManual) showToast(`Gagal memuat laporan: ${err.message}`, 'error');
+            }
+        }
+
+        function renderFormatPills() {
+            const container = document.getElementById('format-pills-container');
+            const filterSelect = document.getElementById('report-format-filter');
+            if (!container || !filterSelect) return;
+
+            let html = `
+                <button onclick="setFormatFilter('all')" class="px-3 py-1 rounded-xl text-xs font-mono font-semibold transition-all border ${activeFormatFilter === 'all' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm' : 'bg-dark-950 text-slate-400 border-white/5 hover:border-white/20'}">
+                    Semua (${waReportsData.length})
+                </button>
+            `;
+
+            let optionsHtml = `<option value="all">Semua Format Tab</option>`;
+
+            waFormatsData.forEach(fmt => {
+                const count = waReportsData.filter(r => (r.format_name || r.tab) === fmt.name || (r.format_name || r.tab) === fmt.tab).length;
+                const col = formatColors[fmt.name] || { bg: 'bg-white/5', text: 'text-slate-300', border: 'border-white/10' };
+                const isActive = activeFormatFilter === fmt.name || activeFormatFilter === fmt.tab;
+                
+                html += `
+                    <button onclick="setFormatFilter('${fmt.name}')" class="px-3 py-1 rounded-xl text-xs font-mono transition-all border flex items-center gap-1.5 ${isActive ? 'bg-white/10 text-white border-cyan-400 font-bold' : `${col.bg} ${col.text} ${col.border} hover:opacity-80`}" title="Keyword: ${fmt.keywords.join(', ')}">
+                        <span>${fmt.name}</span>
+                        <span class="px-1.5 py-0.2 rounded bg-black/40 text-[10px]">${count}</span>
+                    </button>
+                `;
+                optionsHtml += `<option value="${fmt.name}" ${activeFormatFilter === fmt.name ? 'selected' : ''}>${fmt.name} (${fmt.tab})</option>`;
+            });
+
+            container.innerHTML = html;
+            filterSelect.innerHTML = optionsHtml;
+        }
+
+        function setFormatFilter(fmt) {
+            activeFormatFilter = fmt;
+            const filterEl = document.getElementById('report-format-filter');
+            if (filterEl) filterEl.value = fmt;
+            renderFormatPills();
+            renderReportsTable();
+        }
+
+        function renderReportsTable() {
+            const queryEl = document.getElementById('report-search-input');
+            const filterEl = document.getElementById('report-format-filter');
+            const tbody = document.getElementById('reports-table-body');
+            if (!tbody) return;
+
+            const query = queryEl ? queryEl.value.toLowerCase().trim() : '';
+            const formatFilter = filterEl ? filterEl.value : 'all';
+            activeFormatFilter = formatFilter;
+
+            let filtered = waReportsData.filter(r => {
+                const matchFmt = formatFilter === 'all' || (r.format_name || r.tab) === formatFilter;
+                const matchQuery = !query || 
+                    (r.body && r.body.toLowerCase().includes(query)) ||
+                    (r.sender && r.sender.toLowerCase().includes(query)) ||
+                    (r.group && r.group.toLowerCase().includes(query)) ||
+                    (r.format_name && r.format_name.toLowerCase().includes(query));
+                return matchFmt && matchQuery;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-500 font-mono space-y-2">
+                            <div class="text-2xl">📋</div>
+                            <div class="text-xs font-semibold text-slate-400">Belum ada data laporan yang cocok.</div>
+                            <div class="text-[11px] text-slate-600">Kirim pesan laporan di grup/chat WhatsApp dengan awalan format (contoh: <code>laporan</code>, <code>tjhin</code>, <code>imt</code>, <code>smdt</code>, <code>recon</code>, <code>stok</code>).</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(r => {
+                const col = formatColors[r.format_name || r.tab] || { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' };
+                const safeBody = (r.body || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `
+                    <tr class="hover:bg-white/[0.02] transition-colors group">
+                        <td class="p-3.5 font-mono text-[11px] text-slate-400 whitespace-nowrap">${r.timestamp}</td>
+                        <td class="p-3.5 whitespace-nowrap">
+                            <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider ${col.bg} ${col.text} border ${col.border}">
+                                ${r.format_name || r.tab}
+                            </span>
+                        </td>
+                        <td class="p-3.5 font-mono text-xs text-slate-200 whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400"></i>
+                                <span>${r.sender}</span>
+                            </div>
+                        </td>
+                        <td class="p-3.5 text-xs text-slate-300 whitespace-nowrap font-medium">
+                            <span class="px-2 py-0.5 rounded bg-dark-900 border border-white/5 text-[11px]">${r.group}</span>
+                        </td>
+                        <td class="p-3.5 text-xs text-slate-200 leading-relaxed min-w-[280px]">
+                            <div class="max-h-24 overflow-y-auto custom-scrollbar font-mono text-[11px] bg-dark-900/80 p-2 rounded-lg border border-white/5 whitespace-pre-wrap">${safeBody}</div>
+                        </td>
+                        <td class="p-3.5 text-center whitespace-nowrap">
+                            ${r.synced_to_sheets 
+                                ? '<span class="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold inline-flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Synced</span>' 
+                                : '<span class="px-2.5 py-1 rounded-lg text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold inline-flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Queue</span>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
         // Initialize telemetry & chart on load
         window.addEventListener('DOMContentLoaded', () => {
             initTelemetryChart();
             fetchStats();
             fetchWaQr();
+            fetchWaReports();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
+            setInterval(fetchWaReports, 8000);
         });
     </script>
 </body>
