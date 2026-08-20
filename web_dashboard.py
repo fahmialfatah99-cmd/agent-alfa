@@ -644,60 +644,94 @@ async def test_api_key_endpoint(key_id: int):
 
 PROVIDER_MODELS = {
     "nvidia": [
-        {"id": "meta/llama-3.3-70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "General & Coding"},
-        {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 (Penalaran & Logic Terkuat)", "category": "Reasoning"},
-        {"id": "deepseek-ai/deepseek-v3", "name": "DeepSeek V3 (Sangat Cerdas & Cepat)", "category": "General"},
-        {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B (Optimasi NVIDIA)", "category": "General"},
-        {"id": "meta/llama-3.1-405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Raksasa)", "category": "Flagship"},
-        {"id": "meta/llama-3.1-70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "General"},
-        {"id": "meta/llama-3.1-8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Fast"},
-        {"id": "qwen/qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Dev)", "category": "Coding"},
-        {"id": "qwen/qwen2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct", "category": "General"},
-        {"id": "mistralai/mixtral-8x22b-instruct-v0.1", "name": "Mistral Mixtral 8x22B Instruct", "category": "MoE"},
-        {"id": "mistralai/mistral-large-2-instruct", "name": "Mistral Large 2 Instruct", "category": "Flagship"},
-        {"id": "microsoft/phi-3.5-moe-instruct", "name": "Microsoft Phi 3.5 MoE Instruct", "category": "Lightweight"}
+        # --- NVIDIA Nemotron Suite ---
+        {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B Ultra Instruct (Model Unggulan NVIDIA)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/nemotron-4-340b-instruct", "name": "NVIDIA Nemotron-4 340B Instruct (Model Raksasa 340B)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.1-nemotron-51b-instruct", "name": "NVIDIA Nemotron 51B Instruct (Efisiensi Tinggi)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/nemotron-mini-4b-instruct", "name": "NVIDIA Nemotron Mini 4B Instruct (Ringan & Cepat)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/mistral-nemo-minitron-8b-8k-instruct", "name": "NVIDIA Minitron 8B 8k Instruct (Kompak & Cerdas)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2-11b-vision-instruct", "name": "NVIDIA Llama 3.2 11B Vision Instruct (Multimodal)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2-90b-vision-instruct", "name": "NVIDIA Llama 3.2 90B Vision Instruct (Vision Pro)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2-1b-instruct", "name": "NVIDIA Llama 3.2 1B Instruct (Ultra Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2-3b-instruct", "name": "NVIDIA Llama 3.2 3B Instruct (Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+
+        # --- DeepSeek on NVIDIA ---
+        {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 671B (Penalaran & Logic Terkuat Dunia)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "deepseek-ai/deepseek-v3", "name": "DeepSeek V3 671B (MoE Cerdas & Sangat Cepat)", "category": "DeepSeek General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "deepseek-ai/deepseek-r1-distill-qwen-32b", "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "deepseek-ai/deepseek-r1-distill-qwen-14b", "name": "DeepSeek R1 Distill Qwen 14B (Reasoning Ringan)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "deepseek-ai/deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Kuat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "deepseek-ai/deepseek-r1-distill-llama-8b", "name": "DeepSeek R1 Distill Llama 8B (Kilat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+
+        # --- Meta Llama on NVIDIA ---
+        {"id": "meta/llama-3.3-70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1-405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Flagship Raksasa)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1-70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "Meta General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1-8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Meta Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+
+        # --- Qwen on NVIDIA ---
+        {"id": "qwen/qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Programming)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5-coder-7b-instruct", "name": "Qwen 2.5 Coder 7B (Coding Cepat)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct (General Terkuat)", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5-32b-instruct", "name": "Qwen 2.5 32B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5-14b-instruct", "name": "Qwen 2.5 14B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5-7b-instruct", "name": "Qwen 2.5 7B Instruct", "category": "Qwen Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+
+        # --- Mistral on NVIDIA ---
+        {"id": "mistralai/mixtral-8x22b-instruct-v0.1", "name": "Mistral Mixtral 8x22B Instruct (MoE Kuat)", "category": "Mistral MoE", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "mistralai/mixtral-8x7b-instruct-v0.1", "name": "Mistral Mixtral 8x7B Instruct", "category": "Mistral MoE", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "mistralai/mistral-large-2-instruct", "name": "Mistral Large 2 Instruct (Flagship)", "category": "Mistral Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "mistralai/mistral-nemo-12b-instruct", "name": "Mistral NeMo 12B Instruct", "category": "Mistral General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "mistralai/codestral-22b-instruct-v0.1", "name": "Mistral Codestral 22B (Coding)", "category": "Mistral Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+
+        # --- Microsoft & Google on NVIDIA ---
+        {"id": "microsoft/phi-4", "name": "Microsoft Phi 4 (14B Penalaran Akurat)", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "microsoft/phi-3.5-moe-instruct", "name": "Microsoft Phi 3.5 MoE Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "microsoft/phi-3.5-mini-instruct", "name": "Microsoft Phi 3.5 Mini Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "google/gemma-2-27b-it", "name": "Google Gemma 2 27B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "google/gemma-2-9b-it", "name": "Google Gemma 2 9B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"}
     ],
     "gemini": [
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Default / Cepat & Hemat)", "category": "Flash"},
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru)", "category": "Flash"},
-        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "category": "Flash"},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "category": "Flash"},
-        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (Konteks Panjang & Analisis)", "category": "Pro"},
-        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "category": "Flash"}
-    ],
-    "openai": [
-        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "Flagship"},
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Hemat & Cepat)", "category": "Fast"},
-        {"id": "o1", "name": "OpenAI o1 (Full Reasoning)", "category": "Reasoning"},
-        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "Reasoning"},
-        {"id": "o3-mini", "name": "OpenAI o3 Mini", "category": "Reasoning"},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "Flagship"}
+        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Default / Ultra Cepat & Hemat)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Generasi Terbaru)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
+        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
+        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (Multimodal & Real-time)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
+        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash (1 Juta Konteks Token)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
+        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (2 Juta Konteks Token & Analisis Kompleks)", "category": "Google Pro", "pricing": "paid", "pricing_label": "💎 BERBAYAR / Free Tier 2 RPM"}
     ],
     "groq": [
-        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Ultra-Fast 300+ T/s)", "category": "Fast"},
-        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Kilat)", "category": "Fast"},
-        {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k", "category": "MoE"},
-        {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B", "category": "Reasoning"},
-        {"id": "gemma2-9b-it", "name": "Gemma 2 9B IT", "category": "Google"}
+        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k Konteks", "category": "Groq MoE", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "gemma2-9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"}
     ],
     "openrouter": [
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "Anthropic"},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 (via OpenRouter)", "category": "DeepSeek"},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct", "category": "Meta"},
-        {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenAI"},
-        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Free Tier)", "category": "Free"}
+        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
+        {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B Instruct (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
+        {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
+        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"},
+        {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"}
+    ],
+    "openai": [
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Sangat Murah, Cepat & Cerdas)", "category": "OpenAI Fast", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.15/1M)"},
+        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($2.50/1M)"},
+        {"id": "o3-mini", "name": "OpenAI o3 Mini (Reasoning Model Terbaru)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
+        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
+        {"id": "o1", "name": "OpenAI o1 (Full Reasoning Flagship)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"},
+        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($10/1M)"}
     ],
     "anthropic": [
-        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Menulis)", "category": "Sonnet"},
-        {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan & Cepat)", "category": "Haiku"},
-        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Kompleks)", "category": "Opus"}
+        {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan, Murah & Kilat)", "category": "Anthropic Haiku", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.80/1M)"},
+        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)", "category": "Anthropic Sonnet", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($3.00/1M)"},
+        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
     ],
     "ollama": [
-        {"id": "llama3", "name": "Llama 3 (Local)", "category": "Local"},
-        {"id": "deepseek-r1", "name": "DeepSeek R1 (Local)", "category": "Local"},
-        {"id": "qwen2.5-coder", "name": "Qwen 2.5 Coder (Local)", "category": "Local"},
-        {"id": "mistral", "name": "Mistral (Local)", "category": "Local"},
-        {"id": "phi3", "name": "Phi 3 (Local)", "category": "Local"}
+        {"id": "llama3", "name": "Llama 3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "deepseek-r1", "name": "DeepSeek R1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "qwen2.5-coder", "name": "Qwen 2.5 Coder (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "mistral", "name": "Mistral 7B (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
+        {"id": "phi3", "name": "Microsoft Phi 3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"}
     ]
 }
 

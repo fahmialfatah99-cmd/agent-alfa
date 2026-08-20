@@ -941,6 +941,49 @@
                 </span>
             </div>
 
+            <!-- Free Tier & Provider Cheat Sheet Banner -->
+            <div class="glass-card p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-emerald-400 font-mono flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> REKOMENDASI MODEL AI GRATIS TERBAIK (FREE TIER)
+                    </h3>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold">100% LEGAL & RESMI</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/5 space-y-1">
+                        <div class="flex items-center justify-between font-mono font-bold text-emerald-400">
+                            <span>NVIDIA NIM</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 font-mono">1000 KREDIT</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed font-sans">Daftar di <b>build.nvidia.com</b>. Gratis 1000 credits untuk <i>Nemotron 70B Ultra, DeepSeek R1, Llama 3.3 70B, Qwen 2.5 Coder</i>.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/5 space-y-1">
+                        <div class="flex items-center justify-between font-mono font-bold text-cyan-400">
+                            <span>Google Gemini</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 font-mono">1500 REQ/HARI</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed font-sans">Daftar di <b>aistudio.google.com</b>. Gratis kuota harian melimpah untuk <i>Gemini 3.5 Flash Lite, 2.0 Flash, 1.5 Flash</i>.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/5 space-y-1">
+                        <div class="flex items-center justify-between font-mono font-bold text-amber-400">
+                            <span>Groq Cloud</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 font-mono">100% GRATIS</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed font-sans">Daftar di <b>console.groq.com</b>. Gratis tanpa kartu kredit, latensi ultra-cepat 300+ T/s untuk <i>Llama 3.3 70B & DeepSeek R1</i>.</p>
+                    </div>
+
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/5 space-y-1">
+                        <div class="flex items-center justify-between font-mono font-bold text-blue-400">
+                            <span>Local Ollama</span>
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 font-mono">OFFLINE PC</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed font-sans">Install <b>ollama.com</b> di PC. 100% Gratis selamanya tanpa kuota internet untuk model <i>DeepSeek R1, Llama 3, Qwen 2.5</i>.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Add New Key Card -->
             <div class="glass-card p-6 rounded-2xl space-y-4 border border-white/5">
                 <h3 class="text-xs font-bold text-white font-mono flex items-center gap-2">
@@ -2243,14 +2286,29 @@
             const models = modelsCatalog[provider] || [];
             let optionsHtml = '';
 
-            let foundMatch = false;
+            // Group models by category
+            const grouped = {};
             models.forEach(m => {
-                const isSel = (m.id === selectedModel);
-                if (isSel) foundMatch = true;
-                optionsHtml += `<option value="${m.id}" ${isSel ? 'selected' : ''}>${m.name}</option>`;
+                const cat = m.category || 'Daftar Model';
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(m);
             });
 
+            let foundMatch = false;
+            for (const [catName, catModels] of Object.entries(grouped)) {
+                optionsHtml += `<optgroup label="📂 ${catName}">`;
+                catModels.forEach(m => {
+                    const isSel = (m.id === selectedModel);
+                    if (isSel) foundMatch = true;
+                    const pLabel = m.pricing_label ? `[${m.pricing_label}] ` : '';
+                    optionsHtml += `<option value="${m.id}" ${isSel ? 'selected' : ''}>${pLabel}${m.name}</option>`;
+                });
+                optionsHtml += `</optgroup>`;
+            }
+
+            optionsHtml += `<optgroup label="⚙️ Model Kustom">`;
             optionsHtml += `<option value="__custom__" ${(!foundMatch && selectedModel) ? 'selected' : ''}>⚙️ Ketik Model Kustom / Manual...</option>`;
+            optionsHtml += `</optgroup>`;
             selectEl.innerHTML = optionsHtml;
 
             if (!foundMatch && selectedModel) {
