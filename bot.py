@@ -1061,6 +1061,107 @@ async def proactive_focus_session_loop(application: Application):
         await asyncio.sleep(15)
 
 
+# --- Background Ambient Proactive Engagement Loop ---
+async def proactive_ambient_agent_loop(application: Application):
+    """
+    GOD MODE: Ambient Proactive Agent.
+    Evaluates real-time ambient context (time of day, battery, system status, active memories)
+    and autonomously initiates context-aware check-ins, briefings, or questions to the user.
+    """
+    logger.info("🤖 Ambient Proactive Agent loop started.")
+    import json as _json
+    config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
+    
+    # Initial wait after startup before evaluation
+    await asyncio.sleep(60)
+    
+    while True:
+        try:
+            config = {"enabled": True, "min_hours_between_pings": 3, "quiet_hours_start": 23, "quiet_hours_end": 7}
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config = _json.load(f)
+                except Exception:
+                    pass
+                    
+            if config.get("enabled", True):
+                now_dt = datetime.now()
+                current_hour = now_dt.hour
+                q_start = config.get("quiet_hours_start", 23)
+                q_end = config.get("quiet_hours_end", 7)
+                
+                # Check quiet hours (e.g. 23 to 7)
+                is_quiet = False
+                if q_start > q_end:
+                    is_quiet = (current_hour >= q_start or current_hour < q_end)
+                else:
+                    is_quiet = (q_start <= current_hour < q_end)
+                    
+                if not is_quiet:
+                    last_ping_str = config.get("last_ping_time")
+                    should_evaluate = True
+                    if last_ping_str:
+                        try:
+                            last_ping_dt = datetime.fromisoformat(last_ping_str)
+                            elapsed_hours = (now_dt - last_ping_dt).total_seconds() / 3600.0
+                            min_hours = config.get("min_hours_between_pings", 3)
+                            if elapsed_hours < min_hours:
+                                should_evaluate = False
+                        except Exception:
+                            pass
+                            
+                    if should_evaluate and gemini_client and ALLOWED_USER_IDS:
+                        target_user = ALLOWED_USER_IDS[0]
+                        day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+                        now_formatted = f"{day_names[now_dt.weekday()]}, {now_dt.strftime('%d %B %Y pukul %H:%M WIB')}"
+                        
+                        batt = psutil.sensors_battery()
+                        batt_status = f"{batt.percent}% ({'Mengisi daya ⚡' if batt.power_plugged else 'Menggunakan baterai 🔋'})" if batt else "Desktop / AC Power"
+                        ram = psutil.virtual_memory()
+                        ram_str = f"RAM terpakai {ram.percent}%"
+                        
+                        user_memories = await database.get_all_memories(target_user)
+                        mem_samples = [f"{m['key_topic']}: {m['content']}" for m in user_memories[:4]]
+                        memories_summary = "; ".join(mem_samples) if mem_samples else "Belum ada catatan proyek spesifik."
+                        
+                        proactive_eval_prompt = (
+                            f"Kamu adalah ALFA, asisten AI otonom pribadi Fahmi yang cerdas, proaktif, dan memiliki inisiatif sendiri.\n"
+                            f"Kondisi real-time saat ini:\n"
+                            f"- Waktu: {now_formatted}\n"
+                            f"- Baterai: {batt_status}\n"
+                            f"- Status Sistem: {ram_str}\n"
+                            f"- Catatan Memori Proyek: {memories_summary}\n\n"
+                            f"INSTRUKSI:\n"
+                            f"Tentukan apakah kamu perlu secara mandiri menyapa, menanyakan progres proyek, atau mengingatkan sesuatu kepada Fahmi.\n"
+                            f"Pedoman:\n"
+                            f"1. Jika waktu saat ini cocok untuk sapaan / check-in produktivitas / saran rehat / follow-up, buatlah pesan pendek yang natural, hangat, dan mengajukan 1 pertanyaan atau tawaran bantuan relevan (maks 2-3 kalimat).\n"
+                            f"2. Jika saat ini tidak ada hal yang bernilai tinggi untuk disampaikan, balas hanya satu kata: NO_ACTION.\n"
+                            f"3. DILARANG menggunakan format robotik kaku. Bersikaplah seperti partner asisten pribadi profesional."
+                        )
+                        
+                        from google.genai import types
+                        resp = gemini_client.models.generate_content(
+                            model=GEMINI_MODEL,
+                            contents=[types.Content(role="user", parts=[types.Part.from_text(text=proactive_eval_prompt)])]
+                        )
+                        
+                        reply_text = (resp.text or "").strip()
+                        if reply_text and "NO_ACTION" not in reply_text.upper() and len(reply_text) > 10:
+                            logger.info(f"Proactive agent initiated autonomous message to user {target_user}")
+                            await safe_send_message(application, target_user, f"✨ **[INISIATIF MANDIRI ALFA]**\n\n{reply_text}")
+                            await database.save_chat_message(target_user, "model", f"[Inisiatif Mandiri]: {reply_text}")
+                            
+                            config["last_ping_time"] = now_dt.isoformat()
+                            with open(config_path, "w", encoding="utf-8") as f:
+                                _json.dump(config, f, indent=2)
+                                
+        except Exception as e:
+            logger.error(f"Error in proactive ambient loop: {e}")
+            
+        await asyncio.sleep(600)  # Check every 10 minutes
+
+
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
@@ -1074,6 +1175,7 @@ async def post_init(application: Application):
     asyncio.create_task(proactive_cron_watchdog_loop(application))
     asyncio.create_task(proactive_system_guardian_loop(application))
     asyncio.create_task(proactive_focus_session_loop(application))
+    asyncio.create_task(proactive_ambient_agent_loop(application))
 
 
 # --- Additional Command Handlers ---
@@ -1101,6 +1203,28 @@ async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send_message(context, chat_id, text)
 
 
+async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /proactive command to view or toggle ambient proactive intelligence."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+        
+    config = tools.proactive_ambient_agent_config("status")
+    p_cfg = config.get("proactive_config", {})
+    status_str = "🟢 AKTIF" if p_cfg.get("enabled", True) else "🔴 NONAKTIF"
+    
+    text = (
+        f"🤖 **Status Inisiatif Proaktif Otonom:**\n\n"
+        f"• **Status:** {status_str}\n"
+        f"• **Jeda Inisiatif:** Minimal setiap `{p_cfg.get('min_hours_between_pings', 3)}` jam\n"
+        f"• **Jam Tenang (Quiet Hours):** `{p_cfg.get('quiet_hours_start', 23)}:00` s/d `{p_cfg.get('quiet_hours_end', 7)}:00`\n"
+        f"• **Waktu Terakhir:** `{p_cfg.get('last_ping_time', 'Belum pernah')}`\n\n"
+        f"💡 _Saat aktif, bot akan berinisiatif mandiri menyapa, menanyakan progres tugas, atau mengingatkan sesuatu berdasarkan waktu & kondisi laptop._"
+    )
+    await safe_send_message(context, chat_id, text)
+
+
 def main():
     """Main application launcher."""
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token_here":
@@ -1125,6 +1249,7 @@ def main():
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
+    application.add_handler(CommandHandler("proactive", proactive_command))
     application.add_handler(CommandHandler("clear", clear_command))
     application.add_handler(CommandHandler("reset", clear_command))
     application.add_handler(CommandHandler("id", id_command))

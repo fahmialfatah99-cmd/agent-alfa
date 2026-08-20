@@ -3071,6 +3071,69 @@ def proactive_system_guardian_config(action: str = "status", cpu_threshold: int 
         return {"status": "error", "message": str(e)}
 
 
+def proactive_ambient_agent_config(action: str = "status", enabled: bool = True, min_hours_between_pings: int = 3, quiet_hours_start: int = 23, quiet_hours_end: int = 7) -> Dict[str, Any]:
+    """
+    GOD MODE: Configure Ambient Proactive Autonomous Engagement.
+    Controls whether and how often the AI agent can autonomously initiate contact,
+    ask questions, check in on user projects, or send daily morning/afternoon briefings.
+    
+    Args:
+        action: 'status' (view config), 'enable' (turn on proactive mode), 'disable' (turn off).
+        enabled: Set proactive mode active/inactive.
+        min_hours_between_pings: Minimum hours between spontaneous messages (default: 3).
+        quiet_hours_start: Start hour for quiet time (default: 23 / 11 PM).
+        quiet_hours_end: End hour for quiet time (default: 7 / 7 AM).
+    """
+    try:
+        import json
+        config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        
+        if action == "status":
+            if os.path.exists(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                return {"status": "success", "proactive_config": config}
+            return {
+                "status": "success",
+                "proactive_config": {
+                    "enabled": True,
+                    "min_hours_between_pings": 3,
+                    "quiet_hours_start": 23,
+                    "quiet_hours_end": 7,
+                    "message": "Mode Proaktif default aktif."
+                }
+            }
+            
+        elif action in ["enable", "set"]:
+            config = {
+                "enabled": True,
+                "min_hours_between_pings": max(1, min_hours_between_pings),
+                "quiet_hours_start": quiet_hours_start,
+                "quiet_hours_end": quiet_hours_end,
+                "updated_at": datetime.datetime.now().isoformat()
+            }
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+            return {
+                "status": "success",
+                "message": f"🤖 Mode Proaktif Otonom AKTIF! Bot akan berinisiatif menyapa/mengecek kondisi setiap ~{min_hours_between_pings} jam di luar jam tenang ({quiet_hours_start}:00 - {quiet_hours_end}:00)."
+            }
+            
+        elif action == "disable":
+            config = {
+                "enabled": False,
+                "updated_at": datetime.datetime.now().isoformat()
+            }
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=2)
+            return {"status": "success", "message": "🤖 Mode Proaktif Otonom dinonaktifkan. Bot hanya akan membalas jika Anda bertanya."}
+            
+        return {"status": "error", "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable."}
+    except Exception as e:
+        return {"status": "error", "message": f"Proactive config error: {str(e)}"}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
     get_system_stats,
@@ -3129,6 +3192,7 @@ AVAILABLE_TOOLS = [
     libreoffice_render_page_previews,
     libreoffice_create_document,
     libreoffice_extract_document_text,
+    proactive_ambient_agent_config,
     self_add_new_tool,
     self_restart_service,
     proactive_system_guardian_config,
