@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALFA // Sovereign Command Center</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        dark: {
+                            950: '#06090E',
+                            900: '#0B0F17',
+                            850: '#0F1522',
+                            800: '#151D2F',
+                            700: '#1E293B',
+                            600: '#334155'
+                        },
+                        cyber: {
+                            cyan: '#06B6D4',
+                            emerald: '#10B981',
+                            violet: '#8B5CF6',
+                            amber: '#F59E0B',
+                            rose: '#F43F5E'
+                        }
+                    },
+                    boxShadow: {
+                        'glow-cyan': '0 0 25px -5px rgba(6, 182, 212, 0.25)',
+                        'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.25)',
+                        'glow-violet': '0 0 25px -5px rgba(139, 92, 246, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 0%, #111A2E 0%, #06090E 75%);
+            min-height: 100vh;
+            color: #E2E8F0;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 21, 34, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+        
+        .glass-panel:hover {
+            border-color: rgba(6, 182, 212, 0.35);
+        }
+
+        .glass-nav {
+            background: rgba(11, 15, 23, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(11, 15, 23, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(6, 182, 212, 0.5);
+        }
+        
+        .pulse-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(1.15); }
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-200">
+
+    <!-- Top Luxury Navigation Bar -->
+    <header class="glass-nav sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-violet-500/20 border border-cyan-500/30 text-cyan-400 font-mono font-bold text-lg shadow-glow-cyan">
+                A
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-base font-bold tracking-wider text-white font-mono">ALFA // COMMAND CENTER</h1>
+                    <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        GOD MODE 71T
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400">Sovereign Autonomous Agent & Linux Orchestrator</p>
+            </div>
+        </div>
+
+        <!-- Center Active Tabs -->
+        <nav class="hidden md:flex items-center space-x-1 p-1 bg-dark-900/80 rounded-xl border border-white/5">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm">
+                <i data-lucide="activity" class="w-4 h-4"></i> Overview
+            </button>
+            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="cpu" class="w-4 h-4"></i> Tools Arsenal <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400">71</span>
+            </button>
+            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="layers" class="w-4 h-4"></i> Services & Hub
+            </button>
+            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="brain" class="w-4 h-4"></i> Second Brain
+            </button>
+            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="shield-check" class="w-4 h-4"></i> Guardian
+            </button>
+            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-4 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-400 hover:text-white hover:bg-white/5">
+                <i data-lucide="terminal" class="w-4 h-4"></i> Live Chat
+            </button>
+        </nav>
+
+        <!-- Right Quick Telemetry -->
+        <div class="flex items-center space-x-3 text-xs font-mono text-slate-400">
+            <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-900/60 border border-white/5">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span id="header-clock">--:--:-- WIB</span>
+            </div>
+            <button onclick="fetchStats()" class="p-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 text-slate-300 border border-white/5 transition-all" title="Refresh Live Data">
+                <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+        <!-- ==================== TAB 1: OVERVIEW ==================== -->
+        <section id="view-overview" class="tab-view space-y-6">
+            <!-- Top Metric Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <!-- CPU Metric -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">CPU Usage</span>
+                        <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                            <i data-lucide="cpu" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="stat-cpu-pct" class="text-3xl font-bold text-white font-mono">0%</span>
+                        <span id="stat-cpu-cores" class="text-xs text-slate-400">-- Cores</span>
+                    </div>
+                    <div class="w-full bg-dark-900 h-2 rounded-full mt-4 overflow-hidden border border-white/5">
+                        <div id="stat-cpu-bar" class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- RAM Metric -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Memory (RAM)</span>
+                        <div class="p-2 rounded-lg bg-violet-500/10 text-violet-400">
+                            <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="stat-ram-pct" class="text-3xl font-bold text-white font-mono">0%</span>
+                        <span id="stat-ram-used" class="text-xs text-slate-400">-- / -- GB</span>
+                    </div>
+                    <div class="w-full bg-dark-900 h-2 rounded-full mt-4 overflow-hidden border border-white/5">
+                        <div id="stat-ram-bar" class="bg-gradient-to-r from-violet-500 to-purple-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Disk Metric -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Storage (SSD/Root)</span>
+                        <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                            <i data-lucide="database" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="stat-disk-pct" class="text-3xl font-bold text-white font-mono">0%</span>
+                        <span id="stat-disk-used" class="text-xs text-slate-400">-- / -- GB</span>
+                    </div>
+                    <div class="w-full bg-dark-900 h-2 rounded-full mt-4 overflow-hidden border border-white/5">
+                        <div id="stat-disk-bar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Battery & Uptime Metric -->
+                <div class="glass-panel p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Power & Uptime</span>
+                        <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                            <i data-lucide="zap" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span id="stat-batt-pct" class="text-3xl font-bold text-white font-mono">--%</span>
+                        <span id="stat-batt-status" class="text-xs text-amber-400 font-medium">--</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-3.5 text-xs text-slate-400 font-mono">
+                        <span>Uptime:</span>
+                        <span id="stat-uptime" class="text-slate-200">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Services Status & Top Processes -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Ecosystem Hub Quick Cards -->
+                <div class="glass-panel p-6 rounded-2xl space-y-4">
+                    <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="radio" class="w-4 h-4 text-cyan-400"></i> Active Ecosystem Daemons
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <!-- Telegram AI Bot Service -->
+                        <div class="p-4 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot" id="dot-tb-service"></div>
+                                <div>
+                                    <h3 class="text-sm font-medium text-white">telegram-ai-bot.service</h3>
+                                    <p class="text-xs text-slate-400">71 Autonomous Tools • God Mode</p>
+                                </div>
+                            </div>
+                            <span id="badge-tb-service" class="px-2.5 py-1 text-xs font-mono rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
+                        </div>
+
+                        <!-- WhatsApp Google Sheets Bot Service -->
+                        <div class="p-4 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot" id="dot-wa-service"></div>
+                                <div>
+                                    <h3 class="text-sm font-medium text-white">wa-sheets-bot.service</h3>
+                                    <p class="text-xs text-slate-400">WhatsApp Web.js • Google Sheets</p>
+                                </div>
+                            </div>
+                            <span id="badge-wa-service" class="px-2.5 py-1 text-xs font-mono rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
+                        </div>
+
+                        <!-- Web Command Center Service -->
+                        <div class="p-4 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2.5 h-2.5 rounded-full bg-cyan-400"></div>
+                                <div>
+                                    <h3 class="text-sm font-medium text-white">ALFA Command Center</h3>
+                                    <p class="text-xs text-slate-400">FastAPI • Port 8080</p>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs font-mono rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">ONLINE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Memory Processes -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i data-lucide="layers" class="w-4 h-4 text-violet-400"></i> Top Memory (RAM) Consumers
+                        </h2>
+                        <span class="text-xs text-slate-400 font-mono">Auto-refreshed</span>
+                    </div>
+
+                    <div id="top-processes-list" class="space-y-2 font-mono text-xs">
+                        <div class="text-slate-500 text-center py-6">Memuat proses sistem...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB 2: TOOLS ARSENAL (71 TOOLS) ==================== -->
+        <section id="view-tools" class="tab-view hidden space-y-6">
+            <!-- Search and Filter Bar -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="relative w-full md:w-96">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+                    <input type="text" id="tool-search-input" onkeyup="filterTools()" placeholder="Cari nama tool atau fungsi (misal: 'libreoffice', 'pdf', 'bash')..." class="w-full pl-10 pr-4 py-2 bg-dark-900 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-500 transition-all font-sans">
+                </div>
+                <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0" id="tool-category-pills">
+                    <!-- Category pills injected here -->
+                </div>
+            </div>
+
+            <!-- Tools Grid -->
+            <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-slate-500 text-center py-12 col-span-full">Memuat 71 tools otonom...</div>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB 3: SERVICES & ECOSYSTEM ==================== -->
+        <section id="view-services" class="tab-view hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Telegram Bot Service Card -->
+                <div class="glass-panel p-6 rounded-2xl space-y-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i data-lucide="bot" class="w-5 h-5 text-cyan-400"></i> ALFA Telegram AI Agent
+                            </h3>
+                            <p class="text-xs text-slate-400 font-mono mt-0.5">telegram-ai-bot.service</p>
+                        </div>
+                        <span id="svc-stat-tb" class="px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">RUNNING</span>
+                    </div>
+                    <div class="p-3 bg-dark-900 rounded-xl font-mono text-xs text-slate-300 space-y-1" id="svc-details-tb">
+                        Memuat data service...
+                    </div>
+                    <div class="flex items-center gap-3 pt-2">
+                        <button onclick="controlService('telegram-ai-bot.service', 'restart')" class="flex-1 py-2.5 px-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Restart Agent
+                        </button>
+                        <button onclick="controlService('telegram-ai-bot.service', 'start')" class="py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> Start
+                        </button>
+                        <button onclick="controlService('telegram-ai-bot.service', 'stop')" class="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="square" class="w-3.5 h-3.5"></i> Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- WA Sheets Bot Service Card -->
+                <div class="glass-panel p-6 rounded-2xl space-y-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i data-lucide="sheet" class="w-5 h-5 text-emerald-400"></i> WhatsApp Google Sheets Bot
+                            </h3>
+                            <p class="text-xs text-slate-400 font-mono mt-0.5">wa-sheets-bot.service</p>
+                        </div>
+                        <span id="svc-stat-wa" class="px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">RUNNING</span>
+                    </div>
+                    <div class="p-3 bg-dark-900 rounded-xl font-mono text-xs text-slate-300 space-y-1" id="svc-details-wa">
+                        Memuat data service...
+                    </div>
+                    <div class="flex items-center gap-3 pt-2">
+                        <button onclick="controlService('wa-sheets-bot.service', 'restart')" class="flex-1 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Restart WA Bot
+                        </button>
+                        <button onclick="controlService('wa-sheets-bot.service', 'start')" class="py-2.5 px-4 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i> Start
+                        </button>
+                        <button onclick="controlService('wa-sheets-bot.service', 'stop')" class="py-2.5 px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                            <i data-lucide="square" class="w-3.5 h-3.5"></i> Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Terminal Log Viewer -->
+            <div class="glass-panel p-6 rounded-2xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2 font-mono">
+                        <i data-lucide="terminal" class="w-4 h-4 text-cyan-400"></i> LIVE SERVICE JOURNAL LOGS
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <select id="log-service-select" onchange="fetchServiceLogs()" class="bg-dark-900 text-xs text-white border border-white/10 rounded-lg px-3 py-1.5 focus:outline-none">
+                            <option value="telegram-ai-bot.service">telegram-ai-bot.service</option>
+                            <option value="wa-sheets-bot.service">wa-sheets-bot.service</option>
+                        </select>
+                        <button onclick="fetchServiceLogs()" class="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300" title="Refresh Logs">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+                <pre id="service-logs-viewer" class="p-4 bg-dark-950 border border-white/5 rounded-xl font-mono text-xs text-slate-300 h-80 overflow-y-auto custom-scrollbar leading-relaxed whitespace-pre-wrap">Memuat log service...</pre>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB 4: SECOND BRAIN & MEMORY ==================== -->
+        <section id="view-memory" class="tab-view hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Add New Memory Form -->
+                <div class="glass-panel p-6 rounded-2xl space-y-4">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i> Simpan Catatan / Fakta Baru
+                    </h3>
+                    <form onsubmit="submitNewMemory(event)" class="space-y-3 font-sans text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Topik / Kunci Fakta:</label>
+                            <input type="text" id="mem-key" required placeholder="misal: server_ip, preferensi_koding" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Kategori:</label>
+                            <select id="mem-cat" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-white focus:outline-none">
+                                <option value="personal">Personal / Pribadi</option>
+                                <option value="proyek">Proyek & Koding</option>
+                                <option value="sistem">Sistem & Server</option>
+                                <option value="general">Umum</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Isi Konten / Catatan:</label>
+                            <textarea id="mem-content" required rows="3" placeholder="Tuliskan catatan fakta yang ingin AI selalu ingat..." class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-xl font-semibold transition-all">
+                            Simpan ke Memori Permanen
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Facts & Knowledge Graph Table -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i data-lucide="brain" class="w-4 h-4 text-violet-400"></i> Fakta & Relasi Semantik Tersimpan
+                        </h3>
+                        <span id="memory-count-badge" class="px-2.5 py-0.5 text-xs font-mono rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">0 Fakta</span>
+                    </div>
+
+                    <div id="memory-cards-container" class="space-y-3 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+                        <div class="text-slate-500 text-center py-8">Memuat memori...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB 5: GUARDIAN & WATCHDOGS ==================== -->
+        <section id="view-guardian" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl space-y-6 max-w-3xl mx-auto">
+                <div class="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield" class="w-5 h-5 text-cyan-400"></i> 24/7 Proactive System Guardian & Ambient Engine
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Konfigurasi batas alarm hardware, auto-kill RAM boros, dan jam tenang inisiatif mandiri.</p>
+                    </div>
+                </div>
+
+                <form onsubmit="saveGuardianConfig(event)" class="space-y-5 text-xs">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-dark-900/80 rounded-xl border border-white/5 space-y-2">
+                            <label class="block font-semibold text-slate-200">CPU Threshold Alert (%)</label>
+                            <input type="number" id="guard-cpu" min="50" max="99" value="90" class="w-full p-2 bg-dark-950 border border-white/10 rounded-lg text-white">
+                            <p class="text-[11px] text-slate-400">Kirim alert ke Telegram jika CPU melebihi ambang batas ini.</p>
+                        </div>
+
+                        <div class="p-4 bg-dark-900/80 rounded-xl border border-white/5 space-y-2">
+                            <label class="block font-semibold text-slate-200">RAM Threshold Alert (%)</label>
+                            <input type="number" id="guard-ram" min="50" max="99" value="85" class="w-full p-2 bg-dark-950 border border-white/10 rounded-lg text-white">
+                            <p class="text-[11px] text-slate-400">Kirim alert jika penggunaan RAM laptop melebihi batas.</p>
+                        </div>
+
+                        <div class="p-4 bg-dark-900/80 rounded-xl border border-white/5 space-y-2">
+                            <label class="block font-semibold text-slate-200">Baterai Kritis Alert (%)</label>
+                            <input type="number" id="guard-batt" min="5" max="30" value="10" class="w-full p-2 bg-dark-950 border border-white/10 rounded-lg text-white">
+                            <p class="text-[11px] text-slate-400">Peringatan saat baterai tersisa sedikit dan belum dicolok.</p>
+                        </div>
+
+                        <div class="p-4 bg-dark-900/80 rounded-xl border border-white/5 space-y-2">
+                            <label class="block font-semibold text-slate-200">Jeda Inisiatif Mandiri (Jam)</label>
+                            <input type="number" id="proact-interval" min="1" max="24" value="3" class="w-full p-2 bg-dark-950 border border-white/10 rounded-lg text-white">
+                            <p class="text-[11px] text-slate-400">Jeda waktu minimal sebelum bot berinisiatif menyapa/mengecek.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-dark-900/80 rounded-xl border border-white/5 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-semibold text-white">Auto-Kill RAM Hogs (>500MB)</h4>
+                            <p class="text-[11px] text-slate-400">Otomatis terminasi proses berat non-esensial saat RAM melewati batas kritis.</p>
+                        </div>
+                        <input type="checkbox" id="guard-autokill" class="w-5 h-5 accent-cyan-500 rounded cursor-pointer">
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl transition-all shadow-glow-cyan text-sm">
+                        Simpan & Terapkan Konfigurasi Guardian
+                    </button>
+                </form>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB 6: LIVE AI CONSOLE ==================== -->
+        <section id="view-console" class="tab-view hidden space-y-6">
+            <div class="glass-panel p-6 rounded-2xl space-y-4 max-w-4xl mx-auto flex flex-col h-[650px]">
+                <div class="flex items-center justify-between border-b border-white/5 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500/20 to-violet-500/20 flex items-center justify-center text-cyan-400 font-mono font-bold text-sm">A</div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white">ALFA Live Interactive Web Console</h3>
+                            <p class="text-xs text-slate-400">Direct Gemini AI Turn with 71 Autonomous Tools Access</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 text-xs font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">LIVE REAL-TIME</span>
+                </div>
+
+                <!-- Chat History Log -->
+                <div id="chat-messages-box" class="flex-1 bg-dark-950 border border-white/5 rounded-xl p-4 overflow-y-auto custom-scrollbar space-y-3 font-sans text-xs">
+                    <div class="p-3 bg-dark-900 border border-white/5 rounded-xl text-slate-300">
+                        <span class="text-cyan-400 font-bold font-mono">ALFA:</span> Halo Fahmi! Ini konsol web interaktif. Kamu bisa tes perintah, suruh aku eksekusi tool, atau ngobrol santai langsung dari browser ini.
+                    </div>
+                </div>
+
+                <!-- Input Box -->
+                <form onsubmit="sendWebChat(event)" class="flex items-center gap-2 pt-2">
+                    <input type="text" id="chat-input-text" placeholder="Ketik perintah atau pertanyaan untuk ALFA..." class="flex-1 p-3 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    <button type="submit" id="chat-send-btn" class="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5">
+                        <i data-lucide="send" class="w-4 h-4"></i> Kirim
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Interactive Tool Execution Modal -->
+    <div id="tool-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-panel p-6 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 border border-cyan-500/30">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="terminal" class="w-5 h-5 text-cyan-400"></i>
+                    <h3 id="modal-tool-name" class="text-base font-bold text-white font-mono">tool_name()</h3>
+                </div>
+                <button onclick="closeToolModal()" class="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p id="modal-tool-desc" class="text-xs text-slate-300 leading-relaxed font-sans"></p>
+            
+            <div class="space-y-3 font-sans text-xs" id="modal-params-container">
+                <!-- Param inputs injected dynamically -->
+            </div>
+
+            <div class="flex items-center justify-end space-y-2 pt-3 border-t border-white/10 gap-3">
+                <button onclick="closeToolModal()" class="px-4 py-2 rounded-xl bg-white/5 text-slate-300 text-xs font-semibold hover:bg-white/10">Batal</button>
+                <button onclick="executeModalTool()" id="modal-run-btn" class="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold text-xs flex items-center gap-1.5 shadow-glow-cyan">
+                    <i data-lucide="play" class="w-4 h-4"></i> Eksekusi Tool Sekarang
+                </button>
+            </div>
+
+            <!-- Result Viewer -->
+            <div id="modal-result-box" class="hidden space-y-2 pt-2">
+                <span class="text-xs font-semibold text-emerald-400 font-mono flex items-center gap-1.5">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i> Hasil Eksekusi:
+                </span>
+                <pre id="modal-result-json" class="p-3 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-slate-300 max-h-60 overflow-y-auto custom-scrollbar whitespace-pre-wrap"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend Script -->
+    <script>
+        let allToolsData = [];
+        let activeCategory = 'all';
+        let currentModalTool = null;
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('header-clock').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Tab Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('text-cyan-400', 'bg-white/5', 'border', 'border-cyan-500/30', 'shadow-sm');
+                el.classList.add('text-slate-400');
+            });
+
+            const targetView = document.getElementById(`view-${tabId}`);
+            const targetBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (targetBtn) {
+                targetBtn.classList.remove('text-slate-400');
+                targetBtn.classList.add('text-cyan-400', 'bg-white/5', 'border', 'border-cyan-500/30', 'shadow-sm');
+            }
+
+            if (tabId === 'tools' && allToolsData.length === 0) fetchTools();
+            if (tabId === 'services') fetchServices();
+            if (tabId === 'memory') fetchMemory();
+            if (tabId === 'guardian') fetchGuardian();
+            
+            lucide.createIcons();
+        }
+
+        // Live Telemetry Polling
+        async function fetchStats() {
+            const icon = document.getElementById('refresh-icon');
+            if (icon) icon.classList.add('animate-spin');
+
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('stat-cpu-pct').innerText = `${data.cpu.percent}%`;
+                    document.getElementById('stat-cpu-cores').innerText = `${data.cpu.cores} Cores (${data.cpu.freq_mhz} MHz)`;
+                    document.getElementById('stat-cpu-bar').style.width = `${data.cpu.percent}%`;
+
+                    document.getElementById('stat-ram-pct').innerText = `${data.ram.percent}%`;
+                    document.getElementById('stat-ram-used').innerText = `${data.ram.used_gb} / ${data.ram.total_gb} GB`;
+                    document.getElementById('stat-ram-bar').style.width = `${data.ram.percent}%`;
+
+                    document.getElementById('stat-disk-pct').innerText = `${data.disk.percent}%`;
+                    document.getElementById('stat-disk-used').innerText = `${data.disk.used_gb} / ${data.disk.total_gb} GB`;
+                    document.getElementById('stat-disk-bar').style.width = `${data.disk.percent}%`;
+
+                    document.getElementById('stat-batt-pct').innerText = `${data.battery.percent}%`;
+                    document.getElementById('stat-batt-status').innerText = data.battery.status;
+                    document.getElementById('stat-uptime').innerText = data.uptime;
+
+                    // Services Dots
+                    const dotTB = document.getElementById('dot-tb-service');
+                    const badgeTB = document.getElementById('badge-tb-service');
+                    if (data.services.telegram_bot) {
+                        dotTB.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
+                        badgeTB.className = 'px-2.5 py-1 text-xs font-mono rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                        badgeTB.innerText = 'ACTIVE';
+                    } else {
+                        dotTB.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
+                        badgeTB.className = 'px-2.5 py-1 text-xs font-mono rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        badgeTB.innerText = 'STOPPED';
+                    }
+
+                    const dotWA = document.getElementById('dot-wa-service');
+                    const badgeWA = document.getElementById('badge-wa-service');
+                    if (data.services.wa_sheets_bot) {
+                        dotWA.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
+                        badgeWA.className = 'px-2.5 py-1 text-xs font-mono rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                        badgeWA.innerText = 'ACTIVE';
+                    } else {
+                        dotWA.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
+                        badgeWA.className = 'px-2.5 py-1 text-xs font-mono rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        badgeWA.innerText = 'STOPPED';
+                    }
+
+                    // Top Processes
+                    const procBox = document.getElementById('top-processes-list');
+                    if (data.top_ram_processes && data.top_ram_processes.length > 0) {
+                        procBox.innerHTML = data.top_ram_processes.map(p => `
+                            <div class="flex items-center justify-between p-2.5 bg-dark-900/80 rounded-lg border border-white/5">
+                                <span class="text-slate-300 truncate">${p}</span>
+                                <span class="text-violet-400 text-[11px] font-semibold">RAM Hog</span>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (err) {
+                console.error('Stats error:', err);
+            } finally {
+                if (icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
+            }
+        }
+        setInterval(fetchStats, 3000);
+        fetchStats();
+
+        // Fetch Tools Arsenal
+        async function fetchTools() {
+            try {
+                const res = await fetch('/api/tools');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allToolsData = data.tools;
+                    document.getElementById('nav-tools-badge').innerText = data.total_tools;
+                    renderCategories();
+                    renderToolsList();
+                }
+            } catch (err) {
+                console.error('Tools error:', err);
+            }
+        }
+
+        function renderCategories() {
+            const cats = ['all', ...new Set(allToolsData.map(t => t.category))];
+            const container = document.getElementById('tool-category-pills');
+            container.innerHTML = cats.map(c => `
+                <button onclick="setCategory('${c}')" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activeCategory === c ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-dark-900 text-slate-400 hover:text-white border border-white/5'}">
+                    ${c === 'all' ? 'Semua (71)' : c}
+                </button>
+            `).join('');
+        }
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            renderCategories();
+            filterTools();
+        }
+
+        function filterTools() {
+            const query = document.getElementById('tool-search-input').value.toLowerCase();
+            const filtered = allToolsData.filter(t => {
+                const matchCat = activeCategory === 'all' || t.category === activeCategory;
+                const matchQuery = t.name.toLowerCase().includes(query) || t.short_description.toLowerCase().includes(query);
+                return matchCat && matchQuery;
+            });
+            renderToolsList(filtered);
+        }
+
+        function renderToolsList(toolsToRender = allToolsData) {
+            const grid = document.getElementById('tools-grid');
+            if (toolsToRender.length === 0) {
+                grid.innerHTML = '<div class="text-slate-500 text-center py-12 col-span-full">Tidak ada tool yang cocok dengan pencarian.</div>';
+                return;
+            }
+            grid.innerHTML = toolsToRender.map(t => `
+                <div class="glass-panel p-5 rounded-2xl flex flex-col justify-between space-y-4 hover:shadow-glow-cyan transition-all group">
+                    <div>
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                            <span class="text-[10px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 text-cyan-400 border border-cyan-500/20">
+                                ${t.category}
+                            </span>
+                            <span class="text-[11px] font-mono text-slate-400">${t.parameters.length} params</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${t.name}()</h3>
+                        <p class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed font-sans">${t.short_description}</p>
+                    </div>
+                    <button onclick="openToolModal('${t.name}')" class="w-full py-2 bg-dark-900 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i> Test / Jalankan Tool
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // Tool Modal Runner
+        function openToolModal(toolName) {
+            currentModalTool = allToolsData.find(t => t.name === toolName);
+            if (!currentModalTool) return;
+
+            document.getElementById('modal-tool-name').innerText = `${currentModalTool.name}()`;
+            document.getElementById('modal-tool-desc').innerText = currentModalTool.full_docstring;
+            document.getElementById('modal-result-box').classList.add('hidden');
+
+            const paramsBox = document.getElementById('modal-params-container');
+            if (currentModalTool.parameters.length === 0) {
+                paramsBox.innerHTML = '<div class="text-slate-400 italic">Tool ini tidak memerlukan parameter input.</div>';
+            } else {
+                paramsBox.innerHTML = currentModalTool.parameters.map(p => `
+                    <div class="space-y-1">
+                        <label class="block font-semibold text-slate-300 font-mono">${p.name} <span class="text-slate-500">(${p.type})</span> ${p.required ? '<span class="text-rose-400">*</span>' : ''}</label>
+                        <input type="text" id="param-${p.name}" value="${p.default !== 'None' && p.default !== null ? p.default.replace(/['"]/g, '') : ''}" placeholder="${p.name}" class="w-full p-2 bg-dark-950 border border-white/10 rounded-lg text-white focus:outline-none focus:border-cyan-500 font-mono text-xs">
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('tool-modal').classList.remove('hidden');
+            document.getElementById('tool-modal').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeToolModal() {
+            document.getElementById('tool-modal').classList.add('hidden');
+            document.getElementById('tool-modal').classList.remove('flex');
+        }
+
+        async function executeModalTool() {
+            if (!currentModalTool) return;
+            const btn = document.getElementById('modal-run-btn');
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Menjalankan...';
+
+            const args = {};
+            currentModalTool.parameters.forEach(p => {
+                const el = document.getElementById(`param-${p.name}`);
+                if (el && el.value.trim() !== '') {
+                    let val = el.value.trim();
+                    if (val === 'True' || val === 'true') val = true;
+                    else if (val === 'False' || val === 'false') val = false;
+                    else if (!isNaN(val) && val !== '') val = Number(val);
+                    args[p.name] = val;
+                }
+            });
+
+            try {
+                const res = await fetch('/api/tools/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool_name: currentModalTool.name, args })
+                });
+                const data = await res.json();
+                document.getElementById('modal-result-json').innerText = JSON.stringify(data, null, 2);
+                document.getElementById('modal-result-box').classList.remove('hidden');
+            } catch (err) {
+                document.getElementById('modal-result-json').innerText = `Error: ${err.message}`;
+                document.getElementById('modal-result-box').classList.remove('hidden');
+            } finally {
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Eksekusi Tool Sekarang';
+                lucide.createIcons();
+            }
+        }
+
+        // Services Hub Management
+        async function fetchServices() {
+            try {
+                const res = await fetch('/api/services');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const tb = data.services.find(s => s.name === 'telegram-ai-bot.service');
+                    const wa = data.services.find(s => s.name === 'wa-sheets-bot.service');
+
+                    if (tb) {
+                        document.getElementById('svc-stat-tb').innerText = tb.state.toUpperCase();
+                        document.getElementById('svc-stat-tb').className = tb.is_active 
+                            ? 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'px-3 py-1 text-xs font-mono rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        document.getElementById('svc-details-tb').innerText = tb.details;
+                    }
+                    if (wa) {
+                        document.getElementById('svc-stat-wa').innerText = wa.state.toUpperCase();
+                        document.getElementById('svc-stat-wa').className = wa.is_active 
+                            ? 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'px-3 py-1 text-xs font-mono rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        document.getElementById('svc-details-wa').innerText = wa.details;
+                    }
+                }
+                fetchServiceLogs();
+            } catch (err) {
+                console.error('Services fetch error:', err);
+            }
+        }
+
+        async function controlService(service, action) {
+            if (!confirm(`Apakah Anda yakin ingin ${action.toUpperCase()} service '${service}'?`)) return;
+            try {
+                const res = await fetch('/api/services/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service, action })
+                });
+                const data = await res.json();
+                alert(data.status === 'success' ? `Sukses: ${data.action} ${data.service}` : `Gagal: ${data.output}`);
+                fetchServices();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        async function fetchServiceLogs() {
+            const svc = document.getElementById('log-service-select').value;
+            const logBox = document.getElementById('service-logs-viewer');
+            try {
+                const res = await fetch(`/api/services/logs?service=${svc}&lines=50`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    logBox.innerText = data.logs || '(Log kosong)';
+                    logBox.scrollTop = logBox.scrollHeight;
+                }
+            } catch (err) {
+                logBox.innerText = `Error memuat log: ${err.message}`;
+            }
+        }
+
+        // Second Brain & Memory
+        async function fetchMemory() {
+            try {
+                const res = await fetch('/api/memory');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('memory-count-badge').innerText = `${data.total_memories} Fakta • ${data.total_kg_relations} Relasi`;
+                    const container = document.getElementById('memory-cards-container');
+                    
+                    if (data.memories.length === 0 && data.knowledge_graph.length === 0) {
+                        container.innerHTML = '<div class="text-slate-500 text-center py-8">Belum ada memori yang tersimpan.</div>';
+                        return;
+                    }
+
+                    const memHTML = data.memories.map(m => `
+                        <div class="p-3.5 rounded-xl bg-dark-900/80 border border-white/5 flex items-start justify-between gap-3">
+                            <div>
+                                <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase">${m.category}</span>
+                                <h4 class="text-sm font-semibold text-white mt-1">${m.key_topic}</h4>
+                                <p class="text-xs text-slate-300 mt-0.5">${m.content}</p>
+                            </div>
+                            <span class="text-[10px] text-slate-500 font-mono">${m.updated_at || ''}</span>
+                        </div>
+                    `).join('');
+
+                    const kgHTML = data.knowledge_graph.map(k => `
+                        <div class="p-3.5 rounded-xl bg-dark-900/80 border border-violet-500/20 flex items-center justify-between gap-3">
+                            <div class="flex items-center space-x-2 font-mono text-xs">
+                                <span class="text-white font-bold">${k.entity}</span>
+                                <span class="text-violet-400">──(${k.relation})──></span>
+                                <span class="text-cyan-300 font-bold">${k.target_value}</span>
+                            </div>
+                            <span class="px-2 py-0.5 text-[10px] rounded bg-violet-500/10 text-violet-300">${k.category}</span>
+                        </div>
+                    `).join('');
+
+                    container.innerHTML = memHTML + kgHTML;
+                }
+            } catch (err) {
+                console.error('Memory error:', err);
+            }
+        }
+
+        async function submitNewMemory(e) {
+            e.preventDefault();
+            const key = document.getElementById('mem-key').value.trim();
+            const cat = document.getElementById('mem-cat').value;
+            const content = document.getElementById('mem-content').value.trim();
+            
+            try {
+                const res = await fetch('/api/memory/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'fact', key_topic: key, category: cat, content })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('Fakta berhasil disimpan ke Second Brain!');
+                    document.getElementById('mem-key').value = '';
+                    document.getElementById('mem-content').value = '';
+                    fetchMemory();
+                }
+            } catch (err) {
+                alert(`Gagal menyimpan: ${err.message}`);
+            }
+        }
+
+        // Guardian & Proactive Config
+        async function fetchGuardian() {
+            try {
+                const res = await fetch('/api/guardian/config');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (data.guardian) {
+                        document.getElementById('guard-cpu').value = data.guardian.cpu_threshold || 90;
+                        document.getElementById('guard-ram').value = data.guardian.ram_threshold || 85;
+                        document.getElementById('guard-batt').value = data.guardian.battery_critical || 10;
+                        document.getElementById('guard-autokill').checked = data.guardian.auto_kill_ram_hogs || false;
+                    }
+                    if (data.proactive) {
+                        document.getElementById('proact-interval').value = data.proactive.min_hours_between_pings || 3;
+                    }
+                }
+            } catch (err) {
+                console.error('Guardian fetch error:', err);
+            }
+        }
+
+        async function saveGuardianConfig(e) {
+            e.preventDefault();
+            const payload = {
+                guardian: {
+                    enabled: true,
+                    cpu_threshold: Number(document.getElementById('guard-cpu').value),
+                    ram_threshold: Number(document.getElementById('guard-ram').value),
+                    battery_critical: Number(document.getElementById('guard-batt').value),
+                    auto_kill_ram_hogs: document.getElementById('guard-autokill').checked
+                },
+                proactive: {
+                    enabled: true,
+                    min_hours_between_pings: Number(document.getElementById('proact-interval').value)
+                }
+            };
+            try {
+                const res = await fetch('/api/guardian/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                alert(data.message || 'Konfigurasi tersimpan!');
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        // Web Chat
+        async function sendWebChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-text');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const box = document.getElementById('chat-messages-box');
+            box.innerHTML += `
+                <div class="p-3 bg-cyan-950/40 border border-cyan-500/20 rounded-xl text-slate-200 text-right">
+                    <span class="text-cyan-400 font-bold font-mono">Fahmi:</span> ${msg}
+                </div>
+            `;
+            input.value = '';
+            box.scrollTop = box.scrollHeight;
+
+            const sendBtn = document.getElementById('chat-send-btn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                box.innerHTML += `
+                    <div class="p-3 bg-dark-900 border border-white/5 rounded-xl text-slate-300">
+                        <span class="text-cyan-400 font-bold font-mono">ALFA:</span> ${data.reply}
+                    </div>
+                `;
+            } catch (err) {
+                box.innerHTML += `
+                    <div class="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300">
+                        <span class="font-bold">Error:</span> ${err.message}
+                    </div>
+                `;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Kirim';
+                box.scrollTop = box.scrollHeight;
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>

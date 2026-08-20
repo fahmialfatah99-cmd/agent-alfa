@@ -3187,6 +3187,43 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
         return {"status": "error", "message": f"Manage wa-sheets-bot error: {str(e)}"}
 
 
+def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
+    """
+    ALFA OS: Web Command Center Dashboard Controller.
+    Returns the active local web URL for the luxury management dashboard
+    and ensures the alfa-dashboard.service is running.
+    
+    Args:
+        port: Dashboard port (default: 8080).
+    """
+    try:
+        # Check if service is active
+        res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
+        if res.stdout.strip() != "active":
+            subprocess.run(["systemctl", "--user", "start", "alfa-dashboard.service"], capture_output=True, text=True)
+            
+        import socket
+        hostname = socket.gethostname()
+        local_ip = "127.0.0.1"
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            pass
+            
+        return {
+            "status": "success",
+            "message": f"🌐 Web Dashboard Command Center aktif! Buka di browser laptop: http://localhost:{port} atau dari HP di WiFi yang sama: http://{local_ip}:{port}",
+            "local_url": f"http://localhost:{port}",
+            "network_url": f"http://{local_ip}:{port}",
+            "dashboard_features": ["Live Hardware Telemetry", "72+ Tools Arsenal & Runner", "Ecosystem Services Hub", "Second Brain Memory Visualizer", "24/7 Guardian Control", "Web Live AI Console"]
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
     get_system_stats,
@@ -3247,6 +3284,7 @@ AVAILABLE_TOOLS = [
     libreoffice_extract_document_text,
     proactive_ambient_agent_config,
     manage_wa_sheets_bot,
+    open_web_dashboard,
     self_add_new_tool,
     self_restart_service,
     proactive_system_guardian_config,

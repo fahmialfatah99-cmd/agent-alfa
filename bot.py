@@ -1353,7 +1353,27 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Service Name:** `wa-sheets-bot.service`\n\n"
         f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
     )
-    await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
+async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /dashboard or /web command."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+        
+    res = tools.open_web_dashboard(port=8080)
+    text = (
+        f"🛸 **ALFA SOVEREIGN COMMAND CENTER (Web Dashboard):**\n\n"
+        f"• **Akses Lokal (Laptop):** `{res.get('local_url')}`\n"
+        f"• **Akses Jaringan (HP / WiFi):** `{res.get('network_url')}`\n\n"
+        f"⚡ **Fitur Dashboard:**\n"
+        f"1. 📊 Live Telemetry Hardware & Gauges Real-time\n"
+        f"2. ⚡ 72+ Tools Arsenal Explorer & Interactive Runner\n"
+        f"3. 📱 Ecosystem Hub (Telegram & WA Sheets Bot Controller)\n"
+        f"4. 🧠 Second Brain & Semantic Knowledge Graph Visualizer\n"
+        f"5. 🛡️ 24/7 System Guardian & Proactive Watchdogs Config\n"
+        f"6. 💬 Live Web AI Interactive Console"
+    )
+    await safe_send_message(context, chat_id, text)
 
 
 def main():
@@ -1376,6 +1396,8 @@ def main():
     # Command handlers
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("menu", menu_command))
+    application.add_handler(CommandHandler("dashboard", dashboard_command))
+    application.add_handler(CommandHandler("web", dashboard_command))
     application.add_handler(CommandHandler("wa", wa_command))
     application.add_handler(CommandHandler("washeets", wa_command))
     application.add_handler(CommandHandler("stats", stats_command))
@@ -1404,4 +1426,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
