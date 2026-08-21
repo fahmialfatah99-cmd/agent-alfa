@@ -9,7 +9,6 @@ import os
 import re
 import time
 import shutil
-import asyncio
 import logging
 import subprocess
 from datetime import datetime
@@ -60,31 +59,74 @@ def create_aesthetic_frame(
     rating: str = "4.9",
     badge_text: str = "🔥 FLASH SALE DISKON SPESIAL",
     call_to_action: str = "👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒",
+    theme: str = "viral_tiktok",
     output_path: Optional[str] = None
 ) -> str:
     """
     Generate a high-converting 1080x1920 9:16 vertical video frame.
-    Composites blurred aesthetic ambient background + centered product + luxury overlays.
+    Themes supported:
+    - viral_tiktok: High-energy red & yellow flash sale
+    - luxury_gold: Obsidian dark marble + 24k gold accents
+    - cyberpunk: Electric cyan & neon magenta glow
+    - clean_minimal: Slate background + emerald accents
     """
     WIDTH, HEIGHT = 1080, 1920
     
-    # Base background: Dark luxury gradient
-    bg = Image.new("RGBA", (WIDTH, HEIGHT), (10, 15, 29, 255))
+    # Palette configuration per theme
+    if theme == "luxury_gold":
+        bg_color = (12, 10, 9, 255)
+        border_color = (234, 179, 8, 220)
+        badge_bg = (180, 83, 9, 240)
+        badge_border = (253, 224, 71, 230)
+        price_box_border = (234, 179, 8, 220)
+        cta_bg = (202, 138, 4, 255)
+        cta_text_color = (15, 23, 42, 255)
+        glow_color = (234, 179, 8, 120)
+    elif theme == "cyberpunk":
+        bg_color = (15, 23, 42, 255)
+        border_color = (6, 182, 212, 220)
+        badge_bg = (217, 70, 239, 240)
+        badge_border = (244, 114, 182, 230)
+        price_box_border = (6, 182, 212, 220)
+        cta_bg = (6, 182, 212, 255)
+        cta_text_color = (15, 23, 42, 255)
+        glow_color = (168, 85, 247, 120)
+    elif theme == "clean_minimal":
+        bg_color = (15, 23, 42, 255)
+        border_color = (16, 185, 129, 200)
+        badge_bg = (16, 185, 129, 240)
+        badge_border = (110, 231, 183, 230)
+        price_box_border = (16, 185, 129, 220)
+        cta_bg = (16, 185, 129, 255)
+        cta_text_color = (15, 23, 42, 255)
+        glow_color = (16, 185, 129, 120)
+    else: # viral_tiktok default
+        bg_color = (10, 15, 29, 255)
+        border_color = (244, 63, 94, 220)
+        badge_bg = (225, 29, 72, 240)
+        badge_border = (254, 205, 211, 200)
+        price_box_border = (16, 185, 129, 220)
+        cta_bg = (245, 158, 11, 255)
+        cta_text_color = (15, 23, 42, 255)
+        glow_color = (225, 29, 72, 120)
+
+    # Base canvas
+    bg = Image.new("RGBA", (WIDTH, HEIGHT), bg_color)
     
-    # Load and process product image
+    # Load product image
     try:
         prod_img = Image.open(image_path).convert("RGBA")
     except Exception:
         prod_img = Image.new("RGBA", (800, 800), (30, 41, 59, 255))
 
-    # 1. Ambient Blurred Glow in Background
+    # 1. Ambient Blurred Glow Background
     blur_bg = prod_img.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
-    blur_bg = blur_bg.filter(ImageFilter.GaussianBlur(radius=45))
+    blur_bg = blur_bg.filter(ImageFilter.GaussianBlur(radius=50))
     enhancer = ImageEnhance.Brightness(blur_bg)
-    blur_bg = enhancer.enhance(0.35)
+    blur_bg = enhancer.enhance(0.32)
     bg.paste(blur_bg, (0, 0))
 
-    # 2. Main Product Image (Centered in golden ratio box)
+    # 2. Centered Product Image Container
     prod_w = 880
     aspect = prod_img.height / prod_img.width
     prod_h = int(prod_w * aspect)
@@ -94,22 +136,21 @@ def create_aesthetic_frame(
         
     prod_resized = prod_img.resize((prod_w, prod_h), Image.Resampling.LANCZOS)
     
-    # Add rounded corners & shadow container for product
     prod_box_x = (WIDTH - prod_w) // 2
     prod_box_y = 380 + (1000 - prod_h) // 2
     
-    # Card glow border
     draw = ImageDraw.Draw(bg)
-    border_rect = [prod_box_x - 12, prod_box_y - 12, prod_box_x + prod_w + 12, prod_box_y + prod_h + 12]
-    draw.rounded_rectangle(border_rect, radius=24, fill=(15, 23, 42, 220), outline=(6, 182, 212, 180), width=4)
+    
+    # Card glow border
+    border_rect = [prod_box_x - 14, prod_box_y - 14, prod_box_x + prod_w + 14, prod_box_y + prod_h + 14]
+    draw.rounded_rectangle(border_rect, radius=26, fill=(15, 23, 42, 230), outline=border_color, width=4)
     
     bg.paste(prod_resized, (prod_box_x, prod_box_y), prod_resized)
 
-    # 3. Top Floating Badge (Flash Sale / Hot Deal)
+    # 3. Top Floating Badge
     badge_rect = [60, 80, WIDTH - 60, 180]
-    draw.rounded_rectangle(badge_rect, radius=20, fill=(225, 29, 72, 240), outline=(254, 205, 211, 200), width=3)
+    draw.rounded_rectangle(badge_rect, radius=22, fill=badge_bg, outline=badge_border, width=3)
     
-    # Try load fonts or default
     try:
         font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 38)
         font_badge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
@@ -127,23 +168,21 @@ def create_aesthetic_frame(
     draw.text((WIDTH // 2, 250), short_title, fill=(255, 255, 255, 255), font=font_title, anchor="mm")
     draw.text((WIDTH // 2, 310), f"⭐⭐⭐⭐⭐  Rating {rating}  •  Terlaris", fill=(251, 191, 36, 255), font=font_sub, anchor="mm")
 
-    # 5. Price Tag Drop Banner (Bottom Section)
+    # 5. Price Tag Drop Banner
     price_box_rect = [60, 1460, WIDTH - 60, 1640]
-    draw.rounded_rectangle(price_box_rect, radius=24, fill=(15, 23, 42, 240), outline=(16, 185, 129, 220), width=4)
+    draw.rounded_rectangle(price_box_rect, radius=24, fill=(15, 23, 42, 240), outline=price_box_border, width=4)
     
     # Original Strike-through & Flash Sale Price
     draw.text((180, 1550), f"{orig_price}", fill=(148, 163, 184, 255), font=font_strike, anchor="mm")
-    # Draw strike line
     draw.line([(100, 1550), (260, 1550)], fill=(239, 68, 68, 255), width=4)
     
     draw.text((580, 1550), f"DROP: {disc_price} 🔥", fill=(52, 211, 153, 255), font=font_price, anchor="mm")
 
     # 6. Bottom Sticky CTA Banner
     cta_rect = [40, 1700, WIDTH - 40, 1840]
-    draw.rounded_rectangle(cta_rect, radius=20, fill=(245, 158, 11, 255), outline=(254, 240, 138, 255), width=3)
-    draw.text((WIDTH // 2, 1770), call_to_action, fill=(15, 23, 42, 255), font=font_cta, anchor="mm")
+    draw.rounded_rectangle(cta_rect, radius=20, fill=cta_bg, outline=(254, 240, 138, 255), width=3)
+    draw.text((WIDTH // 2, 1770), call_to_action, fill=cta_text_color, font=font_cta, anchor="mm")
 
-    # Save frame
     if not output_path:
         output_path = os.path.join(VIDEO_OUT_DIR, "Frames", f"frame_{int(time.time() * 1000)}.png")
     bg.save(output_path, "PNG")
@@ -157,16 +196,22 @@ def generate_video_from_images(
     orig_price: str = "Rp 149.000",
     disc_price: str = "Rp 49.900",
     voice: str = "id-ID-GadisNeural",
+    theme: str = "viral_tiktok",
+    motion_style: str = "zoom_in",
+    badge_text: str = "🔥 FLASH SALE DISKON SPESIAL",
+    call_to_action: str = "👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒",
+    visual_prompt: Optional[str] = None,
     output_filename: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Renders high-quality 9:16 (1080x1920) promotional video from product image(s) with:
+    - Detailed Visual Video Cinematography & Prompts
     - Dynamic Ken Burns Zoom/Pan animation
     - Neural Indonesian Voiceover
     - Aesthetic Flash Sale Banners & CTA overlays
     """
     start_t = time.time()
-    logger.info(f"Starting Video Generation for {product_name} with {len(image_paths)} images")
+    logger.info(f"Starting Video Generation for {product_name} with {len(image_paths)} images, theme={theme}, motion={motion_style}")
     
     # 1. Clean & validate images
     valid_images = []
@@ -176,7 +221,6 @@ def generate_video_from_images(
             valid_images.append(exp)
             
     if not valid_images:
-        # Create a placeholder product frame if no images provided
         placeholder = os.path.join(VIDEO_OUT_DIR, "Frames", "temp_sample.png")
         sample_img = Image.new("RGBA", (800, 800), (30, 41, 59, 255))
         d = ImageDraw.Draw(sample_img)
@@ -191,12 +235,15 @@ def generate_video_from_images(
     # 3. Generate High-Res 1080x1920 Frames
     frame_paths = []
     for idx, img_p in enumerate(valid_images):
-        frame_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"slide_{int(time.time())}_{idx}.png")
+        frame_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"slide_{int(time.time() * 1000)}_{idx}.png")
         create_aesthetic_frame(
             image_path=img_p,
             product_name=product_name,
             orig_price=orig_price,
             disc_price=disc_price,
+            badge_text=badge_text,
+            call_to_action=call_to_action,
+            theme=theme,
             output_path=frame_out
         )
         frame_paths.append(frame_out)
@@ -210,23 +257,29 @@ def generate_video_from_images(
         
     final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
 
-    # 5. FFmpeg Video Rendering with Ken Burns Zoom & Smooth Motion
+    # 5. FFmpeg Motion Filter Selection
+    total_frames = int(duration_sec * 30)
+    if motion_style == "zoom_out":
+        vf_single = f"zoompan=z='max(1.15-0.0015*on/{max(1, total_frames)},1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
+    elif motion_style == "pan_left_right":
+        vf_single = f"zoompan=z='1.10':x='(iw-iw/zoom)*(sin(it*0.8)+1)/2':y='ih/2-(ih/zoom/2)':d={total_frames}:s=1080x1920:fps=30"
+    else: # zoom_in default
+        vf_single = f"zoompan=z='min(zoom+0.0015,1.18)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
+
     per_image_duration = max(3.0, duration_sec / len(frame_paths))
     
     if len(frame_paths) == 1:
-        # Single image: Continuous Smooth Zoom-In (Ken Burns)
         cmd = [
             "ffmpeg", "-y",
             "-loop", "1", "-i", frame_paths[0],
             "-i", audio_path,
-            "-vf", f"zoompan=z='min(zoom+0.0015,1.15)':d={int(duration_sec * 30)}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30",
+            "-vf", vf_single,
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "fast", "-tune", "stillimage",
             "-c:a", "aac", "-b:a", "192k",
             "-t", str(duration_sec + 0.5),
             final_video_path
         ]
     else:
-        # Multi-image slideshow: Concatenate with zoom transitions
         inputs = []
         filter_parts = []
         for i, fp in enumerate(frame_paths):
@@ -269,5 +322,8 @@ def generate_video_from_images(
         "render_duration_ms": duration_ms,
         "download_url": f"/api/artifacts/download?path={final_video_path}",
         "audio_voice": voice,
+        "theme": theme,
+        "motion_style": motion_style,
+        "visual_prompt": visual_prompt or f"Cinematic 8K commercial of {product_name} with studio lighting and 9:16 vertical motion",
         "images_used": len(frame_paths)
     }

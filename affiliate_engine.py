@@ -195,6 +195,90 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         f"Ada di link ini ya kak 👉 {affiliate_link} . Lagi promo hemat dari {original_price} jadi {discount_price} kak! 👍"
     ]
 
+    # 5. Master AI Video Generation Prompt (For Sora, Kling, Runway Gen-3, Luma Dream Machine, Pika)
+    ai_video_master_prompt = (
+        f"Hyper-realistic 8K commercial product showcase video of {product_name}. "
+        f"Macro close-up shot with dramatic cinematic studio rim lighting, soft glowing bokeh background. "
+        f"Crisp physical material textures showcasing {key_features}. "
+        f"Slow dynamic 360-degree rotating camera motion on a luxury dark obsidian reflective pedestal. "
+        f"Vibrant advertising color grading, ray-tracing reflections, subtle floating atmospheric light particles, "
+        f"Unreal Engine 5 ultra-photorealistic render, high frame rate 60fps, 9:16 vertical aspect ratio --ar 9:16 --v 6.0"
+    )
+
+    # 6. Shot-by-Shot Scene Breakdown Matrix
+    scene_breakdown = [
+        {
+            "scene": 1,
+            "timestamp": "00:00 - 00:03",
+            "shot_type": "🔥 High-Impact Hook Shot",
+            "camera_angle": "Fast macro push-in with speed ramp & dynamic camera roll",
+            "lighting": "Dramatic neon cyan & magenta rim light, volumetric light flare",
+            "visual_prompt": f"Dynamic explosive product reveal of {product_name}, camera rapidly rushes forward into extreme macro close-up with light streaks and suspenseful energy, 9:16 vertical commercial."
+        },
+        {
+            "scene": 2,
+            "timestamp": "00:03 - 00:10",
+            "shot_type": "📦 Feature & Detail Showcase",
+            "camera_angle": "Smooth 180-degree orbital rotation with shallow depth of field (f/1.4)",
+            "lighting": "Soft warm studio diffusion with crisp specular highlights on edges",
+            "visual_prompt": f"Detailed cinematic slow-motion orbit around {product_name}, highlighting textures and {key_features}, ultra sharp 8k focus, elegant studio aesthetics, 9:16 vertical."
+        },
+        {
+            "scene": 3,
+            "timestamp": "00:10 - 00:18",
+            "shot_type": "💡 Practical Lifestyle Demo",
+            "camera_angle": "Eye-level tracking shot with smooth gimbal movement",
+            "lighting": "Natural golden-hour window sunlight with ambient indoor warmth",
+            "visual_prompt": f"First-person aesthetic point-of-view using {product_name} seamlessly in a modern minimalist luxury room, practical smooth operation, high satisfying tactile feel, 9:16 vertical."
+        },
+        {
+            "scene": 4,
+            "timestamp": "00:18 - 00:25",
+            "shot_type": "🚀 Hero Closing & Flash Sale CTA",
+            "camera_angle": "Low-angle heroic pedestal float with subtle glowing pulse",
+            "lighting": "Intense golden luxury aura with floating ember particles and price drop flare",
+            "visual_prompt": f"Heroic floating presentation of {product_name} enveloped in a golden flash sale aura, dramatic low angle, ultra-premium commercial climax with pulsing urgency, 9:16 vertical."
+        }
+    ]
+
+    negative_prompt = "blurry, low quality, deformed, distorted geometry, pixelated, jittery camera, watermark, text artifacts, bad render, oversaturated, low resolution"
+
+    # Formatted Visual Storyboard Text
+    visual_storyboard_text = f"""🎬 [DETAILED AI VIDEO GENERATION PROMPT & SHOT STORYBOARD]
+🏷️ Produk: {product_name}
+📐 Aspect Ratio: 9:16 (Vertical TikTok/Reels/Shorts)
+⏱️ Durasi: 25 Detik
+
+🌟 [MASTER AI VIDEO PROMPT] (Copy-Paste untuk Kling / Runway Gen-3 / Luma / Sora / CapCut):
+{ai_video_master_prompt}
+
+🚫 [NEGATIVE PROMPT]:
+{negative_prompt}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎞️ [SHOT-BY-SHOT CINEMATOGRAPHIC BREAKDOWN]:
+
+[SCENE 1 | 00:00 - 00:03] 🔥 HOOK SHOT:
+• Visual: {scene_breakdown[0]['visual_prompt']}
+• Camera: {scene_breakdown[0]['camera_angle']}
+• Lighting: {scene_breakdown[0]['lighting']}
+
+[SCENE 2 | 00:03 - 00:10] 📦 FEATURE DETAIL:
+• Visual: {scene_breakdown[1]['visual_prompt']}
+• Camera: {scene_breakdown[1]['camera_angle']}
+• Lighting: {scene_breakdown[1]['lighting']}
+
+[SCENE 3 | 00:10 - 00:18] 💡 LIFESTYLE DEMO:
+• Visual: {scene_breakdown[2]['visual_prompt']}
+• Camera: {scene_breakdown[2]['camera_angle']}
+• Lighting: {scene_breakdown[2]['lighting']}
+
+[SCENE 4 | 00:18 - 00:25] 🚀 HERO CTA & FLASH SALE:
+• Visual: {scene_breakdown[3]['visual_prompt']}
+• Camera: {scene_breakdown[3]['camera_angle']}
+• Lighting: {scene_breakdown[3]['lighting']}
+"""
+
     # Save scripts to Dokumen/ALFA_AFFILIATE_TOOLS/Scripts/
     safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:30]
     out_file = os.path.join(AFFILIATE_DIR, "Scripts", f"{safe_stem}_campaign.json")
@@ -210,6 +294,10 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         "telegram_card": telegram_card,
         "wa_broadcast": wa_broadcast,
         "spill_replies": spill_replies,
+        "ai_video_master_prompt": ai_video_master_prompt,
+        "scene_breakdown": scene_breakdown,
+        "negative_prompt": negative_prompt,
+        "visual_storyboard_text": visual_storyboard_text,
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     

@@ -1638,6 +1638,9 @@
                             <button onclick="switchAffTab('tiktok')" id="aff-tab-btn-tiktok" class="px-2.5 py-1 text-[11px] font-mono rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 🎬 Script TikTok
                             </button>
+                            <button onclick="switchAffTab('prompt')" id="aff-tab-btn-prompt" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white flex items-center gap-1">
+                                🎨 Prompt Video AI
+                            </button>
                             <button onclick="switchAffTab('video')" id="aff-tab-btn-video" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white flex items-center gap-1">
                                 🎥 Render Video MP4
                             </button>
@@ -1655,6 +1658,48 @@
 
                     <!-- Live Content Display Area -->
                     <div id="aff-content-container" class="relative">
+                        <!-- AI Video Prompt & Scene Storyboard View -->
+                        <div id="aff-view-prompt" class="aff-subview hidden space-y-4">
+                            <!-- Master Prompt Card -->
+                            <div class="p-4 bg-dark-950 rounded-xl border border-cyan-500/30 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                                        <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i> Master Prompt AI Video (Sora / Kling / Runway / Luma)
+                                    </h4>
+                                    <button onclick="copyAffiliateContent('aff-text-videoprompt')" class="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-mono font-bold flex items-center gap-1">
+                                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Master Prompt
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400">Prompt detail 8K sinematik, pencahayaan studio, sudut kamera, dan pergerakan objek untuk AI Video Generator.</p>
+                                <pre id="aff-text-videoprompt" class="p-3 bg-dark-900 rounded-xl border border-white/5 font-mono text-xs text-cyan-200 whitespace-pre-wrap max-h-36 overflow-y-auto custom-scrollbar">Pilih produk dan generate untuk menghasilkan Master Prompt AI Video.</pre>
+                            </div>
+
+                            <!-- Negative Prompt Card -->
+                            <div class="p-3 bg-dark-950 rounded-xl border border-white/5 flex items-center justify-between gap-3">
+                                <div class="space-y-0.5">
+                                    <span class="text-[11px] font-mono text-rose-400 font-bold">🚫 Negative Prompt Filter:</span>
+                                    <div id="aff-text-negativeprompt" class="text-xs text-slate-300 font-mono">blurry, low quality, deformed, distorted geometry, pixelated, jittery camera, watermark</div>
+                                </div>
+                                <button onclick="copyAffiliateContent('aff-text-negativeprompt')" class="p-1.5 bg-white/5 hover:bg-white/10 text-rose-300 rounded-lg shrink-0" title="Salin Negative Prompt">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+
+                            <!-- Shot-by-Shot Storyboard Cards -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono text-slate-300 font-bold">🎞️ Shot-by-Shot Scene Breakdown Matrix (4 Scenes):</span>
+                                    <button onclick="copyAffiliateContent('aff-text-storyboard')" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-lg text-xs font-mono flex items-center gap-1">
+                                        <i data-lucide="copy" class="w-3 h-3"></i> Salin Full Storyboard
+                                    </button>
+                                </div>
+                                <div id="aff-scenes-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <!-- Dynamic scenes from JS -->
+                                </div>
+                                <pre id="aff-text-storyboard" class="hidden"></pre>
+                            </div>
+                        </div>
+
                         <!-- Video Generator View -->
                         <div id="aff-view-video" class="aff-subview hidden space-y-4">
                             <div class="p-4 bg-dark-950 rounded-xl border border-emerald-500/30 space-y-3">
@@ -1662,11 +1707,20 @@
                                     <h4 class="text-xs font-bold text-white font-mono flex items-center gap-2">
                                         <i data-lucide="video" class="w-4 h-4 text-emerald-400"></i> Auto Video Maker 9:16 (TikTok / Reels / Shorts)
                                     </h4>
-                                    <span class="text-[10px] font-mono text-emerald-400">⚡ Animasi Ken Burns + Voiceover AI</span>
+                                    <span class="text-[10px] font-mono text-emerald-400">⚡ Animasi Sinematik + Dubbing AI</span>
                                 </div>
-                                <p class="text-xs text-slate-400">Pilih foto produk dari komputermu, dan AI akan otomatis membuat video promosi vertikal lengkap dengan animasi zoom, price tag, dan dubbing suara.</p>
+                                <p class="text-xs text-slate-400">Pilih foto produk dan sesuaikan tema visual, efek kamera, dan dubbing suara untuk membuat video promosi vertikal berkualitas tinggi.</p>
 
                                 <div class="space-y-3 pt-2">
+                                    <!-- Visual Video Prompt Input -->
+                                    <div class="space-y-1">
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px] flex items-center justify-between">
+                                            <span>Prompt Visual Sinematik</span>
+                                            <span class="text-cyan-400 font-normal text-[10px]">✨ Auto-generated dari AI</span>
+                                        </label>
+                                        <textarea id="video-visual-prompt" rows="2" placeholder="Deskripsi visual gaya pencahayaan & sinematografi..." class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-cyan-200 font-mono text-xs"></textarea>
+                                    </div>
+
                                     <!-- Image File Picker -->
                                     <div class="space-y-1">
                                         <label class="block font-semibold text-slate-300 font-mono text-[11px]">Foto Produk (Pilih 1 atau Banyak Foto)</label>
@@ -1680,8 +1734,29 @@
                                         <div id="file-badge-video-input-images" class="text-[10px] font-mono text-slate-400"></div>
                                     </div>
 
-                                    <!-- Voice Selection -->
-                                    <div class="grid grid-cols-2 gap-3">
+                                    <!-- Theme & Motion Style Grid -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div class="space-y-1">
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎨 Tema Visual & Warna</label>
+                                            <select id="video-theme-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                                <option value="viral_tiktok">🚀 Viral TikTok (Merah-Kuning Flash Sale)</option>
+                                                <option value="luxury_gold">👑 Luxury Gold (Obsidian & 24K Emas Mewah)</option>
+                                                <option value="cyberpunk">⚡ Cyberpunk Neon (Cyan & Pink Glow)</option>
+                                                <option value="clean_minimal">🌿 Clean Minimalist (Dark Slate & Emerald)</option>
+                                            </select>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎥 Gaya Gerakan Kamera (Motion)</label>
+                                            <select id="video-motion-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                                <option value="zoom_in">🔍 Ken Burns Zoom-In (Slow Push-In)</option>
+                                                <option value="zoom_out">🔭 Ken Burns Zoom-Out (Dramatic Reveal)</option>
+                                                <option value="pan_left_right">↔️ Dynamic Left-to-Right Pan</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Voice Selection & Badges Grid -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <div class="space-y-1">
                                             <label class="block font-semibold text-slate-300 font-mono text-[11px]">Suara Voiceover AI</label>
                                             <select id="video-voice-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
@@ -1690,16 +1765,14 @@
                                             </select>
                                         </div>
                                         <div class="space-y-1">
-                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Folder Output</label>
-                                            <div class="p-2 bg-dark-900 border border-white/5 rounded-xl text-[11px] font-mono text-emerald-300 truncate">
-                                                ~/Dokumen/ALFA_GENERATED_VIDEOS/
-                                            </div>
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Badge Atas</label>
+                                            <input type="text" id="video-badge-text" value="🔥 FLASH SALE DISKON SPESIAL" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
                                         </div>
                                     </div>
 
                                     <!-- Voiceover Textarea -->
                                     <div class="space-y-1">
-                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Narasi Voiceover</label>
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Narasi Voiceover AI</label>
                                         <textarea id="video-voiceover-text" rows="3" placeholder="Teks yang akan dibacakan oleh voiceover AI..." class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-slate-200 font-sans text-xs"></textarea>
                                     </div>
 
@@ -4859,7 +4932,7 @@
 
         function switchAffTab(subTab) {
             document.querySelectorAll('.aff-subview').forEach(el => el.classList.add('hidden'));
-            ['tiktok', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
+            ['tiktok', 'prompt', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
                 const btn = document.getElementById(`aff-tab-btn-${t}`);
                 if (btn) {
                     btn.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
@@ -4879,7 +4952,7 @@
 
         async function renderAffiliateVideoNow() {
             const btn = document.getElementById('btn-render-video');
-            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rendering Video H.264 (Ken Burns + Voiceover)...';
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rendering Video H.264 (Animasi + Dubbing AI)...';
             lucide.createIcons();
 
             const imgVal = document.getElementById('video-input-images').value.trim();
@@ -4888,6 +4961,10 @@
             const origPrice = document.getElementById('aff-orig-price').value.trim() || 'Rp 149.000';
             const discPrice = document.getElementById('aff-disc-price').value.trim() || 'Rp 49.900';
             const voice = document.getElementById('video-voice-select').value;
+            const theme = document.getElementById('video-theme-select').value;
+            const motion = document.getElementById('video-motion-select').value;
+            const badgeText = document.getElementById('video-badge-text').value.trim() || '🔥 FLASH SALE DISKON SPESIAL';
+            const visualPrompt = document.getElementById('video-visual-prompt').value.trim();
             let voiceText = document.getElementById('video-voiceover-text').value.trim();
 
             if (!voiceText) {
@@ -4905,7 +4982,11 @@
                         voiceover_text: voiceText,
                         orig_price: origPrice,
                         disc_price: discPrice,
-                        voice: voice
+                        voice: voice,
+                        theme: theme,
+                        motion_style: motion,
+                        badge_text: badgeText,
+                        visual_prompt: visualPrompt
                     })
                 });
                 const data = await res.json();
@@ -4976,6 +5057,40 @@
             document.getElementById('aff-text-telegram').innerText = c.telegram_card || 'N/A';
             document.getElementById('aff-text-whatsapp').innerText = c.wa_broadcast || 'N/A';
             
+            // Video Prompts & Storyboard
+            const masterPromptEl = document.getElementById('aff-text-videoprompt');
+            if (masterPromptEl) masterPromptEl.innerText = c.ai_video_master_prompt || 'N/A';
+            
+            const negPromptEl = document.getElementById('aff-text-negativeprompt');
+            if (negPromptEl && c.negative_prompt) negPromptEl.innerText = c.negative_prompt;
+            
+            const storyTextEl = document.getElementById('aff-text-storyboard');
+            if (storyTextEl) storyTextEl.innerText = c.visual_storyboard_text || '';
+            
+            // Scenes grid
+            const scenesGrid = document.getElementById('aff-scenes-grid');
+            if (scenesGrid && c.scene_breakdown && c.scene_breakdown.length > 0) {
+                scenesGrid.innerHTML = c.scene_breakdown.map((sc) => `
+                    <div class="p-3 bg-dark-950 rounded-xl border border-white/10 space-y-1.5 group hover:border-cyan-500/40 transition-colors">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono font-bold text-cyan-400">Scene #${sc.scene} (${sc.timestamp})</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 bg-cyan-500/10 text-cyan-300 rounded border border-cyan-500/20">${sc.shot_type}</span>
+                        </div>
+                        <div class="text-xs text-slate-200 font-sans leading-relaxed">${sc.visual_prompt}</div>
+                        <div class="pt-1 border-t border-white/5 text-[10px] font-mono text-slate-400 space-y-0.5">
+                            <div><span class="text-slate-500">Camera:</span> ${sc.camera_angle}</div>
+                            <div><span class="text-slate-500">Lighting:</span> ${sc.lighting}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Sync visual prompt to video maker form
+            const vVisualPrompt = document.getElementById('video-visual-prompt');
+            if (vVisualPrompt && c.ai_video_master_prompt) {
+                vVisualPrompt.value = c.ai_video_master_prompt;
+            }
+
             const vText = document.getElementById('video-voiceover-text');
             if (vText) {
                 vText.value = `Jangan beli dulu sebelum nonton ini! Promo spesial ${c.product_name}, harga normal ${c.original_price} sekarang lagi drop cuma ${c.discount_price}! Fitur unggulan: ${c.key_features}. Langsung klik link sekarang ya!`;

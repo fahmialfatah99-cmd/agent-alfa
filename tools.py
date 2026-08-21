@@ -1955,11 +1955,16 @@ def generate_promo_video_from_images(
     orig_price: str = "Rp 149.000",
     disc_price: str = "Rp 49.900",
     voice: str = "id-ID-GadisNeural",
+    theme: str = "viral_tiktok",
+    motion_style: str = "zoom_in",
+    badge_text: str = "🔥 FLASH SALE DISKON SPESIAL",
+    call_to_action: str = "👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒",
+    visual_prompt: str = "",
     output_filename: str = "promo_video.mp4"
 ) -> Dict[str, Any]:
     """
     Generate video promosi produk otomatis format 9:16 (1080x1920) untuk TikTok / Reels / Shorts hanya dari foto produk.
-    Dilengkapi animasi zoompan Ken Burns, dubbing voiceover AI bahasa Indonesia, dan banner flash sale diskon.
+    Dilengkapi prompt visual sinematik detail, animasi zoompan Ken Burns, dubbing voiceover AI bahasa Indonesia, dan banner flash sale diskon.
     Hasil otomatis tersimpan di ~/Dokumen/ALFA_GENERATED_VIDEOS/.
     
     Args:
@@ -1969,6 +1974,11 @@ def generate_promo_video_from_images(
         orig_price: Harga coret sebelum diskon (misal: 'Rp 149.000').
         disc_price: Harga flash sale / drop (misal: 'Rp 49.900').
         voice: Suara voiceover AI ('id-ID-GadisNeural' untuk cewek ramah, 'id-ID-ArdiNeural' untuk cowok).
+        theme: Tema visual video ('viral_tiktok', 'luxury_gold', 'cyberpunk', 'clean_minimal').
+        motion_style: Gaya animasi kamera ('zoom_in', 'zoom_out', 'pan_left_right').
+        badge_text: Teks badge promo atas.
+        call_to_action: Teks banner CTA bawah.
+        visual_prompt: Deskripsi prompt visual sinematik AI untuk video.
         output_filename: Nama file output MP4.
     """
     try:
@@ -1980,6 +1990,11 @@ def generate_promo_video_from_images(
             orig_price=orig_price,
             disc_price=disc_price,
             voice=voice,
+            theme=theme,
+            motion_style=motion_style,
+            badge_text=badge_text,
+            call_to_action=call_to_action,
+            visual_prompt=visual_prompt,
             output_filename=output_filename
         )
     except Exception as e:

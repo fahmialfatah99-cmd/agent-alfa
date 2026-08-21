@@ -337,6 +337,11 @@ async def generate_promo_video(payload: Dict[str, Any]):
     orig_price = payload.get("orig_price", "Rp 149.000").strip()
     disc_price = payload.get("disc_price", "Rp 49.900").strip()
     voice = payload.get("voice", "id-ID-GadisNeural")
+    theme = payload.get("theme", "viral_tiktok")
+    motion_style = payload.get("motion_style", "zoom_in")
+    badge_text = payload.get("badge_text", "🔥 FLASH SALE DISKON SPESIAL")
+    call_to_action = payload.get("call_to_action", "👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒")
+    visual_prompt = payload.get("visual_prompt", "")
     output_filename = payload.get("output_filename", None)
     
     if not voiceover_text:
@@ -349,6 +354,11 @@ async def generate_promo_video(payload: Dict[str, Any]):
         orig_price=orig_price,
         disc_price=disc_price,
         voice=voice,
+        theme=theme,
+        motion_style=motion_style,
+        badge_text=badge_text,
+        call_to_action=call_to_action,
+        visual_prompt=visual_prompt,
         output_filename=output_filename
     )
     return res
