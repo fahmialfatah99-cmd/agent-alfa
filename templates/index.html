@@ -694,6 +694,30 @@
                 <div class="flex items-center gap-2">
                     <span id="tool-count-pill" class="px-3 py-1.5 bg-dark-950 text-cyan-400 rounded-xl border border-white/10 font-mono text-xs font-bold">-- Tools</span>
                 </div>
+            <!-- ==================== SELF-EVOLUTION DYNAMIC PLUGINS WORKBENCH ==================== -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-violet-500/30 bg-violet-500/[0.02] shadow-2xl relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center text-xl shadow-glow-violet">
+                            🧬
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-bold text-white font-mono">SELF-EVOLUTION DYNAMIC PLUGINS & CUSTOM TOOLS</h3>
+                                <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">HOT-LOADED ON THE FLY</span>
+                            </div>
+                            <p class="text-xs text-slate-400 font-mono">Tool buatan ALFA atau kustommu sendiri yang otomatis dikompilasi dan aktif di runtime tanpa restart bot.</p>
+                        </div>
+                    </div>
+                    <button onclick="openCreatePluginModal()" class="px-3.5 py-1.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 border border-violet-500/40 text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-glow-violet">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> + Buat Plugin Baru
+                    </button>
+                </div>
+
+                <!-- Dynamic Plugins Container Grid -->
+                <div id="dynamic-plugins-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div class="text-slate-500 text-center py-6 col-span-full font-mono text-xs">Memuat plugin kustom...</div>
+                </div>
             </div>
 
             <!-- ==================== ULTIMATE PDF-TOOLS INTERACTIVE WORKBENCH ==================== -->
@@ -1140,6 +1164,35 @@
                     <div id="memory-cards-container" class="space-y-2.5 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
                         <div class="text-slate-500 text-center py-12">Memuat memori...</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Neural Vector Brain & Semantic RAG Section -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-cyan-500/20">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-lg shadow-glow-cyan">⚡</div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">NEURAL VECTOR BRAIN & SEMANTIC SEARCH (HYBRID RAG)</h3>
+                            <p class="text-xs text-slate-400">Pencarian semantik cerdas berdasarkan makna/konteks di seluruh dokumen, catatan, dan memori permanen.</p>
+                        </div>
+                    </div>
+                    <button onclick="openVectorIngestModal()" class="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all">
+                        <i data-lucide="file-plus" class="w-3.5 h-3.5"></i> + Ingest Dokumen ke Vector Brain
+                    </button>
+                </div>
+
+                <!-- Semantic Search Bar -->
+                <div class="flex items-center gap-2">
+                    <input type="text" id="vector-search-query" onkeydown="if(event.key==='Enter') runVectorSearch()" placeholder="Ketik pertanyaan atau topik semantik (contoh: 'strategi bisnis dan scraping marketplace')..." class="flex-1 p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                    <button onclick="runVectorSearch()" id="btn-vector-search" class="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 shadow-glow-cyan transition-all">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i> Cari Semantik
+                    </button>
+                </div>
+
+                <!-- Vector Search Results Container -->
+                <div id="vector-results-container" class="space-y-2.5 hidden max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <!-- Dynamic Matches -->
                 </div>
             </div>
         </section>
@@ -2924,6 +2977,90 @@
         </div>
     </div>
 
+    <!-- Self-Evolution Plugin Creator Modal -->
+    <div id="plugin-create-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-2xl w-full space-y-4 border border-violet-500/40 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">🧬</span>
+                    <div>
+                        <h3 class="text-sm font-bold text-white font-mono">SELF-EVOLUTION: BUAT DYNAMIC PLUGIN TOOL</h3>
+                        <p class="text-[11px] text-slate-400">Kode Python akan dikompilasi, diuji sandbox, dan aktif seketika di memory bot.</p>
+                    </div>
+                </div>
+                <button onclick="closeCreatePluginModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="submitCreatePlugin(event)" class="space-y-3 font-mono text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold">Nama Fungsi Tool (lowercase_snake_case):</label>
+                    <input type="text" id="plugin-name" required placeholder="misal: check_crypto_price, hitung_diskon_pajak" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-violet-500 font-mono text-xs">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold">Deskripsi Tool (Untuk Gemini Tool Calling):</label>
+                    <input type="text" id="plugin-desc" required placeholder="misal: Menghitung estimasi cicilan pinjaman bulanan berdasarkan tenor dan bunga." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-violet-500 font-sans text-xs">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold">Kode Python Tool (Definisikan fungsi & docstring):</label>
+                    <textarea id="plugin-code" required rows="7" placeholder="def check_crypto_price(coin: str = 'bitcoin') -> dict:
+    '''Cek harga kripto realtime.'''
+    return {'status': 'success', 'coin': coin, 'price_usd': 96500.0}" class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-emerald-300 focus:outline-none focus:border-violet-500 font-mono text-xs custom-scrollbar leading-relaxed"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-white/10">
+                    <button type="button" onclick="closeCreatePluginModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs">Batal</button>
+                    <button type="submit" id="btn-submit-plugin" class="px-4 py-2 rounded-xl bg-violet-500 hover:bg-violet-400 text-dark-950 font-bold text-xs flex items-center gap-1.5 shadow-glow-violet transition-all">
+                        <i data-lucide="cpu" class="w-4 h-4"></i> Kompilasi & Pasang Tool
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vector Brain Ingest Document Modal -->
+    <div id="vector-ingest-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-card p-6 rounded-2xl max-w-xl w-full space-y-4 border border-cyan-500/40 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">⚡</span>
+                    <div>
+                        <h3 class="text-sm font-bold text-white font-mono">INGEST KE NEURAL VECTOR BRAIN</h3>
+                        <p class="text-[11px] text-slate-400">Indeks dokumen/file ke memori semantik (Hybrid RAG) untuk pencarian instan.</p>
+                    </div>
+                </div>
+                <button onclick="closeVectorIngestModal()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="submitVectorIngest(event)" class="space-y-3 font-sans text-xs">
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold font-mono">Judul Dokumen / Label:</label>
+                    <input type="text" id="vec-title" required placeholder="misal: SOP Operasional 2026, Catatan Riset Affiliate" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 text-xs">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold font-mono">Kategori:</label>
+                    <select id="vec-cat" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none font-mono text-xs">
+                        <option value="general">Umum / General</option>
+                        <option value="bisnis">Bisnis & Strategi</option>
+                        <option value="koding">Koding & Arsitektur</option>
+                        <option value="keuangan">Keuangan & Invoice</option>
+                        <option value="pribadi">Catatan Pribadi</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1 font-semibold font-mono">Teks Lengkap ATAU Path File Lokal (.pdf, .txt, .md, .csv, .py):</label>
+                    <textarea id="vec-content" required rows="5" placeholder="Ketik isi dokumen teks lengkap, ATAU masukkan path file lokal (misal: /home/fahmial/Dokumen/catatan.txt)..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500 text-xs"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-white/10">
+                    <button type="button" onclick="closeVectorIngestModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-mono text-xs">Batal</button>
+                    <button type="submit" id="btn-submit-ingest" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold font-mono text-xs flex items-center gap-1.5 shadow-glow-cyan transition-all">
+                        <i data-lucide="database" class="w-4 h-4"></i> Indeks ke Vector Brain
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm"></div>
 
@@ -3201,7 +3338,7 @@
                 toggleSidebar(false);
             }
 
-            if (tabId === 'tools' && allToolsData.length === 0) fetchTools();
+            if (tabId === 'tools') { if (allToolsData.length === 0) fetchTools(); fetchDynamicPlugins(); }
             if (tabId === 'services') fetchServices();
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') fetchArtifacts();
@@ -3708,9 +3845,204 @@
                 a.href = url;
                 a.download = `ALFA_Second_Brain_${new Date().toISOString().slice(0,10)}.md`;
                 a.click();
-                showToast('Second Brain diexport sebagai file Markdown!', 'success');
+        // ==================== NEURAL VECTOR BRAIN JS ====================
+        function openVectorIngestModal() {
+            document.getElementById('vector-ingest-modal').classList.remove('hidden');
+            document.getElementById('vector-ingest-modal').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeVectorIngestModal() {
+            document.getElementById('vector-ingest-modal').classList.add('hidden');
+            document.getElementById('vector-ingest-modal').classList.remove('flex');
+        }
+
+        async function submitVectorIngest(e) {
+            e.preventDefault();
+            const title = document.getElementById('vec-title').value.trim();
+            const cat = document.getElementById('vec-cat').value;
+            const content = document.getElementById('vec-content').value.trim();
+            const btn = document.getElementById('btn-submit-ingest');
+            
+            btn.innerHTML = '<span class="animate-spin">⏳</span> Mengindeks...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/brain/vector/ingest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content, category: cat })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    closeVectorIngestModal();
+                    document.getElementById('vec-title').value = '';
+                    document.getElementById('vec-content').value = '';
+                } else {
+                    showToast(data.message || 'Gagal mengindeks dokumen', 'error');
+                }
             } catch (err) {
-                showToast(`Export gagal: ${err.message}`, 'error');
+                showToast(`Ingestion error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="database" class="w-4 h-4"></i> Indeks ke Vector Brain';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function runVectorSearch() {
+            const query = document.getElementById('vector-search-query').value.trim();
+            if (!query) {
+                showToast('Masukkan kueri pencarian semantik terlebih dahulu.', 'info');
+                return;
+            }
+            const container = document.getElementById('vector-results-container');
+            const btn = document.getElementById('btn-vector-search');
+            
+            btn.innerHTML = '<span class="animate-spin">⏳</span> Mencari...';
+            btn.disabled = true;
+            container.classList.remove('hidden');
+            container.innerHTML = '<div class="text-slate-400 text-center py-6 font-mono text-xs animate-pulse">Menghitung embedding & cosine similarity...</div>';
+            
+            try {
+                const res = await fetch('/api/brain/vector/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, top_k: 5 })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (data.matches.length === 0) {
+                        container.innerHTML = '<div class="p-4 rounded-xl bg-dark-950 border border-white/5 text-slate-400 text-center font-mono text-xs">Tidak ditemukan kecocokan semantik di Vector Brain.</div>';
+                        return;
+                    }
+                    container.innerHTML = data.matches.map(m => `
+                        <div class="p-3.5 rounded-xl bg-dark-950 border border-cyan-500/30 flex flex-col space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono font-bold text-[10px] uppercase">${m.category}</span>
+                                    <span class="text-xs font-bold text-white font-mono">${m.doc_title} (Chunk #${m.chunk_index + 1})</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px]">Score: ${(m.similarity_score * 100).toFixed(1)}%</span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-mono leading-relaxed bg-dark-900/80 p-2.5 rounded-lg border border-white/5">${m.chunk_text}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="p-3 text-rose-400 text-xs font-mono">Error: ${err.message}</div>`;
+            } finally {
+                btn.innerHTML = '<i data-lucide="search" class="w-3.5 h-3.5"></i> Cari Semantik';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        // ==================== SELF-EVOLUTION DYNAMIC PLUGINS JS ====================
+        function openCreatePluginModal() {
+            document.getElementById('plugin-create-modal').classList.remove('hidden');
+            document.getElementById('plugin-create-modal').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeCreatePluginModal() {
+            document.getElementById('plugin-create-modal').classList.add('hidden');
+            document.getElementById('plugin-create-modal').classList.remove('flex');
+        }
+
+        async function fetchDynamicPlugins() {
+            const grid = document.getElementById('dynamic-plugins-grid');
+            if (!grid) return;
+            try {
+                const res = await fetch('/api/plugins/list');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (data.plugins.length === 0) {
+                        grid.innerHTML = '<div class="text-slate-500 text-center py-6 col-span-full font-mono text-xs">Belum ada plugin buatan AI. Klik tombol "+ Buat Plugin Baru" di atas atau minta ALFA di Telegram!</div>';
+                        return;
+                    }
+                    grid.innerHTML = data.plugins.map(p => `
+                        <div class="p-4 rounded-xl bg-dark-950 border border-violet-500/30 flex flex-col justify-between space-y-3 group hover:border-violet-400/60 transition-all">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded bg-violet-500/20 text-violet-300 border border-violet-500/30">DYNAMIC PLUGIN</span>
+                                    <button onclick="deleteDynamicPlugin('${p.tool_name}')" class="text-rose-400 hover:text-rose-300 p-1" title="Hapus Plugin">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                                <h4 class="text-xs font-bold text-white font-mono flex items-center gap-1.5 truncate">
+                                    <span>⚡</span> ${p.tool_name}()
+                                </h4>
+                                <p class="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">${p.description}</p>
+                            </div>
+                            <button onclick="openToolModal('${p.tool_name}')" class="w-full py-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all">
+                                <i data-lucide="play" class="w-3 h-3"></i> Test Eksekusi
+                            </button>
+                        </div>
+                    `).join('');
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                grid.innerHTML = `<div class="text-rose-400 text-xs col-span-full font-mono">Gagal memuat plugin: ${err.message}</div>`;
+            }
+        }
+
+        async function submitCreatePlugin(e) {
+            e.preventDefault();
+            const tool_name = document.getElementById('plugin-name').value.trim();
+            const tool_description = document.getElementById('plugin-desc').value.trim();
+            const tool_code = document.getElementById('plugin-code').value.trim();
+            const btn = document.getElementById('btn-submit-plugin');
+            
+            btn.innerHTML = '<span class="animate-spin">⏳</span> Mengompilasi...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/plugins/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool_name, tool_description, tool_code })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    closeCreatePluginModal();
+                    document.getElementById('plugin-name').value = '';
+                    document.getElementById('plugin-desc').value = '';
+                    document.getElementById('plugin-code').value = '';
+                    fetchDynamicPlugins();
+                    fetchTools();
+                } else {
+                    showToast(data.message || 'Gagal membuat plugin', 'error');
+                }
+            } catch (err) {
+                showToast(`Kompilasi error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="cpu" class="w-4 h-4"></i> Kompilasi & Pasang Tool';
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function deleteDynamicPlugin(toolName) {
+            if (!confirm(`Hapus plugin '${toolName}' secara permanen?`)) return;
+            try {
+                const res = await fetch('/api/plugins/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool_name: toolName })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    fetchDynamicPlugins();
+                    fetchTools();
+                } else {
+                    showToast(data.message || 'Gagal menghapus plugin', 'error');
+                }
+            } catch (err) {
+                showToast(`Hapus error: ${err.message}`, 'error');
             }
         }
 

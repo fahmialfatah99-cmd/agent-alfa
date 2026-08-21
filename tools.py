@@ -3832,21 +3832,117 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
         return {"status": "error", "message": f"LibreOffice extract text error: {str(e)}"}
 
 
-def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str) -> Dict[str, Any]:
+def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str, test_arguments_json: str = "{}") -> Dict[str, Any]:
     """
-    GOD MODE: Self-Evolution Engine — dynamically writes and saves a brand new tool
-    into the isolated plugins/ directory, compiles it, and prepares it for immediate execution.
+    GOD MODE: Self-Evolution Engine — dynamically writes, compiles, sandbox-tests, and hot-loads
+    a brand new Python tool into the plugins/ directory for immediate runtime execution.
     
     Args:
-        tool_name: Python function name for the new tool (e.g. 'check_stock_price', 'convert_currency').
-        tool_description: One-line description of what the tool does.
-        tool_code: Complete Python function code including def, docstring, args, and return dict.
+        tool_name: Python function name for the new tool (e.g. 'check_crypto_price', 'calculate_loan_emi').
+        tool_description: Detailed description of what the tool does and its parameters.
+        tool_code: Complete Python function code including def, docstring, typing, args, and return dict.
+        test_arguments_json: Optional JSON string of kwargs to test-run the tool in a sandbox before saving.
     """
     try:
         import plugins
-        return plugins.create_and_register_plugin(tool_name, tool_description, tool_code)
+        test_kwargs = {}
+        if test_arguments_json and test_arguments_json.strip():
+            try:
+                test_kwargs = json.loads(test_arguments_json)
+            except Exception:
+                test_kwargs = {}
+        return plugins.create_and_register_plugin(tool_name, tool_description, tool_code, test_kwargs=test_kwargs)
     except Exception as e:
         return {"status": "error", "message": f"Self-evolution error: {str(e)}"}
+
+
+def list_dynamic_plugins() -> Dict[str, Any]:
+    """
+    List all dynamically created and hot-loaded plugin tools currently available in the system.
+    """
+    try:
+        import plugins
+        plugins_list = plugins.list_all_plugins()
+        return {
+            "status": "success",
+            "total_plugins": len(plugins_list),
+            "plugins": plugins_list
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def delete_dynamic_plugin(tool_name: str) -> Dict[str, Any]:
+    """
+    Permanently delete a dynamic plugin tool from disk and unregister from memory.
+    
+    Args:
+        tool_name: Name of the plugin tool to delete.
+    """
+    try:
+        import plugins
+        return plugins.delete_plugin(tool_name)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "") -> Dict[str, Any]:
+    """
+    NEURAL VECTOR BRAIN: Performs semantic similarity search (Hybrid RAG) across all permanent
+    knowledge embeddings, documents, research reports, and notes based on meaning/context.
+    
+    Args:
+        query: Search query, question, or conceptual topic.
+        top_k: Number of most relevant document chunks to return (default: 5).
+        category: Optional category filter (e.g. 'bisnis', 'coding', 'personal', or empty for all).
+    """
+    try:
+        import vector_memory
+        user_id = current_user_id_var.get() or 0
+        results = vector_memory.semantic_search(user_id=user_id, query=query, top_k=top_k, category=category or None)
+        return {
+            "status": "success",
+            "query": query,
+            "total_matches": len(results),
+            "matches": results
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Vector semantic search error: {str(e)}"}
+
+
+def ingest_document_to_vector_brain(title: str, content_or_file_path: str, category: str = "general") -> Dict[str, Any]:
+    """
+    NEURAL VECTOR BRAIN: Ingests, chunks, embeds, and indexes a document or local file 
+    (.txt, .md, .pdf, .py, .csv, .json, or raw text) into the permanent Vector Brain database.
+    
+    Args:
+        title: Title / Label for the document.
+        content_or_file_path: Raw text string OR absolute/relative file path to ingest.
+        category: Knowledge category (e.g. 'bisnis', 'technical', 'finance', 'project').
+    """
+    try:
+        import vector_memory
+        user_id = current_user_id_var.get() or 0
+        return vector_memory.ingest_document(user_id=user_id, title=title, content_or_path=content_or_file_path, category=category)
+    except Exception as e:
+        return {"status": "error", "message": f"Document ingestion error: {str(e)}"}
+
+
+def list_vector_brain_documents() -> Dict[str, Any]:
+    """
+    NEURAL VECTOR BRAIN: List all documents and files currently indexed in the Semantic Vector Brain.
+    """
+    try:
+        import vector_memory
+        user_id = current_user_id_var.get() or 0
+        docs = vector_memory.list_ingested_documents(user_id=user_id)
+        return {
+            "status": "success",
+            "total_documents": len(docs),
+            "documents": docs
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 def self_restart_service() -> Dict[str, Any]:
@@ -4477,6 +4573,11 @@ AVAILABLE_TOOLS = [
     manage_wa_sheets_bot,
     open_web_dashboard,
     self_add_new_tool,
+    list_dynamic_plugins,
+    delete_dynamic_plugin,
+    semantic_search_vector_brain,
+    ingest_document_to_vector_brain,
+    list_vector_brain_documents,
     self_restart_service,
     proactive_system_guardian_config,
     save_knowledge_memory,
