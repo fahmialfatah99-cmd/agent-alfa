@@ -200,6 +200,78 @@
             50% { opacity: 0.8; }
             100% { opacity: 0; transform: translateY(-12px) scaleX(1.4); }
         }
+
+        /* ==================== LIGHT MODE THEME OVERRIDES ==================== */
+        html:not(.dark) body {
+            background-color: #F8FAFC !important;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 45%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 45%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%) !important;
+            color: #0F172A !important;
+        }
+        html:not(.dark) .glass-card {
+            background: rgba(255, 255, 255, 0.85) !important;
+            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.03) !important;
+            color: #1E293B !important;
+        }
+        html:not(.dark) .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.5) !important;
+            box-shadow: 0 12px 35px -4px rgba(6, 182, 212, 0.15) !important;
+        }
+        html:not(.dark) .glass-nav {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+        }
+        html:not(.dark) #main-sidebar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border-right: 1px solid rgba(226, 232, 240, 0.9) !important;
+        }
+        html:not(.dark) .bg-dark-950,
+        html:not(.dark) .bg-dark-950\/90,
+        html:not(.dark) .bg-dark-950\/80 {
+            background-color: #F1F5F9 !important;
+            color: #0F172A !important;
+            border-color: rgba(226, 232, 240, 0.9) !important;
+        }
+        html:not(.dark) .bg-dark-900,
+        html:not(.dark) .bg-dark-900\/90,
+        html:not(.dark) .bg-dark-900\/95,
+        html:not(.dark) .bg-dark-900\/80 {
+            background-color: #FFFFFF !important;
+            color: #0F172A !important;
+        }
+        html:not(.dark) .text-white {
+            color: #0F172A !important;
+        }
+        html:not(.dark) .text-slate-200, 
+        html:not(.dark) .text-slate-300 {
+            color: #334155 !important;
+        }
+        html:not(.dark) .text-slate-400 {
+            color: #64748B !important;
+        }
+        html:not(.dark) input, 
+        html:not(.dark) textarea, 
+        html:not(.dark) select {
+            background-color: #FFFFFF !important;
+            color: #0F172A !important;
+            border-color: #CBD5E1 !important;
+        }
+        html:not(.dark) .border-white\/5, 
+        html:not(.dark) .border-white\/10 {
+            border-color: rgba(226, 232, 240, 0.9) !important;
+        }
+        html:not(.dark) .bg-white\/5 {
+            background-color: rgba(0, 0, 0, 0.04) !important;
+        }
+        html:not(.dark) .bg-white\/10 {
+            background-color: rgba(0, 0, 0, 0.08) !important;
+        }
+        html:not(.dark) #hq-stage-container {
+            background-color: #F8FAFC !important;
+        }
     </style>
 </head>
 <body class="font-sans antialiased text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200">
@@ -380,6 +452,15 @@
                     </div>
                 </div>
 
+                <!-- Theme Switcher Button in Sidebar -->
+                <button onclick="toggleTheme()" class="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold flex items-center justify-between text-slate-300 transition-all shadow-sm" title="Klik untuk beralih mode gelap / terang">
+                    <div class="flex items-center gap-2">
+                        <span id="sidebar-theme-icon">🌙</span>
+                        <span class="text-slate-400">Mode Tema:</span>
+                    </div>
+                    <span id="sidebar-theme-text" class="text-cyan-400 font-bold">Gelap 🌙</span>
+                </button>
+
                 <!-- Clock & Quick Refresh -->
                 <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
                     <span id="header-clock" class="text-slate-300">--:--:-- WIB</span>
@@ -405,10 +486,16 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3 text-xs font-mono">
+                <div class="flex items-center gap-2.5 text-xs font-mono">
+                    <!-- Theme Toggle Button in Top Header -->
+                    <button onclick="toggleTheme()" id="theme-toggle-btn" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer" title="Ganti Mode Gelap / Terang">
+                        <span id="theme-icon">🌙</span>
+                        <span id="theme-label" class="text-slate-300 font-bold hidden sm:inline">Dark Mode</span>
+                    </button>
+
                     <span class="hidden sm:inline-flex px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold items-center gap-1.5 shadow-sm">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
-                        SYSTEM NORMAL • GOD MODE
+                        SYSTEM NORMAL
                     </span>
                 </div>
             </header>
@@ -2835,6 +2922,49 @@
                 }
             });
         }
+
+        // ==================== THEME SWITCHER LOGIC (DARK / LIGHT MODE) ====================
+        function initTheme() {
+            const savedTheme = localStorage.getItem('alfa_theme') || 'dark';
+            setTheme(savedTheme, false);
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            setTheme(newTheme, true);
+        }
+
+        function setTheme(theme, showToastNotification = true) {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeLabel = document.getElementById('theme-label');
+            const sidebarThemeIcon = document.getElementById('sidebar-theme-icon');
+            const sidebarThemeText = document.getElementById('sidebar-theme-text');
+
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                localStorage.setItem('alfa_theme', 'dark');
+                if (themeIcon) themeIcon.innerText = '🌙';
+                if (themeLabel) themeLabel.innerText = 'Dark Mode';
+                if (sidebarThemeIcon) sidebarThemeIcon.innerText = '🌙';
+                if (sidebarThemeText) sidebarThemeText.innerText = 'Gelap 🌙';
+            } else {
+                html.classList.remove('dark');
+                localStorage.setItem('alfa_theme', 'light');
+                if (themeIcon) themeIcon.innerText = '☀️';
+                if (themeLabel) themeLabel.innerText = 'Light Mode';
+                if (sidebarThemeIcon) sidebarThemeIcon.innerText = '☀️';
+                if (sidebarThemeText) sidebarThemeText.innerText = 'Terang ☀️';
+            }
+
+            if (showToastNotification) {
+                showToast(`Beralih ke Mode ${theme === 'dark' ? 'Gelap 🌙' : 'Terang ☀️'}`, 'info');
+            }
+        }
+
+        // Run early to prevent theme flashing
+        initTheme();
 
         const tabTitles = {
             'overview': 'Telemetry & Live Overview',
@@ -6358,6 +6488,7 @@
 
         // Initialize telemetry & all data on load
         window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
             initTelemetryChart();
             fetchStats();
             fetchTools();
