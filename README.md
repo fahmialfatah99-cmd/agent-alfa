@@ -54,8 +54,8 @@
 ### Langkah 1: Clone Repository dari GitHub
 Buka terminal Anda dan clone repositori ini:
 ```bash
-git clone https://github.com/fahmialfatah99-cmd/telegram-ai-bot.git
-cd telegram-ai-bot
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+cd agent-alfa
 ```
 
 ---
