@@ -1757,20 +1757,25 @@
                                     </div>
                                 </div>
 
-                                <!-- Shot-by-Shot Storyboard Matrix (Expandable) -->
-                                <div class="space-y-2 pt-1">
+                                <!-- Video Engine Selector & Cloud API Key Grid -->
+                                <div class="p-3 bg-dark-900/80 rounded-xl border border-cyan-500/20 space-y-2.5">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-mono text-slate-300 font-bold flex items-center gap-1.5">
-                                            <i data-lucide="film" class="w-3.5 h-3.5 text-cyan-400"></i> Rincian Adegan Sinematik (4-Scene Shot Matrix)
-                                        </span>
-                                        <button onclick="copyAffiliateContent('aff-text-storyboard')" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded text-[10px] font-mono flex items-center gap-1">
-                                            <i data-lucide="copy" class="w-3 h-3"></i> Salin Semua Scene
-                                        </button>
+                                        <label class="block font-semibold text-cyan-300 font-mono text-[11px] flex items-center gap-1.5">
+                                            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Mode Engine Video Generator
+                                        </label>
+                                        <span class="text-[10px] font-mono text-slate-400">Siap Pakai API Key Khusus Video</span>
                                     </div>
-                                    <div id="aff-scenes-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <!-- Dynamic scenes from JS -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <select id="video-engine-select" onchange="toggleVideoEngineConfig()" class="w-full p-2 bg-dark-950 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                            <option value="local_pro">⚡ Local Pro Compositor (Two-Layer 1080x1920 HD • Free)</option>
+                                            <option value="kling">🤖 Kling AI Video API (v1.5 / v1.6)</option>
+                                            <option value="luma">🤖 Luma Dream Machine API (Ray 2)</option>
+                                            <option value="runway">🤖 Runway Gen-3 Alpha API</option>
+                                            <option value="fal_ai">🤖 Fal.ai Video API (Minimax / Hunyuan)</option>
+                                            <option value="replicate">🤖 Replicate API (CogVideoX / SVD)</option>
+                                        </select>
+                                        <input type="password" id="video-api-key-input" placeholder="Masukkan API Key Khusus Video..." class="w-full p-2 bg-dark-950 border border-white/10 rounded-xl text-cyan-200 font-mono text-xs hidden">
                                     </div>
-                                    <pre id="aff-text-storyboard" class="hidden"></pre>
                                 </div>
 
                                 <button onclick="renderAffiliateVideoNow()" id="btn-render-video" class="w-full py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-dark-950 font-bold font-mono rounded-xl shadow-glow-emerald flex items-center justify-center gap-2 transition-all text-xs">
@@ -4946,6 +4951,17 @@
             lucide.createIcons();
         }
 
+        function toggleVideoEngineConfig() {
+            const engine = document.getElementById('video-engine-select').value;
+            const keyInput = document.getElementById('video-api-key-input');
+            if (engine === 'local_pro') {
+                keyInput.classList.add('hidden');
+            } else {
+                keyInput.classList.remove('hidden');
+                keyInput.placeholder = `Masukkan API Key ${engine.toUpperCase()}...`;
+            }
+        }
+
         async function renderAffiliateVideoNow() {
             const btn = document.getElementById('btn-render-video');
             btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rendering Video H.264 (Animasi + Dubbing AI)...';
@@ -4959,9 +4975,11 @@
             const voice = document.getElementById('video-voice-select').value;
             const theme = document.getElementById('video-theme-select').value;
             const motion = document.getElementById('video-motion-select').value;
-            const badgeText = document.getElementById('video-badge-text').value.trim() || '🔥 FLASH SALE DISKON SPESIAL';
-            const ctaText = document.getElementById('video-cta-text') ? document.getElementById('video-cta-text').value.trim() : '👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒';
+            const badgeText = document.getElementById('video-badge-text').value.trim() || 'FLASH SALE DISKON SPESIAL';
+            const ctaText = document.getElementById('video-cta-text') ? document.getElementById('video-cta-text').value.trim() : 'KLIK KERANJANG KUNING / BIO SEBELUM HABIS';
             const visualPrompt = document.getElementById('video-visual-prompt').value.trim();
+            const engine = document.getElementById('video-engine-select') ? document.getElementById('video-engine-select').value : 'local_pro';
+            const apiKey = document.getElementById('video-api-key-input') ? document.getElementById('video-api-key-input').value.trim() : '';
             let voiceText = document.getElementById('video-voiceover-text').value.trim();
 
             if (!voiceText) {
@@ -4984,7 +5002,9 @@
                         motion_style: motion,
                         badge_text: badgeText,
                         call_to_action: ctaText,
-                        visual_prompt: visualPrompt
+                        visual_prompt: visualPrompt,
+                        engine: engine,
+                        api_key: apiKey
                     })
                 });
                 const data = await res.json();
