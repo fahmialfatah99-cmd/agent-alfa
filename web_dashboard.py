@@ -463,6 +463,44 @@ async def toggle_passkey_lock(payload: Dict[str, Any]):
         return {"status": "success", "enabled": enabled, "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}."}
 
 
+# ==================== UNIVERSAL PRO SCRAPER ENDPOINTS ====================
+
+@app.post("/api/scraper/universal")
+async def api_universal_scrape(payload: Dict[str, Any]):
+    """Execute high-yield universal keyword scraper across specialized platforms."""
+    import universal_scraper
+    query = payload.get("query", "").strip()
+    category = payload.get("category", "all_marketplace")
+    limit = int(payload.get("limit", 50))
+    if not query:
+        return {"status": "error", "message": "Query pencarian wajib diisi."}
+    
+    res = universal_scraper.scrape_universal_keyword(query=query, category=category, limit=min(limit, 200))
+    return res
+
+
+@app.post("/api/scraper/custom-batch")
+async def api_custom_batch_scrape(payload: Dict[str, Any]):
+    """Execute custom multi-URL batch scraper."""
+    import universal_scraper
+    urls = payload.get("urls", [])
+    concurrency = int(payload.get("concurrency", 15))
+    use_camoufox = bool(payload.get("use_camoufox", False))
+    if not urls:
+        return {"status": "error", "message": "Daftar URL wajib diisi."}
+    
+    res = universal_scraper.scrape_custom_urls_or_selectors(urls=urls, concurrency=concurrency, use_camoufox=use_camoufox)
+    return res
+
+
+@app.get("/api/scraper/batches")
+async def api_list_scraper_batches(limit: int = 15):
+    """List recent master scraper batches."""
+    import universal_scraper
+    batches = universal_scraper.list_all_scrape_batches(limit=limit)
+    return {"status": "success", "batches": batches}
+
+
 @app.get("/api/services")
 async def get_services_status():
     """Get detailed status of all ecosystem services."""

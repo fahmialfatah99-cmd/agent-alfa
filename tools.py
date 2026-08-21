@@ -248,7 +248,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
     """
     try:
         logger.info(f"Searching web for: {query}")
-        results = list(DDGS().text(query, max_results=max_results))
+        results = list(DDGS(verify=False).text(query, max_results=max_results))
         if not results:
             return {"status": "success", "results": [], "message": "Tidak ada hasil pencarian ditemukan."}
         
@@ -2988,7 +2988,7 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
         seen_urls = set()
         sources_data = []
         
-        with DDGS() as ddgs:
+        with DDGS(verify=False) as ddgs:
             for q in queries:
                 try:
                     results = list(ddgs.text(q, max_results=3))
@@ -4341,8 +4341,52 @@ def audit_website_security(target_url: str) -> Dict[str, Any]:
         return {"status": "error", "message": f"Security audit error: {str(e)}"}
 
 
+def universal_deep_scraper(query: str, category: str = "all_marketplace", limit: int = 50) -> Dict[str, Any]:
+    """
+    High-Volume Universal Pro Web Scraper:
+    Scrapes large volumes (20 - 200+ results) of rich data across various categories:
+    - 'all_marketplace' (Shopee, Tokopedia, TikTok Shop, Lazada, Blibli)
+    - 'jobs_career' (JobStreet, LinkedIn, Glints, Karir.com)
+    - 'news_media' (Detik, Kompas, CNN, Liputan6, CNBC)
+    - 'leads_contacts' (WhatsApp, Phone, Email, Suppliers, Distributors)
+    - 'property_realestate' (Rumah123, Rumah.com, Lamudi, OLX)
+    - 'google_general' (General Web Deep Search)
+    
+    Automatically extracts Titles, Prices, Contacts (Phone/WA/Email), Domains, URLs, and saves to CSV & JSON.
+    
+    Args:
+        query: What to scrape / search (e.g. 'sepatu sneakers running wanita', 'python developer', 'distributor kopi gayo').
+        category: Platform category to scrape (default: 'all_marketplace').
+        limit: Total items to harvest (default: 50, supports up to 200).
+    """
+    try:
+        import universal_scraper
+        return universal_scraper.scrape_universal_keyword(query=query, category=category, limit=limit)
+    except Exception as e:
+        return {"status": "error", "message": f"Universal scraper error: {str(e)}"}
+
+
+def scrape_custom_urls_batch(urls: List[str], concurrency: int = 15, use_camoufox: bool = False) -> Dict[str, Any]:
+    """
+    Scrape any custom list of URLs with high-speed multi-threaded workers or Camoufox stealth browser.
+    Extracts page titles, meta info, prices, images, and descriptions into CSV and JSON.
+    
+    Args:
+        urls: List of web URLs to scrape.
+        concurrency: Concurrent scraping workers (default: 15).
+        use_camoufox: If True, uses Camoufox anti-detect stealth browser (for Cloudflare/JS-heavy pages).
+    """
+    try:
+        import universal_scraper
+        return universal_scraper.scrape_custom_urls_or_selectors(urls=urls, concurrency=concurrency, use_camoufox=use_camoufox)
+    except Exception as e:
+        return {"status": "error", "message": f"Custom URL batch scraper error: {str(e)}"}
+
+
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
+    universal_deep_scraper,
+    scrape_custom_urls_batch,
     vault_store_secret,
     vault_get_secret,
     vault_list_secrets,
