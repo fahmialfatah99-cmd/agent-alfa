@@ -2319,18 +2319,32 @@ def write_to_clipboard(text: str) -> Dict[str, Any]:
 
 def show_desktop_notification(title: str, message: str, urgency: str = "normal") -> Dict[str, Any]:
     """
-    Show a popup notification on the Linux desktop screen (visible on the physical monitor).
+    Show a native desktop popup notification across Linux, macOS, and Windows.
     
     Args:
         title: Notification title.
         message: Notification body text.
         urgency: 'low', 'normal', or 'critical'.
     """
+    import sys
     try:
-        subprocess.run(
-            ["notify-send", f"--urgency={urgency}", "--app-name=TelegramAI", title, message],
-            capture_output=True, text=True, timeout=3
-        )
+        if sys.platform == "darwin":  # macOS
+            apple_script = f'display notification "{message}" with title "{title}"'
+            subprocess.run(["osascript", "-e", apple_script], capture_output=True, text=True, timeout=3)
+        elif sys.platform == "win32":  # Windows
+            ps_cmd = (
+                f"[reflection.assembly]::loadwithpartialname('System.Windows.Forms');"
+                f"$notify = new-object system.windows.forms.notifyicon;"
+                f"$notify.icon = [system.drawing.systemicons]::information;"
+                f"$notify.visible = $true;"
+                f"$notify.showballoontip(10, '{title}', '{message}', [system.windows.forms.tooltipicon]::None)"
+            )
+            subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True, text=True, timeout=3)
+        else:  # Linux / Unix
+            subprocess.run(
+                ["notify-send", f"--urgency={urgency}", "--app-name=AgentALFA", title, message],
+                capture_output=True, text=True, timeout=3
+            )
         return {"status": "success", "message": f"Notifikasi desktop '{title}' berhasil ditampilkan di layar."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
