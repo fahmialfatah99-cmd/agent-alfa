@@ -235,6 +235,9 @@
             <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
             </button>
+            <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> αlfa Vault & Security
+            </button>
             <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">75</span>
             </button>
@@ -2029,6 +2032,227 @@
             </div>
         </section>
 
+        <!-- ==================== TAB: ALFA SECURE VAULT & CYBER SENTRY ==================== -->
+        <section id="view-vault" class="tab-view hidden space-y-6">
+            <!-- Header Banner -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/30 bg-amber-500/5">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold">
+                            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        </div>
+                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">αlfa SECURE VAULT & CYBER SENTRY</h2>
+                    </div>
+                    <p class="text-xs text-slate-400">Brankas Kredensial Terenkripsi Militer (AES-256-GCM) & Suite Audit Keamanan Website Defensif oleh Fahmi Alfatah.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
+                    <span class="px-3 py-1.5 rounded-xl bg-dark-900 border border-amber-500/30 text-amber-300 font-bold flex items-center gap-1.5">
+                        <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-400"></i> AES-256-GCM Active
+                    </span>
+                    <span class="px-3 py-1.5 rounded-xl bg-dark-900 border border-emerald-500/30 text-emerald-300 font-bold flex items-center gap-1.5">
+                        <i data-lucide="key-round" class="w-3.5 h-3.5 text-emerald-400"></i> 256-Bit Master Key
+                    </span>
+                </div>
+            </div>
+
+            <!-- Sub-Tabs Switcher -->
+            <div class="flex items-center space-x-2 p-1.5 bg-dark-900/80 rounded-xl border border-white/5 overflow-x-auto">
+                <button onclick="switchVaultSubTab('secrets')" id="vault-subtab-btn-secrets" class="px-4 py-2 text-xs font-mono font-bold rounded-lg transition-all text-amber-300 bg-amber-500/20 border border-amber-500/30 flex items-center gap-1.5 whitespace-nowrap">
+                    <i data-lucide="database" class="w-3.5 h-3.5"></i> 1. Brankas Kredensial (AES-256-GCM)
+                </button>
+                <button onclick="switchVaultSubTab('scanner')" id="vault-subtab-btn-scanner" class="px-4 py-2 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 2. Cyber Sentry Web Auditor
+                </button>
+                <button onclick="switchVaultSubTab('settings')" id="vault-subtab-btn-settings" class="px-4 py-2 text-xs font-mono font-bold rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+                    <i data-lucide="fingerprint" class="w-3.5 h-3.5"></i> 3. Kunci Passkey & Master Key
+                </button>
+            </div>
+
+            <!-- SUB-VIEW 1: SECRETS VAULT (AES-256-GCM) -->
+            <div id="vault-subview-secrets" class="vault-subview space-y-6">
+                <!-- Add New Secret Card -->
+                <div class="glass-card p-6 rounded-2xl space-y-4 border border-amber-500/20">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                            <i data-lucide="plus-circle" class="w-4 h-4 text-amber-400"></i> SIMPAN KREDENSIAL / RAHASIA BARU KE BRANKAS
+                        </h3>
+                        <span class="text-[10px] font-mono text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Authenticated AES-GCM</span>
+                    </div>
+
+                    <form onsubmit="storeVaultSecretForm(event)" class="space-y-4 text-xs font-sans">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Nama Identifier Secret:</label>
+                                <input type="text" id="vault-input-name" placeholder="Contoh: KLING_AI_KEY, SHOPEE_TOKEN, DB_PASS" required class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Kategori Rahasia:</label>
+                                <select id="vault-input-category" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-amber-500">
+                                    <option value="api_key">🔑 API Key (AI, Video, Cloud)</option>
+                                    <option value="affiliate">🛍️ Affiliate (Cookie, Token, Secret)</option>
+                                    <option value="password">🔐 Password / PIN / SSH Key</option>
+                                    <option value="note">📝 Catatan Rahasia (Secret Notes)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Keterangan / Deskripsi Singkat:</label>
+                                <input type="text" id="vault-input-notes" placeholder="Contoh: Akun video generator prod" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-white font-sans focus:outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Nilai Rahasia (Value to Encrypt):</label>
+                            <div class="relative">
+                                <input type="password" id="vault-input-value" placeholder="Ketik atau tempel data rahasia yang akan dienkripsi..." required class="w-full p-2.5 pr-10 bg-dark-950 border border-white/10 rounded-xl text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-500">
+                                <button type="button" onclick="toggleKeyVisibility('vault-input-value')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-1">
+                            <button type="submit" id="btn-store-vault" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-dark-950 font-bold font-mono shadow-glow-amber flex items-center gap-2 transition-all">
+                                <i data-lucide="lock" class="w-4 h-4"></i> 🔒 Enkripsi & Kunci ke Vault Sekarang
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Vault Inventory & Search -->
+                <div class="glass-card p-6 rounded-2xl space-y-4 border border-white/5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-amber-400"></i> INVENTARIS RAHASIA TERSIMPAN DI VAULT
+                            </h3>
+                            <span id="vault-total-count-badge" class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">0 Items</span>
+                        </div>
+                        <!-- Category Filter Pills -->
+                        <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+                            <button onclick="filterVaultSecrets('all')" id="vfilter-btn-all" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">Semua</button>
+                            <button onclick="filterVaultSecrets('api_key')" id="vfilter-btn-api_key" class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white">API Keys</button>
+                            <button onclick="filterVaultSecrets('affiliate')" id="vfilter-btn-affiliate" class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white">Affiliate</button>
+                            <button onclick="filterVaultSecrets('password')" id="vfilter-btn-password" class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white">Passwords</button>
+                            <button onclick="filterVaultSecrets('note')" id="vfilter-btn-note" class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white">Notes</button>
+                        </div>
+                    </div>
+
+                    <div id="vault-secrets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                        <!-- Dynamic Secret Cards from JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW 2: CYBER SENTRY WEB SECURITY AUDITOR -->
+            <div id="vault-subview-scanner" class="vault-subview hidden space-y-6">
+                <!-- Scanner Input Card -->
+                <div class="glass-card p-6 rounded-2xl space-y-4 border border-cyan-500/20">
+                    <div class="space-y-1">
+                        <h3 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4"></i> CYBER SENTRY: AUDIT KEAMANAN WEBSITE & API
+                        </h3>
+                        <p class="text-xs text-slate-400">Analisis mendalam terhadap SSL/TLS, Security Headers (CSP, HSTS, X-Frame-Options, XSS), CORS leaks, dan fingerprint server.</p>
+                    </div>
+
+                    <form onsubmit="runCyberSentryAudit(event)" class="space-y-3">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <i data-lucide="globe" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
+                                <input type="text" id="sentry-target-url" placeholder="Masukkan URL Target (cth: https://shopee.co.id atau https://tokopedia.com)..." required class="w-full pl-9 pr-3 py-2.5 bg-dark-950 border border-white/10 rounded-xl text-xs text-cyan-200 font-mono focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <button type="submit" id="btn-run-sentry" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-dark-950 font-bold font-mono shadow-glow-cyan flex items-center justify-center gap-2 transition-all text-xs">
+                                <i data-lucide="search-check" class="w-4 h-4"></i> 🛡️ Jalankan Security Audit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Audit Results Container -->
+                <div id="sentry-results-container" class="hidden space-y-4">
+                    <!-- Score & SSL Overview Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div id="sentry-grade-card" class="glass-card p-5 rounded-2xl border flex flex-col items-center justify-center text-center space-y-1">
+                            <span class="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Overall Security Grade</span>
+                            <div id="sentry-grade-val" class="text-4xl font-black font-mono">A+</div>
+                            <div id="sentry-score-val" class="text-xs font-mono text-slate-300">Score: 95 / 100</div>
+                        </div>
+
+                        <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2 col-span-2">
+                            <h4 class="text-xs font-bold font-mono text-slate-300 flex items-center gap-1.5">
+                                <i data-lucide="lock" class="w-3.5 h-3.5 text-cyan-400"></i> Informasi Sertifikat SSL / TLS
+                            </h4>
+                            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                                <div><span class="text-slate-500">Protokol:</span> <span id="sentry-ssl-proto" class="text-emerald-400 font-bold">TLSv1.3</span></div>
+                                <div><span class="text-slate-500">Status HTTPS:</span> <span id="sentry-ssl-status" class="text-emerald-400">Terenkripsi</span></div>
+                                <div><span class="text-slate-500">Penerbit (CA):</span> <span id="sentry-ssl-issuer" class="text-slate-300 truncate block">Let's Encrypt</span></div>
+                                <div><span class="text-slate-500">Kadaluarsa:</span> <span id="sentry-ssl-exp" class="text-slate-300 truncate block">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Headers Check Matrix -->
+                    <div class="glass-card p-6 rounded-2xl space-y-3 border border-white/5">
+                        <h4 class="text-xs font-bold font-mono text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-400"></i> Matriks Pemeriksaan Header Keamanan
+                        </h4>
+                        <div id="sentry-checks-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            <!-- Dynamic checks from JS -->
+                        </div>
+                    </div>
+
+                    <!-- Remediation & Actionable Findings -->
+                    <div class="glass-card p-6 rounded-2xl space-y-3 border border-white/5">
+                        <h4 class="text-xs font-bold font-mono text-slate-300 flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-400"></i> Temuan Kerentanan & Rekomendasi Perbaikan
+                        </h4>
+                        <div id="sentry-findings-list" class="space-y-2">
+                            <!-- Dynamic findings from JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW 3: PASSKEY & MASTER KEY SETTINGS -->
+            <div id="vault-subview-settings" class="vault-subview hidden space-y-6">
+                <div class="glass-card p-6 rounded-2xl space-y-5 border border-white/5">
+                    <div class="space-y-1">
+                        <h3 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                            <i data-lucide="fingerprint" class="w-4 h-4 text-cyan-400"></i> KUNCI PASSKEY BIOMETRIK & MASTER ENCRYPTION
+                        </h3>
+                        <p class="text-xs text-slate-400">Lindungi akses dashboard dengan sidik jari/FaceID dan kelola kunci enkripsi master.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Biometric Lock Toggle Card -->
+                        <div class="p-4 rounded-xl bg-dark-950/80 border border-white/10 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="space-y-0.5">
+                                    <div class="font-bold text-xs text-white font-mono">Kunci Passkey Biometrik</div>
+                                    <div class="text-[11px] text-slate-400">Minta autentikasi sidik jari saat membuka dashboard</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="passkey-lock-toggle" onchange="togglePasskeySwitch()" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-dark-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                                </label>
+                            </div>
+                            <div id="passkey-lock-status-text" class="text-[11px] font-mono text-slate-400">Status: Tidak Aktif (Akses Bebas Lokal)</div>
+                        </div>
+
+                        <!-- Master Key Info Card -->
+                        <div class="p-4 rounded-xl bg-dark-950/80 border border-white/10 space-y-2">
+                            <div class="font-bold text-xs text-white font-mono flex items-center gap-1.5">
+                                <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i> Lokasi Kunci Enkripsi Master
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-300 bg-dark-900 p-2 rounded border border-white/5 truncate">
+                                ~/.alfa_vault_master.key (256-bit AES)
+                            </div>
+                            <p class="text-[10px] text-slate-400">Kunci master tersimpan aman dengan permission 0600 di home directory user.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <!-- Interactive Tool Execution Modal -->
@@ -2365,6 +2589,7 @@
             if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchAgentActivity(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
             if (tabId === 'keys') fetchKeys();
+            if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
             
             lucide.createIcons();
         }
@@ -5215,6 +5440,372 @@
                 }
             } catch (err) {
                 showToast(`Gagal memuat detail campaign: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== ALFA SECURE VAULT & CYBER SENTRY JS ====================
+        let currentVaultCategory = 'all';
+        let allVaultSecretsData = [];
+
+        function switchVaultSubTab(sub) {
+            document.querySelectorAll('.vault-subview').forEach(el => el.classList.add('hidden'));
+            ['secrets', 'scanner', 'settings'].forEach(s => {
+                const btn = document.getElementById(`vault-subtab-btn-${s}`);
+                if (btn) {
+                    btn.classList.remove('bg-amber-500/20', 'text-amber-300', 'border', 'border-amber-500/30', 'font-bold');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            const targetView = document.getElementById(`vault-subview-${sub}`);
+            const targetBtn = document.getElementById(`vault-subtab-btn-${sub}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (targetBtn) {
+                targetBtn.classList.remove('text-slate-400');
+                targetBtn.classList.add('bg-amber-500/20', 'text-amber-300', 'border', 'border-amber-500/30', 'font-bold');
+            }
+            lucide.createIcons();
+        }
+
+        async function fetchVaultSecrets(category = null) {
+            if (category) currentVaultCategory = category;
+            try {
+                const res = await fetch(`/api/vault/list?category=${currentVaultCategory}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    allVaultSecretsData = data.items || [];
+                    renderVaultSecretsList();
+                    const badge = document.getElementById('vault-total-count-badge');
+                    if (badge) badge.innerText = `${allVaultSecretsData.length} Items`;
+                }
+            } catch (err) {
+                console.error('Fetch vault secrets error:', err);
+            }
+        }
+
+        function filterVaultSecrets(cat) {
+            currentVaultCategory = cat;
+            ['all', 'api_key', 'affiliate', 'password', 'note'].forEach(c => {
+                const btn = document.getElementById(`vfilter-btn-${c}`);
+                if (btn) {
+                    btn.className = (c === cat)
+                        ? 'px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold'
+                        : 'px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white';
+                }
+            });
+            fetchVaultSecrets(cat);
+        }
+
+        function renderVaultSecretsList() {
+            const grid = document.getElementById('vault-secrets-grid');
+            if (!grid) return;
+
+            if (allVaultSecretsData.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full p-8 text-center bg-dark-950/60 rounded-xl border border-white/5 space-y-2">
+                        <i data-lucide="shield-check" class="w-8 h-8 text-amber-400/50 mx-auto"></i>
+                        <p class="text-xs text-slate-400 font-mono">Belum ada secret tersimpan di kategori ini.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = allVaultSecretsData.map(sec => {
+                let catBadge = '';
+                let catIcon = 'key';
+                if (sec.category === 'api_key') {
+                    catBadge = '<span class="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-mono border border-cyan-500/20">API Key</span>';
+                    catIcon = 'key';
+                } else if (sec.category === 'affiliate') {
+                    catBadge = '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">Affiliate</span>';
+                    catIcon = 'shopping-bag';
+                } else if (sec.category === 'password') {
+                    catBadge = '<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-mono border border-rose-500/20">Password</span>';
+                    catIcon = 'lock';
+                } else {
+                    catBadge = '<span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-mono border border-purple-500/20">Note</span>';
+                    catIcon = 'file-text';
+                }
+
+                return `
+                    <div class="p-4 rounded-xl bg-dark-950/80 border border-white/10 hover:border-amber-500/30 transition-all space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="space-y-0.5">
+                                <div class="font-bold text-xs text-white font-mono flex items-center gap-1.5 truncate">
+                                    <i data-lucide="${catIcon}" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0"></i>
+                                    <span class="truncate">${sec.name}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 truncate">${sec.notes || 'Enkripsi AES-256-GCM'}</div>
+                            </div>
+                            ${catBadge}
+                        </div>
+
+                        <!-- Masked Value & Actions -->
+                        <div class="p-2.5 rounded-lg bg-dark-900 border border-white/5 flex items-center justify-between gap-2 font-mono text-xs">
+                            <span id="vault-val-${sec.id}" class="text-amber-300 font-mono tracking-widest truncate">••••••••••••••••</span>
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <button onclick="revealVaultSecret(${sec.id})" title="Dekripsi & Lihat Nilai" class="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-amber-300">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="copyVaultSecret(${sec.id})" title="Salin ke Clipboard" class="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-cyan-300">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-white/5">
+                            <span>Tersimpan: ${new Date(sec.updated_at).toLocaleDateString('id-ID')}</span>
+                            <button onclick="deleteVaultSecret(${sec.id}, '${sec.name}')" class="text-rose-400 hover:text-rose-300 flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        async function storeVaultSecretForm(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const btn = document.getElementById('btn-store-vault');
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Mengenkripsi (AES-256-GCM)...';
+            lucide.createIcons();
+
+            const name = document.getElementById('vault-input-name').value.trim();
+            const category = document.getElementById('vault-input-category').value;
+            const notes = document.getElementById('vault-input-notes').value.trim();
+            const value = document.getElementById('vault-input-value').value.trim();
+
+            try {
+                const res = await fetch('/api/vault/store', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category, notes, value })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    document.getElementById('vault-input-name').value = '';
+                    document.getElementById('vault-input-notes').value = '';
+                    document.getElementById('vault-input-value').value = '';
+                    fetchVaultSecrets();
+                } else {
+                    showToast(`Gagal: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Vault error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="lock" class="w-4 h-4"></i> 🔒 Enkripsi & Kunci ke Vault Sekarang';
+                lucide.createIcons();
+            }
+        }
+
+        async function revealVaultSecret(id) {
+            const valSpan = document.getElementById(`vault-val-${id}`);
+            if (valSpan && valSpan.dataset.revealed === 'true') {
+                valSpan.innerText = '••••••••••••••••';
+                valSpan.dataset.revealed = 'false';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/vault/reveal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (valSpan) {
+                        valSpan.innerText = data.value;
+                        valSpan.dataset.revealed = 'true';
+                        valSpan.dataset.raw = data.value;
+                    }
+                } else {
+                    showToast(data.message || 'Gagal mendekripsi', 'error');
+                }
+            } catch (err) {
+                showToast(`Reveal error: ${err.message}`, 'error');
+            }
+        }
+
+        async function copyVaultSecret(id) {
+            const valSpan = document.getElementById(`vault-val-${id}`);
+            if (valSpan && valSpan.dataset.raw) {
+                navigator.clipboard.writeText(valSpan.dataset.raw);
+                showToast('Nilai secret disalin ke clipboard!', 'success');
+                return;
+            }
+            try {
+                const res = await fetch('/api/vault/reveal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    navigator.clipboard.writeText(data.value);
+                    showToast(`Secret '${data.name}' berhasil disalin ke clipboard!`, 'success');
+                }
+            } catch (err) {
+                showToast(`Copy error: ${err.message}`, 'error');
+            }
+        }
+
+        async function deleteVaultSecret(id, name) {
+            if (!confirm(`Hapus permanen secret '${name}' dari αlfa Secure Vault?`)) return;
+            try {
+                const res = await fetch(`/api/vault/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'info');
+                    fetchVaultSecrets();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (err) {
+                showToast(`Delete error: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== CYBER SENTRY SECURITY AUDITOR JS ====================
+        async function runCyberSentryAudit(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const btn = document.getElementById('btn-run-sentry');
+            const targetUrl = document.getElementById('sentry-target-url').value.trim();
+            if (!targetUrl) return;
+
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Memindai SSL & Security Headers...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/security/audit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: targetUrl })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    renderCyberSentryResults(data);
+                    showToast(`Audit keamanan untuk '${data.hostname}' selesai! Grade: ${data.grade}`, 'success');
+                } else {
+                    showToast(`Audit gagal: ${data.error || data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Scan error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="search-check" class="w-4 h-4"></i> 🛡️ Jalankan Security Audit';
+                lucide.createIcons();
+            }
+        }
+
+        function renderCyberSentryResults(data) {
+            const container = document.getElementById('sentry-results-container');
+            if (!container) return;
+            container.classList.remove('hidden');
+
+            // Grade Card
+            const gradeCard = document.getElementById('sentry-grade-card');
+            const gradeVal = document.getElementById('sentry-grade-val');
+            const scoreVal = document.getElementById('sentry-score-val');
+
+            gradeVal.innerText = data.grade;
+            gradeVal.style.color = data.grade_color;
+            scoreVal.innerText = `Score: ${data.score} / 100 (${data.latency_ms} ms)`;
+            gradeCard.style.borderColor = `${data.grade_color}40`;
+
+            // SSL Info
+            document.getElementById('sentry-ssl-proto').innerText = data.ssl_info.tls_version || 'N/A';
+            document.getElementById('sentry-ssl-status').innerText = data.is_https ? 'HTTPS Terenkripsi' : 'HTTP Polos (Tidak Aman)';
+            document.getElementById('sentry-ssl-issuer').innerText = data.ssl_info.issuer || '-';
+            document.getElementById('sentry-ssl-exp').innerText = data.ssl_info.expires_on || '-';
+
+            // Checks Matrix
+            const checksGrid = document.getElementById('sentry-checks-grid');
+            const checkKeys = Object.keys(data.checks || {});
+            checksGrid.innerHTML = checkKeys.map(k => {
+                const c = data.checks[k];
+                let badge = '';
+                if (c.status === 'PASS') {
+                    badge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">PASS</span>';
+                } else if (c.status === 'WARN') {
+                    badge = '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold">WARN</span>';
+                } else {
+                    badge = '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">FAIL</span>';
+                }
+
+                return `
+                    <div class="p-3 rounded-xl bg-dark-950 border border-white/5 space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-white font-mono uppercase">${k.replace(/_/g, ' ')}</span>
+                            ${badge}
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-sans">${c.desc}</p>
+                        ${c.value ? `<div class="text-[10px] font-mono text-slate-500 truncate bg-dark-900 p-1 rounded">${c.value}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Findings List
+            const findingsList = document.getElementById('sentry-findings-list');
+            if (!data.findings || data.findings.length === 0) {
+                findingsList.innerHTML = `
+                    <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-mono flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Website ini memiliki konfigurasi keamanan header yang sangat baik!
+                    </div>
+                `;
+            } else {
+                findingsList.innerHTML = data.findings.map(f => {
+                    let sevBadge = (f.severity === 'HIGH')
+                        ? '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 text-[10px] font-bold font-mono">HIGH RISK</span>'
+                        : '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold font-mono">MEDIUM</span>';
+
+                    return `
+                        <div class="p-3.5 rounded-xl bg-dark-950 border border-white/5 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-white font-mono">${f.header}</span>
+                                ${sevBadge}
+                            </div>
+                            <p class="text-slate-300">${f.issue}</p>
+                            <div class="text-[11px] font-mono text-cyan-300 bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
+                                💡 Solusi: ${f.recommendation}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            lucide.createIcons();
+        }
+
+        // ==================== PASSKEY & SECURITY SETTINGS JS ====================
+        async function fetchPasskeyStatus() {
+            try {
+                const res = await fetch('/api/vault/passkey/status');
+                const data = await res.json();
+                const toggle = document.getElementById('passkey-lock-toggle');
+                const txt = document.getElementById('passkey-lock-status-text');
+                if (toggle) toggle.checked = data.enabled;
+                if (txt) txt.innerText = data.enabled ? 'Status: AKTIF (Terkunci Biometrik/PIN)' : 'Status: Tidak Aktif (Akses Bebas Lokal)';
+            } catch (err) {
+                console.error('Fetch passkey status error:', err);
+            }
+        }
+
+        async function togglePasskeySwitch() {
+            const toggle = document.getElementById('passkey-lock-toggle');
+            const enabled = toggle.checked;
+            try {
+                const res = await fetch('/api/vault/passkey/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                const data = await res.json();
+                showToast(data.message, 'info');
+                fetchPasskeyStatus();
+            } catch (err) {
+                showToast(`Toggle passkey error: ${err.message}`, 'error');
             }
         }
 

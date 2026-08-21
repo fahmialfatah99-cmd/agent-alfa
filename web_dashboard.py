@@ -367,6 +367,102 @@ async def generate_promo_video(payload: Dict[str, Any]):
     return res
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  ALFA SECURE VAULT & CYBER SENTRY API ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/vault/list")
+async def list_vault_secrets(category: str = "all"):
+    """List metadata for secrets stored in the AES-256-GCM vault."""
+    import vault_engine
+    return {
+        "status": "success",
+        "items": vault_engine.vault.list_secrets(category=category)
+    }
+
+
+@app.post("/api/vault/store")
+async def store_vault_secret(payload: Dict[str, Any]):
+    """Encrypt and store secret into AES-256-GCM vault."""
+    import vault_engine
+    name = payload.get("name", "").strip()
+    value = payload.get("value", "").strip()
+    category = payload.get("category", "api_key").strip()
+    notes = payload.get("notes", "").strip()
+    
+    if not name or not value:
+        return {"status": "error", "message": "Nama dan nilai secret wajib diisi."}
+        
+    res = vault_engine.vault.store_secret(name=name, value=value, category=category, notes=notes)
+    return res
+
+
+@app.post("/api/vault/reveal")
+async def reveal_vault_secret(payload: Dict[str, Any]):
+    """Decrypt and reveal a secret value for authorized viewing."""
+    import vault_engine
+    secret_id = payload.get("id") or payload.get("name")
+    if not secret_id:
+        return {"status": "error", "message": "Secret ID atau nama diperlukan."}
+        
+    sec = vault_engine.vault.get_secret(str(secret_id))
+    if not sec:
+        return {"status": "error", "message": "Secret tidak ditemukan di dalam vault."}
+        
+    return {
+        "status": "success",
+        "name": sec["name"],
+        "category": sec["category"],
+        "value": sec["value"]
+    }
+
+
+@app.delete("/api/vault/{secret_id}")
+async def delete_vault_secret(secret_id: int):
+    """Delete a secret permanently from the vault."""
+    import vault_engine
+    deleted = vault_engine.vault.delete_secret(int(secret_id))
+    if deleted:
+        return {"status": "success", "message": f"Secret ID {secret_id} berhasil dihapus dari vault."}
+    return {"status": "error", "message": f"Secret ID {secret_id} tidak ditemukan."}
+
+
+@app.post("/api/security/audit")
+async def audit_target_security(payload: Dict[str, Any]):
+    """Perform comprehensive defensive cybersecurity audit on a target URL."""
+    import security_auditor
+    target_url = payload.get("url", "").strip()
+    if not target_url:
+        return {"status": "error", "message": "URL target wajib dimasukkan."}
+        
+    res = security_auditor.audit_website_security(target_url)
+    return res
+
+
+@app.get("/api/vault/passkey/status")
+async def get_passkey_status():
+    """Get status of biometric/passkey lock."""
+    with database.get_sync_db() as conn:
+        c = conn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+        c.execute("SELECT value FROM system_settings WHERE key = 'passkey_lock_enabled'")
+        row = c.fetchone()
+        enabled = row[0] == "true" if row else False
+        return {"enabled": enabled}
+
+
+@app.post("/api/vault/passkey/toggle")
+async def toggle_passkey_lock(payload: Dict[str, Any]):
+    """Toggle biometric/passkey lock for the dashboard."""
+    enabled = bool(payload.get("enabled", False))
+    with database.get_sync_db() as conn:
+        c = conn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+        c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('passkey_lock_enabled', ?)", ("true" if enabled else "false",))
+        conn.commit()
+        return {"status": "success", "enabled": enabled, "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}."}
+
+
 @app.get("/api/services")
 async def get_services_status():
     """Get detailed status of all ecosystem services."""

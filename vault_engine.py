@@ -1,0 +1,215 @@
+"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                   ALFA SECURE VAULT ENGINE (AES-256-GCM)                     ║
+║   Enterprise Military-Grade Authenticated Encryption Secret Store            ║
+║   Copyright (c) 2026 Fahmi Alfatah. All Rights Reserved.                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+
+import os
+import json
+import base64
+import sqlite3
+import hashlib
+import logging
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+logger = logging.getLogger("alfa.vault")
+
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+KEY_FILE = os.path.expanduser("~/.alfa_vault_master.key")
+
+
+def _get_or_create_master_key() -> bytes:
+    """
+    Retrieve or generate 256-bit (32-byte) AES-GCM Master Key.
+    Prioritizes .env VAULT_MASTER_KEY, then ~/.alfa_vault_master.key.
+    """
+    env_key = os.getenv("VAULT_MASTER_KEY", "").strip()
+    if env_key:
+        if len(env_key) == 64: # 64 hex chars = 32 bytes
+            return bytes.fromhex(env_key)
+        # Derive 32 bytes via SHA-256
+        return hashlib.sha256(env_key.encode("utf-8")).digest()
+        
+    if os.path.exists(KEY_FILE):
+        try:
+            with open(KEY_FILE, "rb") as f:
+                key = f.read().strip()
+                if len(key) == 32:
+                    return key
+                elif len(key) == 64:
+                    return bytes.fromhex(key.decode("utf-8"))
+        except Exception as e:
+            logger.warning(f"Failed to read vault master key file: {e}")
+
+    # Generate new random 256-bit key
+    new_key = AESGCM.generate_key(bit_length=256)
+    try:
+        with open(KEY_FILE, "wb") as f:
+            f.write(new_key.hex().encode("utf-8"))
+        os.chmod(KEY_FILE, 0o600)
+    except Exception as e:
+        logger.error(f"Could not persist vault master key: {e}")
+        
+    return new_key
+
+
+def _init_vault_db():
+    """Ensure vault_secrets table exists in SQLite database."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS vault_secrets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            category TEXT NOT NULL DEFAULT 'api_key',
+            ciphertext TEXT NOT NULL,
+            nonce TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+# Initialize table on import
+_init_vault_db()
+
+
+class AlfaSecureVault:
+    """
+    High-Performance AES-256-GCM Secret Store.
+    Encrypts sensitive data with 96-bit unique nonces per entry and authenticated tags.
+    """
+    
+    def __init__(self):
+        self.master_key = _get_or_create_master_key()
+        self.aesgcm = AESGCM(self.master_key)
+
+    def encrypt_val(self, plaintext: str) -> Dict[str, str]:
+        """Encrypt string data using AES-256-GCM with a fresh 12-byte nonce."""
+        nonce = os.urandom(12)
+        data_bytes = plaintext.encode("utf-8")
+        ciphertext = self.aesgcm.encrypt(nonce, data_bytes, None)
+        return {
+            "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
+            "nonce": base64.b64encode(nonce).decode("utf-8")
+        }
+
+    def decrypt_val(self, ciphertext_b64: str, nonce_b64: str) -> str:
+        """Decrypt ciphertext and verify authenticity tag."""
+        ciphertext = base64.b64decode(ciphertext_b64)
+        nonce = base64.b64decode(nonce_b64)
+        decrypted_bytes = self.aesgcm.decrypt(nonce, ciphertext, None)
+        return decrypted_bytes.decode("utf-8")
+
+    def store_secret(self, name: str, value: str, category: str = "api_key", notes: str = "") -> Dict[str, Any]:
+        """Store or update an encrypted secret in the vault."""
+        clean_name = name.strip()
+        if not clean_name:
+            raise ValueError("Secret name cannot be empty")
+            
+        enc = self.encrypt_val(value)
+        now = datetime.now().isoformat()
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Upsert secret
+        cursor.execute("""
+            INSERT INTO vault_secrets (name, category, ciphertext, nonce, created_at, updated_at, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                category = excluded.category,
+                ciphertext = excluded.ciphertext,
+                nonce = excluded.nonce,
+                updated_at = excluded.updated_at,
+                notes = excluded.notes
+        """, (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes))
+        
+        conn.commit()
+        last_id = cursor.lastrowid
+        conn.close()
+        
+        logger.info(f"Secret '{clean_name}' successfully encrypted with AES-256-GCM into vault.")
+        return {
+            "status": "success",
+            "name": clean_name,
+            "category": category,
+            "algorithm": "AES-256-GCM",
+            "message": f"Secret '{clean_name}' aman tersimpan dalam αlfa Secure Vault."
+        }
+
+    def get_secret(self, name_or_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve and decrypt secret value."""
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if str(name_or_id).isdigit():
+            cursor.execute("SELECT * FROM vault_secrets WHERE id = ?", (int(name_or_id),))
+        else:
+            cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (str(name_or_id).strip(),))
+            
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return None
+            
+        decrypted_val = self.decrypt_val(row["ciphertext"], row["nonce"])
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "category": row["category"],
+            "value": decrypted_val,
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "notes": row["notes"]
+        }
+
+    def list_secrets(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List metadata for secrets without exposing decrypted values."""
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if category and category != "all":
+            cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets WHERE category = ? ORDER BY updated_at DESC", (category,))
+        else:
+            cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets ORDER BY updated_at DESC")
+            
+        rows = cursor.fetchall()
+        conn.close()
+        
+        items = []
+        for r in rows:
+            items.append({
+                "id": r["id"],
+                "name": r["name"],
+                "category": r["category"],
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+                "notes": r["notes"] or "",
+                "masked_value": "••••••••••••••••"
+            })
+        return items
+
+    def delete_secret(self, secret_id: int) -> bool:
+        """Permanently delete a secret from vault."""
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM vault_secrets WHERE id = ?", (secret_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+
+# Global Singleton
+vault = AlfaSecureVault()
