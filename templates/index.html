@@ -3374,7 +3374,7 @@
                     document.getElementById('stat-disk-used').innerText = `${data.disk.used_gb} / ${data.disk.total_gb} GB`;
                     document.getElementById('stat-disk-bar').style.width = `${data.disk.percent}%`;
 
-                    document.getElementById('stat-batt-pct').innerText = `${data.battery.percent}%`;
+                    document.getElementById('stat-batt-pct').innerText = `${Math.round(data.battery.percent)}%`;
                     document.getElementById('stat-batt-status').innerText = data.battery.status;
                     document.getElementById('stat-uptime').innerText = data.uptime;
 
@@ -3845,6 +3845,12 @@
                 a.href = url;
                 a.download = `ALFA_Second_Brain_${new Date().toISOString().slice(0,10)}.md`;
                 a.click();
+                showToast('Second Brain diexport sebagai file Markdown!', 'success');
+            } catch (err) {
+                showToast(`Export gagal: ${err.message}`, 'error');
+            }
+        }
+
         // ==================== NEURAL VECTOR BRAIN JS ====================
         function openVectorIngestModal() {
             document.getElementById('vector-ingest-modal').classList.remove('hidden');
