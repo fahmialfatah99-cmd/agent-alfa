@@ -15,6 +15,7 @@ import secrets
 import inspect
 import asyncio
 import logging
+import shutil
 import subprocess
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -592,15 +593,25 @@ async def get_system_settings():
 
 @app.post("/api/settings")
 async def update_system_settings(payload: Dict[str, Any]):
-    """Update system configuration (.env and database settings)."""
+    """Update system configuration (.env and database settings).
+
+    Only fields explicitly present in the payload are modified; absent
+    fields keep their existing .env values untouched.
+    """
     import os
     env_path = os.path.join(os.path.dirname(__file__), ".env")
-    
-    bot_token = payload.get("telegram_bot_token", "").strip()
-    gemini_key = payload.get("gemini_api_key", "").strip()
-    gemini_model = payload.get("gemini_model", "").strip()
-    allowed_ids = payload.get("allowed_user_ids", "").strip()
-    system_instruction = payload.get("system_instruction", "").strip()
+
+    def _get(field: str) -> Optional[str]:
+        """Return stripped payload value only if the client explicitly sent it."""
+        if field in payload and isinstance(payload[field], str):
+            return payload[field].strip()
+        return None
+
+    bot_token = _get("telegram_bot_token")
+    gemini_key = _get("gemini_api_key")
+    gemini_model = _get("gemini_model")
+    allowed_ids = _get("allowed_user_ids")
+    system_instruction = _get("system_instruction")
     
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
@@ -614,28 +625,31 @@ async def update_system_settings(payload: Dict[str, Any]):
     for line in lines:
         if line.startswith("TELEGRAM_BOT_TOKEN="):
             keys_seen.add("TELEGRAM_BOT_TOKEN")
-            if bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+            if bot_token is not None and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
                 new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
             else:
                 new_lines.append(line)
         elif line.startswith("GEMINI_API_KEY="):
             keys_seen.add("GEMINI_API_KEY")
-            if gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+            if gemini_key is not None and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
                 new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
             else:
                 new_lines.append(line)
         elif line.startswith("GEMINI_MODEL="):
             keys_seen.add("GEMINI_MODEL")
-            if gemini_model:
+            if gemini_model is not None and gemini_model:
                 new_lines.append(f"GEMINI_MODEL={gemini_model}\n")
             else:
                 new_lines.append(line)
         elif line.startswith("ALLOWED_USER_IDS="):
             keys_seen.add("ALLOWED_USER_IDS")
-            new_lines.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
+            if allowed_ids is not None:
+                new_lines.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
+            else:
+                new_lines.append(line)
         elif line.startswith("SYSTEM_INSTRUCTION="):
             keys_seen.add("SYSTEM_INSTRUCTION")
-            if system_instruction:
+            if system_instruction is not None and system_instruction:
                 escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
                 new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
             else:
@@ -644,6 +658,7 @@ async def update_system_settings(payload: Dict[str, Any]):
             new_lines.append(line)
             
     # Append any settings whose key was not present in the file yet
+    # (only for fields the client explicitly sent).
     pending = []
     if "TELEGRAM_BOT_TOKEN" not in keys_seen and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
         pending.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
@@ -651,7 +666,7 @@ async def update_system_settings(payload: Dict[str, Any]):
         pending.append(f"GEMINI_API_KEY={gemini_key}\n")
     if "GEMINI_MODEL" not in keys_seen and gemini_model:
         pending.append(f"GEMINI_MODEL={gemini_model}\n")
-    if "ALLOWED_USER_IDS" not in keys_seen:
+    if "ALLOWED_USER_IDS" not in keys_seen and allowed_ids is not None:
         pending.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
     if "SYSTEM_INSTRUCTION" not in keys_seen and system_instruction:
         escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
@@ -664,11 +679,15 @@ async def update_system_settings(payload: Dict[str, Any]):
     # Write the personality to its authoritative location. run_agent_turn
     # re-reads this file on EVERY message, so changes take effect immediately
     # for both Telegram and the web chat - no restart needed.
-    if system_instruction:
+    # Empty string means "clear the file"; absent key means untouched.
+    if system_instruction is not None:
         alfa_dir = os.path.expanduser("~/.alfa")
         alfa_prompt_path = os.path.join(alfa_dir, "system_prompt.txt")
         try:
             os.makedirs(alfa_dir, exist_ok=True)
+            # Keep one-step backup so a bad save can always be rolled back
+            if os.path.exists(alfa_prompt_path):
+                shutil.copyfile(alfa_prompt_path, alfa_prompt_path + ".bak")
             with open(alfa_prompt_path, "w", encoding="utf-8") as f:
                 f.write(system_instruction + "\n")
         except Exception as prompt_err:
