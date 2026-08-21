@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALFA // Sovereign Command Center Pro-Max</title>
     
-    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <!-- Ultra-Clear Google Fonts: Plus Jakarta Sans, Inter, & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,7 +18,7 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
@@ -65,10 +65,22 @@
             text-rendering: optimizeLegibility !important;
         }
 
+        /* UNIVERSAL FONT CLARITY: Clean, modern, crisp SaaS typography */
+        body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, span, div, a, td, th, label, li, ul {
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            letter-spacing: normal !important;
+        }
+
+        code, pre, .font-code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
+        }
+
         body {
             background-color: #070B14;
             min-height: 100vh;
-            color: #E2E8F0;
+            color: #F1F5F9;
+            font-size: 14px;
+            line-height: 1.5;
         }
         
         .glass-card {
@@ -197,7 +209,7 @@
             100% { opacity: 0; transform: translateY(-12px) scaleX(1.4); }
         }
 
-        /* ==================== RAZOR-SHARP LIGHT MODE OVERRIDES ==================== */
+        /* ==================== HIGH-CONTRAST LIGHT MODE (TERANG & SANGAT JELAS) ==================== */
         html:not(.dark) body {
             background-color: #F8FAFC !important;
             background-image: none !important;
@@ -205,28 +217,28 @@
         }
         html:not(.dark) .glass-card {
             background: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+            border: 1px solid #CBD5E1 !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
             color: #0F172A !important;
         }
         html:not(.dark) .glass-card:hover {
-            border-color: #06B6D4 !important;
+            border-color: #0284C7 !important;
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
         }
         html:not(.dark) .glass-nav {
             background: #FFFFFF !important;
-            border-bottom: 1px solid #E2E8F0 !important;
+            border-bottom: 1px solid #CBD5E1 !important;
         }
         html:not(.dark) #main-sidebar {
             background: #FFFFFF !important;
-            border-right: 1px solid #E2E8F0 !important;
+            border-right: 1px solid #CBD5E1 !important;
         }
         html:not(.dark) .bg-dark-950,
         html:not(.dark) .bg-dark-950\/90,
         html:not(.dark) .bg-dark-950\/80 {
             background-color: #F1F5F9 !important;
             color: #0F172A !important;
-            border-color: #E2E8F0 !important;
+            border-color: #CBD5E1 !important;
         }
         html:not(.dark) .bg-dark-900,
         html:not(.dark) .bg-dark-900\/90,
@@ -234,46 +246,93 @@
         html:not(.dark) .bg-dark-900\/80 {
             background-color: #FFFFFF !important;
             color: #0F172A !important;
+            border-color: #CBD5E1 !important;
         }
         html:not(.dark) .text-white {
             color: #0F172A !important;
             font-weight: 700 !important;
         }
+        html:not(.dark) .text-slate-100,
         html:not(.dark) .text-slate-200, 
         html:not(.dark) .text-slate-300 {
-            color: #1E293B !important;
+            color: #0F172A !important;
+            font-weight: 500 !important;
         }
         html:not(.dark) .text-slate-400 {
-            color: #475569 !important;
+            color: #334155 !important;
+            font-weight: 500 !important;
         }
         html:not(.dark) .text-slate-500 {
-            color: #64748B !important;
+            color: #475569 !important;
         }
         html:not(.dark) input, 
         html:not(.dark) textarea, 
         html:not(.dark) select {
             background-color: #FFFFFF !important;
             color: #0F172A !important;
-            border-color: #CBD5E1 !important;
+            border: 1px solid #94A3B8 !important;
+            font-weight: 500 !important;
         }
         html:not(.dark) .border-white\/5, 
         html:not(.dark) .border-white\/10 {
-            border-color: #E2E8F0 !important;
+            border-color: #CBD5E1 !important;
         }
         html:not(.dark) .bg-white\/5 {
             background-color: #F1F5F9 !important;
+            color: #0F172A !important;
+            border-color: #CBD5E1 !important;
         }
         html:not(.dark) .bg-white\/10 {
             background-color: #E2E8F0 !important;
+            color: #0F172A !important;
         }
         html:not(.dark) #hq-stage-container {
             background-color: #F8FAFC !important;
+            border-color: #CBD5E1 !important;
+        }
+        html:not(.dark) .cyber-grid-floor {
+            background-image: 
+                linear-gradient(to right, rgba(14, 165, 233, 0.12) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(14, 165, 233, 0.12) 1px, transparent 1px) !important;
+        }
+        html:not(.dark) #hq-active-speech-bubble {
+            background-color: #FFFFFF !important;
+            border: 2px solid #0284C7 !important;
+            color: #0F172A !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        }
+        html:not(.dark) #speech-bubble-text {
+            color: #0F172A !important;
+            font-weight: 600 !important;
+        }
+        html:not(.dark) #speech-bubble-name {
+            color: #0369A1 !important;
+            font-weight: 800 !important;
+        }
+        html:not(.dark) #speech-bubble-model {
+            background-color: #E0F2FE !important;
+            color: #0369A1 !important;
+            font-weight: 700 !important;
+        }
+        html:not(.dark) #meeting-consensus-box {
+            background: #F0FDF4 !important;
+            border: 2px solid #22C55E !important;
+            color: #0F172A !important;
+        }
+        html:not(.dark) #meeting-consensus-text,
+        html:not(.dark) #meeting-action-plan-text {
+            color: #0F172A !important;
+            font-weight: 500 !important;
+        }
+        html:not(.dark) #meeting-execution-results-container {
+            background: #FFFBEB !important;
+            border: 2px solid #F59E0B !important;
         }
         html:not(.dark) .custom-scrollbar::-webkit-scrollbar-track {
             background: #F1F5F9 !important;
         }
         html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #CBD5E1 !important;
+            background: #94A3B8 !important;
         }
     </style>
 </head>
@@ -312,109 +371,109 @@
                 </div>
 
                 <!-- Vertical Menu Categories -->
-                <nav class="space-y-4 font-mono text-xs">
+                <nav class="space-y-4 font-sans text-sm">
                     <!-- Category 1: Workspace Utama -->
                     <div class="space-y-1">
-                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                        <div class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-2 py-1">
                             WORKSPACE UTAMA
                         </div>
-                        <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
+                        <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
-                                <span class="font-bold">Telemetry Live</span>
+                                <span>Telemetry Live</span>
                             </div>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                         </button>
-                        <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                        <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="users" class="w-4 h-4 text-violet-400"></i>
-                                <span class="font-bold">AI Swarm & Rapat</span>
+                                <span>AI Swarm & Rapat</span>
                             </div>
-                            <span class="px-1.5 py-0.2 rounded text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">2 MODES</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">2 MODES</span>
                         </button>
-                        <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-orange-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-orange-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="scan" class="w-4 h-4 text-orange-400"></i>
-                                <span class="font-bold">Master Scraper Pro</span>
+                                <span>Master Scraper Pro</span>
                             </div>
-                            <span class="px-1.5 py-0.2 rounded text-[8px] bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold">PRO</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold">PRO</span>
                         </button>
-                        <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-emerald-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="shopping-bag" class="w-4 h-4 text-emerald-400"></i>
-                                <span class="font-bold">Affiliate Studio</span>
+                                <span>Affiliate Studio</span>
                             </div>
-                            <span class="text-emerald-400 text-[10px]">💰</span>
+                            <span class="text-emerald-400 text-xs">💰</span>
                         </button>
                     </div>
 
                     <!-- Category 2: Security & Capabilities -->
                     <div class="space-y-1">
-                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                        <div class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-2 py-1">
                             SECURITY & TOOLS
                         </div>
-                        <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-amber-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
-                                <span class="font-bold">Passkey Vault</span>
+                                <span>Passkey Vault</span>
                             </div>
-                            <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-500"></i>
+                            <i data-lucide="lock" class="w-4 h-4 text-slate-400"></i>
                         </button>
-                        <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                        <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="key" class="w-4 h-4 text-cyan-400"></i>
-                                <span class="font-bold">API Keys Manager</span>
+                                <span>API Keys Manager</span>
                             </div>
                         </button>
-                        <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-indigo-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-indigo-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
-                                <span class="font-bold">Tools Catalog</span>
+                                <span>Tools Catalog</span>
                             </div>
-                            <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[9px] rounded text-cyan-400">102</span>
+                            <span id="nav-tools-badge" class="px-2 py-0.5 bg-dark-800 text-[10px] rounded text-cyan-400 font-bold">120+</span>
                         </button>
-                        <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-pink-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-pink-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="brain" class="w-4 h-4 text-pink-400"></i>
-                                <span class="font-bold">Second Brain</span>
+                                <span>Second Brain</span>
                             </div>
                         </button>
-                        <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-emerald-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="folder-kanban" class="w-4 h-4 text-emerald-400"></i>
-                                <span class="font-bold">File Artifacts</span>
+                                <span>File Artifacts</span>
                             </div>
                         </button>
                     </div>
 
                     <!-- Category 3: System & Services -->
                     <div class="space-y-1">
-                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                        <div class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-2 py-1">
                             SYSTEM & CONTROLS
                         </div>
-                        <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                        <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="layers" class="w-4 h-4 text-slate-400"></i>
-                                <span class="font-bold">System Services</span>
+                                <span>System Services</span>
                             </div>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                         </button>
-                        <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-blue-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-blue-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
-                                <span class="font-bold">Guardian Defense</span>
+                                <span>Guardian Defense</span>
                             </div>
                         </button>
-                        <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-yellow-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-yellow-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="terminal" class="w-4 h-4 text-yellow-400"></i>
-                                <span class="font-bold">Web Console</span>
+                                <span>Web Console</span>
                             </div>
                         </button>
-                        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-cyan-300 hover:bg-white/5 text-left">
+                        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-cyan-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
-                                <span class="font-bold">System Settings</span>
+                                <span>System Settings</span>
                             </div>
                         </button>
                     </div>
@@ -422,47 +481,47 @@
             </div>
 
             <!-- Bottom Section: Dedicated "Minimalist Services Status" Dock -->
-            <div class="pt-4 mt-4 border-t border-white/10 space-y-2.5 font-mono">
+            <div class="pt-4 mt-4 border-t border-white/10 space-y-2.5 font-sans">
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <i data-lucide="server" class="w-3.5 h-3.5 text-cyan-400"></i> SERVICES DOCK
                     </span>
-                    <button onclick="switchTab('services')" class="text-[9px] text-cyan-400 hover:underline">Semua ⚙️</button>
+                    <button onclick="switchTab('services')" class="text-xs text-cyan-400 hover:underline font-bold">Semua ⚙️</button>
                 </div>
                 
-                <div class="p-2.5 rounded-2xl bg-dark-950/90 border border-white/5 space-y-2 text-[11px] shadow-inner">
+                <div class="p-3 rounded-2xl bg-dark-950/90 border border-white/10 space-y-2 text-xs shadow-inner">
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                             Agent ALFA
                         </span>
-                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">ONLINE</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">ONLINE</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                             WA Sheets Sync
                         </span>
-                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">:3000</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">:3000</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
-                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                             Web Dashboard
                         </span>
-                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">:8080</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">:8080</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
-                            <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                            <span class="w-2 h-2 rounded-full bg-violet-400"></span>
                             Swarm Engine
                         </span>
-                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold">6 AGENTS</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold">6 AGENTS</span>
                     </div>
                 </div>
 
                 <!-- Theme Switcher Button in Sidebar -->
-                <button onclick="toggleTheme()" class="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold flex items-center justify-between text-slate-300 transition-all shadow-sm" title="Klik untuk beralih mode gelap / terang">
+                <button onclick="toggleTheme()" class="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold flex items-center justify-between text-slate-200 transition-all shadow-sm" title="Klik untuk beralih mode gelap / terang">
                     <div class="flex items-center gap-2">
                         <span id="sidebar-theme-icon">🌙</span>
                         <span class="text-slate-400">Mode Tema:</span>
@@ -1513,19 +1572,19 @@
                         <svg id="hq-laser-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
 
                         <!-- Top Floating Speech Bubble Container (Dynamic Position & Text) -->
-                        <div id="hq-active-speech-bubble" class="hidden absolute top-0 z-30 max-w-lg w-[95%] sm:w-auto p-4 rounded-2xl bg-dark-900/95 border border-cyan-500/50 shadow-2xl backdrop-blur-xl hq-speech-bubble">
-                            <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2">
+                        <div id="hq-active-speech-bubble" class="hidden absolute top-0 z-30 max-w-lg w-[95%] sm:w-auto p-4 rounded-2xl bg-dark-900/95 border-2 border-cyan-500 shadow-2xl backdrop-blur-xl hq-speech-bubble">
+                            <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
                                 <div class="flex items-center gap-2">
-                                    <span id="speech-bubble-avatar" class="text-base">👑</span>
-                                    <span id="speech-bubble-name" class="text-xs font-bold text-cyan-400 font-mono">Alpha Lead</span>
-                                    <span id="speech-bubble-model" class="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-mono">Gemini 3.5</span>
+                                    <span id="speech-bubble-avatar" class="text-lg">👑</span>
+                                    <span id="speech-bubble-name" class="text-sm font-extrabold text-cyan-400">Alpha Lead</span>
+                                    <span id="speech-bubble-model" class="text-xs px-2 py-0.5 rounded-md bg-white/10 text-slate-200 font-bold">Gemini 3.5</span>
                                 </div>
-                                <div class="flex items-center gap-1 text-[10px] font-mono text-cyan-300">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                                <div class="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+                                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
                                     <span id="speech-bubble-status">BERBICARA</span>
                                 </div>
                             </div>
-                            <div id="speech-bubble-text" class="text-xs text-slate-100 font-sans leading-relaxed min-h-[30px] prose prose-invert max-w-none">
+                            <div id="speech-bubble-text" class="text-sm text-slate-100 font-medium leading-relaxed min-h-[36px] max-w-none">
                                 <!-- Typewriter Text Here -->
                             </div>
                         </div>
@@ -4745,9 +4804,9 @@
                         </div>
 
                         <!-- Top Pod Accessory Badge -->
-                        <div class="w-full flex items-center justify-between text-[10px] font-mono text-slate-400">
-                            <span class="truncate max-w-[70px]">${a.provider.toUpperCase()}</span>
-                            <span class="text-xs float-anim">${acc.icon}</span>
+                        <div class="w-full flex items-center justify-between text-xs font-bold text-slate-400">
+                            <span class="truncate max-w-[80px]">${a.provider.toUpperCase()}</span>
+                            <span class="text-sm float-anim">${acc.icon}</span>
                         </div>
 
                         <!-- Agent Avatar Circle with Glowing Ring -->
@@ -4758,12 +4817,12 @@
 
                         <!-- Agent Identity & Role -->
                         <div class="space-y-0.5 w-full">
-                            <div class="text-xs font-bold text-white font-mono truncate">${a.name}</div>
-                            <div class="text-[10px] text-slate-400 truncate leading-tight">${a.role}</div>
+                            <div class="text-sm font-bold text-white truncate">${a.name}</div>
+                            <div class="text-xs text-slate-300 truncate leading-snug font-medium">${a.role}</div>
                         </div>
 
                         <!-- Live Pod State Badge -->
-                        <div id="hq-pod-state-${a.id}" class="w-full py-0.5 px-1.5 rounded-lg bg-white/5 border border-white/5 text-[9px] font-mono font-bold text-slate-300 truncate">
+                        <div id="hq-pod-state-${a.id}" class="w-full py-1 px-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-slate-200 truncate">
                             🟢 IDLE / SIAP
                         </div>
                     </div>
