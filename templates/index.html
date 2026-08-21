@@ -1638,6 +1638,9 @@
                             <button onclick="switchAffTab('tiktok')" id="aff-tab-btn-tiktok" class="px-2.5 py-1 text-[11px] font-mono rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 🎬 Script TikTok
                             </button>
+                            <button onclick="switchAffTab('video')" id="aff-tab-btn-video" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white flex items-center gap-1">
+                                🎥 Render Video MP4
+                            </button>
                             <button onclick="switchAffTab('telegram')" id="aff-tab-btn-telegram" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white">
                                 🔥 Telegram Card
                             </button>
@@ -1652,6 +1655,75 @@
 
                     <!-- Live Content Display Area -->
                     <div id="aff-content-container" class="relative">
+                        <!-- Video Generator View -->
+                        <div id="aff-view-video" class="aff-subview hidden space-y-4">
+                            <div class="p-4 bg-dark-950 rounded-xl border border-emerald-500/30 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                                        <i data-lucide="video" class="w-4 h-4 text-emerald-400"></i> Auto Video Maker 9:16 (TikTok / Reels / Shorts)
+                                    </h4>
+                                    <span class="text-[10px] font-mono text-emerald-400">⚡ Animasi Ken Burns + Voiceover AI</span>
+                                </div>
+                                <p class="text-xs text-slate-400">Pilih foto produk dari komputermu, dan AI akan otomatis membuat video promosi vertikal lengkap dengan animasi zoom, price tag, dan dubbing suara.</p>
+
+                                <div class="space-y-3 pt-2">
+                                    <!-- Image File Picker -->
+                                    <div class="space-y-1">
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Foto Produk (Pilih 1 atau Banyak Foto)</label>
+                                        <div class="flex items-center gap-2">
+                                            <input type="text" id="video-input-images" placeholder="Pilih foto produk..." class="flex-1 p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                            <label class="cursor-pointer px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-mono font-bold flex items-center gap-1 whitespace-nowrap">
+                                                <i data-lucide="image" class="w-3.5 h-3.5"></i> Pilih Foto
+                                                <input type="file" multiple accept="image/*" onchange="handleToolFileUpload(event, 'video-input-images', true)" class="hidden">
+                                            </label>
+                                        </div>
+                                        <div id="file-badge-video-input-images" class="text-[10px] font-mono text-slate-400"></div>
+                                    </div>
+
+                                    <!-- Voice Selection -->
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="space-y-1">
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Suara Voiceover AI</label>
+                                            <select id="video-voice-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                                <option value="id-ID-GadisNeural">👩 Gadis (Cewek Ramah & Energik)</option>
+                                                <option value="id-ID-ArdiNeural">👨 Ardi (Cowok Percaya Diri & Jelas)</option>
+                                            </select>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Folder Output</label>
+                                            <div class="p-2 bg-dark-900 border border-white/5 rounded-xl text-[11px] font-mono text-emerald-300 truncate">
+                                                ~/Dokumen/ALFA_GENERATED_VIDEOS/
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Voiceover Textarea -->
+                                    <div class="space-y-1">
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Narasi Voiceover</label>
+                                        <textarea id="video-voiceover-text" rows="3" placeholder="Teks yang akan dibacakan oleh voiceover AI..." class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-slate-200 font-sans text-xs"></textarea>
+                                    </div>
+
+                                    <button onclick="renderAffiliateVideoNow()" id="btn-render-video" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold font-mono rounded-xl shadow-glow-emerald flex items-center justify-center gap-2 transition-all text-xs">
+                                        <i data-lucide="clapperboard" class="w-4 h-4"></i> 🎬 Render Video Promosi MP4 Sekarang
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Video Player Preview Container -->
+                            <div id="video-player-container" class="hidden glass-card p-4 rounded-xl border border-emerald-500/40 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+                                        ✓ Video Berhasil Dirender (1080x1920 9:16)
+                                    </span>
+                                    <a id="video-download-btn" href="#" download class="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-mono font-bold flex items-center gap-1">
+                                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Download Video MP4
+                                    </a>
+                                </div>
+                                <div class="flex justify-center bg-black/80 rounded-xl p-2">
+                                    <video id="video-preview-player" controls class="max-h-96 rounded-lg shadow-2xl border border-white/10" style="aspect-ratio: 9/16;"></video>
+                                </div>
+                            </div>
+                        </div>
                         <!-- TikTok Script View -->
                         <div id="aff-view-tiktok" class="aff-subview space-y-3">
                             <div class="flex items-center justify-between">
@@ -4787,7 +4859,7 @@
 
         function switchAffTab(subTab) {
             document.querySelectorAll('.aff-subview').forEach(el => el.classList.add('hidden'));
-            ['tiktok', 'telegram', 'whatsapp', 'spill'].forEach(t => {
+            ['tiktok', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
                 const btn = document.getElementById(`aff-tab-btn-${t}`);
                 if (btn) {
                     btn.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
@@ -4803,6 +4875,62 @@
                 targetBtn.classList.add('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
             }
             lucide.createIcons();
+        }
+
+        async function renderAffiliateVideoNow() {
+            const btn = document.getElementById('btn-render-video');
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rendering Video H.264 (Ken Burns + Voiceover)...';
+            lucide.createIcons();
+
+            const imgVal = document.getElementById('video-input-images').value.trim();
+            const images = imgVal ? imgVal.split(',').map(s => s.trim()) : [];
+            const productName = document.getElementById('aff-product-name').value.trim() || 'Produk Pilihan';
+            const origPrice = document.getElementById('aff-orig-price').value.trim() || 'Rp 149.000';
+            const discPrice = document.getElementById('aff-disc-price').value.trim() || 'Rp 49.900';
+            const voice = document.getElementById('video-voice-select').value;
+            let voiceText = document.getElementById('video-voiceover-text').value.trim();
+
+            if (!voiceText) {
+                voiceText = `Jangan beli dulu sebelum nonton ini! Promo spesial ${productName}, harga normal ${origPrice} sekarang lagi drop cuma ${discPrice}! Klik keranjang kuning sekarang sebelum kuponnya habis ya!`;
+                document.getElementById('video-voiceover-text').value = voiceText;
+            }
+
+            try {
+                const res = await fetch('/api/video/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image_paths: images,
+                        product_name: productName,
+                        voiceover_text: voiceText,
+                        orig_price: origPrice,
+                        disc_price: discPrice,
+                        voice: voice
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const playerBox = document.getElementById('video-player-container');
+                    const player = document.getElementById('video-preview-player');
+                    const dlBtn = document.getElementById('video-download-btn');
+
+                    player.src = data.download_url;
+                    player.load();
+                    dlBtn.href = data.download_url;
+                    dlBtn.download = data.video_filename;
+                    playerBox.classList.remove('hidden');
+                    player.play().catch(() => {});
+
+                    showToast(`Video promosi '${data.video_filename}' sukses dirender (${data.file_size_mb} MB)!`, 'success');
+                } else {
+                    showToast(`Render video gagal: ${data.message || 'Error'}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Video render error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="clapperboard" class="w-4 h-4"></i> 🎬 Render Video Promosi MP4 Sekarang';
+                lucide.createIcons();
+            }
         }
 
         async function runAffiliateGenerator(e) {
@@ -4847,6 +4975,11 @@
             document.getElementById('aff-text-tiktok').innerText = c.tiktok_script || 'N/A';
             document.getElementById('aff-text-telegram').innerText = c.telegram_card || 'N/A';
             document.getElementById('aff-text-whatsapp').innerText = c.wa_broadcast || 'N/A';
+            
+            const vText = document.getElementById('video-voiceover-text');
+            if (vText) {
+                vText.value = `Jangan beli dulu sebelum nonton ini! Promo spesial ${c.product_name}, harga normal ${c.original_price} sekarang lagi drop cuma ${c.discount_price}! Fitur unggulan: ${c.key_features}. Langsung klik link sekarang ya!`;
+            }
 
             const spillBox = document.getElementById('aff-spill-list');
             if (c.spill_replies && c.spill_replies.length > 0) {
@@ -4861,7 +4994,6 @@
                         </button>
                     </div>
                 `).join('');
-            }
             lucide.createIcons();
         }
 

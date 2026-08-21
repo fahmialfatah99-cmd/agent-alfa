@@ -1948,6 +1948,45 @@ def marketplace_search_products(query: str, platform: str = "shopee", max_items:
         return {"status": "error", "message": str(e)}
 
 
+def generate_promo_video_from_images(
+    image_paths: List[str],
+    product_name: str,
+    voiceover_text: str,
+    orig_price: str = "Rp 149.000",
+    disc_price: str = "Rp 49.900",
+    voice: str = "id-ID-GadisNeural",
+    output_filename: str = "promo_video.mp4"
+) -> Dict[str, Any]:
+    """
+    Generate video promosi produk otomatis format 9:16 (1080x1920) untuk TikTok / Reels / Shorts hanya dari foto produk.
+    Dilengkapi animasi zoompan Ken Burns, dubbing voiceover AI bahasa Indonesia, dan banner flash sale diskon.
+    Hasil otomatis tersimpan di ~/Dokumen/ALFA_GENERATED_VIDEOS/.
+    
+    Args:
+        image_paths: Daftar path file foto produk di komputer (bisa 1 atau banyak foto).
+        product_name: Nama produk yang dipromosikan.
+        voiceover_text: Naskah teks narasi / promosi yang akan dibacakan oleh voiceover AI.
+        orig_price: Harga coret sebelum diskon (misal: 'Rp 149.000').
+        disc_price: Harga flash sale / drop (misal: 'Rp 49.900').
+        voice: Suara voiceover AI ('id-ID-GadisNeural' untuk cewek ramah, 'id-ID-ArdiNeural' untuk cowok).
+        output_filename: Nama file output MP4.
+    """
+    try:
+        import video_generator
+        return video_generator.generate_video_from_images(
+            image_paths=image_paths,
+            product_name=product_name,
+            voiceover_text=voiceover_text,
+            orig_price=orig_price,
+            disc_price=disc_price,
+            voice=voice,
+            output_filename=output_filename
+        )
+    except Exception as e:
+        logger.error(f"Error in generate_promo_video_from_images: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[List[Any]], filename: str = "data.xlsx") -> Dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
@@ -4232,6 +4271,7 @@ AVAILABLE_TOOLS = [
     scrape_real_product_data,
     scrape_large_scale_batch,
     marketplace_search_products,
+    generate_promo_video_from_images,
     generate_excel_spreadsheet,
     generate_presentation_pptx,
     control_linux_hardware,

@@ -327,6 +327,33 @@ async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
     return res
 
 
+@app.post("/api/video/generate")
+async def generate_promo_video(payload: Dict[str, Any]):
+    """Generate 9:16 vertical promo video from images and script."""
+    import video_generator
+    image_paths = payload.get("image_paths", [])
+    product_name = payload.get("product_name", "Produk Pilihan").strip()
+    voiceover_text = payload.get("voiceover_text", "").strip()
+    orig_price = payload.get("orig_price", "Rp 149.000").strip()
+    disc_price = payload.get("disc_price", "Rp 49.900").strip()
+    voice = payload.get("voice", "id-ID-GadisNeural")
+    output_filename = payload.get("output_filename", None)
+    
+    if not voiceover_text:
+        voiceover_text = f"Promo spesial {product_name}, harga normal {orig_price} sekarang lagi drop cuma {disc_price}! Jangan sampai kehabisan, langsung klik link sekarang!"
+        
+    res = video_generator.generate_video_from_images(
+        image_paths=image_paths,
+        product_name=product_name,
+        voiceover_text=voiceover_text,
+        orig_price=orig_price,
+        disc_price=disc_price,
+        voice=voice,
+        output_filename=output_filename
+    )
+    return res
+
+
 @app.get("/api/services")
 async def get_services_status():
     """Get detailed status of all ecosystem services."""
