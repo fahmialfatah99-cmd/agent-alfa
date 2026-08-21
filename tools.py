@@ -4203,21 +4203,21 @@ def manage_custom_agents(action: str, name: str = "", role: str = "", persona: s
         return {"status": "error", "message": f"Manage custom agents error: {str(e)}"}
 
 
-def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2) -> Dict[str, Any]:
+def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode: str = "plan") -> Dict[str, Any]:
     """
-    Conduct an Autonomous Round-Table Conference / Meeting between multiple AI agents.
-    Agents will debate the topic turn-by-turn, challenge assumptions, brainstorm solutions,
-    and formulate a unified consensus and executable action plan.
+    Conduct an Autonomous Conference / Meeting or Live Swarm Execution between multiple AI agents.
     
     Args:
-        topic: The agenda / problem / project to be discussed in the meeting.
-        participants: Comma-separated agent names (e.g. 'Alpha Lead, Code Crafter, System Auditor') or empty for default team.
+        topic: The agenda, problem, or live task to be executed.
+        participants: Comma-separated agent names or empty for default team.
         rounds: Number of discussion rounds (1 to 3, default: 2).
+        mode: 'plan' (strategic debate & action plan) or 'execute' (rapid alignment + live autonomous tool execution & artifacts).
     """
     try:
         import swarm_engine
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
+        mode_clean = mode.lower().strip() if mode else "plan"
         
         # Run meeting asynchronously
         loop = asyncio.get_event_loop()
@@ -4225,19 +4225,21 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2) -> D
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 result = pool.submit(
-                    lambda: asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped))
+                    lambda: asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
                 ).result()
         else:
-            result = loop.run_until_complete(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped))
+            result = loop.run_until_complete(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
             
         return {
             "status": "success",
             "meeting_id": result.get("meeting_id"),
             "title": result.get("title"),
             "topic": topic,
+            "mode": mode_clean,
             "total_rounds": rounds_clamped,
             "participants": result.get("participants"),
             "total_dialogues": len(result.get("dialogue_transcript", [])),
+            "execution_results": result.get("execution_results", []),
             "consensus": result.get("consensus"),
             "action_plan": result.get("action_plan")
         }

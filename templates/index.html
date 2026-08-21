@@ -1343,27 +1343,37 @@
 
                 <!-- Meeting Formulation Form -->
                 <div class="space-y-4">
+                    <!-- Mode Selector Tab Buttons -->
+                    <div class="flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-dark-950 rounded-2xl border border-white/10">
+                        <button type="button" onclick="setMeetingMode('plan')" id="btn-mode-plan" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-glow-violet">
+                            <i data-lucide="clipboard-list" class="w-4 h-4"></i> Mode 1: 📋 Rapat Plan (Perencanaan & Brainstorming)
+                        </button>
+                        <button type="button" onclick="setMeetingMode('execute')" id="btn-mode-execute" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Mode 2: ⚡ Swarm Eksekusi Langsung (Agen Bekerja Sama!)
+                        </button>
+                    </div>
+
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
-                            <label class="block text-xs font-mono font-bold text-slate-300">Topik / Agenda Rapat yang Dibahas:</label>
+                            <label id="meeting-topic-label" class="block text-xs font-mono font-bold text-slate-300">Topik / Agenda Rapat yang Dibahas:</label>
                             <span class="text-[10px] text-slate-500 font-mono">Pilih preset cepat di bawah ⬇️</span>
                         </div>
-                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang strategi integrasi WhatsApp bot dengan OpenAI/Gemini multi-model dan optimalisasi performa database..." class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-sans"></textarea>
+                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding..." class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-sans"></textarea>
                         
                         <!-- Quick Topic Presets -->
-                        <div class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
-                            <span class="text-slate-500 whitespace-nowrap">💡 Topik Cepat:</span>
+                        <div id="meeting-presets-container" class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
+                            <span class="text-slate-500 whitespace-nowrap">💡 Preset Cepat:</span>
                             <button type="button" onclick="setMeetingTopic('Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">🚀 Arsitektur Multi-Agent</button>
-                            <button type="button" onclick="setMeetingTopic('Evaluasi keamanan API Key Vault, enkripsi SQLite, dan mitigasi kebocoran data')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">🛡️ Audit Keamanan Vault</button>
-                            <button type="button" onclick="setMeetingTopic('Strategi optimasi latency LLM dan perbandingan efisiensi NVIDIA NIM vs Gemini')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">⚡ Optimasi NVIDIA NIM & Gemini</button>
-                            <button type="button" onclick="setMeetingTopic('Pengembangan sistem sinkronisasi real-time WhatsApp Bot dan Google Sheets')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">📋 WhatsApp Sheets Sync</button>
+                            <button type="button" onclick="setMeetingTopic('Buatkan script Python otomatisasi monitoring server dan auto-restart service')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/5 whitespace-nowrap transition-all">⚡ Buat Script Monitor & Fix</button>
+                            <button type="button" onclick="setMeetingTopic('Scrape 10 lowongan kerja Python AI di LinkedIn dan buatkan analisa ringkasnya')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">🕷️ Scrape & Analisis</button>
+                            <button type="button" onclick="setMeetingTopic('Audit keamanan sistem, scanning celah terbuka, dan validasi sertifikat SSL')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/5 whitespace-nowrap transition-all">🛡️ Audit Keamanan Swarm</button>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
-                                <label class="block text-xs font-mono font-bold text-slate-300">Peserta Rapat yang Diundang:</label>
+                                <label class="block text-xs font-mono font-bold text-slate-300">Peserta Rapat & Swarm yang Dilibatkan:</label>
                                 <div class="flex items-center gap-2 text-[10px] font-mono">
                                     <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Pilih Semua</button>
                                     <span class="text-slate-600">|</span>
@@ -1375,7 +1385,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Putaran Diskusi (Rounds):</label>
+                            <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Putaran Diskusi (Rounds):</label>
                             <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
                                 <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
                                 <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
@@ -1388,25 +1398,38 @@
                     </div>
                 </div>
 
-                <!-- Live Dialogue Stream Container -->
+                <!-- Live Dialogue & Live Swarm Execution Container -->
                 <div id="meeting-dialogue-container" class="hidden space-y-4 pt-4 border-t border-white/5">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-mono font-bold text-slate-300 flex items-center gap-2">
+                        <span id="meeting-transcript-header-label" class="text-xs font-mono font-bold text-slate-300 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-violet-400 animate-ping"></span>
-                            TRANSKRIP DIALOG BERLANGSUNG
+                            TRANSKRIP KOORDINASI ANTAGENT
                         </span>
                         <span id="meeting-dialogue-count" class="text-xs text-slate-500 font-mono">0 Masukan</span>
                     </div>
 
                     <!-- Transcript Feed -->
-                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar p-3 bg-dark-950/80 rounded-2xl border border-white/5">
+                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar p-3 bg-dark-950/80 rounded-2xl border border-white/5">
                         <!-- Dialogue speech bubbles -->
                     </div>
 
-                    <!-- Consensus & Action Plan Result Box -->
+                    <!-- Live Swarm Real Execution Cards Container (Mode 2) -->
+                    <div id="meeting-execution-results-container" class="hidden space-y-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 shadow-glow-amber">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-amber-400 font-mono flex items-center gap-2">
+                                <i data-lucide="terminal" class="w-4 h-4"></i> HASIL EKSEKUSI NYATA OLEH TIM SWARM (LIVE OUTPUT)
+                            </h4>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">AUTONOMOUS WORKFORCE</span>
+                        </div>
+                        <div id="meeting-execution-steps-feed" class="grid grid-cols-1 gap-2.5">
+                            <!-- Live execution step cards -->
+                        </div>
+                    </div>
+
+                    <!-- Consensus & Action Plan / Deliverable Result Box -->
                     <div id="meeting-consensus-box" class="hidden p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 shadow-glow-emerald">
                         <div class="flex items-center justify-between">
-                            <h4 class="text-sm font-bold text-emerald-400 font-mono flex items-center gap-2">
+                            <h4 id="meeting-consensus-header" class="text-sm font-bold text-emerald-400 font-mono flex items-center gap-2">
                                 <i data-lucide="award" class="w-5 h-5"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT
                             </h4>
                             <button onclick="copyConsensus()" class="px-2.5 py-1 text-xs rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-semibold">Salin Hasil</button>
@@ -4560,18 +4583,78 @@
             document.getElementById('meeting-room-panel').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // AI Meeting Controller
+        // ==================== AI MEETING & SWARM WORKSPACE CONTROLLER ====================
+        let currentMeetingMode = 'plan';
+
+        function setMeetingMode(mode) {
+            currentMeetingMode = mode;
+            const btnPlan = document.getElementById('btn-mode-plan');
+            const btnExec = document.getElementById('btn-mode-execute');
+            const topicLabel = document.getElementById('meeting-topic-label');
+            const topicInput = document.getElementById('meeting-topic-input');
+            const roundsLabel = document.getElementById('meeting-rounds-label');
+            const roundsSelect = document.getElementById('meeting-rounds-select');
+            const btnStart = document.getElementById('btn-start-meeting');
+            const statusBadge = document.getElementById('meeting-status-badge');
+
+            if (mode === 'execute') {
+                btnExec.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-amber';
+                btnPlan.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-violet-300 hover:bg-white/5 border border-transparent';
+                
+                if (topicLabel) topicLabel.innerText = 'Perintah / Tugas Nyata untuk Dikerjakan Bersama oleh Tim Swarm:';
+                if (topicInput) topicInput.placeholder = 'Contoh: Buatkan script Python monitoring server, scrape data lowongan AI, audit keamanan port, dan buatkan laporan analitik lengkap...';
+                if (roundsLabel) roundsLabel.innerText = 'Alur Koordinasi & Eksekusi:';
+                if (roundsSelect) {
+                    roundsSelect.innerHTML = `
+                        <option value="1" selected>⚡ Eksekusi Cepat + Live Tool Actions (Rekomendasi)</option>
+                        <option value="2">⚡ Eksekusi Mendalam + Validasi Multi-Tahap</option>
+                    `;
+                }
+                if (btnStart) {
+                    btnStart.className = 'w-full mt-3 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-amber transition-all';
+                    btnStart.innerHTML = '<i data-lucide="zap" class="w-4 h-4 text-amber-200"></i> Jalankan Swarm & Eksekusi Langsung Sekarang!';
+                }
+                if (statusBadge) {
+                    statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 self-start sm:self-auto font-bold';
+                    statusBadge.innerText = 'SWARM WORK STANDBY';
+                }
+            } else {
+                btnPlan.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-glow-violet';
+                btnExec.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent';
+                
+                if (topicLabel) topicLabel.innerText = 'Topik / Agenda Rapat yang Dibahas:';
+                if (topicInput) topicInput.placeholder = 'Contoh: Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding...';
+                if (roundsLabel) roundsLabel.innerText = 'Putaran Diskusi (Rounds):';
+                if (roundsSelect) {
+                    roundsSelect.innerHTML = `
+                        <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
+                        <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
+                        <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
+                    `;
+                }
+                if (btnStart) {
+                    btnStart.className = 'w-full mt-3 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all';
+                    btnStart.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent';
+                }
+                if (statusBadge) {
+                    statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-white/5 text-slate-400 border border-white/10 self-start sm:self-auto font-bold';
+                    statusBadge.innerText = 'MEETING STANDBY';
+                }
+            }
+            lucide.createIcons();
+        }
+
         async function startAiMeeting() {
             const topic = document.getElementById('meeting-topic-input').value.trim();
             if (!topic) {
-                showToast('Masukkan topik atau agenda rapat terlebih dahulu.', 'error');
+                showToast('Masukkan topik atau perintah tugas terlebih dahulu.', 'error');
                 return;
             }
 
             const checkedNodes = document.querySelectorAll('input[name="meeting-agent"]:checked');
             const participants = Array.from(checkedNodes).map(n => n.value);
             if (participants.length === 0) {
-                showToast('Pilih minimal 1 agent peserta rapat.', 'error');
+                showToast('Pilih minimal 1 agent peserta.', 'error');
                 return;
             }
 
@@ -4581,17 +4664,28 @@
             const dialogueContainer = document.getElementById('meeting-dialogue-container');
             const transcriptFeed = document.getElementById('meeting-transcript-feed');
             const consensusBox = document.getElementById('meeting-consensus-box');
+            const execContainer = document.getElementById('meeting-execution-results-container');
+            const execFeed = document.getElementById('meeting-execution-steps-feed');
 
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rapat Sedang Berlangsung...';
-            statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold animate-pulse';
-            statusBadge.innerText = 'DISCUSSING & DEBATING...';
+            if (currentMeetingMode === 'execute') {
+                btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Swarm Sedang Bekerja & Mengeksekusi Tugas...';
+                statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold animate-pulse';
+                statusBadge.innerText = 'SWARM WORKING & EXECUTING...';
+            } else {
+                btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rapat Sedang Berlangsung...';
+                statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold animate-pulse';
+                statusBadge.innerText = 'DISCUSSING & DEBATING...';
+            }
+
             dialogueContainer.classList.remove('hidden');
             consensusBox.classList.add('hidden');
+            if (execContainer) execContainer.classList.add('hidden');
+
             transcriptFeed.innerHTML = `
                 <div class="p-6 flex flex-col items-center justify-center space-y-2 text-violet-300 text-xs font-mono">
                     <i data-lucide="loader" class="w-6 h-6 animate-spin text-violet-400"></i>
-                    <span>Memanggil agent peserta rapat dan memulai perdebatan round-table...</span>
+                    <span>${currentMeetingMode === 'execute' ? 'Membangunkan swarm agent dan mendistribusikan eksekusi tugas...' : 'Memanggil agent peserta rapat dan memulai perdebatan round-table...'}</span>
                 </div>
             `;
             lucide.createIcons();
@@ -4600,14 +4694,32 @@
                 const res = await fetch('/api/meetings/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic, participants, rounds })
+                    body: JSON.stringify({ 
+                        topic, 
+                        participants, 
+                        rounds, 
+                        mode: currentMeetingMode 
+                    })
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
                     renderMeetingDialogue(data.dialogue_transcript || []);
-                    document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Masukan`;
+                    document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
 
-                    // Render Consensus & Action Plan
+                    // Render Live Execution Results if in Execution Mode
+                    if (data.mode === 'execute' && data.execution_results && data.execution_results.length > 0) {
+                        renderSwarmExecutionResults(data.execution_results);
+                        if (execContainer) execContainer.classList.remove('hidden');
+                    }
+
+                    // Render Consensus / Deliverable Result Box
+                    const headerEl = document.getElementById('meeting-consensus-header');
+                    if (headerEl) {
+                        headerEl.innerHTML = data.mode === 'execute' 
+                            ? '<i data-lucide="award" class="w-5 h-5 text-amber-400"></i> 🏆 LAPORAN HASIL EKSEKUSI NYATA SWARM' 
+                            : '<i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT';
+                    }
+
                     const markedConsensus = marked.parse(data.consensus || 'Tidak ada konsensus.');
                     const markedAction = marked.parse(data.action_plan || '');
                     document.getElementById('meeting-consensus-text').innerHTML = markedConsensus;
@@ -4615,25 +4727,72 @@
                     consensusBox.classList.remove('hidden');
 
                     statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
-                    statusBadge.innerText = 'KONSENSUS TERCAPAI ✅';
-                    showToast('Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
+                    statusBadge.innerText = data.mode === 'execute' ? 'EKSEKUSI SUKSES ⚡' : 'KONSENSUS TERCAPAI ✅';
+                    
+                    showToast(data.mode === 'execute' ? 'Swarm selesai mengeksekusi semua tugas langsung!' : 'Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
                     fetchMeetings();
+                    fetchAgentActivity();
 
-                    // Scroll to animated HQ and trigger turn-by-turn simulation
-                    document.getElementById('ai-virtual-hq').scrollIntoView({ behavior: 'smooth' });
+                    // Scroll to visual virtual HQ
+                    document.getElementById('ai-virtual-hq')?.scrollIntoView({ behavior: 'smooth' });
                     playHqMeetingAnimation(data.dialogue_transcript || [], data.consensus, data.action_plan, topic);
                 } else {
                     transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Error: ${data.message || 'Gagal'}</div>`;
-                    statusBadge.innerText = 'RAPAT ERROR';
+                    statusBadge.innerText = 'SESI ERROR';
                 }
             } catch (err) {
                 transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Connection error: ${err.message}</div>`;
-                statusBadge.innerText = 'RAPAT ERROR';
+                statusBadge.innerText = 'SESI ERROR';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent';
+                setMeetingMode(currentMeetingMode);
                 lucide.createIcons();
             }
+        }
+
+        function renderSwarmExecutionResults(steps) {
+            const feed = document.getElementById('meeting-execution-steps-feed');
+            if (!feed) return;
+
+            feed.innerHTML = steps.map((s, idx) => {
+                const parsedGen = marked.parse(s.generated_content || '');
+                return `
+                    <div class="p-4 rounded-xl bg-dark-900/90 border border-amber-500/30 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-sm">${s.avatar_emoji || '🤖'}</span>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-white font-mono">${s.agent_name}</span>
+                                        <span class="px-2 py-0.2 rounded text-[9px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">${s.role}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] font-mono">
+                                <span class="px-2 py-0.5 rounded bg-dark-950 border border-white/10 text-cyan-400">Tool: ${s.tool_used}</span>
+                                <span class="text-emerald-400 font-bold">✅ ${s.duration_ms}ms</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-lg bg-dark-950/90 border border-white/5 font-mono text-[11px] text-slate-300 space-y-1">
+                            <div class="text-slate-400 font-bold">📌 Tugas: ${s.task_assigned}</div>
+                            <div class="text-amber-200/90 whitespace-pre-wrap">${s.execution_summary}</div>
+                        </div>
+                        ${s.deliverable_file ? `
+                            <div class="flex items-center gap-2 text-xs font-mono text-emerald-400 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                <i data-lucide="file-code" class="w-4 h-4"></i>
+                                <span>File Hasil Tersimpan: <b class="text-white">${s.deliverable_file}</b></span>
+                            </div>
+                        ` : ''}
+                        <details class="text-xs font-mono text-slate-400 pt-1">
+                            <summary class="cursor-pointer hover:text-white transition-colors">Lihat Detail Solusi Teknis / Output Lengkap</summary>
+                            <div class="mt-2 p-3 rounded-lg bg-dark-950 border border-white/5 text-slate-200 prose prose-invert max-w-none text-xs font-sans">
+                                ${parsedGen}
+                            </div>
+                        </details>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
         }
 
         function renderMeetingDialogue(transcript) {
@@ -4695,7 +4854,14 @@
                     tbody.innerHTML = allMeetingsData.map(m => `
                         <tr class="hover:bg-white/[0.02] transition-colors">
                             <td class="py-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">${m.created_at}</td>
-                            <td class="py-3 font-medium text-white max-w-xs truncate" title="${m.topic}">${m.topic}</td>
+                            <td class="py-3">
+                                <div class="flex items-center gap-2">
+                                    ${m.mode === 'execute' 
+                                        ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⚡ EKSEKUSI</span>'
+                                        : '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">📋 PLAN</span>'}
+                                    <span class="font-medium text-white max-w-xs truncate" title="${m.topic}">${m.topic}</span>
+                                </div>
+                            </td>
                             <td class="py-3">
                                 <div class="flex flex-wrap gap-1">
                                     ${(m.participants || []).map(p => `<span class="px-1.5 py-0.2 rounded bg-dark-900 border border-white/5 text-[10px] font-mono text-slate-300">${p}</span>`).join('')}
@@ -4709,7 +4875,7 @@
                                     <i data-lucide="play" class="w-3 h-3"></i> Animasi
                                 </button>
                                 <button onclick="viewMeetingDetails(${m.id})" class="px-2.5 py-1 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/30 text-xs font-mono font-bold flex items-center gap-1 inline-flex transition-all">
-                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> Transkrip
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i> Detail
                                 </button>
                             </td>
                         </tr>
@@ -4932,7 +5098,24 @@
                         </div>
                     `).join('');
 
-                    document.getElementById('m-modal-consensus-text').innerHTML = marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+                    if (m.execution_results && Array.isArray(m.execution_results) && m.execution_results.length > 0) {
+                        const execCards = m.execution_results.map(s => `
+                            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono space-y-1 my-2">
+                                <div class="flex items-center justify-between text-amber-300 font-bold">
+                                    <span>${s.avatar_emoji || '🤖'} ${s.agent_name} (${s.role})</span>
+                                    <span class="text-[10px] text-cyan-400">Tool: ${s.tool_used} • ${s.duration_ms}ms</span>
+                                </div>
+                                <div class="text-slate-300 text-[11px] whitespace-pre-wrap">${s.execution_summary}</div>
+                                ${s.deliverable_file ? `<div class="text-emerald-400 text-[10px]">📁 Output: ${s.deliverable_file}</div>` : ''}
+                            </div>
+                        `).join('');
+                        document.getElementById('m-modal-consensus-text').innerHTML = 
+                            '<h4 class="text-xs font-bold text-amber-400 font-mono mb-2">⚡ HASIL EKSEKUSI LANGSUNG OLEH TIM SWARM:</h4>' +
+                            execCards + '<div class="border-t border-white/10 my-3 pt-3"></div>' + 
+                            marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+                    } else {
+                        document.getElementById('m-modal-consensus-text').innerHTML = marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+                    }
 
                     document.getElementById('meeting-modal').classList.remove('hidden');
                     document.getElementById('meeting-modal').classList.add('flex');

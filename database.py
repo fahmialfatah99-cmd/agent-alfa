@@ -128,6 +128,8 @@ def init_db_sync():
                 dialogue_transcript TEXT NOT NULL,
                 consensus TEXT,
                 action_plan TEXT,
+                mode TEXT DEFAULT 'plan',
+                execution_results TEXT DEFAULT '',
                 status TEXT DEFAULT 'completed',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -222,6 +224,16 @@ def init_db_sync():
                     """,
                     (name, role, persona, sys_inst, prov, model, emoji, color)
                 )
+
+        # Schema migrations for agent_meetings
+        try:
+            conn.execute("ALTER TABLE agent_meetings ADD COLUMN mode TEXT DEFAULT 'plan'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE agent_meetings ADD COLUMN execution_results TEXT DEFAULT ''")
+        except Exception:
+            pass
 
         conn.commit()
 
@@ -1019,13 +1031,16 @@ def get_custom_agent_sync(name_or_id: Any) -> Optional[Dict[str, Any]]:
 def create_agent_meeting_sync(title: str, topic: str, participants: List[str], 
                               dialogue_transcript: List[Dict[str, Any]], 
                               consensus: str, action_plan: str, 
+                              mode: str = "plan",
+                              execution_results: Any = "",
                               status: str = "completed") -> Dict[str, Any]:
-    """Save a completed or active multi-agent meeting."""
+    """Save a completed or active multi-agent meeting with mode and live execution results."""
+    exec_str = execution_results if isinstance(execution_results, str) else json.dumps(execution_results, ensure_ascii=False)
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO agent_meetings (title, topic, participants, dialogue_transcript, consensus, action_plan, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO agent_meetings (title, topic, participants, dialogue_transcript, consensus, action_plan, mode, execution_results, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 title,
@@ -1034,6 +1049,8 @@ def create_agent_meeting_sync(title: str, topic: str, participants: List[str],
                 json.dumps(dialogue_transcript, ensure_ascii=False),
                 consensus,
                 action_plan,
+                mode,
+                exec_str,
                 status
             )
         )
@@ -1043,10 +1060,10 @@ def create_agent_meeting_sync(title: str, topic: str, participants: List[str],
 
 
 def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
-    """List recent meetings."""
+    """List recent meetings with mode information."""
     with get_sync_db() as conn:
         cursor = conn.execute(
-            "SELECT id, title, topic, participants, consensus, action_plan, status, created_at FROM agent_meetings ORDER BY id DESC LIMIT ?",
+            "SELECT id, title, topic, participants, consensus, action_plan, mode, execution_results, status, created_at FROM agent_meetings ORDER BY id DESC LIMIT ?",
             (limit,)
         )
         rows = cursor.fetchall()
@@ -1057,6 +1074,14 @@ def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
                 parts = json.loads(r["participants"])
             except Exception:
                 pass
+            
+            exec_res = []
+            if r["execution_results"]:
+                try:
+                    exec_res = json.loads(r["execution_results"])
+                except Exception:
+                    exec_res = r["execution_results"]
+
             results.append({
                 "id": r["id"],
                 "title": r["title"],
@@ -1064,6 +1089,8 @@ def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
                 "participants": parts,
                 "consensus": r["consensus"] or "",
                 "action_plan": r["action_plan"] or "",
+                "mode": r["mode"] or "plan",
+                "execution_results": exec_res,
                 "status": r["status"],
                 "created_at": str(r["created_at"])
             })
@@ -1071,7 +1098,7 @@ def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
 
 
 def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
-    """Get full details of a specific meeting including full dialogue transcript."""
+    """Get full details of a specific meeting including full dialogue transcript and execution results."""
     with get_sync_db() as conn:
         cursor = conn.execute("SELECT * FROM agent_meetings WHERE id = ?", (meeting_id,))
         row = cursor.fetchone()
@@ -1085,6 +1112,11 @@ def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
                 d["dialogue_transcript"] = json.loads(d["dialogue_transcript"])
             except Exception:
                 pass
+            if d.get("execution_results"):
+                try:
+                    d["execution_results"] = json.loads(d["execution_results"])
+                except Exception:
+                    pass
             return d
     return None
 

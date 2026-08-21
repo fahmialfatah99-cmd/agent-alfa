@@ -1321,19 +1321,21 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
 # --- Multi-Agent Round-Table Meeting Endpoints ---
 @app.post("/api/meetings/start")
 async def start_agent_meeting(payload: Dict[str, Any]):
-    """Launch an autonomous multi-agent round-table discussion."""
+    """Launch an autonomous multi-agent session (Plan or Live Execution)."""
     topic = payload.get("topic")
     if not topic:
         raise HTTPException(status_code=400, detail="topic is required")
         
     participants = payload.get("participants")
     rounds = payload.get("rounds", 2)
+    mode = payload.get("mode", "plan")
     
     import swarm_engine
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
-        rounds=min(3, max(1, int(rounds)))
+        rounds=min(3, max(1, int(rounds))),
+        mode=mode
     )
     return result
 
