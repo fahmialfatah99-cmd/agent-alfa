@@ -463,6 +463,110 @@ async def toggle_passkey_lock(payload: Dict[str, Any]):
         return {"status": "success", "enabled": enabled, "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}."}
 
 
+# ==================== SYSTEM SETTINGS ENDPOINTS ====================
+
+@app.get("/api/settings")
+async def get_system_settings():
+    """Retrieve current system configuration (.env and database settings)."""
+    import os
+    from dotenv import dotenv_values
+    
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
+    
+    bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", "")
+    masked_bot_token = (bot_token[:6] + "..." + bot_token[-4:]) if len(bot_token) > 10 else ("***" if bot_token else "")
+    
+    gemini_key = env_vals.get("GEMINI_API_KEY", "")
+    masked_gemini_key = (gemini_key[:6] + "..." + gemini_key[-4:]) if len(gemini_key) > 10 else ("***" if gemini_key else "")
+    
+    with database.get_sync_db() as conn:
+        c = conn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+        c.execute("SELECT key, value FROM system_settings")
+        db_settings = {row[0]: row[1] for row in c.fetchall()}
+        
+    return {
+        "status": "success",
+        "env": {
+            "has_bot_token": bool(bot_token and bot_token != "your_telegram_bot_token_here"),
+            "masked_bot_token": masked_bot_token,
+            "has_gemini_key": bool(gemini_key and gemini_key != "your_gemini_api_key_here"),
+            "masked_gemini_key": masked_gemini_key,
+            "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-2.5-flash"),
+            "allowed_user_ids": env_vals.get("ALLOWED_USER_IDS", ""),
+            "system_instruction": env_vals.get("SYSTEM_INSTRUCTION", ""),
+        },
+        "db_settings": db_settings
+    }
+
+
+@app.post("/api/settings")
+async def update_system_settings(payload: Dict[str, Any]):
+    """Update system configuration (.env and database settings)."""
+    import os
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    
+    bot_token = payload.get("telegram_bot_token", "").strip()
+    gemini_key = payload.get("gemini_api_key", "").strip()
+    gemini_model = payload.get("gemini_model", "").strip()
+    allowed_ids = payload.get("allowed_user_ids", "").strip()
+    system_instruction = payload.get("system_instruction", "").strip()
+    
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            
+        new_lines = []
+        keys_seen = set()
+        
+        for line in lines:
+            if line.startswith("TELEGRAM_BOT_TOKEN="):
+                keys_seen.add("TELEGRAM_BOT_TOKEN")
+                if bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+                    new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
+                else:
+                    new_lines.append(line)
+            elif line.startswith("GEMINI_API_KEY="):
+                keys_seen.add("GEMINI_API_KEY")
+                if gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+                    new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
+                else:
+                    new_lines.append(line)
+            elif line.startswith("GEMINI_MODEL="):
+                keys_seen.add("GEMINI_MODEL")
+                if gemini_model:
+                    new_lines.append(f"GEMINI_MODEL={gemini_model}\n")
+                else:
+                    new_lines.append(line)
+            elif line.startswith("ALLOWED_USER_IDS="):
+                keys_seen.add("ALLOWED_USER_IDS")
+                new_lines.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
+            elif line.startswith("SYSTEM_INSTRUCTION="):
+                keys_seen.add("SYSTEM_INSTRUCTION")
+                if system_instruction:
+                    escaped_instr = system_instruction.replace('"', '\\"')
+                    new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+                
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+            
+    db_updates = payload.get("db_settings", {})
+    if db_updates:
+        with database.get_sync_db() as conn:
+            c = conn.cursor()
+            c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+            for k, v in db_updates.items():
+                c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (str(k), str(v)))
+            conn.commit()
+            
+    return {"status": "success", "message": "Konfigurasi sistem berhasil disimpan ke .env dan database!"}
+
+
 # ==================== UNIVERSAL PRO SCRAPER ENDPOINTS ====================
 
 @app.post("/api/scraper/universal")

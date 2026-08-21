@@ -411,6 +411,12 @@
                                 <span class="font-bold">Web Console</span>
                             </div>
                         </button>
+                        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-cyan-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+                                <span class="font-bold">System Settings</span>
+                            </div>
+                        </button>
                     </div>
                 </nav>
             </div>
@@ -1266,6 +1272,92 @@
                     <button type="submit" id="chat-send-btn" class="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-glow-cyan">
                         <i data-lucide="send" class="w-4 h-4"></i> Kirim
                     </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ==================== TAB: SYSTEM SETTINGS & ENVIRONMENT ==================== -->
+        <section id="view-settings" class="tab-view hidden space-y-6">
+            <div class="glass-card p-6 rounded-2xl space-y-6 max-w-4xl mx-auto">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl shadow-sm">
+                            ⚙️
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono">SYSTEM SETTINGS & ENVIRONMENT CONFIG</h3>
+                            <p class="text-xs text-slate-400">Atur konfigurasi bot, token API, model AI, dan hak akses langsung dari dashboard web.</p>
+                        </div>
+                    </div>
+                    <button onclick="fetchSettings()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-mono flex items-center gap-1.5 transition-all">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Reload Settings
+                    </button>
+                </div>
+
+                <form onsubmit="saveSettings(event)" class="space-y-5">
+                    <!-- Telegram Credentials -->
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-3">
+                        <h4 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-2">
+                            <i data-lucide="bot" class="w-4 h-4"></i> TELEGRAM BOT CONFIGURATION
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-slate-400">Telegram Bot Token (@BotFather)</label>
+                                <input type="password" id="cfg-bot-token" placeholder="Masukkan token bot..." class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <span id="cfg-bot-token-hint" class="text-[10px] text-slate-500 font-mono"></span>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-slate-400">Allowed User IDs (Pisahkan dengan koma)</label>
+                                <input type="text" id="cfg-allowed-ids" placeholder="Contoh: 123456789, 987654321" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <span class="text-[10px] text-slate-500 font-mono">Kosongkan jika bot boleh diakses secara publik.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gemini AI Brain Configuration -->
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-3">
+                        <h4 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i> GOOGLE GEMINI AI BRAIN
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-slate-400">Gemini API Key (aistudio.google.com)</label>
+                                <input type="password" id="cfg-gemini-key" placeholder="Masukkan Gemini API Key..." class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                <span id="cfg-gemini-key-hint" class="text-[10px] text-slate-500 font-mono"></span>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-slate-400">Default Model Gemini</label>
+                                <select id="cfg-gemini-model" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                    <option value="gemini-2.5-flash">gemini-2.5-flash (Cepat & Direkomendasikan)</option>
+                                    <option value="gemini-2.5-pro">gemini-2.5-pro (Penalaran Kompleks)</option>
+                                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Ultra Ringan)</option>
+                                    <option value="gemini-1.5-pro">gemini-1.5-pro (Kapasitas Besar)</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash (Standar)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Master System Instruction -->
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-3">
+                        <h4 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-2">
+                            <i data-lucide="brain" class="w-4 h-4"></i> MASTER SYSTEM INSTRUCTION / PERSONA
+                        </h4>
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-mono text-slate-400">Instruksi Karakter & Kepribadian Bot</label>
+                            <textarea id="cfg-system-instruction" rows="4" placeholder="Instruksi sistem..." class="w-full p-3 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans leading-relaxed"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-between pt-3 border-t border-white/10">
+                        <div class="text-[11px] text-slate-400 font-mono">
+                            📁 Output Path: <span class="text-emerald-400">~/Dokumen/ALFA_SWARM_OUTPUTS</span>
+                        </div>
+                        <button type="submit" id="btn-save-settings" class="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold text-xs font-mono flex items-center gap-2 shadow-glow-cyan transition-all">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
+                        </button>
+                    </div>
                 </form>
             </div>
         </section>
@@ -2975,7 +3067,8 @@
             'artifacts': 'File Artifacts & Storage',
             'services': 'System Services & Background Tasks',
             'guardian': 'Guardian Defense & Integrity',
-            'console': 'Linux Web Console'
+            'console': 'Linux Web Console',
+            'settings': 'System Settings & Environment Config'
         };
 
         function toggleSidebar(show = null) {
@@ -2992,6 +3085,92 @@
             } else {
                 sidebar.classList.add('-translate-x-full');
                 backdrop?.classList.add('hidden');
+            }
+        }
+
+        // ==================== SYSTEM SETTINGS MANAGER ====================
+        async function fetchSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                if (data.status === 'success' && data.env) {
+                    const env = data.env;
+                    const tokenHint = document.getElementById('cfg-bot-token-hint');
+                    const keyHint = document.getElementById('cfg-gemini-key-hint');
+                    
+                    if (tokenHint) {
+                        tokenHint.innerHTML = env.has_bot_token 
+                            ? `<span class="text-emerald-400 font-mono">✅ Terhubung: ${env.masked_bot_token}</span>`
+                            : `<span class="text-rose-400 font-mono">❌ Belum dikonfigurasi</span>`;
+                    }
+                    
+                    if (keyHint) {
+                        keyHint.innerHTML = env.has_gemini_key 
+                            ? `<span class="text-emerald-400 font-mono">✅ Terhubung: ${env.masked_gemini_key}</span>`
+                            : `<span class="text-rose-400 font-mono">❌ Belum dikonfigurasi</span>`;
+                    }
+                    
+                    const modelSelect = document.getElementById('cfg-gemini-model');
+                    if (modelSelect && env.gemini_model) {
+                        modelSelect.value = env.gemini_model;
+                    }
+                    
+                    const allowedInput = document.getElementById('cfg-allowed-ids');
+                    if (allowedInput && env.allowed_user_ids !== undefined) {
+                        allowedInput.value = env.allowed_user_ids;
+                    }
+                    
+                    const instrText = document.getElementById('cfg-system-instruction');
+                    if (instrText && env.system_instruction !== undefined) {
+                        instrText.value = env.system_instruction;
+                    }
+                }
+            } catch (err) {
+                console.error('Fetch settings error:', err);
+            }
+        }
+
+        async function saveSettings(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-settings');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan...';
+            }
+
+            try {
+                const payload = {
+                    telegram_bot_token: document.getElementById('cfg-bot-token')?.value || '',
+                    gemini_api_key: document.getElementById('cfg-gemini-key')?.value || '',
+                    gemini_model: document.getElementById('cfg-gemini-model')?.value || 'gemini-2.5-flash',
+                    allowed_user_ids: document.getElementById('cfg-allowed-ids')?.value || '',
+                    system_instruction: document.getElementById('cfg-system-instruction')?.value || ''
+                };
+
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message || 'Pengaturan berhasil disimpan!', 'success');
+                    const tokenInput = document.getElementById('cfg-bot-token');
+                    const keyInput = document.getElementById('cfg-gemini-key');
+                    if (tokenInput) tokenInput.value = '';
+                    if (keyInput) keyInput.value = '';
+                    fetchSettings();
+                } else {
+                    showToast(data.message || 'Gagal menyimpan pengaturan', 'error');
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan';
+                    lucide.createIcons();
+                }
             }
         }
 
@@ -3032,6 +3211,7 @@
             if (tabId === 'keys') fetchKeys();
             if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
             if (tabId === 'scraper') fetchScraperBatches();
+            if (tabId === 'settings') fetchSettings();
             
             lucide.createIcons();
         }
@@ -6499,6 +6679,7 @@
             fetchAgents();
             fetchKeys();
             fetchMeetings();
+            fetchSettings();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
             setInterval(fetchWaReports, 8000);
