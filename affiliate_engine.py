@@ -351,7 +351,10 @@ def broadcast_affiliate_deal(
             import bot
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             
-            uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+            allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
+            if not allowed_env:
+                raise ValueError("ALLOWED_USER_IDS belum diatur di .env")
+            uid = int(allowed_env.split(",")[0].strip())
             
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🛒 Beli Sekarang / Cek Diskon", url=affiliate_link)]

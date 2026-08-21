@@ -1242,7 +1242,8 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
             
     last_known_auth_status = "UNKNOWN"
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
-    primary_uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
+    primary_uid = int(allowed_env.split(",")[0].strip()) if allowed_env else None
 
     while True:
         try:
@@ -1260,7 +1261,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                     )
 
                 # 2. Check WhatsApp authentication status & alert if logged out
-                if os.path.exists(status_file):
+                if os.path.exists(status_file) and primary_uid:
                     try:
                         with open(status_file, "r") as f:
                             wa_data = json.load(f)

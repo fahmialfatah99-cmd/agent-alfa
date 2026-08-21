@@ -42,6 +42,18 @@ app.add_middleware(
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 
 
+def get_primary_user_id() -> int:
+    """Safely get primary telegram user id from ALLOWED_USER_IDS env var."""
+    allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
+    if allowed_env:
+        try:
+            return int(allowed_env.split(",")[0].strip())
+        except (ValueError, IndexError):
+            pass
+    return 0
+
+
+
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
@@ -198,7 +210,7 @@ async def execute_tool(payload: Dict[str, Any]):
         
     try:
         # Set primary user context
-        uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+        uid = get_primary_user_id()
         tools.current_user_id_var.set(uid)
         tools.current_chat_id_var.set(uid)
         
@@ -774,7 +786,7 @@ async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int 
 @app.get("/api/memory")
 async def get_memory_data():
     """Fetch all permanent memory facts and knowledge graph relations."""
-    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
     
@@ -791,7 +803,7 @@ async def get_memory_data():
 @app.post("/api/memory/add")
 async def add_memory(payload: Dict[str, Any]):
     """Add a new memory fact or knowledge graph relation."""
-    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    uid = get_primary_user_id()
     m_type = payload.get("type", "fact")
     
     if m_type == "fact":
@@ -817,7 +829,7 @@ async def add_memory(payload: Dict[str, Any]):
 @app.post("/api/memory/delete")
 async def delete_memory(payload: Dict[str, Any]):
     """Delete a memory fact by key."""
-    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    uid = get_primary_user_id()
     key_topic = payload.get("key_topic")
     if not key_topic:
         raise HTTPException(status_code=400, detail="key_topic is required")
@@ -834,7 +846,7 @@ async def delete_memory(payload: Dict[str, Any]):
 @app.get("/api/brain/export")
 async def export_brain():
     """Export complete Second Brain knowledge as Markdown and JSON."""
-    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
     
@@ -941,7 +953,7 @@ async def chat_with_agent(payload: Dict[str, Any]):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
         
-    uid = int(os.getenv("ALLOWED_USER_IDS", "8821693251").split(",")[0].strip())
+    uid = get_primary_user_id()
     reply = await bot.run_agent_turn(user_id=uid, user_prompt=message, chat_id=uid)
     return {
         "status": "success",
