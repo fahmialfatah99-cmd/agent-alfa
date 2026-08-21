@@ -1638,11 +1638,8 @@
                             <button onclick="switchAffTab('tiktok')" id="aff-tab-btn-tiktok" class="px-2.5 py-1 text-[11px] font-mono rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                 🎬 Script TikTok
                             </button>
-                            <button onclick="switchAffTab('prompt')" id="aff-tab-btn-prompt" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white flex items-center gap-1">
-                                🎨 Prompt Video AI
-                            </button>
                             <button onclick="switchAffTab('video')" id="aff-tab-btn-video" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white flex items-center gap-1">
-                                🎥 Render Video MP4
+                                🎥 Studio Render Video (Audio + Visual)
                             </button>
                             <button onclick="switchAffTab('telegram')" id="aff-tab-btn-telegram" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white">
                                 🔥 Telegram Card
@@ -1658,74 +1655,66 @@
 
                     <!-- Live Content Display Area -->
                     <div id="aff-content-container" class="relative">
-                        <!-- AI Video Prompt & Scene Storyboard View -->
-                        <div id="aff-view-prompt" class="aff-subview hidden space-y-4">
-                            <!-- Master Prompt Card -->
-                            <div class="p-4 bg-dark-950 rounded-xl border border-cyan-500/30 space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-2">
-                                        <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i> Master Prompt AI Video (Sora / Kling / Runway / Luma)
-                                    </h4>
-                                    <button onclick="copyAffiliateContent('aff-text-videoprompt')" class="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-mono font-bold flex items-center gap-1">
-                                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Master Prompt
-                                    </button>
-                                </div>
-                                <p class="text-[11px] text-slate-400">Prompt detail 8K sinematik, pencahayaan studio, sudut kamera, dan pergerakan objek untuk AI Video Generator.</p>
-                                <pre id="aff-text-videoprompt" class="p-3 bg-dark-900 rounded-xl border border-white/5 font-mono text-xs text-cyan-200 whitespace-pre-wrap max-h-36 overflow-y-auto custom-scrollbar">Pilih produk dan generate untuk menghasilkan Master Prompt AI Video.</pre>
-                            </div>
-
-                            <!-- Negative Prompt Card -->
-                            <div class="p-3 bg-dark-950 rounded-xl border border-white/5 flex items-center justify-between gap-3">
-                                <div class="space-y-0.5">
-                                    <span class="text-[11px] font-mono text-rose-400 font-bold">🚫 Negative Prompt Filter:</span>
-                                    <div id="aff-text-negativeprompt" class="text-xs text-slate-300 font-mono">blurry, low quality, deformed, distorted geometry, pixelated, jittery camera, watermark</div>
-                                </div>
-                                <button onclick="copyAffiliateContent('aff-text-negativeprompt')" class="p-1.5 bg-white/5 hover:bg-white/10 text-rose-300 rounded-lg shrink-0" title="Salin Negative Prompt">
-                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                                </button>
-                            </div>
-
-                            <!-- Shot-by-Shot Storyboard Cards -->
-                            <div class="space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-mono text-slate-300 font-bold">🎞️ Shot-by-Shot Scene Breakdown Matrix (4 Scenes):</span>
-                                    <button onclick="copyAffiliateContent('aff-text-storyboard')" class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-lg text-xs font-mono flex items-center gap-1">
-                                        <i data-lucide="copy" class="w-3 h-3"></i> Salin Full Storyboard
-                                    </button>
-                                </div>
-                                <div id="aff-scenes-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <!-- Dynamic scenes from JS -->
-                                </div>
-                                <pre id="aff-text-storyboard" class="hidden"></pre>
-                            </div>
-                        </div>
-
-                        <!-- Video Generator View -->
+                        <!-- Unified Video Studio View -->
                         <div id="aff-view-video" class="aff-subview hidden space-y-4">
-                            <div class="p-4 bg-dark-950 rounded-xl border border-emerald-500/30 space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-2">
-                                        <i data-lucide="video" class="w-4 h-4 text-emerald-400"></i> Auto Video Maker 9:16 (TikTok / Reels / Shorts)
-                                    </h4>
-                                    <span class="text-[10px] font-mono text-emerald-400">⚡ Animasi Sinematik + Dubbing AI</span>
+                            <div class="p-4 bg-dark-950 rounded-xl border border-emerald-500/30 space-y-4">
+                                <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                                    <div class="flex items-center gap-2">
+                                        <i data-lucide="clapperboard" class="w-4 h-4 text-emerald-400"></i>
+                                        <h4 class="text-xs font-bold text-white font-mono">Studio Produksi Video 9:16 (Otomatis Terintegrasi)</h4>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                        ✓ Prompt Audio & Visual Otomatis Terisi
+                                    </span>
                                 </div>
-                                <p class="text-xs text-slate-400">Pilih foto produk dan sesuaikan tema visual, efek kamera, dan dubbing suara untuk membuat video promosi vertikal berkualitas tinggi.</p>
 
-                                <div class="space-y-3 pt-2">
-                                    <!-- Visual Video Prompt Input -->
-                                    <div class="space-y-1">
-                                        <label class="block font-semibold text-slate-300 font-mono text-[11px] flex items-center justify-between">
-                                            <span>Prompt Visual Sinematik</span>
-                                            <span class="text-cyan-400 font-normal text-[10px]">✨ Auto-generated dari AI</span>
-                                        </label>
-                                        <textarea id="video-visual-prompt" rows="2" placeholder="Deskripsi visual gaya pencahayaan & sinematografi..." class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-cyan-200 font-mono text-xs"></textarea>
+                                <!-- DUAL AUTOMATIC COLUMNS: Audio Prompt (Left) + Visual Prompt (Right) -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                    <!-- Column 1: Audio / Voiceover Prompt -->
+                                    <div class="p-3 bg-dark-900 rounded-xl border border-white/5 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="font-semibold text-emerald-300 font-mono text-[11px] flex items-center gap-1.5">
+                                                <i data-lucide="mic" class="w-3.5 h-3.5"></i> 1. Teks Narasi Voiceover AI (Audio)
+                                            </label>
+                                            <span class="text-[10px] font-mono text-slate-400">Dubbing Indonesia</span>
+                                        </div>
+                                        <textarea id="video-voiceover-text" rows="4" placeholder="Teks narasi yang akan dibacakan oleh suara AI..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-slate-100 font-sans text-xs focus:outline-none focus:border-emerald-500"></textarea>
+                                        
+                                        <div class="flex items-center gap-2 pt-1">
+                                            <span class="text-[10px] font-mono text-slate-400 whitespace-nowrap">Karakter Suara:</span>
+                                            <select id="video-voice-select" class="w-full p-1.5 bg-dark-950 border border-white/10 rounded-lg text-white font-mono text-[11px]">
+                                                <option value="id-ID-GadisNeural">👩 Gadis (Cewek Ramah & Energik)</option>
+                                                <option value="id-ID-ArdiNeural">👨 Ardi (Cowok Percaya Diri & Jelas)</option>
+                                            </select>
+                                        </div>
                                     </div>
 
-                                    <!-- Image File Picker -->
+                                    <!-- Column 2: Visual & Cinematography Prompt -->
+                                    <div class="p-3 bg-dark-900 rounded-xl border border-white/5 space-y-2">
+                                        <div class="flex items-center justify-between">
+                                            <label class="font-semibold text-cyan-300 font-mono text-[11px] flex items-center gap-1.5">
+                                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 2. Prompt Visual & Sinematografi (Visual)
+                                            </label>
+                                            <button onclick="copyAffiliateContent('video-visual-prompt')" class="text-[10px] font-mono text-cyan-400 hover:underline flex items-center gap-0.5" title="Salin untuk Kling/Runway/Sora">
+                                                <i data-lucide="copy" class="w-3 h-3"></i> Salin Prompt
+                                            </button>
+                                        </div>
+                                        <textarea id="video-visual-prompt" rows="4" placeholder="Prompt visual 8K sinematik, tata cahaya studio, dan sudut kamera..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-cyan-200 font-mono text-xs focus:outline-none focus:border-cyan-500"></textarea>
+                                        
+                                        <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+                                            <span>Format: 1080x1920 (9:16 Vertical)</span>
+                                            <span class="text-cyan-400">Ray-Tracing • 60 FPS</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Photo Selection & Theme Grid -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                                    <!-- Photo Input -->
                                     <div class="space-y-1">
                                         <label class="block font-semibold text-slate-300 font-mono text-[11px]">Foto Produk (Pilih 1 atau Banyak Foto)</label>
                                         <div class="flex items-center gap-2">
-                                            <input type="text" id="video-input-images" placeholder="Pilih foto produk..." class="flex-1 p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                            <input type="text" id="video-input-images" placeholder="Pilih file foto produk..." class="flex-1 p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
                                             <label class="cursor-pointer px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-mono font-bold flex items-center gap-1 whitespace-nowrap">
                                                 <i data-lucide="image" class="w-3.5 h-3.5"></i> Pilih Foto
                                                 <input type="file" multiple accept="image/*" onchange="handleToolFileUpload(event, 'video-input-images', true)" class="hidden">
@@ -1735,51 +1724,58 @@
                                     </div>
 
                                     <!-- Theme & Motion Style Grid -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="grid grid-cols-2 gap-2">
                                         <div class="space-y-1">
-                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎨 Tema Visual & Warna</label>
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎨 Tema Visual</label>
                                             <select id="video-theme-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
-                                                <option value="viral_tiktok">🚀 Viral TikTok (Merah-Kuning Flash Sale)</option>
-                                                <option value="luxury_gold">👑 Luxury Gold (Obsidian & 24K Emas Mewah)</option>
-                                                <option value="cyberpunk">⚡ Cyberpunk Neon (Cyan & Pink Glow)</option>
-                                                <option value="clean_minimal">🌿 Clean Minimalist (Dark Slate & Emerald)</option>
+                                                <option value="viral_tiktok">🚀 Viral TikTok</option>
+                                                <option value="luxury_gold">👑 Luxury Gold</option>
+                                                <option value="cyberpunk">⚡ Cyberpunk Neon</option>
+                                                <option value="clean_minimal">🌿 Clean Minimalist</option>
                                             </select>
                                         </div>
                                         <div class="space-y-1">
-                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎥 Gaya Gerakan Kamera (Motion)</label>
+                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">🎥 Gerakan Kamera</label>
                                             <select id="video-motion-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
-                                                <option value="zoom_in">🔍 Ken Burns Zoom-In (Slow Push-In)</option>
-                                                <option value="zoom_out">🔭 Ken Burns Zoom-Out (Dramatic Reveal)</option>
-                                                <option value="pan_left_right">↔️ Dynamic Left-to-Right Pan</option>
+                                                <option value="zoom_in">🔍 Zoom-In</option>
+                                                <option value="zoom_out">🔭 Zoom-Out</option>
+                                                <option value="pan_left_right">↔️ Dynamic Pan</option>
                                             </select>
                                         </div>
                                     </div>
-
-                                    <!-- Voice Selection & Badges Grid -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div class="space-y-1">
-                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Suara Voiceover AI</label>
-                                            <select id="video-voice-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
-                                                <option value="id-ID-GadisNeural">👩 Gadis (Cewek Ramah & Energik)</option>
-                                                <option value="id-ID-ArdiNeural">👨 Ardi (Cowok Percaya Diri & Jelas)</option>
-                                            </select>
-                                        </div>
-                                        <div class="space-y-1">
-                                            <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Badge Atas</label>
-                                            <input type="text" id="video-badge-text" value="🔥 FLASH SALE DISKON SPESIAL" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
-                                        </div>
-                                    </div>
-
-                                    <!-- Voiceover Textarea -->
-                                    <div class="space-y-1">
-                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Narasi Voiceover AI</label>
-                                        <textarea id="video-voiceover-text" rows="3" placeholder="Teks yang akan dibacakan oleh voiceover AI..." class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-slate-200 font-sans text-xs"></textarea>
-                                    </div>
-
-                                    <button onclick="renderAffiliateVideoNow()" id="btn-render-video" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold font-mono rounded-xl shadow-glow-emerald flex items-center justify-center gap-2 transition-all text-xs">
-                                        <i data-lucide="clapperboard" class="w-4 h-4"></i> 🎬 Render Video Promosi MP4 Sekarang
-                                    </button>
                                 </div>
+
+                                <!-- Badge & Call-To-Action Inputs -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                    <div class="space-y-1">
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Badge Diskon Atas</label>
+                                        <input type="text" id="video-badge-text" value="🔥 FLASH SALE DISKON SPESIAL" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="block font-semibold text-slate-300 font-mono text-[11px]">Teks Call To Action Bawah</label>
+                                        <input type="text" id="video-cta-text" value="👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-white font-mono text-xs">
+                                    </div>
+                                </div>
+
+                                <!-- Shot-by-Shot Storyboard Matrix (Expandable) -->
+                                <div class="space-y-2 pt-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-mono text-slate-300 font-bold flex items-center gap-1.5">
+                                            <i data-lucide="film" class="w-3.5 h-3.5 text-cyan-400"></i> Rincian Adegan Sinematik (4-Scene Shot Matrix)
+                                        </span>
+                                        <button onclick="copyAffiliateContent('aff-text-storyboard')" class="px-2 py-0.5 bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded text-[10px] font-mono flex items-center gap-1">
+                                            <i data-lucide="copy" class="w-3 h-3"></i> Salin Semua Scene
+                                        </button>
+                                    </div>
+                                    <div id="aff-scenes-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <!-- Dynamic scenes from JS -->
+                                    </div>
+                                    <pre id="aff-text-storyboard" class="hidden"></pre>
+                                </div>
+
+                                <button onclick="renderAffiliateVideoNow()" id="btn-render-video" class="w-full py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-dark-950 font-bold font-mono rounded-xl shadow-glow-emerald flex items-center justify-center gap-2 transition-all text-xs">
+                                    <i data-lucide="clapperboard" class="w-4 h-4"></i> 🎬 Render Video Promosi MP4 Sekarang (1-Click)
+                                </button>
                             </div>
 
                             <!-- Video Player Preview Container -->
@@ -4932,7 +4928,7 @@
 
         function switchAffTab(subTab) {
             document.querySelectorAll('.aff-subview').forEach(el => el.classList.add('hidden'));
-            ['tiktok', 'prompt', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
+            ['tiktok', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
                 const btn = document.getElementById(`aff-tab-btn-${t}`);
                 if (btn) {
                     btn.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
@@ -4964,6 +4960,7 @@
             const theme = document.getElementById('video-theme-select').value;
             const motion = document.getElementById('video-motion-select').value;
             const badgeText = document.getElementById('video-badge-text').value.trim() || '🔥 FLASH SALE DISKON SPESIAL';
+            const ctaText = document.getElementById('video-cta-text') ? document.getElementById('video-cta-text').value.trim() : '👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒';
             const visualPrompt = document.getElementById('video-visual-prompt').value.trim();
             let voiceText = document.getElementById('video-voiceover-text').value.trim();
 
@@ -4986,6 +4983,7 @@
                         theme: theme,
                         motion_style: motion,
                         badge_text: badgeText,
+                        call_to_action: ctaText,
                         visual_prompt: visualPrompt
                     })
                 });
