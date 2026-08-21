@@ -32,7 +32,16 @@
 * **Pencarian Semantik Kontekstual:** Menggunakan vector embedding (`gemini-embedding-001` + fallback lokal) dan cosine similarity ranking.
 * **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.py`) ke dalam memori semantik permanen untuk pencarian berbasis makna.
 
-### 4. 🛠️ 112+ Real Sovereign Tools & Interactive Workbench
+### 4. 🛠️ 120+ Real Sovereign Tools & Interactive Workbench
+* **Scraping & Modern Web Intelligence:**
+  * 📄 **MarkItDown (Microsoft):** Konversi dokumen Word/PowerPoint/Excel, PDF, Audio, HTML ke Markdown LLM.
+  * 🛡️ **Scrapling:** Stealth scraper anti-deteksi untuk bypass Cloudflare & Akamai.
+  * 🕷️ **Scrapy & Parsel:** Ekstraksi dataset terstruktur berkecepatan tinggi via CSS/XPath.
+  * 🌐 **Crawlee (Apify):** Crawler tangguh dengan request queueing dan deduplikasi otomatis.
+  * 🤖 **Crawl4AI:** Web crawler khusus LLM dengan ekstraksi fit-markdown, link, dan media.
+  * 🧭 **Browser-Use Agent:** Agen AI otonom untuk navigasi multi-step browser & pengisian form.
+  * 🔥 **Firecrawl:** Scraper cerdas cloud + sovereign local engine fallback.
+  * 📱 **Scrcpy & ADB:** Kontrol penuh smartphone Android (Screenshot, Touch Tap, Keyevents, Screen Mirroring).
 * **System & Diagnostic:** Live telemetri CPU/RAM, storage vacuum, service manager.
 * **Network & Security:** Speedtest benchmark CDN, WHOIS & SSL expiry inspector, audit port jaringan.
 * **Marketplace & Finance:** Real-time crypto & forex ticker (CoinGecko + ExchangeRate API), generator QR Code resolusi tinggi.

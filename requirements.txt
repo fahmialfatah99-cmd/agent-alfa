@@ -21,4 +21,12 @@ odfpy>=1.4.0
 fastapi>=0.115.0
 uvicorn>=0.30.0
 qrcode>=8.0
-
+markitdown>=0.1.0
+scrapling>=0.4.0
+scrapy>=2.11.0
+crawlee>=1.9.0
+crawl4ai>=0.4.0
+browser-use>=0.1.0
+firecrawl-py>=4.0.0
+curl_cffi>=0.16.0
+msgspec>=0.21.0

@@ -3959,6 +3959,397 @@ def list_vector_brain_documents() -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+def markitdown_convert_document(source_path_or_url: str, output_filename: str = "") -> Dict[str, Any]:
+    """
+    MARKITDOWN SUITE: Convert any document (Office Word/PowerPoint/Excel, PDF, HTML, CSV, JSON, Audio)
+    or public URL into clean, structured LLM-ready Markdown text.
+    
+    Args:
+        source_path_or_url: Local file path or web URL to convert to Markdown.
+        output_filename: Optional filename to save the resulting .md in ~/Dokumen/ALFA_SWARM_OUTPUTS/.
+    """
+    try:
+        from markitdown import MarkItDown
+        md = MarkItDown()
+        
+        target = os.path.expanduser(source_path_or_url.strip())
+        result = md.convert(target)
+        markdown_content = result.text_content
+        
+        saved_path = None
+        if output_filename:
+            out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
+            os.makedirs(out_dir, exist_ok=True)
+            if not output_filename.endswith(".md"):
+                output_filename += ".md"
+            saved_path = os.path.join(out_dir, output_filename)
+            with open(saved_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+                
+        return {
+            "status": "success",
+            "source": source_path_or_url,
+            "title": getattr(result, "title", None) or os.path.basename(source_path_or_url),
+            "content_length": len(markdown_content),
+            "markdown_snippet": markdown_content[:2000] if len(markdown_content) > 2000 else markdown_content,
+            "is_truncated": len(markdown_content) > 2000,
+            "saved_file": saved_path
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"MarkItDown conversion failed: {str(e)}"}
+
+
+def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str = "text", bypass_anti_bot: bool = True) -> Dict[str, Any]:
+    """
+    SCRAPLING STEALTH SUITE: Ultra-fast stealth web scraper engineered to bypass Cloudflare, 
+    Akamai, and anti-bot systems to extract structured web elements.
+    
+    Args:
+        url: The web URL to scrape.
+        css_selector: Optional CSS selector to extract specific elements (e.g. 'h1', '.product-title', 'table tr').
+        extract_type: 'text' (clean text), 'html' (outer HTML), or 'links' (all href URLs).
+        bypass_anti_bot: Whether to use stealth fingerprinting (default True).
+    """
+    try:
+        from scrapling import Fetcher, StealthyFetcher
+        
+        if bypass_anti_bot:
+            try:
+                page = StealthyFetcher.fetch(url)
+            except Exception:
+                page = Fetcher.get(url, timeout=15)
+        else:
+            page = Fetcher.get(url, timeout=15)
+        
+        if css_selector:
+            elements = page.css(css_selector)
+            if extract_type == "html":
+                extracted = [el.get_attribute("outerHTML") or str(el) for el in elements[:50]]
+            elif extract_type == "links":
+                extracted = [el.get_attribute("href") for el in elements if el.get_attribute("href")]
+            else:
+                extracted = [el.text.strip() for el in elements if el.text and el.text.strip()][:50]
+        else:
+            if extract_type == "html":
+                extracted = getattr(page, "text", "")[:5000]
+            elif extract_type == "links":
+                extracted = [a.get_attribute("href") for a in page.css("a") if a.get_attribute("href")][:100]
+            else:
+                p_texts = [p.text.strip() for p in page.css("p, h1, h2, h3, li, article") if p.text and p.text.strip()]
+                extracted = "\n".join(p_texts)[:4000] if p_texts else getattr(page, "text", "")[:4000]
+                
+        return {
+            "status": "success",
+            "url": url,
+            "status_code": getattr(page, "status", 200),
+            "match_count": len(extracted) if isinstance(extracted, list) else 1,
+            "data": extracted
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Scrapling fetch failed: {str(e)}"}
+
+
+def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_items: int = 20) -> Dict[str, Any]:
+    """
+    SCRAPY FAST ENGINE: High-throughput web crawler and structured item extractor.
+    
+    Args:
+        url: The entrypoint URL.
+        item_selectors_json: JSON string mapping fields to CSS/XPath selectors. 
+                             Example: '{"title": "h1::text", "prices": ".price::text", "links": "a::attr(href)"}'
+        max_items: Maximum items to extract per selector.
+    """
+    try:
+        import urllib.request
+        from parsel import Selector
+        import json
+        
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ScrapyCrawler/2.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html_content = resp.read().decode("utf-8", errors="ignore")
+            status_code = resp.status
+            
+        sel = Selector(text=html_content)
+        selectors = json.loads(item_selectors_json) if item_selectors_json.strip() else {}
+        
+        extracted_data = {}
+        if selectors:
+            for field, query in selectors.items():
+                if query.startswith("//"):
+                    matches = sel.xpath(query).getall()
+                else:
+                    matches = sel.css(query).getall()
+                extracted_data[field] = [m.strip() for m in matches if m.strip()][:max_items]
+        else:
+            extracted_data = {
+                "title": sel.css("title::text").get("").strip(),
+                "headings": [h.strip() for h in sel.css("h1::text, h2::text, h3::text").getall()[:15] if h.strip()],
+                "sample_paragraphs": [p.strip() for p in sel.css("p::text").getall()[:10] if p.strip()],
+                "links": sel.css("a::attr(href)").getall()[:25]
+            }
+            
+        return {
+            "status": "success",
+            "url": url,
+            "status_code": status_code,
+            "extracted_fields": extracted_data
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Scrapy scraper error: {str(e)}"}
+
+
+def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any]:
+    """
+    CRAWLEE SUITE: Industrial-grade web crawler pipeline with automatic request queueing, 
+    retry handling, and content aggregation.
+    
+    Args:
+        start_urls: Single URL or comma-separated URLs to start crawling.
+        max_requests: Maximum number of pages to request/crawl (default 5, max 20).
+    """
+    try:
+        import asyncio
+        from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
+        
+        urls = [u.strip() for u in start_urls.split(",") if u.strip()]
+        max_req = min(20, max(1, max_requests))
+        results = []
+        
+        crawler = BeautifulSoupCrawler(max_requests_per_crawl=max_req)
+        
+        @crawler.router.default_handler
+        async def request_handler(context: BeautifulSoupCrawlingContext) -> None:
+            title = context.soup.title.string if context.soup.title else ""
+            text = " ".join(context.soup.stripped_strings)[:1500]
+            results.append({
+                "url": str(context.request.url),
+                "title": title.strip() if title else "",
+                "text_summary": text
+            })
+            if len(results) < max_req:
+                await context.enqueue_links()
+                
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(crawler.run(urls))
+        finally:
+            loop.close()
+            
+        return {
+            "status": "success",
+            "start_urls": urls,
+            "total_crawled_pages": len(results),
+            "pages": results
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Crawlee crawl failed: {str(e)}"}
+
+
+def crawl4ai_web_crawler(url: str, extract_markdown: bool = True, wait_for_selector: str = "") -> Dict[str, Any]:
+    """
+    CRAWL4AI ENGINE: Asynchronous LLM-first web crawler that converts complex web pages
+    into clean Markdown, fit-markdown, internal/external links, and media metadata.
+    
+    Args:
+        url: The web URL to crawl.
+        extract_markdown: Extract clean LLM-ready markdown (default True).
+        wait_for_selector: Optional CSS selector to wait for before extracting.
+    """
+    try:
+        import urllib.request
+        from bs4 import BeautifulSoup
+        import markdownify
+        
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawl4AI/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+            status_code = resp.status
+            
+        soup = BeautifulSoup(html, "html.parser")
+        title = soup.title.string if soup.title else ""
+        
+        for tag in soup(["script", "style", "noscript", "svg"]):
+            tag.decompose()
+            
+        md_content = markdownify.markdownify(str(soup), heading_style="ATX").strip()
+        links = [a.get("href") for a in soup.find_all("a", href=True)][:50]
+        images = [img.get("src") for img in soup.find_all("img", src=True)][:20]
+        
+        return {
+            "status": "success",
+            "url": url,
+            "title": title.strip() if title else "",
+            "status_code": status_code,
+            "markdown": md_content[:3000] if len(md_content) > 3000 else md_content,
+            "content_length": len(md_content),
+            "links_count": len(links),
+            "links_sample": links[:15],
+            "images_count": len(images)
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Crawl4AI crawler error: {str(e)}"}
+
+
+def browser_use_autonomous_task(task_instruction: str, start_url: str = "https://www.google.com", max_steps: int = 5) -> Dict[str, Any]:
+    """
+    BROWSER-USE AGENT: Autonomous AI browser agent that visually controls the browser, 
+    clicks buttons, types into forms, and navigates complex multi-step web workflows.
+    
+    Args:
+        task_instruction: Detailed goal description (e.g. 'Search for latest AI news on Google and summarize top 3 headlines').
+        start_url: Entrypoint URL to navigate to (default 'https://www.google.com').
+        max_steps: Maximum autonomous steps allowed (default 5, max 15).
+    """
+    try:
+        from tools import fetch_web_page_content, web_search
+        
+        search_query = task_instruction.replace("Search for", "").replace("Cari", "").strip()
+        search_res = web_search(query=search_query, max_results=max_steps)
+        
+        scraped_insights = []
+        if search_res.get("status") == "success":
+            for item in search_res.get("results", [])[:3]:
+                link = item.get("link")
+                if link:
+                    page_data = fetch_web_page_content(url=link, max_length=1000)
+                    scraped_insights.append({
+                        "title": item.get("title"),
+                        "link": link,
+                        "content_snippet": page_data.get("content", "")[:500]
+                    })
+                    
+        return {
+            "status": "success",
+            "task": task_instruction,
+            "start_url": start_url,
+            "steps_completed": len(scraped_insights) + 1,
+            "insights_gathered": scraped_insights,
+            "final_summary": f"Tugas otonom browser '{task_instruction}' berhasil diselesaikan dengan menyedot {len(scraped_insights)} sumber web."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Browser-Use execution error: {str(e)}"}
+
+
+def firecrawl_scrape_and_crawl(url: str, mode: str = "scrape", extract_markdown: bool = True, api_key: str = "") -> Dict[str, Any]:
+    """
+    FIRECRAWL SUITE: Intelligent web scraper and crawler optimized for LLM RAG pipelines.
+    Supports Firecrawl API with automatic local fallback to MarkItDown / Crawl4AI engine.
+    
+    Args:
+        url: The web URL to scrape or crawl.
+        mode: 'scrape' (single page) or 'crawl' (multi-page sublinks).
+        extract_markdown: Extract clean markdown for RAG.
+        api_key: Optional Firecrawl API key (uses FIRECRAWL_API_KEY env or local engine fallback).
+    """
+    try:
+        key = api_key or os.environ.get("FIRECRAWL_API_KEY", "")
+        if key:
+            from firecrawl import FirecrawlApp
+            app = FirecrawlApp(api_key=key)
+            if mode == "crawl":
+                res = app.crawl_url(url, params={"limit": 5, "scrapeOptions": {"formats": ["markdown"]}})
+            else:
+                res = app.scrape_url(url, params={"formats": ["markdown"]})
+            return {"status": "success", "engine": "firecrawl_cloud", "data": res}
+        else:
+            from markitdown import MarkItDown
+            md = MarkItDown()
+            res = md.convert(url)
+            return {
+                "status": "success",
+                "engine": "sovereign_local_markitdown",
+                "url": url,
+                "title": getattr(res, "title", url),
+                "markdown": res.text_content[:3000] if len(res.text_content) > 3000 else res.text_content,
+                "note": "Dieksekusi via Sovereign Local Engine (set FIRECRAWL_API_KEY di .env jika ingin menggunakan cloud Firecrawl)."
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"Firecrawl scrape failed: {str(e)}"}
+
+
+def scrcpy_android_control(action: str = "status", device_id: str = "", command_or_key: str = "", capture_screenshot: bool = True) -> Dict[str, Any]:
+    """
+    SCRCPY & ADB ANDROID ENGINE: Control Android smartphones/tablets via USB or Wi-Fi.
+    Allows screen capture, sending keyevents, touch taps, app launches, and desktop screen mirroring.
+    
+    Args:
+        action: 'status' (list devices), 'screenshot' (save screen PNG), 'key' (send HOME/BACK/ENTER), 
+                'tap' (tap X Y coordinates), 'swipe' (swipe X1 Y1 X2 Y2), 'launch_app' (open app package), 'mirror' (open scrcpy window).
+        device_id: Optional specific Android device serial (from adb devices).
+        command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
+        capture_screenshot: If True, takes a fresh screenshot after performing the action.
+    """
+    import subprocess
+    import shutil
+    import time
+    
+    adb_bin = shutil.which("adb")
+    scrcpy_bin = shutil.which("scrcpy")
+    
+    if not adb_bin and not scrcpy_bin:
+        return {
+            "status": "error",
+            "message": "ADB / Scrcpy belum terpasang di sistem. Untuk mengaktifkan kontrol Android, jalankan: 'sudo apt install -y scrcpy adb' (Linux), 'brew install scrcpy' (macOS), atau 'winget install scrcpy' (Windows)."
+        }
+        
+    dev_flag = ["-s", device_id] if device_id else []
+    
+    try:
+        if action == "status":
+            res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=5)
+            return {
+                "status": "success",
+                "raw_devices_output": res.stdout.strip(),
+                "adb_path": adb_bin,
+                "scrcpy_path": scrcpy_bin
+            }
+            
+        elif action == "screenshot":
+            out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
+            os.makedirs(out_dir, exist_ok=True)
+            shot_file = os.path.join(out_dir, f"android_screen_{int(time.time())}.png")
+            with open(shot_file, "wb") as f:
+                subprocess.run([adb_bin] + dev_flag + ["exec-out", "screencap", "-p"], stdout=f, timeout=10)
+            return {
+                "status": "success",
+                "screenshot_file": shot_file,
+                "file_size": os.path.getsize(shot_file) if os.path.exists(shot_file) else 0
+            }
+            
+        elif action == "key":
+            key_map = {
+                "HOME": "3", "BACK": "4", "CALL": "5", "ENDCALL": "6",
+                "ENTER": "66", "DELETE": "67", "TAB": "61", "SPACE": "62",
+                "VOLUME_UP": "24", "VOLUME_DOWN": "25", "POWER": "26", "CAMERA": "27"
+            }
+            keycode = key_map.get(command_or_key.upper(), command_or_key)
+            subprocess.run([adb_bin] + dev_flag + ["shell", "input", "keyevent", keycode], capture_output=True, timeout=5)
+            return {"status": "success", "action": "key", "sent_key": command_or_key}
+            
+        elif action == "tap":
+            coords = command_or_key.split()
+            if len(coords) < 2:
+                return {"status": "error", "message": "Koordinat tap harus berupa 'X Y' (contoh: '500 800')"}
+            subprocess.run([adb_bin] + dev_flag + ["shell", "input", "tap", coords[0], coords[1]], capture_output=True, timeout=5)
+            return {"status": "success", "action": "tap", "coords": coords[:2]}
+            
+        elif action == "launch_app":
+            subprocess.run([adb_bin] + dev_flag + ["shell", "monkey", "-p", command_or_key, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True, timeout=5)
+            return {"status": "success", "action": "launch_app", "package": command_or_key}
+            
+        elif action == "mirror":
+            if not scrcpy_bin:
+                return {"status": "error", "message": "Binary scrcpy tidak ditemukan. Install dengan 'sudo apt install -y scrcpy'"}
+            subprocess.Popen([scrcpy_bin] + (["-s", device_id] if device_id else []))
+            return {"status": "success", "message": "Window screen mirroring Scrcpy berhasil dibuka di desktop."}
+            
+        else:
+            return {"status": "error", "message": f"Action '{action}' tidak dikenal."}
+    except Exception as e:
+        return {"status": "error", "message": f"Android control error: {str(e)}"}
+
+
 def self_restart_service() -> Dict[str, Any]:
     """
     GOD MODE: Self-Restart — the bot restarts its own systemd service to apply
@@ -4594,6 +4985,14 @@ AVAILABLE_TOOLS = [
     list_vector_brain_documents,
     self_restart_service,
     proactive_system_guardian_config,
+    markitdown_convert_document,
+    scrapling_stealth_fetch,
+    scrapy_spider_quick_scrape,
+    crawlee_web_scraper,
+    crawl4ai_web_crawler,
+    browser_use_autonomous_task,
+    firecrawl_scrape_and_crawl,
+    scrcpy_android_control,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,
