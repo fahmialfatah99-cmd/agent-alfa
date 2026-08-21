@@ -45,8 +45,8 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templa
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
-    if "affiliate" in name_lower:
-        return "Affiliate Sales Swarm (TikTok & Shopee)"
+    if "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
+        return "Affiliate Sales & Product Scraper (Camoufox)"
     elif name_lower.startswith("pdf_") or "pdf" in name_lower:
         return "PDF Tools Suite (Offline & Online)"
     elif name_lower.startswith("browser_"):

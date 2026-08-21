@@ -1868,6 +1868,86 @@ def affiliate_list_campaigns(limit: int = 15) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#         ALFA ULTRA-FAST CAMOUFOX & LARGE-SCALE SCRAPER SUITE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def scrape_real_product_data(url: str, engine: str = "auto") -> Dict[str, Any]:
+    """
+    Scrape data produk real dari Shopee, TikTok Shop, Tokopedia, atau website manapun menggunakan Camoufox Anti-Detect Browser atau Fast TLS.
+    Bypass proteksi Cloudflare, bot detector, dan dynamic javascript rendering.
+    
+    Args:
+        url: Link produk atau halaman yang ingin discrape.
+        engine: Pilihan engine ('auto', 'camoufox', 'fast_tls').
+    """
+    try:
+        import fast_scraper
+        if engine == "camoufox":
+            return fast_scraper.scrape_with_camoufox(url)
+        elif engine == "fast_tls":
+            return fast_scraper.scrape_with_fast_tls(url)
+        else:
+            domain = url.lower()
+            if "shopee" in domain or "tiktok" in domain or "tokopedia" in domain:
+                return fast_scraper.scrape_with_camoufox(url)
+            else:
+                return fast_scraper.scrape_with_fast_tls(url)
+    except Exception as e:
+        logger.error(f"Error in scrape_real_product_data: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def scrape_large_scale_batch(
+    urls: List[str],
+    batch_name: str = "batch_products",
+    max_concurrency: int = 15,
+    use_camoufox: bool = False
+) -> Dict[str, Any]:
+    """
+    Scraping paralel skala besar untuk puluhan hingga ribuan URL sekaligus dengan kecepatan sangat tinggi.
+    Hasil otomatis diekspor ke file JSON dan CSV di ~/Dokumen/ALFA_SCRAPER_DATA/.
+    
+    Args:
+        urls: Daftar URL yang ingin discrape secara massal.
+        batch_name: Nama batch untuk penamaan file ekspor.
+        max_concurrency: Jumlah request paralel serentak (default: 15).
+        use_camoufox: True untuk menggunakan browser Camoufox Anti-Detect, False untuk Fast TLS engine.
+    """
+    try:
+        import fast_scraper
+        return fast_scraper.run_batch_scrape(
+            urls=urls,
+            batch_name=batch_name,
+            max_concurrency=max_concurrency,
+            use_camoufox=use_camoufox
+        )
+    except Exception as e:
+        logger.error(f"Error in scrape_large_scale_batch: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def marketplace_search_products(query: str, platform: str = "shopee", max_items: int = 15) -> Dict[str, Any]:
+    """
+    Cari dan scrape katalog produk real dari marketplace (Shopee, TikTok Shop, Tokopedia) berdasarkan kata kunci pencarian.
+    
+    Args:
+        query: Kata kunci pencarian produk (misal: 'powerbank mini fast charge', 'lampu tidur estetik').
+        platform: Marketplace target ('shopee', 'tiktok', 'tokopedia', 'lazada').
+        max_items: Jumlah maksimal produk yang diambil (default: 15).
+    """
+    try:
+        import fast_scraper
+        return fast_scraper.search_and_scrape_marketplace(
+            query=query,
+            platform=platform,
+            max_items=max_items
+        )
+    except Exception as e:
+        logger.error(f"Error in marketplace_search_products: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[List[Any]], filename: str = "data.xlsx") -> Dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
@@ -4149,6 +4229,9 @@ AVAILABLE_TOOLS = [
     affiliate_generate_viral_content,
     affiliate_broadcast_deal,
     affiliate_list_campaigns,
+    scrape_real_product_data,
+    scrape_large_scale_batch,
+    marketplace_search_products,
     generate_excel_spreadsheet,
     generate_presentation_pptx,
     control_linux_hardware,
