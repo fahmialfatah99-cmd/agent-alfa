@@ -2561,14 +2561,17 @@
                     </div>
 
                     <!-- Sub-view Navigation -->
-                    <div class="flex items-center gap-1.5 p-1 bg-dark-950/80 rounded-xl border border-white/5 font-mono text-xs">
-                        <button onclick="switchScraperSubTab('keyword')" id="scraper-subtab-btn-keyword" class="px-3 py-1.5 rounded-lg bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold flex items-center gap-1.5 transition-all">
-                            <i data-lucide="search" class="w-3.5 h-3.5"></i> Deep Search Crawler
+                    <div class="flex items-center gap-1.5 p-1 bg-dark-950/80 rounded-xl border border-white/5 font-mono text-xs overflow-x-auto">
+                        <button onclick="switchScraperSubTab('keyword')" id="scraper-subtab-btn-keyword" class="px-3 py-1.5 rounded-lg bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold flex items-center gap-1.5 transition-all whitespace-nowrap">
+                            <i data-lucide="search" class="w-3.5 h-3.5"></i> Deep Search
                         </button>
-                        <button onclick="switchScraperSubTab('urls')" id="scraper-subtab-btn-urls" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition-all">
-                            <i data-lucide="link" class="w-3.5 h-3.5"></i> Custom URL Batch
+                        <button onclick="switchScraperSubTab('modern')" id="scraper-subtab-btn-modern" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition-all whitespace-nowrap">
+                            <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i> AI & Modern Lab (Crawl4AI/Scrapling)
                         </button>
-                        <button onclick="switchScraperSubTab('history')" id="scraper-subtab-btn-history" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition-all">
+                        <button onclick="switchScraperSubTab('urls')" id="scraper-subtab-btn-urls" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition-all whitespace-nowrap">
+                            <i data-lucide="link" class="w-3.5 h-3.5"></i> URL Batch
+                        </button>
+                        <button onclick="switchScraperSubTab('history')" id="scraper-subtab-btn-history" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1.5 transition-all whitespace-nowrap">
                             <i data-lucide="history" class="w-3.5 h-3.5"></i> Riwayat Ekspor
                         </button>
                     </div>
@@ -2734,7 +2737,103 @@
                 </div>
             </div>
 
-            <!-- SUB-VIEW 3: SCRAPE BATCH HISTORY -->
+            <!-- SUB-VIEW 3: AI & MODERN SCRAPER LAB -->
+            <div id="scraper-subview-modern" class="scraper-subview space-y-6 hidden">
+                <div class="glass-card p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 via-dark-900/40 to-dark-900/80 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xl">
+                                🤖
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                    Next-Gen AI & Modern Scraper Lab
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">CRAWL4AI • SCRAPLING • MARKITDOWN • SCRAPY • CRAWLEE • FIRECRAWL</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Ekstraksi halaman web tunggal atau multi-halaman dengan teknologi anti-bot mutakhir dan auto-ingest ke Neural Vector Brain.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onsubmit="runModernScraperLab(event)" class="space-y-4 pt-2">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="md:col-span-2 space-y-1">
+                                <label class="text-xs text-slate-300 font-mono">Target URL Website</label>
+                                <input type="url" id="modern-scraper-url" placeholder="https://example.com/artikel atau https://target-web.com" required class="w-full px-4 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs text-slate-300 font-mono">Pilih Scraper Engine</label>
+                                <select id="modern-scraper-engine" class="w-full px-3 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+                                    <option value="auto_hybrid" selected>⚡ Auto-Hybrid (Scrapling + Crawl4AI + MarkItDown)</option>
+                                    <option value="crawl4ai">🤖 Crawl4AI (LLM Fit-Markdown & Links)</option>
+                                    <option value="scrapling">🛡️ Scrapling (Cloudflare & Anti-Bot Bypass)</option>
+                                    <option value="markitdown">📄 Microsoft MarkItDown (Universal Doc/Web)</option>
+                                    <option value="scrapy">🕷️ Scrapy & Parsel (Fast Structured CSS)</option>
+                                    <option value="crawlee">🌐 Apify Crawlee (Multi-Page Deep Crawler)</option>
+                                    <option value="firecrawl">🔥 Firecrawl (Clean RAG Block Extractor)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-xs text-slate-300 font-mono">CSS Selector Kustom (Opsional)</label>
+                                <input type="text" id="modern-scraper-selector" placeholder="h1, .content, #main-article, table..." class="w-full px-3 py-2 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs text-slate-300 font-mono">Max Pages (Khusus Crawlee)</label>
+                                <select id="modern-scraper-maxpages" class="w-full px-3 py-2 rounded-xl bg-dark-950 border border-white/10 text-white text-xs font-mono">
+                                    <option value="1">1 Halaman</option>
+                                    <option value="3" selected>3 Halaman Terhubung</option>
+                                    <option value="5">5 Halaman Terhubung</option>
+                                    <option value="10">10 Halaman (Deep Crawl)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center pt-5">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="modern-scraper-autoingest" class="rounded bg-dark-950 border-white/20 text-cyan-500 focus:ring-0 w-4 h-4">
+                                    <span class="text-xs text-cyan-300 font-mono font-bold">⚡ Simpan Otomatis ke Second Brain (Vector RAG)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-2">
+                            <div id="modern-scraper-status-text" class="text-xs text-slate-400 font-mono">
+                                Siap mengekstrak dengan teknologi modern anti-deteksi.
+                            </div>
+                            <button type="submit" id="btn-run-modern-scraper" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all">
+                                <i data-lucide="play" class="w-4 h-4"></i> 🚀 Eksekusi Scraper Sekarang
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Modern Scraper Result Preview -->
+                <div id="modern-scraper-result-card" class="glass-card p-6 rounded-2xl border border-white/10 space-y-4 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                <i data-lucide="file-check" class="w-4 h-4 text-cyan-400"></i>
+                                Hasil Ekstraksi Scraper: <span id="modern-res-engine-tag" class="text-cyan-300 font-mono text-xs"></span>
+                            </h3>
+                            <p id="modern-res-meta" class="text-xs text-slate-400 font-mono">Durasi: 0ms</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="copyModernScraperOutput()" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-mono flex items-center gap-1.5 transition-all">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Teks
+                            </button>
+                            <button type="button" onclick="downloadModernScraperOutput()" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-1.5 hover:bg-cyan-500/30 transition-all">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Unduh (.md)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Output Pre Container -->
+                    <div class="bg-dark-950 p-4 rounded-xl border border-white/5 font-mono text-xs text-slate-300 max-h-[500px] overflow-y-auto custom-scrollbar whitespace-pre-wrap leading-relaxed" id="modern-scraper-output-view"></div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW 4: SCRAPE BATCH HISTORY -->
             <div id="scraper-subview-history" class="scraper-subview space-y-6 hidden">
                 <div class="glass-card p-6 rounded-2xl border border-white/10 space-y-4">
                     <div class="flex items-center justify-between">
@@ -6764,10 +6863,10 @@
 
         function switchScraperSubTab(sub) {
             document.querySelectorAll('.scraper-subview').forEach(el => el.classList.add('hidden'));
-            ['keyword', 'urls', 'history'].forEach(s => {
+            ['keyword', 'modern', 'urls', 'history'].forEach(s => {
                 const btn = document.getElementById(`scraper-subtab-btn-${s}`);
                 if (btn) {
-                    btn.classList.remove('bg-orange-500/20', 'text-orange-300', 'border', 'border-orange-500/30', 'font-bold');
+                    btn.classList.remove('bg-orange-500/20', 'text-orange-300', 'border', 'border-orange-500/30', 'font-bold', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/30');
                     btn.classList.add('text-slate-400');
                 }
             });
@@ -6777,10 +6876,85 @@
             if (targetView) targetView.classList.remove('hidden');
             if (targetBtn) {
                 targetBtn.classList.remove('text-slate-400');
-                targetBtn.classList.add('bg-orange-500/20', 'text-orange-300', 'border', 'border-orange-500/30', 'font-bold');
+                if (sub === 'modern') {
+                    targetBtn.classList.add('bg-cyan-500/20', 'text-cyan-300', 'border', 'border-cyan-500/30', 'font-bold');
+                } else {
+                    targetBtn.classList.add('bg-orange-500/20', 'text-orange-300', 'border', 'border-orange-500/30', 'font-bold');
+                }
             }
             if (sub === 'history') fetchScraperBatches();
             lucide.createIcons();
+        }
+
+        let modernScraperLastResult = '';
+
+        async function runModernScraperLab(e) {
+            e.preventDefault();
+            const url = document.getElementById('modern-scraper-url').value.trim();
+            const engine = document.getElementById('modern-scraper-engine').value;
+            const selector = document.getElementById('modern-scraper-selector').value.trim();
+            const maxPages = parseInt(document.getElementById('modern-scraper-maxpages').value) || 3;
+            const autoIngest = document.getElementById('modern-scraper-autoingest').checked;
+
+            const btn = document.getElementById('btn-run-modern-scraper');
+            const statusText = document.getElementById('modern-scraper-status-text');
+            const resultCard = document.getElementById('modern-scraper-result-card');
+            const outputView = document.getElementById('modern-scraper-output-view');
+
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-2">⚙️</span> Mengekstrak data...`;
+            statusText.innerText = `Menjalankan engine ${engine}...`;
+
+            try {
+                const res = await fetch('/api/scraper/modern-lab', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url: url,
+                        engine: engine,
+                        css_selector: selector,
+                        max_pages: maxPages,
+                        auto_ingest_vector: autoIngest
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    resultCard.classList.remove('hidden');
+                    document.getElementById('modern-res-engine-tag').innerText = `Engine: ${data.engine}`;
+                    document.getElementById('modern-res-meta').innerText = `Durasi: ${data.duration_ms} ms | Panjang: ${data.extracted_text ? data.extracted_text.length : 0} karakter ${data.vector_ingest ? '• ⚡ Tersimpan di Second Brain' : ''}`;
+                    modernScraperLastResult = data.markdown || data.extracted_text || JSON.stringify(data.raw_data, null, 2);
+                    outputView.innerText = modernScraperLastResult;
+                    showToast(`Scraping berhasil (${data.duration_ms} ms)!`, 'success');
+                    statusText.innerText = `Selesai dalam ${data.duration_ms} ms.`;
+                } else {
+                    showToast(`Gagal: ${data.message}`, 'error');
+                    statusText.innerText = `Error: ${data.message}`;
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+                statusText.innerText = `Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> 🚀 Eksekusi Scraper Sekarang`;
+                lucide.createIcons();
+            }
+        }
+
+        function copyModernScraperOutput() {
+            if (!modernScraperLastResult) return;
+            navigator.clipboard.writeText(modernScraperLastResult);
+            showToast('Hasil scraping berhasil disalin ke clipboard!', 'info');
+        }
+
+        function downloadModernScraperOutput() {
+            if (!modernScraperLastResult) return;
+            const blob = new Blob([modernScraperLastResult], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ALFA_Scrape_${Date.now()}.md`;
+            a.click();
+            showToast('File hasil scraping (.md) diunduh!', 'success');
         }
 
         function setScraperCategory(cat) {
