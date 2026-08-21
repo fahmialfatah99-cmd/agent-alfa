@@ -45,10 +45,31 @@ def _get_or_create_master_key() -> bytes:
         except Exception as e:
             logger.warning(f"Failed to read vault master key file: {e}")
 
+        # The existing key file is unreadable/corrupt. Back it up instead of
+        # overwriting it: generating a fresh key here would permanently lock
+        # every secret already encrypted with the old key.
+        backup_path = KEY_FILE + ".corrupt." + datetime.now().strftime("%Y%m%d%H%M%S")
+        try:
+            os.replace(KEY_FILE, backup_path)
+            logger.error(
+                f"Vault master key file invalid - moved to '{backup_path}'. "
+                "Secrets encrypted with the previous key can no longer be decrypted. "
+                "Restore the backup file to recover them."
+            )
+        except Exception as backup_err:
+            logger.error(f"Could not back up corrupt vault master key file: {backup_err}")
+            raise RuntimeError(
+                "Vault master key file is corrupt and could not be backed up; "
+                "refusing to generate a new key (existing secrets would be lost)."
+            )
+
     # Generate new random 256-bit key
     new_key = AESGCM.generate_key(bit_length=256)
     try:
-        with open(KEY_FILE, "wb") as f:
+        # Open with restrictive permissions from the start to avoid a
+        # world-readable window before chmod runs.
+        fd = os.open(KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
             f.write(new_key.hex().encode("utf-8"))
         os.chmod(KEY_FILE, 0o600)
     except Exception as e:
@@ -151,26 +172,41 @@ class AlfaSecureVault:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        if str(name_or_id).isdigit():
-            cursor.execute("SELECT * FROM vault_secrets WHERE id = ?", (int(name_or_id),))
+        name_str = str(name_or_id).strip()
+        if name_str.isdigit():
+            # Try by id first, then fall back to literal numeric names
+            cursor.execute("SELECT * FROM vault_secrets WHERE id = ?", (int(name_str),))
+            row = cursor.fetchone()
+            if not row:
+                cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (name_str,))
+                row = cursor.fetchone()
         else:
-            cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (str(name_or_id).strip(),))
+            cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (name_str,))
+            row = cursor.fetchone()
             
-        row = cursor.fetchone()
-        conn.close()
-        
         if not row:
+            conn.close()
             return None
+        
+        row_data = dict(row)
+        conn.close()
             
-        decrypted_val = self.decrypt_val(row["ciphertext"], row["nonce"])
+        try:
+            decrypted_val = self.decrypt_val(row_data["ciphertext"], row_data["nonce"])
+        except Exception as decrypt_err:
+            logger.error(f"Failed to decrypt secret '{row_data['name']}': {decrypt_err}")
+            raise ValueError(
+                f"Gagal mendekripsi secret '{row_data['name']}'. "
+                "Master key kemungkinan berubah sejak secret ini disimpan."
+            )
         return {
-            "id": row["id"],
-            "name": row["name"],
-            "category": row["category"],
+            "id": row_data["id"],
+            "name": row_data["name"],
+            "category": row_data["category"],
             "value": decrypted_val,
-            "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "notes": row["notes"]
+            "created_at": row_data["created_at"],
+            "updated_at": row_data["updated_at"],
+            "notes": row_data["notes"]
         }
 
     def list_secrets(self, category: Optional[str] = None) -> List[Dict[str, Any]]:

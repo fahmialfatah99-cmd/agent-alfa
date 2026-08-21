@@ -63,8 +63,17 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     if not os.path.exists(edge_tts_bin):
         edge_tts_bin = shutil.which("edge-tts") or "edge-tts"
         
-    cmd = [edge_tts_bin, "--voice", voice, "--text", text, "--write-media", audio_path]
-    subprocess.run(cmd, check=True)
+    cmd = [edge_tts_bin, "--voice", voice, "--write-media", audio_path]
+    # Pass the text via stdin to keep it out of the process list (ps aux)
+    # and avoid ARG_MAX limits on long voiceovers.
+    subprocess.run(
+        cmd,
+        input=text.encode("utf-8"),
+        check=True,
+        timeout=120,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
     return audio_path
 
 
@@ -374,8 +383,11 @@ def generate_video_from_images(
     if not output_filename:
         safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
         output_filename = f"{safe_stem}_{int(time.time())}.mp4"
-    elif not output_filename.endswith(".mp4"):
-        output_filename = f"{output_filename}.mp4"
+    else:
+        # Prevent path traversal via user-supplied filenames
+        output_filename = os.path.basename(output_filename.strip())
+        if not output_filename.endswith(".mp4"):
+            output_filename = f"{output_filename}.mp4"
         
     final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
 
@@ -407,9 +419,25 @@ def generate_video_from_images(
     else:
         inputs = []
         filter_parts = []
+        per_frames = max(1, int(per_img_dur * 30))
+        zoom_rate = 0.05 / per_frames
         for i, sl in enumerate(stage_layers):
-            inputs.extend(["-loop", "1", "-t", str(per_img_dur), "-i", sl])
-            filter_parts.append(f"[{i}:v]zoompan=z='min(1.0+0.00004*on,1.05)':d={int(per_img_dur * 30)}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30[v{i}];")
+            # Feed each still image ONCE and let zoompan generate the full
+            # frame span (d=per_frames). Duplicating via -loop AND zoompan's d
+            # multiplies durations (~25x) so later images were never reached.
+            inputs.extend(["-i", sl])
+            if motion_style == "zoom_out":
+                z_expr = f"max(1.05-{zoom_rate}*on,1.0)"
+                pos_expr = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            elif motion_style == "pan_left_right":
+                z_expr = "1.03"
+                pos_expr = f"x='(iw-iw/zoom)*(sin((on/{per_frames})*PI)+1)/2':y='ih/2-(ih/zoom/2)'"
+            else:  # zoom_in
+                z_expr = f"min(1.0+{zoom_rate}*on,1.05)"
+                pos_expr = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            filter_parts.append(
+                f"[{i}:v]zoompan=z='{z_expr}':d={per_frames}:{pos_expr}:s=1080x1920:fps=30[v{i}];"
+            )
             
         concat_inputs = "".join([f"[v{i}]" for i in range(len(stage_layers))])
         filter_parts.append(f"{concat_inputs}concat=n={len(stage_layers)}:v=1:a=0[bg];")
@@ -435,7 +463,7 @@ def generate_video_from_images(
         ]
 
     logger.info(f"Executing FFmpeg render: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, timeout=600)
 
     duration_ms = round((time.time() - start_t) * 1000, 1)
     file_size_mb = round(os.path.getsize(final_video_path) / (1024 * 1024), 2)

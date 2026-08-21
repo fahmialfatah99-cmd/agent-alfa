@@ -14,6 +14,9 @@ import shutil
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import database
 import tools
 from google import genai
@@ -107,9 +110,119 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
     return provider, api_key, model, base_url
 
 
+async def _generate_with_gemini(
+    agent_name: str,
+    api_key: str,
+    models: List[str],
+    prompt: str,
+    final_instruction: str
+) -> Optional[str]:
+    """Try a chain of Gemini models. Returns text or None if all fail."""
+    candidate_models = [m for m in models + ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"] if m]
+    unique_models = list(dict.fromkeys(candidate_models))
+
+    last_err = None
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as client_err:
+        logger.error(f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}")
+        return None
+    for m in unique_models:
+        try:
+            response = await client.aio.models.generate_content(
+                model=m,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=final_instruction,
+                    temperature=0.7,
+                    max_output_tokens=500,
+                )
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as e:
+            last_err = e
+            logger.warning(f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback...")
+
+    logger.error(f"All Gemini models failed for agent '{agent_name}': {last_err!r}")
+    return None
+
+
+async def _generate_with_openai_compat(
+    agent_name: str,
+    provider: str,
+    api_key: str,
+    model: str,
+    base_url: Optional[str],
+    prompt: str,
+    final_instruction: str
+) -> Optional[str]:
+    """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
+    try:
+        import httpx
+        url = base_url
+        if not url:
+            if provider in ["nvidia", "nim"]:
+                url = "https://integrate.api.nvidia.com/v1"
+            elif provider == "deepseek":
+                url = "https://api.deepseek.com/v1"
+            elif provider == "minimax":
+                url = "https://api.minimax.chat/v1"
+            elif provider in ["moonshot", "kimi"]:
+                url = "https://api.moonshot.cn/v1"
+            elif provider in ["qwen", "dashscope"]:
+                url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+            elif provider == "openai":
+                url = "https://api.openai.com/v1"
+            elif provider == "groq":
+                url = "https://api.groq.com/openai/v1"
+            elif provider == "openrouter":
+                url = "https://openrouter.ai/api/v1"
+            elif provider == "9router":
+                url = "http://localhost:20128/v1"
+            elif provider == "ollama":
+                url = "http://localhost:11434/v1"
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        if provider == "openrouter":
+            headers["HTTP-Referer"] = "https://alfa-agent.local"
+            headers["X-Title"] = "ALFA Sovereign Agent"
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": final_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
+        }
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as http_client:
+            res = await http_client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+            if res.status_code == 200:
+                data = res.json()
+                return data["choices"][0]["message"]["content"].strip()
+            err_detail = res.text[:200] or "(empty body)"
+            logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+            return None
+    except Exception as e:
+        logger.error(f"Error in {provider} agent '{agent_name}': {e!r}")
+        return None
+
+
 async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str) -> str:
-    """Generate response for a specific agent using its configured provider and key."""
+    """Generate response for a specific agent using its configured provider and key.
+
+    If the agent's primary provider fails (timeout, bad key, quota, etc.), it
+    automatically falls back to Gemini so the swarm conversation never loses
+    a participant silently.
+    """
     provider, api_key, model, base_url = get_agent_api_client(agent)
+    agent_name = agent.get("name", "Agent")
 
     tone_directive = (
         "\n\n[PANDUAN OUTPUT & GAYA BICARA]:"
@@ -118,92 +231,53 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     )
     final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
 
+    result = None
     if provider == "gemini":
-        candidate_models = [model, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]
-        unique_models = []
-        for m in candidate_models:
-            if m and m not in unique_models:
-                unique_models.append(m)
-
-        client = genai.Client(api_key=api_key or os.getenv("GEMINI_API_KEY"))
-        last_err = None
-        for m in unique_models:
-            try:
-                response = await client.aio.models.generate_content(
-                    model=m,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=final_instruction,
-                        temperature=0.7,
-                        max_output_tokens=500,
-                    )
-                )
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                last_err = e
-                logger.warning(f"Model '{m}' failed for agent '{agent.get('name')}': {e}. Trying next fallback...")
-
-        logger.error(f"All Gemini models failed for agent '{agent.get('name')}': {last_err}")
-        return f"[Error: Gagal memanggil Gemini API: {str(last_err)}]"
-
+        result = await _generate_with_gemini(
+            agent_name=agent_name,
+            api_key=api_key or os.getenv("GEMINI_API_KEY", ""),
+            models=[model],
+            prompt=prompt,
+            final_instruction=final_instruction,
+        )
     elif provider in ["openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
-        try:
-            import httpx
-            url = base_url
-            if not url:
-                if provider in ["nvidia", "nim"]:
-                    url = "https://integrate.api.nvidia.com/v1"
-                elif provider == "deepseek":
-                    url = "https://api.deepseek.com/v1"
-                elif provider == "minimax":
-                    url = "https://api.minimax.chat/v1"
-                elif provider in ["moonshot", "kimi"]:
-                    url = "https://api.moonshot.cn/v1"
-                elif provider in ["qwen", "dashscope"]:
-                    url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-                elif provider == "openai":
-                    url = "https://api.openai.com/v1"
-                elif provider == "groq":
-                    url = "https://api.groq.com/openai/v1"
-                elif provider == "openrouter":
-                    url = "https://openrouter.ai/api/v1"
-                elif provider == "9router":
-                    url = "http://localhost:20128/v1"
-                elif provider == "ollama":
-                    url = "http://localhost:11434/v1"
-
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            }
-            if provider == "openrouter":
-                headers["HTTP-Referer"] = "https://alfa-agent.local"
-                headers["X-Title"] = "ALFA Sovereign Agent"
-
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": final_instruction},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 500
-            }
-
-            async with httpx.AsyncClient(timeout=30.0, verify=False) as http_client:
-                res = await http_client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    return data["choices"][0]["message"]["content"].strip()
-                else:
-                    return f"[Error {res.status_code}: {res.text}]"
-        except Exception as e:
-            logger.error(f"Error in {provider} agent '{agent.get('name')}': {e}")
-            return f"[Error: {str(e)}]"
-
+        result = await _generate_with_openai_compat(
+            agent_name=agent_name,
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            prompt=prompt,
+            final_instruction=final_instruction,
+        )
+        if result is None and os.getenv("GEMINI_API_KEY"):
+            logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
+            result = await _generate_with_gemini(
+                agent_name=f"{agent_name} (fallback)",
+                api_key=os.getenv("GEMINI_API_KEY", ""),
+                models=["gemini-3.5-flash-lite"],
+                prompt=prompt,
+                final_instruction=final_instruction,
+            )
     else:
         return await generate_agent_response({**agent, "provider": "gemini"}, prompt, system_instruction)
+
+    if result is None:
+        return f"[Error: Semua provider gagal untuk '{agent_name}' (primary: {provider})]"
+    return result
+
+
+def validate_python_code(code: str) -> str:
+    """Return an error message if code is empty, trivial, or syntactically invalid; '' if OK."""
+    import ast as _ast
+    cleaned = (code or "").strip()
+    if len(cleaned) < 30:
+        return "kode kosong atau terlalu pendek untuk dijalankan"
+    try:
+        _ast.parse(cleaned)
+    except SyntaxError as syn_err:
+        return f"syntax error di baris {syn_err.lineno}: {syn_err.msg}"
+    return ""
 
 
 async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, topic: str, intent_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -254,25 +328,42 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             generated_content = f"Gue udah scrape langsung {total} data nyata untuk target `{search_query}` di kategori `{cat}`. File CSV tersimpan di `{deliverable_file}` dan siap dianalisis!"
 
         except Exception as e:
+            status = "error"
             tool_output = f"Error in Deep Scraper: {str(e)}"
             generated_content = f"Gagal mengeksekusi scraper: {str(e)}"
 
     # 2. SPECIALIST: CODE CRAFTER (Real Python Automation & Sandbox Execution)
     elif "Code" in agent_name or "Engineer" in role or "Architect" in role:
         tool_name = "execute_python_sandbox"
-        
-        prompt = (
+
+        base_coding_prompt = (
             f"=== PERINTAH CODING NYATA SWARM ===\n"
             f"Topik / Tugas: {topic}\n"
             f"Tugas kamu: Tulis skrip Python fungsional lengkap yang memproses data/tugas ini secara otomatis.\n"
             f"WAJIB sertakan blok kode ```python ... ``` yang bisa langsung dieksekusi."
         )
 
-        generated_content = await generate_agent_response(agent, prompt, "Kamu adalah Chief Code Architect. Tulis kode Python yang bersih, tangguh, dan fungsional.")
+        code_to_run = ""
+        last_code_err = ""
+        for attempt in range(2):
+            attempt_prompt = base_coding_prompt
+            if last_code_err:
+                attempt_prompt += (
+                    f"\n\nPERCOBAAN SEBELUMNYA DITOLAK: {last_code_err}\n"
+                    f"Tulis ulang skrip yang BENAR dan LENGKAP."
+                )
+            generated_content = await generate_agent_response(
+                agent, attempt_prompt,
+                "Kamu adalah Chief Code Architect. Tulis kode Python yang bersih, tangguh, dan fungsional. "
+                "Skrip harus punya logika nyata (bukan placeholder) dan mencetak hasilnya dengan print()."
+            )
+            py_match = re.search(r"```python\s*(.*?)\s*```", generated_content, re.DOTALL)
+            code_to_run = py_match.group(1).strip() if py_match else ""
+            last_code_err = validate_python_code(code_to_run)
+            if not last_code_err:
+                break
 
-        py_match = re.search(r"```python\s*(.*?)\s*```", generated_content, re.DOTALL)
-        if py_match:
-            code_to_run = py_match.group(1)
+        if code_to_run and not last_code_err:
             # Save real python file
             fname = f"swarm_solution_{int(time.time())}.py"
             fpath = os.path.join(SWARM_OUTPUT_DIR, fname)
@@ -285,18 +376,47 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
 
             # Execute in sandbox
             exec_res = tools.execute_python_sandbox(code_to_run)
-            tool_output = f"Skrip Tersimpan: {deliverable_file}\nStatus Eksekusi Sandbox: {exec_res.get('status')}\nStdout:\n{exec_res.get('stdout', 'Selesai tanpa error')[:250]}"
+            status = exec_res.get("status", "error")
+            tool_output = (
+                f"Skrip Tersimpan: {deliverable_file}\n"
+                f"Status Eksekusi Sandbox: {exec_res.get('status')}\n"
+                f"Stdout:\n{exec_res.get('stdout', 'Selesai tanpa error')[:250]}"
+                + (f"\nStderr:\n{exec_res.get('stderr', '')[:200]}" if exec_res.get("stderr") else "")
+            )
         else:
-            tool_output = generated_content[:300]
+            status = "error"
+            tool_output = f"Kode tidak lolos validasi setelah 2 percobaan: {last_code_err or 'LLM tidak menghasilkan blok ```python```'}"
+            generated_content = f"Gagal menyusun skrip yang valid untuk tugas ini ({last_code_err or 'tidak ada blok kode'}). Perlu instruksi lebih spesifik."
 
     # 3. SPECIALIST: CYBER SENTRY / AUDITOR (Real System Security & Resource Audit)
     elif "Sentry" in agent_name or "Security" in role or "Auditor" in role:
         tool_name = "audit_system_integrity"
-        stats = tools.get_system_stats()
-        cpu = stats.get('cpu_percent', 0)
-        mem = stats.get('memory_percent', 0)
-        tool_output = f"Security & Host Telemetry Audit: CPU {cpu}%, RAM {mem}%, Local Endpoints 100% Encrypted & Secure."
-        generated_content = f"Host audit beres. Resource CPU {cpu}%, RAM {mem}%, sesi aman dan terlindungi dari kebocoran data."
+        try:
+            import security_auditor
+            audit = security_auditor.audit_local_host_security()
+        except Exception as audit_err:
+            audit = {"status": "error", "error": str(audit_err)}
+
+        if audit.get("status") == "success":
+            status = "error" if audit.get("critical_findings") else "success"
+            check_lines = "\n".join(
+                f"{'✅' if c['status'] == 'PASS' else '❌'} {c['check']}: {c['detail']}"
+                for c in audit["checks"]
+            )
+            tool_output = (
+                f"Host Security Audit (skor {audit['score']}/100, grade {audit['grade']}):\n{check_lines}"
+            )
+            critical_note = (
+                f" TEMUAN KRITIS: {'; '.join(audit['critical_findings'])}." if audit.get("critical_findings") else ""
+            )
+            generated_content = (
+                f"Audit host selesai: {audit['passed']}/{audit['total_checks']} cek lolos "
+                f"(grade {audit['grade']}).{critical_note}"
+            )
+        else:
+            status = "error"
+            tool_output = f"Host audit gagal dieksekusi: {audit.get('error')}"
+            generated_content = f"Audit keamanan host gagal dijalankan: {audit.get('error')}"
 
     # 4. GENERAL / LEAD SYNTHESIS
     else:
@@ -438,6 +558,22 @@ async def conduct_multi_agent_meeting(
             execution_steps.append(step_result)
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
+    if not participants:
+        error_msg = (
+            "Tidak ada agen yang terdaftar di workforce. "
+            "Tambahkan minimal satu agen terlebih dahulu (Dashboard > AI Workforce) sebelum menjalankan rapat swarm."
+        )
+        logger.error(error_msg)
+        return {
+            "status": "error",
+            "error": error_msg,
+            "topic": topic,
+            "dialogue_transcript": [],
+            "execution_steps": [],
+            "consensus": "",
+            "action_plan": ""
+        }
+
     lead_agent = participants[0]
     
     if mode in ["execute", "plan_and_execute"]:

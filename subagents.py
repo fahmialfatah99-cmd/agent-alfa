@@ -16,16 +16,25 @@ import database
 logger = logging.getLogger("SubagentSwarm")
 
 _global_telegram_app = None
+_global_telegram_loop = None
 
 
 def set_telegram_app(app):
     """Set global Telegram application instance for background notification delivery."""
-    global _global_telegram_app
+    global _global_telegram_app, _global_telegram_loop
     _global_telegram_app = app
+    try:
+        _global_telegram_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        _global_telegram_loop = None
 
 
 def get_telegram_app():
     return _global_telegram_app
+
+
+def get_telegram_loop():
+    return _global_telegram_loop
 
 
 async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: str, task_description: str):

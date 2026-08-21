@@ -22,27 +22,29 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.d
 
 def init_vector_db():
     """Ensure vector knowledge table and indices exist in SQLite."""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS vector_knowledge_embeddings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    doc_title TEXT NOT NULL,
-                    chunk_index INTEGER NOT NULL,
-                    chunk_text TEXT NOT NULL,
-                    embedding_json TEXT NOT NULL,
-                    category TEXT DEFAULT 'general',
-                    source_type TEXT DEFAULT 'text',
-                    char_count INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_user_cat ON vector_knowledge_embeddings(user_id, category);")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);")
-            conn.commit()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS vector_knowledge_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                doc_title TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                chunk_text TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                category TEXT DEFAULT 'general',
+                source_type TEXT DEFAULT 'text',
+                char_count INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_user_cat ON vector_knowledge_embeddings(user_id, category);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);")
+        conn.commit()
     except Exception as e:
         logger.error(f"Failed to init vector db: {e}")
+    finally:
+        conn.close()
 
 
 init_vector_db()
@@ -196,14 +198,12 @@ def ingest_document(
     if not chunks:
         chunks = [text_content[:1000]]
         
-    # Delete old chunks for this document if already existing
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
-        conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, title))
-        conn.commit()
-        
-    # Ingest chunks with embeddings
+    # Reindex atomically in a single transaction: delete old chunks and insert
+    # new ones together so a failure never leaves the document half-deleted.
     saved_count = 0
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, title))
         for idx, chunk in enumerate(chunks):
             emb = get_text_embedding(chunk)
             conn.execute("""
@@ -222,6 +222,11 @@ def ingest_document(
             ))
             saved_count += 1
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
         
     logger.info(f"Ingested '{title}' ({saved_count} chunks, category: {category}) into Vector Brain for user {user_id}")
     return {
@@ -251,7 +256,8 @@ def semantic_search(
     query_emb = get_text_embedding(query)
     
     # Fetch candidate embeddings
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
         conn.row_factory = sqlite3.Row
         if category and category.strip() and category.lower() != "all":
             rows = conn.execute("""
@@ -265,6 +271,8 @@ def semantic_search(
                 FROM vector_knowledge_embeddings
                 WHERE user_id = ?
             """, (user_id,)).fetchall()
+    finally:
+        conn.close()
             
     if not rows:
         return []
@@ -296,7 +304,8 @@ def list_ingested_documents(user_id: int) -> List[Dict[str, Any]]:
     """List summary of all documents currently ingested in Vector Brain."""
     init_vector_db()
     docs = []
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("""
             SELECT doc_title, category, source_type, COUNT(*) as total_chunks, SUM(char_count) as total_chars, MAX(created_at) as last_indexed
@@ -314,16 +323,21 @@ def list_ingested_documents(user_id: int) -> List[Dict[str, Any]]:
                 "total_chars": r["total_chars"],
                 "last_indexed": r["last_indexed"]
             })
+    finally:
+        conn.close()
     return docs
 
 
 def delete_document(user_id: int, doc_title: str) -> Dict[str, Any]:
     """Delete all chunks belonging to a document title."""
     init_vector_db()
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
         cursor = conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, doc_title))
         deleted_count = cursor.rowcount
         conn.commit()
+    finally:
+        conn.close()
         
     return {
         "status": "success",

@@ -10,16 +10,20 @@ import sys
 import glob
 import json
 import time
+import base64
+import secrets
 import inspect
 import asyncio
+import logging
 import subprocess
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import psutil
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,10 +35,50 @@ import bot
 
 app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
 
+# Optional authentication: set DASHBOARD_AUTH_TOKEN in .env to require a password.
+# Browsers will show a native login prompt; API clients may use
+# "Authorization: Bearer <token>" as well.
+DASHBOARD_AUTH_TOKEN = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
+
+
+class DashboardAuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        if DASHBOARD_AUTH_TOKEN:
+            authorized = False
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header == f"Bearer {DASHBOARD_AUTH_TOKEN}":
+                authorized = True
+            elif auth_header.startswith("Basic "):
+                try:
+                    decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+                    _, _, pwd = decoded.partition(":")
+                    authorized = secrets.compare_digest(pwd, DASHBOARD_AUTH_TOKEN)
+                except Exception:
+                    authorized = False
+            if not authorized:
+                return Response(
+                    content='{"detail":"Unauthorized: password required"}',
+                    status_code=401,
+                    media_type="application/json",
+                    headers={"WWW-Authenticate": 'Basic realm="ALFA Dashboard"'},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(DashboardAuthMiddleware)
+
+if not DASHBOARD_AUTH_TOKEN:
+    logging.getLogger("Dashboard").warning(
+        "DASHBOARD_AUTH_TOKEN tidak diset di .env - dashboard TANPA autentikasi. "
+        "Semua endpoint /api/* dapat diakses siapa pun yang bisa mencapai port ini."
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -51,6 +95,19 @@ def get_primary_user_id() -> int:
         except (ValueError, IndexError):
             pass
     return 0
+
+
+def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> int:
+    """Convert payload value to int with fallback and optional bounds."""
+    try:
+        result = int(value)
+    except (TypeError, ValueError):
+        return default
+    if minimum is not None:
+        result = max(minimum, result)
+    if maximum is not None:
+        result = min(maximum, result)
+    return result
 
 
 
@@ -360,6 +417,7 @@ async def generate_promo_video(payload: Dict[str, Any]):
     engine = payload.get("engine", "local_pro")
     api_key = payload.get("api_key", None)
     output_filename = payload.get("output_filename", None)
+    badge_text = payload.get("badge_text", "GRATIS ONGKIR")
     
     if not voiceover_text:
         voiceover_text = f"Promo spesial {product_name}, harga normal {orig_price} sekarang lagi drop cuma {disc_price}! Jangan sampai kehabisan, langsung klik link sekarang!"
@@ -498,9 +556,22 @@ async def get_system_settings():
     
     with database.get_sync_db() as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
         c.execute("SELECT key, value FROM system_settings")
         db_settings = {row[0]: row[1] for row in c.fetchall()}
+        
+    # The active personality source is ~/.alfa/system_prompt.txt (it overrides
+    # .env SYSTEM_INSTRUCTION inside run_agent_turn). Show the user what is
+    # actually governing the agent, not the silently-ignored env value.
+    alfa_prompt_path = os.path.expanduser("~/.alfa/system_prompt.txt")
+    prompt_source = "env"
+    active_instruction = env_vals.get("SYSTEM_INSTRUCTION", "")
+    if os.path.exists(alfa_prompt_path):
+        try:
+            with open(alfa_prompt_path, "r", encoding="utf-8") as f:
+                active_instruction = f.read().strip()
+            prompt_source = "file"
+        except Exception:
+            pass
         
     return {
         "status": "success",
@@ -511,7 +582,9 @@ async def get_system_settings():
             "masked_gemini_key": masked_gemini_key,
             "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-2.5-flash"),
             "allowed_user_ids": env_vals.get("ALLOWED_USER_IDS", ""),
-            "system_instruction": env_vals.get("SYSTEM_INSTRUCTION", ""),
+            "system_instruction": active_instruction,
+            "system_instruction_source": prompt_source,
+            "system_instruction_path": alfa_prompt_path,
         },
         "db_settings": db_settings
     }
@@ -532,44 +605,74 @@ async def update_system_settings(payload: Dict[str, Any]):
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
-            
-        new_lines = []
-        keys_seen = set()
+    else:
+        lines = []
         
-        for line in lines:
-            if line.startswith("TELEGRAM_BOT_TOKEN="):
-                keys_seen.add("TELEGRAM_BOT_TOKEN")
-                if bot_token and not bot_token.startswith("***") and "..." not in bot_token:
-                    new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
-                else:
-                    new_lines.append(line)
-            elif line.startswith("GEMINI_API_KEY="):
-                keys_seen.add("GEMINI_API_KEY")
-                if gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
-                    new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
-                else:
-                    new_lines.append(line)
-            elif line.startswith("GEMINI_MODEL="):
-                keys_seen.add("GEMINI_MODEL")
-                if gemini_model:
-                    new_lines.append(f"GEMINI_MODEL={gemini_model}\n")
-                else:
-                    new_lines.append(line)
-            elif line.startswith("ALLOWED_USER_IDS="):
-                keys_seen.add("ALLOWED_USER_IDS")
-                new_lines.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
-            elif line.startswith("SYSTEM_INSTRUCTION="):
-                keys_seen.add("SYSTEM_INSTRUCTION")
-                if system_instruction:
-                    escaped_instr = system_instruction.replace('"', '\\"')
-                    new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
-                else:
-                    new_lines.append(line)
+    new_lines = []
+    keys_seen = set()
+    
+    for line in lines:
+        if line.startswith("TELEGRAM_BOT_TOKEN="):
+            keys_seen.add("TELEGRAM_BOT_TOKEN")
+            if bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+                new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
             else:
                 new_lines.append(line)
-                
+        elif line.startswith("GEMINI_API_KEY="):
+            keys_seen.add("GEMINI_API_KEY")
+            if gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+                new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
+            else:
+                new_lines.append(line)
+        elif line.startswith("GEMINI_MODEL="):
+            keys_seen.add("GEMINI_MODEL")
+            if gemini_model:
+                new_lines.append(f"GEMINI_MODEL={gemini_model}\n")
+            else:
+                new_lines.append(line)
+        elif line.startswith("ALLOWED_USER_IDS="):
+            keys_seen.add("ALLOWED_USER_IDS")
+            new_lines.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
+        elif line.startswith("SYSTEM_INSTRUCTION="):
+            keys_seen.add("SYSTEM_INSTRUCTION")
+            if system_instruction:
+                escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+                new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+            
+    # Append any settings whose key was not present in the file yet
+    pending = []
+    if "TELEGRAM_BOT_TOKEN" not in keys_seen and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+        pending.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
+    if "GEMINI_API_KEY" not in keys_seen and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+        pending.append(f"GEMINI_API_KEY={gemini_key}\n")
+    if "GEMINI_MODEL" not in keys_seen and gemini_model:
+        pending.append(f"GEMINI_MODEL={gemini_model}\n")
+    if "ALLOWED_USER_IDS" not in keys_seen:
+        pending.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
+    if "SYSTEM_INSTRUCTION" not in keys_seen and system_instruction:
+        escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        pending.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
+    
+    if pending or new_lines != lines:
         with open(env_path, "w", encoding="utf-8") as f:
-            f.writelines(new_lines)
+            f.writelines(new_lines + pending)
+            
+    # Write the personality to its authoritative location. run_agent_turn
+    # re-reads this file on EVERY message, so changes take effect immediately
+    # for both Telegram and the web chat - no restart needed.
+    if system_instruction:
+        alfa_dir = os.path.expanduser("~/.alfa")
+        alfa_prompt_path = os.path.join(alfa_dir, "system_prompt.txt")
+        try:
+            os.makedirs(alfa_dir, exist_ok=True)
+            with open(alfa_prompt_path, "w", encoding="utf-8") as f:
+                f.write(system_instruction + "\n")
+        except Exception as prompt_err:
+            return {"status": "error", "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}"}
             
     db_updates = payload.get("db_settings", {})
     if db_updates:
@@ -580,7 +683,7 @@ async def update_system_settings(payload: Dict[str, Any]):
                 c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (str(k), str(v)))
             conn.commit()
             
-    return {"status": "success", "message": "Konfigurasi sistem berhasil disimpan ke .env dan database!"}
+    return {"status": "success", "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart."}
 
 
 # ==================== UNIVERSAL PRO SCRAPER ENDPOINTS ====================
@@ -591,11 +694,11 @@ async def api_universal_scrape(payload: Dict[str, Any]):
     import universal_scraper
     query = payload.get("query", "").strip()
     category = payload.get("category", "all_marketplace")
-    limit = int(payload.get("limit", 50))
+    limit = safe_int(payload.get("limit", 50), 50, minimum=1, maximum=200)
     if not query:
         return {"status": "error", "message": "Query pencarian wajib diisi."}
     
-    res = universal_scraper.scrape_universal_keyword(query=query, category=category, limit=min(limit, 200))
+    res = universal_scraper.scrape_universal_keyword(query=query, category=category, limit=limit)
     return res
 
 
@@ -604,7 +707,7 @@ async def api_custom_batch_scrape(payload: Dict[str, Any]):
     """Execute custom multi-URL batch scraper."""
     import universal_scraper
     urls = payload.get("urls", [])
-    concurrency = int(payload.get("concurrency", 15))
+    concurrency = safe_int(payload.get("concurrency", 15), 15, minimum=1, maximum=50)
     use_camoufox = bool(payload.get("use_camoufox", False))
     if not urls:
         return {"status": "error", "message": "Daftar URL wajib diisi."}
@@ -631,7 +734,7 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
     engine = payload.get("engine", "auto_hybrid")
     css_selector = payload.get("css_selector", "").strip()
     extract_type = payload.get("extract_type", "markdown")
-    max_pages = int(payload.get("max_pages", 3))
+    max_pages = safe_int(payload.get("max_pages", 3), 3, minimum=1, maximum=50)
     auto_ingest = bool(payload.get("auto_ingest_vector", False))
     
     if not url:
@@ -929,7 +1032,7 @@ async def add_memory(payload: Dict[str, Any]):
         cat = payload.get("category", "general")
         if not key or not content:
             raise HTTPException(status_code=400, detail="key_topic and content required")
-        res = database.save_knowledge_memory_sync(uid, cat, key, content)
+        res = database.save_memory_fact_sync(uid, key, content, cat)
         return {"status": "success", "result": res}
     else:
         entity = payload.get("entity")
@@ -994,7 +1097,7 @@ async def api_vector_search(payload: Dict[str, Any]):
     """Execute cosine semantic similarity search on permanent Vector Brain embeddings."""
     import vector_memory
     query = payload.get("query", "").strip()
-    top_k = int(payload.get("top_k", 5))
+    top_k = safe_int(payload.get("top_k", 5), 5, minimum=1, maximum=50)
     category = payload.get("category", "")
     uid = get_primary_user_id()
     
@@ -1024,6 +1127,20 @@ async def api_vector_ingest(payload: Dict[str, Any]):
         
     res = vector_memory.ingest_document(user_id=uid, title=title, content_or_path=content, category=category)
     return res
+
+
+
+@app.get("/api/meeting/history")
+async def get_meeting_history():
+    """Get AI agent meeting history logs."""
+    history_path = "/home/fahmial/my-agent-workspace/logs/meeting_history.json"
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            return []
+    return []
 
 
 @app.get("/api/brain/vector/list")
@@ -1148,10 +1265,22 @@ async def list_artifacts():
 
 @app.get("/api/artifacts/download")
 async def download_artifact(path: str):
-    """Safely download an artifact file."""
-    if not os.path.exists(path) or not os.path.isfile(path):
+    """Safely download an artifact file (restricted to known artifact directories)."""
+    import video_generator
+    import swarm_engine
+    allowed_dirs = [
+        os.path.realpath("/dev/shm/alfa_sandbox"),
+        os.path.realpath(os.path.expanduser("~/output")),
+        os.path.realpath(os.path.expanduser("~/.alfa")),
+        os.path.realpath(video_generator.VIDEO_OUT_DIR),
+        os.path.realpath(swarm_engine.SWARM_OUTPUT_DIR),
+    ]
+    real_path = os.path.realpath(path)
+    if not any(real_path == d or real_path.startswith(d + os.sep) for d in allowed_dirs):
+        raise HTTPException(status_code=403, detail="Akses ditolak: path di luar direktori artefak yang diizinkan.")
+    if not os.path.exists(real_path) or not os.path.isfile(real_path):
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(path, filename=os.path.basename(path))
+    return FileResponse(real_path, filename=os.path.basename(real_path))
 
 
 @app.get("/api/guardian/config")
@@ -1345,7 +1474,8 @@ async def gdrive_upload_endpoint(
     """Upload a file to Google Drive (either from direct browser upload or existing server path)."""
     if file:
         upload_dir = tools.get_pdf_output_dir("Uploads")
-        target_path = os.path.join(upload_dir, file.filename or "upload.bin")
+        safe_name = os.path.basename(file.filename or "upload.bin") or "upload.bin"
+        target_path = os.path.join(upload_dir, safe_name)
         with open(target_path, "wb") as f:
             f.write(await file.read())
         return tools.gdrive_upload_file(filepath=target_path, folder_id=folder_id or "")
@@ -1369,7 +1499,7 @@ async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
 async def gdrive_sync_brain_endpoint(payload: Dict[str, Any] = None):
     """Sync Google Drive documents to Neural Vector Brain."""
     folder_id = (payload or {}).get("folder_id", "")
-    limit = int((payload or {}).get("limit", 10))
+    limit = safe_int((payload or {}).get("limit", 10), 10, minimum=1, maximum=100)
     return tools.gdrive_sync_to_second_brain(folder_id=folder_id, limit=limit)
 
 
@@ -1861,7 +1991,7 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
-        rounds=min(3, max(1, int(rounds))),
+        rounds=safe_int(rounds, 2, minimum=1, maximum=3),
         mode=mode
     )
     return result
@@ -1890,16 +2020,6 @@ async def get_agent_activity():
     activities = database.list_agent_activities_sync(limit=30)
     subagent_tasks = database.list_subagent_tasks_sync(limit=10)
     agents = database.list_custom_agents_sync()
-    
-    # Seed initial activity logs if empty
-    if not activities:
-        database.log_agent_activity_sync(1, "Alpha Lead", "orchestrating", "Inisialisasi koordinasi Swarm & sinkronisasi multi-model AI", "swarm_orchestrator", "init", "OK - 6 Models Ready", "success", 120.5)
-        database.log_agent_activity_sync(2, "Code Crafter", "bash_exec", "Pemeriksaan integritas kernel & status file repository", "execute_bash_command", "git status -s", "Clean repository tree", "success", 45.2)
-        database.log_agent_activity_sync(3, "System Auditor", "audit", "Audit celah keamanan, port jaringan, dan VRAM 550B", "get_system_stats", "vram_check", "VRAM & Firewall 100% Secure", "success", 210.0)
-        database.log_agent_activity_sync(4, "Researcher Prime", "research", "Pemeriksaan benchmark MoE 120B & model routing", "web_search", "nemotron 3 moe benchmarks", "Found 4 valid papers", "success", 540.3)
-        database.log_agent_activity_sync(5, "Strategic Planner", "planning", "Penyusunan roadmap sprint integrasi WhatsApp & Sheets", "generate_action_plan", "sprint_plan", "Roadmap drafted", "success", 115.0)
-        database.log_agent_activity_sync(6, "Laguna Co-Pilot", "triage", "First-Response scanner aktif untuk triage pesan real-time", "triage_scanner", "active", "Support queue clean", "success", 35.8)
-        activities = database.list_agent_activities_sync(limit=30)
     
     agent_states = []
     for a in agents:
@@ -2058,5 +2178,14 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("DASHBOARD_PORT", "8080"))
-    print(f"🚀 Launching ALFA Sovereign Command Center Pro-Max on http://0.0.0.0:{port}")
-    uvicorn.run("web_dashboard:app", host="0.0.0.0", port=port, reload=False)
+    # Default 127.0.0.1: dashboard only reachable from this machine.
+    # Set DASHBOARD_HOST=0.0.0.0 in .env to expose it on the LAN (not
+    # recommended unless DASHBOARD_AUTH_TOKEN is also set).
+    host = os.getenv("DASHBOARD_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    print(f"🚀 Launching ALFA Sovereign Command Center Pro-Max on http://{host}:{port}")
+    if host in ("0.0.0.0", "::") and not os.getenv("DASHBOARD_AUTH_TOKEN"):
+        logging.getLogger("Dashboard").warning(
+            "DASHBOARD_HOST terbuka ke jaringan TANPA DASHBOARD_AUTH_TOKEN - "
+            "siapa pun di jaringan bisa mengendalikan sistem ini!"
+        )
+    uvicorn.run("web_dashboard:app", host=host, port=port, reload=False)

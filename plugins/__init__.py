@@ -26,23 +26,25 @@ _RUNTIME_PLUGIN_REGISTRY: Dict[str, Callable] = {}
 
 def _init_plugin_db():
     """Ensure dynamic_plugins table exists in database."""
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS dynamic_plugins (
-                    tool_name TEXT PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    code TEXT NOT NULL,
-                    parameters_json TEXT DEFAULT '{}',
-                    status TEXT DEFAULT 'active',
-                    last_test_output TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            conn.commit()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dynamic_plugins (
+                tool_name TEXT PRIMARY KEY,
+                description TEXT NOT NULL,
+                code TEXT NOT NULL,
+                parameters_json TEXT DEFAULT '{}',
+                status TEXT DEFAULT 'active',
+                last_test_output TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
     except Exception as e:
         logger.error(f"Error initializing dynamic_plugins table: {e}")
+    finally:
+        conn.close()
 
 
 _init_plugin_db()
@@ -208,7 +210,8 @@ def create_and_register_plugin(
         }
         
         # 8. Persist to dynamic_plugins Database
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        try:
             conn.execute("""
                 INSERT OR REPLACE INTO dynamic_plugins 
                 (tool_name, description, code, parameters_json, status, last_test_output, updated_at)
@@ -221,6 +224,8 @@ def create_and_register_plugin(
                 json.dumps(test_result, default=str) if test_result is not None else "Passed compilation"
             ))
             conn.commit()
+        finally:
+            conn.close()
             
         logger.info(f"🧬 Dynamic plugin '{clean_name}' successfully compiled, tested, and hot-loaded!")
         
@@ -245,23 +250,25 @@ def create_and_register_plugin(
 def list_all_plugins() -> List[Dict[str, Any]]:
     """Retrieve all active dynamic plugins with their status and code."""
     plugins_list = []
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM dynamic_plugins ORDER BY created_at DESC").fetchall()
-            for r in rows:
-                plugins_list.append({
-                    "tool_name": r["tool_name"],
-                    "description": r["description"],
-                    "parameters": json.loads(r["parameters_json"]) if r["parameters_json"] else {},
-                    "status": r["status"],
-                    "last_test_output": r["last_test_output"],
-                    "created_at": r["created_at"],
-                    "updated_at": r["updated_at"],
-                    "file_exists": os.path.exists(os.path.join(PLUGINS_DIR, f"{r['tool_name']}.py"))
-                })
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM dynamic_plugins ORDER BY created_at DESC").fetchall()
+        for r in rows:
+            plugins_list.append({
+                "tool_name": r["tool_name"],
+                "description": r["description"],
+                "parameters": json.loads(r["parameters_json"]) if r["parameters_json"] else {},
+                "status": r["status"],
+                "last_test_output": r["last_test_output"],
+                "created_at": r["created_at"],
+                "updated_at": r["updated_at"],
+                "file_exists": os.path.exists(os.path.join(PLUGINS_DIR, f"{r['tool_name']}.py"))
+            })
     except Exception as e:
         logger.error(f"Error listing plugins from DB: {e}")
+    finally:
+        conn.close()
         
     return plugins_list
 
@@ -287,12 +294,14 @@ def delete_plugin(tool_name: str) -> Dict[str, Any]:
         del sys.modules[module_name]
         
     # Delete from DB
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
-        with sqlite3.connect(DB_PATH, timeout=10) as conn:
-            conn.execute("DELETE FROM dynamic_plugins WHERE tool_name = ?", (clean_name,))
-            conn.commit()
+        conn.execute("DELETE FROM dynamic_plugins WHERE tool_name = ?", (clean_name,))
+        conn.commit()
     except Exception as e:
         logger.error(f"Error deleting plugin {clean_name} from DB: {e}")
+    finally:
+        conn.close()
         
     return {
         "status": "success",

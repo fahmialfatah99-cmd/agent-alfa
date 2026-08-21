@@ -20,9 +20,11 @@ Features:
 import os
 import sys
 import io
+import json
 import asyncio
 import logging
 import glob
+import subprocess
 import psutil
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -112,10 +114,24 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
         logger.error(f"Failed to initialize GenAI client: {e}")
 
 
+_whitelist_warning_sent = False
+
+
 def is_authorized(user_id: int) -> bool:
-    """Check if the user is authorized to access the bot."""
+    """Check if the user is authorized to access the bot.
+
+    Fail-safe: an empty/misconfigured whitelist DENIES access instead of
+    granting public control over this machine's tools (bash/python/etc).
+    """
+    global _whitelist_warning_sent
     if not ALLOWED_USER_IDS:
-        return True
+        if not _whitelist_warning_sent:
+            logger.critical(
+                "ALLOWED_USER_IDS kosong/tidak valid di .env - SEMUA akses ditolak. "
+                "Tambahkan Telegram ID Anda ke ALLOWED_USER_IDS untuk mengaktifkan bot."
+            )
+            _whitelist_warning_sent = True
+        return False
     return user_id in ALLOWED_USER_IDS
 
 
@@ -323,7 +339,7 @@ async def run_agent_turn(
                 tools=AVAILABLE_TOOLS,
             )
 
-            response = gemini_client.models.generate_content(
+            response = await gemini_client.aio.models.generate_content(
                 model=model_name,
                 contents=contents,
                 config=config
@@ -632,6 +648,8 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
     # 2. Check all other files in sandbox (images, docs, code, archives, audio, video)
     for fname in os.listdir(SANDBOX_DIR):
         fpath = os.path.join(SANDBOX_DIR, fname)
+        if fname == "sandbox_run.py":
+            continue
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
         ext = os.path.splitext(fname)[1].lower()
@@ -761,6 +779,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE))
+    reply = "❌ Maaf, terjadi kesalahan saat memproses pesan suaramu."
 
     try:
         # Download voice audio
@@ -828,6 +847,7 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO))
+    reply = "❌ Maaf, terjadi kesalahan saat memproses gambarmu."
 
     try:
         photo_file = await context.bot.get_file(best_photo.file_id)
@@ -869,6 +889,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT))
+    reply = "❌ Maaf, terjadi kesalahan saat memproses dokumenmu."
 
     try:
         doc_file = await context.bot.get_file(doc.file_id)
@@ -950,9 +971,15 @@ async def proactive_reminder_loop(application: Application):
                     await database.mark_reminder_executed(rem_id)
                     logger.info(f"Dispatched reminder #{rem_id} to chat {chat_id}")
                 except Exception as send_err:
-                    logger.error(f"Failed to dispatch reminder #{rem_id}: {send_err}")
-                    # Mark as executed so it won't lock the queue
-                    await database.mark_reminder_executed(rem_id)
+                    # Keep the reminder queued for retry unless it is stale (>24h overdue)
+                    logger.error(f"Failed to dispatch reminder #{rem_id}: {send_err}. Will retry.")
+                    try:
+                        due_dt = datetime.fromisoformat(rem_time.replace("T", " "))
+                        if (datetime.now() - due_dt).total_seconds() > 86400:
+                            await database.mark_reminder_executed(rem_id)
+                            logger.warning(f"Reminder #{rem_id} dropped: overdue >24h and undeliverable.")
+                    except Exception:
+                        await database.mark_reminder_executed(rem_id)
         except Exception as e:
             logger.error(f"Error in reminder loop: {e}")
 
@@ -988,20 +1015,26 @@ async def proactive_cron_watchdog_loop(application: Application):
                     await safe_send_message(application, chat_id, header)
 
                     # Send any generated documents/images
-                    for fname in os.listdir(SANDBOX_DIR):
-                        fpath = os.path.join(SANDBOX_DIR, fname)
-                        if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
-                            ext = os.path.splitext(fname)[1].lower()
-                            if ext in ['.png', '.jpg', '.jpeg']:
-                                with open(fpath, "rb") as pf:
-                                    await application.bot.send_photo(chat_id=chat_id, photo=pf, caption=f"📸 Lampiran Cron: {fname}")
-                            elif ext in ['.pdf', '.xlsx', '.pptx', '.zip', '.csv', '.json', '.txt']:
-                                with open(fpath, "rb") as df:
-                                    await application.bot.send_document(chat_id=chat_id, document=df, caption=f"📄 Dokumen Cron: {fname}")
-                            try:
-                                os.remove(fpath)
-                            except OSError:
-                                pass
+                    if os.path.isdir(SANDBOX_DIR):
+                        for fname in os.listdir(SANDBOX_DIR):
+                            fpath = os.path.join(SANDBOX_DIR, fname)
+                            if fname == "sandbox_run.py":
+                                continue
+                            if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
+                                ext = os.path.splitext(fname)[1].lower()
+                                try:
+                                    if ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                                        with open(fpath, "rb") as pf:
+                                            await application.bot.send_photo(chat_id=chat_id, photo=pf, caption=f"📸 Lampiran Cron: {fname}")
+                                    else:
+                                        with open(fpath, "rb") as df:
+                                            await application.bot.send_document(chat_id=chat_id, document=df, caption=f"📄 Lampiran Cron: {fname}")
+                                    try:
+                                        os.remove(fpath)
+                                    except OSError:
+                                        pass
+                                except Exception as attach_err:
+                                    logger.error(f"Failed to send cron attachment {fname}: {attach_err}")
                 except Exception as run_err:
                     logger.error(f"Error executing cron job #{job_id}: {run_err}")
         except Exception as e:
@@ -1203,7 +1236,7 @@ async def proactive_ambient_agent_loop(application: Application):
                         )
                         
                         from google.genai import types
-                        resp = gemini_client.models.generate_content(
+                        resp = await gemini_client.aio.models.generate_content(
                             model=GEMINI_MODEL,
                             contents=[types.Content(role="user", parts=[types.Part.from_text(text=proactive_eval_prompt)])]
                         )

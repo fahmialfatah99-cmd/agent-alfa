@@ -7,6 +7,7 @@ import aiosqlite
 import sqlite3
 import os
 import json
+import contextlib
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -15,7 +16,8 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.d
 
 def init_db_sync():
     """Synchronously ensure all SQLite tables and indices exist."""
-    with sqlite3.connect(DB_PATH, timeout=10) as conn:
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS chat_history (
@@ -236,137 +238,43 @@ def init_db_sync():
             pass
 
         conn.commit()
+    finally:
+        conn.close()
 
 
 # Auto-initialize database tables synchronously on import
 try:
     init_db_sync()
-except Exception:
-    pass
+except Exception as _init_err:
+    import logging
+    logging.getLogger(__name__).error(
+        f"init_db_sync failed on import: {_init_err}. "
+        "Database may be missing tables - check disk space/permissions/corruption."
+    )
 
 
 def get_sync_db():
-    """Get a standard synchronous SQLite connection with Row factory and WAL mode."""
+    """Get a synchronous SQLite connection wrapped so `with` blocks close it.
+
+    sqlite3.Connection's own context manager only commits/rolls back the
+    transaction; wrapping in contextlib.closing guarantees the connection
+    (and its WAL file descriptors) are released when the block exits.
+    """
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
-    return conn
+    return contextlib.closing(conn)
 
 
 async def init_db():
-    """Initialize SQLite database tables and enable WAL mode."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("PRAGMA journal_mode=WAL;")
-        
-        # Chat History
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS chat_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                role TEXT NOT NULL,
-                content TEXT NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Long-Term Knowledge Memory
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS knowledge_memory (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                category TEXT DEFAULT 'general',
-                key_topic TEXT NOT NULL,
-                content TEXT NOT NULL,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, key_topic)
-            )
-        """)
-        
-        # Reminders / Scheduled Tasks
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS reminders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                chat_id INTEGER NOT NULL,
-                reminder_time TEXT NOT NULL,
-                message TEXT NOT NULL,
-                is_executed INTEGER DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Scheduled Recurring Cron Tasks / Watchdog
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS scheduled_cron_jobs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                chat_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                prompt_instruction TEXT NOT NULL,
-                interval_minutes INTEGER NOT NULL DEFAULT 60,
-                is_active INTEGER DEFAULT 1,
-                last_run DATETIME,
-                next_run DATETIME NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+    """Initialize SQLite database tables and enable WAL mode (async wrapper).
 
-        # Subagent Background Tasks
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS subagent_tasks (
-                id TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                chat_id INTEGER NOT NULL,
-                role TEXT NOT NULL,
-                task_description TEXT NOT NULL,
-                status TEXT DEFAULT 'running',
-                result TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                finished_at DATETIME
-            )
-        """)
-
-        # User Settings (e.g. voice_mode, preferred_model, prompt)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS user_settings (
-                user_id INTEGER PRIMARY KEY,
-                voice_reply INTEGER DEFAULT 0,
-                system_prompt_override TEXT,
-                model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
-            )
-        """)
-
-        # Semantic Knowledge Graph
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS knowledge_graph (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                entity TEXT NOT NULL,
-                relation TEXT NOT NULL,
-                target_value TEXT NOT NULL,
-                category TEXT DEFAULT 'general',
-                tags TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, entity, relation)
-            )
-        """)
-
-        # Focus & Productivity Sessions (Pomodoro)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS focus_sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                chat_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                duration_minutes INTEGER NOT NULL,
-                start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                end_time DATETIME NOT NULL,
-                status TEXT DEFAULT 'active',
-                notes TEXT,
-                is_notified INTEGER DEFAULT 0
-            )
-        """)
-        await db.commit()
+    Delegates to the canonical sync schema so both paths always create the
+    exact same tables, seeds, and migrations.
+    """
+    import asyncio
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, init_db_sync)
 
 
 # --- Cron / Recurring Task Functions ---
@@ -720,20 +628,20 @@ async def get_user_settings(user_id: int) -> Dict[str, Any]:
 
 
 async def toggle_voice_setting(user_id: int) -> bool:
-    """Toggle voice reply setting on/off."""
-    current = await get_user_settings(user_id)
-    new_val = 0 if current.get("voice_reply", 0) == 1 else 1
+    """Toggle voice reply setting on/off (atomic read-modify-write)."""
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
             INSERT INTO user_settings (user_id, voice_reply)
-            VALUES (?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET voice_reply = excluded.voice_reply
+            VALUES (?, 1)
+            ON CONFLICT(user_id) DO UPDATE SET voice_reply = 1 - voice_reply
             """,
-            (user_id, new_val)
+            (user_id,)
         )
         await db.commit()
-    return bool(new_val)
+        cursor = await db.execute("SELECT voice_reply FROM user_settings WHERE user_id = ?", (user_id,))
+        row = await cursor.fetchone()
+    return bool(row and row[0])
 
 
 # --- Knowledge Graph (Semantic Relations & Second Brain) ---
@@ -900,19 +808,20 @@ def list_api_keys_sync() -> List[Dict[str, Any]]:
 
 def add_api_key_sync(name: str, provider: str, api_key: str, default_model: str, base_url: str = "", set_active: bool = False) -> Dict[str, Any]:
     """Add a new API key to the vault."""
+    provider_norm = provider.strip().lower()
     with get_sync_db() as conn:
         if set_active:
-            conn.execute("UPDATE api_keys SET is_active = 0 WHERE provider = ?", (provider,))
+            conn.execute("UPDATE api_keys SET is_active = 0 WHERE provider = ?", (provider_norm,))
         cursor = conn.execute(
             """
             INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, provider.lower(), api_key.strip(), base_url.strip() if base_url else None, default_model, 1 if set_active else 0)
+            (name, provider_norm, api_key.strip(), base_url.strip() if base_url else None, default_model, 1 if set_active else 0)
         )
         conn.commit()
         key_id = cursor.lastrowid
-    return {"status": "success", "id": key_id, "name": name, "provider": provider}
+    return {"status": "success", "id": key_id, "name": name, "provider": provider_norm}
 
 
 def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
@@ -932,8 +841,12 @@ def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
 def delete_api_key_sync(key_id: int) -> Dict[str, Any]:
     """Delete an API key from the vault."""
     with get_sync_db() as conn:
-        conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+        cursor = conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+        # Detach agents referencing this key so they don't point at a ghost record
+        conn.execute("UPDATE custom_agents SET api_key_id = NULL WHERE api_key_id = ?", (key_id,))
         conn.commit()
+        if cursor.rowcount == 0:
+            return {"status": "error", "message": f"API key #{key_id} not found"}
     return {"status": "success", "message": f"API key #{key_id} deleted"}
 
 
@@ -944,8 +857,11 @@ def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]
         row = cursor.fetchone()
         if row:
             return dict(row)
-        # Fallback to any active key or first key
-        cursor = conn.execute("SELECT * FROM api_keys WHERE provider = ? ORDER BY id ASC LIMIT 1", (provider.lower(),))
+        # Fallback to any other key for this provider (prefer active ones)
+        cursor = conn.execute(
+            "SELECT * FROM api_keys WHERE provider = ? ORDER BY is_active DESC, id ASC LIMIT 1",
+            (provider.lower(),)
+        )
         row = cursor.fetchone()
         if row:
             return dict(row)
@@ -1001,16 +917,20 @@ def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str
         return {"status": "error", "message": "No valid fields to update"}
     values.append(agent_id)
     with get_sync_db() as conn:
-        conn.execute(f"UPDATE custom_agents SET {', '.join(fields)} WHERE id = ?", tuple(values))
+        cursor = conn.execute(f"UPDATE custom_agents SET {', '.join(fields)} WHERE id = ?", tuple(values))
         conn.commit()
+        if cursor.rowcount == 0:
+            return {"status": "error", "message": f"Agent #{agent_id} not found"}
     return {"status": "success", "message": f"Agent #{agent_id} updated"}
 
 
 def delete_custom_agent_sync(agent_id: int) -> Dict[str, Any]:
     """Delete a custom agent."""
     with get_sync_db() as conn:
-        conn.execute("DELETE FROM custom_agents WHERE id = ?", (agent_id,))
+        cursor = conn.execute("DELETE FROM custom_agents WHERE id = ?", (agent_id,))
         conn.commit()
+        if cursor.rowcount == 0:
+            return {"status": "error", "message": f"Agent #{agent_id} not found"}
     return {"status": "success", "message": f"Agent #{agent_id} deleted"}
 
 

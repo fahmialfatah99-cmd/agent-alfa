@@ -171,7 +171,21 @@ On-Screen Text: "KLIK KERANJANG KUNING / LINK DI BIO NOMOR 1 👇🔥"
 
 ⚠️ _Stok flash sale sangat terbatas, harga bisa naik sewaktu-waktu!_"""
 
-    # 3. WhatsApp Community Broadcast
+    # 3. Shopee Product Listing Copy
+    shopee_copy = f"""🔥 FLASH SALE {product_name} 🔥
+
+{product_name} - {key_features}
+
+❌ Harga normal: {original_price}
+✅ Harga flash sale: {discount_price} (Hemat gila!)
+
+⭐ Rating 4.9/5 dari 2.500+ pembeli
+🚚 Gratis ongkir + voucher cashback tersedia
+
+Stok flash sale sangat terbatas. Checkout sekarang sebelum kehabisan!
+🛒 {affiliate_link}"""
+
+    # 4. WhatsApp Community Broadcast
     wa_broadcast = f"""Halo semuanya! Buat yang kemarin nanyain rekomendasi *{product_name}*, kebetulan lagi ada promo flash sale parah hari ini! 😱🔥
 
 Biasanya harganya {original_price}, hari ini cuma *{discount_price}* + gratis ongkir!
@@ -291,6 +305,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         "affiliate_link": affiliate_link,
         "target_audience": target_audience,
         "tiktok_script": tiktok_script,
+        "shopee_copy": shopee_copy,
         "telegram_card": telegram_card,
         "wa_broadcast": wa_broadcast,
         "spill_replies": spill_replies,
@@ -306,24 +321,26 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 
     # Save to database
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("""
-    INSERT INTO affiliate_campaigns 
-    (product_name, platform, target_audience, tiktok_script, shopee_copy, wa_broadcast, telegram_card, spill_link_templates)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        product_name,
-        platform,
-        target_audience,
-        tiktok_script,
-        telegram_card,
-        wa_broadcast,
-        telegram_card,
-        json.dumps(spill_replies)
-    ))
-    campaign_id = cur.lastrowid
-    conn.commit()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+        INSERT INTO affiliate_campaigns 
+        (product_name, platform, target_audience, tiktok_script, shopee_copy, wa_broadcast, telegram_card, spill_link_templates)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            product_name,
+            platform,
+            target_audience,
+            tiktok_script,
+            shopee_copy,
+            wa_broadcast,
+            telegram_card,
+            json.dumps(spill_replies)
+        ))
+        campaign_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
 
     campaign_data["campaign_id"] = campaign_id
     campaign_data["script_file_path"] = out_file
@@ -333,6 +350,40 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 # ══════════════════════════════════════════════════════════════════════════════
 #  3. CODE CRAFTER: MULTI-CHANNEL BROADCASTER
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _deliver_telegram_broadcast(uid: int, message_text: str, reply_markup) -> Dict[str, Any]:
+    """Send a broadcast through the running Telegram bot application.
+
+    Works both from the bot's own loop (tool execution) and from foreign
+    threads/loops (FastAPI dashboard) by marshalling onto the bot's loop.
+    """
+    import asyncio
+    import subagents
+    import bot as bot_module
+
+    tg_app = subagents.get_telegram_app()
+    tg_loop = subagents.get_telegram_loop()
+    if not tg_app or not tg_loop or not tg_loop.is_running():
+        return {"status": "error", "message": "Telegram bot belum berjalan (application belum siap)."}
+
+    coro = bot_module.safe_send_message(tg_app, uid, message_text, reply_markup=reply_markup)
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+
+    if current_loop is tg_loop:
+        # Already on the bot's event loop: schedule and return immediately.
+        tg_loop.create_task(coro)
+        return {"status": "success", "message": "Broadcast dijadwalkan ke Telegram."}
+
+    future = asyncio.run_coroutine_threadsafe(coro, tg_loop)
+    try:
+        future.result(timeout=45)
+        return {"status": "success", "message": "Broadcast terkirim ke Telegram."}
+    except Exception as send_err:
+        return {"status": "error", "message": f"Gagal mengirim broadcast: {str(send_err)}"}
+
 
 def broadcast_affiliate_deal(
     product_name: str,
@@ -348,7 +399,6 @@ def broadcast_affiliate_deal(
     # 1. Telegram
     if "telegram" in channels:
         try:
-            import bot
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             
             allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
@@ -360,9 +410,7 @@ def broadcast_affiliate_deal(
                 [InlineKeyboardButton("🛒 Beli Sekarang / Cek Diskon", url=affiliate_link)]
             ])
             
-            asyncio_res = "Queued to Telegram Channel/Chat"
-            bot.schedule_tool_broadcast(uid, message_text, reply_markup=keyboard)
-            results["telegram"] = {"status": "success", "message": asyncio_res}
+            results["telegram"] = _deliver_telegram_broadcast(uid, message_text, keyboard)
         except Exception as e:
             results["telegram"] = {"status": "error", "message": str(e)}
 
@@ -379,8 +427,9 @@ def broadcast_affiliate_deal(
         except Exception as e:
             results["whatsapp"] = {"status": "error", "message": str(e)}
 
+    any_success = any(r.get("status") in ("success", "ready") for r in results.values())
     return {
-        "status": "success",
+        "status": "success" if any_success else "error",
         "product_name": product_name,
         "channels": channels,
         "results": results,
@@ -395,26 +444,29 @@ def broadcast_affiliate_deal(
 def list_affiliate_campaigns(limit: int = 20) -> List[Dict[str, Any]]:
     """Ambil daftar seluruh campaign affiliate yang telah digenerate."""
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("""
-    SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at 
-    FROM affiliate_campaigns 
-    ORDER BY id DESC LIMIT ?
-    """, (limit,))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
+    try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+        SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at 
+        FROM affiliate_campaigns 
+        ORDER BY id DESC LIMIT ?
+        """, (limit,))
+        return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
 
 
 def get_affiliate_campaign_detail(campaign_id: int) -> Optional[Dict[str, Any]]:
     """Ambil detail lengkap 1 campaign affiliate."""
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM affiliate_campaigns WHERE id = ?", (campaign_id,))
-    row = cur.fetchone()
-    conn.close()
+    try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM affiliate_campaigns WHERE id = ?", (campaign_id,))
+        row = cur.fetchone()
+    finally:
+        conn.close()
     if row:
         data = dict(row)
         try:

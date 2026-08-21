@@ -8,14 +8,152 @@
 
 import ssl
 import time
+import os
+import stat
 import socket
 import urllib.parse
 import urllib.request
 import logging
+import subprocess
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 logger = logging.getLogger("alfa.cyber_sentry")
+
+
+def audit_local_host_security() -> Dict[str, Any]:
+    """
+    Real defensive security audit of THIS machine (no root required):
+    - Listening network sockets (flags publicly-bound listeners)
+    - Permissions of sensitive files (~/.ssh keys, .env, vault master key)
+    - Failed systemd user services
+    - Root filesystem usage
+
+    Returns structured PASS/FAIL checks so agents report facts, not vibes.
+    """
+    import psutil
+
+    checks: Dict[str, Dict[str, Any]] = []
+    critical_findings: List[str] = []
+
+    def add_check(name: str, passed: bool, detail: str, severity: str = "LOW"):
+        checks.append({"check": name, "status": "PASS" if passed else "FAIL", "detail": detail, "severity": severity})
+        if not passed and severity == "CRITICAL":
+            critical_findings.append(f"{name}: {detail}")
+
+    # 1. Listening ports - flag anything bound to all interfaces (0.0.0.0 / ::)
+    public_listeners = []
+    local_listeners = 0
+    try:
+        seen = set()
+        for c in psutil.net_connections(kind="inet"):
+            if c.status != psutil.CONN_LISTEN or not c.laddr:
+                continue
+            pid = c.pid or 0
+            laddr_ip = getattr(c.laddr, "ip", None) or getattr(c.laddr, "address", "")
+            key = (laddr_ip, c.laddr.port, pid)
+            if key in seen:
+                continue
+            seen.add(key)
+            if laddr_ip in ("0.0.0.0", "::"):
+                proc_name = "?"
+                if pid:
+                    try:
+                        proc_name = psutil.Process(pid).name()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                public_listeners.append(f"{laddr_ip}:{c.laddr.port} ({proc_name}, pid {pid})")
+            else:
+                local_listeners += 1
+        add_check(
+            "listening_ports",
+            len(public_listeners) == 0,
+            f"{local_listeners} listener lokal; {len(public_listeners)} terikat ke semua interface: "
+            + (", ".join(public_listeners[:6]) if public_listeners else "tidak ada"),
+            severity="MEDIUM",
+        )
+    except Exception as net_err:
+        add_check("listening_ports", True, f"Tidak dapat memeriksa ({net_err})")
+
+    # 2. Sensitive file permissions
+    home = os.path.expanduser("~")
+    sensitive_targets = [
+        (os.path.join(home, ".ssh"), 0o700),
+        (os.path.join(home, ".alfa_vault_master.key"), 0o600),
+        (os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), 0o600),
+    ]
+    ssh_dir = os.path.join(home, ".ssh")
+    if os.path.isdir(ssh_dir):
+        for fn in os.listdir(ssh_dir):
+            if fn.endswith(".pub") or fn in ("known_hosts", ".known_hosts", "config", "authorized_keys"):
+                continue
+            sensitive_targets.append((os.path.join(ssh_dir, fn), 0o600))
+
+    perm_problems = []
+    perm_checked = 0
+    for path, max_mode in sensitive_targets:
+        if not os.path.exists(path):
+            continue
+        perm_checked += 1
+        mode = stat.S_IMODE(os.stat(path).st_mode)
+        # group/other must have no access at all on these
+        if mode & 0o077:
+            perm_problems.append(f"{os.path.basename(path)} = {oct(mode)} (harus <= {oct(max_mode)})")
+    if perm_checked == 0:
+        add_check("sensitive_permissions", True, "Tidak ada file sensitif untuk diperiksa")
+    else:
+        is_ssh_loose = any(".ssh" in p for p in perm_problems)
+        add_check(
+            "sensitive_permissions",
+            len(perm_problems) == 0,
+            f"{perm_checked} file diperiksa; " + ("aman" if not perm_problems else "; ".join(perm_problems)),
+            severity="CRITICAL" if is_ssh_loose else "HIGH",
+        )
+
+    # 3. Failed systemd user services
+    try:
+        res = subprocess.run(
+            ["systemctl", "--user", "--failed", "--no-legend", "--plain"],
+            capture_output=True, text=True, timeout=10,
+        )
+        failed_units = [ln.split()[0] for ln in res.stdout.strip().splitlines() if ln.strip() and ".service" in ln]
+        add_check(
+            "failed_services",
+            len(failed_units) == 0,
+            f"{len(failed_units)} service user gagal: {', '.join(failed_units[:5])}" if failed_units else "Semua service user sehat",
+            severity="MEDIUM",
+        )
+    except Exception as svc_err:
+        add_check("failed_services", True, f"Tidak dapat memeriksa ({svc_err})")
+
+    # 4. Root filesystem usage
+    try:
+        du = psutil.disk_usage("/")
+        pct = du.percent
+        add_check(
+            "disk_usage",
+            pct < 90,
+            f"/ terpakai {pct:.0f}% ({du.free // (1024**3)} GB bebas)",
+            severity="HIGH",
+        )
+    except Exception as du_err:
+        add_check("disk_usage", True, f"Tidak dapat memeriksa ({du_err})")
+
+    total = len(checks)
+    passed = sum(1 for c in checks if c["status"] == "PASS")
+    score = round(passed / total * 100) if total else 100
+    grade = "A" if score >= 95 else "B" if score >= 80 else "C" if score >= 60 else "D"
+
+    return {
+        "status": "success",
+        "score": score,
+        "grade": grade,
+        "critical_findings": critical_findings,
+        "checks": checks,
+        "passed": passed,
+        "total_checks": total,
+        "audit_timestamp": datetime.now().isoformat(),
+    }
 
 
 def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:

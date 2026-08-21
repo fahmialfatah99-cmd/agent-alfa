@@ -1629,8 +1629,9 @@
                             <i data-lucide="brain" class="w-4 h-4"></i> MASTER SYSTEM INSTRUCTION / PERSONA
                         </h4>
                         <div class="space-y-1">
-                            <label class="text-[11px] font-mono text-slate-400">Instruksi Karakter & Kepribadian Bot</label>
+                            <label class="text-[11px] font-mono text-slate-400">Instruksi Karakter &amp; Kepribadian Bot</label>
                             <textarea id="cfg-system-instruction" rows="4" placeholder="Instruksi sistem..." class="w-full p-3 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans leading-relaxed"></textarea>
+                            <p id="cfg-prompt-source-hint" class="text-[10px] text-slate-500 font-mono">Sumber aktif: ~/.alfa/system_prompt.txt — berlaku untuk Telegram & Web seketika setelah disimpan (tanpa restart).</p>
                         </div>
                     </div>
 
@@ -3652,6 +3653,13 @@
                     const instrText = document.getElementById('cfg-system-instruction');
                     if (instrText && env.system_instruction !== undefined) {
                         instrText.value = env.system_instruction;
+                    }
+                    const promptHint = document.getElementById('cfg-prompt-source-hint');
+                    if (promptHint && env.system_instruction_source) {
+                        const src = env.system_instruction_source === 'file'
+                            ? '~/.alfa/system_prompt.txt (file persona aktif)'
+                            : '.env SYSTEM_INSTRUCTION (file ~/.alfa/system_prompt.txt belum ada)';
+                        promptHint.innerHTML = `Sumber aktif: <span class="text-cyan-400">${src}</span> — berlaku untuk Telegram &amp; Web seketika setelah disimpan.`;
                     }
                 }
             } catch (err) {

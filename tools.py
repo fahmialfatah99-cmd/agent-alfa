@@ -182,6 +182,19 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
     Args:
         code: Complete Python code string to execute.
     """
+    # Reject empty/trivial/unparseable code before spawning a subprocess
+    cleaned = (code or "").strip()
+    if len(cleaned) < 10:
+        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong atau terlalu pendek untuk dieksekusi.", "has_plot": False}
+    try:
+        compile(cleaned, "<sandbox>", "exec")
+    except SyntaxError as syn_err:
+        return {
+            "status": "error", "exit_code": -1, "stdout": "",
+            "stderr": f"Syntax error di baris {syn_err.lineno}: {syn_err.msg}",
+            "has_plot": False,
+        }
+
     try:
         script_path = os.path.join(SANDBOX_DIR, "sandbox_run.py")
         plot_path = os.path.join(SANDBOX_DIR, "generated_plot.png")
