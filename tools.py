@@ -1062,21 +1062,32 @@ def get_pdf_output_dir(subfolder: str) -> str:
     return target_dir
 
 
-def generate_pdf_report(title: str, summary: str, table_data: Optional[List[List[str]]] = None, filename: str = "laporan.pdf") -> Dict[str, Any]:
+def generate_pdf_report(title: str, summary: str, table_data_json: str = "", filename: str = "laporan.pdf") -> Dict[str, Any]:
     """
     Generate a modern, beautifully styled PDF document report with ReportLab and automatically send it to Telegram.
     
     Args:
         title: Main document title (e.g. 'Laporan Analisis Kinerja Server', 'Rangkuman Riset Pasar').
         summary: Paragraphs of text explaining the findings, recommendations, or content.
-        table_data: Optional 2D array of strings for tables [ ['Header1', 'Header2'], ['Val1', 'Val2'] ].
+        table_data_json: Optional JSON string of 2D array for tables, e.g. '[["Header1", "Header2"], ["Val1", "Val2"]]'.
         filename: Output filename ending in .pdf.
     """
     try:
+        import json
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
+        
+        table_data = None
+        if table_data_json:
+            if isinstance(table_data_json, str):
+                try:
+                    table_data = json.loads(table_data_json)
+                except Exception:
+                    table_data = None
+            elif isinstance(table_data_json, list):
+                table_data = table_data_json
         
         out_dir = get_pdf_output_dir("Reports")
         safe_name = filename if filename.endswith(".pdf") else f"{filename}.pdf"
@@ -2002,17 +2013,18 @@ def generate_promo_video_from_images(
         return {"status": "error", "message": str(e)}
 
 
-def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[List[Any]], filename: str = "data.xlsx") -> Dict[str, Any]:
+def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: str, filename: str = "data.xlsx") -> Dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
     
     Args:
         sheet_title: Name of the worksheet tab.
         headers: List of column header names (e.g. ['Nama', 'Kategori', 'Harga', 'Jumlah']).
-        rows: 2D list of row values.
+        rows_json: JSON string of 2D array of rows (e.g. '[["Barang A", "Kategori 1", 15000], ["Barang B", "Kategori 2", 25000]]').
         filename: Output filename ending in .xlsx.
     """
     try:
+        import json
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
@@ -2041,7 +2053,16 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = thin_border
             
-        for row_data in rows:
+        rows_data = []
+        if isinstance(rows_json, str):
+            try:
+                rows_data = json.loads(rows_json)
+            except Exception:
+                rows_data = []
+        elif isinstance(rows_json, list):
+            rows_data = rows_json
+            
+        for row_data in rows_data:
             ws.append(row_data)
             row_idx = ws.max_row
             for col_num in range(1, len(row_data) + 1):
@@ -2063,17 +2084,18 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows: List[
         return {"status": "error", "message": f"Gagal membuat Excel: {str(e)}"}
 
 
-def generate_presentation_pptx(title: str, subtitle: str, slides_content: List[Dict[str, Any]], filename: str = "presentasi.pptx") -> Dict[str, Any]:
+def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, filename: str = "presentasi.pptx") -> Dict[str, Any]:
     """
     Generate a clean PowerPoint presentation (.pptx) and send it directly to Telegram.
     
     Args:
         title: Main presentation title.
         subtitle: Subtitle / author note.
-        slides_content: List of slide objects, each with 'title' (str) and 'points' (list of bullet points).
+        slides_json: JSON string list of slide objects, e.g. '[{"title": "Slide 1", "points": ["Poin A", "Poin B"]}]'.
         filename: Output filename ending in .pptx.
     """
     try:
+        import json
         from pptx import Presentation
         
         safe_name = filename if filename.endswith(".pptx") else f"{filename}.pptx"
