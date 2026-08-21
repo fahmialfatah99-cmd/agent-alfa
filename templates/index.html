@@ -204,94 +204,217 @@
 </head>
 <body class="font-sans antialiased text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200">
 
-    <!-- Top Futuristic Glassmorphic Navigation Bar -->
-    <header class="glass-nav sticky top-0 z-40 px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row items-center justify-between gap-3 shadow-2xl">
-        <div class="w-full lg:w-auto flex items-center justify-between">
-            <div class="flex items-center space-x-3.5">
-                <div class="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-violet-600 text-white font-mono font-black text-xl shadow-glow-cyan">
-                    α
-                </div>
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h1 class="text-sm font-black tracking-wider text-white font-mono flex items-center gap-1.5">
-                            ALFA <span class="text-cyan-400 font-light">//</span> COMMAND PRO
-                        </h1>
-                        <span class="px-2 py-0.5 text-[9px] font-black tracking-widest uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 shadow-sm">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
-                            SOVEREIGN 72T
-                        </span>
+    <!-- Mobile Backdrop for Sidebar -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity"></div>
+
+    <div class="flex min-h-screen">
+        <!-- ==================== LEFT SIDEBAR: BILAH MENU MINIMALIS & SERVICES ==================== -->
+        <aside id="main-sidebar" class="w-64 xl:w-72 bg-dark-900/95 backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between p-4 fixed lg:sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar flex-shrink-0 -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl">
+            <!-- Top Section: Brand & Nav List -->
+            <div class="space-y-4">
+                <!-- Brand Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-violet-600 text-white font-mono font-black text-xl shadow-glow-cyan flex-shrink-0">
+                            α
+                        </div>
+                        <div class="truncate">
+                            <div class="flex items-center space-x-1.5">
+                                <h1 class="text-sm font-black tracking-wider text-white font-mono">
+                                    ALFA <span class="text-cyan-400 font-light">//</span> HUB
+                                </h1>
+                                <span class="px-1.5 py-0.2 text-[8px] font-black uppercase rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                    72T
+                                </span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-mono truncate">Sovereign Linux Orchestrator</p>
+                        </div>
                     </div>
-                    <p class="text-[10px] text-slate-400 font-mono flex items-center gap-2">
-                        <span>Autonomous Multi-Agent</span>
-                        <span class="text-slate-600">•</span>
-                        <span class="text-emerald-400">Telegram Bot 🟢</span>
-                        <span class="text-slate-600">•</span>
-                        <span class="text-cyan-400">WA Sheets 🟢</span>
-                    </p>
+                    <!-- Close button for mobile drawer -->
+                    <button onclick="toggleSidebar(false)" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white bg-white/5">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Vertical Menu Categories -->
+                <nav class="space-y-4 font-mono text-xs">
+                    <!-- Category 1: Workspace Utama -->
+                    <div class="space-y-1">
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                            WORKSPACE UTAMA
+                        </div>
+                        <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                                <span class="font-bold">Telemetry Live</span>
+                            </div>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        </button>
+                        <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="users" class="w-4 h-4 text-violet-400"></i>
+                                <span class="font-bold">AI Swarm & Rapat</span>
+                            </div>
+                            <span class="px-1.5 py-0.2 rounded text-[8px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">2 MODES</span>
+                        </button>
+                        <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-orange-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="scan" class="w-4 h-4 text-orange-400"></i>
+                                <span class="font-bold">Master Scraper Pro</span>
+                            </div>
+                            <span class="px-1.5 py-0.2 rounded text-[8px] bg-orange-500/20 text-orange-300 border border-orange-500/30 font-bold">PRO</span>
+                        </button>
+                        <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="shopping-bag" class="w-4 h-4 text-emerald-400"></i>
+                                <span class="font-bold">Affiliate Studio</span>
+                            </div>
+                            <span class="text-emerald-400 text-[10px]">💰</span>
+                        </button>
+                    </div>
+
+                    <!-- Category 2: Security & Capabilities -->
+                    <div class="space-y-1">
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                            SECURITY & TOOLS
+                        </div>
+                        <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+                                <span class="font-bold">Passkey Vault</span>
+                            </div>
+                            <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-500"></i>
+                        </button>
+                        <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="key" class="w-4 h-4 text-cyan-400"></i>
+                                <span class="font-bold">API Keys Manager</span>
+                            </div>
+                        </button>
+                        <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-indigo-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
+                                <span class="font-bold">Tools Catalog</span>
+                            </div>
+                            <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[9px] rounded text-cyan-400">102</span>
+                        </button>
+                        <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-pink-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="brain" class="w-4 h-4 text-pink-400"></i>
+                                <span class="font-bold">Second Brain</span>
+                            </div>
+                        </button>
+                        <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="folder-kanban" class="w-4 h-4 text-emerald-400"></i>
+                                <span class="font-bold">File Artifacts</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Category 3: System & Services -->
+                    <div class="space-y-1">
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 py-0.5">
+                            SYSTEM & CONTROLS
+                        </div>
+                        <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-white hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="layers" class="w-4 h-4 text-slate-400"></i>
+                                <span class="font-bold">System Services</span>
+                            </div>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                        </button>
+                        <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-blue-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
+                                <span class="font-bold">Guardian Defense</span>
+                            </div>
+                        </button>
+                        <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn w-full px-3 py-2 rounded-xl flex items-center justify-between transition-all text-slate-400 hover:text-yellow-300 hover:bg-white/5 text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="terminal" class="w-4 h-4 text-yellow-400"></i>
+                                <span class="font-bold">Web Console</span>
+                            </div>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- Bottom Section: Dedicated "Minimalist Services Status" Dock -->
+            <div class="pt-4 mt-4 border-t border-white/10 space-y-2.5 font-mono">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="server" class="w-3.5 h-3.5 text-cyan-400"></i> SERVICES DOCK
+                    </span>
+                    <button onclick="switchTab('services')" class="text-[9px] text-cyan-400 hover:underline">Semua ⚙️</button>
+                </div>
+                
+                <div class="p-2.5 rounded-2xl bg-dark-950/90 border border-white/5 space-y-2 text-[11px] shadow-inner">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            Telegram AI Bot
+                        </span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">ONLINE</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            WA Sheets Sync
+                        </span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">:3000</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
+                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                            Web Dashboard
+                        </span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">:8080</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-300 flex items-center gap-1.5 truncate">
+                            <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                            Swarm Engine
+                        </span>
+                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold">6 AGENTS</span>
+                    </div>
+                </div>
+
+                <!-- Clock & Quick Refresh -->
+                <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                    <span id="header-clock" class="text-slate-300">--:--:-- WIB</span>
+                    <button onclick="fetchStats(true)" class="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 transition-all shadow-sm" title="Refresh Live Telemetry">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
+                    </button>
                 </div>
             </div>
+        </aside>
 
-            <!-- Mobile Quick Clock -->
-            <div class="lg:hidden flex items-center gap-2 text-xs font-mono text-cyan-400 bg-white/5 px-2.5 py-1 rounded-xl border border-white/5">
-                <span id="mobile-header-clock">--:-- WIB</span>
-            </div>
-        </div>
+        <!-- ==================== MAIN WORKSPACE AREA ==================== -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+            <!-- Top Command Header with Hamburger & Breadcrumb -->
+            <header class="glass-nav sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between shadow-md">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar(true)" class="lg:hidden p-2 rounded-xl bg-white/5 text-slate-300 border border-white/10 hover:text-cyan-400 transition-all">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+                        <span class="text-white font-bold">ALFA HUB</span>
+                        <span>/</span>
+                        <span id="top-current-tab-title" class="text-cyan-400 font-bold">Telemetry & Overview</span>
+                    </div>
+                </div>
 
-        <!-- Center Interactive Tab Navigation -->
-        <nav class="flex items-center space-x-1 p-1 bg-dark-900/90 rounded-2xl border border-white/10 overflow-x-auto max-w-full custom-scrollbar shadow-inner">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan whitespace-nowrap">
-                <i data-lucide="activity" class="w-3.5 h-3.5 text-cyan-400"></i> Telemetry
-            </button>
-            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="users" class="w-3.5 h-3.5 text-violet-400"></i> AI Swarm & Rapat
-                <span class="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold">2 MODES</span>
-            </button>
-            <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-orange-300 hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="scan" class="w-3.5 h-3.5 text-orange-400"></i> Master Scraper Pro
-            </button>
-            <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-emerald-400"></i> Affiliate Studio
-            </button>
-            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="key" class="w-3.5 h-3.5 text-cyan-400"></i> API Keys
-            </button>
-            <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> Passkey Vault
-            </button>
-            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-400"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">102</span>
-            </button>
-            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-400"></i> Services
-            </button>
-            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="brain" class="w-3.5 h-3.5 text-pink-400"></i> Memory
-            </button>
-            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="folder-kanban" class="w-3.5 h-3.5 text-emerald-400"></i> Files
-            </button>
-            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-400"></i> Guardian
-            </button>
-            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="terminal" class="w-3.5 h-3.5 text-yellow-400"></i> Console
-            </button>
-        </nav>
+                <div class="flex items-center gap-3 text-xs font-mono">
+                    <span class="hidden sm:inline-flex px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold items-center gap-1.5 shadow-sm">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        SYSTEM NORMAL • GOD MODE
+                    </span>
+                </div>
+            </header>
 
-        <!-- Right Quick Telemetry & Refresh -->
-        <div class="hidden lg:flex items-center space-x-3 text-xs font-mono text-slate-400">
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-900/90 border border-white/10 shadow-sm">
-                <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-400"></i>
-                <span id="header-clock" class="text-slate-200">--:--:-- WIB</span>
-            </div>
-            <button onclick="fetchStats(true)" class="p-2 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-white/10 transition-all shadow-sm" title="Refresh Live Data">
-                <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="max-w-7xl mx-auto p-6 space-y-6">
+            <!-- Main Content Container -->
+            <main class="p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
 
         <!-- ==================== TAB 1: OVERVIEW & TELEMETRY ==================== -->
         <section id="view-overview" class="tab-view space-y-6">
@@ -2399,9 +2522,9 @@
                     </div>
                 </div>
             </div>
-        </section>
-
-    </main>
+            </main>
+        </div>
+    </div>
 
     <!-- Interactive Tool Execution Modal -->
     <div id="tool-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
@@ -2713,11 +2836,43 @@
             });
         }
 
+        const tabTitles = {
+            'overview': 'Telemetry & Live Overview',
+            'swarm': 'AI Swarm & War Room (2 Modes)',
+            'scraper': 'Master Scraper Pro Studio',
+            'affiliate': 'Affiliate Sales Studio',
+            'vault': 'Passkey Vault & Security',
+            'keys': 'API Keys Manager',
+            'tools': '102 Tools Catalog & Sandbox',
+            'memory': 'Second Brain Memory',
+            'artifacts': 'File Artifacts & Storage',
+            'services': 'System Services & Background Tasks',
+            'guardian': 'Guardian Defense & Integrity',
+            'console': 'Linux Web Console'
+        };
+
+        function toggleSidebar(show = null) {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (!sidebar) return;
+
+            const isCurrentlyHidden = sidebar.classList.contains('-translate-x-full');
+            const willShow = show !== null ? show : isCurrentlyHidden;
+
+            if (willShow) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop?.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop?.classList.add('hidden');
+            }
+        }
+
         // Tab Navigation
         function switchTab(tabId) {
             document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('text-cyan-400', 'bg-white/5', 'border', 'border-cyan-500/30', 'shadow-sm');
+                el.classList.remove('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
                 el.classList.add('text-slate-400');
             });
 
@@ -2726,7 +2881,18 @@
             if (targetView) targetView.classList.remove('hidden');
             if (targetBtn) {
                 targetBtn.classList.remove('text-slate-400');
-                targetBtn.classList.add('text-cyan-400', 'bg-white/5', 'border', 'border-cyan-500/30', 'shadow-sm');
+                targetBtn.classList.add('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
+            }
+
+            // Update Breadcrumb Title
+            const titleEl = document.getElementById('top-current-tab-title');
+            if (titleEl && tabTitles[tabId]) {
+                titleEl.innerText = tabTitles[tabId];
+            }
+
+            // Close sidebar drawer on mobile after clicking
+            if (window.innerWidth < 1024) {
+                toggleSidebar(false);
             }
 
             if (tabId === 'tools' && allToolsData.length === 0) fetchTools();
