@@ -206,6 +206,10 @@ async def execute_tool(payload: Dict[str, Any]):
         
     target_fn = getattr(tools, tool_name, None)
     if not target_fn or not callable(target_fn):
+        import plugins
+        target_fn = plugins._RUNTIME_PLUGIN_REGISTRY.get(tool_name)
+        
+    if not target_fn or not callable(target_fn):
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
         
     try:
