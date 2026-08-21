@@ -4372,6 +4372,282 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
         return {"status": "error", "message": f"Android control error: {str(e)}"}
 
 
+# ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ====================
+
+def _get_gdrive_service():
+    """Helper to initialize and return an authorized Google Drive API v3 resource service."""
+    import json
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    
+    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    scopes = [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/drive.file"
+    ]
+    
+    creds = None
+    if os.path.exists(cred_file):
+        try:
+            creds = service_account.Credentials.from_service_account_file(cred_file, scopes=scopes)
+        except Exception as e:
+            logger.error(f"Error loading gdrive_credentials.json: {e}")
+            
+    if not creds:
+        env_json = os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip()
+        if env_json:
+            try:
+                info = json.loads(env_json)
+                creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+            except Exception as e:
+                logger.error(f"Error loading GDRIVE_SERVICE_ACCOUNT_JSON from env: {e}")
+                
+    if not creds:
+        try:
+            with database.get_sync_db() as conn:
+                row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_credentials_json'").fetchone()
+                if row and row[0]:
+                    info = json.loads(row[0])
+                    creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+        except Exception as e:
+            logger.error(f"Error loading gdrive credentials from database: {e}")
+            
+    if not creds:
+        raise ValueError(
+            "Google Drive credentials belum dikonfigurasi! "
+            "Unggah Service Account JSON dari Google Cloud Console ke menu Google Drive Hub atau simpan file 'gdrive_credentials.json'."
+        )
+        
+    return build("drive", "v3", credentials=creds)
+
+
+def gdrive_status() -> Dict[str, Any]:
+    """
+    Check the connection status of Google Drive Integration and return storage quota info.
+    """
+    try:
+        service = _get_gdrive_service()
+        about = service.about().get(fields="user, storageQuota").execute()
+        return {
+            "status": "success",
+            "connected": True,
+            "user": about.get("user", {}),
+            "storage_quota": about.get("storageQuota", {})
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "connected": False,
+            "message": str(e)
+        }
+
+
+def gdrive_list_files(folder_id: str = "", query: str = "", limit: int = 20) -> Dict[str, Any]:
+    """
+    List, search, and browse files and folders stored in Google Drive.
+    
+    Args:
+        folder_id: Optional ID of the Google Drive folder to list.
+        query: Optional search keyword or query term.
+        limit: Max number of files to return (default 20, max 100).
+    """
+    try:
+        service = _get_gdrive_service()
+        q_parts = ["trashed = false"]
+        if folder_id:
+            q_parts.append(f"'{folder_id}' in parents")
+        if query:
+            q_parts.append(f"(name contains '{query}' or fullText contains '{query}')")
+        q_str = " and ".join(q_parts)
+        
+        results = service.files().list(
+            q=q_str,
+            pageSize=min(limit, 100),
+            fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink)"
+        ).execute()
+        
+        files = results.get("files", [])
+        return {
+            "status": "success",
+            "total_found": len(files),
+            "files": files
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengambil daftar file Google Drive: {str(e)}"}
+
+
+def gdrive_upload_file(filepath: str, folder_id: str = "", custom_filename: str = "") -> Dict[str, Any]:
+    """
+    Upload a local file or document (PDF, Excel, Word, images, code, archive) to Google Drive.
+    
+    Args:
+        filepath: Path to the local file (e.g. '~/Dokumen/ALFA_SWARM_OUTPUTS/laporan.pdf' or filename).
+        folder_id: Optional Google Drive folder ID to upload into.
+        custom_filename: Optional custom file name on Google Drive.
+    """
+    try:
+        import mimetypes
+        from googleapiclient.http import MediaFileUpload
+        
+        resolved_path = os.path.expanduser(filepath)
+        if not os.path.exists(resolved_path):
+            alt_path = os.path.join(SANDBOX_DIR, filepath)
+            if os.path.exists(alt_path):
+                resolved_path = alt_path
+            else:
+                return {"status": "error", "message": f"File '{filepath}' tidak ditemukan di sistem lokal."}
+                
+        service = _get_gdrive_service()
+        upload_name = custom_filename or os.path.basename(resolved_path)
+        mime_type, _ = mimetypes.guess_type(resolved_path)
+        if not mime_type:
+            mime_type = "application/octet-stream"
+            
+        file_metadata = {"name": upload_name}
+        if folder_id:
+            file_metadata["parents"] = [folder_id]
+            
+        media = MediaFileUpload(resolved_path, mimetype=mime_type, resumable=True)
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id, name, mimeType, size, webViewLink, webContentLink"
+        ).execute()
+        
+        try:
+            service.permissions().create(
+                fileId=file.get("id"),
+                body={"role": "reader", "type": "anyone"}
+            ).execute()
+        except Exception:
+            pass
+            
+        return {
+            "status": "success",
+            "message": f"File '{upload_name}' berhasil diunggah ke Google Drive!",
+            "file_id": file.get("id"),
+            "file_name": file.get("name"),
+            "web_link": file.get("webViewLink"),
+            "download_link": file.get("webContentLink")
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengunggah file ke Google Drive: {str(e)}"}
+
+
+def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any]:
+    """
+    Download a file from Google Drive by its File ID to the local system.
+    
+    Args:
+        file_id: The unique Google Drive File ID.
+        save_filename: Optional local filename to save the downloaded content as.
+    """
+    try:
+        import io
+        from googleapiclient.http import MediaIoBaseDownload
+        
+        service = _get_gdrive_service()
+        file_meta = service.files().get(fileId=file_id, fields="id, name, mimeType").execute()
+        target_name = save_filename or file_meta.get("name", f"gdrive_{file_id}")
+        target_path = os.path.join(SANDBOX_DIR, target_name)
+        
+        request = service.files().get_media(fileId=file_id)
+        fh = io.FileIO(target_path, "wb")
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            
+        return {
+            "status": "success",
+            "message": f"File '{target_name}' berhasil diunduh dari Google Drive!",
+            "file_id": file_id,
+            "saved_path": target_path,
+            "file_size": os.path.getsize(target_path)
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal mengunduh file dari Google Drive: {str(e)}"}
+
+
+def gdrive_create_folder(folder_name: str, parent_folder_id: str = "") -> Dict[str, Any]:
+    """
+    Create a new folder in Google Drive.
+    
+    Args:
+        folder_name: Name of the folder to create.
+        parent_folder_id: Optional ID of the parent folder.
+    """
+    try:
+        service = _get_gdrive_service()
+        file_metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder"
+        }
+        if parent_folder_id:
+            file_metadata["parents"] = [parent_folder_id]
+            
+        folder = service.files().create(
+            body=file_metadata,
+            fields="id, name, webViewLink"
+        ).execute()
+        
+        return {
+            "status": "success",
+            "message": f"Folder '{folder_name}' berhasil dibuat di Google Drive!",
+            "folder_id": folder.get("id"),
+            "folder_name": folder.get("name"),
+            "web_link": folder.get("webViewLink")
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membuat folder Google Drive: {str(e)}"}
+
+
+def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[str, Any]:
+    """
+    Ingest and sync documents from Google Drive directly into ALFA's Neural Vector Brain (Second Brain RAG).
+    
+    Args:
+        folder_id: Optional Google Drive folder ID to ingest from.
+        limit: Max documents to ingest (default 10).
+    """
+    try:
+        import vector_memory
+        list_res = gdrive_list_files(folder_id=folder_id, limit=limit)
+        if list_res.get("status") != "success":
+            return list_res
+            
+        files = list_res.get("files", [])
+        ingested = []
+        uid = current_user_id_var.get() or 0
+        
+        for f in files:
+            fid = f.get("id")
+            fname = f.get("name", "")
+            mime = f.get("mimeType", "")
+            
+            if "folder" in mime:
+                continue
+                
+            dl_res = gdrive_download_file(file_id=fid, save_filename=fname)
+            if dl_res.get("status") == "success":
+                local_f = dl_res.get("saved_path")
+                v_res = vector_memory.ingest_document(
+                    user_id=uid,
+                    title=f"GDrive: {fname}",
+                    content_or_path=local_f,
+                    category="Google Drive Sync"
+                )
+                ingested.append({"name": fname, "file_id": fid, "vector_status": v_res.get("status")})
+                
+        return {
+            "status": "success",
+            "total_ingested": len(ingested),
+            "synced_files": ingested
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal sinkronisasi Google Drive ke Second Brain: {str(e)}"}
+
+
 def self_restart_service() -> Dict[str, Any]:
     """
     GOD MODE: Self-Restart — the bot restarts its own systemd service to apply
@@ -5015,6 +5291,12 @@ AVAILABLE_TOOLS = [
     browser_use_autonomous_task,
     firecrawl_scrape_and_crawl,
     scrcpy_android_control,
+    gdrive_status,
+    gdrive_list_files,
+    gdrive_upload_file,
+    gdrive_download_file,
+    gdrive_create_folder,
+    gdrive_sync_to_second_brain,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,

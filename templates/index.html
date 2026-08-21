@@ -444,6 +444,13 @@
                                 <span>File Artifacts</span>
                             </div>
                         </button>
+                        <button onclick="switchTab('gdrive')" id="tab-btn-gdrive" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-blue-400 hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="hard-drive" class="w-4 h-4 text-blue-400"></i>
+                                <span>Google Drive Hub</span>
+                            </div>
+                            <span id="nav-gdrive-badge" class="px-2 py-0.5 bg-blue-500/20 text-[10px] rounded text-blue-300 border border-blue-500/30 font-bold">G-CLOUD</span>
+                        </button>
                     </div>
 
                     <!-- Category 3: System & Services -->
@@ -1254,6 +1261,164 @@
                 <!-- Vector Search Results Container -->
                 <div id="vector-results-container" class="space-y-2.5 hidden max-h-[300px] overflow-y-auto custom-scrollbar">
                     <!-- Dynamic Matches -->
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== TAB: GOOGLE DRIVE & GOOGLE CLOUD HUB ==================== -->
+        <section id="view-gdrive" class="tab-view hidden space-y-6">
+            <!-- Header Card -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-blue-500/30 shadow-xl">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/30 via-indigo-600/30 to-dark-950 border border-blue-500/50 flex items-center justify-center text-2xl shadow-glow-cyan">
+                        📁
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h2 class="text-base font-extrabold text-white tracking-wide">GOOGLE DRIVE & GOOGLE CLOUD SUITE</h2>
+                            <span id="gdrive-status-pill" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-500/20 text-slate-300 border border-slate-500/30 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                                <span id="gdrive-status-pill-text">MEMERIKSA...</span>
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Integrasi Google Drive API v3 resmi dari Google Cloud Console untuk auto-backup dokumen AI, sinkronisasi file cloud, dan ingest Second Brain.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchGdriveStatus(); fetchGdriveFiles();" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="gdrive-refresh-icon"></i>
+                        <span>Refresh Drive</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dual Column Layout: Credentials & Guide + File Explorer -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Column: Cloud Console Setup & Service Account (4 Cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Service Account Key Manager Card -->
+                    <div class="glass-card p-5 rounded-2xl space-y-4 border border-white/10">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                            <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                <i data-lucide="key" class="w-4 h-4 text-blue-400"></i>
+                                Kredensial Google Cloud
+                            </h3>
+                            <span id="gdrive-auth-indicator" class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">BELUM TERHUBUNG</span>
+                        </div>
+
+                        <!-- Active Connection Info -->
+                        <div id="gdrive-connected-info" class="hidden p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2 text-xs">
+                            <div class="flex items-center justify-between text-slate-300">
+                                <span class="font-medium">Service Account:</span>
+                                <span id="gdrive-email-val" class="font-mono text-cyan-300 font-bold truncate max-w-[170px]">-</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-300">
+                                <span class="font-medium">Project ID:</span>
+                                <span id="gdrive-project-val" class="font-mono text-slate-200 font-bold">-</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-300">
+                                <span class="font-medium">Drive Storage:</span>
+                                <span id="gdrive-quota-val" class="text-emerald-400 font-bold">Aktif / Terverifikasi</span>
+                            </div>
+                            <button onclick="deleteGdriveCredentials()" class="w-full mt-2 py-1.5 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs transition-all flex items-center justify-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Kredensial
+                            </button>
+                        </div>
+
+                        <!-- Upload JSON File Box -->
+                        <div class="space-y-3">
+                            <label class="block text-xs font-bold text-slate-300">Unggah File JSON Service Account (*.json)</label>
+                            <div class="border-2 border-dashed border-white/20 hover:border-blue-400 rounded-xl p-4 text-center cursor-pointer transition-all bg-dark-950/60 relative group" onclick="document.getElementById('gdrive-file-input').click()">
+                                <input type="file" id="gdrive-file-input" accept=".json" class="hidden" onchange="handleGdriveFileSelect(event)">
+                                <i data-lucide="file-json" class="w-8 h-8 text-blue-400 mx-auto mb-1 group-hover:scale-110 transition-transform"></i>
+                                <p id="gdrive-filename-preview" class="text-xs text-slate-300 font-medium">Klik untuk memilih file <span class="text-blue-400 font-bold">credentials.json</span></p>
+                                <p class="text-[10px] text-slate-500 mt-0.5">Service Account JSON dari Google Cloud IAM</p>
+                            </div>
+                        </div>
+
+                        <!-- Or Paste Raw JSON -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-bold text-slate-300">Atau Tempel JSON Service Account:</label>
+                            <textarea id="gdrive-json-text" rows="3" placeholder='{"type": "service_account", "project_id": "...", "client_email": "..."}' class="w-full bg-dark-950 border border-white/10 rounded-xl p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-400 custom-scrollbar"></textarea>
+                        </div>
+
+                        <button onclick="saveGdriveCredentials()" id="btn-save-gdrive-cred" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                            <span>Simpan & Verifikasi Kredensial</span>
+                        </button>
+                    </div>
+
+                    <!-- Step-by-Step Google Cloud Console Guide -->
+                    <div class="glass-card p-5 rounded-2xl space-y-3 border border-white/10">
+                        <h4 class="text-xs font-extrabold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="book-open" class="w-4 h-4"></i>
+                            Panduan Google Cloud Console
+                        </h4>
+                        <ol class="space-y-2 text-xs text-slate-300 list-decimal list-inside leading-relaxed">
+                            <li>Buka <a href="https://console.cloud.google.com" target="_blank" class="text-cyan-400 hover:underline font-bold">console.cloud.google.com ↗</a> & buat project baru.</li>
+                            <li>Buka menu <strong class="text-white">APIs & Services > Library</strong> lalu aktifkan <strong class="text-cyan-300">Google Drive API</strong>.</li>
+                            <li>Masuk ke <strong class="text-white">IAM & Admin > Service Accounts</strong> & buat Service Account baru.</li>
+                            <li>Klik tab <strong class="text-white">Keys > Add Key > Create new key (JSON)</strong> lalu unduh filenya.</li>
+                            <li><em class="text-amber-300">Penting:</em> Buka Google Drive Anda, buat folder, lalu <strong>Bagikan (Share)</strong> folder tersebut ke alamat email Service Account sebagai <strong>Editor</strong>.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Right Column: Google Drive File Explorer (8 Cols) -->
+                <div class="lg:col-span-8 space-y-6">
+                    <div class="glass-card p-5 rounded-2xl space-y-4 border border-white/10">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                    <i data-lucide="folder" class="w-4 h-4 text-amber-400"></i>
+                                    File Explorer Google Drive
+                                </h3>
+                                <span id="gdrive-files-count" class="text-xs px-2 py-0.5 rounded-full bg-dark-950 text-cyan-400 border border-white/10 font-bold">0 File</span>
+                            </div>
+
+                            <!-- Actions & Search -->
+                            <div class="flex items-center flex-wrap gap-2 text-xs">
+                                <div class="relative">
+                                    <input type="text" id="gdrive-search-input" placeholder="Cari file di Drive..." onkeyup="if(event.key==='Enter') fetchGdriveFiles()" class="bg-dark-950 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-400 w-40 sm:w-52">
+                                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5"></i>
+                                </div>
+                                <button onclick="promptCreateGdriveFolder()" class="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold flex items-center gap-1">
+                                    <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-amber-400"></i> Buat Folder
+                                </button>
+                                <button onclick="syncGdriveToBrain()" id="btn-gdrive-sync-brain" class="px-3 py-1.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 font-bold flex items-center gap-1.5 shadow-sm">
+                                    <i data-lucide="brain" class="w-3.5 h-3.5"></i> Sync Second Brain
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File Explorer Container -->
+                        <div id="gdrive-files-container" class="min-h-[280px] max-h-[460px] overflow-y-auto custom-scrollbar space-y-2">
+                            <div class="text-center py-16 text-slate-400 text-xs">
+                                <i data-lucide="hard-drive" class="w-10 h-10 text-slate-600 mx-auto mb-2 animate-pulse"></i>
+                                Hubungkan kredensial Google Cloud untuk mulai mengelola Google Drive.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Direct Quick Upload Box to Google Drive -->
+                    <div class="glass-card p-5 rounded-2xl space-y-3 border border-white/10">
+                        <h4 class="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="upload" class="w-4 h-4 text-emerald-400"></i>
+                            Unggah Dokumen / Laporan AI ke Google Drive
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            <div class="sm:col-span-7">
+                                <input type="file" id="gdrive-upload-file-input" class="w-full bg-dark-950 border border-white/10 rounded-xl p-2 text-xs text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-500/20 file:text-blue-300 hover:file:bg-blue-500/30">
+                            </div>
+                            <div class="sm:col-span-5 flex items-center gap-2">
+                                <input type="text" id="gdrive-target-folder-id" placeholder="Folder ID (opsional)" class="w-full bg-dark-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-400 font-mono">
+                                <button onclick="uploadDirectToGdrive()" id="btn-upload-direct-gdrive" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 flex-shrink-0 shadow-lg shadow-emerald-500/20">
+                                    <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i> Upload
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -3419,9 +3584,10 @@
             'affiliate': 'Affiliate Sales Studio',
             'vault': 'Passkey Vault & Security',
             'keys': 'API Keys Manager',
-            'tools': '102 Tools Catalog & Sandbox',
+            'tools': '126 Tools Catalog & Sandbox',
             'memory': 'Second Brain Memory',
             'artifacts': 'File Artifacts & Storage',
+            'gdrive': 'Google Drive & Google Cloud Suite',
             'services': 'System Services & Background Tasks',
             'guardian': 'Guardian Defense & Integrity',
             'console': 'Linux Web Console',
@@ -3568,6 +3734,7 @@
             if (tabId === 'keys') fetchKeys();
             if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
             if (tabId === 'scraper') fetchScraperBatches();
+            if (tabId === 'gdrive') { fetchGdriveStatus(); fetchGdriveFiles(); }
             if (tabId === 'settings') fetchSettings();
             
             lucide.createIcons();
@@ -7339,12 +7506,301 @@
             }
         }
 
+        // ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE LOGIC ====================
+        let selectedGdriveFile = null;
+
+        function handleGdriveFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedGdriveFile = file;
+                const preview = document.getElementById('gdrive-filename-preview');
+                if (preview) {
+                    preview.innerHTML = `File terpilih: <span class="text-emerald-400 font-bold font-mono">${file.name}</span> (${Math.round(file.size / 1024)} KB)`;
+                }
+            }
+        }
+
+        async function fetchGdriveStatus() {
+            const pill = document.getElementById('gdrive-status-pill');
+            const pillText = document.getElementById('gdrive-status-pill-text');
+            const badge = document.getElementById('nav-gdrive-badge');
+            const authInd = document.getElementById('gdrive-auth-indicator');
+            const connInfo = document.getElementById('gdrive-connected-info');
+            const refreshIcon = document.getElementById('gdrive-refresh-icon');
+
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+            try {
+                const res = await fetch('/api/gdrive/status');
+                const data = await res.json();
+
+                if (data.status === 'success' && data.connected) {
+                    if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5';
+                    if (pillText) pillText.innerText = 'TERHUBUNG (G-DRIVE)';
+                    if (badge) badge.className = 'px-2 py-0.5 bg-emerald-500/20 text-[10px] rounded text-emerald-300 border border-emerald-500/30 font-bold';
+                    if (authInd) {
+                        authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                        authInd.innerText = 'TERHUBUNG 🟢';
+                    }
+                    if (connInfo) {
+                        connInfo.classList.remove('hidden');
+                        document.getElementById('gdrive-email-val').innerText = data.client_email || 'Service Account';
+                        document.getElementById('gdrive-project-val').innerText = data.project_id || '-';
+                    }
+                } else {
+                    if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5';
+                    if (pillText) pillText.innerText = 'BELUM TERHUBUNG';
+                    if (badge) badge.className = 'px-2 py-0.5 bg-blue-500/20 text-[10px] rounded text-blue-300 border border-blue-500/30 font-bold';
+                    if (authInd) {
+                        authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                        authInd.innerText = 'BELUM TERHUBUNG';
+                    }
+                    if (connInfo) connInfo.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error('Fetch gdrive status error:', err);
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        async function saveGdriveCredentials() {
+            const jsonText = document.getElementById('gdrive-json-text').value.trim();
+            const btn = document.getElementById('btn-save-gdrive-cred');
+
+            if (!selectedGdriveFile && !jsonText) {
+                showToast('Pilih file credentials.json atau tempel isi JSON terlebih dahulu!', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Memverifikasi Kredensial...';
+            lucide.createIcons();
+
+            try {
+                const formData = new FormData();
+                if (selectedGdriveFile) {
+                    formData.append('file', selectedGdriveFile);
+                } else {
+                    formData.append('raw_json', jsonText);
+                }
+
+                const res = await fetch('/api/gdrive/credentials', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    showToast(data.message || 'Kredensial Google Cloud berhasil diverifikasi!', 'success');
+                    selectedGdriveFile = null;
+                    document.getElementById('gdrive-json-text').value = '';
+                    fetchGdriveStatus();
+                    fetchGdriveFiles();
+                } else {
+                    showToast(`Gagal: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Gagal menyimpan: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4"></i> Simpan & Verifikasi Kredensial';
+                lucide.createIcons();
+            }
+        }
+
+        async function deleteGdriveCredentials() {
+            if (!confirm('Apakah Anda yakin ingin menghapus kredensial Google Drive dari sistem?')) return;
+            try {
+                const res = await fetch('/api/gdrive/credentials', { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('Kredensial Google Drive berhasil dihapus.', 'info');
+                    fetchGdriveStatus();
+                    fetchGdriveFiles();
+                }
+            } catch (err) {
+                showToast(`Gagal: ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchGdriveFiles() {
+            const container = document.getElementById('gdrive-files-container');
+            const countBadge = document.getElementById('gdrive-files-count');
+            const query = document.getElementById('gdrive-search-input')?.value.trim() || '';
+
+            if (!container) return;
+            container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs"><i data-lucide="loader" class="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400"></i>Memuat file dari Google Drive...</div>';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`/api/gdrive/files?query=${encodeURIComponent(query)}&limit=40`);
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    const files = data.files || [];
+                    if (countBadge) countBadge.innerText = `${files.length} File`;
+
+                    if (files.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-12 text-slate-400 text-xs">
+                                <i data-lucide="folder-open" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+                                Tidak ada file ditemukan di Google Drive ${query ? `untuk kata kunci "${query}"` : ''}.
+                            </div>
+                        `;
+                        lucide.createIcons();
+                        return;
+                    }
+
+                    container.innerHTML = files.map(f => {
+                        const isFolder = f.mimeType && f.mimeType.includes('folder');
+                        const icon = isFolder ? '📁' : f.name.endsWith('.pdf') ? '📄' : f.name.endsWith('.xlsx') ? '📊' : f.name.endsWith('.docx') ? '📝' : f.name.match(/\.(png|jpg|jpeg|webp)$/i) ? '🖼️' : '📎';
+                        const sizeStr = f.size ? `${Math.round(f.size / 1024)} KB` : (isFolder ? 'Folder' : '-');
+                        const modDate = f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+
+                        return `
+                            <div class="p-3 rounded-xl bg-dark-950/80 border border-white/5 hover:border-blue-500/30 flex items-center justify-between gap-3 transition-all">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="text-xl flex-shrink-0">${icon}</span>
+                                    <div class="truncate">
+                                        <a href="${f.webViewLink || '#'}" target="_blank" class="text-xs font-bold text-white hover:text-blue-400 transition-colors truncate block">
+                                            ${f.name}
+                                        </a>
+                                        <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                            <span>${sizeStr}</span>
+                                            <span>•</span>
+                                            <span>${modDate}</span>
+                                            ${isFolder ? '<span class="px-1.5 py-0.2 bg-blue-500/20 text-blue-300 rounded font-bold">FOLDER</span>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    ${f.webViewLink ? `
+                                        <a href="${f.webViewLink}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center gap-1">
+                                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Buka
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-12 text-rose-300 text-xs">
+                            <i data-lucide="alert-circle" class="w-8 h-8 text-rose-400 mx-auto mb-2"></i>
+                            ${data.message || 'Gagal memuat file Google Drive.'}
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="text-center py-12 text-rose-400 text-xs">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function promptCreateGdriveFolder() {
+            const name = prompt('Masukkan nama folder baru untuk Google Drive:');
+            if (!name) return;
+
+            try {
+                const res = await fetch('/api/gdrive/create-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Folder '${name}' berhasil dibuat di Google Drive!`, 'success');
+                    fetchGdriveFiles();
+                } else {
+                    showToast(`Gagal: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Gagal membuat folder: ${err.message}`, 'error');
+            }
+        }
+
+        async function syncGdriveToBrain() {
+            const btn = document.getElementById('btn-gdrive-sync-brain');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menyinkronkan...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/gdrive/sync-brain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ limit: 15 })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    showToast(`Berhasil menyinkronkan ${data.total_ingested} dokumen Drive ke Second Brain!`, 'success');
+                    if (typeof fetchMemory === 'function') fetchMemory();
+                } else {
+                    showToast(`Gagal sinkronisasi: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Gagal: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="brain" class="w-3.5 h-3.5"></i> Sync Second Brain';
+                lucide.createIcons();
+            }
+        }
+
+        async function uploadDirectToGdrive() {
+            const fileInput = document.getElementById('gdrive-upload-file-input');
+            const folderIdInput = document.getElementById('gdrive-target-folder-id');
+            const btn = document.getElementById('btn-upload-direct-gdrive');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showToast('Pilih file yang ingin diunggah terlebih dahulu!', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const folderId = folderIdInput ? folderIdInput.value.trim() : '';
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Mengunggah...';
+            lucide.createIcons();
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                if (folderId) formData.append('folder_id', folderId);
+
+                const res = await fetch('/api/gdrive/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    showToast(`File '${file.name}' berhasil diunggah ke Google Drive!`, 'success');
+                    fileInput.value = '';
+                    fetchGdriveFiles();
+                } else {
+                    showToast(`Gagal mengunggah: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Gagal upload: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="arrow-up" class="w-3.5 h-3.5"></i> Upload';
+                lucide.createIcons();
+            }
+        }
+
         // Initialize telemetry & all data on load
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
             initTelemetryChart();
             fetchStats();
             fetchTools();
+            fetchGdriveStatus();
             fetchVaultSecrets();
             fetchPasskeyStatus();
             fetchWaQr();

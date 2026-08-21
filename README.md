@@ -32,7 +32,13 @@
 * **Pencarian Semantik Kontekstual:** Menggunakan vector embedding (`gemini-embedding-001` + fallback lokal) dan cosine similarity ranking.
 * **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.py`) ke dalam memori semantik permanen untuk pencarian berbasis makna.
 
-### 4. 🛠️ 120+ Real Sovereign Tools & Interactive Workbench
+### 4. 📁 Google Drive & Google Cloud Suite (Drive API v3)
+* **Integrasi Resmi Google Cloud IAM:** Mendukung Service Account JSON Key dan OAuth2 untuk akses cloud sovereign tanpa batasan.
+* **Auto-Upload & Cloud Backup:** Mengunggah file laporan (`.pdf`, `.xlsx`, `.docx`, gambar, zip) otomatis ke Google Drive dan mengembalikan tautan sharing publik.
+* **1-Click Sync ke Second Brain:** Mengunduh dan mengindeks dokumen dari folder Google Drive langsung ke Neural Vector Brain untuk pencarian semantik instan.
+* **Web Drive Explorer:** File manager interaktif di dashboard untuk membuat folder, mengunggah file langsung dari browser, dan mengelola izin berbagi.
+
+### 5. 🛠️ 126+ Real Sovereign Tools & Interactive Workbench
 * **Scraping & Modern Web Intelligence:**
   * 📄 **MarkItDown (Microsoft):** Konversi dokumen Word/PowerPoint/Excel, PDF, Audio, HTML ke Markdown LLM.
   * 🛡️ **Scrapling:** Stealth scraper anti-deteksi untuk bypass Cloudflare & Akamai.
@@ -47,10 +53,11 @@
 * **Marketplace & Finance:** Real-time crypto & forex ticker (CoinGecko + ExchangeRate API), generator QR Code resolusi tinggi.
 * **Vision & Media:** Screenshot desktop, koordinat klik AI, Edge-TTS audio, konversi media FFmpeg.
 
-### 5. 🌐 Web Command Center & Live Telemetry (Port 8080)
+### 6. 🌐 Web Command Center & Live Telemetry (Port 8080)
 * **Light / Dark Mode:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
 * **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
 * **Passkey Biometric Vault:** Penyimpanan kredensial terenkripsi dengan proteksi WebAuthn / Passkey.
+* **Google Drive Cloud Hub:** Manajemen kredensial Google Cloud, upload & download file, serta sinkronisasi memori RAG.
 
 ---
 

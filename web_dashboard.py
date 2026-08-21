@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import psutil
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -1204,6 +1204,139 @@ async def chat_with_agent(payload: Dict[str, Any]):
         "reply": reply,
         "timestamp": datetime.now().isoformat()
     }
+
+
+# ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ENDPOINTS ====================
+
+@app.get("/api/gdrive/status")
+async def gdrive_status_endpoint():
+    """Check status of Google Drive integration."""
+    try:
+        res = tools.gdrive_status()
+        cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+        has_file = os.path.exists(cred_file)
+        
+        account_email = ""
+        project_id = ""
+        if has_file:
+            try:
+                with open(cred_file, "r", encoding="utf-8") as f:
+                    cdata = json.load(f)
+                    account_email = cdata.get("client_email", "")
+                    project_id = cdata.get("project_id", "")
+            except Exception:
+                pass
+                
+        return {
+            "status": "success",
+            "connected": res.get("connected", False),
+            "has_credentials_file": has_file,
+            "client_email": account_email or res.get("user", {}).get("emailAddress", ""),
+            "project_id": project_id,
+            "storage_quota": res.get("storage_quota", {}),
+            "error": res.get("message", "") if not res.get("connected") else ""
+        }
+    except Exception as e:
+        return {"status": "error", "connected": False, "message": str(e)}
+
+
+@app.post("/api/gdrive/credentials")
+async def gdrive_save_credentials(
+    file: Optional[UploadFile] = File(None),
+    raw_json: Optional[str] = Form(None)
+):
+    """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
+    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    content = ""
+    
+    if file:
+        content_bytes = await file.read()
+        content = content_bytes.decode("utf-8")
+    elif raw_json:
+        content = raw_json.strip()
+    else:
+        raise HTTPException(status_code=400, detail="File JSON atau teks JSON Service Account wajib disediakan.")
+        
+    try:
+        data = json.loads(content)
+        if "type" not in data or data.get("type") != "service_account":
+            if "client_email" not in data:
+                return {"status": "error", "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console."}
+                
+        with open(cred_file, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        with database.get_sync_db() as conn:
+            conn.execute(
+                "INSERT INTO system_settings (key, value) VALUES ('gdrive_credentials_json', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (content,)
+            )
+            
+        # Test connection immediately
+        test_res = tools.gdrive_status()
+        return {
+            "status": "success",
+            "message": "Kredensial Service Account Google Cloud berhasil disimpan dan diverifikasi!",
+            "client_email": data.get("client_email", ""),
+            "project_id": data.get("project_id", ""),
+            "connected": test_res.get("connected", False)
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal memproses kredensial Google Cloud: {str(e)}"}
+
+
+@app.delete("/api/gdrive/credentials")
+async def gdrive_delete_credentials():
+    """Remove stored Google Drive credentials."""
+    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    if os.path.exists(cred_file):
+        os.remove(cred_file)
+    with database.get_sync_db() as conn:
+        conn.execute("DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'")
+    return {"status": "success", "message": "Kredensial Google Drive berhasil dihapus."}
+
+
+@app.get("/api/gdrive/files")
+async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit: int = 30):
+    """List and search files in Google Drive."""
+    return tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
+
+
+@app.post("/api/gdrive/upload")
+async def gdrive_upload_endpoint(
+    file: Optional[UploadFile] = File(None),
+    filepath: Optional[str] = Form(None),
+    folder_id: Optional[str] = Form("")
+):
+    """Upload a file to Google Drive (either from direct browser upload or existing server path)."""
+    if file:
+        upload_dir = tools.get_pdf_output_dir("Uploads")
+        target_path = os.path.join(upload_dir, file.filename or "upload.bin")
+        with open(target_path, "wb") as f:
+            f.write(await file.read())
+        return tools.gdrive_upload_file(filepath=target_path, folder_id=folder_id or "")
+    elif filepath:
+        return tools.gdrive_upload_file(filepath=filepath, folder_id=folder_id or "")
+    else:
+        raise HTTPException(status_code=400, detail="File atau path file wajib ditentukan.")
+
+
+@app.post("/api/gdrive/create-folder")
+async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
+    """Create a folder in Google Drive."""
+    folder_name = payload.get("name")
+    parent_id = payload.get("parent_id", "")
+    if not folder_name:
+        raise HTTPException(status_code=400, detail="Nama folder wajib diisi.")
+    return tools.gdrive_create_folder(folder_name=folder_name, parent_folder_id=parent_id)
+
+
+@app.post("/api/gdrive/sync-brain")
+async def gdrive_sync_brain_endpoint(payload: Dict[str, Any] = None):
+    """Sync Google Drive documents to Neural Vector Brain."""
+    folder_id = (payload or {}).get("folder_id", "")
+    limit = int((payload or {}).get("limit", 10))
+    return tools.gdrive_sync_to_second_brain(folder_id=folder_id, limit=limit)
 
 
 # --- Multi-Provider API Key Vault Endpoints ---
