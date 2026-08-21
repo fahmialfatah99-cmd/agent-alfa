@@ -239,7 +239,7 @@
                 <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> αlfa Vault & Security
             </button>
             <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">75</span>
+                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">100</span>
             </button>
             <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="layers" class="w-3.5 h-3.5"></i> Services
@@ -5813,6 +5813,9 @@
         window.addEventListener('DOMContentLoaded', () => {
             initTelemetryChart();
             fetchStats();
+            fetchTools();
+            fetchVaultSecrets();
+            fetchPasskeyStatus();
             fetchWaQr();
             fetchWaReports();
             fetchModelsCatalog();
