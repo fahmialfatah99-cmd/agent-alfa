@@ -23,26 +23,28 @@
                     },
                     colors: {
                         dark: {
-                            950: '#05080E',
-                            900: '#090D16',
-                            850: '#0E1422',
-                            800: '#141D2E',
-                            700: '#1D2A40',
-                            600: '#2A3B57'
+                            950: '#030712',
+                            900: '#0B0F19',
+                            850: '#111827',
+                            800: '#1F2937',
+                            700: '#374151',
+                            600: '#4B5563'
                         },
                         cyber: {
                             cyan: '#06B6D4',
                             emerald: '#10B981',
                             violet: '#8B5CF6',
                             amber: '#F59E0B',
-                            rose: '#F43F5E'
+                            rose: '#F43F5E',
+                            indigo: '#6366F1'
                         }
                     },
                     boxShadow: {
-                        'glow-cyan': '0 0 30px -5px rgba(6, 182, 212, 0.3)',
-                        'glow-emerald': '0 0 30px -5px rgba(16, 185, 129, 0.3)',
-                        'glow-violet': '0 0 30px -5px rgba(139, 92, 246, 0.3)',
-                        'inner-glass': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.08)'
+                        'glow-cyan': '0 0 25px -4px rgba(6, 182, 212, 0.35)',
+                        'glow-emerald': '0 0 25px -4px rgba(16, 185, 129, 0.35)',
+                        'glow-violet': '0 0 25px -4px rgba(139, 92, 246, 0.35)',
+                        'glow-amber': '0 0 25px -4px rgba(245, 158, 11, 0.35)',
+                        'inner-glass': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.1)'
                     }
                 }
             }
@@ -58,83 +60,84 @@
 
     <style>
         body {
-            background-color: #05080E;
+            background-color: #030712;
             background-image: 
-                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
-                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.12) 0px, transparent 45%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 45%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
             min-height: 100vh;
-            color: #E2E8F0;
+            color: #F3F4F6;
         }
         
         .glass-card {
-            background: rgba(14, 20, 34, 0.55);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(11, 15, 25, 0.7);
+            backdrop-filter: blur(28px) saturate(190%);
+            -webkit-backdrop-filter: blur(28px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .glass-card:hover {
-            border-color: rgba(6, 182, 212, 0.35);
-            transform: translateY(-1px);
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 12px 40px 0 rgba(6, 182, 212, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
         }
 
         .glass-nav {
-            background: rgba(9, 13, 22, 0.85);
+            background: rgba(3, 7, 18, 0.85);
             backdrop-filter: blur(24px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+            width: 6px;
+            height: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(5, 8, 14, 0.5);
+            background: rgba(3, 7, 18, 0.6);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.18);
             border-radius: 9999px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(6, 182, 212, 0.6);
+            background: rgba(6, 182, 212, 0.7);
         }
         
         .pulse-dot {
             animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         @keyframes pulse-glow {
-            0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.8)); }
-            50% { opacity: 0.4; transform: scale(1.15); filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.2)); }
+            0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.9)); }
+            50% { opacity: 0.35; transform: scale(1.2); filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.3)); }
         }
 
         /* Toast notifications */
         .toast {
-            animation: slideIn 0.3s ease-out forwards;
+            animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         @keyframes slideIn {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from { transform: translateY(100%) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
         }
 
         /* 3D Hologram Arena & Virtual Office Styles */
         .cyber-grid-floor {
-            background-size: 32px 32px;
+            background-size: 28px 28px;
             background-image: 
-                linear-gradient(to right, rgba(6, 182, 212, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+                linear-gradient(to right, rgba(6, 182, 212, 0.09) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(6, 182, 212, 0.09) 1px, transparent 1px);
             perspective: 800px;
         }
 
         .holo-core-glow {
-            box-shadow: 0 0 45px rgba(139, 92, 246, 0.4), inset 0 0 25px rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 50px rgba(139, 92, 246, 0.5), inset 0 0 30px rgba(6, 182, 212, 0.6);
             animation: core-pulse 3s ease-in-out infinite alternate;
         }
         @keyframes core-pulse {
-            0% { transform: scale(0.96); filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.6)); }
-            100% { transform: scale(1.04); filter: drop-shadow(0 0 35px rgba(6, 182, 212, 0.9)); }
+            0% { transform: scale(0.96); filter: drop-shadow(0 0 18px rgba(139, 92, 246, 0.7)); }
+            100% { transform: scale(1.04); filter: drop-shadow(0 0 40px rgba(6, 182, 212, 0.95)); }
         }
 
         .holo-spin-ring-1 {
@@ -166,8 +169,8 @@
             animation: speaking-pulse 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
         @keyframes speaking-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.6); }
-            50% { transform: scale(1.03); box-shadow: 0 0 25px 8px rgba(6, 182, 212, 0.3); }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
+            50% { transform: scale(1.04); box-shadow: 0 0 28px 10px rgba(6, 182, 212, 0.4); }
         }
 
         /* Floating Animated Speech Bubble */
@@ -175,7 +178,7 @@
             animation: bubble-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         @keyframes bubble-pop {
-            0% { opacity: 0; transform: scale(0.8) translateY(12px); }
+            0% { opacity: 0; transform: scale(0.85) translateY(10px); }
             100% { opacity: 1; transform: scale(1) translateY(0); }
         }
 
@@ -201,73 +204,87 @@
 </head>
 <body class="font-sans antialiased text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200">
 
-    <!-- Top Luxury Navigation Bar -->
-    <header class="glass-nav sticky top-0 z-40 px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-violet-500/10 to-transparent border border-cyan-500/30 text-cyan-400 font-mono font-bold text-lg shadow-glow-cyan">
-                A
-            </div>
-            <div>
-                <div class="flex items-center space-x-2">
-                    <h1 class="text-sm font-extrabold tracking-wider text-white font-mono flex items-center gap-2">
-                        ALFA <span class="text-cyan-400 font-light">//</span> COMMAND CENTER
-                    </h1>
-                    <span class="px-2 py-0.5 text-[9px] font-bold tracking-widest uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
-                        GOD MODE 72T
-                    </span>
+    <!-- Top Futuristic Glassmorphic Navigation Bar -->
+    <header class="glass-nav sticky top-0 z-40 px-4 sm:px-6 py-2.5 flex flex-col lg:flex-row items-center justify-between gap-3 shadow-2xl">
+        <div class="w-full lg:w-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+                <div class="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-violet-600 text-white font-mono font-black text-xl shadow-glow-cyan">
+                    α
                 </div>
-                <p class="text-[11px] text-slate-400 font-medium">Sovereign Autonomous Agent & Linux Orchestrator</p>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-sm font-black tracking-wider text-white font-mono flex items-center gap-1.5">
+                            ALFA <span class="text-cyan-400 font-light">//</span> COMMAND PRO
+                        </h1>
+                        <span class="px-2 py-0.5 text-[9px] font-black tracking-widest uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 shadow-sm">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            SOVEREIGN 72T
+                        </span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                        <span>Autonomous Multi-Agent</span>
+                        <span class="text-slate-600">•</span>
+                        <span class="text-emerald-400">Telegram Bot 🟢</span>
+                        <span class="text-slate-600">•</span>
+                        <span class="text-cyan-400">WA Sheets 🟢</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Mobile Quick Clock -->
+            <div class="lg:hidden flex items-center gap-2 text-xs font-mono text-cyan-400 bg-white/5 px-2.5 py-1 rounded-xl border border-white/5">
+                <span id="mobile-header-clock">--:-- WIB</span>
             </div>
         </div>
 
-        <!-- Center Tabs -->
-        <nav class="flex items-center space-x-1 p-1 bg-dark-900/90 rounded-xl border border-white/5 overflow-x-auto max-w-full custom-scrollbar">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-cyan-400 bg-white/5 border border-cyan-500/30 shadow-sm whitespace-nowrap">
-                <i data-lucide="activity" class="w-3.5 h-3.5"></i> Telemetry
+        <!-- Center Interactive Tab Navigation -->
+        <nav class="flex items-center space-x-1 p-1 bg-dark-900/90 rounded-2xl border border-white/10 overflow-x-auto max-w-full custom-scrollbar shadow-inner">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan whitespace-nowrap">
+                <i data-lucide="activity" class="w-3.5 h-3.5 text-cyan-400"></i> Telemetry
             </button>
-            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="users" class="w-3.5 h-3.5"></i> AI Swarm & Rapat
+            <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="users" class="w-3.5 h-3.5 text-violet-400"></i> AI Swarm & Rapat
+                <span class="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold">2 MODES</span>
             </button>
-            <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-emerald-400"></i> Affiliate Sales
-            </button>
-            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
-            </button>
-            <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> αlfa Vault & Security
-            </button>
-            <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-orange-300 hover:bg-white/5 whitespace-nowrap">
+            <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-orange-300 hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="scan" class="w-3.5 h-3.5 text-orange-400"></i> Master Scraper Pro
             </button>
-            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">102</span>
+            <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-emerald-400"></i> Affiliate Studio
             </button>
-            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Services
+            <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-cyan-400"></i> API Keys
             </button>
-            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="brain" class="w-3.5 h-3.5"></i> Second Brain
+            <button onclick="switchTab('vault')" id="tab-btn-vault" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-amber-300 hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-400"></i> Passkey Vault
             </button>
-            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="folder-kanban" class="w-3.5 h-3.5"></i> Files
+            <button onclick="switchTab('tools')" id="tab-btn-tools" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-400"></i> Tools <span id="nav-tools-badge" class="px-1.5 py-0.2 bg-dark-800 text-[10px] rounded text-cyan-400 font-mono">102</span>
             </button>
-            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Guardian
+            <button onclick="switchTab('services')" id="tab-btn-services" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-400"></i> Services
             </button>
-            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
-                <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Console
+            <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="brain" class="w-3.5 h-3.5 text-pink-400"></i> Memory
+            </button>
+            <button onclick="switchTab('artifacts')" id="tab-btn-artifacts" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="folder-kanban" class="w-3.5 h-3.5 text-emerald-400"></i> Files
+            </button>
+            <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-400"></i> Guardian
+            </button>
+            <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-yellow-400"></i> Console
             </button>
         </nav>
 
-        <!-- Right Quick Telemetry -->
-        <div class="flex items-center space-x-3 text-xs font-mono text-slate-400">
-            <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-900/80 border border-white/5">
+        <!-- Right Quick Telemetry & Refresh -->
+        <div class="hidden lg:flex items-center space-x-3 text-xs font-mono text-slate-400">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-900/90 border border-white/10 shadow-sm">
                 <i data-lucide="clock" class="w-3.5 h-3.5 text-cyan-400"></i>
-                <span id="header-clock">--:--:-- WIB</span>
+                <span id="header-clock" class="text-slate-200">--:--:-- WIB</span>
             </div>
-            <button onclick="fetchStats(true)" class="p-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 text-slate-300 border border-white/5 transition-all" title="Refresh Live Data">
+            <button onclick="fetchStats(true)" class="p-2 rounded-xl bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 text-slate-300 border border-white/10 transition-all shadow-sm" title="Refresh Live Data">
                 <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
             </button>
         </div>
@@ -1204,72 +1221,80 @@
                 </div>
             </div>
 
-            <!-- Round-Table Meeting Room Interactive Panel -->
-            <div id="meeting-room-panel" class="glass-card p-6 rounded-2xl space-y-5 border border-violet-500/20 relative overflow-hidden">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center text-lg">
+            <!-- Round-Table Meeting & Live Swarm Command Deck -->
+            <div id="meeting-room-panel" class="glass-card p-6 sm:p-7 rounded-3xl space-y-6 border border-violet-500/30 relative overflow-hidden shadow-2xl">
+                <!-- Background Neon Glow Accents -->
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500/20 via-indigo-500/20 to-dark-950 border border-violet-500/40 flex items-center justify-center text-xl shadow-glow-violet">
                             🏛️
                         </div>
                         <div>
-                            <h3 class="text-sm font-bold text-white font-mono">RUANG RAPAT & KONFERENSI AI OTONOM</h3>
-                            <p class="text-xs text-slate-400">Pilih agenda & undang agent untuk berdialog, berdebat, dan menyusun konsensus solusi.</p>
+                            <h3 class="text-sm font-black text-white font-mono tracking-wide">RUANG RAPAT & SWARM WORKSPACE OTONOM</h3>
+                            <p class="text-xs text-slate-400 font-mono">Pilih mode: Brainstorming & Rapat Strategis (Plan) ATAU Eksekusi Bersama Nyata (Live Actions).</p>
                         </div>
                     </div>
-                    <span id="meeting-status-badge" class="px-3 py-1 text-xs font-mono rounded-lg bg-white/5 text-slate-400 border border-white/10 self-start sm:self-auto font-bold">MEETING STANDBY</span>
+                    <span id="meeting-status-badge" class="px-3.5 py-1 text-xs font-mono rounded-xl bg-white/5 text-slate-300 border border-white/10 self-start sm:self-auto font-black shadow-sm">
+                        MEETING STANDBY
+                    </span>
                 </div>
 
-                <!-- Meeting Formulation Form -->
-                <div class="space-y-4">
+                <!-- Meeting & Swarm Formulation Form -->
+                <div class="space-y-5">
                     <!-- Mode Selector Tab Buttons -->
-                    <div class="flex flex-col sm:flex-row items-center gap-2 p-1.5 bg-dark-950 rounded-2xl border border-white/10">
-                        <button type="button" onclick="setMeetingMode('plan')" id="btn-mode-plan" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-glow-violet">
-                            <i data-lucide="clipboard-list" class="w-4 h-4"></i> Mode 1: 📋 Rapat Plan (Perencanaan & Brainstorming)
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1.5 bg-dark-950/90 rounded-2xl border border-white/10 shadow-inner">
+                        <button type="button" onclick="setMeetingMode('plan')" id="btn-mode-plan" class="w-full py-3 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-glow-violet">
+                            <i data-lucide="clipboard-list" class="w-4 h-4"></i> Mode 1: 📋 Rapat Plan (Perencanaan & Debat)
                         </button>
-                        <button type="button" onclick="setMeetingMode('execute')" id="btn-mode-execute" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent">
-                            <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Mode 2: ⚡ Swarm Eksekusi Langsung (Agen Bekerja Sama!)
+                        <button type="button" onclick="setMeetingMode('execute')" id="btn-mode-execute" class="w-full py-3 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> Mode 2: ⚡ Swarm Eksekusi Langsung (Bekerja Nyata!)
                         </button>
                     </div>
 
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
-                            <label id="meeting-topic-label" class="block text-xs font-mono font-bold text-slate-300">Topik / Agenda Rapat yang Dibahas:</label>
-                            <span class="text-[10px] text-slate-500 font-mono">Pilih preset cepat di bawah ⬇️</span>
+                            <label id="meeting-topic-label" class="block text-xs font-mono font-bold text-slate-200">Topik / Agenda Rapat yang Dibahas:</label>
+                            <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">Pilih preset cepat di bawah ⬇️</span>
                         </div>
-                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding..." class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-sans"></textarea>
+                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding..." class="w-full p-3.5 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans shadow-inner transition-all"></textarea>
                         
                         <!-- Quick Topic Presets -->
                         <div id="meeting-presets-container" class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
-                            <span class="text-slate-500 whitespace-nowrap">💡 Preset Cepat:</span>
-                            <button type="button" onclick="setMeetingTopic('Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/5 whitespace-nowrap transition-all">🚀 Arsitektur Multi-Agent</button>
-                            <button type="button" onclick="setMeetingTopic('Buatkan script Python otomatisasi monitoring server dan auto-restart service')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/5 whitespace-nowrap transition-all">⚡ Buat Script Monitor & Fix</button>
-                            <button type="button" onclick="setMeetingTopic('Scrape 10 lowongan kerja Python AI di LinkedIn dan buatkan analisa ringkasnya')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">🕷️ Scrape & Analisis</button>
-                            <button type="button" onclick="setMeetingTopic('Audit keamanan sistem, scanning celah terbuka, dan validasi sertifikat SSL')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/5 whitespace-nowrap transition-all">🛡️ Audit Keamanan Swarm</button>
+                            <span class="text-slate-500 whitespace-nowrap">💡 Preset:</span>
+                            <button type="button" onclick="setMeetingTopic('Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/10 whitespace-nowrap transition-all">🚀 Arsitektur Multi-Agent</button>
+                            <button type="button" onclick="setMeetingTopic('Scrape 20 mouse gaming terlaris di Shopee & Tokopedia dan buatkan CSV-nya')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/10 whitespace-nowrap transition-all">🕷️ Scrape Marketplace</button>
+                            <button type="button" onclick="setMeetingTopic('Buatkan script Python monitoring server, audit resource RAM/CPU, dan jalankan')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 whitespace-nowrap transition-all">💻 Coding & Host Sandbox</button>
+                            <button type="button" onclick="setMeetingTopic('Audit keamanan sistem, scanning celah terbuka, dan validasi sertifikat SSL')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 whitespace-nowrap transition-all">🛡️ Audit Keamanan Swarm</button>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="block text-xs font-mono font-bold text-slate-300">Peserta Rapat & Swarm yang Dilibatkan:</label>
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-mono font-bold text-slate-200">Peserta Rapat & Swarm:</label>
                                 <div class="flex items-center gap-2 text-[10px] font-mono">
                                     <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Pilih Semua</button>
                                     <span class="text-slate-600">|</span>
                                     <button type="button" onclick="toggleAllParticipants(false)" class="text-slate-400 hover:underline">Kosongkan</button>
                                 </div>
                             </div>
-                            <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-2.5 bg-dark-950 rounded-xl border border-white/5 max-h-32 overflow-y-auto custom-scrollbar text-xs">
+                            <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-3 bg-dark-950/90 rounded-2xl border border-white/10 max-h-36 overflow-y-auto custom-scrollbar text-xs">
                                 <!-- Checkbox list of agents -->
                             </div>
                         </div>
-                        <div>
-                            <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-300 mb-1.5">Putaran Diskusi (Rounds):</label>
-                            <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
-                                <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
-                                <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
-                                <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
-                            </select>
-                            <button onclick="startAiMeeting()" id="btn-start-meeting" class="w-full mt-3 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all">
+                        <div class="space-y-1.5 flex flex-col justify-between">
+                            <div>
+                                <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-200 mb-1.5">Putaran Diskusi (Rounds):</label>
+                                <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                                    <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
+                                    <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
+                                    <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
+                                </select>
+                            </div>
+                            <button onclick="startAiMeeting()" id="btn-start-meeting" class="w-full mt-2 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all">
                                 <i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent
                             </button>
                         </div>
@@ -1277,40 +1302,44 @@
                 </div>
 
                 <!-- Live Dialogue & Live Swarm Execution Container -->
-                <div id="meeting-dialogue-container" class="hidden space-y-4 pt-4 border-t border-white/5">
+                <div id="meeting-dialogue-container" class="hidden space-y-4 pt-5 border-t border-white/10">
                     <div class="flex items-center justify-between">
-                        <span id="meeting-transcript-header-label" class="text-xs font-mono font-bold text-slate-300 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-violet-400 animate-ping"></span>
+                        <span id="meeting-transcript-header-label" class="text-xs font-mono font-bold text-slate-200 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
                             TRANSKRIP KOORDINASI ANTAGENT
                         </span>
-                        <span id="meeting-dialogue-count" class="text-xs text-slate-500 font-mono">0 Masukan</span>
+                        <span id="meeting-dialogue-count" class="text-xs text-slate-400 font-mono">0 Masukan</span>
                     </div>
 
                     <!-- Transcript Feed -->
-                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[350px] overflow-y-auto custom-scrollbar p-3 bg-dark-950/80 rounded-2xl border border-white/5">
+                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[360px] overflow-y-auto custom-scrollbar p-4 bg-dark-950/90 rounded-2xl border border-white/10">
                         <!-- Dialogue speech bubbles -->
                     </div>
 
                     <!-- Live Swarm Real Execution Cards Container (Mode 2) -->
-                    <div id="meeting-execution-results-container" class="hidden space-y-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 shadow-glow-amber">
-                        <div class="flex items-center justify-between">
-                            <h4 class="text-xs font-bold text-amber-400 font-mono flex items-center gap-2">
-                                <i data-lucide="terminal" class="w-4 h-4"></i> HASIL EKSEKUSI NYATA OLEH TIM SWARM (LIVE OUTPUT)
+                    <div id="meeting-execution-results-container" class="hidden space-y-3 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 shadow-glow-amber">
+                        <div class="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                            <h4 class="text-xs font-black text-amber-300 font-mono flex items-center gap-2">
+                                <i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i> HASIL EKSEKUSI NYATA OLEH TIM SWARM (LIVE ARTIFACTS)
                             </h4>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">AUTONOMOUS WORKFORCE</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
+                                Autonomous Tool Execution
+                            </span>
                         </div>
-                        <div id="meeting-execution-steps-feed" class="grid grid-cols-1 gap-2.5">
+                        <div id="meeting-execution-steps-feed" class="grid grid-cols-1 gap-3">
                             <!-- Live execution step cards -->
                         </div>
                     </div>
 
                     <!-- Consensus & Action Plan / Deliverable Result Box -->
-                    <div id="meeting-consensus-box" class="hidden p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 shadow-glow-emerald">
-                        <div class="flex items-center justify-between">
-                            <h4 id="meeting-consensus-header" class="text-sm font-bold text-emerald-400 font-mono flex items-center gap-2">
-                                <i data-lucide="award" class="w-5 h-5"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT
+                    <div id="meeting-consensus-box" class="hidden p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-dark-900 to-dark-950 border border-emerald-500/30 space-y-4 shadow-glow-emerald">
+                        <div class="flex items-center justify-between border-b border-emerald-500/20 pb-3">
+                            <h4 id="meeting-consensus-header" class="text-sm font-black text-emerald-300 font-mono flex items-center gap-2">
+                                <i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT
                             </h4>
-                            <button onclick="copyConsensus()" class="px-2.5 py-1 text-xs rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-semibold">Salin Hasil</button>
+                            <button onclick="copyConsensus()" class="px-3 py-1.5 text-xs rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Laporan
+                            </button>
                         </div>
                         <div id="meeting-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none"></div>
                         <div id="meeting-action-plan-text" class="text-xs text-emerald-200 leading-relaxed font-sans pt-2 border-t border-emerald-500/20"></div>
@@ -4604,12 +4633,11 @@
                     document.getElementById('meeting-action-plan-text').innerHTML = markedAction;
                     consensusBox.classList.remove('hidden');
 
-                    statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
+                    statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black shadow-glow-emerald';
                     statusBadge.innerText = data.mode === 'execute' ? 'EKSEKUSI SUKSES ⚡' : 'KONSENSUS TERCAPAI ✅';
                     
                     showToast(data.mode === 'execute' ? 'Swarm selesai mengeksekusi semua tugas langsung!' : 'Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
                     fetchMeetings();
-                    fetchAgentActivity();
 
                     // Scroll to visual virtual HQ
                     document.getElementById('ai-virtual-hq')?.scrollIntoView({ behavior: 'smooth' });
@@ -4635,35 +4663,48 @@
             feed.innerHTML = steps.map((s, idx) => {
                 const parsedGen = marked.parse(s.generated_content || '');
                 return `
-                    <div class="p-4 rounded-xl bg-dark-900/90 border border-amber-500/30 space-y-2">
+                    <div class="p-4 rounded-2xl bg-dark-900/90 border border-amber-500/30 hover:border-amber-500/50 space-y-3 transition-all shadow-md">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-sm">${s.avatar_emoji || '🤖'}</span>
+                            <div class="flex items-center space-x-2.5">
+                                <span class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-sm shadow-sm">${s.avatar_emoji || '🤖'}</span>
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-xs font-bold text-white font-mono">${s.agent_name}</span>
-                                        <span class="px-2 py-0.2 rounded text-[9px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">${s.role}</span>
+                                        <span class="text-xs font-black text-white font-mono">${s.agent_name}</span>
+                                        <span class="px-2 py-0.2 rounded-md text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">${s.role}</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 text-[10px] font-mono">
-                                <span class="px-2 py-0.5 rounded bg-dark-950 border border-white/10 text-cyan-400">Tool: ${s.tool_used}</span>
-                                <span class="text-emerald-400 font-bold">✅ ${s.duration_ms}ms</span>
+                                <span class="px-2.5 py-0.5 rounded-lg bg-dark-950 border border-white/10 text-cyan-300">Tool: ${s.tool_used}</span>
+                                <span class="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">✅ ${s.duration_ms}ms</span>
                             </div>
                         </div>
-                        <div class="p-2.5 rounded-lg bg-dark-950/90 border border-white/5 font-mono text-[11px] text-slate-300 space-y-1">
-                            <div class="text-slate-400 font-bold">📌 Tugas: ${s.task_assigned}</div>
-                            <div class="text-amber-200/90 whitespace-pre-wrap">${s.execution_summary}</div>
+                        
+                        <div class="p-3 rounded-xl bg-dark-950/90 border border-white/5 font-mono text-[11px] text-slate-200 space-y-1.5 shadow-inner">
+                            <div class="text-slate-400 font-bold flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                                <span>Tugas Otonom: ${s.task_assigned}</span>
+                            </div>
+                            <div class="text-amber-200/95 whitespace-pre-wrap leading-relaxed">${s.execution_summary}</div>
                         </div>
+
                         ${s.deliverable_file ? `
-                            <div class="flex items-center gap-2 text-xs font-mono text-emerald-400 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                <i data-lucide="file-code" class="w-4 h-4"></i>
-                                <span>File Hasil Tersimpan: <b class="text-white">${s.deliverable_file}</b></span>
+                            <div class="flex items-center justify-between gap-2 text-xs font-mono text-emerald-300 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 shadow-sm">
+                                <div class="flex items-center gap-2 truncate">
+                                    <i data-lucide="file-check" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>
+                                    <span class="truncate">File Output: <b class="text-white">${s.deliverable_file}</b></span>
+                                </div>
+                                <button onclick="navigator.clipboard.writeText('${s.deliverable_file}'); showToast('Path file disalin!', 'success');" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[10px] font-bold text-white whitespace-nowrap transition-all">
+                                    Copy Path
+                                </button>
                             </div>
                         ` : ''}
+
                         <details class="text-xs font-mono text-slate-400 pt-1">
-                            <summary class="cursor-pointer hover:text-white transition-colors">Lihat Detail Solusi Teknis / Output Lengkap</summary>
-                            <div class="mt-2 p-3 rounded-lg bg-dark-950 border border-white/5 text-slate-200 prose prose-invert max-w-none text-xs font-sans">
+                            <summary class="cursor-pointer hover:text-white transition-colors flex items-center gap-1">
+                                <span>▶️ Detail Solusi Teknis / Output Lengkap</span>
+                            </summary>
+                            <div class="mt-2.5 p-3.5 rounded-xl bg-dark-950 border border-white/10 text-slate-200 prose prose-invert max-w-none text-xs font-sans shadow-inner">
                                 ${parsedGen}
                             </div>
                         </details>
