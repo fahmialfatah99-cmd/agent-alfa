@@ -229,6 +229,9 @@
             <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="users" class="w-3.5 h-3.5"></i> AI Swarm & Rapat
             </button>
+            <button onclick="switchTab('affiliate')" id="tab-btn-affiliate" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-emerald-300 hover:bg-white/5 whitespace-nowrap">
+                <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-emerald-400"></i> Affiliate Sales
+            </button>
             <button onclick="switchTab('keys')" id="tab-btn-keys" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white hover:bg-white/5 whitespace-nowrap">
                 <i data-lucide="key" class="w-3.5 h-3.5"></i> API Keys
             </button>
@@ -1437,6 +1440,236 @@
             </div>
         </section>
 
+        <!-- ==================== TAB: AUTOMATED AFFILIATE SALES WAR ROOM ==================== -->
+        <section id="view-affiliate" class="tab-view hidden space-y-6">
+            <!-- Header Hero Banner -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-emerald-500/30 bg-emerald-500/[0.02] shadow-2xl">
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-glow-emerald">
+                            💰
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-sm font-bold text-white tracking-wide font-mono">AUTOMATED AFFILIATE SALES SWARM</h2>
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> 6 AGENTS ACTIVE • TIKTOK & SHOPEE
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400">Tim Penjualan Otomatis Multi-Agent: Riset Tren, Script Video Viral TikTok/Reels, Copywriting Flash Sale Shopee, Broadcast WA/Telegram, dan Auto-Reply Spill Link 24/7.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="setAffiliatePreset('powerbank')" class="px-3 py-1.5 bg-dark-950 hover:bg-dark-900 border border-white/10 text-slate-300 text-xs font-mono rounded-xl transition-all">
+                        🔋 Powerbank Kapsul
+                    </button>
+                    <button onclick="setAffiliatePreset('lampu')" class="px-3 py-1.5 bg-dark-950 hover:bg-dark-900 border border-white/10 text-slate-300 text-xs font-mono rounded-xl transition-all">
+                        💡 Lampu Akrilik
+                    </button>
+                    <button onclick="setAffiliatePreset('mic')" class="px-3 py-1.5 bg-dark-950 hover:bg-dark-900 border border-white/10 text-slate-300 text-xs font-mono rounded-xl transition-all">
+                        🎙️ Mic Clip-On
+                    </button>
+                </div>
+            </div>
+
+            <!-- 6-Agent Roles Matrix -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="p-3 rounded-xl bg-dark-950 border border-cyan-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-cyan-400 flex items-center gap-1">
+                        🔍 Researcher
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Scout produk viral & margin komisi tinggi.</p>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-950 border border-violet-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-violet-400 flex items-center gap-1">
+                        🎯 Planner
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Bikin Script TikTok & Copywriting FOMO.</p>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-950 border border-amber-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-amber-400 flex items-center gap-1">
+                        ⚡ Code Crafter
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Dispatcher auto-post Telegram & WA bot.</p>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-950 border border-blue-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-blue-400 flex items-center gap-1">
+                        🌊 Laguna Co-Pilot
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Auto-reply 'Spill Link' 24/7 instan.</p>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-950 border border-emerald-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1">
+                        👑 Alpha Lead
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Orkestrator jadwal & rekap sales.</p>
+                </div>
+                <div class="p-3 rounded-xl bg-dark-950 border border-rose-500/20 space-y-1">
+                    <div class="text-xs font-mono font-bold text-rose-400 flex items-center gap-1">
+                        🛡️ System Auditor
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">Anti-ban, rate limit & link safety guard.</p>
+                </div>
+            </div>
+
+            <!-- Campaign Generator Form & Live Output Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Form: 5 Cols -->
+                <div class="lg:col-span-5 glass-card p-6 rounded-2xl space-y-4 border border-white/10 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2 mb-3">
+                            <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i> Generator Konten Penjualan Otomatis
+                        </h3>
+                        <form onsubmit="runAffiliateGenerator(event)" class="space-y-3 font-sans text-xs">
+                            <div>
+                                <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Nama Produk *</label>
+                                <input type="text" id="aff-product-name" required placeholder="Misal: Mini Powerbank Kapsul Fast Charging 5000mAh" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Keunggulan & Fitur Utama *</label>
+                                <textarea id="aff-features" rows="2" required placeholder="Misal: Ukuran saku 100g, fast charging 20W, kabel built-in Type-C & Lightning, garansi 1 tahun" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-sans text-xs"></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Harga Normal</label>
+                                    <input type="text" id="aff-orig-price" value="Rp 149.000" placeholder="Rp 149.000" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Harga Flash Sale *</label>
+                                    <input type="text" id="aff-disc-price" value="Rp 49.900" placeholder="Rp 49.900" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Link Affiliate Resmi *</label>
+                                <input type="url" id="aff-link" required value="https://shope.ee/alfa-deals" placeholder="https://shope.ee/..." class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-cyan-300 focus:outline-none focus:border-emerald-500 font-mono text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-300 font-mono text-[11px] mb-1">Target Audiens</label>
+                                <input type="text" id="aff-audience" value="Anak Muda, Mahasiswa & Pemburu Gadget Murah" placeholder="Target Pembeli" class="w-full p-2.5 bg-dark-950 border border-white/10 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-sans text-xs">
+                            </div>
+
+                            <button type="submit" id="btn-run-affiliate" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold font-mono rounded-xl shadow-glow-emerald flex items-center justify-center gap-2 transition-all mt-2">
+                                <i data-lucide="play" class="w-4 h-4"></i> 🚀 Eksekusi Tim Penjualan Swarm
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="pt-3 border-t border-white/5 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+                        <span>📁 Dokumen Output:</span>
+                        <span class="text-emerald-300">~/Dokumen/ALFA_AFFILIATE_TOOLS/</span>
+                    </div>
+                </div>
+
+                <!-- Right Result Arsenal: 7 Cols -->
+                <div class="lg:col-span-7 glass-card p-6 rounded-2xl space-y-4 border border-white/10">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i>
+                            <h3 class="text-sm font-bold text-white font-mono">Hasil Konten Penjualan Swarm</h3>
+                        </div>
+                        <!-- Content Sub-Tabs -->
+                        <div class="flex items-center gap-1 bg-dark-950 p-1 rounded-xl border border-white/5 overflow-x-auto custom-scrollbar">
+                            <button onclick="switchAffTab('tiktok')" id="aff-tab-btn-tiktok" class="px-2.5 py-1 text-[11px] font-mono rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                🎬 Script TikTok
+                            </button>
+                            <button onclick="switchAffTab('telegram')" id="aff-tab-btn-telegram" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white">
+                                🔥 Telegram Card
+                            </button>
+                            <button onclick="switchAffTab('whatsapp')" id="aff-tab-btn-whatsapp" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white">
+                                💬 WA Broadcast
+                            </button>
+                            <button onclick="switchAffTab('spill')" id="aff-tab-btn-spill" class="px-2.5 py-1 text-[11px] font-mono rounded-lg text-slate-400 hover:text-white">
+                                ⚡ Auto-Reply
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Content Display Area -->
+                    <div id="aff-content-container" class="relative">
+                        <!-- TikTok Script View -->
+                        <div id="aff-view-tiktok" class="aff-subview space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-400 font-mono">🎬 Format Hook-Story-Offer untuk TikTok Video & Shorts:</span>
+                                <button onclick="copyAffiliateContent('aff-text-tiktok')" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 rounded-lg text-xs font-mono flex items-center gap-1">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Script
+                                </button>
+                            </div>
+                            <pre id="aff-text-tiktok" class="p-4 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-slate-200 max-h-96 overflow-y-auto custom-scrollbar whitespace-pre-wrap">Pilih preset atau masukkan produk di kiri, lalu klik 'Eksekusi Tim Penjualan Swarm' untuk menghasilkan script video viral secara instan.</pre>
+                        </div>
+
+                        <!-- Telegram Card View -->
+                        <div id="aff-view-telegram" class="aff-subview hidden space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-400 font-mono">🔥 Postingan Deals Channel Telegram:</span>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="copyAffiliateContent('aff-text-telegram')" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 rounded-lg text-xs font-mono flex items-center gap-1">
+                                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin
+                                    </button>
+                                    <button onclick="broadcastCurrentAffiliate('telegram')" class="px-3 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-mono font-bold flex items-center gap-1">
+                                        <i data-lucide="send" class="w-3.5 h-3.5"></i> Broadcast ke Telegram
+                                    </button>
+                                </div>
+                            </div>
+                            <pre id="aff-text-telegram" class="p-4 bg-dark-950 rounded-xl border border-white/5 font-mono text-xs text-cyan-200 max-h-96 overflow-y-auto custom-scrollbar whitespace-pre-wrap">Menunggu data campaign...</pre>
+                        </div>
+
+                        <!-- WhatsApp Broadcast View -->
+                        <div id="aff-view-whatsapp" class="aff-subview hidden space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-400 font-mono">💬 Pesan Broadcast WhatsApp Komunitas:</span>
+                                <button onclick="copyAffiliateContent('aff-text-whatsapp')" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-emerald-300 border border-white/10 rounded-lg text-xs font-mono flex items-center gap-1">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Pesan WA
+                                </button>
+                            </div>
+                            <pre id="aff-text-whatsapp" class="p-4 bg-dark-950 rounded-xl border border-white/5 font-sans text-xs text-emerald-200 max-h-96 overflow-y-auto custom-scrollbar whitespace-pre-wrap">Menunggu data campaign...</pre>
+                        </div>
+
+                        <!-- Spill Link Templates View -->
+                        <div id="aff-view-spill" class="aff-subview hidden space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-400 font-mono">⚡ 4 Template Auto-Reply Laguna Co-Pilot ('Spill Link Kak!'):</span>
+                            </div>
+                            <div id="aff-spill-list" class="space-y-2">
+                                <div class="p-3 bg-dark-950 rounded-xl border border-white/5 font-sans text-xs text-slate-300">Menunggu data campaign...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign History Table -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-white/10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
+                        <h3 class="text-sm font-bold text-white font-mono">Daftar Campaign & Produk Affiliate Aktif</h3>
+                    </div>
+                    <button onclick="fetchAffiliateCampaigns()" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-dark-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-white/5">
+                            <tr>
+                                <th class="p-3">ID</th>
+                                <th class="p-3">Produk</th>
+                                <th class="p-3">Platform</th>
+                                <th class="p-3">Target Audiens</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Tanggal</th>
+                                <th class="p-3 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="affiliate-campaigns-tbody" class="divide-y divide-white/5">
+                            <tr><td colspan="7" class="p-4 text-center text-slate-500">Memuat daftar campaign...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- ==================== TAB: API KEYS VAULT ==================== -->
         <section id="view-keys" class="tab-view hidden space-y-6">
             <!-- Header Banner -->
@@ -1919,6 +2152,7 @@
             if (tabId === 'artifacts') fetchArtifacts();
             if (tabId === 'guardian') fetchGuardian();
             if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchAgentActivity(); }
+            if (tabId === 'affiliate') fetchAffiliateCampaigns();
             if (tabId === 'keys') fetchKeys();
             
             lucide.createIcons();
@@ -4348,6 +4582,202 @@
                 custom.focus();
             } else {
                 custom.classList.add('hidden');
+            }
+        }
+
+        // ==================== AFFILIATE SALES SWARM FUNCTIONS ====================
+        let currentAffiliateCampaign = null;
+
+        function setAffiliatePreset(type) {
+            if (type === 'powerbank') {
+                document.getElementById('aff-product-name').value = 'Mini Powerbank Kapsul Fast Charging 5000mAh';
+                document.getElementById('aff-features').value = 'Ukuran saku 100g, fast charge 20W, kabel built-in Type-C & Lightning, garansi 1 tahun';
+                document.getElementById('aff-orig-price').value = 'Rp 149.000';
+                document.getElementById('aff-disc-price').value = 'Rp 49.900';
+                document.getElementById('aff-link').value = 'https://shope.ee/powerbank-kapsul-deals';
+                document.getElementById('aff-audience').value = 'Anak Muda, Pekerja Mobile & Pemburu Gadget Unik';
+            } else if (type === 'lampu') {
+                document.getElementById('aff-product-name').value = 'Lampu Tidur Akrilik Memo Board LED Estetik';
+                document.getElementById('aff-features').value = 'Bisa ditulis note glow in the dark, warm light estetik kamar, free spidol & penghapus, USB powered';
+                document.getElementById('aff-orig-price').value = 'Rp 89.000';
+                document.getElementById('aff-disc-price').value = 'Rp 29.500';
+                document.getElementById('aff-link').value = 'https://shope.ee/lampu-akrilik-estetik';
+                document.getElementById('aff-audience').value = 'Mahasiswa, Cewek Estetik, Dekor Kamar Tidur';
+            } else if (type === 'mic') {
+                document.getElementById('aff-product-name').value = 'Mic Wireless Clip-On Type-C & iPhone Noise Cancelling';
+                document.getElementById('aff-features').value = 'Plug & play tanpa bluetooth, jangkauan 20 meter, suara jernih no delay, batere 10 jam nonstop';
+                document.getElementById('aff-orig-price').value = 'Rp 120.000';
+                document.getElementById('aff-disc-price').value = 'Rp 38.000';
+                document.getElementById('aff-link').value = 'https://shope.ee/mic-wireless-deals';
+                document.getElementById('aff-audience').value = 'Content Creator Pemula, Guru/Dosen, Penjual Live Streaming';
+            }
+            showToast(`Preset produk '${type}' berhasil dimuat!`, 'info');
+        }
+
+        function switchAffTab(subTab) {
+            document.querySelectorAll('.aff-subview').forEach(el => el.classList.add('hidden'));
+            ['tiktok', 'telegram', 'whatsapp', 'spill'].forEach(t => {
+                const btn = document.getElementById(`aff-tab-btn-${t}`);
+                if (btn) {
+                    btn.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            const targetView = document.getElementById(`aff-view-${subTab}`);
+            const targetBtn = document.getElementById(`aff-tab-btn-${subTab}`);
+            if (targetView) targetView.classList.remove('hidden');
+            if (targetBtn) {
+                targetBtn.classList.remove('text-slate-400');
+                targetBtn.classList.add('bg-emerald-500/20', 'text-emerald-300', 'border', 'border-emerald-500/30', 'font-bold');
+            }
+            lucide.createIcons();
+        }
+
+        async function runAffiliateGenerator(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const btn = document.getElementById('btn-run-affiliate');
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Swarm AI Sedang Bekerja...';
+            lucide.createIcons();
+
+            const payload = {
+                product_name: document.getElementById('aff-product-name').value.trim(),
+                key_features: document.getElementById('aff-features').value.trim(),
+                original_price: document.getElementById('aff-orig-price').value.trim(),
+                discount_price: document.getElementById('aff-disc-price').value.trim(),
+                affiliate_link: document.getElementById('aff-link').value.trim(),
+                target_audience: document.getElementById('aff-audience').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/affiliate/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    currentAffiliateCampaign = data.result;
+                    renderAffiliateResults(data.result);
+                    showToast('Paket Penjualan Affiliate Berhasil Digenerate!', 'success');
+                    fetchAffiliateCampaigns();
+                } else {
+                    showToast(`Gagal: ${data.detail || data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Error: ${err.message}`, 'error');
+            } finally {
+                btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> 🚀 Eksekusi Tim Penjualan Swarm';
+                lucide.createIcons();
+            }
+        }
+
+        function renderAffiliateResults(c) {
+            document.getElementById('aff-text-tiktok').innerText = c.tiktok_script || 'N/A';
+            document.getElementById('aff-text-telegram').innerText = c.telegram_card || 'N/A';
+            document.getElementById('aff-text-whatsapp').innerText = c.wa_broadcast || 'N/A';
+
+            const spillBox = document.getElementById('aff-spill-list');
+            if (c.spill_replies && c.spill_replies.length > 0) {
+                spillBox.innerHTML = c.spill_replies.map((reply, idx) => `
+                    <div class="p-3 bg-dark-950 rounded-xl border border-white/5 font-sans text-xs text-slate-200 flex items-start justify-between gap-3 group">
+                        <div>
+                            <span class="text-[10px] font-mono text-cyan-400 font-bold block mb-0.5">Varian #${idx + 1}:</span>
+                            ${reply}
+                        </div>
+                        <button onclick="navigator.clipboard.writeText('${reply.replace(/'/g, "\\'")}'); showToast('Varian auto-reply disalin!', 'success');" class="p-1.5 bg-white/5 hover:bg-white/10 text-cyan-300 rounded-lg shrink-0" title="Salin">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        function copyAffiliateContent(elemId) {
+            const el = document.getElementById(elemId);
+            if (el) {
+                navigator.clipboard.writeText(el.innerText);
+                showToast('Konten berhasil disalin ke clipboard!', 'success');
+            }
+        }
+
+        async function broadcastCurrentAffiliate(channel) {
+            if (!currentAffiliateCampaign) {
+                showToast('Generate campaign terlebih dahulu sebelum broadcast!', 'warning');
+                return;
+            }
+            showToast(`Mengirim promo ke ${channel}...`, 'info');
+            try {
+                const res = await fetch('/api/affiliate/broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_name: currentAffiliateCampaign.product_name,
+                        message_text: currentAffiliateCampaign.telegram_card,
+                        affiliate_link: currentAffiliateCampaign.affiliate_link,
+                        channels: [channel]
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Promo ${currentAffiliateCampaign.product_name} berhasil dikirim ke ${channel}!`, 'success');
+                } else {
+                    showToast(`Gagal broadcast: ${data.message}`, 'error');
+                }
+            } catch (err) {
+                showToast(`Broadcast error: ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchAffiliateCampaigns() {
+            try {
+                const res = await fetch('/api/affiliate/campaigns?limit=15');
+                const data = await res.json();
+                const tbody = document.getElementById('affiliate-campaigns-tbody');
+                if (!tbody) return;
+
+                if (!data.campaigns || data.campaigns.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500 italic">Belum ada campaign affiliate yang tersimpan. Klik tombol eksekusi di atas untuk membuat yang pertama.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.campaigns.map(c => `
+                    <tr class="hover:bg-white/[0.02] transition-colors">
+                        <td class="p-3 text-cyan-400 font-bold">#${c.id}</td>
+                        <td class="p-3 font-semibold text-white">${c.product_name}</td>
+                        <td class="p-3 text-slate-300 uppercase text-[10px]">${c.platform || 'shopee/tiktok'}</td>
+                        <td class="p-3 text-slate-400 truncate max-w-xs">${c.target_audience || 'All Audience'}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold">
+                                ${c.status || 'Active'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-slate-500 text-[11px]">${(c.created_at || '').substring(0, 16)}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="loadCampaignDetail(${c.id})" class="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-[10px] font-bold">
+                                Buka
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Fetch affiliate campaigns error:', err);
+            }
+        }
+
+        async function loadCampaignDetail(cid) {
+            try {
+                const res = await fetch(`/api/affiliate/campaigns/${cid}`);
+                const data = await res.json();
+                if (data.status === 'success' && data.campaign) {
+                    currentAffiliateCampaign = data.campaign;
+                    renderAffiliateResults(data.campaign);
+                    showToast(`Memuat campaign #${cid}: ${data.campaign.product_name}`, 'info');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (err) {
+                showToast(`Gagal memuat detail campaign: ${err.message}`, 'error');
             }
         }
 

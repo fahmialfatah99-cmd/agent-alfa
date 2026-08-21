@@ -45,7 +45,9 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templa
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
-    if name_lower.startswith("pdf_") or "pdf" in name_lower:
+    if "affiliate" in name_lower:
+        return "Affiliate Sales Swarm (TikTok & Shopee)"
+    elif name_lower.startswith("pdf_") or "pdf" in name_lower:
         return "PDF Tools Suite (Offline & Online)"
     elif name_lower.startswith("browser_"):
         return "Browser Automation"
@@ -254,6 +256,75 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
         "primary_file_path": saved_files[0]["file_path"] if saved_files else None,
         "all_file_paths": [sf["file_path"] for sf in saved_files]
     }
+
+
+# --- Affiliate Sales Swarm API Endpoints ---
+
+@app.get("/api/affiliate/campaigns")
+async def get_affiliate_campaigns(limit: int = 20):
+    """Get list of active affiliate campaigns and scripts."""
+    import affiliate_engine
+    campaigns = affiliate_engine.list_affiliate_campaigns(limit=limit)
+    return {
+        "status": "success",
+        "total": len(campaigns),
+        "campaigns": campaigns
+    }
+
+
+@app.get("/api/affiliate/campaigns/{campaign_id}")
+async def get_affiliate_campaign_detail(campaign_id: int):
+    """Get full details of a specific affiliate campaign."""
+    import affiliate_engine
+    data = affiliate_engine.get_affiliate_campaign_detail(campaign_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return {"status": "success", "campaign": data}
+
+
+@app.post("/api/affiliate/generate")
+async def generate_affiliate_campaign(payload: Dict[str, Any]):
+    """Generate viral affiliate campaign using the 6-agent sales force."""
+    import affiliate_engine
+    product_name = payload.get("product_name", "").strip()
+    key_features = payload.get("key_features", "").strip()
+    original_price = payload.get("original_price", "Rp 100.000").strip()
+    discount_price = payload.get("discount_price", "Rp 49.000").strip()
+    affiliate_link = payload.get("affiliate_link", "https://shopee.co.id").strip()
+    target_audience = payload.get("target_audience", "Pemburu Diskon & Gadget").strip()
+    platform = payload.get("platform", "shopee_tiktok").strip()
+    
+    if not product_name or not affiliate_link:
+        raise HTTPException(status_code=400, detail="product_name and affiliate_link are required")
+        
+    res = affiliate_engine.generate_affiliate_campaign_content(
+        product_name=product_name,
+        key_features=key_features,
+        original_price=original_price,
+        discount_price=discount_price,
+        affiliate_link=affiliate_link,
+        target_audience=target_audience,
+        platform=platform
+    )
+    return {"status": "success", "result": res}
+
+
+@app.post("/api/affiliate/broadcast")
+async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
+    """Broadcast an affiliate deal to Telegram / WhatsApp."""
+    import affiliate_engine
+    product_name = payload.get("product_name", "")
+    message_text = payload.get("message_text", "")
+    affiliate_link = payload.get("affiliate_link", "")
+    channels = payload.get("channels", ["telegram", "whatsapp"])
+    
+    res = affiliate_engine.broadcast_affiliate_deal(
+        product_name=product_name,
+        message_text=message_text,
+        affiliate_link=affiliate_link,
+        channels=channels
+    )
+    return res
 
 
 @app.get("/api/services")
