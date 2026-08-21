@@ -1234,10 +1234,44 @@ async def gdrive_status_endpoint():
             "client_email": account_email or res.get("user", {}).get("emailAddress", ""),
             "project_id": project_id,
             "storage_quota": res.get("storage_quota", {}),
+            "default_folder_id": res.get("default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
+            "default_folder_name": res.get("default_folder_name", "alfa agent"),
+            "default_folder_url": res.get("default_folder_url", "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
             "error": res.get("message", "") if not res.get("connected") else ""
         }
     except Exception as e:
         return {"status": "error", "connected": False, "message": str(e)}
+
+
+@app.post("/api/gdrive/folder")
+async def gdrive_set_default_folder(payload: Dict[str, Any]):
+    """Set default Google Drive folder ID and name."""
+    folder_id = payload.get("folder_id", "").strip()
+    folder_name = payload.get("folder_name", "alfa agent").strip()
+    
+    if not folder_id:
+        raise HTTPException(status_code=400, detail="folder_id wajib diisi.")
+        
+    with database.get_sync_db() as conn:
+        conn.execute(
+            "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (folder_id,)
+        )
+        conn.execute(
+            "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (folder_name,)
+        )
+        conn.execute(
+            "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (f"https://drive.google.com/drive/folders/{folder_id}",)
+        )
+        
+    return {
+        "status": "success",
+        "message": f"Folder default Google Drive berhasil disetel ke '{folder_name}' ({folder_id})",
+        "folder_id": folder_id,
+        "folder_name": folder_name
+    }
 
 
 @app.post("/api/gdrive/credentials")

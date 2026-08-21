@@ -4374,25 +4374,66 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
 
 # ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ====================
 
+def _get_default_gdrive_folder_id() -> str:
+    """Return default Google Drive folder ID from database or environment."""
+    try:
+        with database.get_sync_db() as conn:
+            row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_default_folder_id'").fetchone()
+            if row and row[0] and row[0].strip():
+                return row[0].strip()
+    except Exception:
+        pass
+    return os.getenv("GDRIVE_DEFAULT_FOLDER_ID", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE").strip()
+
+
 def _get_gdrive_service():
     """Helper to initialize and return an authorized Google Drive API v3 resource service."""
     import json
     from google.oauth2 import service_account
+    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     
-    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
     scopes = [
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/drive.file"
     ]
     
     creds = None
-    if os.path.exists(cred_file):
+    
+    # 1. Check OAuth 2.0 User Token (allows uploading to personal Google Drive with user's quota)
+    oauth_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
+    if os.path.exists(oauth_file):
         try:
-            creds = service_account.Credentials.from_service_account_file(cred_file, scopes=scopes)
+            creds = Credentials.from_authorized_user_file(oauth_file, scopes=scopes)
+            if creds and creds.expired and creds.refresh_token:
+                from google.auth.transport.requests import Request
+                creds.refresh(Request())
         except Exception as e:
-            logger.error(f"Error loading gdrive_credentials.json: {e}")
+            logger.error(f"Error loading gdrive_oauth_token.json: {e}")
+            creds = None
             
+    if not creds:
+        try:
+            with database.get_sync_db() as conn:
+                row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'").fetchone()
+                if row and row[0]:
+                    info = json.loads(row[0])
+                    creds = Credentials.from_authorized_user_info(info, scopes=scopes)
+                    if creds and creds.expired and creds.refresh_token:
+                        from google.auth.transport.requests import Request
+                        creds.refresh(Request())
+        except Exception as e:
+            creds = None
+
+    # 2. Check Service Account JSON file
+    if not creds:
+        cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+        if os.path.exists(cred_file):
+            try:
+                creds = service_account.Credentials.from_service_account_file(cred_file, scopes=scopes)
+            except Exception as e:
+                logger.error(f"Error loading gdrive_credentials.json: {e}")
+                
     if not creds:
         env_json = os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip()
         if env_json:
@@ -4423,22 +4464,37 @@ def _get_gdrive_service():
 
 def gdrive_status() -> Dict[str, Any]:
     """
-    Check the connection status of Google Drive Integration and return storage quota info.
+    Check the connection status of Google Drive Integration, storage quota, and default folder info.
     """
     try:
         service = _get_gdrive_service()
         about = service.about().get(fields="user, storageQuota").execute()
+        def_folder = _get_default_gdrive_folder_id()
+        folder_name = "alfa agent"
+        
+        try:
+            with database.get_sync_db() as conn:
+                r = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_default_folder_name'").fetchone()
+                if r and r[0]:
+                    folder_name = r[0]
+        except Exception:
+            pass
+            
         return {
             "status": "success",
             "connected": True,
             "user": about.get("user", {}),
-            "storage_quota": about.get("storageQuota", {})
+            "storage_quota": about.get("storageQuota", {}),
+            "default_folder_id": def_folder,
+            "default_folder_name": folder_name,
+            "default_folder_url": f"https://drive.google.com/drive/folders/{def_folder}"
         }
     except Exception as e:
         return {
             "status": "error",
             "connected": False,
-            "message": str(e)
+            "message": str(e),
+            "default_folder_id": _get_default_gdrive_folder_id()
         }
 
 
@@ -4447,15 +4503,16 @@ def gdrive_list_files(folder_id: str = "", query: str = "", limit: int = 20) -> 
     List, search, and browse files and folders stored in Google Drive.
     
     Args:
-        folder_id: Optional ID of the Google Drive folder to list.
+        folder_id: Optional ID of the Google Drive folder to list (defaults to configured folder).
         query: Optional search keyword or query term.
         limit: Max number of files to return (default 20, max 100).
     """
     try:
         service = _get_gdrive_service()
+        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
         q_parts = ["trashed = false"]
-        if folder_id:
-            q_parts.append(f"'{folder_id}' in parents")
+        if target_folder:
+            q_parts.append(f"'{target_folder}' in parents")
         if query:
             q_parts.append(f"(name contains '{query}' or fullText contains '{query}')")
         q_str = " and ".join(q_parts)
@@ -4463,6 +4520,8 @@ def gdrive_list_files(folder_id: str = "", query: str = "", limit: int = 20) -> 
         results = service.files().list(
             q=q_str,
             pageSize=min(limit, 100),
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
             fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink)"
         ).execute()
         
@@ -4470,6 +4529,7 @@ def gdrive_list_files(folder_id: str = "", query: str = "", limit: int = 20) -> 
         return {
             "status": "success",
             "total_found": len(files),
+            "folder_id": target_folder,
             "files": files
         }
     except Exception as e:
@@ -4482,7 +4542,7 @@ def gdrive_upload_file(filepath: str, folder_id: str = "", custom_filename: str 
     
     Args:
         filepath: Path to the local file (e.g. '~/Dokumen/ALFA_SWARM_OUTPUTS/laporan.pdf' or filename).
-        folder_id: Optional Google Drive folder ID to upload into.
+        folder_id: Optional Google Drive folder ID to upload into (defaults to configured folder).
         custom_filename: Optional custom file name on Google Drive.
     """
     try:
@@ -4498,35 +4558,39 @@ def gdrive_upload_file(filepath: str, folder_id: str = "", custom_filename: str 
                 return {"status": "error", "message": f"File '{filepath}' tidak ditemukan di sistem lokal."}
                 
         service = _get_gdrive_service()
+        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
         upload_name = custom_filename or os.path.basename(resolved_path)
         mime_type, _ = mimetypes.guess_type(resolved_path)
         if not mime_type:
             mime_type = "application/octet-stream"
             
         file_metadata = {"name": upload_name}
-        if folder_id:
-            file_metadata["parents"] = [folder_id]
+        if target_folder:
+            file_metadata["parents"] = [target_folder]
             
         media = MediaFileUpload(resolved_path, mimetype=mime_type, resumable=True)
         file = service.files().create(
             body=file_metadata,
             media_body=media,
+            supportsAllDrives=True,
             fields="id, name, mimeType, size, webViewLink, webContentLink"
         ).execute()
         
         try:
             service.permissions().create(
                 fileId=file.get("id"),
-                body={"role": "reader", "type": "anyone"}
+                body={"role": "reader", "type": "anyone"},
+                supportsAllDrives=True
             ).execute()
         except Exception:
             pass
             
         return {
             "status": "success",
-            "message": f"File '{upload_name}' berhasil diunggah ke Google Drive!",
+            "message": f"File '{upload_name}' berhasil diunggah ke Google Drive di folder target!",
             "file_id": file.get("id"),
             "file_name": file.get("name"),
+            "folder_id": target_folder,
             "web_link": file.get("webViewLink"),
             "download_link": file.get("webContentLink")
         }
@@ -4547,11 +4611,11 @@ def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any
         from googleapiclient.http import MediaIoBaseDownload
         
         service = _get_gdrive_service()
-        file_meta = service.files().get(fileId=file_id, fields="id, name, mimeType").execute()
+        file_meta = service.files().get(fileId=file_id, supportsAllDrives=True, fields="id, name, mimeType").execute()
         target_name = save_filename or file_meta.get("name", f"gdrive_{file_id}")
         target_path = os.path.join(SANDBOX_DIR, target_name)
         
-        request = service.files().get_media(fileId=file_id)
+        request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
         fh = io.FileIO(target_path, "wb")
         downloader = MediaIoBaseDownload(fh, request)
         done = False
@@ -4575,19 +4639,21 @@ def gdrive_create_folder(folder_name: str, parent_folder_id: str = "") -> Dict[s
     
     Args:
         folder_name: Name of the folder to create.
-        parent_folder_id: Optional ID of the parent folder.
+        parent_folder_id: Optional ID of the parent folder (defaults to configured folder).
     """
     try:
         service = _get_gdrive_service()
+        target_parent = parent_folder_id.strip() if parent_folder_id else _get_default_gdrive_folder_id()
         file_metadata = {
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder"
         }
-        if parent_folder_id:
-            file_metadata["parents"] = [parent_folder_id]
+        if target_parent:
+            file_metadata["parents"] = [target_parent]
             
         folder = service.files().create(
             body=file_metadata,
+            supportsAllDrives=True,
             fields="id, name, webViewLink"
         ).execute()
         
@@ -4607,12 +4673,13 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[st
     Ingest and sync documents from Google Drive directly into ALFA's Neural Vector Brain (Second Brain RAG).
     
     Args:
-        folder_id: Optional Google Drive folder ID to ingest from.
+        folder_id: Optional Google Drive folder ID to ingest from (defaults to configured folder).
         limit: Max documents to ingest (default 10).
     """
     try:
         import vector_memory
-        list_res = gdrive_list_files(folder_id=folder_id, limit=limit)
+        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
+        list_res = gdrive_list_files(folder_id=target_folder, limit=limit)
         if list_res.get("status") != "success":
             return list_res
             
@@ -4642,6 +4709,7 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[st
         return {
             "status": "success",
             "total_ingested": len(ingested),
+            "folder_id": target_folder,
             "synced_files": ingested
         }
     except Exception as e:

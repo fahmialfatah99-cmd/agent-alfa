@@ -1308,7 +1308,7 @@
                         </div>
 
                         <!-- Active Connection Info -->
-                        <div id="gdrive-connected-info" class="hidden p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2 text-xs">
+                        <div id="gdrive-connected-info" class="hidden p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2.5 text-xs">
                             <div class="flex items-center justify-between text-slate-300">
                                 <span class="font-medium">Service Account:</span>
                                 <span id="gdrive-email-val" class="font-mono text-cyan-300 font-bold truncate max-w-[170px]">-</span>
@@ -1318,8 +1318,14 @@
                                 <span id="gdrive-project-val" class="font-mono text-slate-200 font-bold">-</span>
                             </div>
                             <div class="flex items-center justify-between text-slate-300">
+                                <span class="font-medium">Folder Default:</span>
+                                <a id="gdrive-folder-link" href="https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE" target="_blank" class="text-amber-300 hover:underline font-bold flex items-center gap-1">
+                                    <span id="gdrive-folder-val">alfa agent</span> ↗
+                                </a>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-300">
                                 <span class="font-medium">Drive Storage:</span>
-                                <span id="gdrive-quota-val" class="text-emerald-400 font-bold">Aktif / Terverifikasi</span>
+                                <span id="gdrive-quota-val" class="text-emerald-400 font-bold">Terhubung & Aktif</span>
                             </div>
                             <button onclick="deleteGdriveCredentials()" class="w-full mt-2 py-1.5 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs transition-all flex items-center justify-center gap-1">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Kredensial
@@ -7546,6 +7552,15 @@
                         connInfo.classList.remove('hidden');
                         document.getElementById('gdrive-email-val').innerText = data.client_email || 'Service Account';
                         document.getElementById('gdrive-project-val').innerText = data.project_id || '-';
+                        if (document.getElementById('gdrive-folder-val')) {
+                            document.getElementById('gdrive-folder-val').innerText = data.default_folder_name || 'alfa agent';
+                        }
+                        if (document.getElementById('gdrive-folder-link') && data.default_folder_url) {
+                            document.getElementById('gdrive-folder-link').href = data.default_folder_url;
+                        }
+                        if (document.getElementById('gdrive-target-folder-id') && !document.getElementById('gdrive-target-folder-id').value) {
+                            document.getElementById('gdrive-target-folder-id').placeholder = `Default: ${data.default_folder_name || 'alfa agent'}`;
+                        }
                     }
                 } else {
                     if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5';

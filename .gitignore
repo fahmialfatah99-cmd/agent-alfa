@@ -47,3 +47,5 @@ node_modules/
 .wwebjs_auth/
 .wwebjs_cache/
 *.session
+gdrive_credentials.json
+gdrive_oauth_token.json
