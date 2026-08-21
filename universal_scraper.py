@@ -128,7 +128,7 @@ def scrape_universal_keyword(
     all_raw_results = []
     seen_urls = set()
 
-    with DDGS(verify=False) as ddgs:
+    with DDGS() as ddgs:
         for q in queries_to_run:
             try:
                 sub_results = list(ddgs.text(q, max_results=max(10, limit // len(queries_to_run) + 5)))
@@ -151,7 +151,7 @@ def scrape_universal_keyword(
     # If direct template yielded few results, fallback to broader general search
     if len(all_raw_results) < min(10, limit):
         try:
-            with DDGS(verify=False) as ddgs:
+            with DDGS() as ddgs:
                 general_results = list(ddgs.text(query, max_results=limit))
                 for r in general_results:
                     url = r.get("href", "").strip()
