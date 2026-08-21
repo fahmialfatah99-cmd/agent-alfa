@@ -1507,7 +1507,7 @@ async def agents_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /rapat or /meeting command to conduct an autonomous round-table meeting."""
+    """Handle /rapat or /meeting command to conduct an autonomous round-table meeting (Plan Mode)."""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
@@ -1516,32 +1516,33 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     topic = " ".join(context.args).strip() if context.args else ""
     if not topic:
         text = (
-            "🏛️ **Panduan Ruang Rapat AI Otonom:**\n\n"
-            "Format: `/rapat <topik / masalah / project yang ingin dibahas>`\n\n"
+            "🏛️ **Panduan Ruang Rapat AI (Mode 1: Plan):**\n\n"
+            "Format: `/rapat <topik / masalah yang ingin dibahas>`\n\n"
             "**Contoh:**\n"
             "• `/rapat Desain arsitektur database baru untuk auto-sync WhatsApp ke cloud`\n"
             "• `/rapat Strategi meningkatkan performa agent bot dan penghematan token API`\n\n"
-            "💡 _Para agent (Alpha Lead, Code Crafter, System Auditor, dll) akan berdiskusi dan menghasilkan Action Plan!_"
+            "💡 _Para agent akan berdebat, berdiskusi, dan merumuskan Action Plan!_\n"
+            "⚡ _Untuk menyuruh agent langsung bekerja & mengeksekusi tugas nyata, gunakan `/swarm <perintah>`!_"
         )
         await safe_send_message(context, chat_id, text)
         return
 
-    init_msg = await safe_send_message(
+    await safe_send_message(
         context, chat_id, 
-        f"🏛️ **Membuka Ruang Rapat AI Otonom...**\n\n"
-        f"📋 **Topik:** _{topic}_\n"
+        f"🏛️ **Membuka Rapat Perencanaan AI...**\n\n"
+        f"📋 **Agenda:** _{topic}_\n"
         f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu..."
     )
 
     try:
         import swarm_engine
-        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2)
+        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2, mode="plan")
         
         # Send summary of transcript
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
-        for d in transcript[:6]:  # Show first few highlights
-            dialogue_text += f"{d.get('avatar_emoji', '🤖')} **{d['agent_name']}** ({d['role']}):\n{d['message'][:400]}...\n\n"
+        for d in transcript[:6]:
+            dialogue_text += f"{d.get('avatar_emoji', '🤖')} **{d['agent_name']}** ({d['role']}):\n{d['message'][:350]}...\n\n"
 
         await safe_send_message(context, chat_id, dialogue_text)
 
@@ -1559,6 +1560,77 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error during Telegram /rapat meeting: {e}")
         await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}")
+
+
+async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /swarm or /eksekusi command to trigger live collaborative tool execution (Execute Mode)."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    topic = " ".join(context.args).strip() if context.args else ""
+    if not topic:
+        text = (
+            "⚡ **Panduan Swarm Eksekusi Langsung (Mode 2: Bekerja Nyata):**\n\n"
+            "Format: `/swarm <perintah / tugas nyata yang ingin dikerjakan bersama>`\n\n"
+            "**Contoh:**\n"
+            "• `/swarm Scrape 20 mouse gaming terlaris di Shopee & Tokopedia dan buatkan CSV-nya`\n"
+            "• `/swarm Buatkan script Python monitoring RAM/CPU dan jalankan di sandbox`\n"
+            "• `/swarm Audit port lokal dan status keamanan server`\n\n"
+            "💡 _Seluruh tim agen AI akan langsung membagi tugas, menjalankan tools live, dan mengirimkan file hasil ke Telegram kamu!_"
+        )
+        await safe_send_message(context, chat_id, text)
+        return
+
+    await safe_send_message(
+        context, chat_id, 
+        f"⚡ **Membangunkan AI Swarm & Mengeksekusi Tugas Nyata...**\n\n"
+        f"📌 **Tugas:** _{topic}_\n"
+        f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu..."
+    )
+
+    try:
+        import swarm_engine
+        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=1, mode="execute")
+        
+        # Send execution steps breakdown
+        steps = result.get("execution_results", [])
+        steps_text = "⚡ **Laporan Eksekusi Tiap Agen:**\n\n"
+        for s in steps:
+            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += f"   • Tool: `{s['tool_used']}` ({s['duration_ms']}ms)\n"
+            steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
+
+        await safe_send_message(context, chat_id, steps_text)
+
+        # Send Final Consensus Report
+        final_text = (
+            f"🏆 **LAPORAN HASIL EKSEKUSI NYATA:**\n\n"
+            f"{result.get('consensus', '')}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🌐 _ID Sesi: #{result.get('meeting_id')} • Tersimpan di Web Dashboard & Dokumen_"
+        )
+        await safe_send_message(context, chat_id, final_text)
+
+        # Automatically send generated deliverable files to Telegram if any!
+        for s in steps:
+            fpath = s.get("deliverable_file")
+            if fpath and os.path.exists(fpath):
+                try:
+                    with open(fpath, "rb") as f_doc:
+                        await context.bot.send_document(
+                            chat_id=chat_id,
+                            document=f_doc,
+                            filename=os.path.basename(fpath),
+                            caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`"
+                        )
+                except Exception as file_err:
+                    logger.warning(f"Failed to send deliverable file to Telegram: {file_err}")
+
+    except Exception as e:
+        logger.error(f"Error during Telegram /swarm execution: {e}")
+        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}")
 
 
 def main():
@@ -1593,7 +1665,8 @@ def main():
     application.add_handler(CommandHandler("keys", keys_command))
     application.add_handler(CommandHandler("vault", keys_command))
     application.add_handler(CommandHandler("agents", agents_command))
-    application.add_handler(CommandHandler("swarm", agents_command))
+    application.add_handler(CommandHandler("swarm", swarm_command))
+    application.add_handler(CommandHandler("eksekusi", swarm_command))
     application.add_handler(CommandHandler("rapat", rapat_command))
     application.add_handler(CommandHandler("meeting", rapat_command))
     application.add_handler(CommandHandler("clear", clear_command))
