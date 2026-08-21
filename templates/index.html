@@ -2739,71 +2739,130 @@
 
             <!-- SUB-VIEW 3: AI & MODERN SCRAPER LAB -->
             <div id="scraper-subview-modern" class="scraper-subview space-y-6 hidden">
-                <div class="glass-card p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 via-dark-900/40 to-dark-900/80 space-y-4">
-                    <div class="flex items-center justify-between">
+                <div class="glass-card p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 via-dark-900/40 to-dark-900/80 space-y-5">
+                    
+                    <!-- Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                         <div class="flex items-center space-x-3">
-                            <div class="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xl">
+                            <div class="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-2xl shadow-glow-cyan">
                                 🤖
                             </div>
                             <div>
                                 <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
-                                    Next-Gen AI & Modern Scraper Lab
-                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">CRAWL4AI • SCRAPLING • MARKITDOWN • SCRAPY • CRAWLEE • FIRECRAWL</span>
+                                    AI & Modern Web Scraper Lab
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">ANTI-BOT BYPASS & LLM READY</span>
                                 </h3>
-                                <p class="text-xs text-slate-400">Ekstraksi halaman web tunggal atau multi-halaman dengan teknologi anti-bot mutakhir dan auto-ingest ke Neural Vector Brain.</p>
+                                <p class="text-xs text-slate-400">Ekstrak data website apa saja secara instan tanpa ribet koding — cukup pilih tombol atau ketik targetmu.</p>
                             </div>
+                        </div>
+                        
+                        <!-- Quick Sample Links -->
+                        <div class="flex items-center gap-1.5 font-mono text-[10px]">
+                            <span class="text-slate-500">Coba Link Contoh:</span>
+                            <button type="button" onclick="fillModernSampleUrl('https://news.ycombinator.com', 'h1, .titleline > a')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 border border-cyan-500/20 transition-all">📰 HackerNews</button>
+                            <button type="button" onclick="fillModernSampleUrl('https://id.wikipedia.org/wiki/Kecerdasan_buatan', 'article, p')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-300 border border-emerald-500/20 transition-all">📚 Wiki AI</button>
+                            <button type="button" onclick="fillModernSampleUrl('https://books.toscrape.com', '.product_pod h3, .price_color')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-orange-300 border border-orange-500/20 transition-all">🛍️ Toko Buku</button>
                         </div>
                     </div>
 
-                    <form onsubmit="runModernScraperLab(event)" class="space-y-4 pt-2">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div class="md:col-span-2 space-y-1">
-                                <label class="text-xs text-slate-300 font-mono">Target URL Website</label>
-                                <input type="url" id="modern-scraper-url" placeholder="https://example.com/artikel atau https://target-web.com" required class="w-full px-4 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-xs text-slate-300 font-mono">Pilih Scraper Engine</label>
-                                <select id="modern-scraper-engine" class="w-full px-3 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
-                                    <option value="auto_hybrid" selected>⚡ Auto-Hybrid (Scrapling + Crawl4AI + MarkItDown)</option>
-                                    <option value="crawl4ai">🤖 Crawl4AI (LLM Fit-Markdown & Links)</option>
-                                    <option value="scrapling">🛡️ Scrapling (Cloudflare & Anti-Bot Bypass)</option>
-                                    <option value="markitdown">📄 Microsoft MarkItDown (Universal Doc/Web)</option>
-                                    <option value="scrapy">🕷️ Scrapy & Parsel (Fast Structured CSS)</option>
-                                    <option value="crawlee">🌐 Apify Crawlee (Multi-Page Deep Crawler)</option>
-                                    <option value="firecrawl">🔥 Firecrawl (Clean RAG Block Extractor)</option>
-                                </select>
+                    <form onsubmit="runModernScraperLab(event)" class="space-y-5">
+                        
+                        <!-- STEP 1: TARGET URL & ENGINE -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-white font-mono flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-[10px]">1</span>
+                                Masukkan Alamat Website (Target URL)
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="md:col-span-2">
+                                    <input type="url" id="modern-scraper-url" placeholder="https://contoh-website.com/artikel-atau-produk" required class="w-full px-4 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                                </div>
+                                <div>
+                                    <select id="modern-scraper-engine" class="w-full px-3 py-2.5 rounded-xl bg-dark-950 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-cyan-400">
+                                        <option value="auto_hybrid" selected>⚡ Auto-Hybrid (Otomatis & Pintar)</option>
+                                        <option value="scrapling">🛡️ Scrapling (Tembus Anti-Bot / Cloudflare)</option>
+                                        <option value="crawl4ai">🤖 Crawl4AI (Hemat Token & Bersih AI)</option>
+                                        <option value="markitdown">📄 MarkItDown (Universal Doc/Web)</option>
+                                        <option value="scrapy">🕷️ Scrapy & Parsel (Ekstraksi Cepat)</option>
+                                        <option value="crawlee">🌐 Apify Crawlee (Jelajah Banyak Halaman)</option>
+                                        <option value="firecrawl">🔥 Firecrawl (Format Blok RAG)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div class="space-y-1">
-                                <label class="text-xs text-slate-300 font-mono">CSS Selector Kustom (Opsional)</label>
-                                <input type="text" id="modern-scraper-selector" placeholder="h1, .content, #main-article, table..." class="w-full px-3 py-2 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                        <!-- STEP 2: 1-CLICK PRESETS (TARGET DATA YANG INGIN DIAMBIL) -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-white font-mono flex items-center gap-1.5">
+                                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-[10px]">2</span>
+                                    Pilih Apa yang Ingin Kamu Ambil (Klik Pilihan di Bawah):
+                                </label>
+                                <span id="preset-badge-active" class="text-[10px] text-cyan-300 font-mono bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">Target: Seluruh Halaman Teks Bersih</span>
                             </div>
-                            <div class="space-y-1">
-                                <label class="text-xs text-slate-300 font-mono">Max Pages (Khusus Crawlee)</label>
-                                <select id="modern-scraper-maxpages" class="w-full px-3 py-2 rounded-xl bg-dark-950 border border-white/10 text-white text-xs font-mono">
-                                    <option value="1">1 Halaman</option>
-                                    <option value="3" selected>3 Halaman Terhubung</option>
-                                    <option value="5">5 Halaman Terhubung</option>
-                                    <option value="10">10 Halaman (Deep Crawl)</option>
-                                </select>
+
+                            <!-- 8 Clickable Presets -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                                <button type="button" onclick="setModernPreset('all', '', 'Seluruh Teks Bersih')" id="preset-btn-all" class="modern-preset-btn p-2.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold text-center transition-all">
+                                    🌐 Semua Teks
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Full Content</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('titles', 'h1, h2, h3, .title, .headline', 'Semua Judul & Headline')" id="preset-btn-titles" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    📰 Judul Berita
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">H1, H2, Headlines</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('prices', '.price, .harga, [class*=\"price\"], [class*=\"harga\"]', 'Daftar Harga & Diskon')" id="preset-btn-prices" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    💰 Harga Produk
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Prices & Diskon</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('articles', 'article, main, p, .post-content, .entry-content', 'Isi Artikel / Cerita')" id="preset-btn-articles" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    📄 Isi Artikel
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Paragraf Inti</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('links', 'a', 'Daftar Semua Link Tautan')" id="preset-btn-links" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    🔗 Link / URL
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Semua Tautan</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('images', 'img', 'Daftar Semua Link Gambar')" id="preset-btn-images" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    🖼️ Gambar / Foto
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Semua Foto</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('tables', 'table tr', 'Tabel & Data Laporan')" id="preset-btn-tables" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    📊 Tabel Data
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Baris & Kolom</div>
+                                </button>
+                                <button type="button" onclick="setModernPreset('custom', '', 'Kustom Sendiri (Manual)')" id="preset-btn-custom" class="modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all">
+                                    ⚙️ Kustom Manual
+                                    <div class="text-[8px] text-slate-400 font-normal mt-0.5">Ketik Selector</div>
+                                </button>
                             </div>
-                            <div class="flex items-center pt-5">
+
+                            <!-- Optional Custom Input Box (Auto-filled by presets or custom) -->
+                            <div class="pt-1">
+                                <div class="relative">
+                                    <input type="text" id="modern-scraper-selector" placeholder="Pilih tombol di atas atau ketik selector kustom di sini (contoh: h1, .price, table)..." class="w-full pl-9 pr-4 py-2 rounded-xl bg-dark-950 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-400">
+                                    <i data-lucide="target" class="w-4 h-4 text-slate-500 absolute left-3 top-2.5"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 3: OPTIONS & EXECUTE -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-dark-950/60 border border-white/5">
+                            <div class="flex items-center space-x-4">
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" id="modern-scraper-autoingest" class="rounded bg-dark-950 border-white/20 text-cyan-500 focus:ring-0 w-4 h-4">
                                     <span class="text-xs text-cyan-300 font-mono font-bold">⚡ Simpan Otomatis ke Second Brain (Vector RAG)</span>
                                 </label>
+                                <input type="hidden" id="modern-scraper-maxpages" value="3">
                             </div>
+
+                            <button type="submit" id="btn-run-modern-scraper" class="px-7 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-dark-950 font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer">
+                                <i data-lucide="play" class="w-4 h-4"></i> 🚀 Mulai Ekstraksi Data
+                            </button>
                         </div>
 
-                        <div class="flex items-center justify-between pt-2">
-                            <div id="modern-scraper-status-text" class="text-xs text-slate-400 font-mono">
-                                Siap mengekstrak dengan teknologi modern anti-deteksi.
-                            </div>
-                            <button type="submit" id="btn-run-modern-scraper" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 font-bold text-xs font-mono flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all">
-                                <i data-lucide="play" class="w-4 h-4"></i> 🚀 Eksekusi Scraper Sekarang
-                            </button>
+                        <div id="modern-scraper-status-text" class="text-xs text-slate-400 font-mono text-center">
+                            Pilih target di atas, lalu klik <strong>Mulai Ekstraksi Data</strong>.
                         </div>
                     </form>
                 </div>
@@ -6887,6 +6946,47 @@
         }
 
         let modernScraperLastResult = '';
+
+        function setModernPreset(presetKey, selectorValue, labelText) {
+            const presets = ['all', 'titles', 'prices', 'articles', 'links', 'images', 'tables', 'custom'];
+            presets.forEach(p => {
+                const btn = document.getElementById(`preset-btn-${p}`);
+                if (btn) {
+                    if (p === presetKey) {
+                        btn.className = 'modern-preset-btn p-2.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold text-center transition-all';
+                    } else {
+                        btn.className = 'modern-preset-btn p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white border border-transparent text-xs font-mono text-center transition-all';
+                    }
+                }
+            });
+
+            const inputSelector = document.getElementById('modern-scraper-selector');
+            const badge = document.getElementById('preset-badge-active');
+            if (badge) badge.innerText = `Target: ${labelText}`;
+            
+            if (presetKey === 'custom') {
+                if (inputSelector) {
+                    inputSelector.focus();
+                    if (!inputSelector.value) inputSelector.placeholder = 'Ketik CSS selector kustom (contoh: .product-title, span.price)...';
+                }
+            } else {
+                if (inputSelector) inputSelector.value = selectorValue;
+            }
+        }
+
+        function fillModernSampleUrl(url, selector) {
+            const inputUrl = document.getElementById('modern-scraper-url');
+            if (inputUrl) {
+                inputUrl.value = url;
+                inputUrl.classList.add('ring-2', 'ring-cyan-400');
+                setTimeout(() => inputUrl.classList.remove('ring-2', 'ring-cyan-400'), 1000);
+            }
+            if (selector) {
+                const inputSelector = document.getElementById('modern-scraper-selector');
+                if (inputSelector) inputSelector.value = selector;
+            }
+            showToast(`Contoh URL & Preset dimuat!`, 'info');
+        }
 
         async function runModernScraperLab(e) {
             e.preventDefault();
