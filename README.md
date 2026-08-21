@@ -2,134 +2,119 @@
 
 <div align="center">
 
-![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
+![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI%20v4.5-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
+![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Google Gemini](https://img.shields.io/badge/Google-Gemini%202.5%20%26%203.5-4285F4?style=for-the-badge&logo=google&logoColor=white)
 ![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API%20v21-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Terpadu: Multi-Agent Swarm, 102 Sovereign Tools, Real Scraper Pro, Affiliate Studio, Passkey Vault, dan Web Command Center.**
+**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 112+ Sovereign Tools, Master Scraper, Passkey Vault, dan Web Command Center.**
 
-[Fitur Utama](#-fitur-unggulan) • [Panduan Instalasi](#-panduan-instalasi-dari-awal) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Deploy 24/7](#-menjalankan-247-di-background-systemd)
+[Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
 
 </div>
 
 ---
 
-## 🌟 Fitur Unggulan
+## 🌟 Fitur Unggulan (Level 4.5 Sovereign AI)
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
-* **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom untuk membedah masalah dan merumuskan Action Plan.
-* **Mode 2 (Eksekusi Nyata Otonom):** Agen AI tidak hanya berwacana — mereka langsung mengeksekusi kode, scraping data, menulis skrip, dan membuat file deliverable (`CSV`, `JSON`, `Python`) yang otomatis tersimpan di `~/Dokumen/ALFA_SWARM_OUTPUTS` serta langsung dikirimkan ke chat Telegram.
+* **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom membedah masalah dan merumuskan Action Plan.
+* **Mode 2 (Eksekusi Nyata Otonom):** Agen AI langsung mengeksekusi kode, scraping data, menulis skrip, dan membuat file deliverable (`CSV`, `JSON`, `Python`) yang otomatis tersimpan di `~/Dokumen/ALFA_SWARM_OUTPUTS` dan langsung dikirimkan ke chat Telegram.
 
-### 2. 🛠️ 102 Sovereign OS & AI Tools
-* **System Healing & Diagnostic:** Audit error log, cek status memory, perbaikan service otomatis.
-* **Vision & Computer Use:** Screenshot layar desktop dan otomatisasi klik mouse berbasis koordinat AI.
-* **Media & Audio Studio:** Text-to-Speech (Edge-TTS), ekstraksi audio video via FFmpeg.
-* **Dataset & Statistical Engine:** Analisis otomatis CSV/Excel dan pembuatan chart grafik.
+### 2. 🧬 Self-Evolution & Dynamic Plugin Generator
+* **Hot-Reloading Tanpa Restart:** Kemampuan ALFA untuk menciptakan alat Python baru secara otonom saat menghadapi tugas baru.
+* **Sandbox Verification:** Kode plugin baru otomatis divalidasi via AST Parser, diuji di sandbox, dan langsung aktif di RAM tanpa perlu mematikan bot.
 
-### 3. 🌐 Web Command Center & Live Telemetry (Port 8080)
-* **Light / Dark Mode Switcher:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
-* **Settings & Config Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari web browser.
-* **Passkey Biometric Vault:** Penyimpanan kredensial dan API keys terenkripsi dengan proteksi WebAuthn / Passkey.
+### 3. ⚡ Neural Vector Memory & Hybrid RAG (Super Second Brain)
+* **Pencarian Semantik Kontekstual:** Menggunakan vector embedding (`gemini-embedding-001` + fallback lokal) dan cosine similarity ranking.
+* **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.py`) ke dalam memori semantik permanen untuk pencarian berbasis makna.
 
-### 4. 🛒 Master Scraper Pro & Affiliate Sales Studio
-* Ekstraksi produk dari Shopee, Tokopedia, TikTok Shop, dan web kustom dengan anti-bot stealth engine (Playwright & Camoufox).
-* Generator script copywriting affiliate otomatis (Formula PAS, Hook-Story-Offer) dengan copy-to-clipboard instan.
+### 4. 🛠️ 112+ Real Sovereign Tools & Interactive Workbench
+* **System & Diagnostic:** Live telemetri CPU/RAM, storage vacuum, service manager.
+* **Network & Security:** Speedtest benchmark CDN, WHOIS & SSL expiry inspector, audit port jaringan.
+* **Marketplace & Finance:** Real-time crypto & forex ticker (CoinGecko + ExchangeRate API), generator QR Code resolusi tinggi.
+* **Vision & Media:** Screenshot desktop, koordinat klik AI, Edge-TTS audio, konversi media FFmpeg.
 
----
-
-## 📋 Prasyarat Sistem (Prerequisites)
-
-* **Sistem Operasi:** Linux (Ubuntu 20.04+, Debian, Arch, Fedora) atau macOS / WSL2 di Windows.
-* **Python:** Versi `3.10` atau yang lebih baru (`python3 --version`).
-* **Git:** Terpasang pada sistem (`git --version`).
-* **Node.js (Opsional):** Versi `18+` jika ingin menjalankan bot WhatsApp Sheets Sync.
+### 5. 🌐 Web Command Center & Live Telemetry (Port 8080)
+* **Light / Dark Mode:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
+* **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
+* **Passkey Biometric Vault:** Penyimpanan kredensial terenkripsi dengan proteksi WebAuthn / Passkey.
 
 ---
 
-## 🚀 Panduan Instalasi dari Awal (Step-by-Step)
+## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
 
-### Langkah 1: Clone Repository dari GitHub
-Buka terminal Anda dan clone repositori ini:
+### 🐧 1. Linux (Ubuntu, Debian, Arch, Fedora)
 ```bash
+# Clone repository
 git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
 cd agent-alfa
-```
 
----
-
-### Langkah 2: Jalankan 1-Click Interactive Setup Wizard
-Kami telah menyediakan script installer interaktif yang otomatis menyiapkan virtual environment, menginstall dependensi, menanyakan token, dan membuat service background:
-```bash
+# Jalankan 1-Click Interactive Setup Wizard
 chmod +x setup.sh run.sh
 ./setup.sh
+
+# Jalankan langsung di terminal:
+./run.sh
+
+# Atau aktifkan service background 24/7 (Systemd):
+systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service
 ```
 
-Wizard instalasi akan memandu Anda:
-1. Memeriksa ketersediaan Python 3 dan membuat virtual environment `venv/`.
-2. Menginstall seluruh dependensi dari `requirements.txt`.
-3. Meminta input **Token Bot Telegram** dan **Google Gemini API Key**.
-4. Menyiapkan direktori penyimpanan artefak `~/Dokumen/ALFA_SWARM_OUTPUTS`.
-5. Mengkonfigurasi service background systemd.
-
 ---
 
-### Langkah 3: Konfigurasi Manual (Jika Tidak Memakai Wizard)
-Jika Anda ingin mengatur file konfigurasi secara manual:
-1. Salin template `.env.example` menjadi `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Buka file `.env` dengan text editor (misal: `nano .env`):
-   ```env
-   # Token dari @BotFather di Telegram (Wajib)
-   TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-
-   # API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
-   GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
-
-   # Model Gemini default (gemini-2.5-flash, gemini-2.5-pro, gemini-3.5-flash-lite)
-   GEMINI_MODEL="gemini-2.5-flash"
-
-   # Telegram User ID yang diizinkan (opsional, kosongkan jika publik)
-   ALLOWED_USER_IDS="123456789"
-
-   # Persona / Karakter Utama AI
-   SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif, proaktif, dan handal."
-   ```
-
----
-
-## 💻 Menjalankan Bot & Dashboard
-
-### Opsi A: Jalankan Langsung di Terminal (Interactive Runner)
-Untuk menjalankan Telegram Bot dan Web Dashboard secara bersamaan:
+### 🍏 2. macOS (MacBook, Mac Mini, iMac)
 ```bash
+# Clone repository
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+cd agent-alfa
+
+# Beri izin eksekusi dan jalankan
+chmod +x setup.sh run.sh
 ./run.sh
 ```
-* **Telegram Bot:** Otomatis aktif dan merespons pesan di Telegram.
-* **Web Dashboard:** Buka di browser: **[http://localhost:8080](http://localhost:8080)**
+* Buka Web Dashboard di Safari/Chrome: **[http://localhost:8080](http://localhost:8080)**.
+* Notifikasi desktop otomatis menggunakan **AppleScript Native macOS**.
 
 ---
 
-### Opsi B: Menjalankan 24/7 di Background (Systemd Service)
-Agar bot dan web dashboard tetap berjalan nonstop bahkan setelah terminal ditutup atau komputer direstart:
-```bash
-# Aktifkan dan jalankan kedua service
-systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service
+### 🪟 3. Windows (Windows 10 / 11)
+1. **Clone repository via Command Prompt / PowerShell / Git Bash:**
+   ```cmd
+   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+   cd agent-alfa
+   ```
+2. **Klik 2x file `run.bat`** (atau jalankan `run.bat` di terminal).
+3. Script otomatis membuat virtual environment `venv`, menginstall dependensi, menyalin `.env`, dan meluncurkan Web Dashboard serta Telegram Bot secara bersamaan.
+4. Notifikasi desktop otomatis menggunakan **PowerShell Windows Toast Notification**.
 
-# Cek status service
-systemctl --user status telegram-ai-bot.service
-systemctl --user status alfa-dashboard.service
+---
+
+## ⚙️ Konfigurasi Environment (.env)
+
+Salin `.env.example` menjadi `.env` dan isi token Anda:
+
+```env
+# Token dari @BotFather di Telegram (Wajib)
+TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+
+# API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
+GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
+
+# Model Gemini default (gemini-2.5-flash, gemini-2.5-pro, gemini-3.5-flash-lite)
+GEMINI_MODEL="gemini-2.5-flash"
+
+# Telegram User ID yang diizinkan (opsional, kosongkan jika publik)
+ALLOWED_USER_IDS="123456789"
+
+# Persona / Karakter Utama AI
+SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif, proaktif, dan handal."
 ```
 
-Untuk me-restart atau menghentikan service:
-```bash
-systemctl --user restart telegram-ai-bot.service alfa-dashboard.service
-systemctl --user stop telegram-ai-bot.service alfa-dashboard.service
-```
+*(Atau Anda bisa mengaturnya langsung melalui menu **`⚙️ System Settings`** di browser [http://localhost:8080](http://localhost:8080))*
 
 ---
 
@@ -137,11 +122,11 @@ systemctl --user stop telegram-ai-bot.service alfa-dashboard.service
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `/start` | Membuka pesan selamat datang & ringkasan kemampuan |
-| `/menu` | Membuka Menu Interaktif dengan tombol aksi cepat |
+| `/start` | Membuka pesan selamat datang & status kesiapan agen |
+| `/menu` | Membuka Menu Interaktif dengan tombol navigasi cepat |
 | `/swarm <tugas>` | **Mode Eksekusi:** Menugaskan tim AI Swarm untuk langsung bekerja dan menghasilkan deliverable nyata |
-| `/rapat <topik>` | **Mode Rapat:** Mengadakan diskusi strategis antar 6 agen untuk merumuskan Action Plan |
-| `/stats` | Menampilkan metrik performa CPU, RAM, Disk, Uptime, dan Battery laptop |
+| `/rapat <topik>` | **Mode Rapat:** Diskusi strategis antar 6 agen spesialis untuk merumuskan Action Plan |
+| `/stats` | Menampilkan metrik performa CPU, RAM, Disk, Uptime, dan Baterai laptop |
 | `/vault` | Membuka brankas Passkey Vault & melihat kredensial tersimpan |
 | `/memory` | Menampilkan ingatan fakta jangka panjang (Second Brain) |
 | `/clear` | Mereset riwayat chat percakapan saat ini |
@@ -149,25 +134,19 @@ systemctl --user stop telegram-ai-bot.service alfa-dashboard.service
 
 ---
 
-## ⚙️ Fitur Pengaturan Web (Web Settings Hub)
+## 🧰 Tools Catalog & Interactive Workbench
 
-Anda dapat mengubah seluruh pengaturan sistem tanpa perlu menyentuh terminal:
-1. Buka dashboard di **`http://localhost:8080`**.
-2. Klik menu **`⚙️ System Settings`** di sidebar kiri.
-3. Di sini Anda bisa:
-   * Mengganti Token Bot Telegram & Gemini API Key.
-   * Memilih model AI default (*Gemini 2.5 Flash, 2.5 Pro, 3.5 Flash Lite*).
-   * Membatasi hak akses pengguna Telegram (*Allowed User IDs*).
-   * Menyesuaikan instruksi sistem (*Persona Prompt*).
-   * Mengganti tema Tampilan (*Dark Mode 🌙 / Light Mode ☀️*).
-4. Klik tombol **Simpan Pengaturan** dan perubahan langsung diterapkan seketika!
+Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)) **100% interaktif dan dapat dieksekusi langsung**:
+1. Klik kartu tool mana saja di web dashboard.
+2. Form parameter akan otomatis digenerate sesuai signature fungsi Python.
+3. Klik tombol **Eksekusi Tool Sekarang** untuk melihat output JSON dan durasi eksekusi dalam milidetik (ms).
 
 ---
 
 ## 🔒 Keamanan & Privasi
 
-* **Zero Data Leak:** Kunci API dan kredensial disimpan terenkripsi secara lokal di SQLite (`agent_data.db`) dan tidak pernah dikirimkan ke server pihak ketiga.
-* **Passkey Biometric Support:** Web Dashboard mendukung otentikasi biometrik (Fingerprint / Windows Hello / Touch ID) sebelum brankas data dibuka.
+* **Zero Cloud Leak:** Database, memori vektor, dan log tersimpan 100% lokal di SQLite (`agent_data.db`).
+* **Passkey Biometric Security:** Web Dashboard dilengkapi otentikasi biometrik WebAuthn (Fingerprint, Touch ID, Windows Hello).
 * **Grounded ReAct Engine:** AI dilarang berasumsi atau berhalusinasi tanpa grounding fakta dari eksekusi tool nyata.
 
 ---
