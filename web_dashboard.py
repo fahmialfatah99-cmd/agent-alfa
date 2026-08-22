@@ -579,8 +579,31 @@ async def get_system_settings():
         except Exception:
             pass
         
+    # Main brain info + pilihan kunci dari vault utk pengaturan System Settings
+    try:
+        import main_brain as _mb
+        brain = _mb.get_main_brain()
+        main_brain_info = {
+            "provider": brain["provider"],
+            "model": brain["model"],
+            "key_id": brain["key_id"],
+            "label": brain["label"],
+        }
+    except Exception:
+        main_brain_info = {"provider": "?", "model": "", "key_id": None, "label": ""}
+
+    vault_keys = database.list_api_keys_sync()
+
     return {
         "status": "success",
+        "main_brain": main_brain_info,
+        "vault_keys": [
+            {
+                "id": k["id"], "name": k["name"], "provider": k["provider"],
+                "model": k["default_model"], "masked_key": k["masked_key"],
+                "is_active": bool(k.get("is_active")),
+            } for k in vault_keys
+        ],
         "env": {
             "has_bot_token": bool(bot_token and bot_token != "your_telegram_bot_token_here"),
             "masked_bot_token": masked_bot_token,
@@ -594,6 +617,32 @@ async def get_system_settings():
         },
         "db_settings": db_settings
     }
+
+
+@app.post("/api/settings/main-brain")
+async def set_main_brain_endpoint(payload: Dict[str, Any]):
+    """Set the agent's MAIN BRAIN by activating a specific vault key.
+    Optional 'model' overrides the key's default model. Applies instantly to
+    both Telegram and Web chat (no restart)."""
+    key_id = payload.get("key_id")
+    model_override = str(payload.get("model", "") or "").strip()
+    try:
+        key_id = int(key_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="key_id wajib berupa angka.")
+    res = database.activate_api_key_sync(key_id)
+    database.set_main_brain_model(model_override)   # '' = ikuti default kunci
+    if res.get("status") == "success":
+        import main_brain as _mb
+        brain = _mb.get_main_brain()
+        res["main_brain"] = {
+            "provider": brain["provider"],
+            "model": brain["model"],
+            "key_id": brain["key_id"],
+            "label": brain["label"],
+        }
+        res["message"] += f" Model: {brain['model']}"
+    return res
 
 
 @app.post("/api/settings")

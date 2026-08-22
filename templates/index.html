@@ -1745,28 +1745,49 @@
                         </div>
                     </div>
 
-                    <!-- Gemini AI Brain Configuration -->
-                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-3">
-                        <h4 class="text-xs font-bold text-cyan-400 font-mono flex items-center gap-2">
-                            <i data-lucide="sparkles" class="w-4 h-4"></i> GOOGLE GEMINI AI BRAIN
+                    <!-- MAIN BRAIN Configuration -->
+                    <div class="p-4 rounded-xl bg-violet-950/30 border border-violet-500/25 space-y-3">
+                        <h4 class="text-xs font-bold text-violet-300 font-mono flex items-center gap-2">
+                            <i data-lucide="brain-circuit" class="w-4 h-4"></i> OTAK UTAMA AGENT — PROVIDER &amp; MODEL
+                            <span id="mb-current-badge" class="ml-auto text-[10px] px-2 py-0.5 rounded font-bold bg-slate-600/20 text-slate-300 border border-white/10">MEMUAT...</span>
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <label class="text-[11px] font-mono text-slate-400">Gemini API Key (aistudio.google.com)</label>
-                                <input type="password" id="cfg-gemini-key" placeholder="Masukkan Gemini API Key..." class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
-                                <span id="cfg-gemini-key-hint" class="text-[10px] text-slate-500 font-mono"></span>
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[11px] font-mono text-slate-400">Default Model Gemini</label>
-                                <select id="cfg-gemini-model" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
-                                    <option value="gemini-2.5-flash">gemini-2.5-flash (Cepat & Direkomendasikan)</option>
-                                    <option value="gemini-2.5-pro">gemini-2.5-pro (Penalaran Kompleks)</option>
-                                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Ultra Ringan)</option>
-                                    <option value="gemini-1.5-pro">gemini-1.5-pro (Kapasitas Besar)</option>
-                                    <option value="gemini-1.5-flash">gemini-1.5-flash (Standar)</option>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">Pilih kunci yang tersambung sebagai otak utama. Berlaku <b>serentak</b> untuk agent Telegram &amp; chat Web, tanpa restart. Semua tools (130+) tetap berfungsi di provider mana pun.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-[11px] font-mono text-slate-400">Kunci / Provider dari Vault:</label>
+                                <select id="cfg-main-brain" onchange="waMainBrainModelPrefill()" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                                    <option value="">Memuat kunci vault...</option>
                                 </select>
                             </div>
+                            <button onclick="saveMainBrain()" id="btn-save-main-brain" class="py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
+                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Terapkan Otak
+                            </button>
                         </div>
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-mono text-slate-400">Model (bebas isi / pilih saran; kosongkan = ikuti default kunci):</label>
+                            <input type="text" id="cfg-main-brain-model" list="mb-model-list" placeholder="cth: gemini-2.5-pro · stealth/ox-alpha · deepseek/deepseek-v4-pro-0813" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-violet-500">
+                            <datalist id="mb-model-list">
+                                <option value="gemini-3.5-flash-lite">Gemini — ultra ringan</option>
+                                <option value="gemini-3.6-flash">Gemini — cepat terbaru</option>
+                                <option value="gemini-3.5-pro">Gemini Pro — penalaran kompleks</option>
+                                <option value="gemini-2.5-pro">Gemini 2.5 Pro — penalaran kompleks</option>
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash — seimbang</option>
+                                <option value="stealth/ox-alpha">Ox Alpha via OpenRouter</option>
+                                <option value="deepseek/deepseek-v4-flash-0731">DeepSeek V4 Flash</option>
+                                <option value="deepseek/deepseek-v4-pro-0813">DeepSeek V4 Pro</option>
+                                <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron Ultra 550B</option>
+                                <option value="nvidia/nemotron-3.5-lightning">Nemotron Lightning</option>
+                                <option value="qwen/qwen3.8-max">Qwen 3.8 Max</option>
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <!-- Gemini AI Brain Configuration -->
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-500 font-mono flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4 text-slate-500"></i> KREDENSIAL GEMINI DIBAWAH MAIN BRAIN
+                        </h4>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">Kelola kunci Gemini &amp; model lewat kartu <b class="text-violet-300">OTAK UTAMA AGENT</b> di atas (tersambung ke Vault) atau tab <b class="text-cyan-300">Keys</b>. Kolom lama dipindah agar tidak dobel.</p>
                     </div>
 
                     <!-- Master System Instruction -->
@@ -3810,30 +3831,82 @@
         }
 
         // ==================== SYSTEM SETTINGS MANAGER ====================
+        function waMainBrainModelPrefill() {
+            // Saat ganti kunci: prefill model dgn default kunci tsb
+            const sel = document.getElementById('cfg-main-brain');
+            const inp = document.getElementById('cfg-main-brain-model');
+            if (!sel || !inp) return;
+            const k = (dataSettingsCache?.vault_keys || []).find(x => String(x.id) === sel.value);
+            if (k) inp.value = k.model || '';
+        }
+
+        async function saveMainBrain() {
+            const sel = document.getElementById('cfg-main-brain');
+            const modelInput = document.getElementById('cfg-main-brain-model');
+            const btn = document.getElementById('btn-save-main-brain');
+            if (!sel?.value) { showToast('Pilih kunci otak utama dulu.', 'warning'); return; }
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menerapkan...';
+            lucide.createIcons();
+            try {
+                const res = await fetch('/api/settings/main-brain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key_id: Number(sel.value), model: modelInput?.value.trim() || '' })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Otak utama: ${data.main_brain.provider} · ${data.main_brain.model}`, 'success');
+                    fetchSettings();
+                } else {
+                    showToast(data.message || data.detail || 'Gagal.', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5"></i> Terapkan Otak';
+                lucide.createIcons();
+            }
+        }
+
         async function fetchSettings() {
             try {
                 const res = await fetch('/api/settings');
                 const data = await res.json();
                 if (data.status === 'success' && data.env) {
+                    dataSettingsCache = data;
                     const env = data.env;
                     const tokenHint = document.getElementById('cfg-bot-token-hint');
-                    const keyHint = document.getElementById('cfg-gemini-key-hint');
-                    
+
                     if (tokenHint) {
-                        tokenHint.innerHTML = env.has_bot_token 
+                        tokenHint.innerHTML = env.has_bot_token
                             ? `<span class="text-emerald-400 font-mono">✅ Terhubung: ${env.masked_bot_token}</span>`
                             : `<span class="text-rose-400 font-mono">❌ Belum dikonfigurasi</span>`;
                     }
-                    
-                    if (keyHint) {
-                        keyHint.innerHTML = env.has_gemini_key 
-                            ? `<span class="text-emerald-400 font-mono">✅ Terhubung: ${env.masked_gemini_key}</span>`
-                            : `<span class="text-rose-400 font-mono">❌ Belum dikonfigurasi</span>`;
-                    }
-                    
-                    const modelSelect = document.getElementById('cfg-gemini-model');
-                    if (modelSelect && env.gemini_model) {
-                        modelSelect.value = env.gemini_model;
+
+                    // Main Brain picker
+                    const mbSel = document.getElementById('cfg-main-brain');
+                    const mbModel = document.getElementById('cfg-main-brain-model');
+                    const mbBadge = document.getElementById('mb-current-badge');
+                    if (data.main_brain && mbSel) {
+                        const keys = data.vault_keys || [];
+                        if (keys.length === 0) {
+                            mbSel.innerHTML = '<option value="">Belum ada kunci di Vault</option>';
+                        } else {
+                            mbSel.innerHTML = keys.map(k => {
+                                const cur = data.main_brain.key_id === k.id ? ' ← OTAK UTAMA' : '';
+                                return `<option value="${k.id}" ${data.main_brain.key_id === k.id ? 'selected' : ''}>` +
+                                    `#${k.id} ${escAttr(k.name)} · ${k.provider}${cur}</option>`;
+                            }).join('');
+                        }
+                        if (mbModel) mbModel.value = data.main_brain.model || '';
+                        if (mbBadge) {
+                            const p = data.main_brain.provider || '?';
+                            const m = data.main_brain.model || '-';
+                            mbBadge.innerText = `${p.toUpperCase()} · ${m}`;
+                            mbBadge.className = 'ml-auto text-[10px] px-2 py-0.5 rounded font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40';
+                        }
                     }
                     
                     const allowedInput = document.getElementById('cfg-allowed-ids');
@@ -3869,8 +3942,6 @@
             try {
                 const payload = {
                     telegram_bot_token: document.getElementById('cfg-bot-token')?.value || '',
-                    gemini_api_key: document.getElementById('cfg-gemini-key')?.value || '',
-                    gemini_model: document.getElementById('cfg-gemini-model')?.value || 'gemini-2.5-flash',
                     allowed_user_ids: document.getElementById('cfg-allowed-ids')?.value || '',
                     system_instruction: document.getElementById('cfg-system-instruction')?.value || ''
                 };
@@ -3884,9 +3955,7 @@
                 if (data.status === 'success') {
                     showToast(data.message || 'Pengaturan berhasil disimpan!', 'success');
                     const tokenInput = document.getElementById('cfg-bot-token');
-                    const keyInput = document.getElementById('cfg-gemini-key');
                     if (tokenInput) tokenInput.value = '';
-                    if (keyInput) keyInput.value = '';
                     fetchSettings();
                 } else {
                     showToast(data.message || 'Gagal menyimpan pengaturan', 'error');
@@ -4869,6 +4938,7 @@
 
         // WhatsApp Google Sheets Recorded Reports Hub
         let waReportsData = [];
+        let dataSettingsCache = null;
         let waFormatsData = [];
         let activeFormatFilter = 'all';
 

@@ -858,6 +858,28 @@ def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
     return {"status": "success", "message": f"API key #{key_id} activated & ditetapkan sebagai otak utama"}
 
 
+def set_main_brain_model(model: str) -> None:
+    """Simpan pilihan model eksplisit utk otak utama ('' = ikuti default kunci)."""
+    with get_sync_db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
+            ((model or "").strip(),)
+        )
+        conn.commit()
+
+
+def get_main_brain_model() -> str:
+    """Model override otak utama ('' bila tidak disetel)."""
+    try:
+        with get_sync_db() as conn:
+            row = conn.execute(
+                "SELECT value FROM system_settings WHERE key = 'main_brain_model'"
+            ).fetchone()
+            return (row[0] or "").strip() if row else ""
+    except Exception:
+        return ""
+
+
 def get_main_brain_key_id() -> Optional[int]:
     """Return key id marked as main brain, if still valid."""
     try:

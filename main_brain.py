@@ -47,10 +47,14 @@ def get_main_brain() -> Dict[str, Any]:
                     "FROM api_keys WHERE id = ?", (kid,)
                 ).fetchone()
             if row:
+                model = row["default_model"]
+                override = database.get_main_brain_model()
+                if override:
+                    model = override
                 return {
                     "provider": row["provider"].lower(),
                     "api_key": row["api_key"],
-                    "model": row["default_model"],
+                    "model": model,
                     "base_url": row["base_url"] or "",
                     "key_id": row["id"],
                     "label": f"brain#{row['id']}",

@@ -475,7 +475,13 @@ async def run_agent_turn(
         "GEMINI_FALLBACK_MODELS",
         "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-flash-latest"
     ).split(",") if m.strip()]
-    candidate_models = [preferred_model] + fallback_chain
+
+    # Model otak utama (dari System Settings) menang atas preferensi per-user
+    brain_model_override = main_brain.get_main_brain_model()
+    base_model = brain_model_override or preferred_model
+    candidate_models = [base_model] + (
+        [preferred_model] if preferred_model and preferred_model != base_model else []
+    ) + fallback_chain
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
