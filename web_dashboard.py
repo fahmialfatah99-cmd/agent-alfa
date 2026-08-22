@@ -619,6 +619,75 @@ async def get_system_settings():
     }
 
 
+@app.post("/api/antigravity/apply")
+async def antigravity_apply_model(payload: Dict[str, Any]):
+    """Terapkan model Antigravity ke kunci vault + SEMUA agen swarm + otak utama."""
+    import database as _db
+    model = str(payload.get("model", "")).strip()
+    apply_all = bool(payload.get("apply_all_agents", True))
+
+    # 1. Cari kunci vault Antigravity (base_url 8890) — buat bila belum ada
+    target_key = None
+    for k in _db.list_api_keys_sync():
+        if "8890" in (k.get("base_url") or ""):
+            target_key = k
+            break
+    if not target_key:
+        r = _db.add_api_key_sync(name="Antigravity Multi-Account", provider="custom",
+                                 api_key="antigravity",
+                                 default_model=model or "gemini-3.5-flash",
+                                 base_url="http://127.0.0.1:8890/v1",
+                                 set_active=False)
+        key_id = r.get("id")
+    else:
+        key_id = target_key["id"]
+        _db.update_api_key_model(key_id, model or "gemini-3.5-flash")
+
+    updated = []
+
+    # 2. Terapkan ke semua agen swarm aktif
+    if apply_all:
+        for a in _db.list_custom_agents_sync():
+            if a.get("is_enabled", 1):
+                _db.update_custom_agent_sync(a["id"], {
+                    "provider": "custom",
+                    "model": model or "gemini-3.5-flash",
+                    "api_key_id": key_id,
+                })
+                updated.append(a["name"])
+
+    # 3. Jadikan otak utama (pointer)
+    brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.5-flash")
+
+    return {
+        "status": "success",
+        "key_id": key_id,
+        "model": model,
+        "agents_updated": updated,
+        "agents_count": len(updated),
+        "main_brain": brain_res.get("main_brain"),
+        "message": (f"Model '{model}' diterapkan ke {len(updated)} agen swarm "
+                    f"+ otak utama (Telegram & Web serentak).")
+    }
+
+
+async def antigravity_set_main_brain_impl(key_id: int, model: str):
+    import database as _db
+    from datetime import datetime as _dt
+    with _db.get_sync_db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
+            (str(key_id),))
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
+            (model,))
+        conn.commit()
+    import main_brain as _mb
+    brain = _mb.get_main_brain()
+    return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
+                           "key_id": brain["key_id"], "label": brain["label"]}}
+
+
 @app.post("/api/settings/main-brain")
 async def set_main_brain_endpoint(payload: Dict[str, Any]):
     """Set the agent's MAIN BRAIN by activating a specific vault key.
@@ -2463,6 +2532,36 @@ async def swarm_live_feed(since: int = 0):
         "entries": entries,
         "running": bool(getattr(_se, "MEETING_RUNNING", False)),
     }
+
+
+# ── Antigravity Multi-Account (OAuth login dari website) ──
+@app.post("/api/antigravity/login/start")
+async def antigravity_login_start(payload: Dict[str, Any]):
+    """Mulai sesi login Google utk akun Antigravity baru."""
+    import antigravity_login as agy_oauth
+    name = payload.get("name", "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="nama wajib diisi")
+    res = agy_oauth.start_login(name)
+    return res
+
+
+@app.get("/api/antigravity/login/status")
+async def antigravity_login_status(name: str = ""):
+    import antigravity_login as agy_oauth
+    return agy_oauth.login_status(name)
+
+
+@app.get("/api/antigravity/accounts")
+async def antigravity_accounts():
+    import antigravity_login as agy_oauth
+    return {"status": "success", "accounts": agy_oauth.list_accounts()}
+
+
+@app.post("/api/antigravity/logout")
+async def antigravity_logout_endpoint(payload: Dict[str, Any]):
+    import antigravity_login as agy_oauth
+    return agy_oauth.remove_account(payload.get("name", ""))
 
 
 @app.get("/api/meetings")

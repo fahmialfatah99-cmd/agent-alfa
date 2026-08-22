@@ -1189,3 +1189,16 @@ def get_api_usage_summary_sync(hours: int = 24) -> Dict[str, Any]:
         "tokens_today": today[0] if today else 0,
         "calls_today": today[1] if today else 0,
     }
+
+
+def update_api_key_model(key_id: int, model: str) -> bool:
+    """Update default_model sebuah kunci vault."""
+    try:
+        with get_sync_db() as conn:
+            cur = conn.execute(
+                "UPDATE api_keys SET default_model = ? WHERE id = ?",
+                (model.strip(), int(key_id)))
+            conn.commit()
+            return cur.rowcount > 0
+    except Exception:
+        return False

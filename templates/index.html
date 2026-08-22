@@ -2554,6 +2554,7 @@
                                 <option value="anthropic">Anthropic (Claude 3.5)</option>
                                 <option value="ollama">Local Ollama / Custom API</option>
                                 <option value="custom">⚡ Custom / OpenAI-Compatible (Base URL bebas)</option>
+                                <option value="antigravity">🛰️ Antigravity Proxy (Gemini/Claude via OAuth lokal)</option>
                             </select>
                         </div>
                         <div>
@@ -2602,6 +2603,47 @@
                     </div>
                 </form>
             </div>
+
+                    <!-- 🛰️ AKUN ANTIGRAVITY (Multi-Account OAuth) -->
+                    <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/25 space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
+                                <i data-lucide="satellite-dish" class="w-3.5 h-3.5 text-indigo-400"></i> ANTIGRAVITY — MULTI-AKUN & MODEL
+                            </h4>
+                            <span id="ag-acct-badge" class="text-[10px] font-mono text-slate-500"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">Tambah banyak akun Google → tiap akun dapat kuota Gemini/Claude gratis via proxy lokal. Router merotasi & failover otomatis.</p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="ag-name-input" placeholder="nama akun baru (cth: akun2)"
+                                class="flex-1 min-w-0 p-2 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 font-mono">
+                            <button onclick="startAntigravityLogin()" id="btn-ag-login" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shrink-0">
+                                <i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Akun Baru
+                            </button>
+                        </div>
+                        <div class="p-3 rounded-xl bg-dark-950/70 border border-white/10 space-y-2.5">
+                            <label class="text-[11px] font-mono text-slate-400 block">Model utk SEMUA agent &amp; otak utama:</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <select id="ag-model-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
+                                    <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+                                    <option value="gemini-3-flash">gemini-3-flash</option>
+                                    <option value="gemini-3.1-pro">gemini-3.1-pro</option>
+                                    <option value="claude-sonnet-4.6">claude-sonnet-4.6</option>
+                                    <option value="claude-opus-4.6">claude-opus-4.6-thinking</option>
+                                </select>
+                                <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="ag-apply-all" checked class="accent-indigo-500">
+                                    Terapkan ke semua agen swarm
+                                </label>
+                            </div>
+                            <button onclick="applyAntigravityModel()" id="btn-ag-apply" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5">
+                                <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Simpan &amp; Terapkan ke Semua Agent
+                            </button>
+                        </div>
+                        <div id="ag-login-status" class="hidden text-[10px] font-mono text-slate-300 bg-dark-950/80 border border-white/10 rounded-lg p-2 leading-relaxed"></div>
+                        <div id="ag-accounts-list" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            <p class="text-center text-slate-600 font-mono text-[10px] py-2">Memuat...</p>
+                        </div>
+                    </div>
 
             <!-- Token Usage Realtime Panel -->
             <div class="glass-card p-5 rounded-2xl border border-white/10 space-y-4">
@@ -3741,6 +3783,156 @@
             if (k) inp.value = k.model || '';
         }
 
+        // ── 🛰️ ANTIGRAVITY MULTI-ACCOUNT LOGIN ──
+        let _agPollTimer = null;
+
+        async function startAntigravityLogin() {
+            const nameInput = document.getElementById('ag-name-input');
+            const btn = document.getElementById('btn-ag-login');
+            const statusBox = document.getElementById('ag-login-status');
+            const name = (nameInput?.value || '').trim().toLowerCase();
+
+            if (!name) { showToast('Isi nama akun dulu.', 'warning'); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menunggu Google...';
+            lucide.createIcons();
+            if (statusBox) {
+                statusBox.classList.remove('hidden');
+                statusBox.innerHTML = '⏳ Membuka jendela login Google... pilih akun & izinkan. Jendela popup diblokir? Buka manual: <span id="ag-auth-url" class="text-cyan-300 break-all"></span>';
+            }
+
+            try {
+                const res = await fetch('/api/antigravity/login/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+
+                if (data.status !== 'success') {
+                    showToast(data.message || 'Gagal memulai login.', 'error');
+                    if (statusBox) statusBox.innerHTML = '❌ ' + (data.message || 'gagal');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
+                    lucide.createIcons();
+                    return;
+                }
+
+                window.open(data.auth_url, '_blank', 'width=520,height=640');
+
+                // Poll status tiap 2.5s hingga selesai/maks 5 menit
+                let elapsed = 0;
+                _agPollTimer = setInterval(async () => {
+                    elapsed += 2.5;
+                    try {
+                        const sr = await fetch(`/api/antigravity/login/status?name=${encodeURIComponent(name)}`);
+                        const sd = await sr.json();
+                        if (sd.status === 'success') {
+                            clearInterval(_agPollTimer);
+                            showToast(`✅ Akun ${sd.email || name} terhubung!`, 'success');
+                            if (statusBox) statusBox.innerHTML = `✅ <b class="text-emerald-400">Berhasil:</b> ${sd.email || name} masuk rotasi gateway.`;
+                            btn.disabled = false;
+                            btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
+                            fetchAntigravityAccounts();
+                            lucide.createIcons();
+                        } else if (sd.status === 'error') {
+                            clearInterval(_agPollTimer);
+                            showToast('Login gagal: ' + (sd.error || ''), 'error');
+                            if (statusBox) statusBox.innerHTML = '❌ Gagal: ' + escAttr(sd.error || '') ;
+                            btn.disabled = false;
+                            btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
+                        } else if (elapsed > 300) {
+                            clearInterval(_agPollTimer);
+                            showToast('Timeout menunggu login.', 'warning');
+                            if (statusBox) statusBox.innerHTML += '<br>⏱️ Timeout.';
+                            btn.disabled = false;
+                            btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
+                        }
+                    } catch (e) { /* keep polling */ }
+                }, 2500);
+
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
+            }
+        }
+
+        async function removeAntigravityAccount(name) {
+            if (!confirm('Hapus akun "' + name + '" dari gateway?')) return;
+            try {
+                await fetch('/api/antigravity/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                showToast('Akun dihapus.', 'success');
+                fetchAntigravityAccounts();
+            } catch (err) { showToast('Error: ' + err.message, 'error'); }
+        }
+
+        async function fetchAntigravityAccounts() {
+            const list = document.getElementById('ag-accounts-list');
+            const badge = document.getElementById('ag-acct-badge');
+            if (!list) return;
+            try {
+                const res = await fetch('/api/antigravity/accounts');
+                const data = await res.json();
+                const accs = data.accounts || [];
+                if (badge) badge.innerText = accs.length ? accs.length + ' akun' : '';
+                if (accs.length === 0) {
+                    list.innerHTML = '<p class="text-center text-slate-600 font-mono text-[10px] py-2">Belum ada akun terdaftar.</p>';
+                    return;
+                }
+                list.innerHTML = accs.map(a => `
+                    <div class="flex items-center gap-2 p-1.5 rounded-lg bg-dark-950/60 border border-white/5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                        <div class="min-w-0 flex-1 leading-tight">
+                            <span class="text-[11px] font-bold text-slate-200 truncate block">${escAttr(a.email || a.name)}</span>
+                            <span class="text-[9px] font-mono text-slate-500">proxy :${a.port || '?'} </span>
+                        </div>
+                        <button onclick="removeAntigravityAccount('${escAttr(a.name)}')" class="p-1 rounded bg-white/5 text-slate-500 hover:text-rose-300 transition-all shrink-0" title="Hapus">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
+                    </div>`
+                ).join('');
+                lucide.createIcons();
+            } catch (err) { console.error('fetchAntigravityAccounts:', err); }
+        }
+
+        async function applyAntigravityModel() {
+            const sel = document.getElementById('ag-model-select');
+            const chk = document.getElementById('ag-apply-all');
+            const btn = document.getElementById('btn-ag-apply');
+            if (!sel?.value) { showToast('Pilih model dulu.', 'warning'); return; }
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menerapkan...';
+            lucide.createIcons();
+            try {
+                const res = await fetch('/api/antigravity/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: sel.value,
+                        apply_all_agents: chk?.checked ?? true
+                    })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Model ${sel.value} diterapkan ke ${data.agents_count} agen + otak utama!`, 'success');
+                } else {
+                    showToast(data.message || data.detail || 'Gagal.', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="check-check" class="w-3.5 h-3.5"></i> Simpan & Terapkan ke Semua Agent';
+                lucide.createIcons();
+            }
+        }
+
         async function saveMainBrain() {
             const sel = document.getElementById('cfg-main-brain');
             const modelInput = document.getElementById('cfg-main-brain-model');
@@ -3906,7 +4098,7 @@
             if (tabId === 'guardian') fetchGuardian();
             if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchSwarmLive(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
-            if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); }
+            if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); fetchAntigravityAccounts(); }
             if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
             if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
             if (tabId === 'scraper') fetchScraperBatches();
@@ -7029,6 +7221,10 @@
                 baseInput.value = 'http://localhost:20128/v1';
             } else if (prov === 'anthropic') {
                 baseInput.value = '';
+            } else if (prov === 'antigravity') {
+                baseInput.value = 'http://127.0.0.1:8890/v1';
+                baseInput.placeholder = 'http://127.0.0.1:8890/v1 (multi-account router)';
+                alert("Pastikan minimal 1 akun sudah login:\n  bash ~/antigravity-gateway/tambah_akun_agy.sh <nama>");
             } else if (prov === 'custom') {
                 // Provider apa pun yang OpenAI-compatible: isi Base URL-nya sendiri
                 baseInput.value = '';
@@ -8618,6 +8814,7 @@
             fetchAgents();
             fetchKeys();
             startTokenUsagePolling();
+            fetchAntigravityAccounts();
             fetchMeetings();
             fetchSettings();
             setInterval(fetchStats, 2000);
