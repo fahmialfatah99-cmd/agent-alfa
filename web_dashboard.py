@@ -619,6 +619,69 @@ async def get_system_settings():
     }
 
 
+# ── Daftar model utk kunci terpilih (dipakai kartu Otak Utama) ──
+_models_cache: Dict[int, tuple] = {}
+
+
+@app.get("/api/models-for-key")
+async def models_for_key(key_id: int):
+    """Fetch live model list dari provider kunci terpilih (60s cache)."""
+    import time as _t
+    import httpx
+    key_id = safe_int(key_id, 0)
+    cached = _models_cache.get(key_id)
+    if cached and (_t.time() - cached[0]) < 60:
+        return {"status": "success", "provider": cached[1], "models": cached[2]}
+
+    row = None
+    with database.get_sync_db() as conn:
+        r = conn.execute(
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id = ?",
+            (key_id,))
+        row = r.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Key tidak ditemukan")
+
+    provider = (row["provider"] or "").lower()
+    api_key = row["api_key"] or ""
+    base_url = (row["base_url"] or "").strip()
+    models: List[str] = []
+    try:
+        if provider == "gemini":
+            url = ("https://generativelanguage.googleapis.com/v1beta/models"
+                   f"?key={api_key}&pageSize=200")
+            async with httpx.AsyncClient(timeout=30) as cli:
+                res = await cli.get(url)
+            if res.status_code == 200:
+                for m in res.json().get("models", []):
+                    if "generateContent" in (m.get("supportedGenerationMethods") or []):
+                        models.append(m["name"].split("/")[-1])
+        else:
+            base = base_url or {
+                "openrouter": "https://openrouter.ai/api/v1",
+                "nvidia": "https://integrate.api.nvidia.com/v1",
+                "deepseek": "https://api.deepseek.com/v1",
+                "openai": "https://api.openai.com/v1",
+                "groq": "https://api.groq.com/openai/v1",
+            }.get(provider, "")
+            if base:
+                async with httpx.AsyncClient(timeout=30) as cli:
+                    res = await cli.get(f"{base.rstrip('/')}/models",
+                                        headers={"Authorization": f"Bearer {api_key}"})
+                if res.status_code == 200:
+                    for m in res.json().get("data", []):
+                        mid = m.get("id")
+                        if mid:
+                            models.append(mid)
+        models = sorted(set(models))
+        _models_cache.clear()
+        _models_cache[key_id] = (_t.time(), provider, models)
+        return {"status": "success", "provider": provider, "models": models}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "provider": provider,
+                "models": []}
+
+
 @app.post("/api/antigravity/apply")
 async def antigravity_apply_model(payload: Dict[str, Any]):
     """Terapkan model Antigravity sebagai KUNCI CADANGAN (+ opsional semua agen).
