@@ -777,6 +777,27 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
     res = database.activate_api_key_sync(key_id)
     database.set_main_brain_model(model_override)   # '' = ikuti default kunci
     if res.get("status") == "success":
+        # ── SINKRON: semua agen swarm mengikuti otak utama ──
+        key_row = None
+        with database.get_sync_db() as conn:
+            kr = conn.execute(
+                "SELECT provider, default_model FROM api_keys WHERE id = ?",
+                (key_id,)).fetchone()
+            key_row = dict(kr) if kr else None
+        if key_row:
+            synced = []
+            for a in database.list_custom_agents_sync():
+                if a.get("is_enabled", 1):
+                    database.update_custom_agent_sync(a["id"], {
+                        "provider": key_row["provider"],
+                        "model": model_override or key_row["default_model"],
+                        "api_key_id": key_id,
+                    })
+                    synced.append(a["name"])
+            if synced:
+                res["message"] += f" {len(synced)} agen swarm ikut tersinkron."
+                res["synced_agents"] = synced
+
         import main_brain as _mb
         brain = _mb.get_main_brain()
         res["main_brain"] = {

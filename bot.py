@@ -505,7 +505,7 @@ async def run_agent_turn(
     ).split(",") if m.strip()]
 
     # Model otak utama (dari System Settings) menang atas preferensi per-user
-    brain_model_override = main_brain.get_main_brain_model()
+    brain_model_override = database.get_main_brain_model()
     base_model = brain_model_override or preferred_model
     candidate_models = [base_model] + (
         [preferred_model] if preferred_model and preferred_model != base_model else []
