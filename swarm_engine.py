@@ -19,6 +19,7 @@ load_dotenv()
 
 import database
 import tools
+import token_usage
 from google import genai
 from google.genai import types
 
@@ -74,20 +75,24 @@ def detect_task_intent(topic: str) -> Dict[str, Any]:
     }
 
 
-def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional[str]]:
-    """Resolve (provider, api_key, model, base_url) for a specific agent."""
+def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional[str], Optional[int]]:
+    """Resolve (provider, api_key, model, base_url, key_id) for a specific agent."""
     provider = (agent.get("provider") or "gemini").lower()
     model = agent.get("model") or "gemini-2.5-flash"
     api_key = ""
     base_url = ""
+    key_id = None
+    key_label = ""
 
     if agent.get("api_key_id"):
         with database.get_sync_db() as conn:
-            row = conn.execute("SELECT provider, api_key, default_model, base_url FROM api_keys WHERE id = ?", (agent["api_key_id"],)).fetchone()
+            row = conn.execute("SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?", (agent["api_key_id"],)).fetchone()
             if row:
                 provider = row["provider"]
                 api_key = row["api_key"]
                 base_url = row["base_url"] or ""
+                key_id = row["id"]
+                key_label = f"#{row['id']}"
                 if not agent.get("model"):
                     model = row["default_model"]
 
@@ -96,6 +101,8 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
         if active_key:
             api_key = active_key["api_key"]
             base_url = active_key.get("base_url") or ""
+            key_id = active_key.get("id")
+            key_label = f"#{active_key.get('id')}" if key_id else ""
 
     if not api_key:
         if provider == "gemini":
@@ -107,7 +114,7 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
         elif provider in ["nvidia", "nim"]:
             api_key = os.getenv("NVIDIA_API_KEY", "")
 
-    return provider, api_key, model, base_url
+    return provider, api_key, model, base_url, key_id
 
 
 async def _generate_with_gemini(
@@ -115,10 +122,17 @@ async def _generate_with_gemini(
     api_key: str,
     models: List[str],
     prompt: str,
-    final_instruction: str
+    final_instruction: str,
+    key_id=None,
+    key_label: str = "",
+    context: str = "swarm",
 ) -> Optional[str]:
     """Try a chain of Gemini models. Returns text or None if all fail."""
-    candidate_models = [m for m in models + ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"] if m]
+    default_chain = os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-flash-latest"
+    ).split(",")
+    candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
 
     last_err = None
@@ -139,6 +153,9 @@ async def _generate_with_gemini(
                 )
             )
             if response and response.text:
+                token_usage.from_gemini_response(response, model=m, key_id=key_id,
+                                                 key_label=key_label or f"agent:{agent_name}",
+                                                 context=context)
                 return response.text.strip()
         except Exception as e:
             last_err = e
@@ -155,7 +172,10 @@ async def _generate_with_openai_compat(
     model: str,
     base_url: Optional[str],
     prompt: str,
-    final_instruction: str
+    final_instruction: str,
+    key_id=None,
+    key_label: str = "",
+    context: str = "swarm",
 ) -> Optional[str]:
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
@@ -205,6 +225,10 @@ async def _generate_with_openai_compat(
             res = await http_client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=payload)
             if res.status_code == 200:
                 data = res.json()
+                token_usage.from_openai_json(data, provider=provider, model=model,
+                                             key_id=key_id,
+                                             key_label=key_label or f"agent:{agent_name}",
+                                             context=context)
                 return data["choices"][0]["message"]["content"].strip()
             err_detail = res.text[:200] or "(empty body)"
             logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
@@ -221,7 +245,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     automatically falls back to Gemini so the swarm conversation never loses
     a participant silently.
     """
-    provider, api_key, model, base_url = get_agent_api_client(agent)
+    provider, api_key, model, base_url, key_id = get_agent_api_client(agent)
     agent_name = agent.get("name", "Agent")
 
     tone_directive = (
@@ -231,6 +255,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     )
     final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
 
+    key_label = f"agent:{agent_name}"
+
     result = None
     if provider == "gemini":
         result = await _generate_with_gemini(
@@ -239,6 +265,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             models=[model],
             prompt=prompt,
             final_instruction=final_instruction,
+            key_id=key_id,
+            key_label=key_label,
+            context="swarm",
         )
     elif provider in ["openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
         result = await _generate_with_openai_compat(
@@ -249,6 +278,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             base_url=base_url,
             prompt=prompt,
             final_instruction=final_instruction,
+            key_id=key_id,
+            key_label=key_label,
+            context="swarm",
         )
         if result is None and os.getenv("GEMINI_API_KEY"):
             logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
@@ -258,6 +290,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                 models=["gemini-3.5-flash-lite"],
                 prompt=prompt,
                 final_instruction=final_instruction,
+                key_id=None,
+                key_label="gemini-fallback",
+                context="swarm",
             )
     else:
         return await generate_agent_response({**agent, "provider": "gemini"}, prompt, system_instruction)
@@ -278,6 +313,70 @@ def validate_python_code(code: str) -> str:
     except SyntaxError as syn_err:
         return f"syntax error di baris {syn_err.lineno}: {syn_err.msg}"
     return ""
+
+
+async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Ask the planner to break the topic into one concrete subtask per agent.
+
+    Returns {agent_name: instruction}; empty dict when parsing fails so the
+    caller can fall back to generic role-based tasks.
+    """
+    roster = ", ".join(f"{a['name']} ({a.get('role','')})" for a in participants)
+    prompt = (
+        f"Anda misi planner swarm. TOPIK: {topic}\n"
+        f"TIM: {roster}\n\n"
+        "Pecah topik ini menjadi SATU subtask konkret dan dapat dieksekusi sistem "
+        "(bukan rencana abstrak) untuk setiap anggota tim.\n"
+        'Balas HANYA array JSON tanpa teks lain: '
+        '[{"name": "<nama persis dari tim>", "task": "<instruksi spesifik maksimal 25 kata>"}]'
+    )
+    try:
+        raw = await generate_agent_response(
+            {"name": "Mission Planner", "provider": "gemini"},
+            prompt,
+            "Kamu planner teknis. Output WAJIB array JSON murni tanpa penjelasan.",
+        )
+        m = re.search(r"\[.*\]", raw, re.DOTALL)
+        if not m:
+            return {}
+        items = json.loads(m.group(0))
+        valid_names = {a["name"] for a in participants}
+        mapping = {}
+        for it in items if isinstance(items, list) else []:
+            nm = (it or {}).get("name", "").strip()
+            tk = (it or {}).get("task", "").strip()
+            if nm in valid_names and tk:
+                mapping[nm] = tk
+        return mapping
+    except Exception as dec_err:
+        logger.warning("Task decomposition failed, using generic tasks: %r", dec_err)
+        return {}
+
+
+async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
+    """LLM judge for a swarm execution step. Returns (passed: bool, feedback: str)."""
+    summary = (step_result.get("execution_summary") or "")[:600]
+    prompt = (
+        f"TUGAS YANG DIMINTA: {task[:300]}\n\n"
+        f"HASIL EKSEKUSI:\n- Tool: {step_result.get('tool_used')}\n"
+        f"- Status: {step_result.get('status')}\n- Output: {summary}\n\n"
+        "Apakah hasil ini bukti nyata tugas tercapai (data/file/output riil, bukan janji)?\n"
+        "Balas TEPAT satu baris: PASS atau: FAIL: <alasan singkat>"
+    )
+    try:
+        verdict = await generate_agent_response(
+            {"name": "Step Verifier", "provider": "gemini"},
+            prompt,
+            "Kamu QA auditor ketat. Hanya terima bukti konkret.",
+        )
+        v = (verdict or "").strip().upper()
+        if v.startswith("PASS"):
+            return True, ""
+        fb = verdict.strip() if verdict else "verifier tidak merespons"
+        return False, fb[:200]
+    except Exception as ver_err:
+        logger.warning("Verification call failed (treated as unverified): %r", ver_err)
+        return True, ""   # don't block pipeline on verifier outage
 
 
 async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, topic: str, intent_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -551,10 +650,40 @@ async def conduct_multi_agent_meeting(
     # --- PHASE 2: Live Autonomous Swarm Execution (Real Tools & Real Data) ---
     if mode in ["execute", "plan_and_execute"]:
         logger.info(f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents...")
-        
+
+        # Dynamic task decomposition: lead breaks the topic into one concrete
+        # subtask per agent instead of generic role assignments.
+        subtask_map = await _decompose_task(topic, participants)
+        if subtask_map:
+            logger.info("Task decomposition OK: %s", list(subtask_map.keys()))
+
         for idx, agent in enumerate(participants):
-            task_desc = f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+
             step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
+
+            # Verification loop: a strict QA judge checks for real evidence;
+            # failed steps get ONE retry with corrective feedback. Pure-text
+            # orchestration steps are recorded but not retried.
+            passed, feedback = await _verify_step_result(task_desc, step_result)
+            attempts = 0
+            while (
+                not passed
+                and attempts < 1
+                and step_result.get("tool_used") != "strategic_orchestration"
+            ):
+                attempts += 1
+                logger.warning(f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections...")
+                retry_desc = (
+                    f"{task_desc}\n"
+                    f"PERCOBAAN SEBELUMNYA DITOLAK VERIFIKATOR: {feedback}\n"
+                    f"Kerjakan ulang dan pastikan menghasilkan bukti nyata (file/data/output)."
+                )
+                step_result = await execute_swarm_task_step(agent, retry_desc, topic, intent_info)
+                step_result["retry_count"] = attempts
+                passed, feedback = await _verify_step_result(retry_desc, step_result)
+
+            step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
             execution_steps.append(step_result)
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
@@ -612,10 +741,12 @@ async def conduct_multi_agent_meeting(
     )
 
     action_plan_text = ""
-    if "ACTION PLAN" in consensus_text.upper():
-        parts = consensus_text.split("ACTION PLAN", 1)
-        consensus_text_clean = parts[0].strip()
-        action_plan_text = "ACTION PLAN" + parts[1]
+    marker = "ACTION PLAN"
+    marker_idx = consensus_text.upper().find(marker)
+    if marker_idx != -1:
+        # Case-insensitive split: the model may write "Action Plan" etc.
+        consensus_text_clean = consensus_text[:marker_idx].strip()
+        action_plan_text = marker + consensus_text[marker_idx + len(marker):]
     else:
         consensus_text_clean = consensus_text
 

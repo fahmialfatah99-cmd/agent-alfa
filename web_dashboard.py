@@ -29,6 +29,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger("Dashboard")
+
 # Import project modules
 import tools
 import database
@@ -149,7 +151,10 @@ async def serve_index():
     index_path = os.path.join(TEMPLATES_DIR, "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            return HTMLResponse(
+                content=f.read(),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            )
     return HTMLResponse("<h2>Dashboard template not found. Please create templates/index.html</h2>")
 
 
@@ -985,6 +990,304 @@ async def get_wa_reports():
     }
 
 
+WA_BOT_FORMATS_FILE = os.path.expanduser("~/wa-sheets-bot/formats.json")
+WA_BOT_MEDIA_RULES_FILE = os.path.expanduser("~/wa-sheets-bot/media_rules.json")
+_WA_DYNAMIC_SOURCES = {"timestamp", "sender", "group", "body"}
+_WA_MEDIA_TYPES = {"foto", "video", "pdf", "excel", "dokumen", "audio"}
+
+
+def _validate_media_rules(rules: Any) -> List[str]:
+    errs = []
+    if not isinstance(rules, list):
+        return ["Field 'rules' harus berupa array."]
+    if len(rules) > 30:
+        return ["Maksimal 30 aturan."]
+    seen = set()
+    for i, r in enumerate(rules, 1):
+        tag = f"Aturan #{i}"
+        if not isinstance(r, dict):
+            errs.append(f"{tag}: bukan objek.")
+            continue
+        name = str(r.get("name", "")).strip()
+        if not name:
+            errs.append(f"{tag}: nama kosong.")
+        elif name.lower() in seen:
+            errs.append(f"{tag}: nama '{name}' duplikat.")
+        seen.add(name.lower())
+        types = r.get("types")
+        if not isinstance(types, list) or not types or not all(t in _WA_MEDIA_TYPES for t in types):
+            errs.append(f"{tag} '{name}': pilih minimal satu jenis file ({', '.join(sorted(_WA_MEDIA_TYPES))}).")
+        pattern = str(r.get("naming", "")).strip()
+        if not pattern:
+            errs.append(f"{tag} '{name}': pola nama file kosong.")
+    return errs
+
+
+@app.get("/api/wa/media-rules")
+async def get_wa_media_rules():
+    """Read automatic media-saving rules for the Drive side of wa-sheets-bot."""
+    result = {"status": "success", "exists": False, "rules": [], "path": WA_BOT_MEDIA_RULES_FILE}
+    try:
+        if os.path.exists(WA_BOT_MEDIA_RULES_FILE):
+            with open(WA_BOT_MEDIA_RULES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            result["exists"] = True
+            result["rules"] = data.get("rules", []) if isinstance(data, dict) else []
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = f"Gagal membaca media_rules.json: {e}"
+    return result
+
+
+@app.post("/api/wa/media-rules")
+async def save_wa_media_rules(payload: Dict[str, Any]):
+    """Save media auto-save rules. Backed up + atomic write, live effect."""
+    rules = payload.get("rules")
+    errors = _validate_media_rules(rules)
+    if errors:
+        return {"status": "error", "validation_errors": errors,
+                "message": "; ".join(errors[:4])}
+
+    clean = []
+    for r in rules:
+        clean.append({
+            "name": str(r["name"]).strip(),
+            "enabled": bool(r.get("enabled", True)),
+            "types": [str(t).strip() for t in r["types"]],
+            "keyword": str(r.get("keyword", "")).strip(),
+            "folder": str(r.get("folder", "")).strip() or "Umum",
+            "naming": str(r["naming"]).strip(),
+        })
+
+    try:
+        os.makedirs(os.path.dirname(WA_BOT_MEDIA_RULES_FILE), exist_ok=True)
+        if os.path.exists(WA_BOT_MEDIA_RULES_FILE):
+            shutil.copyfile(WA_BOT_MEDIA_RULES_FILE, WA_BOT_MEDIA_RULES_FILE + ".bak")
+        tmp_path = WA_BOT_MEDIA_RULES_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump({"rules": clean}, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, WA_BOT_MEDIA_RULES_FILE)
+        return {"status": "success", "saved": len(clean),
+                "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya."}
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menyimpan media_rules.json: {str(e)}"}
+
+
+def _gdrive_ensure_subfolder(folder_name: str) -> str:
+    """Find or create a subfolder inside the default Drive folder; return its id."""
+    import tools as _t
+    parent = _t._get_default_gdrive_folder_id()
+    service = _t._get_gdrive_service()
+    q = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+    if parent:
+        q += f" and '{parent}' in parents"
+    found = service.files().list(q=q, fields="files(id, name)", spaces="drive",
+                                 supportsAllDrives=True, pageSize=5).execute()
+    files = found.get("files", [])
+    if files:
+        return files[0]["id"]
+    meta = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
+    if parent:
+        meta["parents"] = [parent]
+    created = service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+    return created["id"]
+
+
+WA_DRIVE_UPLOADS_FILE = os.path.expanduser("~/wa-sheets-bot/drive_uploads.json")
+
+
+def _log_wa_drive_upload(entry: Dict[str, Any]):
+    """Prepend entry to drive_uploads.json (cap 200), atomic write."""
+    try:
+        data = {"uploads": []}
+        if os.path.exists(WA_DRIVE_UPLOADS_FILE):
+            try:
+                with open(WA_DRIVE_UPLOADS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f) or data
+            except Exception:
+                pass
+        uploads = data.get("uploads", [])
+        uploads.insert(0, entry)
+        data["uploads"] = uploads[:200]
+        tmp = WA_DRIVE_UPLOADS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, WA_DRIVE_UPLOADS_FILE)
+    except Exception as e:
+        logger.warning(f"Could not log wa drive upload: {e}")
+
+
+@app.get("/api/wa/drive-uploads")
+async def get_wa_drive_uploads():
+    """Recent files auto-uploaded from WhatsApp to Google Drive."""
+    result = {"status": "success", "uploads": [], "total": 0}
+    try:
+        if os.path.exists(WA_DRIVE_UPLOADS_FILE):
+            with open(WA_DRIVE_UPLOADS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            ups = data.get("uploads", []) if isinstance(data, dict) else []
+            result["uploads"] = ups
+            result["total"] = len(ups)
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = str(e)
+    return result
+
+
+@app.post("/api/wa/media-upload")
+async def wa_media_upload(
+    file: UploadFile = File(...),
+    format_name: str = Form("Lainnya"),
+    subfolder: str = Form(""),
+    sender: str = Form(""),
+    group: str = Form(""),
+    caption: str = Form(""),
+):
+    """Receive media from wa-sheets-bot (localhost) and upload it to Google Drive
+    under 'WA Media/<subfolder|format_name>' using the active OAuth account."""
+    try:
+        upload_dir = os.path.join("/dev/shm", "alfa_wa_media")
+        os.makedirs(upload_dir, exist_ok=True)
+        safe_name = os.path.basename(file.filename or "media.bin") or "media.bin"
+        tmp_path = os.path.join(upload_dir, f"{int(time.time()*1000)}_{safe_name}")
+        with open(tmp_path, "wb") as out:
+            out.write(await file.read())
+
+        target_sub = (subfolder.strip() or f"{(format_name or 'Lainnya').strip()[:40]}")
+        subfolder_id = _gdrive_ensure_subfolder(f"WA Media / {target_sub}")
+        res = tools.gdrive_upload_file(filepath=tmp_path, folder_id=subfolder_id,
+                                       custom_filename=safe_name)
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        if res.get("status") == "success":
+            _log_wa_drive_upload({
+                "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "file_name": res.get("file_name"),
+                "web_link": res.get("web_link"),
+                "folder": f"WA Media / {target_sub}",
+                "format_name": format_name or "",
+                "sender": sender or "",
+                "group": group or "",
+                "caption": (caption or "")[:300],
+            })
+            return {"status": "success", "web_link": res.get("web_link"),
+                    "file_name": res.get("file_name"), "folder": f"WA Media / {target_sub}"}
+        return res
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def _validate_wa_formats(formats: Any) -> List[str]:
+    """Return list of validation error strings (empty = valid)."""
+    errs = []
+    if not isinstance(formats, list):
+        return ["Field 'formats' harus berupa array."]
+    if len(formats) > 50:
+        return ["Maksimal 50 format."]
+    seen_names, seen_tabs = set(), set()
+    for i, f in enumerate(formats, 1):
+        tag = f"Format #{i}"
+        if not isinstance(f, dict):
+            errs.append(f"{tag}: bukan objek.")
+            continue
+        name = str(f.get("name", "")).strip()
+        tab = str(f.get("tab", "")).strip()
+        keywords = f.get("keywords")
+        columns = f.get("columns")
+        if not name:
+            errs.append(f"{tag}: nama kosong.")
+        if name.lower() in seen_names:
+            errs.append(f"{tag}: nama '{name}' duplikat.")
+        seen_names.add(name.lower())
+        if not tab:
+            errs.append(f"{tag} '{name}': tab Sheets kosong.")
+        if tab in seen_tabs:
+            errs.append(f"{tag}: tab '{tab}' dipakai lebih dari satu format.")
+        seen_tabs.add(tab)
+        if not isinstance(keywords, list) or not keywords or not all(
+            isinstance(k, str) and k.strip() for k in keywords
+        ):
+            errs.append(f"{tag} '{name}': keywords wajib minimal 1 kata pemicu.")
+        if not isinstance(columns, list) or not columns:
+            errs.append(f"{tag} '{name}': minimal 1 kolom.")
+            continue
+        if len(columns) > 30:
+            errs.append(f"{tag} '{name}': maksimal 30 kolom.")
+        for j, c in enumerate(columns, 1):
+            title = str((c or {}).get("title", "")).strip()
+            source = str((c or {}).get("source", (c or {}).get("value", ""))).strip()
+            if not title:
+                errs.append(f"{tag} '{name}' kolom {j}: judul kosong.")
+            if not source:
+                errs.append(f"{tag} '{name}' kolom {j} '{title}': sumber kosong.")
+    return errs
+
+
+@app.get("/api/wa/formats")
+async def get_wa_formats():
+    """Read the WhatsApp report format definitions consumed by wa-sheets-bot."""
+    result = {"status": "success", "exists": False, "formats": [], "path": WA_BOT_FORMATS_FILE}
+    try:
+        if os.path.exists(WA_BOT_FORMATS_FILE):
+            with open(WA_BOT_FORMATS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            result["exists"] = True
+            result["formats"] = data.get("formats", []) if isinstance(data, dict) else []
+    except Exception as e:
+        result["status"] = "error"
+        result["message"] = f"Gagal membaca formats.json: {e}"
+    return result
+
+
+@app.post("/api/wa/formats")
+async def save_wa_formats(payload: Dict[str, Any]):
+    """
+    Save report formats. wa-sheets-bot auto-reloads formats.json on change
+    (mtime check), so edits take effect immediately - no restart needed.
+    A one-step backup (formats.json.bak) is kept before every save.
+    """
+    formats = payload.get("formats")
+    errors = _validate_wa_formats(formats)
+    if errors:
+        return {"status": "error", "validation_errors": errors,
+                "message": "; ".join(errors[:4])}
+
+    # Normalise: strip whitespace everywhere, keep only needed keys
+    clean = []
+    for f in formats:
+        cols = [{"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
+                for c in f["columns"]]
+        clean.append({
+            "name": str(f["name"]).strip(),
+            "keywords": [str(k).strip() for k in f["keywords"]],
+            "tab": str(f["tab"]).strip(),
+            "columns": cols,
+        })
+
+    try:
+        os.makedirs(os.path.dirname(WA_BOT_FORMATS_FILE), exist_ok=True)
+        # Backup previous version once
+        if os.path.exists(WA_BOT_FORMATS_FILE):
+            shutil.copyfile(WA_BOT_FORMATS_FILE, WA_BOT_FORMATS_FILE + ".bak")
+
+        tmp_path = WA_BOT_FORMATS_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump({"formats": clean}, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, WA_BOT_FORMATS_FILE)
+        return {
+            "status": "success",
+            "saved": len(clean),
+            "backup": WA_BOT_FORMATS_FILE + ".bak",
+            "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart)."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menyimpan formats.json: {str(e)}"}
+
+
 @app.post("/api/services/action")
 async def service_action(payload: Dict[str, Any]):
     """Start, stop, or restart a systemd user service."""
@@ -1375,11 +1678,13 @@ async def gdrive_status_endpoint():
             except Exception:
                 pass
                 
+        # Prefer the ACTIVE credential's identity (OAuth account if logged in)
+        active_email = (res.get("user") or {}).get("emailAddress", "")
         return {
             "status": "success",
             "connected": res.get("connected", False),
-            "has_credentials_file": has_file,
-            "client_email": account_email or res.get("user", {}).get("emailAddress", ""),
+            "auth_mode": res.get("auth_mode", ""),
+            "client_email": active_email or account_email,
             "project_id": project_id,
             "storage_quota": res.get("storage_quota", {}),
             "default_folder_id": res.get("default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
@@ -1478,6 +1783,57 @@ async def gdrive_delete_credentials():
     return {"status": "success", "message": "Kredensial Google Drive berhasil dihapus."}
 
 
+@app.get("/api/gdrive/oauth/secret-check")
+async def gdrive_oauth_secret_check():
+    """Check whether the OAuth client secret exists AND is the right kind."""
+    import json as _json
+    secret_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_client_secret.json")
+    result = {
+        "status": "success",
+        "exists": os.path.exists(secret_path),
+        "expected_path": secret_path,
+        "kind": "",
+    }
+    if result["exists"]:
+        try:
+            with open(secret_path, "r", encoding="utf-8") as f:
+                probe = _json.load(f)
+            if isinstance(probe, dict) and ("installed" in probe or "web" in probe):
+                result["kind"] = "oauth_client"
+            elif probe.get("type") == "service_account" or "private_key" in probe:
+                # Common mistake: renamed service-account key instead of OAuth client ID
+                result["kind"] = "service_account"
+                result["exists"] = False
+        except Exception:
+            result["kind"] = "invalid_json"
+            result["exists"] = False
+    return result
+
+
+@app.post("/api/gdrive/oauth/start")
+async def gdrive_oauth_start():
+    """Start the OAuth login flow. Opens a browser on this machine; waits for
+    the user's consent, then stores a refreshable token (uploads then use the
+    user's own Drive quota instead of the quota-less service account)."""
+    import asyncio
+    try:
+        res = await asyncio.wait_for(
+            asyncio.to_thread(tools.gdrive_oauth_login),
+            timeout=330,
+        )
+        return res
+    except asyncio.TimeoutError:
+        return {"status": "error", "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser."}
+    except Exception as oauth_err:
+        return {"status": "error", "message": f"OAuth error: {str(oauth_err)}"}
+
+
+@app.post("/api/gdrive/oauth/logout")
+async def gdrive_oauth_logout_endpoint():
+    """Remove OAuth tokens and fall back to service-account auth."""
+    return tools.gdrive_oauth_logout()
+
+
 @app.get("/api/gdrive/files")
 async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit: int = 30):
     """List and search files in Google Drive."""
@@ -1528,6 +1884,19 @@ async def get_api_keys():
     """List all API keys with masked values."""
     keys = database.list_api_keys_sync()
     return {"status": "success", "total": len(keys), "keys": keys}
+
+
+@app.get("/api/keys/usage")
+async def get_api_keys_usage(hours: int = 24):
+    """Realtime token-usage summary per API key/provider for the dashboard."""
+    hours = safe_int(hours, 24, minimum=1, maximum=720)
+    keys = database.list_api_keys_sync()
+    key_names = {k["id"]: k["name"] for k in keys}
+    summary = database.get_api_usage_summary_sync(hours=hours)
+    # Attach human-readable vault key names where ids match
+    for row in summary.get("per_key", []):
+        row["key_name"] = key_names.get(row.get("key_id")) or row.get("key_label") or "(env)"
+    return {"status": "success", **summary}
 
 
 @app.post("/api/keys")

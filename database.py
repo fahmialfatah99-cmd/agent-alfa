@@ -148,6 +148,20 @@ def init_db_sync():
                 duration_ms REAL DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS api_token_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts DATETIME DEFAULT CURRENT_TIMESTAMP,
+                provider TEXT NOT NULL,
+                model TEXT DEFAULT '',
+                key_id INTEGER,
+                key_label TEXT DEFAULT '',
+                context TEXT DEFAULT '',
+                prompt_tokens INTEGER DEFAULT 0,
+                completion_tokens INTEGER DEFAULT 0,
+                total_tokens INTEGER DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_atu_ts ON api_token_usage(ts);
+            CREATE INDEX IF NOT EXISTS idx_atu_key ON api_token_usage(key_id);
         """)
         
         # Seed default API key from environment if empty
@@ -1042,3 +1056,91 @@ def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
 
 
 
+
+
+# --- API Token Usage Tracking (Realtime Dashboard) ---
+def record_api_usage_sync(provider: str, model: str = "", key_id: int = None,
+                          key_label: str = "", context: str = "",
+                          prompt_tokens: int = 0, completion_tokens: int = 0) -> bool:
+    """Record one LLM call's token consumption. Never raises."""
+    try:
+        with get_sync_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO api_token_usage
+                (provider, model, key_id, key_label, context, prompt_tokens, completion_tokens, total_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (provider, model or "", key_id, key_label or "", context or "",
+                 max(0, int(prompt_tokens or 0)), max(0, int(completion_tokens or 0)),
+                 max(0, int((prompt_tokens or 0) + (completion_tokens or 0)))),
+            )
+            conn.commit()
+        return True
+    except Exception:
+        return False
+
+
+def get_api_usage_summary_sync(hours: int = 24) -> Dict[str, Any]:
+    """
+    Aggregate token usage for the dashboard:
+    - per key/provider totals within the window (and today separately)
+    - hourly buckets for charting
+    - grand totals + call counts
+    """
+    hours = max(1, min(int(hours or 24), 720))
+    with get_sync_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT provider,
+                   COALESCE(key_label, '') AS key_label,
+                   key_id,
+                   SUM(prompt_tokens)     AS prompt_tokens,
+                   SUM(completion_tokens) AS completion_tokens,
+                   SUM(total_tokens)      AS total_tokens,
+                   COUNT(*)               AS calls,
+                   MAX(ts)                AS last_used
+            FROM api_token_usage
+            WHERE ts >= datetime('now', ?)
+            GROUP BY provider, key_label, key_id
+            ORDER BY total_tokens DESC
+            """,
+            (f"-{hours} hours",),
+        ).fetchall()
+        per_key = [dict(r) for r in rows]
+
+        buckets = conn.execute(
+            """
+            SELECT strftime('%Y-%m-%d %H:00', ts) AS bucket,
+                   SUM(total_tokens) AS tokens,
+                   COUNT(*)          AS calls
+            FROM api_token_usage
+            WHERE ts >= datetime('now', ?)
+            GROUP BY bucket ORDER BY bucket ASC
+            """,
+            (f"-{hours} hours",),
+        ).fetchall()
+
+        by_context = conn.execute(
+            """
+            SELECT COALESCE(NULLIF(context,''),'lainnya') AS ctx, SUM(total_tokens) AS tokens
+            FROM api_token_usage WHERE ts >= datetime('now', ?)
+            GROUP BY ctx ORDER BY tokens DESC
+            """,
+            (f"-{hours} hours",),
+        ).fetchall()
+
+        totals = conn.execute("SELECT COALESCE(SUM(total_tokens),0) FROM api_token_usage").fetchone()
+        today = conn.execute(
+            "SELECT COALESCE(SUM(total_tokens),0), COUNT(*) FROM api_token_usage WHERE date(ts) = date('now','localtime')"
+        ).fetchone()
+
+    return {
+        "window_hours": hours,
+        "per_key": per_key,
+        "hourly": [dict(b) for b in buckets],
+        "by_context": [dict(c) for c in by_context],
+        "total_all_time": totals[0] if totals else 0,
+        "tokens_today": today[0] if today else 0,
+        "calls_today": today[1] if today else 0,
+    }

@@ -7,7 +7,10 @@ persistent isolated long-term memory, proactive reminders, and desktop/webcam vi
 
 import os
 import sys
+import json
+import time
 import subprocess
+import asyncio
 import psutil
 import datetime
 import logging
@@ -18,6 +21,8 @@ from typing import Dict, Any, List, Optional
 
 import database
 import plugins
+from dotenv import load_dotenv
+load_dotenv()
 from ddgs import DDGS
 
 logger = logging.getLogger("AgentTools")
@@ -173,64 +178,151 @@ def execute_bash_command(command: str, working_dir: str = "") -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+# ── Isolated Python Sandbox ──────────────────────────────────────────────────
+_DOCKER_AVAILABLE_CACHE: Optional[bool] = None
+_SANDBOX_IMAGE = "alfa-sandbox:latest"
+
+
+def _docker_available() -> bool:
+    """Check (and cache) whether the Docker daemon is usable by this user."""
+    global _DOCKER_AVAILABLE_CACHE
+    if _DOCKER_AVAILABLE_CACHE is None:
+        try:
+            probe = subprocess.run(
+                ["docker", "version", "--format", "{{.Server.Version}}"],
+                capture_output=True, text=True, timeout=8,
+            )
+            _DOCKER_AVAILABLE_CACHE = probe.returncode == 0
+        except Exception:
+            _DOCKER_AVAILABLE_CACHE = False
+    return _DOCKER_AVAILABLE_CACHE
+
+
+def _ensure_sandbox_image() -> bool:
+    """Ensure the alfa-sandbox image exists; auto-build it on first use."""
+    try:
+        chk = subprocess.run(
+            ["docker", "images", "-q", _SANDBOX_IMAGE],
+            capture_output=True, text=True, timeout=10,
+        )
+        if chk.returncode == 0 and chk.stdout.strip():
+            return True
+
+        logger.info("Building sandbox image '%s' (first use, ~2-5 min)...", _SANDBOX_IMAGE)
+        dockerfile = os.path.join(SANDBOX_DIR, "Dockerfile")
+        os.makedirs(SANDBOX_DIR, exist_ok=True)
+        with open(dockerfile, "w", encoding="utf-8") as f:
+            f.write(
+                "FROM python:3.11-slim\n"
+                "RUN pip install --no-cache-dir matplotlib numpy pandas\n"
+            )
+        build = subprocess.run(
+            ["docker", "build", "-t", _SANDBOX_IMAGE, SANDBOX_DIR],
+            capture_output=True, text=True, timeout=600,
+        )
+        if build.returncode == 0:
+            logger.info("Sandbox image built successfully.")
+            return True
+        logger.error("Sandbox image build failed: %s", build.stderr[-400:])
+        return False
+    except Exception as img_err:
+        logger.error("ensure_sandbox_image error: %s", img_err)
+        return False
+
+
 def execute_python_sandbox(code: str) -> Dict[str, Any]:
     """
-    Execute a Python script safely in a subprocess sandbox with data analytics and chart generation capabilities.
-    If matplotlib/seaborn creates a plot (e.g. plt.savefig or plt.show), it automatically captures the chart image
-    and dispatches it directly to the Telegram user chat!
-    
+    Execute a Python script in an ISOLATED Docker container (default) with
+    resource limits and no privileges. Falls back to a local subprocess only
+    when Docker is unavailable or SANDBOX_BACKEND=none.
+    If matplotlib/seaborn creates a plot, it is captured as generated_plot*.png
+    for delivery to the Telegram chat.
+
     Args:
         code: Complete Python code string to execute.
     """
-    # Reject empty/trivial/unparseable code before spawning a subprocess
+    # Reject empty/trivial/unparseable code before spawning anything
     cleaned = (code or "").strip()
     if len(cleaned) < 10:
-        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong atau terlalu pendek untuk dieksekusi.", "has_plot": False}
+        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong atau terlalu pendek untuk dieksekusi.", "has_plot": False, "isolation": "none"}
     try:
         compile(cleaned, "<sandbox>", "exec")
     except SyntaxError as syn_err:
         return {
             "status": "error", "exit_code": -1, "stdout": "",
             "stderr": f"Syntax error di baris {syn_err.lineno}: {syn_err.msg}",
-            "has_plot": False,
+            "has_plot": False, "isolation": "none",
         }
 
-    try:
-        script_path = os.path.join(SANDBOX_DIR, "sandbox_run.py")
-        plot_path = os.path.join(SANDBOX_DIR, "generated_plot.png")
-        
-        # Remove previous plot if any
-        if os.path.exists(plot_path):
+    backend_pref = os.getenv("SANDBOX_BACKEND", "auto").lower().strip()
+    use_docker = (
+        backend_pref in ("auto", "docker")
+        and _docker_available()
+        and _ensure_sandbox_image()
+    )
+
+    # Unique per-invocation filenames avoid races between concurrent runs
+    stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+    script_name = f"sandbox_run_{stamp}.py"
+    plot_name = f"generated_plot_{stamp}.png"
+    script_path = os.path.join(SANDBOX_DIR, script_name)
+    plot_path = os.path.join(SANDBOX_DIR, plot_name)
+    # Clean stale artifacts from previous runs (best effort)
+    for old in ("sandbox_run.py", "generated_plot.png"):
+        old_p = os.path.join(SANDBOX_DIR, old)
+        if os.path.exists(old_p):
             try:
-                os.remove(plot_path)
+                os.remove(old_p)
             except OSError:
                 pass
 
-        # Wrap code to auto-configure headless matplotlib and save plots
+    try:
+        plot_target = f"/sandbox/{plot_name}" if use_docker else plot_path
         preamble = (
             "import os\n"
-            "import matplotlib\n"
-            "matplotlib.use('Agg')\n"
-            "import matplotlib.pyplot as plt\n"
-            f"_plot_target = '{plot_path}'\n"
-            "def _auto_save():\n"
-            "    if plt.get_fignums():\n"
-            "        plt.savefig(_plot_target, bbox_inches='tight', dpi=150)\n"
-            "        plt.close('all')\n"
-            "import atexit\n"
-            "atexit.register(_auto_save)\n\n"
+            "try:\n"
+            "    import matplotlib\n"
+            "    matplotlib.use('Agg')\n"
+            "    import matplotlib.pyplot as plt\n"
+            f"    _plot_target = '{plot_target}'\n"
+            "    def _auto_save():\n"
+            "        if plt.get_fignums():\n"
+            "            plt.savefig(_plot_target, bbox_inches='tight', dpi=150)\n"
+            "            plt.close('all')\n"
+            "    import atexit\n"
+            "    atexit.register(_auto_save)\n"
+            "except ImportError:\n"
+            "    pass\n\n"
         )
-        
         with open(script_path, "w", encoding="utf-8") as f:
-            f.write(preamble + code)
+            f.write(preamble + cleaned)
 
-        res = subprocess.run(
-            [sys.executable, script_path],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=SANDBOX_DIR
-        )
+        if use_docker:
+            cmd = [
+                "docker", "run", "--rm",
+                "--name", f"alfa_sbx_{stamp}",
+                "-v", f"{SANDBOX_DIR}:/sandbox",
+                "-w", "/sandbox",
+                "--cap-drop", "ALL",
+                "--security-opt", "no-new-privileges",
+                # Match host uid/gid so bind-mounted sandbox files stay writable
+                "--user", f"{os.getuid()}:{os.getgid()}",
+                "--memory", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--cpus", os.getenv("SANDBOX_CPUS", "1.0"),
+                "--pids-limit", "128",
+                _SANDBOX_IMAGE, "python", f"/sandbox/{script_name}",
+            ]
+            timeout_secs = 45
+            isolation = "docker"
+        else:
+            cmd = [sys.executable, script_path]
+            timeout_secs = 30
+            isolation = "none"
+            if backend_pref in ("auto", "docker"):
+                logger.warning("Docker sandbox unavailable - falling back to DIRECT execution (no isolation).")
+
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
 
         stdout = res.stdout.strip()
         stderr = res.stderr.strip()
@@ -242,12 +334,14 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             "stdout": stdout or "(tidak ada print output)",
             "stderr": stderr or None,
             "generated_chart_photo": has_plot,
-            "message": "Grafik visual berhasil dibuat dan akan dikirim ke Telegram!" if has_plot else "Eksekusi kode selesai."
+            "isolation": isolation,
+            "message": ("Grafik visual berhasil dibuat dan akan dikirim ke Telegram!" if has_plot else "Eksekusi kode selesai.")
+                        + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
         }
     except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Eksekusi Python melebihi batas waktu (30 detik)."}
+        return {"status": "error", "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).", "isolation": isolation}
     except Exception as e:
-        return {"status": "error", "message": f"Python runner error: {str(e)}"}
+        return {"status": "error", "message": f"Python runner error: {str(e)}", "isolation": "none"}
 
 
 def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
@@ -2110,6 +2204,13 @@ def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, file
     try:
         import json
         from pptx import Presentation
+        
+        # Accept either a JSON string or an already-parsed list
+        slides_content = json.loads(slides_json) if isinstance(slides_json, str) else slides_json
+        if not slides_content:
+            slides_content = []
+        if isinstance(slides_content, dict):
+            slides_content = [slides_content]
         
         safe_name = filename if filename.endswith(".pptx") else f"{filename}.pptx"
         target_path = os.path.join(SANDBOX_DIR, safe_name)
@@ -4417,7 +4518,14 @@ def _get_gdrive_service():
     oauth_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
     if os.path.exists(oauth_file):
         try:
-            creds = Credentials.from_authorized_user_file(oauth_file, scopes=scopes)
+            # Honor the scopes actually granted during consent - forcing extra
+            # scopes here makes Google reject the refresh with invalid_scope.
+            try:
+                with open(oauth_file, "r", encoding="utf-8") as f:
+                    stored_scopes = json.load(f).get("scopes") or scopes
+            except Exception:
+                stored_scopes = scopes
+            creds = Credentials.from_authorized_user_file(oauth_file, scopes=stored_scopes)
             if creds and creds.expired and creds.refresh_token:
                 from google.auth.transport.requests import Request
                 creds.refresh(Request())
@@ -4431,7 +4539,7 @@ def _get_gdrive_service():
                 row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'").fetchone()
                 if row and row[0]:
                     info = json.loads(row[0])
-                    creds = Credentials.from_authorized_user_info(info, scopes=scopes)
+                    creds = Credentials.from_authorized_user_info(info, scopes=info.get("scopes") or scopes)
                     if creds and creds.expired and creds.refresh_token:
                         from google.auth.transport.requests import Request
                         creds.refresh(Request())
@@ -4475,6 +4583,164 @@ def _get_gdrive_service():
     return build("drive", "v3", credentials=creds)
 
 
+def _detect_gdrive_auth_mode() -> str:
+    """Return which credential source will be used: 'oauth' or 'service_account'."""
+    oauth_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
+    if os.path.exists(oauth_file):
+        return "oauth"
+    try:
+        with database.get_sync_db() as conn:
+            row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'").fetchone()
+            if row and row[0]:
+                return "oauth"
+    except Exception:
+        pass
+    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    if os.path.exists(cred_file):
+        return "service_account"
+    if os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip():
+        return "service_account"
+    return "none"
+
+
+def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, Any]:
+    """
+    Run the OAuth 2.0 consent flow so uploads use YOUR personal Drive quota.
+
+    Service accounts created recently have ZERO storage quota and cannot upload
+    anywhere ("Service Accounts do not have storage quota"), so the reliable
+    method is logging in as your own Google account once; the refreshable token
+    is stored locally and picked up automatically afterwards.
+
+    Requires an OAuth Client ID (type: Desktop app) downloaded from Google Cloud
+    Console, saved as 'gdrive_oauth_client_secret.json' in the project directory.
+
+    Args:
+        port: Local redirect port for the consent callback (default 8999).
+        wait_timeout: Seconds to wait for you to finish the browser login (default 300).
+    """
+    import json as _json
+
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    secret_candidates = [
+        os.path.join(project_dir, "gdrive_oauth_client_secret.json"),
+        os.path.join(project_dir, "client_secret.json"),
+    ]
+    secret_path = next((p for p in secret_candidates if os.path.exists(p)), None)
+
+    if not secret_path:
+        return {
+            "status": "error",
+            "needs_client_secret": True,
+            "message": (
+                "File OAuth client secret belum ada. Langkah persisnya:\n"
+                "1. Buka https://console.cloud.google.com/apis/credentials (project yang sama dgn service account)\n"
+                "2. Create Credentials > OAuth client ID > Application type: Desktop app\n"
+                "3. Download JSON, simpan sebagai: " + secret_candidates[0] + "\n"
+                "4. Tambahkan email Anda sebagai Test user di OAuth consent screen\n"
+                "5. Jalankan lagi login ini."
+            ),
+        }
+
+    # Detect the classic mix-up: renaming a SERVICE ACCOUNT key instead of
+    # downloading an OAuth client ID (they are different credential types).
+    try:
+        with open(secret_path, "r", encoding="utf-8") as f:
+            probe = _json.load(f)
+        if isinstance(probe, dict) and "installed" not in probe and "web" not in probe:
+            if probe.get("type") == "service_account" or "private_key" in probe:
+                return {
+                    "status": "error",
+                    "needs_client_secret": True,
+                    "wrong_type": "service_account",
+                    "message": (
+                        f"'{os.path.basename(secret_path)}' adalah file SERVICE ACCOUNT, "
+                        "bukan OAuth client secret - keduanya jenis kredensial berbeda.\n"
+                        "Yang dibutuhkan: OAuth Client ID tipe Desktop app.\n"
+                        "1. https://console.cloud.google.com/apis/credentials\n"
+                        "2. Create Credentials > OAuth client ID > Desktop app > Create\n"
+                        "3. Klik ikon Download pada client baru itu, rename hasilnya menjadi "
+                        + os.path.basename(secret_candidates[0]) + "\n"
+                        "4. OAuth consent screen > Audience > tambahkan email Anda sebagai Test user"
+                    ),
+                }
+    except Exception as probe_err:
+        logger.warning(f"Could not probe oauth secret file: {probe_err}")
+
+    try:
+        from google_auth_oauthlib.flow import InstalledAppFlow
+
+        scopes = ["https://www.googleapis.com/auth/drive"]
+        flow = InstalledAppFlow.from_client_secrets_file(secret_path, scopes=scopes)
+
+        creds = flow.run_local_server(
+            host="localhost",
+            port=port,
+            open_browser=True,
+            timeout_seconds=wait_timeout,
+            authorization_prompt_message=(
+                "\n🔐 Buka link berikut di browser untuk login Google Drive:\n%s\n"
+                "Menunggu konfirmasi...\n"
+            ),
+            success_message="✅ Login Google Drive berhasil! Jendela boleh ditutup.\n",
+        )
+
+        token_data = {
+            "refresh_token": creds.refresh_token,
+            "token": creds.token,
+            "token_uri": creds.token_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret,
+            "scopes": creds.scopes,
+        }
+        token_file = os.path.join(project_dir, "gdrive_oauth_token.json")
+        with open(token_file, "w", encoding="utf-8") as f:
+            _json.dump(token_data, f, indent=2)
+        try:
+            os.chmod(token_file, 0o600)
+        except OSError:
+            pass
+
+        # Backup into DB so other services/processes share the same token
+        try:
+            with database.get_sync_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_token_json', ?)",
+                    (_json.dumps(token_data),),
+                )
+                conn.commit()
+        except Exception as db_err:
+            logger.warning(f"Could not mirror OAuth token to DB: {db_err}")
+
+        return {
+            "status": "success",
+            "message": "Login OAuth Google Drive berhasil. Upload kini memakai kuota akun Anda.",
+            "token_file": token_file,
+            "scopes": list(creds.scopes or []),
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"OAuth login gagal/dibatalkan: {str(e)}"}
+
+
+def gdrive_oauth_logout() -> Dict[str, Any]:
+    """Remove stored OAuth tokens (falls back to service account auth)."""
+    removed = False
+    token_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
+    if os.path.exists(token_file):
+        try:
+            os.remove(token_file)
+            removed = True
+        except OSError:
+            pass
+    try:
+        with database.get_sync_db() as conn:
+            conn.execute("DELETE FROM system_settings WHERE key = 'gdrive_oauth_token_json'")
+            conn.commit()
+    except Exception:
+        pass
+    return {"status": "success", "removed": removed, "message": "Token OAuth dihapus."}
+
+
 def gdrive_status() -> Dict[str, Any]:
     """
     Check the connection status of Google Drive Integration, storage quota, and default folder info.
@@ -4496,6 +4762,7 @@ def gdrive_status() -> Dict[str, Any]:
         return {
             "status": "success",
             "connected": True,
+            "auth_mode": _detect_gdrive_auth_mode(),
             "user": about.get("user", {}),
             "storage_quota": about.get("storageQuota", {}),
             "default_folder_id": def_folder,
@@ -4608,7 +4875,19 @@ def gdrive_upload_file(filepath: str, folder_id: str = "", custom_filename: str 
             "download_link": file.get("webContentLink")
         }
     except Exception as e:
-        return {"status": "error", "message": f"Gagal mengunggah file ke Google Drive: {str(e)}"}
+        err_str = str(e)
+        if "Service Accounts do not have storage quota" in err_str:
+            return {
+                "status": "error",
+                "message": (
+                    "Upload gagal: Service Account Google tidak punya kuota penyimpanan "
+                    "(kebijakan Google terbaru). Solusi: lakukan login OAuth sekali via "
+                    "Dashboard > Google Drive > 'Login OAuth', atau jalankan "
+                    "./venv/bin/python scripts/gdrive_oauth_login.py - upload selanjutnya memakai kuota akun Anda."
+                ),
+                "needs_oauth": True,
+            }
+        return {"status": "error", "message": f"Gagal mengunggah file ke Google Drive: {err_str}"}
 
 
 def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any]:
@@ -4698,7 +4977,15 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[st
             
         files = list_res.get("files", [])
         ingested = []
-        uid = current_user_id_var.get() or 0
+        # Attribute to the PRIMARY user so the main agent (Telegram/Web) can
+        # retrieve these chunks - dashboard context has no telegram user id.
+        uid = current_user_id_var.get()
+        if not uid:
+            try:
+                allowed = os.getenv("ALLOWED_USER_IDS", "").strip()
+                uid = int(allowed.split(",")[0]) if allowed.split(",")[0].strip().isdigit() else 0
+            except Exception:
+                uid = 0
         
         for f in files:
             fid = f.get("id")
@@ -5095,20 +5382,22 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
     """
     try:
         import swarm_engine
+        import concurrent.futures
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
         mode_clean = mode.lower().strip() if mode else "plan"
         
-        # Run meeting asynchronously
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                result = pool.submit(
-                    lambda: asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
-                ).result()
-        else:
-            result = loop.run_until_complete(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
+        def _run_meeting():
+            return asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
+        
+        # asyncio.run() needs a fresh loop; if this tool is invoked from inside
+        # a running loop (e.g. Telegram handler), delegate to a worker thread.
+        try:
+            asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                result = pool.submit(_run_meeting).result(timeout=600)
+        except RuntimeError:
+            result = _run_meeting()
             
         return {
             "status": "success",

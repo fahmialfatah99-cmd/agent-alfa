@@ -451,6 +451,13 @@
                             </div>
                             <span id="nav-gdrive-badge" class="px-2 py-0.5 bg-blue-500/20 text-[10px] rounded text-blue-300 border border-blue-500/30 font-bold">G-CLOUD</span>
                         </button>
+                        <button onclick="switchTab('waformat')" id="tab-btn-waformat" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-emerald-400 hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-400"></i>
+                                <span>WA Laporan & Format</span>
+                            </div>
+                            <span class="px-2 py-0.5 bg-emerald-500/20 text-[10px] rounded text-emerald-300 border border-emerald-500/30 font-bold">SHEETS</span>
+                        </button>
                     </div>
 
                     <!-- Category 3: System & Services -->
@@ -1086,6 +1093,33 @@
                 </div>
             </div>
 
+            <!-- 2b. WA → Google Drive Realtime Uploads Card -->
+            <div class="glass-card p-6 rounded-2xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 relative">
+                            <i data-lucide="cloud-upload" class="w-5 h-5"></i>
+                            <span id="wa-drive-live-dot" class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                WHATSAPP → GOOGLE DRIVE LIVE UPLOADS
+                            </h3>
+                            <p class="text-xs text-slate-400">Berkas (foto/PDF/dokumen) yang otomatis diunggah dari WhatsApp sesuai Aturan Drive.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="wa-drive-total-badge" class="px-2.5 py-1 text-xs font-mono rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 font-bold">0 Berkas</span>
+                        <button onclick="fetchWaDriveUploads(true)" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300" title="Refresh">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="wa-drive-uploads-list" class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                    <p class="text-center text-slate-600 font-mono text-xs py-6">Memuat daftar unggahan...</p>
+                </div>
+            </div>
+
             <!-- 3. Formats & Recorded Reports Management Card -->
             <div class="glass-card p-6 rounded-2xl space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
@@ -1327,8 +1361,39 @@
                                 <span class="font-medium">Drive Storage:</span>
                                 <span id="gdrive-quota-val" class="text-emerald-400 font-bold">Terhubung & Aktif</span>
                             </div>
-                            <button onclick="deleteGdriveCredentials()" class="w-full mt-2 py-1.5 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs transition-all flex items-center justify-center gap-1">
+                            <button onclick="deleteGdriveCredentials()" id="btn-delete-gdrive-cred" class="w-full mt-2 py-1.5 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs transition-all flex items-center justify-center gap-1">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Kredensial
+                            </button>
+                        </div>
+
+                        <!-- OAuth Personal Account Login Card -->
+                        <div class="p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/30 space-y-2.5">
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="user-check" class="w-4 h-4 text-violet-400 mt-0.5 shrink-0"></i>
+                                <div class="space-y-1">
+                                    <p class="text-xs font-bold text-white">Login OAuth — Akun Google Pribadi</p>
+                                    <p class="text-[10px] text-slate-400 leading-relaxed">Service account baru dari Google punya kuota <span class="text-rose-400 font-bold">0 byte</span> sehingga selalu gagal upload. Login sekali dengan akun Anda agar upload memakai kuota pribadi (15GB+).</p>
+                                </div>
+                            </div>
+
+                            <div id="gdrive-oauth-secret-help" class="hidden p-2.5 rounded-lg bg-dark-950/80 border border-amber-500/40 text-[10px] text-amber-200 space-y-1 leading-relaxed">
+                                <p class="font-bold">⚠️ Client secret belum ada. Persiapkan dulu:</p>
+                                <ol class="list-decimal list-inside space-y-0.5 text-slate-300">
+                                    <li>console.cloud.google.com/apis/credentials</li>
+                                    <li>Create Credentials &gt; OAuth client ID &gt; <b>Desktop app</b></li>
+                                    <li>Download JSON, rename jadi <code class="text-cyan-300">gdrive_oauth_client_secret.json</code>, taruh di folder proyek</li>
+                                    <li>OAuth consent screen &gt; tambahkan email Anda sebagai Test user</li>
+                                </ol>
+                            </div>
+
+                            <button onclick="startGdriveOauth()" id="btn-gdrive-oauth" class="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
+                                <i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login dengan Akun Google
+                            </button>
+
+                            <div id="gdrive-oauth-status" class="hidden p-2.5 rounded-lg bg-dark-950/80 border border-white/10 text-[10px] font-mono text-slate-300 leading-relaxed"></div>
+
+                            <button onclick="gdriveOauthLogout()" id="btn-gdrive-oauth-logout" class="hidden w-full py-1.5 px-3 rounded-lg bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/40 font-bold text-[11px] transition-all flex items-center justify-center gap-1">
+                                <i data-lucide="log-out" class="w-3 h-3"></i> Logout OAuth (kembali ke service account)
                             </button>
                         </div>
 
@@ -1452,7 +1517,88 @@
         </section>
 
 
-        <!-- ==================== TAB 6: GUARDIAN & WATCHDOGS ==================== -->
+        <!-- ==================== TAB: WA LAPORAN & FORMAT SHEETS ==================== -->
+        <section id="view-waformat" class="tab-view hidden space-y-4">
+            <div class="glass-card px-5 py-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border border-emerald-500/20">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white font-mono">WA LAPORAN → SHEETS &amp; DRIVE</h3>
+                        <p class="text-[10px] text-slate-400">Kata pemicu → baris Sheets · Berkas → Drive (aturan media). Perubahan langsung aktif.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button onclick="saveAllWaSettings()" id="btn-save-wa-all" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25">
+                        <i data-lucide="save-all" class="w-3.5 h-3.5"></i> Simpan Semua
+                    </button>
+                    <span id="wa-dirty-dot" class="hidden w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" title="Ada perubahan belum disimpan"></span>
+                </div>
+            </div>
+
+            <datalist id="wa-src-list">
+                <option value="timestamp">Waktu pesan masuk</option>
+                <option value="sender">Nomor pengirim</option>
+                <option value="group">Nama grup</option>
+                <option value="body">Isi lengkap pesan</option>
+                <option value="drive_link">Link Google Drive (lampiran)</option>
+                <option value="media_name">Nama file lampiran</option>
+            </datalist>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+
+                <div class="lg:col-span-2 glass-card p-4 rounded-2xl border border-white/10 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
+                            <i data-lucide="table" class="w-3.5 h-3.5 text-cyan-400"></i> FORMAT LAPORAN
+                            <span id="wa-fmt-count" class="text-[10px] font-normal text-slate-500"></span>
+                        </h4>
+                        <button onclick="saveWaFormats()" id="btn-save-wa-formats" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition-all flex items-center gap-1.5 shrink-0">
+                            <i data-lucide="save" class="w-3 h-3"></i> Simpan Format
+                        </button>
+                    </div>
+                    <div id="wa-formats-list" class="space-y-2">
+                        <p class="text-center text-slate-500 font-mono text-xs py-6">Memuat format...</p>
+                    </div>
+                    <button onclick="addWaFormat()" class="w-full py-1.5 rounded-lg border border-dashed border-emerald-500/40 hover:border-emerald-400 text-emerald-300/90 hover:text-emerald-200 font-bold text-[11px] transition-all flex items-center justify-center gap-1">
+                        <i data-lucide="plus" class="w-3 h-3"></i> Tambah Format
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="glass-card p-4 rounded-2xl border border-white/10 space-y-2">
+                        <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
+                            <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-cyan-400"></i> TES CEPAT
+                        </h4>
+                        <textarea id="wa-preview-msg" rows="2" oninput="updateWaPreview()" placeholder="Simulasi pesan masuk..." class="w-full bg-dark-950/70 border border-white/10 rounded-xl p-2 text-[11px] text-white font-mono focus:outline-none focus:border-emerald-500 custom-scrollbar"></textarea>
+                        <div id="wa-preview-result" class="text-[10px] font-mono text-slate-400 leading-relaxed break-words"></div>
+                    </div>
+
+                    <div class="glass-card p-4 rounded-2xl border border-violet-500/20 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
+                                <i data-lucide="folder-input" class="w-3.5 h-3.5 text-violet-400"></i> ATURAN DRIVE
+                                <span id="wa-rule-count" class="text-[10px] font-normal text-slate-500"></span>
+                            </h4>
+                            <button onclick="saveWaMediaRules()" id="btn-save-wa-rules" class="px-2.5 py-1 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold text-[10px] transition-all flex items-center gap-1 shrink-0">
+                                <i data-lucide="save" class="w-3 h-3"></i> Simpan
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">Independen dari format teks — berlaku juga untuk berkas tanpa caption. Pola nama: <code class="text-cyan-300">{date} {time} {file} {ext} {sender} {group} {rule}</code>. Folder dibuat otomatis.</p>
+                        <div id="wa-rules-list" class="space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
+                            <p class="text-center text-slate-600 font-mono text-xs py-4">Memuat...</p>
+                        </div>
+                        <button onclick="addWaRule()" class="w-full py-1.5 rounded-lg border border-dashed border-violet-500/40 hover:border-violet-400 text-violet-300/90 hover:text-violet-200 font-bold text-[11px] transition-all flex items-center justify-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i> Tambah Aturan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+<!-- ==================== TAB 6: GUARDIAN & WATCHDOGS ==================== -->
         <section id="view-guardian" class="tab-view hidden space-y-6">
             <div class="glass-card p-6 rounded-2xl space-y-6 max-w-3xl mx-auto">
                 <div class="border-b border-white/5 pb-4">
@@ -2532,6 +2678,50 @@
                         </div>
                     </div>
                 </form>
+            </div>
+
+            <!-- Token Usage Realtime Panel -->
+            <div class="glass-card p-5 rounded-2xl border border-white/10 space-y-4">
+                <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i> PEMAKAIAN TOKEN REALTIME
+                        <span id="tu-live-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1"></span>
+                    </h3>
+                    <select id="tu-window" onchange="fetchTokenUsage()" class="bg-dark-950 border border-white/10 rounded-lg text-[10px] text-slate-300 px-2 py-1 font-mono">
+                        <option value="6">6 jam</option>
+                        <option value="24" selected>24 jam</option>
+                        <option value="168">7 hari</option>
+                        <option value="720">30 hari</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/10 text-center">
+                        <p class="text-[10px] text-slate-500 font-mono uppercase">Token Hari Ini</p>
+                        <p id="tu-today" class="text-lg font-extrabold text-cyan-300 font-mono mt-0.5">0</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/10 text-center">
+                        <p class="text-[10px] text-slate-500 font-mono uppercase">Panggilan Hari Ini</p>
+                        <p id="tu-calls" class="text-lg font-extrabold text-violet-300 font-mono mt-0.5">0</p>
+                    </div>
+                    <div class="p-3 rounded-xl bg-dark-950/80 border border-white/10 text-center">
+                        <p class="text-[10px] text-slate-500 font-mono uppercase">Total Sepanjang Waktu</p>
+                        <p id="tu-alltime" class="text-lg font-extrabold text-emerald-300 font-mono mt-0.5">0</p>
+                    </div>
+                </div>
+
+                <!-- Hourly mini chart -->
+                <div id="tu-chart" class="flex items-end gap-[3px] h-16 px-1 pt-2 border-b border-white/10"></div>
+
+                <!-- Per-key breakdown -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 uppercase px-1">
+                        <span>API Key / Provider</span><span>Token (prompt + completion)</span>
+                    </div>
+                    <div id="tu-perkey" class="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                        <p class="text-center text-slate-600 font-mono text-xs py-4">Memuat data pemakaian...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Stored Keys Grid -->
@@ -3745,7 +3935,8 @@
             if (tabId === 'guardian') fetchGuardian();
             if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
-            if (tabId === 'keys') fetchKeys();
+            if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); }
+            if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
             if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
             if (tabId === 'scraper') fetchScraperBatches();
             if (tabId === 'gdrive') { fetchGdriveStatus(); fetchGdriveFiles(); }
@@ -4689,6 +4880,61 @@
             'Pengambilan Material': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30' },
             'Stok': { bg: 'bg-rose-500/10', text: 'text-rose-400', border: 'border-rose-500/30' }
         };
+
+        // ── WA → Drive realtime uploads ──
+        function waDriveTypeIcon(name) {
+            const n = String(name || '').toLowerCase();
+            if (n.match(/\.(jpg|jpeg|png|webp|gif)$/)) return { icon: 'image', cls: 'text-emerald-400' };
+            if (n.match(/\.(mp4|mkv|mov|webm)$/)) return { icon: 'video', cls: 'text-rose-400' };
+            if (n.endsWith('.pdf')) return { icon: 'file-text', cls: 'text-rose-300' };
+            if (n.match(/\.(xlsx|xls|csv)$/)) return { icon: 'sheet', cls: 'text-emerald-300' };
+            return { icon: 'file', cls: 'text-slate-400' };
+        }
+
+        async function fetchWaDriveUploads(isManual = false) {
+            const list = document.getElementById('wa-drive-uploads-list');
+            if (!list) return;
+            try {
+                const res = await fetch('/api/wa/drive-uploads');
+                const data = await res.json();
+                const ups = data.uploads || [];
+                const badge = document.getElementById('wa-drive-total-badge');
+                if (badge) badge.innerText = `${ups.length} Berkas`;
+
+                if (data.status !== 'success') {
+                    list.innerHTML = '<p class="text-center text-rose-400 font-mono text-xs py-4">Gagal memuat.</p>';
+                    return;
+                }
+                if (ups.length === 0) {
+                    list.innerHTML = '<p class="text-center text-slate-600 font-mono text-xs py-6">Belum ada berkas terunggah dari WhatsApp. Kirim berkas di grup sesuai Aturan Drive.</p>';
+                    return;
+                }
+                list.innerHTML = ups.map(u => {
+                    const ic = waDriveTypeIcon(u.file_name);
+                    const link = u.web_link
+                        ? `<a href="${u.web_link}" target="_blank" class="ml-2 text-[10px] text-cyan-300 hover:text-cyan-200 font-bold shrink-0">Buka ↗</a>`
+                        : '';
+                    return `<div class="flex items-center gap-2.5 p-2 rounded-lg bg-dark-950/60 border border-white/5 hover:border-white/15 transition-all">
+                        <i data-lucide="${ic.icon}" class="w-4 h-4 ${ic.cls} shrink-0"></i>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-200 truncate">${escAttr(u.file_name || '-')}</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/30 shrink-0">${escAttr((u.folder || '').replace('WA Media / ',''))}</span>
+                            </div>
+                            <div class="text-[9px] text-slate-500 font-mono truncate">
+                                ${u.ts ? u.ts.slice(5, 16) : ''} ${u.sender ? '· ' + escAttr(u.sender) : ''} ${u.group ? '· ' + escAttr(u.group) : ''}
+                                ${u.caption ? ' · <span class="italic">' + escAttr(String(u.caption).slice(0, 60)) + '</span>' : ''}
+                            </div>
+                        </div>
+                        ${link}
+                    </div>`;
+                }).join('');
+                lucide.createIcons();
+                if (isManual) showToast('Daftar unggahan Drive dimuat!', 'success');
+            } catch (err) {
+                console.error('fetchWaDriveUploads error:', err);
+            }
+        }
 
         async function fetchWaReports(isManual = false) {
             try {
@@ -6101,8 +6347,438 @@
         }
 
         // ==========================================
+        // WA SHEETS REPORT FORMAT EDITOR
+        // ==========================================
+        let _waFormats = [];
+        const WA_DYN_SOURCES = ['timestamp', 'sender', 'group', 'body'];
+
+        async function fetchWaFormats() {
+            try {
+                const res = await fetch('/api/wa/formats');
+                const data = await res.json();
+                _waFormats = Array.isArray(data.formats) ? data.formats : [];
+                renderWaFormats();
+                updateWaPreview();
+            } catch (err) {
+                document.getElementById('wa-formats-list').innerHTML =
+                    '<p class="text-center text-rose-400 font-mono text-xs py-6">Gagal memuat format: ' + err.message + '</p>';
+            }
+        }
+
+        function renderWaFormats() {
+            const wrap = document.getElementById('wa-formats-list');
+            if (!wrap) return;
+            const cnt = document.getElementById('wa-fmt-count');
+            if (cnt) cnt.innerText = _waFormats.length ? `(${_waFormats.length})` : '';
+            if (_waFormats.length === 0) {
+                wrap.innerHTML = '<p class="text-center text-slate-600 font-mono text-xs py-6">Belum ada format. Klik "Tambah Format" untuk membuat.</p>';
+                return;
+            }
+            wrap.innerHTML = _waFormats.map((f, i) => `
+                <details class="rounded-xl bg-dark-950/70 border border-white/10 overflow-hidden" data-wa-f="${i}" ${i === 0 ? 'open' : ''}>
+                    <summary class="cursor-pointer select-none px-3 py-2 flex items-center gap-2 hover:bg-white/5 list-none">
+                        <i data-lucide="chevron-right" class="w-3 h-3 text-slate-500 transition-transform group-open:rotate-90"></i>
+                        <span class="text-xs font-bold text-white truncate" id="wa-sum-name-${i}">${escAttr(f.name)}</span>
+                        <span class="text-[9px] font-mono text-cyan-300/80 truncate max-w-[30%]" id="wa-sum-kw-${i}">${escAttr(f.keywords.join(', '))}</span>
+                        <span class="ml-auto text-[9px] font-mono text-amber-300/80 shrink-0" id="wa-sum-tab-${i}">${escAttr(f.tab)} · ${f.columns.length} kolom</span>
+                    </summary>
+                    <div class="px-3 pb-3 pt-1 space-y-2.5 border-t border-white/5">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] font-mono text-slate-500">Nama</label>
+                                <input value="${escAttr(f.name)}" oninput="waSetF(${i},'name',this.value)" placeholder="Nama laporan"
+                                    class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white font-bold focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-mono text-slate-500">Tab Sheets</label>
+                                <input value="${escAttr(f.tab)}" oninput="waSetF(${i},'tab',this.value)" placeholder="Laporan"
+                                    class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono focus:outline-none focus:border-emerald-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-mono text-slate-500">Kata pemicu (pisah koma)</label>
+                            <input value="${escAttr(f.keywords.join(', '))}" oninput="waSetKeywords(${i}, this.value)" placeholder="laporan, harian"
+                                class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-cyan-300 font-mono focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[9px] font-mono text-slate-500">Kolom (urut kiri→kanan): Judul | Sumber</label>
+                                <button onclick="addWaCol(${i})" class="text-[10px] font-bold text-cyan-300 hover:text-cyan-200 flex items-center gap-0.5">
+                                    <i data-lucide="plus" class="w-3 h-3"></i> kolom
+                                </button>
+                            </div>
+                            ${f.columns.map((c, j) => `
+                                <div class="flex items-center gap-1">
+                                    <button onclick="moveWaCol(${i},${j},-1)" class="p-0.5 text-slate-600 hover:text-white" title="Geser kiri"><i data-lucide="chevron-left" class="w-3 h-3"></i></button>
+                                    <span class="text-[8px] font-mono text-slate-600 w-3">${j + 1}</span>
+                                    <input value="${escAttr(c.title)}" oninput="waSetCol(${i},${j},'title',this.value)" placeholder="Judul"
+                                        class="flex-1 min-w-0 bg-dark-900 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-white focus:outline-none focus:border-emerald-500">
+                                    <input value="${escAttr(c.source)}" list="wa-src-list" oninput="waSetCol(${i},${j},'source',this.value)" placeholder="sumber"
+                                        class="flex-1 min-w-0 bg-dark-900 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-violet-300 font-mono focus:outline-none focus:border-emerald-500">
+                                    <button onclick="delWaCol(${i},${j})" class="p-0.5 text-rose-400/60 hover:text-rose-300" title="Hapus"><i data-lucide="x" class="w-3 h-3"></i></button>
+                                    <button onclick="moveWaCol(${i},${j},1)" class="p-0.5 text-slate-600 hover:text-white" title="Geser kanan"><i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="flex justify-end">
+                            <button onclick="delWaFormat(${i})" class="text-[10px] font-bold text-rose-400/80 hover:text-rose-300 flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus format ini
+                            </button>
+                        </div>
+                    </div>
+                </details>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // Perbarui ringkasan lipatan tanpa re-render (agar fokus input tetap)
+        function waUpdateSummary(i) {
+            const f = _waFormats[i];
+            if (!f) return;
+            const n = document.getElementById(`wa-sum-name-${i}`);
+            const k = document.getElementById(`wa-sum-kw-${i}`);
+            const t = document.getElementById(`wa-sum-tab-${i}`);
+            if (n) n.innerText = f.name || '(tanpa nama)';
+            if (k) k.innerText = f.keywords.join(', ');
+            if (t) t.innerText = `${f.tab || '?'} · ${f.columns.length} kolom`;
+        }
+
+        // Mutators: update model WITHOUT full re-render so typing keeps focus
+        function waSetF(i, key, val) { if (_waFormats[i]) { _waFormats[i][key] = val; waUpdateSummary(i); } waMarkDirty('formats'); updateWaPreview(); }
+        function waSetKeywords(i, val) {
+            if (!_waFormats[i]) return;
+            _waFormats[i].keywords = val.split(',').map(k => k.trim()).filter(Boolean);
+            waMarkDirty('formats');
+            waUpdateSummary(i);
+            updateWaPreview();
+        }
+        function waSetCol(i, j, key, val) {
+            if (_waFormats[i] && _waFormats[i].columns[j]) _waFormats[i].columns[j][key] = val;
+            waMarkDirty('formats');
+            updateWaPreview();
+        }
+
+        function escAttr(s) {
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+
+        function addWaFormat() {
+            waMarkDirty('formats');
+            let n = _waFormats.length + 1, name = `Format Baru ${n}`;
+            const existing = new Set(_waFormats.map(f => f.name.toLowerCase()));
+            while (existing.has(name.toLowerCase())) { n++; name = `Format Baru ${n}`; }
+            _waFormats.push({
+                name: name,
+                keywords: ['kata-pemicu'],
+                tab: 'Tab Baru',
+                columns: [
+                    { title: 'Waktu', source: 'timestamp' },
+                    { title: 'Pengirim', source: 'sender' },
+                    { title: 'Isi', source: 'body' }
+                ]
+            });
+            renderWaFormats();
+            updateWaPreview();
+        }
+
+        function delWaFormat(i) {
+            waMarkDirty('formats');
+            if (!confirm(`Hapus format "${_waFormats[i]?.name}"? (Belum tersimpan sampai klik Simpan)`)) return;
+            _waFormats.splice(i, 1);
+            renderWaFormats();
+            updateWaPreview();
+        }
+
+        function addWaCol(i) {
+            if (_waFormats[i]) { waMarkDirty('formats'); _waFormats[i].columns.push({ title: '', source: 'body' }); renderWaFormats(); waUpdateSummary(i); updateWaPreview(); }
+        }
+        function delWaCol(i, j) {
+            if (_waFormats[i]) { waMarkDirty('formats'); _waFormats[i].columns.splice(j, 1); renderWaFormats(); waUpdateSummary(i); updateWaPreview(); }
+        }
+        function moveWaCol(i, j, dir) {
+            const cols = _waFormats[i]?.columns;
+            if (!cols) return;
+            const t = j + dir;
+            if (t < 0 || t >= cols.length) return;
+            [cols[j], cols[t]] = [cols[t], cols[j]];
+            waMarkDirty('formats');
+            renderWaFormats();
+            waUpdateSummary(i);
+            updateWaPreview();
+        }
+
+        // Client-side simulation of wa-sheets-bot/src/formats.js logic
+        function waSimulate(msg) {
+            const lower = String(msg || '').toLowerCase();
+            for (const f of _waFormats) {
+                if ((f.keywords || []).some(k => lower.includes(String(k).toLowerCase()))) {
+                    const now = new Date();
+                    const ts = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const ctx = { timestamp: ts, sender: '+62xxxxxxxxxx', group: 'Grup Contoh', body: msg };
+                    const headers = f.columns.map(c => c.title);
+                    const values = f.columns.map(c => {
+                        const s = c.source ?? c.value ?? '';
+                        return Object.prototype.hasOwnProperty.call(ctx, s) ? ctx[s] : String(s);
+                    });
+                    return { format: f, headers, values };
+                }
+            }
+            return null;
+        }
+
+        function updateWaPreview() {
+            const box = document.getElementById('wa-preview-result');
+            const msg = document.getElementById('wa-preview-msg')?.value || '';
+            if (!msg.trim()) { box.innerHTML = '<span class="text-slate-600">Ketik pesan contoh untuk melihat format mana yang cocok...</span>'; return; }
+            const hit = waSimulate(msg);
+            if (!hit) {
+                box.innerHTML = '<span class="text-rose-400">❌ Tidak ada kata pemicu yang cocok — pesan akan diabaikan bot.</span>';
+                return;
+            }
+            box.innerHTML =
+                `<span class="text-emerald-400 font-bold">✅ Cocok: ${escAttr(hit.format.name)}</span> → tab Sheets <b class="text-amber-300">${escAttr(hit.format.tab)}</b><br>` +
+                `<span class="text-slate-500">Header :</span> ${hit.headers.map(h => escAttr(h)).join(' | ')}<br>` +
+                `<span class="text-slate-500">Isi bar:</span> ${hit.values.map(v => escAttr(v)).join(' | ')}`;
+        }
+
+        // ── Aturan media Drive (independen dari format teks) ──
+        let _waRules = [];
+        const WA_TYPE_LABELS = {
+            foto: 'Foto', video: 'Video', pdf: 'PDF',
+            excel: 'Excel/CSV', dokumen: 'Dokumen', audio: 'Audio'
+        };
+
+        async function fetchWaMediaRules() {
+            try {
+                const res = await fetch('/api/wa/media-rules');
+                const data = await res.json();
+                _waRules = Array.isArray(data.rules) ? data.rules : [];
+                renderWaRules();
+            } catch (err) {
+                document.getElementById('wa-rules-list').innerHTML =
+                    '<p class="text-center text-rose-400 font-mono text-xs py-4">Gagal memuat aturan.</p>';
+            }
+        }
+
+        function renderWaRules() {
+            const wrap = document.getElementById('wa-rules-list');
+            if (!wrap) return;
+            const cnt = document.getElementById('wa-rule-count');
+            if (cnt) {
+                const on = _waRules.filter(r => r.enabled).length;
+                cnt.innerText = _waRules.length ? `(${on}/${_waRules.length} aktif)` : '';
+            }
+            if (_waRules.length === 0) {
+                wrap.innerHTML = '<p class="text-center text-slate-600 font-mono text-xs py-3">Belum ada aturan. Berkas tanpa teks akan diabaikan sampai Anda membuat aturan.</p>';
+                return;
+            }
+            wrap.innerHTML = _waRules.map((r, i) => `
+                <div class="p-3 rounded-xl bg-dark-950/70 border border-violet-500/20 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-1.5 cursor-pointer shrink-0" title="Aktif/nonaktif">
+                            <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="waRuleSet(${i},'enabled',this.checked)" class="accent-violet-500">
+                            <span class="text-[10px] font-mono ${r.enabled ? 'text-emerald-400' : 'text-slate-500'}">${r.enabled ? 'ON' : 'OFF'}</span>
+                        </label>
+                        <input value="${escAttr(r.name)}" oninput="waRuleSet(${i},'name',this.value)" placeholder="Nama aturan"
+                            class="flex-1 min-w-0 bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-bold focus:outline-none focus:border-violet-500">
+                        <button onclick="delWaRule(${i})" class="p-1 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 shrink-0">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono text-slate-400">Jenis berkas:</label>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            ${Object.entries(WA_TYPE_LABELS).map(([k, label]) => `
+                                <button onclick="waRuleToggleType(${i},'${k}')" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all ${(r.types || []).includes(k)
+                                    ? 'bg-violet-500/25 text-violet-200 border-violet-500/50'
+                                    : 'bg-dark-900 text-slate-500 border-white/10 hover:text-slate-300'}">${label}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] font-mono text-slate-400">Kata kunci opsional</label>
+                            <input value="${escAttr(r.keyword)}" oninput="waRuleSet(${i},'keyword',this.value)" placeholder="(kosong = semua berkas)"
+                                class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-cyan-300 font-mono focus:outline-none focus:border-violet-500">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-mono text-slate-400">Subfolder Drive ("WA Media / …")</label>
+                            <input value="${escAttr(r.folder)}" oninput="waRuleSet(${i},'folder',this.value)" placeholder="Dokumen"
+                                class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono focus:outline-none focus:border-violet-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-mono text-slate-400">Pola nama file tersimpan</label>
+                        <input value="${escAttr(r.naming)}" oninput="waRuleSet(${i},'naming',this.value)" placeholder="{date}_{file}"
+                            class="w-full bg-dark-900 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white font-mono focus:outline-none focus:border-violet-500">
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function waRuleSet(i, key, val) { if (_waRules[i]) { _waRules[i][key] = val; waMarkDirty('rules'); } }
+        function waRuleToggleType(i, type) {
+            if (!_waRules[i]) return;
+            const t = _waRules[i].types || [];
+            const idx = t.indexOf(type);
+            if (idx >= 0) t.splice(idx, 1); else t.push(type);
+            waMarkDirty('rules');
+            renderWaRules();
+        }
+        function addWaRule() {
+            waMarkDirty('rules');
+            // Nama default unik agar tidak kena validasi duplikat
+            let n = _waRules.length + 1, name = `Aturan ${n}`;
+            const existing = new Set(_waRules.map(r => r.name.toLowerCase()));
+            while (existing.has(name.toLowerCase())) { n++; name = `Aturan ${n}`; }
+            _waRules.push({ name, enabled: true, types: ['pdf'], keyword: '', folder: 'Dokumen', naming: '{date}_{file}' });
+            renderWaRules();
+        }
+        function delWaRule(i) {
+            waMarkDirty('rules');
+            if (!confirm(`Hapus aturan "${_waRules[i]?.name}"?`)) return;
+            _waRules.splice(i, 1);
+            renderWaRules();
+        }
+
+        async function saveWaMediaRules(silent = false) {
+            const btn = document.getElementById('btn-save-wa-rules');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i> ...';
+            let result = null;
+            try {
+                const res = await fetch('/api/wa/media-rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rules: _waRules })
+                });
+                const data = await res.json();
+                result = data;
+                if (data.status === 'success') {
+                    waClearDirty('rules');
+                    if (!silent) showToast(data.message, 'success');
+                } else if (data.validation_errors) {
+                    showToast('Validasi gagal', 'error');
+                    alert('Perbaiki:\n\n• ' + data.validation_errors.join('\n• '));
+                } else showToast(data.message || 'Gagal.', 'error');
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> Simpan';
+            }
+            return result;
+        }
+
+        async function saveWaFormats(silent = false) {
+            const btn = document.getElementById('btn-save-wa-formats');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menyimpan...';
+            lucide.createIcons();
+            let result = null;
+            try {
+                const res = await fetch('/api/wa/formats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ formats: _waFormats })
+                });
+                const data = await res.json();
+                result = data;
+                if (data.status === 'success') {
+                    waClearDirty('formats');
+                    if (!silent) showToast(data.message, 'success');
+                } else if (data.validation_errors) {
+                    showToast('Validasi gagal: ' + data.message, 'error');
+                    alert('Perbaiki dulu:\n\n• ' + data.validation_errors.join('\n• '));
+                } else {
+                    showToast(data.message || 'Gagal menyimpan.', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" class="w-3.5 h-3.5"></i> Simpan Format';
+                lucide.createIcons();
+            }
+            return result;
+        }
+
+        // ==========================================
         // API KEY VAULT CONTROLLER
         // ==========================================
+        function fmtTokens(n) {
+            n = Number(n) || 0;
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+            if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+            return String(n);
+        }
+
+        let _tuTimer = null;
+        async function fetchTokenUsage() {
+            try {
+                const hours = document.getElementById('tu-window')?.value || 24;
+                const res = await fetch(`/api/keys/usage?hours=${hours}`);
+                const data = await res.json();
+                if (data.status !== 'success') return;
+
+                document.getElementById('tu-today').innerText = fmtTokens(data.tokens_today);
+                document.getElementById('tu-calls').innerText = fmtTokens(data.calls_today);
+                document.getElementById('tu-alltime').innerText = fmtTokens(data.total_all_time);
+
+                // Hourly bar chart (last 12 buckets shown, height relative to max)
+                const chart = document.getElementById('tu-chart');
+                const buckets = (data.hourly || []).slice(-12);
+                const maxTok = Math.max(1, ...buckets.map(b => b.tokens));
+                if (buckets.length === 0) {
+                    chart.innerHTML = '<p class="w-full text-center text-slate-600 font-mono text-[10px] pb-1">Belum ada aktivitas pada rentang ini</p>';
+                } else {
+                    chart.innerHTML = buckets.map(b => {
+                        const h = Math.max(6, Math.round(b.tokens / maxTok * 100));
+                        const label = b.bucket.slice(11, 16);
+                        return `<div class="flex-1 flex flex-col items-center justify-end group relative" title="${b.bucket} — ${b.tokens.toLocaleString('id-ID')} token (${b.calls} call)">
+                            <div class="w-full rounded-t bg-gradient-to-t from-cyan-600/60 to-emerald-400/80" style="height:${h}%"></div>
+                            <span class="text-[8px] text-slate-500 font-mono mt-0.5">${label}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                // Per-key rows with proportional bars
+                const wrap = document.getElementById('tu-perkey');
+                const rows = data.per_key || [];
+                if (rows.length === 0) {
+                    wrap.innerHTML = '<p class="text-center text-slate-600 font-mono text-xs py-4">Belum ada pemakaian tercatat. Data muncul otomatis saat bot/agent bekerja.</p>';
+                    return;
+                }
+                const maxRow = Math.max(...rows.map(r => r.total_tokens || 0), 1);
+                wrap.innerHTML = rows.map(r => {
+                    const pct = Math.max(4, Math.round((r.total_tokens || 0) / maxRow * 100));
+                    const nm = r.key_name || r.key_label || '(env)';
+                    return `<div class="p-2 rounded-lg bg-dark-950/60 border border-white/5">
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-bold text-slate-200 truncate max-w-[55%]" title="${nm} — ${r.provider}">${nm}</span>
+                            <span class="font-mono text-cyan-300">${fmtTokens(r.total_tokens)} <span class="text-slate-500 text-[10px]">(${fmtTokens(r.prompt_tokens)}+${fmtTokens(r.completion_tokens)})</span></span>
+                        </div>
+                        <div class="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                            <div class="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" style="width:${pct}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-1">
+                            <span>${r.provider}${r.model ? ' · ' + r.model : ''}</span>
+                            <span>${r.calls} call · ${r.last_used ? r.last_used.slice(11,16) : ''}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                console.error('Token usage fetch error:', err);
+            }
+        }
+
+        function startTokenUsagePolling() {
+            if (_tuTimer) clearInterval(_tuTimer);
+            fetchTokenUsage();
+            _tuTimer = setInterval(fetchTokenUsage, 10000);
+        }
+
         async function fetchKeys() {
             try {
                 const res = await fetch('/api/keys');
@@ -7552,9 +8228,32 @@
                     if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5';
                     if (pillText) pillText.innerText = 'TERHUBUNG (G-DRIVE)';
                     if (badge) badge.className = 'px-2 py-0.5 bg-emerald-500/20 text-[10px] rounded text-emerald-300 border border-emerald-500/30 font-bold';
+                    const isOauth = data.auth_mode === 'oauth';
                     if (authInd) {
-                        authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-                        authInd.innerText = 'TERHUBUNG 🟢';
+                        if (isOauth) {
+                            authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30';
+                            authInd.innerText = 'OAUTH AKUN PRIBADI 🟢';
+                        } else if (data.auth_mode === 'service_account') {
+                            authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                            authInd.innerText = 'SERVICE ACCOUNT ⚠️ KUOTA 0';
+                        } else {
+                            authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                            authInd.innerText = 'TERHUBUNG 🟢';
+                        }
+                    }
+                    // Show logout only when OAuth active; hint secret file when SA active
+                    const lgBtn = document.getElementById('btn-gdrive-oauth-logout');
+                    if (lgBtn) lgBtn.classList.toggle('hidden', !isOauth);
+                    // "Hapus Kredensial" only makes sense for service-account mode
+                    const delCredBtn = document.getElementById('btn-delete-gdrive-cred');
+                    if (delCredBtn) delCredBtn.classList.toggle('hidden', isOauth);
+                    const helpBox = document.getElementById('gdrive-oauth-secret-help');
+                    if (helpBox && data.auth_mode === 'service_account') {
+                        fetch('/api/gdrive/oauth/secret-check').then(r => r.json()).then(sc => {
+                            helpBox.classList.toggle('hidden', !!sc.exists);
+                        }).catch(() => {});
+                    } else if (helpBox) {
+                        helpBox.classList.add('hidden');
                     }
                     if (connInfo) {
                         connInfo.classList.remove('hidden');
@@ -7584,6 +8283,87 @@
                 console.error('Fetch gdrive status error:', err);
             } finally {
                 if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // ── Indikator perubahan belum disimpan ──
+        let _waFmtDirty = false, _waRulesDirty = false;
+        function waMarkDirty(which) {
+            if (which === 'formats') _waFmtDirty = true; else _waRulesDirty = true;
+            const dot = document.getElementById('wa-dirty-dot');
+            if (dot) dot.classList.remove('hidden');
+            const btn = document.getElementById(which === 'formats' ? 'btn-save-wa-formats' : 'btn-save-wa-rules');
+            if (btn) btn.classList.add('ring-2', 'ring-amber-400/70');
+        }
+        function waClearDirty(which) {
+            if (which === 'formats') _waFmtDirty = false; else _waRulesDirty = false;
+            if (!_waFmtDirty && !_waRulesDirty) {
+                const dot = document.getElementById('wa-dirty-dot');
+                if (dot) dot.classList.add('hidden');
+            }
+            const btn = document.getElementById(which === 'formats' ? 'btn-save-wa-formats' : 'btn-save-wa-rules');
+            if (btn) btn.classList.remove('ring-2', 'ring-amber-400/70');
+        }
+
+        async function saveAllWaSettings() {
+            // Simpan dua-duanya sekali klik; aman walau salah satu kosong.
+            const r1 = await saveWaFormats(true);
+            const r2 = await saveWaMediaRules(true);
+            const okCount = [r1, r2].filter(r => r && r.status === 'success').length;
+            if (okCount === 2) showToast('Format & aturan Drive tersimpan.', 'success');
+        }
+
+        async function startGdriveOauth() {
+            const btn = document.getElementById('btn-gdrive-oauth');
+            const statusBox = document.getElementById('gdrive-oauth-status');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menunggu konfirmasi di browser...';
+            lucide.createIcons();
+            if (statusBox) {
+                statusBox.classList.remove('hidden');
+                statusBox.innerHTML = '⏳ Browser akan terbuka di laptop ini. Silakan pilih akun Google Anda dan klik <b>Allow</b>. Halaman ini menunggu sampai selesai (maks 5 menit)...';
+            }
+
+            try {
+                const res = await fetch('/api/gdrive/oauth/start', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    showToast('Login OAuth berhasil! Upload kini pakai kuota akun Anda.', 'success');
+                    if (statusBox) statusBox.innerHTML = '✅ <b class="text-emerald-400">Login berhasil.</b> Semua upload Drive sekarang memakai akun pribadi Anda.';
+                    setTimeout(() => fetchGdriveStatus(), 800);
+                } else if (data.needs_client_secret) {
+                    showToast('Client secret belum ada - ikuti langkah persiapannya.', 'warning');
+                    const helpBox = document.getElementById('gdrive-oauth-secret-help');
+                    if (helpBox) helpBox.classList.remove('hidden');
+                    if (statusBox) {
+                        statusBox.innerHTML = '❌ <b class="text-amber-400">Client secret belum ada.</b> Ikuti 4 langkah di kotak kuning di atas, lalu klik Login lagi.';
+                    }
+                } else {
+                    showToast('Login OAuth gagal/dibatalkan.', 'error');
+                    if (statusBox) statusBox.innerHTML = '❌ Gagal: ' + (data.message || 'dibatalkan') + '. Coba lagi.';
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+                if (statusBox) statusBox.innerHTML = '❌ Error koneksi: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login dengan Akun Google';
+                lucide.createIcons();
+            }
+        }
+
+        async function gdriveOauthLogout() {
+            if (!confirm('Hapus token OAuth dan kembali ke service account?')) return;
+            try {
+                const res = await fetch('/api/gdrive/oauth/logout', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || 'Token OAuth dihapus.', data.status === 'success' ? 'success' : 'error');
+                document.getElementById('btn-gdrive-oauth-logout').classList.add('hidden');
+                fetchGdriveStatus();
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
             }
         }
 
@@ -7831,11 +8611,14 @@
             fetchModelsCatalog();
             fetchAgents();
             fetchKeys();
+            startTokenUsagePolling();
             fetchMeetings();
             fetchSettings();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
             setInterval(fetchWaReports, 8000);
+            fetchWaDriveUploads();
+            setInterval(fetchWaDriveUploads, 8000);
         });
     </script>
 </body>

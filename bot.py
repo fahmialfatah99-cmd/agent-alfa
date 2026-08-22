@@ -48,6 +48,7 @@ from telegram.ext import (
 # Local modules
 import database
 import tools
+import token_usage
 from tools import (
     AVAILABLE_TOOLS,
     get_system_stats,
@@ -112,6 +113,42 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
         logger.info("Google GenAI client initialized successfully.")
     except Exception as e:
         logger.error(f"Failed to initialize GenAI client: {e}")
+
+
+# Resolver bersama: kunci AKTIF di vault selalu menang atas .env, sehingga
+# pergantian key/model lewat dashboard langsung berlaku untuk Telegram & Web.
+_gemini_client_cache: Dict[str, Any] = {}
+
+
+def resolve_main_gemini():
+    """Return (client, key_id, key_label) for the MAIN agent.
+
+    Priority: active 'gemini' key in the vault -> GEMINI_API_KEY env.
+    Clients are cached per key string to avoid rebuilding per message.
+    """
+    try:
+        active = database.get_active_api_key_sync("gemini")
+    except Exception:
+        active = None
+
+    if active and (active.get("api_key") or "").strip():
+        api_key = active["api_key"].strip()
+        key_id = active.get("id")
+        label = f"vault#{key_id}"
+    else:
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        key_id = None
+        label = "gemini-env"
+
+    if not api_key or api_key == "your_gemini_api_key_here":
+        return None, None, ""
+
+    cli = _gemini_client_cache.get(api_key)
+    if cli is None:
+        from google import genai as _genai
+        cli = _genai.Client(api_key=api_key)
+        _gemini_client_cache[api_key] = cli
+    return cli, key_id, label
 
 
 _whitelist_warning_sent = False
@@ -240,15 +277,13 @@ async def run_agent_turn(
     Propagates contextvars for per-user tool isolation.
     """
     global gemini_client
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
-        return "⚠️ **GEMINI_API_KEY** belum diisi di file `.env`. Silakan isi API Key Anda agar AI dapat aktif."
-
+    gemini_client, gkey_id, gkey_label = resolve_main_gemini()
     if not gemini_client:
-        try:
-            from google import genai
-            gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        except Exception as e:
-            return f"❌ Gagal menginisialisasi Google GenAI: {e}"
+        return (
+            "⚠️ **API key Gemini belum tersedia.**\n"
+            "Isi `GEMINI_API_KEY` di `.env`, atau tambahkan & aktivasi kunci Gemini di "
+            "Dashboard > API Key Vault (kunci aktif di vault otomatis dipakai di sini)."
+        )
 
     # Set context variables for tools
     current_user_id_var.set(user_id)
@@ -298,6 +333,24 @@ async def run_agent_turn(
         for k in kg_triples:
             tag_str = f" ({k['tags']})" if k.get('tags') else ""
             memory_context_parts.append(f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}")
+
+    # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan.
+    # Inilah yang membuat Second Brain benar-benar jadi otak: tanpa diminta,
+    # pengetahuan dari dokumen tersinkron ikut masuk konteks tiap giliran.
+    try:
+        import vector_memory
+        brain_hits = vector_memory.semantic_search(
+            user_id=user_id, query=user_prompt or "", top_k=4
+        )
+        relevant = [h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25]
+        if relevant:
+            memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
+            for h in relevant:
+                memory_context_parts.append(
+                    f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
+                )
+    except Exception as rag_err:
+        logger.debug(f"Auto-RAG skipped: {rag_err}")
             
     memory_block = ""
     if memory_context_parts:
@@ -327,7 +380,11 @@ async def run_agent_turn(
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
-    candidate_models = [preferred_model, "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3-flash-preview"]
+    fallback_chain = [m.strip() for m in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-flash-latest"
+    ).split(",") if m.strip()]
+    candidate_models = [preferred_model] + fallback_chain
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
@@ -344,6 +401,10 @@ async def run_agent_turn(
                 contents=contents,
                 config=config
             )
+            token_usage.from_gemini_response(response, model=model_name,
+                                             key_id=gkey_id,
+                                             key_label=gkey_label or "gemini-env",
+                                             context="telegram_chat")
 
             reply_text = response.text or "✅ Permintaan selesai diproses."
             
@@ -648,7 +709,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
     # 2. Check all other files in sandbox (images, docs, code, archives, audio, video)
     for fname in os.listdir(SANDBOX_DIR):
         fpath = os.path.join(SANDBOX_DIR, fname)
-        if fname == "sandbox_run.py":
+        if fname.startswith("sandbox_run"):
             continue
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
@@ -1018,7 +1079,7 @@ async def proactive_cron_watchdog_loop(application: Application):
                     if os.path.isdir(SANDBOX_DIR):
                         for fname in os.listdir(SANDBOX_DIR):
                             fpath = os.path.join(SANDBOX_DIR, fname)
-                            if fname == "sandbox_run.py":
+                            if fname.startswith("sandbox_run"):
                                 continue
                             if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                                 ext = os.path.splitext(fname)[1].lower()
@@ -1236,10 +1297,17 @@ async def proactive_ambient_agent_loop(application: Application):
                         )
                         
                         from google.genai import types
-                        resp = await gemini_client.aio.models.generate_content(
+                        p_client, p_key_id, p_key_label = resolve_main_gemini()
+                        if not p_client:
+                            raise RuntimeError("Tidak ada API key Gemini aktif (vault/env) untuk loop proaktif.")
+                        resp = await p_client.aio.models.generate_content(
                             model=GEMINI_MODEL,
                             contents=[types.Content(role="user", parts=[types.Part.from_text(text=proactive_eval_prompt)])]
                         )
+                        token_usage.from_gemini_response(resp, model=GEMINI_MODEL,
+                                                         key_id=p_key_id,
+                                                         key_label=p_key_label or "gemini-env",
+                                                         context="proactive")
                         
                         reply_text = (resp.text or "").strip()
                         if reply_text and "NO_ACTION" not in reply_text.upper() and len(reply_text) > 10:
