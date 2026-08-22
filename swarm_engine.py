@@ -189,6 +189,7 @@ async def _generate_with_gemini(
     key_label: str = "",
     context: str = "swarm",
     max_tokens: int = 500,
+    thinking_budget: Optional[int] = None,
 ) -> Optional[str]:
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
@@ -206,14 +207,18 @@ async def _generate_with_gemini(
         return None
     for m in unique_models:
         try:
+            cfg_kw = dict(
+                system_instruction=final_instruction,
+                temperature=0.7,
+                max_output_tokens=max_tokens,
+            )
+            if thinking_budget is not None:
+                cfg_kw["thinking_config"] = types.ThinkingConfig(
+                    thinking_budget=thinking_budget)
             response = await client.aio.models.generate_content(
                 model=m,
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=final_instruction,
-                    temperature=0.7,
-                    max_output_tokens=max_tokens,
-                )
+                config=types.GenerateContentConfig(**cfg_kw),
             )
             if response and response.text:
                 token_usage.from_gemini_response(response, model=m, key_id=key_id,
@@ -240,6 +245,7 @@ async def _generate_with_openai_compat(
     key_label: str = "",
     context: str = "swarm",
     max_tokens: int = 500,
+    timeout_s: float = 180.0,
 ) -> Optional[str]:
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
@@ -285,8 +291,21 @@ async def _generate_with_openai_compat(
             "max_tokens": max_tokens
         }
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as http_client:
-            res = await http_client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=10.0)) as http_client:
+            # Deadline KERAS: read-timeout httpx bisa ter-reset oleh respons
+            # yang menetes, jadi total waktu dipaksa lewat asyncio.wait_for.
+            try:
+                res = await asyncio.wait_for(
+                    http_client.post(f"{url.rstrip('/')}/chat/completions",
+                                     headers=headers, json=payload),
+                    timeout=timeout_s,
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    f"[{provider}] HARD DEADLINE {timeout_s}s terlampaui untuk "
+                    f"'{agent_name}' (respons menetes?) - batal & lanjut fallback."
+                )
+                return None
             if res.status_code == 200:
                 data = res.json()
                 token_usage.from_openai_json(data, provider=provider, model=model,
@@ -302,6 +321,37 @@ async def _generate_with_openai_compat(
                 if content:
                     return content
                 return None
+            # Kuota habis sebagian? OpenRouter memberi tahu angka maksimal yang
+            # mampu dibayar - coba sekali lagi dengan budget itu (dikurangi margin).
+            if res.status_code == 402:
+                import re as _re
+                m_afford = _re.search(r"can only afford (\d+)", res.text)
+                if m_afford:
+                    afford = max(256, int(m_afford.group(1)) - 128)
+                    payload["max_tokens"] = afford
+                    logger.warning(
+                        f"[{provider}] kuota terbatas - retry dengan max_tokens={afford}"
+                    )
+                    try:
+                        res = await client.post(f"{url.rstrip('/')}/chat/completions",
+                                                headers=headers, json=payload)
+                    except Exception:
+                        return None
+                    if res.status_code == 200:
+                        data = res.json()
+                        token_usage.from_openai_json(data, provider=provider, model=model,
+                                                     key_id=key_id, key_label=key_label,
+                                                     context=context)
+                        msg0 = (data.get("choices") or [{}])[0].get("message") or {}
+                        content = (msg0.get("content") or "").strip()
+                        if content:
+                            return content
+                    else:
+                        logger.error(f"[{provider}] retry 402 tetap gagal HTTP {res.status_code}")
+                err_detail = res.text[:200] or "(empty body)"
+                logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+                return None
+
             err_detail = res.text[:200] or "(empty body)"
             logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
             return None
@@ -311,7 +361,9 @@ async def _generate_with_openai_compat(
 
 
 async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str,
-                                  max_tokens: Optional[int] = None) -> str:
+                                  max_tokens: Optional[int] = None,
+                                  timeout_s: float = 180.0,
+                                  thinking_budget: Optional[int] = None) -> str:
     """Generate response for a specific agent using its configured provider and key.
 
     If the agent's primary provider fails (timeout, bad key, quota, etc.), it
@@ -342,6 +394,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_label=key_label,
             context="swarm",
             max_tokens=max_tokens or 500,
+            timeout_s=timeout_s,
         )
     else:
         # Semua provider non-gemini dicoba sebagai OpenAI-compatible
@@ -363,6 +416,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_label=key_label,
             context="swarm",
             max_tokens=max_tokens or 500,
+            timeout_s=timeout_s,
         )
         if result is None and os.getenv("GEMINI_API_KEY"):
             logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
@@ -375,11 +429,28 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                 key_id=None,
                 key_label="gemini-fallback",
                 context="swarm",
+                thinking_budget=thinking_budget,
             )
 
     if result is None:
         return f"[Error: Semua provider gagal untuk '{agent_name}' (primary: {provider})]"
     return result
+
+
+def _extract_html_doc(text: str) -> str:
+    """Ekstrak dokumen HTML utuh dari teks model (fence / doc penuh / sisa)."""
+    if not text:
+        return ""
+    fence = re.search(r"```html\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+    if fence:
+        return fence.group(1).strip()
+    m = re.search(r"(<!DOCTYPE\s+html.*?</html>)", text, re.DOTALL | re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    low = text.lower()
+    if "<html" in low:
+        return text[low.index("<html"):].strip()
+    return ""
 
 
 def validate_python_code(code: str) -> str:
@@ -530,28 +601,43 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 f"(HTML5 + CSS inline di <style> + JS di <script>, responsif, tema dark modern).\n"
                 f"WAJIB blok ```html ... ``` berisi dokumen utuh mulai <!DOCTYPE html>."
             )
-            generated_content = await generate_agent_response(
-                agent, web_prompt,
+            WEB_ENGINEER_SYS = (
                 "Kamu adalah Senior Web Engineer. Hasilkan website production-quality "
-                "dalam SATU file HTML utuh yang langsung bisa dibuka di browser.",
-                max_tokens=4096,
+                "dalam SATU file HTML utuh yang langsung bisa dibuka di browser."
             )
 
-            html_match = re.search(r"```html\s*(.*?)\s*```", generated_content, re.DOTALL)
-            page = (html_match.group(1) if html_match else generated_content).strip()
-            low = page.lower()
-            valid_doc = ("<html" in low or "<!doctype" in low) and "</body>" in low
-            if not valid_doc or len(page) < 400:
-                status = "error"
-                tool_output = (
-                    f"Website ditolak validasi: dokumen tidak utuh "
-                    f"(panjang {len(page)} char). Coba instruksi lebih spesifik."
+            provider_used = agent.get("provider", "?")
+            log_live("TOOL", f"🌐 {agent_name} membangun website via {provider_used}...")
+
+            def _valid(p):
+                lowp = p.lower()
+                return len(p) >= 400 and ("<html" in lowp or "<!doctype" in lowp) and "</body>" in lowp
+
+            generated_content = await generate_agent_response(
+                agent, web_prompt, WEB_ENGINEER_SYS,
+                max_tokens=16000, timeout_s=70.0,
+                thinking_budget=0,
+            )
+            log_live("TOOL", f"⏱️ attempt-1 ({provider_used}) -> {len(generated_content or '')} char")
+
+            page = _extract_html_doc(generated_content)
+            fb_note = ""
+
+            if not _valid(page):
+                log_live("VERIFY", f"⏳ {agent_name}: otak utama gagal/lambat - Nemotron Ultra mengambil alih")
+                fb = {**agent, "name": f"{agent_name} (Nemotron)",
+                      "provider": "openrouter",
+                      "model": "nvidia/nemotron-3-ultra-550b-a55b"}
+                log_live("TOOL", "🔁 Nemotron Ultra mulai membangun ulang website...")
+                generated_content = await generate_agent_response(
+                    fb, web_prompt, WEB_ENGINEER_SYS,
+                    max_tokens=16000, timeout_s=190.0,
                 )
-                generated_content = (
-                    "Gagal membangun website yang valid untuk brief ini. "
-                    "Butuh brief lebih detail dari pengguna."
-                )
-            else:
+                log_live("TOOL", f"⏱️ Nemotron selesai -> {len(generated_content or '')} char")
+                page = _extract_html_doc(generated_content)
+                fb_note = " (via Nemotron Ultra)"
+
+            if _valid(page):
                 slug = re.sub(r"[^a-z0-9]+", "_", topic.lower())[:30].strip("_") or "site"
                 site_dir = os.path.join(SWARM_OUTPUT_DIR, "websites",
                                         slug + "_" + str(int(time.time())))
@@ -562,68 +648,23 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 deliverable_file = fpath
                 status = "success"
                 tool_output = (
-                    f"Website tersimpan: {fpath} ({len(page)//1024} KB)\n"
+                    f"Website tersimpan: {fpath} ({len(page)//1024} KB){fb_note}\n"
                     f"Struktur valid: doctype+html+body OK - buka langsung di browser."
                 )
                 generated_content = (
-                    f"Website '{topic[:50]}' selesai dibangun ({len(page)//1024} KB), "
+                    f"Website '{topic[:50]}' selesai dibangun ({len(page)//1024} KB){fb_note}, "
                     f"tersimpan di {fpath}. Buka index.html di browser untuk preview."
-                )
-
-        else:
-
-            base_coding_prompt = (
-                f"=== PERINTAH CODING NYATA SWARM ===\n"
-                f"Topik / Tugas: {topic}\n"
-                f"Tugas kamu: Tulis skrip Python fungsional lengkap yang memproses data/tugas ini secara otomatis.\n"
-                f"WAJIB sertakan blok kode ```python ... ``` yang bisa langsung dieksekusi."
-            )
-
-            code_to_run = ""
-            last_code_err = ""
-            for attempt in range(2):
-                attempt_prompt = base_coding_prompt
-                if last_code_err:
-                    attempt_prompt += (
-                        f"\n\nPERCOBAAN SEBELUMNYA DITOLAK: {last_code_err}\n"
-                        f"Tulis ulang skrip yang BENAR dan LENGKAP."
-                    )
-                generated_content = await generate_agent_response(
-                    agent, attempt_prompt,
-                    "Kamu adalah Chief Code Architect. Tulis kode Python yang bersih, tangguh, dan fungsional. "
-                    "Skrip harus punya logika nyata (bukan placeholder) dan mencetak hasilnya dengan print()."
-                )
-                py_match = re.search(r"```python\s*(.*?)\s*```", generated_content, re.DOTALL)
-                code_to_run = py_match.group(1).strip() if py_match else ""
-                last_code_err = validate_python_code(code_to_run)
-                if not last_code_err:
-                    break
-
-            if code_to_run and not last_code_err:
-                # Save real python file
-                fname = f"swarm_solution_{int(time.time())}.py"
-                fpath = os.path.join(SWARM_OUTPUT_DIR, fname)
-                try:
-                    with open(fpath, "w", encoding="utf-8") as f:
-                        f.write(code_to_run)
-                    deliverable_file = fpath
-                except Exception as e:
-                    logger.error(f"Failed to write script: {e}")
-
-                # Execute in sandbox
-                exec_res = tools.execute_python_sandbox(code_to_run)
-                status = exec_res.get("status", "error")
-                tool_output = (
-                    f"Skrip Tersimpan: {deliverable_file}\n"
-                    f"Status Eksekusi Sandbox: {exec_res.get('status')}\n"
-                    f"Stdout:\n{exec_res.get('stdout', 'Selesai tanpa error')[:250]}"
-                    + (f"\nStderr:\n{exec_res.get('stderr', '')[:200]}" if exec_res.get("stderr") else "")
                 )
             else:
                 status = "error"
-                tool_output = f"Kode tidak lolos validasi setelah 2 percobaan: {last_code_err or 'LLM tidak menghasilkan blok ```python```'}"
-                generated_content = f"Gagal menyusun skrip yang valid untuk tugas ini ({last_code_err or 'tidak ada blok kode'}). Perlu instruksi lebih spesifik."
-
+                tool_output = (
+                    f"Website ditolak validasi: dokumen tidak utuh "
+                    f"(panjang {len(page)} char). Coba instruksi lebih spesifik."
+                )
+                generated_content = (
+                    "Gagal membangun website yang valid untuk brief ini. "
+                    "Butuh brief lebih detail dari pengguna."
+                )
 
     # 3. SPECIALIST: CYBER SENTRY / AUDITOR (Real System Security & Resource Audit)
     elif "Sentry" in agent_name or "Security" in role or "Auditor" in role:

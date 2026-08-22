@@ -5431,7 +5431,7 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
     Conduct an Autonomous Conference / Meeting or Live Swarm Execution between multiple AI agents.
     
     Args:
-        topic: The agenda, problem, or live task to be executed.
+        topic: The agenda, problem, or live task to be executed. WAJIB ringkasan TUGAS user sendiri (bukan kutipan jawaban/konsensus lama). Contoh: 'scrape 20 mouse gaming murah lalu buat CSV'.
         participants: Comma-separated agent names or empty for default team.
         rounds: Number of discussion rounds (1 to 3, default: 2).
         mode: 'plan' (strategic debate & action plan) or 'execute' (rapid alignment + live autonomous tool execution & artifacts).

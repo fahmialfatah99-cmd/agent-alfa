@@ -2434,6 +2434,37 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     return result
 
 
+@app.get("/api/swarm/live")
+async def swarm_live_feed(since: int = 0):
+    """Realtime terminal feed of what the swarm agents are doing right now.
+    Sumber: file JSONL bersama (lintas proses bot & dashboard)."""
+    import swarm_engine as _se
+    import json as _json
+    since = safe_int(since, 0, minimum=0)
+    entries = []
+    try:
+        if os.path.exists(_se.LIVE_FEED_FILE):
+            with open(_se.LIVE_FEED_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        e = _json.loads(line)
+                        if e.get("i", 0) > since:
+                            entries.append(e)
+                    except Exception:
+                        continue
+            entries = entries[-150:]
+    except Exception as e:
+        return {"status": "error", "message": str(e), "entries": [], "running": False}
+    return {
+        "status": "success",
+        "entries": entries,
+        "running": bool(getattr(_se, "MEETING_RUNNING", False)),
+    }
+
+
 @app.get("/api/meetings")
 async def list_meetings(limit: int = 50):
     """List recent multi-agent meetings."""
