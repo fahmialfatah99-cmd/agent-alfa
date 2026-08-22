@@ -621,10 +621,12 @@ async def get_system_settings():
 
 @app.post("/api/antigravity/apply")
 async def antigravity_apply_model(payload: Dict[str, Any]):
-    """Terapkan model Antigravity ke kunci vault + SEMUA agen swarm + otak utama."""
+    """Terapkan model Antigravity sebagai KUNCI CADANGAN (+ opsional semua agen).
+    TIDAK mengubah otak utama — itu tetap dikendalikan lewat kartu Otak Utama."""
     import database as _db
     model = str(payload.get("model", "")).strip()
     apply_all = bool(payload.get("apply_all_agents", True))
+    as_main_brain = bool(payload.get("as_main_brain", False))   # default: cadangan saja
 
     # 1. Cari kunci vault Antigravity (base_url 8890) — buat bila belum ada
     target_key = None
@@ -656,8 +658,17 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
                 })
                 updated.append(a["name"])
 
-    # 3. Jadikan otak utama (pointer)
-    brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.5-flash")
+    brain_note = ""
+    main_brain_info = None
+
+    # 3. Hanya jadi otak utama jika user EXPLISIT memintanya
+    if as_main_brain:
+        brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.5-flash")
+        main_brain_info = brain_res.get("main_brain")
+        brain_note = " Otak utama dialihkan ke Antigravity."
+    else:
+        brain_note = (" Mode cadangan: otak utama tidak berubah "
+                      "(aktifkan via kartu Otak Utama bila diperlukan).")
 
     return {
         "status": "success",
@@ -665,9 +676,10 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
         "model": model,
         "agents_updated": updated,
         "agents_count": len(updated),
-        "main_brain": brain_res.get("main_brain"),
-        "message": (f"Model '{model}' diterapkan ke {len(updated)} agen swarm "
-                    f"+ otak utama (Telegram & Web serentak).")
+        "as_main_brain": as_main_brain,
+        "main_brain": main_brain_info,
+        "message": (f"Kunci cadangan '{model}' siap ({len(updated)} agen swarm ikut memakai)."
+                    f"{brain_note}")
     }
 
 
