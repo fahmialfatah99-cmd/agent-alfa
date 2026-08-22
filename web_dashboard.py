@@ -2248,6 +2248,15 @@ async def test_api_key_endpoint(key_id: int):
 
 
 PROVIDER_MODELS = {
+    "antigravity": [
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Cepat - Default Antigravity)", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
+        {"id": "gemini-3-flash", "name": "Gemini 3 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
+        {"id": "gemini-3.1-pro", "name": "Gemini 3.1 Pro (Penalaran Kompleks)", "category": "Antigravity Pro Models", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "category": "Antigravity Pro Models", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
+        {"id": "claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
+        {"id": "claude-opus-4.6", "name": "Claude Opus 4.6 Thinking (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
+    ],
     "nvidia": [
         # --- NVIDIA Nemotron Suite ---
         {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B Ultra Instruct (Model Unggulan NVIDIA)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
