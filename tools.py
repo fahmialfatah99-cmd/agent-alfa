@@ -5370,6 +5370,62 @@ def manage_custom_agents(action: str, name: str = "", role: str = "", persona: s
         return {"status": "error", "message": f"Manage custom agents error: {str(e)}"}
 
 
+def query_token_usage(hours: int = 24) -> Dict[str, Any]:
+    """
+    Laporan pemakaian token AI per API key (realtime dari dashboard vault).
+    
+    Args:
+        hours: Rentang jam ke belakang (1-720, default 24).
+    """
+    try:
+        summary = database.get_api_usage_summary_sync(hours=hours)
+        per_key = [
+            {k: r.get(k) for k in ('key_name', 'provider', 'total_tokens', 'calls', 'last_used')}
+            for r in summary.get('per_key', [])[:15]
+        ]
+        return {
+            "status": "success",
+            "window_hours": summary.get("window_hours"),
+            "tokens_today": summary.get("tokens_today"),
+            "calls_today": summary.get("calls_today"),
+            "total_all_time": summary.get("total_all_time"),
+            "per_key": per_key,
+            "by_context": summary.get("by_context", []),
+            "message": f"Pemakaian {hours} jam terakhir: {summary.get('tokens_today')} token hari ini."
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membaca pemakaian token: {str(e)}"}
+
+
+def list_wa_drive_uploads(limit: int = 20) -> Dict[str, Any]:
+    """
+    Daftar berkas (foto/PDF/dokumen) yang otomatis diunggah dari WhatsApp ke Google Drive.
+    
+    Args:
+        limit: Jumlah maksimal entri terbaru (default 20).
+    """
+    try:
+        path = os.path.expanduser("~/wa-sheets-bot/drive_uploads.json")
+        if not os.path.exists(path):
+            return {"status": "success", "total": 0,
+                    "message": "Belum ada berkas WA yang terunggah ke Drive.",
+                    "uploads": []}
+        import json as _json
+        with open(path, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        uploads = (data.get("uploads") or [])[: max(1, min(int(limit), 100))]
+        compact = [{
+            'waktu': u.get('ts'), 'nama_file': u.get('file_name'),
+            'folder': u.get('folder'), 'pengirim': u.get('sender'),
+            'grup': u.get('group'), 'link': u.get('web_link'),
+        } for u in uploads]
+        return {"status": "success", "total": len(uploads),
+                "message": f"{len(uploads)} berkas WA terakhir di Drive.",
+                "uploads": compact}
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membaca log unggahan: {str(e)}"}
+
+
 def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode: str = "plan") -> Dict[str, Any]:
     """
     Conduct an Autonomous Conference / Meeting or Live Swarm Execution between multiple AI agents.
@@ -5613,6 +5669,8 @@ AVAILABLE_TOOLS = [
     manage_api_keys,
     manage_custom_agents,
     conduct_ai_meeting,
+    query_token_usage,
+    list_wa_drive_uploads,
     write_to_clipboard,
     show_desktop_notification,
     ssh_execute_command,

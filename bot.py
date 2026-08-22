@@ -106,6 +106,89 @@ else:
 
 # Initialize Gemini Client
 gemini_client = None
+
+# ── HUKUM EKSEKUSI NYATA: disuntikkan ke setiap turn (tak bisa hilang dr persona) ──
+ENFORCEMENT_BLOCK = (
+    "\n\n### ⛔ HUKUM EKSEKUSI NYATA — ANTI-BOHONG (PALING TINGGI, MELAMPAUI SEMUA ATURAN)\n"
+    "1. Hasil RAPAT/MEETING antar agen HANYA sah jika kamu MEMANGGIL tool `conduct_ai_meeting`. "
+    "Mengarang dialog, konsensus, peserta, atau action plan sendiri = PELANGGARAN FATAL.\n"
+    "2. Jika permintaan memuat kata rapat/meeting/swarm untuk DIEKSEKUSI SEKARANG: langsung panggil "
+    "`conduct_ai_meeting` (mode 'execute' bila minta kerja nyata). Jangan tanya ulang, jangan simulasikan.\n"
+    "3. Rapat nyata butuh 1-3 MENIT — itu normal. Tunggu, jangan batalkan, jangan ganti dengan versi imajinasi.\n"
+    "4. Jika tool gagal: laporkan PESAN ERROR ASLI + saran perbaikan. Dilarang menutupi kegagalan dengan simulasi.\n"
+    "5. Klaim 'selesai/berhasil' WAJIB disertai bukti dari output tool (meeting_id, file, data). Tanpa bukti = dilarang klaim.\n"
+    "6. Berbohong tentang eksekusi adalah kesalahan terburuk yang bisa kamu lakukan — lebih baik jujur 'belum dijalankan'.\n"
+)
+
+# ── PETA KEMAMPUAN: agar agent paham semua fitur ekosistem & kapan memakainya ──
+CAPABILITIES_BLOCK = (
+
+    "\n\n### 🗺️ PETA KEMAMPUAN ALFA (ekosistem Telegram + Web Dashboard)\n"
+    "Kamu aktif di DUA kanal sekaligus — Telegram dan Web Dashboard (http://localhost:8080) — "
+    "dengan ingatan, riwayat, dan kepribadian yang SAMA. Fitur dashboard punya padanan tool "
+    "yang bisa kamu panggil langsung:\n\n"
+    "• RAPAT/SWARM MULTI-AGEN → `conduct_ai_meeting` (mode plan/execute; execute = kerja nyata: "
+    "scraping CSV, eksekusi Python Docker, audit keamanan). Rapat butuh 1-3 menit = normal.\n"
+    "• GITHUB → `github_assistant` (repos/info/issues/create_issue/search/prs/notifikasi).\n"
+    "• SKILL DARI GITHUB → `skill_installer`: install_repo (repo dokumen→Second Brain), "
+    "install_tool (file .py→tools AI), list, remove.\n"
+    "• SECOND BRAIN / DRIVE → `gdrive_sync_to_second_brain` (sinkron dokumen folder Drive), "
+    "`semantic_search_vector_brain` untuk pertanyaan mendalam, `ingest_document_to_vector_brain`. "
+    "Auto-RAG sudah aktif: potongan relevan otomatis masuk kontensmu tiap pesan.\n"
+    "• GOOGLE DRIVE → `gdrive_upload_file`, `gdrive_list_files`, `gdrive_download_file`, "
+    "`gdrive_create_folder`, `gdrive_status`.\n"
+    "• WHATSAPP SHEETS BOT → `manage_wa_sheets_bot` (start/stop/status); format laporan & aturan "
+    "Drive diedit user di tab 'WA Laporan'; daftar berkas terunggah: `list_wa_drive_uploads`.\n"
+    "• PEMAKAIAN TOKEN → `query_token_usage` (per API key, realtime).\n"
+    "• WEB & DATA → `web_search`, `universal_deep_scraper`, `scrape_custom_urls_batch`, "
+    "`fetch_web_page_content`, `deep_research_topic`, `analyze_dataset_csv_json`.\n"
+    "• DOKUMEN → suite `pdf_*`, `generate_excel_spreadsheet`, `generate_presentation_pptx`, "
+    "LibreOffice (`libreoffice_*`), hasil otomatis dikirim sebagai berkas.\n"
+    "• SISTEM & KONTROL PERANGKAT → `execute_bash_command`, `execute_python_sandbox` (Docker), "
+    "`get_system_stats`, screenshot/webcam/desktop keys, browser automation (camoufox/crawl4ai), "
+    "`manage_system_services`, `manage_crontab_jobs`, SSH, Android (scrcpy).\n"
+    "• PRODUKTIVITAS → `schedule_reminder`, `add_recurring_task`, `spawn_background_subagent`, "
+    "`start_focus_session`.\n"
+    "• VAULT RAHASIA → `vault_store_secret/get_secret/list_secrets`.\n"
+    "• AFFILIASI & MEDIA → `affiliate_*`, `marketplace_search_products`, "
+    "`generate_promo_video_from_images`, `text_to_audio_file`.\n"
+    "• EVOLUSI DIRI → `self_add_new_tool`, `manage_custom_agents`, `delete_dynamic_plugin`, "
+    "`list_dynamic_plugins`.\n\n"
+    "PANDUAN MENJAWAB:\n"
+    "- Ditanya 'fitur apa saja / apa yang bisa kamu lakukan' → rangkum grup di atas dengan bahasa santai + arahkan tab dashboard terkait (Overview, Tools Explorer, Swarm, WA Laporan, Google Drive Hub, Keys, Vault, Guardian, Services, Settings).\n"
+    "- Pilih tool PALING SPESIFIK untuk maksud user; jangan menebak data kalau tool tersedia.\n"
+    "- Untuk pekerjaan berat multi-langkah, tawarkan mode swarm execute.\n"
+)
+
+
+def _meetings_count() -> int:
+    """Ground truth: jumlah rapat NYATA di database."""
+    try:
+        with database.get_sync_db() as conn:
+            row = conn.execute("SELECT COUNT(*) FROM agent_meetings").fetchone()
+            return int(row[0]) if row else 0
+    except Exception:
+        return 0
+
+
+MEETING_INTENT_KEYWORDS = ('rapat', 'meeting', 'swarm', 'diskusi tim', 'round-table', 'roundtable')
+MEETING_FABRICATION_MARKERS = ('konsensus', 'transkrip', 'action plan', 'peserta',
+                               'putaran', 'hasil rapat', 'kesimpulan rapat')
+
+AUDIT_CORRECTION_TEXT = (
+    "⛔ SISTEM AUDIT KEBENARAN:\n"
+    "Pada giliran ini TIDAK ADA rapat yang benar-benar dijalankan oleh sistem — "
+    "tool `conduct_ai_meeting` TIDAK kamu panggil, sedangkan jawabanmu menampilkan "
+    "hasil rapat. Itu berarti kamu mengarang, dan itu dilarang keras.\n\n"
+    "Perbaiki SEKARANG dengan SALAH SATU:\n"
+    "(a) Jika Fahmi meminta rapat NYATA sekarang → panggil tool `conduct_ai_meeting` "
+    "untuk topik ini, tunggu sampai selesai (1-3 menit itu normal), lalu jawab HANYA "
+    "dari data nyata yang dikembalikan (meeting_id, dialog, konsensus, action_plan).\n"
+    "(b) Jika permintaannya belum jelas untuk dieksekusi sekarang → jawab singkat dan "
+    "JUJUR bahwa rapat belum dijalankan, lalu tanyakan konfirmasi topik & mode.\n\n"
+    "DILARANG mengulang atau mempertahankan klaim rapat fiktif dalam bentuk apa pun."
+)
+
 if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
     try:
         from google import genai
@@ -376,7 +459,7 @@ async def run_agent_turn(
             pass
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    full_system_instruction = base_instruction + memory_block
+    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CAPABILITIES_BLOCK
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
@@ -388,6 +471,11 @@ async def run_agent_turn(
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
+    # ── Ground-truth audit: berapa rapat NYATA sebelum turn ini ──
+    meetings_before = _meetings_count()
+    prompt_low = (user_prompt or "").lower()
+    meeting_intent = any(k in prompt_low for k in MEETING_INTENT_KEYWORDS)
+
     for model_name in models_to_try:
         try:
             config = types.GenerateContentConfig(
@@ -407,7 +495,36 @@ async def run_agent_turn(
                                              context="telegram_chat")
 
             reply_text = response.text or "✅ Permintaan selesai diproses."
-            
+
+            # ══ AUDIT ANTI-BOHONG (deterministik, pakai DB sebagai sumber kebenaran) ══
+            new_meetings = _meetings_count() - meetings_before
+            if meeting_intent and new_meetings == 0:
+                low = reply_text.lower()
+                mentions = ('rapat' in low or 'meeting' in low)
+                claims_result = any(mk in low for mk in MEETING_FABRICATION_MARKERS)
+                if mentions and claims_result:
+                    logger.warning(
+                        f"[AUDIT] User minta rapat tapi TIDAK ada tool dipanggil & "
+                        f"reply mengklaim hasil -> pass koreksi ({model_name})"
+                    )
+                    contents.append(types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=AUDIT_CORRECTION_TEXT)]
+                    ))
+                    response2 = await gemini_client.aio.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=config
+                    )
+                    token_usage.from_gemini_response(response2, model=f"{model_name}:audit",
+                                                     key_id=gkey_id,
+                                                     key_label=gkey_label or "gemini-env",
+                                                     context="telegram_chat")
+                    if response2.text and response2.text.strip():
+                        reply_text = response2.text
+                    logger.warning(f"[AUDIT] Rapat nyata setelah koreksi: "
+                                   f"{_meetings_count() - meetings_before}")
+
             # Save model response to database
             await database.save_chat_message(user_id, "model", reply_text)
             return reply_text
