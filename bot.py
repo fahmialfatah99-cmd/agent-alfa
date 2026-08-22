@@ -172,6 +172,34 @@ def _meetings_count() -> int:
         return 0
 
 
+ARTIFACT_DIRS = [
+    os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
+    SANDBOX_DIR,
+]
+ARTIFACT_NOUNS = ('laporan', 'file', 'csv', 'excel', 'pdf', 'website', 'scrape',
+                  'grafik', 'chart', 'pptx', 'dokumen', 'landing')
+COMPLETION_VERBS = ('sudah', 'selesai', 'berhasil', 'telah dibuat', 'sudah dibuat',
+                    'aku buatkan')
+
+
+def _artifact_signature() -> list:
+    """Snapshot (path,size,mtime) berkas output - ground truth klaim artefak."""
+    sig = []
+    for d in ARTIFACT_DIRS:
+        try:
+            for root, _, files in os.walk(d):
+                for f in files:
+                    p = os.path.join(root, f)
+                    try:
+                        st = os.stat(p)
+                        sig.append((p, st.st_size, int(st.st_mtime)))
+                    except OSError:
+                        pass
+        except Exception:
+            pass
+    return sorted(sig)
+
+
 MEETING_INTENT_KEYWORDS = ('rapat', 'meeting', 'swarm', 'diskusi tim', 'round-table', 'roundtable')
 MEETING_FABRICATION_MARKERS = ('konsensus', 'transkrip', 'action plan', 'peserta',
                                'putaran', 'hasil rapat', 'kesimpulan rapat')
@@ -487,6 +515,7 @@ async def run_agent_turn(
     last_error = None
     # ── Ground-truth audit: berapa rapat NYATA sebelum turn ini ──
     meetings_before = _meetings_count()
+    art_before = _artifact_signature()
     prompt_low = (user_prompt or "").lower()
     meeting_intent = any(k in prompt_low for k in MEETING_INTENT_KEYWORDS)
 
@@ -548,34 +577,57 @@ async def run_agent_turn(
 
             reply_text = response.text or "✅ Permintaan selesai diproses."
 
-            # ══ AUDIT ANTI-BOHONG (deterministik, pakai DB sebagai sumber kebenaran) ══
+            # ══ AUDIT ANTI-BOHONG v2 (deterministik: database + filesystem) ══
             new_meetings = _meetings_count() - meetings_before
-            if meeting_intent and new_meetings == 0:
-                low = reply_text.lower()
-                mentions = ('rapat' in low or 'meeting' in low)
-                claims_result = any(mk in low for mk in MEETING_FABRICATION_MARKERS)
-                if mentions and claims_result:
-                    logger.warning(
-                        f"[AUDIT] User minta rapat tapi TIDAK ada tool dipanggil & "
-                        f"reply mengklaim hasil -> pass koreksi ({model_name})"
-                    )
-                    contents.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=AUDIT_CORRECTION_TEXT)]
-                    ))
-                    response2 = await gemini_client.aio.models.generate_content(
-                        model=model_name,
-                        contents=contents,
-                        config=config
-                    )
-                    token_usage.from_gemini_response(response2, model=f"{model_name}:audit",
-                                                     key_id=gkey_id,
-                                                     key_label=gkey_label or "gemini-env",
-                                                     context="telegram_chat")
-                    if response2.text and response2.text.strip():
-                        reply_text = response2.text
-                    logger.warning(f"[AUDIT] Rapat nyata setelah koreksi: "
-                                   f"{_meetings_count() - meetings_before}")
+            reply_low = reply_text.lower()
+
+            need_meeting_audit = (
+                meeting_intent and new_meetings == 0
+                and ('rapat' in reply_low or 'meeting' in reply_low)
+                and any(mk in reply_low for mk in MEETING_FABRICATION_MARKERS)
+            )
+            need_artifact_audit = (
+                any(n in prompt_low for n in ARTIFACT_NOUNS)
+                and _artifact_signature() == art_before
+                and new_meetings == 0
+                and any(v in reply_low for v in COMPLETION_VERBS)
+                and any(n in reply_low for n in ARTIFACT_NOUNS)
+            )
+
+            if need_meeting_audit or need_artifact_audit:
+                audit_kind = "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
+                logger.warning(f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})")
+                audit_parts = ["⛔ SISTEM AUDIT KEBENARAN:"]
+                if need_meeting_audit:
+                    audit_parts.append(
+                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil).")
+                if need_artifact_audit:
+                    audit_parts.append(
+                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai.")
+                audit_parts.append(
+                    "Perbaiki SEKARANG: panggil tool pembuatnya secara nyata "
+                    "(conduct_ai_meeting / execute_python_sandbox / generate_pdf_report / "
+                    "generate_excel_spreadsheet / universal_deep_scraper) ATAU jawab jujur "
+                    "bahwa belum dieksekusi. Dilarang klaim palsu."
+                )
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text="\n".join(audit_parts))]
+                ))
+                response2 = await gemini_client.aio.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=config
+                )
+                token_usage.from_gemini_response(response2, model=f"{model_name}:audit",
+                                                 key_id=gkey_id,
+                                                 key_label=gkey_label or "gemini-env",
+                                                 context="telegram_chat")
+                if response2.text and response2.text.strip():
+                    reply_text = response2.text
+                logger.warning(f"[AUDIT] Koreksi selesai ({audit_kind}); "
+                               f"rapat baru: {_meetings_count() - meetings_before}; "
+                               f"artefak berubah: {_artifact_signature() != art_before}")
 
             # Save model response to database
             await database.save_chat_message(user_id, "model", reply_text)

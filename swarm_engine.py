@@ -842,8 +842,18 @@ async def conduct_multi_agent_meeting(
             for _n, _t in subtask_map.items():
                 log_live("PLAN", f"🗂️ {_n}: {_t[:90]}")
 
+        ctx_lines: List[str] = []
         for idx, agent in enumerate(participants):
             task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+
+            # Konteks berantai: agen berikutnya mengetahui hasil agen sebelumnya,
+            # sehingga misi bertingkat (riset -> kode -> audit) benar2 menyambung.
+            if ctx_lines:
+                task_desc += (
+                    "\n\nKONTEKS HASIL AGEN SEBELUMNYA (gunakan bila relevan):\n- "
+                    + "\n- ".join(ctx_lines[-3:])
+                )
+
             log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
 
             step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
@@ -874,6 +884,9 @@ async def conduct_multi_agent_meeting(
             step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
             log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
             execution_steps.append(step_result)
+
+            brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
+            ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
     if not participants:
