@@ -1752,10 +1752,16 @@
                             <span id="mb-current-badge" class="ml-auto text-[10px] px-2 py-0.5 rounded font-bold bg-slate-600/20 text-slate-300 border border-white/10">MEMUAT...</span>
                         </h4>
                         <p class="text-[10px] text-slate-400 leading-relaxed">Pilih kunci yang tersambung sebagai otak utama. Berlaku <b>serentak</b> untuk agent Telegram &amp; chat Web, tanpa restart. Semua tools (130+) tetap berfungsi di provider mana pun.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                            <div class="space-y-1 md:col-span-2">
-                                <label class="text-[11px] font-mono text-slate-400">Kunci / Provider dari Vault:</label>
-                                <select id="cfg-main-brain" onchange="waMainBrainModelPrefill()" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-slate-400">1. Provider:</label>
+                                <select id="cfg-mb-provider" onchange="mbOnProviderChange()" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                                    <option value="">Memuat...</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1 md:col-span-1">
+                                <label class="text-[11px] font-mono text-slate-400">2. Kunci Vault:</label>
+                                <select id="cfg-main-brain" onchange="mbOnKeyChange(this.value)" class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
                                     <option value="">Memuat kunci vault...</option>
                                 </select>
                             </div>
@@ -1769,7 +1775,7 @@
                             </div>
                         </div>
                         <div class="space-y-1">
-                            <label class="text-[11px] font-mono text-slate-400">Model — daftar live dari provider kunci terpilih:</label>
+                            <label class="text-[11px] font-mono text-slate-400">3. Model (live dari provider):</label>
                             <select id="cfg-main-brain-model"
                                 onchange="void(0)"
                                 class="w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-violet-500">
@@ -3783,10 +3789,31 @@
         // ── Model dropdown live per kunci ──
         const _modelCache = {};
 
-        async function loadModelsForKey(keyId) {
+        const AG_STATIC_MODELS = [
+            'gemini-3.5-flash', 'gemini-3-flash', 'gemini-3.1-pro',
+            'gemini-2.5-pro', 'gemini-2.5-flash',
+            'claude-sonnet-4.6', 'claude-opus-4.6'
+        ];
+
+        function _populateModelsStatic(sel, models, current) {
+            sel.innerHTML = models.map(m =>
+                `<option value="${escAttr(m)}" ${m === current ? 'selected' : ''}>${escAttr(m)}</option>`
+            ).join('');
+        }
+
+        async function loadModelsForKey(keyId, providerHint) {
             const sel = document.getElementById('cfg-main-brain-model');
-            if (!sel || !keyId) return;
+            if (!sel) return;
             sel.innerHTML = '<option value="">Memuat daftar model...</option>';
+
+            // Antigravity tanpa akun login: sediakan daftar valid statik
+            if (String(keyId) && providerHint === 'antigravity') {
+                _populateModels(sel, keyId, AG_STATIC_MODELS, null);
+                sel.dataset.current = sel.value;
+                return;
+            }
+            if (!keyId) { sel.innerHTML = '<option value="">Pilih kunci dahulu</option>'; return; }
+
             if (_modelCache[keyId]) {
                 _populateModels(sel, keyId, _modelCache[keyId]);
                 return;
@@ -3798,7 +3825,7 @@
                     _modelCache[keyId] = data.models;
                     _populateModels(sel, keyId, data.models);
                 } else {
-                    sel.innerHTML = '<option value="">(provider tidak menyediakan daftar model)</option>';
+                    sel.innerHTML = '<option value="">(tidak ada model tersedia)</option>';
                 }
             } catch (e) {
                 sel.innerHTML = '<option value="">Gagal memuat model</option>';
@@ -3998,6 +4025,27 @@
             }
         }
 
+        function mbOnProviderChange() {
+            const prov = document.getElementById('cfg-mb-provider')?.value || '';
+            const keys = (dataSettingsCache?.vault_keys || []).filter(k => k.provider === prov);
+            const keySel = document.getElementById('cfg-main-brain');
+            if (!keySel) return;
+            if (keys.length === 0) {
+                keySel.innerHTML = '<option value="">Tidak ada kunci utk provider ini</option>';
+                return;
+            }
+            keySel.innerHTML = keys.map(k =>
+                `<option value="${k.id}">#${k.id} ${escAttr(k.name)}${k.is_active ? " ← AKTIF" : ""}</option>`
+            ).join('');
+            mbOnKeyChange(keySel.value);
+        }
+
+        function mbOnKeyChange(keyId) {
+            const k = (dataSettingsCache?.vault_keys || []).find(x => String(x.id) === String(keyId));
+            const prov = k ? k.provider : (document.getElementById('cfg-mb-provider')?.value || '');
+            loadModelsForKey(keyId, prov);
+        }
+
         async function saveMainBrain() {
             const sel = document.getElementById('cfg-main-brain');
             const modelInput = document.getElementById('cfg-main-brain-model');
@@ -4043,24 +4091,38 @@
                             : `<span class="text-rose-400 font-mono">❌ Belum dikonfigurasi</span>`;
                     }
 
-                    // Main Brain picker
+                    // Main Brain picker (cascade: Provider -> Kunci -> Model)
+                    const mbProv = document.getElementById('cfg-mb-provider');
                     const mbSel = document.getElementById('cfg-main-brain');
                     const mbModel = document.getElementById('cfg-main-brain-model');
                     const mbBadge = document.getElementById('mb-current-badge');
                     if (data.main_brain && mbSel) {
                         const keys = data.vault_keys || [];
-                        if (keys.length === 0) {
-                            mbSel.innerHTML = '<option value="">Belum ada kunci di Vault</option>';
+
+                        // 1) Provider unik dari kunci vault
+                        const provs = [...new Set(keys.map(k => k.provider))];
+                        if (mbProv) {
+                            mbProv.innerHTML = provs.map(p =>
+                                `<option value="${p}">${p.toUpperCase()}</option>`).join('');
+                            mbProv.value = data.main_brain.provider || provs[0] || '';
+                        }
+
+                        // 2) Kunci milik provider terpilih
+                        const pKeys = keys.filter(k => k.provider === (mbProv?.value || ''));
+                        if (pKeys.length === 0) {
+                            mbSel.innerHTML = '<option value="">Tidak ada kunci utk provider ini</option>';
                         } else {
-                            mbSel.innerHTML = keys.map(k => {
+                            mbSel.innerHTML = pKeys.map(k => {
                                 const cur = data.main_brain.key_id === k.id ? ' ← OTAK UTAMA' : '';
                                 return `<option value="${k.id}" ${data.main_brain.key_id === k.id ? 'selected' : ''}>` +
-                                    `#${k.id} ${escAttr(k.name)} · ${k.provider}${cur}</option>`;
+                                    `#${k.id} ${escAttr(k.name)}${cur}</option>`;
                             }).join('');
                         }
+
+                        // 3) Model live utk kunci otak; fallback statik antigravity
                         if (mbModel) {
                             mbModel.dataset.current = data.main_brain.model || '';
-                            loadModelsForKey(data.main_brain.key_id);
+                            loadModelsForKey(data.main_brain.key_id, data.main_brain.provider);
                         }
                         if (mbBadge) {
                             const p = data.main_brain.provider || '?';
