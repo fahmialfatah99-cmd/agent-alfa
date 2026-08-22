@@ -2631,6 +2631,7 @@
                                 <option value="openai">OpenAI (GPT-4o, o1, o3-mini)</option>
                                 <option value="anthropic">Anthropic (Claude 3.5)</option>
                                 <option value="ollama">Local Ollama / Custom API</option>
+                                <option value="custom">⚡ Custom / OpenAI-Compatible (Base URL bebas)</option>
                             </select>
                         </div>
                         <div>
@@ -7028,6 +7029,11 @@
                 baseInput.value = 'http://localhost:20128/v1';
             } else if (prov === 'anthropic') {
                 baseInput.value = '';
+            } else if (prov === 'custom') {
+                // Provider apa pun yang OpenAI-compatible: isi Base URL-nya sendiri
+                baseInput.value = '';
+                baseInput.placeholder = 'https://api.oxalpha.com/v1 (Base URL provider Anda)';
+                baseInput.focus();
             } else if (prov === 'ollama') {
                 baseInput.value = 'http://localhost:11434/v1';
             }

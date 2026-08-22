@@ -839,7 +839,8 @@ def add_api_key_sync(name: str, provider: str, api_key: str, default_model: str,
 
 
 def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
-    """Set an API key as active."""
+    """Set an API key as active. The MOST RECENTLY activated key across any
+    provider automatically becomes the MAIN BRAIN for the Telegram/Web agent."""
     with get_sync_db() as conn:
         cursor = conn.execute("SELECT provider FROM api_keys WHERE id = ?", (key_id,))
         row = cursor.fetchone()
@@ -848,8 +849,30 @@ def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
         prov = row["provider"]
         conn.execute("UPDATE api_keys SET is_active = 0 WHERE provider = ?", (prov,))
         conn.execute("UPDATE api_keys SET is_active = 1 WHERE id = ?", (key_id,))
+        # Mark this key as the main brain (works cross-provider)
+        conn.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
+            (str(key_id),)
+        )
         conn.commit()
-    return {"status": "success", "message": f"API key #{key_id} activated"}
+    return {"status": "success", "message": f"API key #{key_id} activated & ditetapkan sebagai otak utama"}
+
+
+def get_main_brain_key_id() -> Optional[int]:
+    """Return key id marked as main brain, if still valid."""
+    try:
+        with get_sync_db() as conn:
+            row = conn.execute(
+                """
+                SELECT k.id FROM system_settings s
+                JOIN api_keys k ON k.id = CAST(s.value AS INTEGER) AND k.is_active = 1
+                WHERE s.key = 'main_brain_key_id'
+                LIMIT 1
+                """
+            ).fetchone()
+            return int(row[0]) if row else None
+    except Exception:
+        return None
 
 
 def delete_api_key_sync(key_id: int) -> Dict[str, Any]:

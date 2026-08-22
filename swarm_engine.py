@@ -25,6 +25,14 @@ from google.genai import types
 
 logger = logging.getLogger(__name__)
 
+# Provider bawaan yang URL-nya sudah dipetakan otomatis. Provider di luar daftar
+# ini (misal 'custom'/'tokenra'/'oxalpha') tetap didukung selama kuncinya punya
+# Base URL OpenAI-compatible di vault.
+KNOWN_OPENAI_PROVIDERS = {
+    "openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim",
+    "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope",
+}
+
 SWARM_OUTPUT_DIR = "/home/fahmial/Dokumen/ALFA_SWARM_OUTPUTS"
 os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
@@ -269,7 +277,14 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_label=key_label,
             context="swarm",
         )
-    elif provider in ["openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
+    else:
+        # Semua provider non-gemini dicoba sebagai OpenAI-compatible
+        # (termasuk 'custom' dgn Base URL bebas: Tokenra, Ox Alpha, dll).
+        if not base_url and provider not in KNOWN_OPENAI_PROVIDERS:
+            logger.warning(
+                f"Provider '{provider}' tanpa base_url untuk '{agent_name}' - "
+                "fallback ke Gemini."
+            )
         result = await _generate_with_openai_compat(
             agent_name=agent_name,
             provider=provider,
@@ -294,8 +309,6 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                 key_label="gemini-fallback",
                 context="swarm",
             )
-    else:
-        return await generate_agent_response({**agent, "provider": "gemini"}, prompt, system_instruction)
 
     if result is None:
         return f"[Error: Semua provider gagal untuk '{agent_name}' (primary: {provider})]"

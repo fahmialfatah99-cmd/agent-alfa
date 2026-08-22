@@ -47,6 +47,7 @@ from telegram.ext import (
 
 # Local modules
 import database
+import main_brain
 import tools
 import token_usage
 from tools import (
@@ -358,15 +359,22 @@ async def run_agent_turn(
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
     Propagates contextvars for per-user tool isolation.
+    Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault.
     """
     global gemini_client
-    gemini_client, gkey_id, gkey_label = resolve_main_gemini()
-    if not gemini_client:
-        return (
-            "⚠️ **API key Gemini belum tersedia.**\n"
-            "Isi `GEMINI_API_KEY` di `.env`, atau tambahkan & aktivasi kunci Gemini di "
-            "Dashboard > API Key Vault (kunci aktif di vault otomatis dipakai di sini)."
-        )
+    import main_brain
+
+    brain = main_brain.get_main_brain()
+    if brain["provider"] == "gemini":
+        gemini_client, gkey_id, gkey_label = resolve_main_gemini()
+        if not gemini_client:
+            return (
+                "⚠️ **API key belum tersedia.**\n"
+                "Aktivasi kunci (Gemini/OpenRouter/custom) di Dashboard > API Key Vault — "
+                "kunci yang terakhir diaktifkan menjadi otak utama agent."
+            )
+    else:
+        gemini_client, gkey_id, gkey_label = None, None, ""
 
     # Set context variables for tools
     current_user_id_var.set(user_id)
@@ -475,6 +483,44 @@ async def run_agent_turn(
     meetings_before = _meetings_count()
     prompt_low = (user_prompt or "").lower()
     meeting_intent = any(k in prompt_low for k in MEETING_INTENT_KEYWORDS)
+
+    # ══ OTAK UTAMA LINTAS PROVIDER (OpenRouter/Ox Alpha/Custom/NVIDIA dll) ══
+    if brain["provider"] != "gemini":
+        compat_text = user_prompt or ""
+        if multimodal_parts:
+            compat_text = (compat_text + "\n[Lampiran media tidak didukung provider otak utama saat ini]").strip()
+        history_msgs = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+        reply_text = await main_brain.run_openai_agentic_turn(
+            provider=brain["provider"],
+            base_url=brain["base_url"],
+            api_key=brain["api_key"],
+            model=brain["model"] or preferred_model,
+            system_instruction=full_system_instruction,
+            user_text=compat_text,
+            history=history_msgs,
+            key_id=brain["key_id"],
+            key_label=brain["label"],
+        )
+        new_meetings = _meetings_count() - meetings_before
+        if meeting_intent and new_meetings == 0 and reply_text:
+            low = reply_text.lower()
+            if ('rapat' in low or 'meeting' in low) and \
+               any(mk in low for mk in MEETING_FABRICATION_MARKERS):
+                logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
+                corrected = await main_brain.run_openai_agentic_turn(
+                    provider=brain["provider"], base_url=brain["base_url"],
+                    api_key=brain["api_key"],
+                    model=brain["model"] or preferred_model,
+                    system_instruction=full_system_instruction,
+                    user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
+                    history=history_msgs, key_id=brain["key_id"],
+                    key_label=brain["label"])
+                if corrected:
+                    reply_text = corrected
+        if reply_text:
+            await database.save_chat_message(user_id, "model", reply_text)
+            return reply_text
+        logger.warning(f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini")
 
     for model_name in models_to_try:
         try:
