@@ -762,6 +762,67 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
     return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
                            "key_id": brain["key_id"], "label": brain["label"]}}
 
+@app.post("/api/main-brain/test")
+async def test_main_brain_combo(payload: Dict[str, Any]):
+    """Tes koneksi kombinasi kunci + model sebelum diterapkan."""
+    import httpx as _hx
+    import main_brain as _mb
+    try:
+        key_id = int(payload.get("key_id", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="key_id wajib angka")
+    model = str(payload.get("model", "")).strip()
+    row = None
+    with database.get_sync_db() as conn:
+        r = conn.execute(
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id=?",
+            (key_id,)).fetchone()
+        row = dict(r) if r else None
+    if not row:
+        return {"status": "error", "message": "Key tidak ditemukan"}
+
+    provider = (row["provider"] or "").lower()
+    t0 = time.time()
+    try:
+        if provider == "gemini":
+            from google import genai as _genai
+            from google.genai import types as _types
+            client = _genai.Client(api_key=row["api_key"])
+            resp = await client.aio.models.generate_content(
+                model=model or "gemini-3.5-flash-lite",
+                contents="Balas satu kata: SIAP",
+                config=_types.GenerateContentConfig(max_output_tokens=100))
+            text = (resp.text or "").strip()
+            ok = bool(text)
+            snippet = text[:80]
+        else:
+            base = (row["base_url"] or "").rstrip("/")
+            async with _hx.AsyncClient(timeout=_hx.Timeout(60.0, connect=10.0)) as cli:
+                r2 = await cli.post(f"{base}/chat/completions",
+                    headers={"Authorization": f"Bearer {row['api_key']}",
+                             "Content-Type": "application/json"},
+                    json={"model": model, "messages":
+                          [{"role":"user","content":"Balas satu kata: SIAP"}],
+                          "max_tokens": 50})
+            ok = r2.status_code == 200
+            if ok:
+                snippet = (r2.json().get("choices",[{}])[0].get("message",{})
+                           .get("content","") or "")[:80]
+            else:
+                snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
+        ms = round((time.time()-t0)*1000)
+        return {"status": "success" if ok else "error", "latency_ms": ms,
+                "snippet": snippet,
+                "message": ("Koneksi OK" if ok else f"Gagal: {snippet}")}
+    except Exception as e:
+        return {"status": "error",
+                "message": f"Error: {str(e)[:200]}"}
+
+
+import datetime as _dt_mod
+
+@app.post("/api/settings/main-brain")
+
 
 @app.post("/api/settings/main-brain")
 async def set_main_brain_endpoint(payload: Dict[str, Any]):
@@ -784,19 +845,19 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
                 "SELECT provider, default_model FROM api_keys WHERE id = ?",
                 (key_id,)).fetchone()
             key_row = dict(kr) if kr else None
+        # Sinkron HANYA Alpha Lead (kembaran persona agent Telegram).
+        # Agen lain punya jalur spesialis masing-masing & tidak disentuh.
         if key_row:
-            synced = []
             for a in database.list_custom_agents_sync():
-                if a.get("is_enabled", 1):
+                if a["name"] == "Alpha Lead":
                     database.update_custom_agent_sync(a["id"], {
                         "provider": key_row["provider"],
                         "model": model_override or key_row["default_model"],
                         "api_key_id": key_id,
                     })
-                    synced.append(a["name"])
-            if synced:
-                res["message"] += f" {len(synced)} agen swarm ikut tersinkron."
-                res["synced_agents"] = synced
+                    res["synced_agents"] = ["Alpha Lead"]
+                    res["message"] += " Alpha Lead ikut tersinkron."
+                    break
 
         import main_brain as _mb
         brain = _mb.get_main_brain()

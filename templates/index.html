@@ -1759,9 +1759,14 @@
                                     <option value="">Memuat kunci vault...</option>
                                 </select>
                             </div>
-                            <button onclick="saveMainBrain()" id="btn-save-main-brain" class="py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
-                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Terapkan Otak
-                            </button>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="testMainBrainCombo()" id="btn-test-main-brain" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-bold text-xs transition-all flex items-center justify-center gap-1.5" title="Cek koneksi kombinasi ini">
+                                    <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i> Tes
+                                </button>
+                                <button onclick="saveMainBrain()" id="btn-save-main-brain" class="py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
+                                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> Terapkan Otak
+                                </button>
+                            </div>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[11px] font-mono text-slate-400">Model — daftar live dari provider kunci terpilih:</label>
@@ -3958,6 +3963,36 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i data-lucide="check-check" class="w-3.5 h-3.5"></i> Simpan & Terapkan ke Semua Agent';
+                lucide.createIcons();
+            }
+        }
+
+        async function testMainBrainCombo() {
+            const sel = document.getElementById('cfg-main-brain');
+            const msel = document.getElementById('cfg-main-brain-model');
+            const btn = document.getElementById('btn-test-main-brain');
+            if (!sel?.value) { showToast('Pilih kunci dulu.', 'warning'); return; }
+            btn.disabled = true;
+            const oldTxt = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i>';
+            lucide.createIcons();
+            try {
+                const res = await fetch('/api/main-brain/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key_id: Number(sel.value), model: msel?.value || '' })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`✅ Koneksi OK (${data.latency_ms}ms): ${data.snippet}`, 'success');
+                } else {
+                    showToast('❌ ' + (data.message || 'gagal'), 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="plug-zap" class="w-3.5 h-3.5"></i> Tes';
                 lucide.createIcons();
             }
         }
