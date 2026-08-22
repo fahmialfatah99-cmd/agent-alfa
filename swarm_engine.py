@@ -11,6 +11,8 @@ import logging
 import asyncio
 import re
 import shutil
+import itertools
+import collections
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -35,6 +37,58 @@ KNOWN_OPENAI_PROVIDERS = {
 
 SWARM_OUTPUT_DIR = "/home/fahmial/Dokumen/ALFA_SWARM_OUTPUTS"
 os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
+
+# ── LIVE TERMINAL FEED ───────────────────────────────────────────────────────
+# Sumber kebenaran: file JSONL agar lintas-proses (rapat dari Telegram maupun
+# dashboard sama-sama terlihat di Live Terminal web).
+LIVE_FEED_FILE = os.path.join(SWARM_OUTPUT_DIR, "live_meeting_feed.jsonl")
+LIVE_LOG: "collections.deque" = collections.deque(maxlen=400)
+MEETING_RUNNING = False
+
+
+def _load_last_seq() -> int:
+    try:
+        with open(LIVE_FEED_FILE, "r", encoding="utf-8") as f:
+            lines = f.read().strip().splitlines()
+        if lines:
+            return int(json.loads(lines[-1]).get("i", 0))
+    except Exception:
+        pass
+    return 0
+
+
+_live_seq = itertools.count(_load_last_seq() + 1)
+
+
+def _append_feed_file(entry: Dict[str, Any]):
+    """Append satu baris JSONL; rotasi sederhana bila >300KB."""
+    try:
+        if os.path.exists(LIVE_FEED_FILE) and os.path.getsize(LIVE_FEED_FILE) > 300_000:
+            with open(LIVE_FEED_FILE, "r", encoding="utf-8") as f:
+                lines = f.readlines()[-150:]
+            tmp = LIVE_FEED_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+            os.replace(tmp, LIVE_FEED_FILE)
+        with open(LIVE_FEED_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def log_live(tag: str, text: str):
+    """Append one realtime line for the dashboard live terminal. Fail-safe."""
+    try:
+        entry = {
+            "i": next(_live_seq),
+            "ts": datetime.now().strftime("%H:%M:%S"),
+            "tag": tag.upper(),
+            "text": str(text)[:400],
+        }
+        LIVE_LOG.append(entry)
+        _append_feed_file(entry)
+    except Exception:
+        pass
 
 
 def detect_task_intent(topic: str) -> Dict[str, Any]:
@@ -134,6 +188,7 @@ async def _generate_with_gemini(
     key_id=None,
     key_label: str = "",
     context: str = "swarm",
+    max_tokens: int = 500,
 ) -> Optional[str]:
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
@@ -157,7 +212,7 @@ async def _generate_with_gemini(
                 config=types.GenerateContentConfig(
                     system_instruction=final_instruction,
                     temperature=0.7,
-                    max_output_tokens=500,
+                    max_output_tokens=max_tokens,
                 )
             )
             if response and response.text:
@@ -184,6 +239,7 @@ async def _generate_with_openai_compat(
     key_id=None,
     key_label: str = "",
     context: str = "swarm",
+    max_tokens: int = 500,
 ) -> Optional[str]:
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
@@ -226,7 +282,7 @@ async def _generate_with_openai_compat(
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.7,
-            "max_tokens": 500
+            "max_tokens": max_tokens
         }
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as http_client:
@@ -237,7 +293,15 @@ async def _generate_with_openai_compat(
                                              key_id=key_id,
                                              key_label=key_label or f"agent:{agent_name}",
                                              context=context)
-                return data["choices"][0]["message"]["content"].strip()
+                msg0 = (data.get("choices") or [{}])[0].get("message") or {}
+                content = (msg0.get("content") or "").strip()
+                if not content:
+                    content = (msg0.get("reasoning_content")
+                               or msg0.get("reasoning") or "").strip()
+                    logger.warning(f"[{provider}] content kosong, fallback reasoning ({len(content)} char)")
+                if content:
+                    return content
+                return None
             err_detail = res.text[:200] or "(empty body)"
             logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
             return None
@@ -246,7 +310,8 @@ async def _generate_with_openai_compat(
         return None
 
 
-async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str) -> str:
+async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str,
+                                  max_tokens: Optional[int] = None) -> str:
     """Generate response for a specific agent using its configured provider and key.
 
     If the agent's primary provider fails (timeout, bad key, quota, etc.), it
@@ -276,6 +341,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_id=key_id,
             key_label=key_label,
             context="swarm",
+            max_tokens=max_tokens or 500,
         )
     else:
         # Semua provider non-gemini dicoba sebagai OpenAI-compatible
@@ -296,6 +362,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_id=key_id,
             key_label=key_label,
             context="swarm",
+            max_tokens=max_tokens or 500,
         )
         if result is None and os.getenv("GEMINI_API_KEY"):
             logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
@@ -446,59 +513,117 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
 
     # 2. SPECIALIST: CODE CRAFTER (Real Python Automation & Sandbox Execution)
     elif "Code" in agent_name or "Engineer" in role or "Architect" in role:
-        tool_name = "execute_python_sandbox"
+        # ── WEB BUILDER: bangun website nyata dalam satu file ──
+        is_web_build = any(k in (task_instruction + " " + topic).lower()
+                           for k in ("website", "web ", "landing page", "html",
+                                     "halaman web", "web app", "dashboard web"))
 
-        base_coding_prompt = (
-            f"=== PERINTAH CODING NYATA SWARM ===\n"
-            f"Topik / Tugas: {topic}\n"
-            f"Tugas kamu: Tulis skrip Python fungsional lengkap yang memproses data/tugas ini secara otomatis.\n"
-            f"WAJIB sertakan blok kode ```python ... ``` yang bisa langsung dieksekusi."
-        )
-
-        code_to_run = ""
-        last_code_err = ""
-        for attempt in range(2):
-            attempt_prompt = base_coding_prompt
-            if last_code_err:
-                attempt_prompt += (
-                    f"\n\nPERCOBAAN SEBELUMNYA DITOLAK: {last_code_err}\n"
-                    f"Tulis ulang skrip yang BENAR dan LENGKAP."
-                )
-            generated_content = await generate_agent_response(
-                agent, attempt_prompt,
-                "Kamu adalah Chief Code Architect. Tulis kode Python yang bersih, tangguh, dan fungsional. "
-                "Skrip harus punya logika nyata (bukan placeholder) dan mencetak hasilnya dengan print()."
-            )
-            py_match = re.search(r"```python\s*(.*?)\s*```", generated_content, re.DOTALL)
-            code_to_run = py_match.group(1).strip() if py_match else ""
-            last_code_err = validate_python_code(code_to_run)
-            if not last_code_err:
-                break
-
-        if code_to_run and not last_code_err:
-            # Save real python file
-            fname = f"swarm_solution_{int(time.time())}.py"
-            fpath = os.path.join(SWARM_OUTPUT_DIR, fname)
-            try:
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(code_to_run)
-                deliverable_file = fpath
-            except Exception as e:
-                logger.error(f"Failed to write script: {e}")
-
-            # Execute in sandbox
-            exec_res = tools.execute_python_sandbox(code_to_run)
-            status = exec_res.get("status", "error")
-            tool_output = (
-                f"Skrip Tersimpan: {deliverable_file}\n"
-                f"Status Eksekusi Sandbox: {exec_res.get('status')}\n"
-                f"Stdout:\n{exec_res.get('stdout', 'Selesai tanpa error')[:250]}"
-                + (f"\nStderr:\n{exec_res.get('stderr', '')[:200]}" if exec_res.get("stderr") else "")
-            )
-        else:
+        if is_web_build:
+            tool_name = "build_web_page"
             status = "error"
-            tool_output = f"Kode tidak lolos validasi setelah 2 percobaan: {last_code_err or 'LLM tidak menghasilkan blok ```python```'}"
-            generated_content = f"Gagal menyusun skrip yang valid untuk tugas ini ({last_code_err or 'tidak ada blok kode'}). Perlu instruksi lebih spesifik."
+
+            web_prompt = (
+                f"=== PERINTAH WEB BUILDER NYATA SWARM ===\n"
+                f"Brief klien: {task_instruction}\n"
+                f"Konteks topik: {topic[:200]}\n\n"
+                f"Tugas: Bangun WEBSITE LENGKAP dalam SATU file index.html "
+                f"(HTML5 + CSS inline di <style> + JS di <script>, responsif, tema dark modern).\n"
+                f"WAJIB blok ```html ... ``` berisi dokumen utuh mulai <!DOCTYPE html>."
+            )
+            generated_content = await generate_agent_response(
+                agent, web_prompt,
+                "Kamu adalah Senior Web Engineer. Hasilkan website production-quality "
+                "dalam SATU file HTML utuh yang langsung bisa dibuka di browser.",
+                max_tokens=4096,
+            )
+
+            html_match = re.search(r"```html\s*(.*?)\s*```", generated_content, re.DOTALL)
+            page = (html_match.group(1) if html_match else generated_content).strip()
+            low = page.lower()
+            valid_doc = ("<html" in low or "<!doctype" in low) and "</body>" in low
+            if not valid_doc or len(page) < 400:
+                status = "error"
+                tool_output = (
+                    f"Website ditolak validasi: dokumen tidak utuh "
+                    f"(panjang {len(page)} char). Coba instruksi lebih spesifik."
+                )
+                generated_content = (
+                    "Gagal membangun website yang valid untuk brief ini. "
+                    "Butuh brief lebih detail dari pengguna."
+                )
+            else:
+                slug = re.sub(r"[^a-z0-9]+", "_", topic.lower())[:30].strip("_") or "site"
+                site_dir = os.path.join(SWARM_OUTPUT_DIR, "websites",
+                                        slug + "_" + str(int(time.time())))
+                os.makedirs(site_dir, exist_ok=True)
+                fpath = os.path.join(site_dir, "index.html")
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(page)
+                deliverable_file = fpath
+                status = "success"
+                tool_output = (
+                    f"Website tersimpan: {fpath} ({len(page)//1024} KB)\n"
+                    f"Struktur valid: doctype+html+body OK - buka langsung di browser."
+                )
+                generated_content = (
+                    f"Website '{topic[:50]}' selesai dibangun ({len(page)//1024} KB), "
+                    f"tersimpan di {fpath}. Buka index.html di browser untuk preview."
+                )
+
+        else:
+
+            base_coding_prompt = (
+                f"=== PERINTAH CODING NYATA SWARM ===\n"
+                f"Topik / Tugas: {topic}\n"
+                f"Tugas kamu: Tulis skrip Python fungsional lengkap yang memproses data/tugas ini secara otomatis.\n"
+                f"WAJIB sertakan blok kode ```python ... ``` yang bisa langsung dieksekusi."
+            )
+
+            code_to_run = ""
+            last_code_err = ""
+            for attempt in range(2):
+                attempt_prompt = base_coding_prompt
+                if last_code_err:
+                    attempt_prompt += (
+                        f"\n\nPERCOBAAN SEBELUMNYA DITOLAK: {last_code_err}\n"
+                        f"Tulis ulang skrip yang BENAR dan LENGKAP."
+                    )
+                generated_content = await generate_agent_response(
+                    agent, attempt_prompt,
+                    "Kamu adalah Chief Code Architect. Tulis kode Python yang bersih, tangguh, dan fungsional. "
+                    "Skrip harus punya logika nyata (bukan placeholder) dan mencetak hasilnya dengan print()."
+                )
+                py_match = re.search(r"```python\s*(.*?)\s*```", generated_content, re.DOTALL)
+                code_to_run = py_match.group(1).strip() if py_match else ""
+                last_code_err = validate_python_code(code_to_run)
+                if not last_code_err:
+                    break
+
+            if code_to_run and not last_code_err:
+                # Save real python file
+                fname = f"swarm_solution_{int(time.time())}.py"
+                fpath = os.path.join(SWARM_OUTPUT_DIR, fname)
+                try:
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(code_to_run)
+                    deliverable_file = fpath
+                except Exception as e:
+                    logger.error(f"Failed to write script: {e}")
+
+                # Execute in sandbox
+                exec_res = tools.execute_python_sandbox(code_to_run)
+                status = exec_res.get("status", "error")
+                tool_output = (
+                    f"Skrip Tersimpan: {deliverable_file}\n"
+                    f"Status Eksekusi Sandbox: {exec_res.get('status')}\n"
+                    f"Stdout:\n{exec_res.get('stdout', 'Selesai tanpa error')[:250]}"
+                    + (f"\nStderr:\n{exec_res.get('stderr', '')[:200]}" if exec_res.get("stderr") else "")
+                )
+            else:
+                status = "error"
+                tool_output = f"Kode tidak lolos validasi setelah 2 percobaan: {last_code_err or 'LLM tidak menghasilkan blok ```python```'}"
+                generated_content = f"Gagal menyusun skrip yang valid untuk tugas ini ({last_code_err or 'tidak ada blok kode'}). Perlu instruksi lebih spesifik."
+
 
     # 3. SPECIALIST: CYBER SENTRY / AUDITOR (Real System Security & Resource Audit)
     elif "Sentry" in agent_name or "Security" in role or "Auditor" in role:
@@ -607,6 +732,9 @@ async def conduct_multi_agent_meeting(
     meeting_title = f"{meeting_type_label}: {topic[:60]}"
 
     logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents.")
+    global MEETING_RUNNING
+    MEETING_RUNNING = True
+    log_live("SESSION", f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)")
 
     # --- PHASE 1: Dialogue & Alignment ---
     actual_rounds = 1 if mode in ["execute", "plan_and_execute"] else rounds
@@ -659,6 +787,7 @@ async def conduct_multi_agent_meeting(
             }
             dialogue_transcript.append(entry)
             history_summary.append(f"[{agent['name']} - {agent['role']}]:\n{response_text}\n")
+            log_live("DIALOG", f"💬 {entry['agent_name']}: {response_text[:140]}")
 
     # --- PHASE 2: Live Autonomous Swarm Execution (Real Tools & Real Data) ---
     if mode in ["execute", "plan_and_execute"]:
@@ -669,11 +798,16 @@ async def conduct_multi_agent_meeting(
         subtask_map = await _decompose_task(topic, participants)
         if subtask_map:
             logger.info("Task decomposition OK: %s", list(subtask_map.keys()))
+            for _n, _t in subtask_map.items():
+                log_live("PLAN", f"🗂️ {_n}: {_t[:90]}")
 
         for idx, agent in enumerate(participants):
             task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
 
             step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
+            if step_result.get("deliverable_file"):
+                log_live("FILE", f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}")
 
             # Verification loop: a strict QA judge checks for real evidence;
             # failed steps get ONE retry with corrective feedback. Pure-text
@@ -697,6 +831,7 @@ async def conduct_multi_agent_meeting(
                 passed, feedback = await _verify_step_result(retry_desc, step_result)
 
             step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
+            log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
             execution_steps.append(step_result)
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
@@ -706,6 +841,8 @@ async def conduct_multi_agent_meeting(
             "Tambahkan minimal satu agen terlebih dahulu (Dashboard > AI Workforce) sebelum menjalankan rapat swarm."
         )
         logger.error(error_msg)
+        MEETING_RUNNING = False
+        log_live("ERROR", "Sesi dibatalkan: tidak ada agen terdaftar.")
         return {
             "status": "error",
             "error": error_msg,
@@ -775,6 +912,8 @@ async def conduct_multi_agent_meeting(
         execution_results=execution_steps,
         status="completed"
     )
+    MEETING_RUNNING = False
+    log_live("DONE", f"🏁 Rapat selesai & tersimpan sebagai Meeting #{saved.get('id')}")
 
     return {
         "status": "success",
