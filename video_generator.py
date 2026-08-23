@@ -11,9 +11,11 @@ import math
 import time
 import json
 import shutil
+import base64
 import logging
 import textwrap
 import urllib.request
+import urllib.error
 import subprocess
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -304,6 +306,192 @@ def create_ui_overlay_layer(
 #  MULTI-ENGINE VIDEO RENDERING (LOCAL PRO COMPOSITOR + CLOUD AI API READY)
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Model Google Veo yang tersedia via Gemini API (predictLongRunning).
+# Terverifikasi tersedia pada akun user via ListModels.
+VEO_MODEL_MAP = {
+    "google_veo": "veo-3.1-generate-preview",
+    "google_veo_fast": "veo-3.1-fast-generate-preview",
+    "google_veo_lite": "veo-3.1-lite-generate-preview",
+}
+
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def _veo_api_request(url: str, payload: Optional[Dict[str, Any]] = None,
+                     api_key: str = "", method: str = "GET") -> Dict[str, Any]:
+    """Helper request JSON ke Gemini API dgn auth header x-goog-api-key."""
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+            msg = json.loads(body).get("error", {}).get("message", body)
+        except Exception:
+            msg = str(e)
+        if "RESOURCE_EXHAUSTED" in body or e.code == 429:
+            msg = ("Kuota Veo habis utk periode ini. Cek limit di https://ai.dev/rate-limit "
+                   "dan coba lagi setelah reset kuota.")
+        elif not api_key or e.code == 403:
+            msg = f"Akses ditolak ({e.code}). Pastikan Gemini API Key valid & Veo aktif di akun Anda."
+        raise RuntimeError(msg)
+
+
+def _generate_google_veo_video(
+    engine: str,
+    api_key: str,
+    image_paths: List[str],
+    product_name: str,
+    visual_prompt: str,
+    voiceover_text: str,
+    orig_price: str,
+    disc_price: str,
+    voice: str,
+    theme: str = "viral_tiktok",
+    badge_text: str = "",
+    call_to_action: str = "",
+    output_filename: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generate video AI dgn Google Veo 3.1 (Gemini API predictLongRunning),
+    lalu komposit ulang: overlay UI promo + dubbing voiceover Indonesia.
+    """
+    start_t = time.time()
+    model = VEO_MODEL_MAP.get(engine, VEO_MODEL_MAP["google_veo"])
+    logger.info(f"Dispatching Google Veo request: model={model}")
+
+    ts = int(time.time() * 1000)
+
+    # 1. Gambar referensi pertama (opsional tapi disarankan utk konsistensi produk)
+    instance: Dict[str, Any] = {}
+    for p in image_paths:
+        exp = os.path.expanduser(p.strip())
+        if os.path.exists(exp):
+            try:
+                with open(exp, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("ascii")
+                mime = "image/png" if exp.lower().endswith(".png") else "image/jpeg"
+                instance["image"] = {"bytesBase64Encoded": b64, "mimeType": mime}
+            except Exception as e:
+                logger.warning(f"Gagal membaca gambar referensi {exp}: {e}")
+            break
+
+    # 2. Prompt sinematik utk Veo
+    prompt = (visual_prompt or "").strip() or (
+        f"Cinematic 8K commercial studio video showcasing '{product_name}'. "
+        f"Dramatic studio lighting, slow elegant camera push-in, premium product "
+        f"photography style, shallow depth of field, vertical 9:16 composition.")
+    instance["prompt"] = prompt
+
+    body = {
+        "instances": [instance],
+        "parameters": {
+            "aspectRatio": "9:16",
+        },
+    }
+
+    # 3. Submit operasi generasi (asynchronous)
+    submit_url = f"{GEMINI_API_BASE}/models/{model}:predictLongRunning"
+    op = _veo_api_request(submit_url, payload=body, api_key=api_key, method="POST")
+    op_name = op.get("name")
+    if not op_name:
+        raise RuntimeError(f"Veo gagal membuat operasi: {json.dumps(op)[:400]}")
+
+    # 4. Polling status operasi (maks ±10 menit)
+    poll_url = f"{GEMINI_API_BASE}/{op_name}"
+    video_uri = None
+    for _ in range(60):
+        time.sleep(10)
+        status = _veo_api_request(poll_url, api_key=api_key)
+        if status.get("error"):
+            raise RuntimeError(f"Veo error: {json.dumps(status.get('error'))[:400]}")
+        if not status.get("done"):
+            continue
+        resp = status.get("response", {})
+        samples = (resp.get("generateVideoResponse", {}).get("generatedSamples")
+                   or resp.get("videos") or [])
+        if samples:
+            video_uri = (samples[0].get("video", {}) or {}).get("uri") or samples[0].get("uri")
+        if not video_uri:
+            raise RuntimeError(f"Veo selesai tanpa video: {json.dumps(resp)[:400]}")
+        break
+    if not video_uri:
+        raise RuntimeError("Veo timeout: operasi tidak selesai dalam 10 menit.")
+
+    # 5. Unduh hasil MP4 mentah dari Veo
+    raw_path = os.path.join(VIDEO_OUT_DIR, f"veo_raw_{ts}.mp4")
+    req = urllib.request.Request(video_uri, headers={"x-goog-api-key": api_key})
+    with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:
+        shutil.copyfileobj(resp, f)
+
+    # 6. Dubbing voiceover + overlay UI promo (komposit lokal)
+    audio_path = generate_voiceover(voiceover_text, voice=voice)
+    overlay_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"overlay_{ts}.png")
+    create_ui_overlay_layer(
+        product_name=product_name,
+        orig_price=orig_price,
+        disc_price=disc_price,
+        badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
+        call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
+        theme=theme,
+        output_path=overlay_out
+    )
+
+    if not output_filename:
+        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        output_filename = f"{safe_stem}_veo_{int(time.time())}.mp4"
+    else:
+        output_filename = os.path.basename(output_filename.strip())
+        if not output_filename.endswith(".mp4"):
+            output_filename = f"{output_filename}.mp4"
+    final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
+
+    veo_dur = get_audio_duration(raw_path)  # ffprobe; bekerja utk mp4 juga
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", raw_path,
+        "-loop", "1", "-i", overlay_out,
+        "-i", audio_path,
+        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map", "[outv]", "-map", "2:a",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
+        "-c:a", "aac", "-b:a", "192k",
+        "-t", str(round(veo_dur, 2)),
+        final_video_path
+    ]
+    subprocess.run(cmd, check=True, timeout=600)
+    try:
+        os.remove(raw_path)
+    except OSError:
+        pass
+
+    duration_ms = round((time.time() - start_t) * 1000, 1)
+    file_size_mb = round(os.path.getsize(final_video_path) / (1024 * 1024), 2)
+
+    return {
+        "status": "success",
+        "engine": "google_veo",
+        "model": model,
+        "product_name": product_name,
+        "video_path": final_video_path,
+        "video_filename": output_filename,
+        "resolution": "1080x1920 (9:16 Vertical AI Generative)",
+        "duration_seconds": round(veo_dur, 1),
+        "file_size_mb": file_size_mb,
+        "render_duration_ms": duration_ms,
+        "download_url": f"/api/artifacts/download?path={final_video_path}",
+        "audio_voice": voice,
+        "theme": theme,
+        "visual_prompt": prompt
+    }
+
+
 def generate_video_from_images(
     image_paths: List[str],
     product_name: str,
@@ -329,7 +517,32 @@ def generate_video_from_images(
     start_t = time.time()
     logger.info(f"Starting Video Render for {product_name}, engine={engine}")
 
-    # Cloud AI Video API Handler Dispatcher (Kling / Luma / Runway / Fal / Replicate)
+    # Cloud AI Video API Handler Dispatcher (Google Veo / Kling / Luma / Runway / Fal / Replicate)
+    if engine in VEO_MODEL_MAP:
+        try:
+            return _generate_google_veo_video(
+                engine=engine,
+                api_key=api_key or "",
+                image_paths=image_paths,
+                product_name=product_name,
+                visual_prompt=visual_prompt,
+                voiceover_text=voiceover_text,
+                orig_price=orig_price,
+                disc_price=disc_price,
+                voice=voice,
+                theme=theme,
+                badge_text=badge_text,
+                call_to_action=call_to_action,
+                output_filename=output_filename
+            )
+        except Exception as e:
+            logger.error(f"Veo render gagal: {e}")
+            return {
+                "status": "error",
+                "engine": engine,
+                "model": VEO_MODEL_MAP.get(engine),
+                "message": str(e)
+            }
     if engine in ("kling", "luma", "runway", "fal_ai", "replicate") and api_key:
         return _generate_cloud_ai_video(
             engine=engine,

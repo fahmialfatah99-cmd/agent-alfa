@@ -1497,6 +1497,31 @@
 
         <!-- ==================== TAB 5: ARTIFACTS GALLERY ==================== -->
         <section id="view-artifacts" class="tab-view hidden space-y-6">
+            <!-- 📁 PROJECT EXPLORER -->
+            <div class="glass-card p-6 rounded-2xl space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+                            <i data-lucide="folder-tree" class="w-4 h-4 text-emerald-400"></i> PROJECT EXPLORER
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Struktur folder & isi file hasil kerja agen — langsung dari disk lokal, tanpa perlu download.</p>
+                    </div>
+                    <select id="ws-root-select" onchange="wsChangeRoot(this)" class="px-3 py-1.5 bg-dark-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    <div class="lg:col-span-2 max-h-[480px] overflow-auto rounded-xl bg-dark-950/80 border border-white/10 p-2" id="ws-tree">
+                        <div class="text-slate-500 text-xs font-mono py-6 text-center">Pilih root di atas...</div>
+                    </div>
+                    <div class="lg:col-span-3 max-h-[480px] overflow-auto rounded-xl bg-dark-950/80 border border-white/10 flex flex-col">
+                        <div id="ws-file-header" class="px-3 py-2 border-b border-white/10 text-[11px] font-mono text-slate-400 flex items-center justify-between gap-2">
+                            <span id="ws-file-name">Klik file untuk melihat isinya</span>
+                            <a id="ws-file-dl" href="#" target="_blank" class="hidden px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25">Download</a>
+                        </div>
+                        <pre id="ws-file-view" class="flex-1 overflow-auto p-3 text-[11px] leading-relaxed text-slate-300 font-mono whitespace-pre-wrap">// viewer file</pre>
+                    </div>
+                </div>
+            </div>
+
             <div class="glass-card p-6 rounded-2xl space-y-4">
                 <div class="flex items-center justify-between">
                     <div>
@@ -2359,11 +2384,10 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <select id="video-engine-select" onchange="toggleVideoEngineConfig()" class="w-full p-2 bg-dark-950 border border-white/10 rounded-xl text-white font-mono text-xs">
                                             <option value="local_pro">⚡ Local Pro Compositor (Two-Layer 1080x1920 HD • Free)</option>
-                                            <option value="kling">🤖 Kling AI Video API (v1.5 / v1.6)</option>
-                                            <option value="luma">🤖 Luma Dream Machine API (Ray 2)</option>
-                                            <option value="runway">🤖 Runway Gen-3 Alpha API</option>
-                                            <option value="fal_ai">🤖 Fal.ai Video API (Minimax / Hunyuan)</option>
-                                            <option value="replicate">🤖 Replicate API (CogVideoX / SVD)</option>
+                                            <option value="google_veo">🎬 Google Veo 3.1 (Kualitas Maksimal • Gemini Key)</option>
+                                            <option value="google_veo_fast">🎬 Google Veo 3.1 Fast (Cepat • Gemini Key)</option>
+                                            <option value="google_veo_lite">🎬 Google Veo 3.1 Lite (Hemat Kuota • Gemini Key)</option>
+                                            <!-- Stub belum terimplementasi: kling/luma/runway/fal_ai/replicate -->
                                         </select>
                                         <input type="password" id="video-api-key-input" placeholder="Masukkan API Key Khusus Video..." class="w-full p-2 bg-dark-950 border border-white/10 rounded-xl text-cyan-200 font-mono text-xs hidden">
                                     </div>
@@ -2626,11 +2650,13 @@
                             <label class="text-[11px] font-mono text-slate-400 block">Model utk SEMUA agent &amp; otak utama:</label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <select id="ag-model-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
+                                    <option value="gemini-3.6-flash">gemini-3.6-flash</option>
                                     <option value="gemini-3.5-flash">gemini-3.5-flash</option>
                                     <option value="gemini-3-flash">gemini-3-flash</option>
                                     <option value="gemini-3.1-pro">gemini-3.1-pro</option>
                                     <option value="claude-sonnet-4.6">claude-sonnet-4.6</option>
                                     <option value="claude-opus-4.6">claude-opus-4.6-thinking</option>
+                                    <option value="gpt-oss-120b">gpt-oss-120b-medium</option>
                                 </select>
                                 <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
                                     <input type="checkbox" id="ag-apply-all" checked class="accent-indigo-500">
@@ -3790,9 +3816,10 @@
         const _modelCache = {};
 
         const AG_STATIC_MODELS = [
-            'gemini-3.5-flash', 'gemini-3-flash', 'gemini-3.1-pro',
+            'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash', 'gemini-3.1-pro',
             'gemini-2.5-pro', 'gemini-2.5-flash',
-            'claude-sonnet-4.6', 'claude-opus-4.6'
+            'claude-sonnet-4.6', 'claude-opus-4.6',
+            'gpt-oss-120b'
         ];
 
         function _populateModelsStatic(sel, models, current) {
@@ -4224,7 +4251,7 @@
             if (tabId === 'tools') { if (allToolsData.length === 0) fetchTools(); fetchDynamicPlugins(); }
             if (tabId === 'services') fetchServices();
             if (tabId === 'memory') fetchMemory();
-            if (tabId === 'artifacts') fetchArtifacts();
+            if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
             if (tabId === 'guardian') fetchGuardian();
             if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchSwarmLive(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
@@ -4967,6 +4994,103 @@
                 }
             } catch (err) {
                 showToast(`Artifacts error: ${err.message}`, 'error');
+            }
+        }
+
+        // ── 📁 Workspace Explorer ──
+        let wsStack = [];   // tumpukan path untuk breadcrumb
+
+        async function wsInit() {
+            try {
+                const res = await fetch('/api/workspace/roots');
+                const data = await res.json();
+                const sel = document.getElementById('ws-root-select');
+                if (!sel) return;
+                sel.innerHTML = (data.roots || []).map(r =>
+                    `<option value="${escAttr(r.path)}" ${r.exists ? '' : 'disabled'}>${r.label}${r.exists ? '' : ' (kosong)'}</option>`
+                ).join('');
+                const first = (data.roots || []).find(r => r.exists);
+                if (first) { sel.value = first.path; wsLoadTree(first.path); }
+            } catch (e) { console.error('wsInit', e); }
+        }
+
+        function _fmtSize(n) {
+            if (n == null) return '';
+            if (n > 1048576) return (n / 1048576).toFixed(1) + ' MB';
+            if (n > 1024) return (n / 1024).toFixed(1) + ' KB';
+            return n + ' B';
+        }
+
+        async function wsLoadTree(path, pushStack = true) {
+            const box = document.getElementById('ws-tree');
+            if (!box) return;
+            if (!path) { box.innerHTML = '<div class="text-amber-400 text-xs font-mono py-6 text-center">Pilih folder proyek di dropdown atas.</div>'; return; }
+            if (pushStack && path) {
+                const top = wsStack[wsStack.length - 1]?.path;
+                if (path !== top) wsStack.push({ path });
+            }
+            box.innerHTML = '<div class="text-slate-500 text-xs font-mono py-6 text-center">Memuat...</div>';
+            try {
+                const res = await fetch(`/api/workspace/tree?path=${encodeURIComponent(path)}`);
+                if (!res.ok) throw new Error((await res.json()).detail || res.status);
+                const data = await res.json();
+                if (!data.items.length) {
+                    box.innerHTML = '<div class="text-slate-500 text-xs font-mono py-6 text-center">(folder kosong)</div>';
+                    return;
+                }
+                const upBtn = wsStack.length > 1
+                    ? `<div class="sticky top-0 bg-dark-950/95 px-2 py-1.5 border-b border-white/5 mb-1">
+                           <button onclick="wsGoUp()" class="text-[11px] font-mono text-cyan-400 hover:text-cyan-300">← naik ke folder atas</button>
+                       </div>` : '';
+                box.innerHTML = upBtn + data.items.map(it => it.type === 'dir'
+                    ? `<button onclick="wsLoadTree('${escAttr(data.path)}/${escAttr(it.name)}')" class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 flex items-center gap-2 group">
+                           <span class="text-amber-400">📁</span>
+                           <span class="text-xs text-slate-200 font-medium truncate group-hover:text-amber-300">${escAttr(it.name)}</span>
+                       </button>`
+                    : `<button onclick="wsOpenFile('${escAttr(data.path)}/${escAttr(it.name)}', '${escAttr(it.name)}')" class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 flex items-center gap-2 group">
+                           <span class="text-cyan-500 text-xs">${it.name.match(/\.(png|jpe?g|gif|webp)$/i) ? '🖼️' : '📄'}</span>
+                           <span class="text-xs text-slate-300 truncate group-hover:text-cyan-300 flex-1">${escAttr(it.name)}</span>
+                           <span class="text-[9px] font-mono text-slate-600 shrink-0">${_fmtSize(it.size)}</span>
+                       </button>`).join('');
+            } catch (err) {
+                box.innerHTML = `<div class="text-rose-400 text-xs font-mono p-3">${escAttr(String(err.message))}</div>`;
+            }
+        }
+
+        function wsGoUp() {
+            wsStack.pop();
+            const prev = wsStack[wsStack.length - 1];
+            if (prev) wsLoadTree(prev.path, false);
+        }
+
+        async function wsChangeRoot(sel) {
+            const p = sel.value;
+            if (!p) return;
+            wsStack = [];            // root baru: reset navigasi breadcrumb
+            await wsLoadTree(p);     // pushStack=true -> stack=[{p}]
+        }
+
+        async function wsOpenFile(path, name) {
+            const view = document.getElementById('ws-file-view');
+            const nameEl = document.getElementById('ws-file-name');
+            const dl = document.getElementById('ws-file-dl');
+            nameEl.textContent = name;
+            view.textContent = 'Memuat...';
+            dl.classList.add('hidden');
+            try {
+                const res = await fetch(`/api/workspace/file?path=${encodeURIComponent(path)}`);
+                const data = await res.json();
+                dl.href = data.download_url || '#';
+                if (data.status === 'binary') {
+                    view.textContent = `📦 ${data.message}\nUkuran: ${_fmtSize(data.size)}`;
+                    dl.classList.remove('hidden');
+                    return;
+                }
+                view.textContent = data.content + (data.truncated
+                    ? `\n\n… [dipotong — total ${_fmtSize(data.size)}. Gunakan Download utk file lengkap]` : '');
+                dl.classList.remove('hidden');
+            } catch (err) {
+                view.textContent = `Gagal membaca: ${err.message}`;
             }
         }
 
@@ -5929,6 +6053,7 @@
 
             grid.innerHTML = allAgentsData.map(a => {
                 const isAct = a.is_enabled !== 0;
+                const hasTools = a.enable_tools === 1 || a.enable_tools === true;
                 const dot = isAct ? 'bg-emerald-400' : 'bg-slate-600';
                 return `
                     <div class="flex items-center gap-2 p-2 rounded-xl bg-dark-950/60 border ${isAct ? 'border-white/10' : 'border-white/5 opacity-50'} hover:border-cyan-500/30 transition-all group min-w-0">
@@ -5940,11 +6065,31 @@
                             </div>
                             <div class="text-[9px] font-mono text-slate-500 truncate">${escAttr(a.provider || '')} · ${escAttr(a.model || '')} · ${escAttr(a.role || '')}</div>
                         </div>
+                        <button onclick="toggleAgentTools(${a.id})" title="${hasTools ? 'Tools AKTIF (10 tools aman: web, file, sandbox). Klik utk matikan.' : 'Tools MATI (teks saja). Klik utk aktifkan.'}" class="p-1 rounded-md ${hasTools ? 'bg-amber-500/15 text-amber-400' : 'bg-dark-900 text-slate-600'} transition-all shrink-0"><i data-lucide="wrench" class="w-3 h-3"></i></button>
                         <button onclick="openAgentModal(${a.id})" title="Edit & model" class="p-1 rounded-md bg-white/5 text-slate-400 hover:text-cyan-300 transition-all shrink-0"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
                         <button onclick="toggleAgent(${a.id})" title="${isAct ? 'Nonaktifkan' : 'Aktifkan'}" class="p-1 rounded-md ${isAct ? 'bg-emerald-500/10 text-emerald-400' : 'bg-dark-900 text-slate-600'} transition-all shrink-0"><i data-lucide="${isAct ? 'check-circle' : 'circle-off'}" class="w-3 h-3"></i></button>
                     </div>`;
             }).join('');
             lucide.createIcons();
+        }
+
+        async function toggleAgentTools(id) {
+            const a = (allAgentsData || []).find(x => x.id === id);
+            if (!a) return;
+            const next = !(a.enable_tools === 1 || a.enable_tools === true);
+            try {
+                const res = await fetch(`/api/agents/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enable_tools: next ? 1 : 0 })
+                });
+                const d = await res.json();
+                if (d.status === 'success') {
+                    a.enable_tools = next ? 1 : 0;
+                    showToast(`Tools agen "${a.name}" ${next ? 'diaktifkan (subset aman)' : 'dimatikan'}.`, 'success');
+                    renderAgentsGrid();
+                } else { showToast(d.message || 'Gagal mengubah status tools.', 'error'); }
+            } catch (e) { showToast('Gagal terhubung ke server.', 'error'); }
         }
 
         function renderMeetingParticipantsSelector() {
@@ -7536,6 +7681,9 @@
             const keyInput = document.getElementById('video-api-key-input');
             if (engine === 'local_pro') {
                 keyInput.classList.add('hidden');
+            } else if (engine.startsWith('google_veo')) {
+                keyInput.classList.remove('hidden');
+                keyInput.placeholder = 'Kosongkan = otomatis pakai Gemini API Key dari Vault';
             } else {
                 keyInput.classList.remove('hidden');
                 keyInput.placeholder = `Masukkan API Key ${engine.toUpperCase()}...`;

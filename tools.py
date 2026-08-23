@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import time
+import difflib
 import subprocess
 import asyncio
 import psutil
@@ -128,54 +129,150 @@ def get_system_stats() -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
-def execute_bash_command(command: str, working_dir: str = "") -> Dict[str, Any]:
-    """
-    Execute a Linux shell command safely on the host system and return its output.
-    Use this tool when the user asks to run commands, check files, test code, or manage the system.
-    
-    Args:
-        command: The bash command string to execute (e.g. 'ls -la', 'uptime', 'docker ps', 'git status').
-        working_dir: Optional working directory (defaults to user home directory).
-    """
-    # Block catastrophic destructive commands
-    dangerous_keywords = ["rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:", "chmod -R 777 /"]
-    for kw in dangerous_keywords:
-        if kw in command:
-            return {"status": "error", "message": f"Perintah diblokir demi keamanan sistem: '{kw}'"}
+_BASH_BLOCK_PATTERNS = [
+    # (regex, alasan) — dicocokkan terhadap perintah mentah
+    (r":\s*\(\s*\)\s*\{.*\}\s*;", "fork bomb"),
+    (r"\bdd\s+[^\n]*of=/dev/(sd|hd|vd|nvme|mmcblk)", "tulis mentah ke disk fisik"),
+    (r"\bmkfs(\.\w+)?\b", "format filesystem"),
+    (r"chmod\s+-R\s+777\s+/", "chmod 777 rekursif pada root"),
+    (r"chown\s+-R\b[^\n]*(\s/|\s~|\s\$HOME)(\s|$)", "chown rekursif pada root/home"),
+    (r"\b(shutdown|reboot|halt|poweroff)\b", "mematikan/menyalakan ulang sistem"),
+    (r"(history\s+-c\b|>\s*~/\.bash_history|shred\s+[^;\n]*history|unset\s+HISTFILE)",
+     "menghapus jejak riwayat shell"),
+    (r"(curl|wget|fetch)[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b", "pipe skrip internet langsung ke shell"),
+    (r"base64\s+[^;\n|&]*(?:-d\b|--decode)[^;\n|&]*\|\s*(sudo\s+)?(ba|z|da)?sh\b",
+     "pipe payload base64 ke shell"),
+    (r"/(dev/tcp/|proc/sysrq-trigger)", "teknik reverse-shell/kernel trigger"),
+    (r"\.(ssh/id_(rsa|ed25519|ecdsa)|aws/credentials|gnupg)", "akses berkas kredensial privat"),
+    (r"\b(useradd|userdel|usermod|visudo)\b", "manipulasi akun pengguna sistem"),
+    (r"(iptables|nft)\s+(-F|--flush)", "flush firewall"),
+    (r">\s*/dev/(sd|hd|vd|nvme)", "overwrite perangkat blok"),
+]
 
-    target_dir = os.path.expanduser(working_dir) if working_dir else os.path.expanduser("~")
-    if not os.path.exists(target_dir):
-        target_dir = os.path.expanduser("~")
+# Target penghapusan yang dianggap destruktif saat dipadukan dgn rm rekursif
+_RM_DANGER_TARGETS = (
+    r"(?:(?:/{1,2})|(?:~)|(?:\$HOME)|\*|(?:/(?:home|etc|usr|var|boot|lib|opt|bin|sbin|srv|root))"
+    r"|(?:\.\./)+(?:home|etc|usr))?(?:\s|$|/)"
+)
+
+
+def _bash_blocked_reason(command: str) -> Optional[str]:
+    """Kembalikan alasan pemblokiran bila perintah cocok pola berbahaya."""
+    import re as _re
+    cmd = command or ""
+
+    for pat, reason in _BASH_BLOCK_PATTERNS:
+        if _re.search(pat, cmd):
+            return reason
+
+    # rm rekursif (-r/-R/-rf/-fr/--recursive) ke target luas/sistem/home
+    m = _re.search(r"\brm\b([^#;\n]*)", cmd)
+    if m:
+        seg = m.group(1)
+        has_recursive = bool(_re.search(
+            r"(?:^|\s)(-{1,2}[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\s|$)", seg))
+        has_danger_target = bool(_re.search(
+            r"(?:^|\s)(\"|')?" + _RM_DANGER_TARGETS, seg))
+        if has_recursive and has_danger_target:
+            return "penghapusan massal direktori sistem/home"
+
+    low_parts = cmd.lower().split()
+    if low_parts and (low_parts[0] == "sudo" or " sudo " in f" {cmd.lower()} "):
+        return "eskalasi hak akses (sudo)"
+    return None
+
+
+def execute_bash_command(command: str, working_dir: str = "", backend: str = "") -> Dict[str, Any]:
+    """
+    Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
+    default (resource-limited, no privileges). Falls back to a direct host run
+    ONLY when Docker is unavailable, or when backend='host' is requested
+    explicitly. Destructive command patterns are always rejected first.
+
+    Args:
+        command: The bash command string to execute (e.g. 'ls -la', 'pytest').
+        working_dir: Directory to run in (mounted read-write into sandbox).
+        backend: 'auto' (default), 'docker', or 'host'.
+    """
+    blocked = _bash_blocked_reason(command)
+    if blocked:
+        logger.warning(f"Bash command BLOCKED ({blocked}): {command[:200]}")
+        return {
+            "status": "error",
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": f"[KEAMANAN] Perintah diblokir: {blocked}.",
+            "isolation": "rejected",
+        }
+
+    pref = (backend or os.getenv("ALFA_BASH_BACKEND", "auto")).lower().strip()
+    use_docker = (
+        pref in ("auto", "docker")
+        and _docker_available()
+        and _ensure_sandbox_image()
+    )
 
     try:
-        logger.info(f"Executing bash command: {command} in {target_dir}")
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=50,
-            cwd=target_dir
-        )
+        if use_docker:
+            stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+            script_name = f"sandbox_sh_{stamp}.sh"
+            script_path = os.path.join(SANDBOX_DIR, script_name)
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write("#!/bin/bash\nset -o pipefail\n" + (command or "").strip() + "\n")
+
+            wd_abs = os.path.realpath(os.path.expanduser(working_dir)) if working_dir else ""
+            home_in_box = "/workspace" if (wd_abs and os.path.isdir(wd_abs)) else "/sandbox"
+            cmd = [
+                "docker", "run", "--rm",
+                "--name", f"alfa_sbx_{stamp}",
+                "-v", f"{SANDBOX_DIR}:/sandbox",
+                "--cap-drop", "ALL",
+                "--security-opt", "no-new-privileges",
+                "--user", f"{os.getuid()}:{os.getgid()}",
+                "-e", f"HOME={home_in_box}",
+                "--memory", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--cpus", os.getenv("SANDBOX_CPUS", "1.0"),
+                "--pids-limit", "128",
+            ]
+            if wd_abs and os.path.isdir(wd_abs):
+                cmd += ["-v", f"{wd_abs}:/workspace", "-w", "/workspace"]
+            else:
+                cmd += ["-w", "/sandbox"]
+            cmd += [_SANDBOX_IMAGE, "bash", f"/sandbox/{script_name}"]
+            timeout_secs, isolation = 55, "docker"
+        else:
+            if pref in ("auto", "docker"):
+                logger.warning("Docker unavailable - bash falls back to HOST execution.")
+            target_dir = os.path.expanduser(working_dir) if working_dir else os.path.expanduser("~")
+            if not os.path.exists(target_dir):
+                target_dir = os.path.expanduser("~")
+            cmd = ["bash", "-c", command]
+            timeout_secs, isolation = 45, "none"
+
+        logger.info(f"Executing bash ({isolation}): {command[:150]}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
-        
-        # Truncate if output is extremely long
         if len(stdout) > 3500:
             stdout = stdout[:3500] + "\n...[Output terpotong karena terlalu panjang]"
         if len(stderr) > 1200:
             stderr = stderr[:1200] + "\n...[Stderr terpotong]"
 
+        warn = "" if isolation == "docker" else " [PERINGATAN: dieksekusi di HOST tanpa isolasi]"
         return {
             "status": "success" if result.returncode == 0 else "failed",
             "exit_code": result.returncode,
             "stdout": stdout or "(tidak ada output standar)",
-            "stderr": stderr or None
+            "stderr": (stderr or None),
+            "isolation": isolation,
+            "message": "Perintah selesai." + warn,
         }
     except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Command execution timed out (50s)."}
+        return {"status": "error", "message": f"Command execution timed out ({timeout_secs}s).", "isolation": isolation}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(e), "isolation": "none"}
 
 
 # ── Isolated Python Sandbox ──────────────────────────────────────────────────
@@ -214,6 +311,7 @@ def _ensure_sandbox_image() -> bool:
         with open(dockerfile, "w", encoding="utf-8") as f:
             f.write(
                 "FROM python:3.11-slim\n"
+                "RUN useradd -ms /bin/bash -u 1000 sandbox || true\n"
                 "RUN pip install --no-cache-dir matplotlib numpy pandas\n"
             )
         build = subprocess.run(
@@ -519,6 +617,219 @@ def write_local_file(file_path: str, content: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
+_MAX_EDIT_FILE_BYTES = 2 * 1024 * 1024  # batas ukuran file utk operasi presisi
+
+
+def _py_syntax_guard(path: str, original_content: str) -> Optional[str]:
+    """Validasi sintaks Python pasca-edit; rollback bila rusak.
+
+    Mengembalikan pesan error (dan memulihkan isi lama) bila file .py kini
+    gagal dikompilasi; mengembalikan None bila aman/bukan file Python.
+    """
+    if not path.endswith(".py"):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
+            new_content = f.read()
+        compile(new_content, path, "exec")
+        return None
+    except SyntaxError as syn:
+        with open(path, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.write(original_content)
+        return (f"Edit DIBATALKAN (auto-rollback): hasil menyebabkan SyntaxError "
+                f"di baris {syn.lineno}: {syn.msg}. Isi file dikembalikan seperti semula.")
+
+
+def _resolve_host_path(file_path: str) -> str:
+    expanded = os.path.expanduser(file_path)
+    if not os.path.isabs(expanded):
+        expanded = os.path.join(os.path.expanduser("~"), file_path)
+    return os.path.realpath(expanded)
+
+
+def edit_file_precise(file_path: str, old_text: str, new_text: str,
+                      occurrence: int = 0) -> Dict[str, Any]:
+    """
+    Edit a file with SURGICAL precision (opencode-style): replace an exact
+    unique snippet instead of rewriting the whole file. old_text must match
+    the file content EXACTLY (including indentation).
+
+    Safety rule: if old_text matches MULTIPLE locations, the call FAILS and
+    you must pass `occurrence` (1-based index of the match to replace,
+    -1 = last match) or include more surrounding context.
+
+    Args:
+        file_path: Path to the existing text file.
+        old_text: Exact existing snippet to replace.
+        new_text: Replacement text.
+        occurrence: 0 = require unique match (default); N = replace Nth match;
+                    -1 = replace last match.
+    """
+    try:
+        p = _resolve_host_path(file_path)
+        if not os.path.isfile(p):
+            return {"status": "error", "message": f"File tidak ditemukan: {file_path}"}
+        if os.path.getsize(p) > _MAX_EDIT_FILE_BYTES:
+            return {"status": "error", "message": f"File terlalu besar (>2MB): {file_path}"}
+        if not old_text:
+            return {"status": "error", "message": "old_text kosong — gunakan write_local_file untuk membuat isi baru."}
+
+        with open(p, "r", encoding="utf-8", errors="surrogateescape") as f:
+            content = f.read()
+
+        count = content.count(old_text)
+        if count == 0:
+            # Bantu model: cari kandidat mirip (abaikan trailing whitespace per baris)
+            norm_old = "\n".join(line.rstrip() for line in old_text.splitlines())
+            lines = content.splitlines()
+            best, best_score = None, 0.0
+            window = len(old_text.splitlines())
+            for i in range(0, max(1, len(lines) - window + 1)):
+                cand = "\n".join(lines[i:i + window])
+                score = difflib.SequenceMatcher(None, norm_old,
+                                                "\n".join(l.rstrip() for l in cand.splitlines())).ratio()
+                if score > best_score:
+                    best, best_score = (i + 1, cand), score
+            hint = ""
+            if best and best_score > 0.6:
+                hint = (f" Kemungkinan yang dimaksud di sekitar baris {best[0]} "
+                        f"(kemiripan {best_score:.0%}). Salin teks persis dari file.")
+            return {"status": "error",
+                    "message": f"old_text tidak ditemukan di {file_path}.{hint}"}
+
+        if occurrence == 0 and count > 1:
+            return {"status": "error",
+                    "message": (f"old_text cocok di {count} lokasi berbeda. "
+                                "Tambahkan konteks lebih banyak agar unik, atau sebutkan "
+                                "`occurrence` (1=ke-N, -1=terakhir). Tidak ada perubahan ditulis.")}
+
+        # Resolusi indeks kecocokan: -1=terakhir, 0/unik=pertama, N=ke-N
+        idx = count + 1 + occurrence if occurrence < 0 else max(1, occurrence)
+        if not (1 <= idx <= count):
+            return {"status": "error",
+                    "message": f"occurrence={occurrence} di luar rentang; ditemukan {count} kecocokan."}
+
+        start = 0
+        for _ in range(idx):
+            pos = content.find(old_text, start)
+            start = pos + 1
+        new_content = content[:pos] + new_text + content[pos + len(old_text):]
+
+        with open(p, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.write(new_content)
+
+        syn_err = _py_syntax_guard(p, content)
+        if syn_err:
+            return {"status": "error", "message": syn_err}
+
+        return {
+            "status": "success",
+            "message": (f"Berhasil mengganti {len(old_text)} -> {len(new_text)} karakter "
+                        f"di {file_path} (kecocokan #{idx}/{count})."),
+            "line_hint": content.count("\n", 0, pos) + 1,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def apply_unified_diff(file_path: str, diff_text: str) -> Dict[str, Any]:
+    """
+    Apply a UNIFIED DIFF (format `diff -u` / git diff) to a single file with
+    context-matching and small drift tolerance — like `patch` but built-in.
+    Only one file per call. All hunks must apply or nothing is written.
+
+    Args:
+        file_path: Path to the target text file.
+        diff_text: Unified diff body (lines starting with ---/+++ are ignored;
+                   hunks start with @@).
+    """
+    import re as _re
+    try:
+        p = _resolve_host_path(file_path)
+        if not os.path.isfile(p):
+            return {"status": "error", "message": f"File tidak ditemukan: {file_path}"}
+        if os.path.getsize(p) > _MAX_EDIT_FILE_BYTES:
+            return {"status": "error", "message": f"File terlalu besar (>2MB): {file_path}"}
+
+        with open(p, "r", encoding="utf-8", errors="surrogateescape") as f:
+            orig_lines = f.read().split("\n")
+
+        # Parse hunks
+        hunks, cur = [], None
+        for raw in diff_text.split("\n"):
+            if raw.startswith("@@"):
+                m = _re.match(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", raw)
+                if m:
+                    cur = {"old": [], "new": [], "new_start": int(m.group(1))}
+                    hunks.append(cur)
+                continue
+            if cur is None:
+                continue
+            if raw.startswith(("---", "+++")) or raw.startswith("\\ No newline"):
+                continue
+            tag = raw[:1]
+            if tag == "+":
+                cur["new"].append(raw[1:])
+            elif tag == "-":
+                cur["old"].append(raw[1:])
+            elif raw.startswith("\\ No newline"):
+                continue
+            else:
+                # Baris konteks: format baku ' teks'; toleransi model tanpa spasi
+                body = raw[1:] if raw.startswith(" ") else raw
+                cur["old"].append(body)
+                cur["new"].append(body)
+
+        if not hunks:
+            return {"status": "error",
+                    "message": "Tidak ada hunk @@ valid dalam diff. Pastikan format unified diff."}
+
+        lines = list(orig_lines)
+        applied = 0
+        cursor = 0
+        for hno, h in enumerate(hunks, 1):
+            anchor = next((ln for ln in h["old"] if ln.strip()), "")
+            n_old = len(h["old"])
+            candidates = []
+            if anchor:
+                for i in range(cursor, min(len(lines), max(len(lines), h["new_start"] + 80))):
+                    if lines[i] == anchor:
+                        candidates.append(i - h["old"].index(anchor))
+                        if len(candidates) >= 3:
+                            break
+            chosen = None
+            for base in candidates + [h["new_start"] - 1]:
+                if base is None or base < 0:
+                    continue
+                seg = lines[base:base + n_old]
+                if [x.strip() for x in seg] == [x.strip() for x in h["old"]] or seg == h["old"]:
+                    chosen = base
+                    break
+            if chosen is None:
+                return {"status": "error",
+                        "message": (f"Hunk #{hno} gagal diterapkan (konteks tidak cocok "
+                                    f"di sekitar '{anchor[:60]}'). Tidak ada perubahan ditulis. "
+                                    "Baca ulang file & buat diff baru."),
+                        "hunks_applied_before_fail": applied}
+
+            lines[chosen:chosen + n_old] = h["new"]
+            cursor = chosen + len(h["new"])
+            applied += 1
+
+        with open(p, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.write("\n".join(lines))
+
+        syn_err = _py_syntax_guard(p, "\n".join(orig_lines))
+        if syn_err:
+            return {"status": "error", "message": syn_err}
+
+        return {"status": "success",
+                "message": f"{applied}/{len(hunks)} hunk berhasil diterapkan ke {file_path}.",
+                "hunks_applied": applied}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int = 30) -> Dict[str, Any]:
     """
     Search for files and directories matching a glob pattern (e.g. '*.py', '*.json', 'bot*').
@@ -577,6 +888,224 @@ def grep_workspace(query: str, base_dir: str = "~", file_pattern: str = "") -> D
             "matches_count": len(lines),
             "results": lines[:30]
         }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+# ── 🗂️ Codebase Index (SQLite FTS5) ─────────────────────────────────────────
+_CODE_INDEX_SKIP_DIRS = {
+    ".git", "venv", ".venv", "env", "node_modules", "__pycache__",
+    ".mypy_cache", ".pytest_cache", "dist", "build", ".next", "target",
+    "vendor", "coverage", ".idea", ".vscode",
+}
+_CODE_INDEX_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+_CODE_CHUNK_LINES = 70
+
+
+def _code_index_connect():
+    import sqlite3
+    conn = sqlite3.connect(_CODE_INDEX_DB, timeout=15)
+    conn.execute("""
+        CREATE VIRTUAL TABLE IF NOT EXISTS code_fts USING fts5(
+            rel_path, content, symbol UNINDEXED, repo_root UNINDEXED,
+            start_line UNINDEXED, end_line UNINDEXED)
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS code_index_meta(
+            repo_root TEXT PRIMARY KEY, indexed_at REAL,
+            files INTEGER, chunks INTEGER)
+    """)
+    return conn
+
+
+def _index_freshness(root: str, sample_paths: List[str]) -> Dict[str, Any]:
+    """Periksa apakah index masih segar: bandingkan mtime sampel file
+    vs waktu indexing. Mengembalikan info kesegaran utk hasil pencarian."""
+    import sqlite3 as _sq
+    info: Dict[str, Any] = {"stale": False, "indexed_at": None}
+    if not root:
+        return info
+    try:
+        conn = _sq.connect(_CODE_INDEX_DB, timeout=10)
+        row = conn.execute(
+            "SELECT indexed_at, files, chunks FROM code_index_meta WHERE repo_root = ?",
+            (root,)).fetchone()
+        conn.close()
+        if not row:
+            info["stale"] = True
+            info["note"] = "index tidak tercatat meta-nya — jalankan ulang index_codebase."
+            return info
+        indexed_at, files, chunks = row
+        info["indexed_at"] = indexed_at
+        info["files"] = files
+        info["chunks"] = chunks
+        changed = 0
+        checked = 0
+        for rel in sample_paths[:12]:
+            fp = os.path.join(root, rel)
+            try:
+                checked += 1
+                if os.path.getmtime(fp) > indexed_at:
+                    changed += 1
+            except OSError:
+                continue
+        if checked and changed:
+            info["stale"] = True
+            info["changed_sample"] = changed
+    except Exception:
+        pass
+    return info
+
+
+def _iter_code_files(root: str, extensions: str):
+    exts = {"." + e.strip().lstrip(".").lower()
+            for e in (extensions or "").split(",") if e.strip()}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _CODE_INDEX_SKIP_DIRS]
+        for name in filenames:
+            if not exts or os.path.splitext(name)[1].lower() in exts:
+                yield os.path.join(dirpath, name)
+
+
+def _chunk_code_lines(lines):
+    """Pecah file jadi chunk ~_CODE_CHUNK_LINES di batas baris kosong."""
+    chunks, cur, sym = [], [], None
+    import re as _re
+    sym_re = _re.compile(r"^\s*(?:async\s+)?(?:def|class|function|func|fn|impl|type)\s+(\w+)")
+    for ln in lines:
+        cur.append(ln)
+        if len(cur) >= _CODE_CHUNK_LINES and ln.strip() == "":
+            chunks.append((cur, sym))
+            cur, sym = [], None
+        elif sym is None:
+            m = sym_re.match(ln)
+            if m:
+                sym = m.group(1)
+    if cur:
+        chunks.append((cur, sym))
+    return chunks
+
+
+def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml") -> Dict[str, Any]:
+    """
+    Build/refresh a full-text INDEX of a repository so later searches are fast
+    and context-aware (RAG-style retrieval without external services).
+    Run once per repo; call again after big changes to refresh.
+
+    Args:
+        repo_path: Root directory of the project to index.
+        file_extensions: Comma-separated extensions to include.
+    """
+    try:
+        root = _resolve_host_path(repo_path)
+        if not os.path.isdir(root):
+            return {"status": "error", "message": f"Direktori tidak ditemukan: {repo_path}"}
+
+        conn = _code_index_connect()
+        files_scanned, chunks_inserted, skipped_big = 0, 0, 0
+        try:
+            rows = []
+            for fpath in _iter_code_files(root, file_extensions):
+                try:
+                    if os.path.getsize(fpath) > _MAX_EDIT_FILE_BYTES:
+                        skipped_big += 1
+                        continue
+                    with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                        lines = f.read().split("\n")
+                except OSError:
+                    continue
+                rel = os.path.relpath(fpath, root)
+                offset = 0
+                for chunk_lines, sym in _chunk_code_lines(lines):
+                    content = "\n".join(chunk_lines)
+                    n = len(chunk_lines)
+                    if content.strip():
+                        rows.append((rel, content, sym or "", root, offset + 1, offset + n))
+                    offset += n
+                files_scanned += 1
+
+            # SATU transaksi utk seluruh index (hindari lock war dgn service lain)
+            with conn:
+                conn.execute("DELETE FROM code_fts WHERE repo_root = ?", (root,))
+                conn.executemany(
+                    "INSERT INTO code_fts(rel_path, content, symbol, repo_root, start_line, end_line) "
+                    "VALUES (?,?,?,?,?,?)", rows)
+                chunks_inserted = len(rows)
+                conn.execute(
+                    "INSERT INTO code_index_meta(repo_root, indexed_at, files, chunks) "
+                    "VALUES (?,?,?,?) ON CONFLICT(repo_root) DO UPDATE SET "
+                    "indexed_at=excluded.indexed_at, files=excluded.files, chunks=excluded.chunks",
+                    (root, time.time(), files_scanned, chunks_inserted))
+        finally:
+            conn.close()
+
+        return {
+            "status": "success",
+            "message": f"Index selesai: {files_scanned} file, {chunks_inserted} chunk tersimpan"
+                       f"{' (' + str(skipped_big) + ' file besar dilewati)' if skipped_big else ''}.",
+            "files_indexed": files_scanned,
+            "chunks": chunks_inserted,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[str, Any]:
+    """
+    Search an indexed repository semantically-by-keyword (FTS5 ranked).
+    Returns the most relevant code chunks with file:line references.
+    Call index_codebase() first if this returns 'index kosong'.
+
+    Args:
+        query: Keywords or phrase, e.g. 'generate video ffmpeg overlay'.
+        repo_path: Optional root to restrict search to one project.
+        limit: Max results.
+    """
+    try:
+        if not query.strip():
+            return {"status": "error", "message": "Query kosong."}
+        conn = _code_index_connect()
+        try:
+            sql = ("SELECT rel_path, content, symbol, repo_root, start_line, end_line, "
+                   "snippet(code_fts, 1, '>>>', '<<<', ' … ', 12) AS snip "
+                   "FROM code_fts WHERE code_fts MATCH ? ")
+            params = [query.strip()]
+            if repo_path.strip():
+                sql += "AND repo_root = ? "
+                params.append(_resolve_host_path(repo_path))
+            sql += "ORDER BY rank LIMIT ?"
+            params.append(int(limit))
+            rows = conn.execute(sql, params).fetchall()
+        finally:
+            conn.close()
+
+        if not rows:
+            return {"status": "empty",
+                    "message": "Tidak ada hasil. Index mungkin belum dibuat — panggil index_codebase dulu."}
+
+        results = [{
+            "location": f"{r[0]}:{r[4]}-{r[5]}",
+            "symbol": r[2] or None,
+            "snippet": r[6],
+        } for r in rows]
+
+        # Cek kesegaran index utk repo-repo yang muncul di hasil
+        roots = list(dict.fromkeys(r[3] for r in rows))
+        sample_by_root: Dict[str, List[str]] = {}
+        for r in rows:
+            sample_by_root.setdefault(r[3], []).append(r[0])
+        stale_roots = []
+        for rt in roots:
+            info = _index_freshness(rt, sample_by_root.get(rt, []))
+            if info.get("stale"):
+                stale_roots.append(rt)
+        resp = {"status": "success", "matches": len(results), "results": results}
+        if stale_roots:
+            resp["index_stale_warning"] = (
+                f"Index untuk {len(stale_roots)} repo sudah USANG (ada file berubah "
+                f"setelah indexing). Jalankan index_codebase lagi utk hasil akurat.")
+            logger.warning(resp["index_stale_warning"])
+        return resp
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -5731,6 +6260,10 @@ AVAILABLE_TOOLS = [
     write_local_file,
     search_workspace_files,
     grep_workspace,
+    edit_file_precise,
+    apply_unified_diff,
+    index_codebase,
+    search_codebase,
     schedule_reminder,
     capture_desktop_screenshot,
     capture_webcam_frame,

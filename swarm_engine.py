@@ -151,7 +151,7 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
             row = conn.execute("SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?", (agent["api_key_id"],)).fetchone()
             if row:
                 provider = row["provider"]
-                api_key = row["api_key"]
+                api_key = database.decrypt_key(row["api_key"])
                 base_url = row["base_url"] or ""
                 key_id = row["id"]
                 key_label = f"#{row['id']}"
@@ -190,6 +190,8 @@ async def _generate_with_gemini(
     context: str = "swarm",
     max_tokens: int = 500,
     thinking_budget: Optional[int] = None,
+    timeout_s: float = 180.0,
+    tools: Optional[List[Any]] = None,
 ) -> Optional[str]:
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
@@ -215,11 +217,24 @@ async def _generate_with_gemini(
             if thinking_budget is not None:
                 cfg_kw["thinking_config"] = types.ThinkingConfig(
                     thinking_budget=thinking_budget)
-            response = await client.aio.models.generate_content(
-                model=m,
-                contents=prompt,
-                config=types.GenerateContentConfig(**cfg_kw),
-            )
+            if tools:
+                # SDK melakukan automatic function calling & mengirim hasil
+                # tool berikutnya secara internal sampai jawaban final.
+                cfg_kw["tools"] = list(tools)
+            try:
+                response = await asyncio.wait_for(
+                    client.aio.models.generate_content(
+                        model=m,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(**cfg_kw),
+                    ),
+                    timeout=timeout_s,
+                )
+            except asyncio.TimeoutError:
+                last_err = TimeoutError(
+                    f"[gemini] HARD DEADLINE {timeout_s}s terlampaui untuk model '{m}'")
+                logger.warning(f"{last_err}. Trying next fallback...")
+                continue
             if response and response.text:
                 token_usage.from_gemini_response(response, model=m, key_id=key_id,
                                                  key_label=key_label or f"agent:{agent_name}",
@@ -372,6 +387,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     """
     provider, api_key, model, base_url, key_id = get_agent_api_client(agent)
     agent_name = agent.get("name", "Agent")
+    enable_tools = bool(agent.get("enable_tools"))
 
     tone_directive = (
         "\n\n[PANDUAN OUTPUT & GAYA BICARA]:"
@@ -384,6 +400,17 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
 
     result = None
     if provider == "gemini":
+        gemini_tools = None
+        if enable_tools:
+            try:
+                import main_brain as _mb
+                import tools as _t
+                gemini_tools = [
+                    getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
+                    if hasattr(_t, n) and callable(getattr(_t, n))
+                ]
+            except Exception as tools_err:
+                logger.warning(f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}")
         result = await _generate_with_gemini(
             agent_name=agent_name,
             api_key=api_key or os.getenv("GEMINI_API_KEY", ""),
@@ -395,16 +422,38 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             context="swarm",
             max_tokens=max_tokens or 500,
             timeout_s=timeout_s,
+            thinking_budget=thinking_budget,
+            tools=gemini_tools,
         )
     else:
-        # Semua provider non-gemini dicoba sebagai OpenAI-compatible
-        # (termasuk 'custom' dgn Base URL bebas: Tokenra, Ox Alpha, dll).
-        if not base_url and provider not in KNOWN_OPENAI_PROVIDERS:
-            logger.warning(
-                f"Provider '{provider}' tanpa base_url untuk '{agent_name}' - "
-                "fallback ke Gemini."
-            )
-        result = await _generate_with_openai_compat(
+        # Agen dgn enable_tools: loop agentik penuh memakai subset aman
+        if enable_tools:
+            try:
+                import main_brain as _mb
+                result = await _mb.run_openai_agentic_turn(
+                    provider=provider,
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    system_instruction=final_instruction,
+                    user_text=prompt,
+                    key_id=key_id,
+                    key_label=key_label,
+                    context="swarm",
+                    tools_schema=_mb.build_openai_tools(safe_only=True),
+                )
+            except Exception as agentic_err:
+                logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
+                result = None
+        if result is None:
+            # Semua provider non-gemini dicoba sebagai OpenAI-compatible
+            # (termasuk 'custom' dgn Base URL bebas: Tokenra, Ox Alpha, dll).
+            if not base_url and provider not in KNOWN_OPENAI_PROVIDERS:
+                logger.warning(
+                    f"Provider '{provider}' tanpa base_url untuk '{agent_name}' - "
+                    "fallback ke Gemini."
+                )
+            result = await _generate_with_openai_compat(
             agent_name=agent_name,
             provider=provider,
             api_key=api_key,

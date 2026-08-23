@@ -14,6 +14,73 @@ from typing import List, Dict, Any, Optional
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
 
+# ── Enkripsi API key at-rest (AES-256-GCM, memakai master key vault) ─────────
+_ENC_PREFIX = "enc1:"
+
+
+def _get_aesgcm():
+    """Kembalikan objek AESGCM dari vault; None bila vault tak tersedia."""
+    try:
+        from vault_engine import vault
+        return vault.aesgcm
+    except Exception:
+        return None
+
+
+def encrypt_key(plain: str) -> str:
+    """Enkripsi string kunci menjadi 'enc1:<nonce_b64>:<ct_b64>'. Idempoten."""
+    if not plain or plain.startswith(_ENC_PREFIX):
+        return plain
+    aes = _get_aesgcm()
+    if aes is None:
+        return plain  # degradasi anggun bila kripto tak tersedia
+    import base64 as _b64
+    nonce = os.urandom(12)
+    ct = aes.encrypt(nonce, plain.encode("utf-8"), None)
+    return _ENC_PREFIX + _b64.b64encode(nonce).decode("ascii") + ":" + _b64.b64encode(ct).decode("ascii")
+
+
+def decrypt_key(stored: str) -> str:
+    """Dekripsi nilai kolom api_key. Nilai plaintext lama lolos apa adanya."""
+    if not stored or not stored.startswith(_ENC_PREFIX):
+        return stored or ""
+    try:
+        import base64 as _b64
+        _, nonce_b64, ct_b64 = stored.split(":", 2)
+        aes = _get_aesgcm()
+        if aes is None:
+            return ""
+        return aes.decrypt(_b64.b64decode(nonce_b64), _b64.b64decode(ct_b64), None).decode("utf-8")
+    except Exception:
+        return ""
+
+
+def migrate_encrypt_api_keys() -> Dict[str, int]:
+    """Enkripsi satu kali seluruh api_key yang masih plaintext. Idempoten."""
+    import base64 as _b64
+    changed, total = 0, 0
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("SELECT id, api_key FROM api_keys").fetchall()
+        total = len(rows)
+        for r in rows:
+            val = r["api_key"] or ""
+            if val and not val.startswith(_ENC_PREFIX):
+                aes = _get_aesgcm()
+                if aes is None:
+                    break
+                nonce = os.urandom(12)
+                ct = aes.encrypt(nonce, val.encode("utf-8"), None)
+                stored = _ENC_PREFIX + _b64.b64encode(nonce).decode("ascii") + ":" + _b64.b64encode(ct).decode("ascii")
+                conn.execute("UPDATE api_keys SET api_key = ? WHERE id = ?", (stored, r["id"]))
+                changed += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return {"total": total, "encrypted": changed}
+
+
 def init_db_sync():
     """Synchronously ensure all SQLite tables and indices exist."""
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -119,6 +186,7 @@ def init_db_sync():
                 avatar_emoji TEXT DEFAULT '🤖',
                 color_theme TEXT DEFAULT 'cyan',
                 is_enabled INTEGER DEFAULT 1,
+                enable_tools INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
             );
@@ -174,28 +242,37 @@ def init_db_sync():
                     INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
                     VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-2.5-flash', 1)
                     """,
-                    (env_gemini_key,)
+                    (encrypt_key(env_gemini_key),)
                 )
 
         # Seed default autonomous workforce agents if empty
         agent_count = conn.execute("SELECT COUNT(*) as count FROM custom_agents").fetchone()
         if agent_count and agent_count[0] == 0:
+            # Persona tersinkron dengan identitas ALFA (sumber: swarm_personas.py)
+            try:
+                from swarm_personas import AGENTS as _AG, DNA as _DNA
+                _seed_persona = {
+                    aid: d["system_instruction"].replace("{DNA}", _DNA)
+                    for aid, d in _AG.items()}
+                _seed_meta = {aid: d["persona"] for aid, d in _AG.items()}
+            except Exception:
+                _seed_persona, _seed_meta = {}, {}
             default_agents = [
                 (
                     "Alpha Lead",
-                    "Chief Orchestrator & Project Director",
-                    "Visioner, bijaksana, fokus pada tujuan akhir dan koordinasi tim.",
-                    "Kamu adalah Alpha Lead, ketua tim AI otonom. Tugasmu memimpin rapat, membagi tugas ke spesialis lain, menyelaraskan perbedaan pendapat, dan merumuskan konsensus akhir yang solutif dan realistis.",
+                    "Chief Orchestrator & War Room Conductor",
+                    _seed_meta.get(1, "Koordinator tim ALFA."),
+                    _seed_persona.get(1, "Kamu adalah Alpha Lead, koordinator tim ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.7-flash",
                     "👑",
                     "cyan"
                 ),
                 (
                     "Code Crafter",
-                    "Senior Software Architect & Fullstack Engineer",
-                    "Presisi teknis tinggi, berorientasi kode efisien, arsitektur bersih.",
-                    "Kamu adalah Code Crafter, ahli rekayasa perangkat lunak dan arsitektur kode. Tugasmu menganalisis aspek teknis, memilih algoritma/tools yang tepat, menyusun struktur modul, dan mengimplementasikan kode yang tangguh.",
+                    "Principal Systems & Code Engineer",
+                    _seed_meta.get(2, "Engineer kode ALFA."),
+                    _seed_persona.get(2, "Kamu adalah Code Crafter, engineer kode ALFA."),
                     "gemini",
                     "gemini-2.5-flash",
                     "⚡",
@@ -203,9 +280,9 @@ def init_db_sync():
                 ),
                 (
                     "System Auditor",
-                    "Security, Performance & Quality Critic",
-                    "Kritis, teliti, mendeteksi celah keamanan, bug tersembunyi, dan bottleneck sistem.",
-                    "Kamu adalah System Auditor, penguji kritis tim. Tugasmu menguji setiap ide yang diajukan, mencari potensi kelemahan, celah keamanan, skalabilitas, dan memastikan standar kualitas terbaik.",
+                    "Security, Logic & Quality Critic",
+                    _seed_meta.get(3, "Pengkritik kritis ALFA."),
+                    _seed_persona.get(3, "Kamu adalah System Auditor, penguji kritis ALFA."),
                     "gemini",
                     "gemini-2.5-flash",
                     "🛡️",
@@ -214,8 +291,8 @@ def init_db_sync():
                 (
                     "Researcher Prime",
                     "Deep Intel & Fact-Checking Specialist",
-                    "Objektif, berbasis data dan riset literatur, up-to-date dengan teknologi modern.",
-                    "Kamu adalah Researcher Prime, spesialis riset dan verifikasi data. Tugasmu menyajikan fakta ilmiah, tren teknologi terbaru, dokumentasi library resmi, dan benchmark empiris.",
+                    _seed_meta.get(4, "Intel riset ALFA."),
+                    _seed_persona.get(4, "Kamu adalah Researcher Prime, spesialis riset ALFA."),
                     "gemini",
                     "gemini-2.5-flash",
                     "🌐",
@@ -224,12 +301,22 @@ def init_db_sync():
                 (
                     "Strategic Planner",
                     "Product Strategist & UX Visionary",
-                    "Berorientasi pengguna, praktis, menyusun roadmap dan efisiensi alur kerja.",
-                    "Kamu adalah Strategic Planner, perencana produk dan strategi alur kerja. Tugasmu memastikan solusi mudah digunakan oleh manusia, memiliki dampak bisnis yang jelas, dan membagi proyek menjadi tahapan aksi konkret.",
+                    _seed_meta.get(5, "Perancang strategi ALFA."),
+                    _seed_persona.get(5, "Kamu adalah Strategic Planner, perancang strategi ALFA."),
                     "gemini",
                     "gemini-2.5-flash",
                     "💡",
                     "amber"
+                ),
+                (
+                    "Laguna Co-Pilot",
+                    "First-Response Co-Pilot & Triage Specialist",
+                    _seed_meta.get(6, "Garda depan triase ALFA."),
+                    _seed_persona.get(6, "Kamu adalah Laguna Co-Pilot, triase cepat ALFA."),
+                    "gemini",
+                    "gemini-2.5-flash",
+                    "🚀",
+                    "teal"
                 )
             ]
             for name, role, persona, sys_inst, prov, model, emoji, color in default_agents:
@@ -251,9 +338,22 @@ def init_db_sync():
         except Exception:
             pass
 
+        # Migrasi: agen workforce dgn akses tools (0 = teks saja, perilaku lama)
+        try:
+            conn.execute("ALTER TABLE custom_agents ADD COLUMN enable_tools INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         conn.commit()
     finally:
         conn.close()
+
+    # Migrasi sekali-jalan: enkripsi kunci yang masih plaintext (idempoten)
+    try:
+        migrate_encrypt_api_keys()
+    except Exception as _mig_err:
+        import logging
+        logging.getLogger(__name__).warning(f"migrate_encrypt_api_keys gagal: {_mig_err}")
 
 
 # Auto-initialize database tables synchronously on import
@@ -811,7 +911,7 @@ def list_api_keys_sync() -> List[Dict[str, Any]]:
                 "id": r["id"],
                 "name": r["name"],
                 "provider": r["provider"],
-                "masked_key": mask_key(r["api_key"]),
+                "masked_key": mask_key(decrypt_key(r["api_key"])),
                 "base_url": r["base_url"] or "",
                 "default_model": r["default_model"],
                 "is_active": bool(r["is_active"]),
@@ -831,7 +931,7 @@ def add_api_key_sync(name: str, provider: str, api_key: str, default_model: str,
             INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, provider_norm, api_key.strip(), base_url.strip() if base_url else None, default_model, 1 if set_active else 0)
+            (name, provider_norm, encrypt_key(api_key.strip()), base_url.strip() if base_url else None, default_model, 1 if set_active else 0)
         )
         conn.commit()
         key_id = cursor.lastrowid
@@ -915,7 +1015,9 @@ def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]
         cursor = conn.execute("SELECT * FROM api_keys WHERE provider = ? AND is_active = 1 LIMIT 1", (provider.lower(),))
         row = cursor.fetchone()
         if row:
-            return dict(row)
+            d = dict(row)
+            d["api_key"] = decrypt_key(d.get("api_key") or "")
+            return d
         # Fallback to any other key for this provider (prefer active ones)
         cursor = conn.execute(
             "SELECT * FROM api_keys WHERE provider = ? ORDER BY is_active DESC, id ASC LIMIT 1",
@@ -923,7 +1025,9 @@ def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]
         )
         row = cursor.fetchone()
         if row:
-            return dict(row)
+            d = dict(row)
+            d["api_key"] = decrypt_key(d.get("api_key") or "")
+            return d
     return None
 
 
@@ -935,6 +1039,7 @@ def list_custom_agents_sync() -> List[Dict[str, Any]]:
             """
             SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model, 
                    a.api_key_id, a.avatar_emoji, a.color_theme, a.is_enabled, a.created_at,
+                   COALESCE(a.enable_tools, 0) as enable_tools,
                    k.name as key_name
             FROM custom_agents a
             LEFT JOIN api_keys k ON a.api_key_id = k.id
@@ -965,7 +1070,7 @@ def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction
 
 def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
     """Update custom agent configuration."""
-    allowed = ["name", "role", "persona", "system_instruction", "provider", "model", "api_key_id", "avatar_emoji", "color_theme", "is_enabled"]
+    allowed = ["name", "role", "persona", "system_instruction", "provider", "model", "api_key_id", "avatar_emoji", "color_theme", "is_enabled", "enable_tools"]
     fields = []
     values = []
     for k, v in updates.items():

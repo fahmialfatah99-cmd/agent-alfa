@@ -409,6 +409,7 @@ async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
 @app.post("/api/video/generate")
 async def generate_promo_video(payload: Dict[str, Any]):
     """Generate 9:16 vertical promo video from images and script."""
+    import asyncio
     import video_generator
     image_paths = payload.get("image_paths", [])
     product_name = payload.get("product_name", "Produk Pilihan").strip()
@@ -424,26 +425,48 @@ async def generate_promo_video(payload: Dict[str, Any]):
     api_key = payload.get("api_key", None)
     output_filename = payload.get("output_filename", None)
     badge_text = payload.get("badge_text", "GRATIS ONGKIR")
-    
+
     if not voiceover_text:
         voiceover_text = f"Promo spesial {product_name}, harga normal {orig_price} sekarang lagi drop cuma {disc_price}! Jangan sampai kehabisan, langsung klik link sekarang!"
-        
-    res = video_generator.generate_video_from_images(
-        image_paths=image_paths,
-        product_name=product_name,
-        voiceover_text=voiceover_text,
-        orig_price=orig_price,
-        disc_price=disc_price,
-        voice=voice,
-        theme=theme,
-        motion_style=motion_style,
-        badge_text=badge_text,
-        call_to_action=call_to_action,
-        visual_prompt=visual_prompt,
-        engine=engine,
-        api_key=api_key,
-        output_filename=output_filename
-    )
+
+    # Google Veo: auto-pakai kunci Gemini dari vault bila API key kosong
+    if engine in ("kling", "luma", "runway", "fal_ai", "replicate"):
+        return {"status": "error",
+                "message": f"Engine '{engine}' belum terimplementasi. Gunakan 'local_pro' atau 'google_veo*'."}
+    if engine in video_generator.VEO_MODEL_MAP and not (api_key or "").strip():
+        try:
+            with database.get_sync_db() as conn:
+                r = conn.execute(
+                    "SELECT api_key FROM api_keys WHERE provider = 'gemini' ORDER BY id LIMIT 1")
+                row = r.fetchone()
+            if row and row["api_key"]:
+                api_key = database.decrypt_key(row["api_key"])
+        except Exception:
+            pass
+        if not (api_key or "").strip():
+            return {"status": "error",
+                    "message": "Google Veo butuh Gemini API Key. Isi manual atau tambahkan kunci 'gemini' di Vault."}
+
+    def _render():
+        return video_generator.generate_video_from_images(
+            image_paths=image_paths,
+            product_name=product_name,
+            voiceover_text=voiceover_text,
+            orig_price=orig_price,
+            disc_price=disc_price,
+            voice=voice,
+            theme=theme,
+            motion_style=motion_style,
+            badge_text=badge_text,
+            call_to_action=call_to_action,
+            visual_prompt=visual_prompt,
+            engine=engine,
+            api_key=api_key,
+            output_filename=output_filename
+        )
+
+    # Render berat di worker thread supaya event loop tidak terblokir
+    res = await asyncio.to_thread(_render)
     return res
 
 
@@ -643,20 +666,44 @@ async def models_for_key(key_id: int):
         raise HTTPException(status_code=404, detail="Key tidak ditemukan")
 
     provider = (row["provider"] or "").lower()
-    api_key = row["api_key"] or ""
+    api_key = database.decrypt_key(row["api_key"] or "")
     base_url = (row["base_url"] or "").strip()
     models: List[str] = []
     try:
         if provider == "gemini":
-            # Kurasi generasi aktif (selaras Antigravity). Model lama (1.5/2.0/2.5
-            # untuk akun baru) sudah dihentikan Google.
-            models = [
-                "gemini-3.5-flash",
-                "gemini-3.5-flash-lite",
-                "gemini-3.6-flash",
-                "gemini-3-flash",
-                "gemini-flash-latest",
-            ]
+            # Live discovery dari Google ListModels (selaras dgn AI Studio).
+            # Hanya model yg mendukung generateContent yg ditampilkan.
+            try:
+                async with httpx.AsyncClient(timeout=15) as cli:
+                    res = await cli.get(
+                        "https://generativelanguage.googleapis.com/v1beta/models",
+                        params={"key": api_key, "pageSize": 1000})
+                if res.status_code == 200:
+                    for m in res.json().get("models", []):
+                        methods = m.get("supportedGenerationMethods") or []
+                        if "generateContent" not in methods:
+                            continue
+                        mid = (m.get("name") or "").replace("models/", "")
+                        if mid:
+                            models.append(mid)
+            except Exception:
+                pass
+            if not models:
+                # Fallback kurasi bila panggilan live gagal
+                models = [
+                    "gemini-3.7-flash",
+                    "gemini-3.6-flash",
+                    "gemini-3.5-flash",
+                    "gemini-3.5-flash-lite",
+                    "gemini-3.1-pro-preview",
+                    "gemini-3.1-flash-lite",
+                    "gemini-3-flash-preview",
+                    "gemini-flash-latest",
+                    "gemini-pro-latest",
+                    "gemini-2.5-pro",
+                    "gemini-2.5-flash",
+                    "gemini-2.5-flash-lite",
+                ]
         else:
             base = base_url or {
                 "openrouter": "https://openrouter.ai/api/v1",
@@ -781,6 +828,7 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
         row = dict(r) if r else None
     if not row:
         return {"status": "error", "message": "Key tidak ditemukan"}
+    row["api_key"] = database.decrypt_key(row.get("api_key") or "")
 
     provider = (row["provider"] or "").lower()
     t0 = time.time()
@@ -1861,6 +1909,110 @@ async def list_artifacts():
     return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  📁 WORKSPACE EXPLORER — jelajahi struktur proyek & baca isi file dari web
+# ══════════════════════════════════════════════════════════════════════════════
+
+WORKSPACE_ROOTS = [
+    {"id": "workspace", "label": "🏠 ALFA Workspace (proyek agen)", "path": "~/ALFA_WORKSPACE"},
+    {"id": "swarm", "label": "🤖 Output Swarm", "path": os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")},
+    {"id": "videos", "label": "🎬 Video Generator", "path": os.path.expanduser("~/Dokumen/ALFA_GENERATED_VIDEOS")},
+    {"id": "output", "label": "📦 Folder Output", "path": os.path.expanduser("~/output")},
+    {"id": "sandbox", "label": "⚡ Sandbox", "path": "/dev/shm/alfa_sandbox"},
+]
+
+_WS_SKIP_DIRS = {".git", "venv", ".venv", "node_modules", "__pycache__",
+                 ".mypy_cache", ".pytest_cache", "dist", "build", ".next", "target"}
+_WS_MAX_FILE_BYTES = 300_000  # batas baca isi file (teks)
+
+
+def _ws_real_path(path: str) -> Optional[str]:
+    """Resolve path & pastikan berada di dalam salah satu workspace root."""
+    real = os.path.realpath(os.path.expanduser(path))
+    for r in WORKSPACE_ROOTS:
+        rp = os.path.realpath(os.path.expanduser(r["path"]))
+        if real == rp or real.startswith(rp + os.sep):
+            return real
+    return None
+
+
+def _safe_workspace_path(path: str) -> str:
+    real = _ws_real_path(path)
+    if not real:
+        allowed = ", ".join(os.path.expanduser(r["path"]) for r in WORKSPACE_ROOTS)
+        raise HTTPException(
+            status_code=403,
+            detail=(f"Akses ditolak: '{path or '(kosong)'}' di luar workspace yang diizinkan. "
+                    f"Root tersedia: {allowed}. "
+                    "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."))
+    return real
+
+
+@app.get("/api/workspace/roots")
+async def workspace_roots():
+    """Daftar root proyek yang bisa dijelajahi."""
+    roots = []
+    for r in WORKSPACE_ROOTS:
+        p = os.path.realpath(os.path.expanduser(r["path"]))
+        roots.append({**r, "exists": os.path.isdir(p)})
+    return {"status": "success", "roots": roots}
+
+
+@app.get("/api/workspace/tree")
+async def workspace_tree(path: str):
+    """List satu level isi folder (lazy-load per folder klik)."""
+    real = _safe_workspace_path(path)
+    if not os.path.isdir(real):
+        raise HTTPException(status_code=404, detail="Bukan direktori")
+    items = []
+    try:
+        entries = sorted(os.scandir(real),
+                         key=lambda e: (not e.is_dir(), e.name.lower()))
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Izin dibatalkan")
+    for e in entries[:400]:
+        if e.name in _WS_SKIP_DIRS or e.name.startswith("."):
+            continue
+        try:
+            st = e.stat()
+            items.append({
+                "name": e.name,
+                "type": "dir" if e.is_dir() else "file",
+                "size": st.st_size if e.is_file() else None,
+                "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"),
+            })
+        except OSError:
+            continue
+    return {"status": "success", "path": real, "items": items}
+
+
+@app.get("/api/workspace/file")
+async def workspace_read_file(path: str):
+    """Baca isi file teks utk dilihat di browser (dengan deteksi biner)."""
+    real = _safe_workspace_path(path)
+    if not os.path.isfile(real):
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    size = os.path.getsize(real)
+    with open(real, "rb") as f:
+        head = f.read(4096)
+    is_binary = b"\x00" in head
+    if is_binary:
+        return {"status": "binary", "name": os.path.basename(real), "size": size,
+                "message": "File biner — gunakan tombol Download.",
+                "download_url": f"/api/artifacts/download?path={real}"}
+    truncated = size > _WS_MAX_FILE_BYTES
+    with open(real, "rb") as f:
+        data = f.read(_WS_MAX_FILE_BYTES)
+    return {
+        "status": "success",
+        "name": os.path.basename(real),
+        "size": size,
+        "truncated": truncated,
+        "content": data.decode("utf-8", errors="replace"),
+        "download_url": f"/api/artifacts/download?path={real}",
+    }
+
+
 @app.get("/api/artifacts/download")
 async def download_artifact(path: str):
     """Safely download an artifact file (restricted to known artifact directories)."""
@@ -2250,6 +2402,7 @@ async def test_api_key_endpoint(key_id: int):
 
 PROVIDER_MODELS = {
     "antigravity": [
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru - Medium Thinking)", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
         {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Cepat - Default Antigravity)", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
         {"id": "gemini-3-flash", "name": "Gemini 3 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
         {"id": "gemini-3.1-pro", "name": "Gemini 3.1 Pro (Penalaran Kompleks)", "category": "Antigravity Pro Models", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
@@ -2257,6 +2410,7 @@ PROVIDER_MODELS = {
         {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
         {"id": "claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
         {"id": "claude-opus-4.6", "name": "Claude Opus 4.6 Thinking (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
+        {"id": "gpt-oss-120b", "name": "GPT-OSS 120B Medium (OpenAI via Antigravity)", "category": "GPT-OSS via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
     ],
     "nvidia": [
         # --- NVIDIA Nemotron Suite ---
@@ -2329,11 +2483,33 @@ PROVIDER_MODELS = {
         {"id": "qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"}
     ],
     "gemini": [
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Generasi Terbaru - Direkomendasikan)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 3.7 / 3.6 (Terbaru) ---
+        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash (Generasi Termbaru)", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 3.5 ---
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Cepat & Stabil)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Ultra Ringan)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru)", "category": "Gemini 3.6", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3-flash", "name": "Gemini 3 Flash", "category": "Gemini 3", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest (Selalu Versi Termbaru)", "category": "Latest", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 3.1 Pro & Flash ---
+        {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview (Penalaran Kompleks)", "category": "Gemini 3.1 Pro", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "category": "Gemini 3.1", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3-flash-preview", "name": "Gemini 3 Flash Preview", "category": "Gemini 3.1", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-omni-flash-preview", "name": "Gemini Omni Flash Preview (Multimodal)", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Alias Selalu-Terbaru ---
+        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest (Otomatis Versi Termbaru)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-flash-lite-latest", "name": "Gemini Flash Lite Latest", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-pro-latest", "name": "Gemini Pro Latest (Flagship)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 2.5 ---
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Image Generation ---
+        {"id": "nano-banana-pro-preview", "name": "Nano Banana Pro (Image Gen Flagship)", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3-pro-image", "name": "Gemini 3 Pro Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3.1-flash-image", "name": "Gemini 3.1 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-2.5-flash-image", "name": "Gemini 2.5 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemma Open Model ---
+        {"id": "gemma-4-31b-it", "name": "Gemma 4 31B IT (Open Model)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemma-4-26b-a4b-it", "name": "Gemma 4 26B A4B IT (Open Model Efisien)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
     ],
 
     "groq": [

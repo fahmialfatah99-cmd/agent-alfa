@@ -26,9 +26,14 @@ from typing import Dict, Any, List, Optional
 logger = logging.getLogger("MainBrain")
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-MAX_ITERATIONS = 8          # batas putaran tool-call per turn
+# Batas putaran tool-call per turn. Naik dari 8 -> 24 agar tugas kompleks
+# multi-langkah tidak kehabisan "napas". Bisa dioverride via env.
+MAX_ITERATIONS = int(os.getenv("ALFA_MAX_TOOL_ITERATIONS", "24"))
 MAX_TOOL_OUTPUT = 4000      # potong output tool agar konteks efisien
 TOOL_EXEC_TIMEOUT = 300     # rapat/swarm bisa berjalan beberapa menit
+# Budget total karakter konteks percakapan; dilewabi -> kompaksi otomatis.
+TOOL_CONTEXT_BUDGET = int(os.getenv("ALFA_TOOL_CONTEXT_BUDGET", "120000"))
+_TOOL_KEEP_RECENT = 6       # jumlah pesan tool terakhir yang dijaga utuh
 
 
 # ── Resolusi otak utama ──────────────────────────────────────────────────────
@@ -53,7 +58,7 @@ def get_main_brain() -> Dict[str, Any]:
                     model = override
                 return {
                     "provider": row["provider"].lower(),
-                    "api_key": row["api_key"],
+                    "api_key": database.decrypt_key(row["api_key"]),
                     "model": model,
                     "base_url": row["base_url"] or "",
                     "key_id": row["id"],
@@ -148,14 +153,20 @@ def _fn_to_openai_tool(fn) -> Dict[str, Any]:
     }
 
 
-def build_openai_tools() -> List[Dict[str, Any]]:
-    """Konversi seluruh AVAILABLE_TOOLS ke skema tools OpenAI."""
+def build_openai_tools(safe_only: bool = False) -> List[Dict[str, Any]]:
+    """Konversi AVAILABLE_TOOLS ke skema tools OpenAI.
+
+    safe_only=True membatasi ke subset aman utk agen swarm: riset web, baca
+    file, sandbox eksekusi, dan memori — tanpa vault rahasia & kontrol desktop.
+    """
     try:
         import tools as t
         fns = [f for f in t.AVAILABLE_TOOLS if callable(f)]
     except Exception as e:
         logger.error(f"build_openai_tools gagal: {e}")
         return []
+    if safe_only:
+        fns = [f for f in fns if getattr(f, "__name__", "") in SAFE_TOOL_NAMES]
     converted = []
     for fn in fns:
         try:
@@ -163,6 +174,23 @@ def build_openai_tools() -> List[Dict[str, Any]]:
         except Exception:
             continue
     return converted
+
+
+# Subset aman utk agen swarm: cukup kuat utk riset/koding, minim risiko.
+SAFE_TOOL_NAMES = {
+    "web_search",
+    "fetch_web_page_content",
+    "read_local_file",
+    "search_workspace_files",
+    "grep_workspace",
+    "index_codebase",
+    "search_codebase",
+    "execute_python_sandbox",
+    "execute_bash_command",
+    "save_knowledge_memory",
+    "search_knowledge_memory",
+    "get_system_stats",
+}
 
 
 def _find_tool(name: str):
@@ -206,6 +234,38 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     return raw[:MAX_TOOL_OUTPUT]
 
 
+# ── Kompaksi konteks agentic loop ────────────────────────────────────────────
+def _convo_size(convo: List[Dict[str, Any]]) -> int:
+    return sum(
+        len(m.get("content") or "") + len(str(m.get("tool_calls") or ""))
+        for m in convo
+    )
+
+
+def _compact_convo(convo: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Pangkas output tool LAMA saat total konteks melewati budget.
+
+    Pesan 'tool' terakhir dijaga utuh; yang lebih tua dipotong menjadi
+    penanda ringkas agar loop panjang tetap muat dalam jendela konteks.
+    Mutasi in-place; mengembalikan convo yang sama.
+    """
+    try:
+        if _convo_size(convo) <= TOOL_CONTEXT_BUDGET:
+            return convo
+        tool_idx = [i for i, m in enumerate(convo) if m.get("role") == "tool"]
+        if len(tool_idx) <= _TOOL_KEEP_RECENT:
+            return convo
+        for i in tool_idx[:-_TOOL_KEEP_RECENT]:
+            c = convo[i].get("content") or ""
+            if len(c) > 220:
+                convo[i]["content"] = (
+                    "[output tool dipangkas utk hemat konteks] " + c[:180] + " ...")
+        logger.debug(f"[MainBrain] kompaksi konteks: ukuran sekarang {_convo_size(convo)}")
+    except Exception as e:
+        logger.warning(f"[MainBrain] kompaksi gagal (abaikan): {e!r}")
+    return convo
+
+
 # ── Agentic loop OpenAI-compatible ───────────────────────────────────────────
 async def run_openai_agentic_turn(
     provider: str,
@@ -218,16 +278,19 @@ async def run_openai_agentic_turn(
     key_id=None,
     key_label: str = "",
     context: str = "telegram_chat",
+    tools_schema: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[str]:
     """
     Satu turn agentik penuh di provider OpenAI-compatible:
-    kirim pesan + 130 tools -> eksekusi tool_calls -> ulangi sampai jawaban final.
+    kirim pesan + tools -> eksekusi tool_calls -> ulangi sampai jawaban final.
+    tools_schema=None memakai set lengkap; list kosong = tanpa tools (chat polos).
     Return teks jawaban, atau None bila gagal total (pemanggil bisa fallback).
     """
     try:
         import httpx
         import token_usage
-        tools_schema = build_openai_tools()
+        if tools_schema is None:
+            tools_schema = build_openai_tools()
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system_instruction}]
         for h in (history or [])[-10:]:
@@ -243,7 +306,10 @@ async def run_openai_agentic_turn(
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0)) as client:
             convo = list(messages)
             for iteration in range(MAX_ITERATIONS):
-                payload = dict(payload_base, messages=convo, tools=tools_schema)
+                _compact_convo(convo)
+                payload = dict(payload_base, messages=convo)
+                if tools_schema:
+                    payload["tools"] = tools_schema
                 res = await client.post(url, headers=headers, json=payload)
                 if res.status_code != 200:
                     logger.error(f"[MainBrain:{provider}] HTTP {res.status_code}: {res.text[:200]}")
@@ -272,7 +338,31 @@ async def run_openai_agentic_turn(
                         "tool_call_id": tc.get("id", ""),
                         "content": out,
                     })
-            logger.warning("[MainBrain] capai batas iterasi tool-call.")
+
+            # Batas iterasi tercapai: jangan buang seluruh progres.
+            # Minta ringkasan akhir TANPA tools agar hasil tetap berguna.
+            logger.warning(f"[MainBrain] batas {MAX_ITERATIONS} iterasi tercapai -> minta wrap-up.")
+            convo.append({
+                "role": "user",
+                "content": ("[SISTEM] Batas putaran tool tercapai. STOP memanggil tool. "
+                            "Ringkas apa yang SUDAH berhasil dikerjakan, hasil/data penting "
+                            "yang sudah didapat, dan langkah tersisa yang perlu "
+                            "dilanjutkan di giliran berikutnya."),
+            })
+            try:
+                wrap_payload = dict(payload_base, messages=_compact_convo(convo))
+                res2 = await client.post(url, headers=headers, json=wrap_payload)
+                if res2.status_code == 200:
+                    token_usage.from_openai_json(res2.json(), provider=provider,
+                                                 model=model, key_id=key_id,
+                                                 key_label=key_label,
+                                                 context=f"{context}:wrapup")
+                    wrap = (res2.json().get("choices", [{}])[0].get("message", {})
+                            .get("content") or "").strip()
+                    if wrap:
+                        return f"⏳ *Progres parsial (batas iterasi tercapai):*\n\n{wrap}"
+            except Exception as wrap_err:
+                logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return None
     except Exception as e:
         logger.error(f"[MainBrain:{provider}] error: {e!r}")
