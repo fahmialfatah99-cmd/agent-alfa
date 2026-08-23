@@ -50,6 +50,7 @@ import database
 import main_brain
 import tools
 import token_usage
+import permission_gate
 from tools import (
     AVAILABLE_TOOLS,
     get_system_stats,
@@ -451,6 +452,9 @@ async def run_agent_turn(
     current_user_id_var.set(user_id)
     current_chat_id_var.set(chat_id or user_id)
 
+    # Permission Gate (human-in-the-loop) utk tool berbahaya
+    approval_gate = permission_gate.make_gate(chat_id or user_id)
+
     # 1. Fetch recent chat history from SQLite
     history_rows = await database.get_recent_chat_history(user_id, limit=12)
     
@@ -578,6 +582,7 @@ async def run_agent_turn(
             history=history_msgs,
             key_id=brain["key_id"],
             key_label=brain["label"],
+            approval_gate=approval_gate,
         )
         new_meetings = _meetings_count() - meetings_before
         if meeting_intent and new_meetings == 0 and reply_text:
@@ -592,7 +597,7 @@ async def run_agent_turn(
                     system_instruction=full_system_instruction,
                     user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
                     history=history_msgs, key_id=brain["key_id"],
-                    key_label=brain["label"])
+                    key_label=brain["label"], approval_gate=approval_gate)
                 if corrected:
                     reply_text = corrected
         if reply_text:
@@ -602,10 +607,17 @@ async def run_agent_turn(
 
     for model_name in models_to_try:
         try:
+            gate_on = approval_gate is not None
             config = types.GenerateContentConfig(
                 system_instruction=full_system_instruction,
                 temperature=0.75,
                 tools=AVAILABLE_TOOLS,
+                # AFC SDK dimatikan saat gate aktif agar tiap tool call
+                # melewati persetujuan manusia (loop manual di bawah).
+                automatic_function_calling=(
+                    types.AutomaticFunctionCallingOptions(disable=True)
+                    if gate_on else None
+                ),
             )
 
             response = await gemini_client.aio.models.generate_content(
@@ -618,7 +630,44 @@ async def run_agent_turn(
                                              key_label=gkey_label or "gemini-env",
                                              context="telegram_chat")
 
-            reply_text = response.text or "✅ Permintaan selesai diproses."
+            # ── Loop agentic manual (Permission Gate ON) ──
+            if gate_on:
+                _turn_contents = list(contents or [])
+                for _iter in range(main_brain.MAX_ITERATIONS):
+                    fcs = list(getattr(response, "function_calls", None) or [])
+                    if not fcs:
+                        break
+                    try:
+                        model_content = response.candidates[0].content
+                        if model_content is not None:
+                            _turn_contents.append(model_content)
+                    except Exception:
+                        pass
+                    for fc in fcs:
+                        args_json = json.dumps(dict(fc.args or {}),
+                                               ensure_ascii=False, default=str)
+                        denial = await approval_gate(fc.name, args_json)
+                        if denial:
+                            out = denial
+                        else:
+                            out = await asyncio.to_thread(
+                                main_brain._execute_tool, fc.name, args_json)
+                        logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
+                        _turn_contents.append(types.Content(role="user", parts=[
+                            types.Part(function_response=types.FunctionResponse(
+                                name=fc.name,
+                                response={"result": str(out)[:4000]}))]))
+                    response = await gemini_client.aio.models.generate_content(
+                        model=model_name, contents=_turn_contents, config=config)
+                    token_usage.from_gemini_response(response, model=model_name,
+                                                     key_id=gkey_id,
+                                                     key_label=gkey_label or "gemini-env",
+                                                     context="telegram_chat:gate")
+
+            try:
+                reply_text = response.text or "✅ Permintaan selesai diproses."
+            except Exception:
+                reply_text = "✅ Permintaan selesai diproses."
 
             # ══ AUDIT ANTI-BOHONG v2 (deterministik: database + filesystem) ══
             new_meetings = _meetings_count() - meetings_before
@@ -2067,6 +2116,8 @@ def main():
 
     # Callback Query (Buttons)
     application.add_handler(CallbackQueryHandler(handle_callback_query))
+    application.add_handler(CallbackQueryHandler(
+        permission_gate.handle_permission_callback, pattern=r"^perm\|"))
 
     # Multimodal message handlers
     application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message))

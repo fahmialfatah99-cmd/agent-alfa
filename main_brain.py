@@ -279,11 +279,14 @@ async def run_openai_agentic_turn(
     key_label: str = "",
     context: str = "telegram_chat",
     tools_schema: Optional[List[Dict[str, Any]]] = None,
+    approval_gate=None,
 ) -> Optional[str]:
     """
     Satu turn agentik penuh di provider OpenAI-compatible:
     kirim pesan + tools -> eksekusi tool_calls -> ulangi sampai jawaban final.
     tools_schema=None memakai set lengkap; list kosong = tanpa tools (chat polos).
+    approval_gate: callable async (tool_name, args_json)->Optional[str];
+    None = boleh, str = tolak dan pakai teks itu sbg hasil tool.
     Return teks jawaban, atau None bila gagal total (pemanggil bisa fallback).
     """
     try:
@@ -331,7 +334,17 @@ async def run_openai_agentic_turn(
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
-                    out = _execute_tool(name, fn.get("arguments", "{}"))
+                    raw_args = fn.get("arguments", "{}")
+                    out = None
+                    if approval_gate is not None:
+                        try:
+                            denial = await approval_gate(name, raw_args)
+                            if denial:
+                                out = denial
+                        except Exception as gate_err:
+                            logger.warning(f"[Gate] error (fail-open): {gate_err!r}")
+                    if out is None:
+                        out = _execute_tool(name, raw_args)
                     logger.info(f"[MainBrain] tool {name} -> {out[:80]}")
                     convo.append({
                         "role": "tool",
