@@ -38,6 +38,66 @@ KNOWN_OPENAI_PROVIDERS = {
 SWARM_OUTPUT_DIR = "/home/fahmial/Dokumen/ALFA_SWARM_OUTPUTS"
 os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
+# ── AUTO-HARVESTER: arsipkan proyek baru dari sandbox di akhir rapat ────────
+# Folder fullstack multi-file yang dibangun agen lewat bash bebas hidup di
+# RAM disk (/dev/shm) dan TIDAK ikut salinan deliverable standar (CSV/HTML).
+# Snapshot diambil saat rapat mulai; di akhir rapat folder baru diarsipkan
+# otomatis ke ALFA_SWARM_OUTPUTS/projects tanpa node_modules & sejenisnya.
+_HARVEST_EXCLUDE = {"node_modules", ".next", ".git", ".toolchain",
+                    "__pycache__", ".cache", ".local", ".venv", "venv"}
+_SANDBOX_SNAPSHOT: set = set()
+
+
+def _sandbox_project_dirs() -> set:
+    try:
+        sb = tools.SANDBOX_DIR
+        return {d for d in os.listdir(sb)
+                if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")}
+    except Exception:
+        return set()
+
+
+def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
+    """Arsipkan folder proyek baru di sandbox (sejak snapshot awal rapat)."""
+    harvested: List[str] = []
+    try:
+        new_dirs = _sandbox_project_dirs() - _SANDBOX_SNAPSHOT
+        if not new_dirs:
+            return harvested
+        slug = re.sub(r"[^a-z0-9]+", "_", (topic or "rapat").lower())[:30].strip("_") or "rapat"
+        dst_root = os.path.join(SWARM_OUTPUT_DIR, "projects",
+                                f"{slug}_{int(time.time())}")
+        for d in sorted(new_dirs):
+            src = os.path.join(tools.SANDBOX_DIR, d)
+            total = 0
+            too_big = False
+            for root, dirs, files in os.walk(src):
+                dirs[:] = [x for x in dirs if x not in _HARVEST_EXCLUDE]
+                for f in files:
+                    try:
+                        total += os.path.getsize(os.path.join(root, f))
+                    except OSError:
+                        pass
+                if total > 400 * 1024 * 1024:
+                    too_big = True
+                    break
+            if too_big:
+                log_live("HARVEST", f"⏭️ '{d}' dilewati (melebihi 400MB)")
+                continue
+            shutil.copytree(src, os.path.join(dst_root, d),
+                            ignore=shutil.ignore_patterns(*_HARVEST_EXCLUDE),
+                            dirs_exist_ok=True)
+            harvested.append(d)
+            log_live("HARVEST",
+                     f"📦 Proyek '{d}' ({total // 1024}KB) diarsipkan ke {dst_root}")
+        return harvested
+    except Exception as e:
+        log_live("HARVEST", f"⚠️ harvest gagal: {e}")
+        return harvested
+    finally:
+        _SANDBOX_SNAPSHOT.clear()
+        _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
+
 # ── LIVE TERMINAL FEED ───────────────────────────────────────────────────────
 # Sumber kebenaran: file JSONL agar lintas-proses (rapat dari Telegram maupun
 # dashboard sama-sama terlihat di Live Terminal web).
@@ -825,6 +885,9 @@ async def conduct_multi_agent_meeting(
     global MEETING_RUNNING
     MEETING_RUNNING = True
     log_live("SESSION", f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)")
+    # Snapshot folder sandbox utk auto-harvester di akhir rapat
+    _SANDBOX_SNAPSHOT.clear()
+    _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
 
     # --- PHASE 1: Dialogue & Alignment ---
     actual_rounds = 1 if mode in ["execute", "plan_and_execute"] else rounds
@@ -1016,6 +1079,8 @@ async def conduct_multi_agent_meeting(
         status="completed"
     )
     MEETING_RUNNING = False
+    # Auto-harvester: arsipkan proyek baru yang dibangun agen ke outputs
+    _harvest_new_sandbox_projects(topic)
     log_live("DONE", f"🏁 Rapat selesai & tersimpan sebagai Meeting #{saved.get('id')}")
 
     return {
