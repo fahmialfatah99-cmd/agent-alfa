@@ -930,7 +930,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
     # 2. Check all other files in sandbox (images, docs, code, archives, audio, video)
     for fname in os.listdir(SANDBOX_DIR):
         fpath = os.path.join(SANDBOX_DIR, fname)
-        if fname.startswith("sandbox_run"):
+        if tools.is_internal_sandbox_artifact(fname):
             continue
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
@@ -1300,7 +1300,7 @@ async def proactive_cron_watchdog_loop(application: Application):
                     if os.path.isdir(SANDBOX_DIR):
                         for fname in os.listdir(SANDBOX_DIR):
                             fpath = os.path.join(SANDBOX_DIR, fname)
-                            if fname.startswith("sandbox_run"):
+                            if tools.is_internal_sandbox_artifact(fname):
                                 continue
                             if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                                 ext = os.path.splitext(fname)[1].lower()

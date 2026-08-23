@@ -251,7 +251,15 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             timeout_secs, isolation = 45, "none"
 
         logger.info(f"Executing bash ({isolation}): {command[:150]}")
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+        finally:
+            # Skrip wrapper adalah infrastruktur internal; jangan tinggalkan
+            # agar tidak ikut terkirim ke chat oleh auto-dispatcher.
+            try:
+                os.remove(script_path)
+            except OSError:
+                pass
 
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
@@ -278,6 +286,23 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
 # ── Isolated Python Sandbox ──────────────────────────────────────────────────
 _DOCKER_AVAILABLE_CACHE: Optional[bool] = None
 _SANDBOX_IMAGE = "alfa-sandbox:latest"
+
+
+def is_internal_sandbox_artifact(fname: str) -> bool:
+    """True bila file adalah artefak infrastruktur sandbox (bukan hasil kerja
+    untuk dikirim ke pengguna): skrip wrapper bash/python, Dockerfile,
+    plot sementara, dan file tersembunyi."""
+    name = fname or ""
+    if not name or name.startswith("."):
+        return True
+    return (
+        name.startswith("sandbox_run")
+        or name.startswith("sandbox_sh_")
+        or name.startswith("sandbox_py_")
+        or name == "Dockerfile"
+        or name.startswith("generated_plot_old")
+        or name == "screen_recording.mp4"
+    )
 
 
 def _docker_available() -> bool:
@@ -420,7 +445,15 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             if backend_pref in ("auto", "docker"):
                 logger.warning("Docker sandbox unavailable - falling back to DIRECT execution (no isolation).")
 
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+        finally:
+            # Skrip runner adalah infrastruktur internal; hapus agar tidak
+            # bocor ke auto-dispatcher lampiran Telegram.
+            try:
+                os.remove(script_path)
+            except OSError:
+                pass
 
         stdout = res.stdout.strip()
         stderr = res.stderr.strip()
