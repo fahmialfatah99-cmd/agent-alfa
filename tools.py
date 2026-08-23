@@ -305,6 +305,19 @@ def is_internal_sandbox_artifact(fname: str) -> bool:
     )
 
 
+_SOURCE_CODE_EXTS = {
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".cpp", ".h", ".hpp",
+    ".cs", ".rs", ".go", ".rb", ".php", ".kt", ".swift", ".sh", ".bash",
+    ".bat", ".ps1", ".sql", ".html", ".htm", ".css", ".scss", ".vue",
+}
+
+
+def is_source_code_file(fname: str) -> bool:
+    """True bila file adalah kode sumber — tidak usah dikirim mentah ke chat;
+    hasil coding ditulis langsung di folder proyek lokal."""
+    return os.path.splitext(fname or "")[1].lower() in _SOURCE_CODE_EXTS
+
+
 def _docker_available() -> bool:
     """Check (and cache) whether the Docker daemon is usable by this user."""
     global _DOCKER_AVAILABLE_CACHE

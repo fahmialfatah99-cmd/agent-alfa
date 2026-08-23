@@ -68,11 +68,13 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
             )
             await safe_send_message(app, chat_id, completion_msg)
             
-            from tools import SANDBOX_DIR, is_internal_sandbox_artifact
+            from tools import SANDBOX_DIR, is_internal_sandbox_artifact, is_source_code_file
             if os.path.exists(SANDBOX_DIR):
                 for fname in os.listdir(SANDBOX_DIR):
                     fpath = os.path.join(SANDBOX_DIR, fname)
                     if is_internal_sandbox_artifact(fname):
+                        continue
+                    if is_source_code_file(fname):
                         continue
                     if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                         try:

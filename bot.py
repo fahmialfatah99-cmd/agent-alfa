@@ -121,6 +121,23 @@ ENFORCEMENT_BLOCK = (
     "6. Berbohong tentang eksekusi adalah kesalahan terburuk yang bisa kamu lakukan — lebih baik jujur 'belum dijalankan'.\n"
 )
 
+# ── ETIKA PENGIRIMAN KODE: tulis file lokal, chat cukup ringkasan ────────────
+CODING_DELIVERY_BLOCK = (
+    "\n\n### 💻 HUKUM CODING — TULIS FILE LOKAL, JANGAN SPAM KODE DI CHAT (MELAMPAUI SEMUA ATURAN)\n"
+    "1. Setiap tugas coding (buat program, script, fitur, perbaikan bug): TULIS LANGSUNG ke file "
+    "di folder proyek lokal pakai `write_local_file` / `edit_file_precise` / `apply_unified_diff`. "
+    "Folder default: `~/alfa_projects/<nama-proyek>/`. Jangan pernah menumpuk kode di folder sandbox.\n"
+    "2. Uji/compile/run pakai `execute_bash_command` dengan `working_dir` mengarah ke folder proyek "
+    "tersebut — bukan di sandbox root.\n"
+    "3. BALASAN CHAT = RINGKASAN: apa yang dikerjakan, daftar file yang dibuat/diubah (dengan path), "
+    "cara menjalankan, dan hasil tes. DILARANG menempelkan kode mentah panjang (>10 baris) di pesan. "
+    "Cuplikan <=10 baris hanya bila benar-benar perlu menjelaskan sesuatu.\n"
+    "4. File kode TIDAK dikirim sebagai dokumen/lampiran. Kirim berkas via `send_file_to_chat` HANYA "
+    "bila Fahmi meminta secara eksplisit ('kirim filenya').\n"
+    "5. Fahmi bisa melihat/mengedit semua file langsung di mesin — chat bukan tempat membaca kode, "
+    "tapi tempat melihat hasil kerja."
+)
+
 # ── PETA KEMAMPUAN: agar agent paham semua fitur ekosistem & kapan memakainya ──
 CAPABILITIES_BLOCK = (
 
@@ -518,7 +535,7 @@ async def run_agent_turn(
             pass
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CAPABILITIES_BLOCK
+    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK + CAPABILITIES_BLOCK
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
@@ -955,6 +972,10 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
         fpath = os.path.join(SANDBOX_DIR, fname)
         if tools.is_internal_sandbox_artifact(fname):
             continue
+        if tools.is_source_code_file(fname):
+            # Kode sumber tidak dikirim mentah ke chat; agent menulisnya
+            # langsung di folder proyek lokal.
+            continue
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
         ext = os.path.splitext(fname)[1].lower()
@@ -1324,6 +1345,8 @@ async def proactive_cron_watchdog_loop(application: Application):
                         for fname in os.listdir(SANDBOX_DIR):
                             fpath = os.path.join(SANDBOX_DIR, fname)
                             if tools.is_internal_sandbox_artifact(fname):
+                                continue
+                            if tools.is_source_code_file(fname):
                                 continue
                             if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                                 ext = os.path.splitext(fname)[1].lower()
