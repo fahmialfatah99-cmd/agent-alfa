@@ -804,6 +804,70 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send_message(context, chat_id, "🎛️ **Menu Kontrol Autonomous Agent:**", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/cekagen — audit kesehatan konfigurasi otak utama & agen swarm.
+    Deteksi dini mismatch provider/kunci/model sebelum menimbulkan
+    kegagalan senyap saat rapat atau chat."""
+    user_id = update.effective_user.id
+    if not is_authorized(user_id):
+        return
+
+    import sqlite3 as _sq
+    conn = _sq.connect(os.path.join(PROJECT_DIR, "agent_data.db"))
+    conn.row_factory = _sq.Row
+    try:
+        brain_key = conn.execute(
+            "SELECT value FROM system_settings WHERE key='main_brain_key_id'").fetchone()
+        brain_model = conn.execute(
+            "SELECT value FROM system_settings WHERE key='main_brain_model'").fetchone()
+        bk = int(brain_key[0]) if brain_key else None
+        bm = (brain_model[0] or "").strip() if brain_model else ""
+        krow = conn.execute(
+            "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
+            (bk,)).fetchone() if bk else None
+
+        lines = ["🩺 **AUDIT KONFIGURASI AGENT**\n"]
+        if krow:
+            ok_model = (bm == (krow["default_model"] or "").strip())
+            lines.append(
+                f"*Otak Utama:* key#{bk} `{krow['name']}` ({krow['provider']})\n"
+                f"  Model override: `{bm}` {'✅' if ok_model else '⚠️ beda dari default kunci (`' + krow['default_model'] + '`)'}\n"
+                f"  Status kunci: {'🟢 aktif' if krow['is_active'] else '🔴 NONAKTIF'}")
+        else:
+            lines.append("*Otak Utama:* ❌ pointer kosong/tidak valid!")
+
+        lines.append("\n*Agen Swarm:*")
+        problems = 0
+        for a in conn.execute("SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"):
+            kid = a["api_key_id"]
+            k2 = conn.execute(
+                "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
+                (kid,)).fetchone() if kid else None
+            issues = []
+            if not k2:
+                issues.append("kunci hilang")
+            else:
+                if k2["provider"] != a["provider"]:
+                    issues.append(f"kunci {k2['provider']} ≠ agen {a['provider']}")
+                if not k2["is_active"]:
+                    issues.append("kunci nonaktif/kuota bisa habis terpisah")
+                if (a["model"] or "").strip() and a["model"].strip() != (k2["default_model"] or "").strip():
+                    if a["provider"] == k2["provider"]:
+                        issues.append(f"model '{a['model']}' ≠ default kunci")
+            flag = "✅" if not issues else "❌"
+            problems += len(issues)
+            status = " | ".join(issues) if issues else "sehat"
+            on = "" if a["is_enabled"] else " (off)"
+            lines.append(f"  {flag} {a['name']}: {a['provider']}/{a['model']} → key#{kid} — {status}{on}")
+
+        lines.append(
+            f"\n{'🎉 Semua konfigurasi konsisten.' if problems == 0 else f'⚠️ {problems} masalah ditemukan.'}\n"
+            "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm.")
+        await safe_send_message(context, update.effective_chat.id, "\n".join(lines))
+    finally:
+        conn.close()
+
+
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats command."""
     user_id = update.effective_user.id
@@ -2097,6 +2161,7 @@ def main():
     application.add_handler(CommandHandler("wa", wa_command))
     application.add_handler(CommandHandler("washeets", wa_command))
     application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("cekagen", cekagen_command))
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
