@@ -240,7 +240,8 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             else:
                 cmd += ["-w", "/sandbox"]
             cmd += [_SANDBOX_IMAGE, "bash", f"/sandbox/{script_name}"]
-            timeout_secs, isolation = 55, "docker"
+            timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
+            isolation = "docker"
         else:
             if pref in ("auto", "docker"):
                 logger.warning("Docker unavailable - bash falls back to HOST execution.")
