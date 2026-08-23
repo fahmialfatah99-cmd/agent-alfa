@@ -1,0 +1,13 @@
+[Unit]
+Description=ALFA Web Command Center Dashboard (FastAPI, port 8080)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/telegram-ai-bot
+ExecStart=%h/telegram-ai-bot/venv/bin/python3 %h/telegram-ai-bot/web_dashboard.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

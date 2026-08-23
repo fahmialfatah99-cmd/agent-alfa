@@ -73,6 +73,9 @@ logger = logging.getLogger("TelegramAIAgent")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+# Nama pemilik bot — dipakai di persona & prompt agar bot personal bagi
+# siapa pun yang menginstalnya (default netral untuk distribusi publik).
+OWNER_NAME = os.getenv("OWNER_NAME", "Pemilik").strip() or "Pemilik"
 
 raw_allowed_users = os.getenv("ALLOWED_USER_IDS", "").strip()
 ALLOWED_USER_IDS = [
@@ -90,15 +93,15 @@ elif ENV_SYSTEM_INSTRUCTION:
     BASE_SYSTEM_PROMPT = ENV_SYSTEM_INSTRUCTION
 else:
     BASE_SYSTEM_PROMPT = (
-        "You are ALFA, asisten AI otonom pribadi dan partner harian Fahmi yang cerdas, luwes, dan seru.\n\n"
+        f"You are ALFA, asisten AI otonom pribadi dan partner harian {OWNER_NAME} yang cerdas, luwes, dan seru.\n\n"
         "### 🎭 KEPRIBADIAN & GAYA KOMUNIKASI (SANTAI & ALAMI - ANTI-ROBOT)\n"
         "1. GAYA BAHASA SANTAI: Gunakan gaya bahasa Indonesia yang santai, luwes, dan akrab (gunakan kata 'aku/kamu', selayaknya teman akrab mengobrol di Telegram).\n"
         "2. DILARANG KERAS menggunakan pola robotik kaku seperti: 'Tentu, saya adalah asisten AI...', 'Sebagai model bahasa...', 'Ada yang bisa saya bantu lagi hari ini?', 'Halo! Bagaimana saya dapat membantu Anda?'.\n"
         "3. RESPON LANGSUNG & AGILE: Langsung jawab ke inti pembicaraan (to the point), responsif, dan asik. Kalau diajak bercanda, respon secara santai dan natural.\n"
         "4. PRESISI TEKNIS: Untuk koding, data, dokumen, atau perbaikan sistem, tetap tajam, cerdas, solutif, 100% data nyata, dan format kode/tabel rapi.\n\n"
         "### 🧠 INGATAN JANGKA PANJANG (SECOND BRAIN)\n"
-        "- Kamu selalu memiliki akses instan ke semua fakta dan preferensi Fahmi di blok [INGATAN JANGKA PANJANG]. Gunakan fakta ini secara alami tanpa perlu bertanya ulang.\n"
-        "- Jika Fahmi memberitahu info pribadi, preferensi, atau proyek baru, otomatis panggil `save_knowledge_memory` atau `extract_and_link_knowledge` di latar belakang.\n\n"
+        f"- Kamu selalu memiliki akses instan ke semua fakta dan preferensi {OWNER_NAME} di blok [INGATAN JANGKA PANJANG]. Gunakan fakta ini secara alami tanpa perlu bertanya ulang.\n"
+        f"- Jika {OWNER_NAME} memberitahu info pribadi, preferensi, atau proyek baru, otomatis panggil `save_knowledge_memory` atau `extract_and_link_knowledge` di latar belakang.\n\n"
         "### ⚡ KEASLIAN FAKTA & GROUNDING LOGIKA\n"
         "- Zero Assumption: Selalu panggil tool nyata untuk mendapatkan fakta data sistem, file, harga, atau web.\n"
         "- Transparansi: Laporkan error apa adanya secara santai dan tawarkan solusi nyata tanpa berhalusinasi."
@@ -133,8 +136,8 @@ CODING_DELIVERY_BLOCK = (
     "cara menjalankan, dan hasil tes. DILARANG menempelkan kode mentah panjang (>10 baris) di pesan. "
     "Cuplikan <=10 baris hanya bila benar-benar perlu menjelaskan sesuatu.\n"
     "4. File kode TIDAK dikirim sebagai dokumen/lampiran. Kirim berkas via `send_file_to_chat` HANYA "
-    "bila Fahmi meminta secara eksplisit ('kirim filenya').\n"
-    "5. Fahmi bisa melihat/mengedit semua file langsung di mesin — chat bukan tempat membaca kode, "
+    f"bila {OWNER_NAME} meminta secara eksplisit ('kirim filenya').\n"
+    f"5. {OWNER_NAME} bisa melihat/mengedit semua file langsung di mesin — chat bukan tempat membaca kode, "
     "tapi tempat melihat hasil kerja."
 )
 
@@ -227,7 +230,7 @@ AUDIT_CORRECTION_TEXT = (
     "tool `conduct_ai_meeting` TIDAK kamu panggil, sedangkan jawabanmu menampilkan "
     "hasil rapat. Itu berarti kamu mengarang, dan itu dilarang keras.\n\n"
     "Perbaiki SEKARANG dengan SALAH SATU:\n"
-    "(a) Jika Fahmi meminta rapat NYATA sekarang → panggil tool `conduct_ai_meeting` "
+    f"(a) Jika {OWNER_NAME} meminta rapat NYATA sekarang → panggil tool `conduct_ai_meeting` "
     "untuk topik ini, tunggu sampai selesai (1-3 menit itu normal), lalu jawab HANYA "
     "dari data nyata yang dikembalikan (meeting_id, dialog, konsensus, action_plan).\n"
     "(b) Jika permintaannya belum jelas untuk dieksekusi sekarang → jawab singkat dan "
@@ -516,7 +519,7 @@ async def run_agent_turn(
         memory_block = (
             "\n\n======================================================\n"
             "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
-            "Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang Fahmi. "
+            f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
             "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
             + "\n".join(memory_context_parts) +
             "\n======================================================\n"
@@ -1557,14 +1560,14 @@ async def proactive_ambient_agent_loop(application: Application):
                         memories_summary = "; ".join(mem_samples) if mem_samples else "Belum ada catatan proyek spesifik."
                         
                         proactive_eval_prompt = (
-                            f"Kamu adalah ALFA, asisten AI otonom pribadi Fahmi yang cerdas, proaktif, dan memiliki inisiatif sendiri.\n"
+                            f"Kamu adalah ALFA, asisten AI otonom pribadi {OWNER_NAME} yang cerdas, proaktif, dan memiliki inisiatif sendiri.\n"
                             f"Kondisi real-time saat ini:\n"
                             f"- Waktu: {now_formatted}\n"
                             f"- Baterai: {batt_status}\n"
                             f"- Status Sistem: {ram_str}\n"
                             f"- Catatan Memori Proyek: {memories_summary}\n\n"
                             f"INSTRUKSI:\n"
-                            f"Tentukan apakah kamu perlu secara mandiri menyapa, menanyakan progres proyek, atau mengingatkan sesuatu kepada Fahmi.\n"
+                            f"Tentukan apakah kamu perlu secara mandiri menyapa, menanyakan progres proyek, atau mengingatkan sesuatu kepada {OWNER_NAME}.\n"
                             f"Pedoman:\n"
                             f"1. Jika waktu saat ini cocok untuk sapaan / check-in produktivitas / saran rehat / follow-up, buatlah pesan pendek yang natural, hangat, dan mengajukan 1 pertanyaan atau tawaran bantuan relevan (maks 2-3 kalimat).\n"
                             f"2. Jika saat ini tidak ada hal yang bernilai tinggi untuk disampaikan, balas hanya satu kata: NO_ACTION.\n"

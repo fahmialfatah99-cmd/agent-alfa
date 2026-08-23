@@ -5,7 +5,7 @@
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI%20v4.5-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Google-Gemini%202.5%20%26%203.5-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google-Gemini%203.x-4285F4?style=for-the-badge&logo=google&logoColor=white)
 ![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API%20v21-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
@@ -63,11 +63,18 @@
 
 ## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
 
+> 📖 **Baru pertama kali?** Ikuti tutorial lengkap dari nol sampai siap pakai:
+> **[docs/INSTALL.md](docs/INSTALL.md)** — termasuk cara membuat bot BotFather,
+> mengambil API key, whitelist keamanan, checklist verifikasi, dan troubleshooting.
+
 ### 🐧 1. Linux (Ubuntu, Debian, Arch, Fedora)
 ```bash
+# Prasyarat: Python 3.10+, Git, dan Docker (untuk sandbox eksekusi aman)
+sudo apt install docker.io && sudo usermod -aG docker $USER   # lalu logout-login
+
 # Clone repository
-git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
-cd agent-alfa
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
+cd telegram-ai-bot
 
 # Jalankan 1-Click Interactive Setup Wizard
 chmod +x setup.sh run.sh
@@ -77,6 +84,8 @@ chmod +x setup.sh run.sh
 ./run.sh
 
 # Atau aktifkan service background 24/7 (Systemd):
+mkdir -p ~/.config/systemd/user && cp deploy/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
 systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service
 ```
 
@@ -84,9 +93,9 @@ systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service
 
 ### 🍏 2. macOS (MacBook, Mac Mini, iMac)
 ```bash
-# Clone repository
-git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
-cd agent-alfa
+# Prasyarat: Python 3.10+, Git; Docker Desktop disarankan untuk sandbox
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
+cd telegram-ai-bot
 
 # Beri izin eksekusi dan jalankan
 chmod +x setup.sh run.sh
@@ -100,8 +109,8 @@ chmod +x setup.sh run.sh
 ### 🪟 3. Windows (Windows 10 / 11)
 1. **Clone repository via Command Prompt / PowerShell / Git Bash:**
    ```cmd
-   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
-   cd agent-alfa
+   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
+   cd telegram-ai-bot
    ```
 2. **Klik 2x file `run.bat`** (atau jalankan `run.bat` di terminal).
 3. Script otomatis membuat virtual environment `venv`, menginstall dependensi, menyalin `.env`, dan meluncurkan Web Dashboard serta Telegram Bot secara bersamaan.
@@ -120,11 +129,16 @@ TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
 # API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
 GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
 
-# Model Gemini default (gemini-2.5-flash, gemini-2.5-pro, gemini-3.5-flash-lite)
-GEMINI_MODEL="gemini-2.5-flash"
+# Model Gemini default (pilih generasi aktif, mis. gemini-3.6-flash / gemini-3.5-flash-lite)
+GEMINI_MODEL="gemini-3.6-flash"
 
-# Telegram User ID yang diizinkan (opsional, kosongkan jika publik)
+# Telegram User ID yang diizinkan (WAJIB DIISI - fail-safe: kosong = semua akses ditolak.
+# Jangan pernah jalankan bot ini publik tanpa whitelist karena bot bisa mengeksekusi
+# perintah di mesin Anda!)
 ALLOWED_USER_IDS="123456789"
+
+# Nama Anda — AI akan menyapa & mempersonalisasi prompt dengan nama ini
+OWNER_NAME="Nama Kamu"
 
 # Persona / Karakter Utama AI
 SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif, proaktif, dan handal."
@@ -161,6 +175,8 @@ Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)
 
 ## 🔒 Keamanan & Privasi
 
+* **Whitelist Wajib:** Bot menolak semua akses bila `ALLOWED_USER_IDS` kosong (fail-safe). Satu instance = satu pemilik. JANGAN jalankan publik tanpa whitelist.
+* **Sandbox Docker:** Eksekusi bash/python berjalan terisolasi dengan limit resource; tanpa Docker, eksekusi jatuh ke host tanpa isolasi (instal Docker!).
 * **Zero Cloud Leak:** Database, memori vektor, dan log tersimpan 100% lokal di SQLite (`agent_data.db`).
 * **Passkey Biometric Security:** Web Dashboard dilengkapi otentikasi biometrik WebAuthn (Fingerprint, Touch ID, Windows Hello).
 * **Grounded ReAct Engine:** AI dilarang berasumsi atau berhalusinasi tanpa grounding fakta dari eksekusi tool nyata.

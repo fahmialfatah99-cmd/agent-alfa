@@ -131,6 +131,20 @@ def build_prompts():
             for aid, data in AGENTS.items()}
 
 
+# ── Personalisasi nama pemilik (untuk distribusi publik) ────────────────────
+# Semua persona menulis "Fahmi" sebagai bos default; ganti dinamis sesuai
+# OWNER_NAME di .env agar bot milik siapa pun tetap terasa personal.
+import os as _os
+
+_OWNER = _os.getenv("OWNER_NAME", "Pemilik").strip() or "Pemilik"
+if _OWNER != "Fahmi":
+    DNA = DNA.replace("Fahmi", _OWNER)
+    for _data in AGENTS.values():
+        for _field in ("persona", "system_instruction"):
+            if isinstance(_data.get(_field), str):
+                _data[_field] = _data[_field].replace("Fahmi", _OWNER)
+
+
 if __name__ == "__main__":
     import json
     print(json.dumps(build_prompts(), ensure_ascii=False)[:300])
