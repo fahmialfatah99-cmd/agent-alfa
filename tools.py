@@ -6022,25 +6022,26 @@ def list_wa_drive_uploads(limit: int = 20) -> Dict[str, Any]:
         return {"status": "error", "message": f"Gagal membaca log unggahan: {str(e)}"}
 
 
-def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode: str = "plan") -> Dict[str, Any]:
+def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode: str = "execute", folder: str = "") -> Dict[str, Any]:
     """
-    Conduct an Autonomous Conference / Meeting or Live Swarm Execution between multiple AI agents.
-    
+    Jalankan SWARM EKSEKUSI LANGSUNG: agen bekerja nyata memakai tool (mode rapat/diskusi sudah dihapus).
+
     Args:
-        topic: The agenda, problem, or live task to be executed. WAJIB ringkasan TUGAS user sendiri (bukan kutipan jawaban/konsensus lama). Contoh: 'scrape 20 mouse gaming murah lalu buat CSV'.
+        topic: Ringkasan TUGAS nyata yang harus dikerjakan tim. Contoh: 'perbaiki bug login lalu tambah halaman kontak'.
         participants: Comma-separated agent names or empty for default team.
-        rounds: Number of discussion rounds (1 to 3, default: 2).
-        mode: 'plan' (strategic debate & action plan) or 'execute' (rapid alignment + live autonomous tool execution & artifacts).
+        rounds: Number of execution coordination rounds (1 to 3, default: 2).
+        mode: Diabaikan — selalu 'execute' (eksekusi langsung).
+        folder: Path folder lokal yang WAJIB diedit agen, contoh '/home/user/proyek'. Kosongkan biar agen bebas.
     """
     try:
         import swarm_engine
         import concurrent.futures
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
-        mode_clean = mode.lower().strip() if mode else "plan"
         
         def _run_meeting():
-            return asyncio.run(swarm_engine.conduct_multi_agent_meeting(topic, part_list, rounds_clamped, mode_clean))
+            return asyncio.run(swarm_engine.conduct_multi_agent_meeting(
+                topic, part_list, rounds_clamped, "execute", target_folder=folder))
         
         # asyncio.run() needs a fresh loop; if this tool is invoked from inside
         # a running loop (e.g. Telegram handler), delegate to a worker thread.
@@ -6056,7 +6057,8 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
             "meeting_id": result.get("meeting_id"),
             "title": result.get("title"),
             "topic": topic,
-            "mode": mode_clean,
+            "mode": "execute",
+            "target_folder": result.get("target_folder", ""),
             "total_rounds": rounds_clamped,
             "participants": result.get("participants"),
             "total_dialogues": len(result.get("dialogue_transcript", [])),

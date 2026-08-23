@@ -2824,21 +2824,22 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
 # --- Multi-Agent Round-Table Meeting Endpoints ---
 @app.post("/api/meetings/start")
 async def start_agent_meeting(payload: Dict[str, Any]):
-    """Launch an autonomous multi-agent session (Plan or Live Execution)."""
+    """Launch direct swarm execution (mode rapat/diskusi sudah dihapus)."""
     topic = payload.get("topic")
     if not topic:
         raise HTTPException(status_code=400, detail="topic is required")
         
     participants = payload.get("participants")
     rounds = payload.get("rounds", 2)
-    mode = payload.get("mode", "plan")
-    
+    folder = payload.get("folder", "")
+
     import swarm_engine
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
         rounds=safe_int(rounds, 2, minimum=1, maximum=3),
-        mode=mode
+        mode="execute",
+        target_folder=str(folder or ""),
     )
     return result
 

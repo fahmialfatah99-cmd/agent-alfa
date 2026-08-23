@@ -46,6 +46,8 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 _HARVEST_EXCLUDE = {"node_modules", ".next", ".git", ".toolchain",
                     "__pycache__", ".cache", ".local", ".venv", "venv"}
 _SANDBOX_SNAPSHOT: set = set()
+# Folder target kerja agen saat sesi eksekusi berjalan ("" = bebas).
+_TARGET_FOLDER: str = ""
 # Ground-truth filesystem utk verifikasi anti-bohong (execute mode):
 # {path_file: "size:mtime_ns"} dari seluruh folder proyek sandbox.
 _EXEC_FS_SNAPSHOT: Dict[str, str] = {}
@@ -54,11 +56,13 @@ _EXEC_FS_SNAPSHOT: Dict[str, str] = {}
 def _hash_sandbox_projects() -> Dict[str, str]:
     out: Dict[str, str] = {}
     try:
-        sb = tools.SANDBOX_DIR
-        for d in os.listdir(sb):
-            pdir = os.path.join(sb, d)
-            if not os.path.isdir(pdir) or d.startswith("."):
-                continue
+        if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
+            roots = [_TARGET_FOLDER]
+        else:
+            sb = tools.SANDBOX_DIR
+            roots = [os.path.join(sb, d) for d in os.listdir(sb)
+                     if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")]
+        for pdir in roots:
             for root, dirs, files in os.walk(pdir):
                 dirs[:] = [x for x in dirs if x not in _HARVEST_EXCLUDE]
                 for f in files:
@@ -823,9 +827,13 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 fb_note = " (via Nemotron Ultra)"
 
             if _valid(page):
-                slug = re.sub(r"[^a-z0-9]+", "_", topic.lower())[:30].strip("_") or "site"
-                site_dir = os.path.join(SWARM_OUTPUT_DIR, "websites",
-                                        slug + "_" + str(int(time.time())))
+                if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
+                    # Folder target dihormati: tulis langsung ke sana
+                    site_dir = _TARGET_FOLDER
+                else:
+                    slug = re.sub(r"[^a-z0-9]+", "_", topic.lower())[:30].strip("_") or "site"
+                    site_dir = os.path.join(SWARM_OUTPUT_DIR, "websites",
+                                            slug + "_" + str(int(time.time())))
                 os.makedirs(site_dir, exist_ok=True)
                 fpath = os.path.join(site_dir, "index.html")
                 with open(fpath, "w", encoding="utf-8") as f:
@@ -923,17 +931,29 @@ async def conduct_multi_agent_meeting(
     topic: str, 
     participant_names: Optional[List[str]] = None, 
     rounds: int = 2,
-    mode: str = "plan"
+    mode: str = "execute",
+    target_folder: str = "",
 ) -> Dict[str, Any]:
     """
-    Conduct an autonomous multi-agent session with TWO distinct modes:
-    1. 'plan': Round-table debate, architectural brainstorming, and action plan consensus.
-    2. 'execute' (or 'plan_and_execute'): Rapid strategic alignment + LIVE AUTONOMOUS EXECUTION where agents
-       simultaneously run tools, execute code, scrape data, audit security, and produce real output files!
+    SWARM EKSEKUSI LANGSUNG — tanpa mode rapat/diskusi lagi.
+
+    Agen langsung dibagi tugas, mengeksekusi tool nyata, lalu diverifikasi
+    ground-truth filesystem. Jika `target_folder` diisi (path lokal yang
+    valid), SEMUA agen wajib mengedit di dalam folder tersebut.
+    Riwayat/keputusan TIDAK lagi disimpan ke database (arsip dihapus).
     """
-    mode = mode.lower().strip()
-    if mode not in ["plan", "execute", "plan_and_execute"]:
-        mode = "plan"
+    mode = "execute"
+
+    # ── Folder target kerja agen (opsional tapi divalidasi keras) ──
+    global _TARGET_FOLDER
+    _TARGET_FOLDER = ""
+    if target_folder and str(target_folder).strip():
+        tf = os.path.realpath(os.path.expanduser(str(target_folder).strip()))
+        if os.path.isdir(tf):
+            _TARGET_FOLDER = tf
+            log_live("TARGET", f"📁 Folder kerja agen: {_TARGET_FOLDER}")
+        else:
+            log_live("TARGET", f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.")
 
     intent_info = detect_task_intent(topic)
 
@@ -969,8 +989,8 @@ async def conduct_multi_agent_meeting(
         _EXEC_FS_SNAPSHOT.clear()
         _EXEC_FS_SNAPSHOT.update(_hash_sandbox_projects())
 
-    # --- PHASE 1: Dialogue & Alignment ---
-    actual_rounds = 1 if mode in ["execute", "plan_and_execute"] else rounds
+    # --- MODE EKSEKUSI LANGSUNG MURNI: tanpa putaran dialog/diskusi ---
+    actual_rounds = 0
 
     for r in range(1, actual_rounds + 1):
         for agent in participants:
@@ -1037,6 +1057,15 @@ async def conduct_multi_agent_meeting(
         ctx_lines: List[str] = []
         for idx, agent in enumerate(participants):
             task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+
+            # Folder target wajib: injeksi keras ke setiap tugas agen
+            if _TARGET_FOLDER:
+                task_desc += (
+                    f"\n\nFOLDER KERJA WAJIB: {_TARGET_FOLDER}\n"
+                    f"SEMUA file yang dibaca/ditulis/diubah WAJIB berada di dalam folder ini. "
+                    f"Pada execute_bash_command selalu sertakan working_dir='{_TARGET_FOLDER}'. "
+                    f"DILARANG membuat proyek di lokasi lain."
+                )
 
             # Konteks berantai: agen berikutnya mengetahui hasil agen sebelumnya,
             # sehingga misi bertingkat (riset -> kode -> audit) benar2 menyambung.
@@ -1146,29 +1175,20 @@ async def conduct_multi_agent_meeting(
     else:
         consensus_text_clean = consensus_text
 
-    # Save to SQLite database
-    saved = database.create_agent_meeting_sync(
-        title=meeting_title,
-        topic=topic,
-        participants=[a["name"] for a in participants],
-        dialogue_transcript=dialogue_transcript,
-        consensus=consensus_text_clean,
-        action_plan=action_plan_text,
-        mode=mode,
-        execution_results=execution_steps,
-        status="completed"
-    )
+    # Riwayat & keputusan rapat TIDAK lagi disimpan ke database
+    # (fitur arsip dihapus atas permintaan pemilik).
     MEETING_RUNNING = False
     # Auto-harvester: arsipkan proyek baru yang dibangun agen ke outputs
     _harvest_new_sandbox_projects(topic)
-    log_live("DONE", f"🏁 Rapat selesai & tersimpan sebagai Meeting #{saved.get('id')}")
+    log_live("DONE", "🏁 Eksekusi swarm selesai.")
 
     return {
         "status": "success",
-        "meeting_id": saved.get("id"),
+        "meeting_id": None,
         "title": meeting_title,
         "topic": topic,
         "mode": mode,
+        "target_folder": _TARGET_FOLDER,
         "participants": [a["name"] for a in participants],
         "dialogue_transcript": dialogue_transcript,
         "execution_results": execution_steps,
