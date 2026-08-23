@@ -214,6 +214,16 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     except Exception:
         return "[ERROR] Argumen tool bukan JSON valid."
 
+    # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)
+    try:
+        import swarm_engine as _se
+        if getattr(_se, "MEETING_RUNNING", False):
+            arg_hint = ", ".join(f"{k}={str(v)[:40]}" for k, v in
+                                 list(args.items())[:2]) or "-"
+            _se.log_tool_live(f"⚙️ menjalankan `{name}` ({arg_hint}) ...")
+    except Exception:
+        pass
+
     def _call():
         try:
             return fn(**args)
@@ -231,6 +241,15 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
     if not isinstance(raw, str):
         raw = json.dumps(raw, ensure_ascii=False, default=str)
+
+    # Laporkan hasil ke live feed juga
+    try:
+        import swarm_engine as _se
+        if getattr(_se, "MEETING_RUNNING", False):
+            _se.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
+    except Exception:
+        pass
+
     return raw[:MAX_TOOL_OUTPUT]
 
 

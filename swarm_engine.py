@@ -151,6 +151,14 @@ def log_live(tag: str, text: str):
         pass
 
 
+def log_tool_live(text: str) -> None:
+    """Jembatan aktivitas tool dari jalur MainBrain -> live feed UI.
+    Hanya menulis saat ada rapat berjalan; aman dipanggil lintas modul."""
+    if not MEETING_RUNNING:
+        return
+    log_live("TOOL", text)
+
+
 def detect_task_intent(topic: str) -> Dict[str, Any]:
     """Analyze the user's topic/command to determine tool strategy, categories, and limits."""
     low = topic.lower()
