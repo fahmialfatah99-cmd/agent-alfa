@@ -197,10 +197,30 @@ def detect_task_intent(topic: str) -> Dict[str, Any]:
     }
 
 
+def _default_gemini_model() -> str:
+    """Model Gemini default yang SELALU hidup: ikut otak utama vault,
+    lalu default kunci gemini aktif, terakhir generik terbaru."""
+    try:
+        m = (database.get_main_brain_model() or "").strip()
+        if m:
+            return m
+    except Exception:
+        pass
+    try:
+        k = database.get_active_api_key_sync("gemini")
+        m = ((k or {}).get("default_model") or "").strip()
+        if m:
+            return m
+    except Exception:
+        pass
+    return "gemini-flash-latest"
+
+
 def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional[str], Optional[int]]:
     """Resolve (provider, api_key, model, base_url, key_id) for a specific agent."""
     provider = (agent.get("provider") or "gemini").lower()
-    model = agent.get("model") or "gemini-2.5-flash"
+    model = agent.get("model") or (_default_gemini_model()
+                                   if provider == "gemini" else "")
     api_key = ""
     base_url = ""
     key_id = None
