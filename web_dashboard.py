@@ -648,14 +648,15 @@ async def models_for_key(key_id: int):
     models: List[str] = []
     try:
         if provider == "gemini":
-            url = ("https://generativelanguage.googleapis.com/v1beta/models"
-                   f"?key={api_key}&pageSize=200")
-            async with httpx.AsyncClient(timeout=30) as cli:
-                res = await cli.get(url)
-            if res.status_code == 200:
-                for m in res.json().get("models", []):
-                    if "generateContent" in (m.get("supportedGenerationMethods") or []):
-                        models.append(m["name"].split("/")[-1])
+            # Kurasi generasi aktif (selaras Antigravity). Model lama (1.5/2.0/2.5
+            # untuk akun baru) sudah dihentikan Google.
+            models = [
+                "gemini-3.5-flash",
+                "gemini-3.5-flash-lite",
+                "gemini-3.6-flash",
+                "gemini-3-flash",
+                "gemini-flash-latest",
+            ]
         else:
             base = base_url or {
                 "openrouter": "https://openrouter.ai/api/v1",
@@ -2328,16 +2329,13 @@ PROVIDER_MODELS = {
         {"id": "qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"}
     ],
     "gemini": [
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Default / Ultra Cepat & Hemat)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Generasi Terbaru)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
-        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier)"},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (Multimodal & Real-time)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
-        {"id": "gemini-2.0-flash-thinking-exp-01-21", "name": "Gemini 2.0 Flash Thinking Exp (Reasoning Terbuka)", "category": "Google Reasoning", "pricing": "free", "pricing_label": "🟢 GRATIS (Experimental)"},
-        {"id": "gemini-2.0-pro-exp-02-05", "name": "Gemini 2.0 Pro Experimental (Performa Tinggi)", "category": "Google Pro", "pricing": "free", "pricing_label": "🟢 GRATIS (Experimental)"},
-        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash (1 Juta Konteks Token)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
-        {"id": "gemini-1.5-flash-8b", "name": "Gemini 1.5 Flash 8B (Super Ringan)", "category": "Google Flash", "pricing": "free", "pricing_label": "🟢 GRATIS (Free Tier / 1500 RPD)"},
-        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (2 Juta Konteks Token & Analisis Kompleks)", "category": "Google Pro", "pricing": "paid", "pricing_label": "💎 BERBAYAR / Free Tier 2 RPM"}
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Generasi Terbaru - Direkomendasikan)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Ultra Ringan)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru)", "category": "Gemini 3.6", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-3-flash", "name": "Gemini 3 Flash", "category": "Gemini 3", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest (Selalu Versi Termbaru)", "category": "Latest", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
     ],
+
     "groq": [
         {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
