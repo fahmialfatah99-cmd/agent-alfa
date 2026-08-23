@@ -97,6 +97,10 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
     harvested: List[str] = []
     try:
         new_dirs = _sandbox_project_dirs() - _SANDBOX_SNAPSHOT
+        # Folder target (mis. dibuat otomatis sebelum snapshot) tetap
+        # di-harvest walau sudah ada di snapshot awal.
+        if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
+            new_dirs.add(os.path.basename(_TARGET_FOLDER.rstrip("/")))
         if not new_dirs:
             return harvested
         slug = re.sub(r"[^a-z0-9]+", "_", (topic or "rapat").lower())[:30].strip("_") or "rapat"
@@ -954,6 +958,23 @@ async def conduct_multi_agent_meeting(
             log_live("TARGET", f"📁 Folder kerja agen: {_TARGET_FOLDER}")
         else:
             log_live("TARGET", f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.")
+
+    # ── AUTO-CREATE: prompt bertema membangun tapi tanpa folder pilihan ──
+    # Engine membuatkan folder baru bernama rapi dari topik, supaya hasil
+    # rapat terorganisir (tidak berserakan) dan mudah dipilih lagi nanti.
+    if not _TARGET_FOLDER:
+        build_kw = ("buat", "bangun", "rancang", "bikin", "website", "web ",
+                    "aplikasi", "landing", "dashboard", "desain", "design",
+                    "script", "skrip", "program", "refactor", "perbaiki tampilan")
+        if any(k in topic.lower() for k in build_kw):
+            slug = re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-") or "proyek-baru"
+            nf = os.path.join(tools.SANDBOX_DIR, f"{slug}_{int(time.time()) % 100000}")
+            try:
+                os.makedirs(nf, exist_ok=True)
+                _TARGET_FOLDER = nf
+                log_live("TARGET", f"📁 Folder proyek baru dibuat otomatis: {nf}")
+            except OSError as mk_err:
+                log_live("TARGET", f"⚠️ Gagal buat folder otomatis: {mk_err}")
 
     intent_info = detect_task_intent(topic)
 
