@@ -1499,6 +1499,7 @@ async def proactive_ambient_agent_loop(application: Application):
     await asyncio.sleep(60)
     
     while True:
+        cycle_backoff = 600  # default: evaluasi tiap 10 menit
         try:
             config = {"enabled": True, "min_hours_between_pings": 3, "quiet_hours_start": 23, "quiet_hours_end": 7}
             if os.path.exists(config_path):
@@ -1507,21 +1508,28 @@ async def proactive_ambient_agent_loop(application: Application):
                         config = _json.load(f)
                 except Exception:
                     pass
-                    
+
             if config.get("enabled", True):
                 now_dt = datetime.now()
                 current_hour = now_dt.hour
                 q_start = config.get("quiet_hours_start", 23)
                 q_end = config.get("quiet_hours_end", 7)
-                
+
+                # Hemat kuota free-tier: batas jumlah ping per hari
+                today_str = now_dt.strftime("%Y-%m-%d")
+                pings_today = config.get("pings_today", 0) if config.get("last_ping_date") == today_str else 0
+                max_pings = int(config.get("max_pings_per_day", 4))
+
                 # Check quiet hours (e.g. 23 to 7)
                 is_quiet = False
                 if q_start > q_end:
                     is_quiet = (current_hour >= q_start or current_hour < q_end)
                 else:
                     is_quiet = (q_start <= current_hour < q_end)
-                    
-                if not is_quiet:
+
+                if is_quiet or pings_today >= max_pings:
+                    pass  # diam di jam tenang / kuota ping harian habis
+                else:
                     last_ping_str = config.get("last_ping_time")
                     should_evaluate = True
                     if last_ping_str:
@@ -1578,19 +1586,28 @@ async def proactive_ambient_agent_loop(application: Application):
                                                          context="proactive")
                         
                         reply_text = (resp.text or "").strip()
+                        # Setiap evaluasi memakai kuota API (termasuk yang
+                        # berujung NO_ACTION) — catat pemakaian harian di sini.
+                        config["last_ping_date"] = today_str
+                        config["pings_today"] = pings_today + 1
+
                         if reply_text and "NO_ACTION" not in reply_text.upper() and len(reply_text) > 10:
                             logger.info(f"Proactive agent initiated autonomous message to user {target_user}")
                             await safe_send_message(application, target_user, f"✨ **[INISIATIF MANDIRI ALFA]**\n\n{reply_text}")
                             await database.save_chat_message(target_user, "model", f"[Inisiatif Mandiri]: {reply_text}")
-                            
+
                             config["last_ping_time"] = now_dt.isoformat()
-                            with open(config_path, "w", encoding="utf-8") as f:
-                                _json.dump(config, f, indent=2)
-                                
+
+                        with open(config_path, "w", encoding="utf-8") as f:
+                            _json.dump(config, f, indent=2)
+
         except Exception as e:
             logger.error(f"Error in proactive ambient loop: {e}")
-            
-        await asyncio.sleep(600)  # Check every 10 minutes
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                cycle_backoff = 3600
+                logger.warning("Kuota model habis (429) -> loop proaktif tidur 1 jam agar chat utama tetap punya jatah.")
+
+        await asyncio.sleep(cycle_backoff)
 
 
 # --- WhatsApp Sheets Bot Ecosystem Watchdog ---
