@@ -123,6 +123,9 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
             if too_big:
                 log_live("HARVEST", f"⏭️ '{d}' dilewati (melebihi 400MB)")
                 continue
+            if total < 512:
+                log_live("HARVEST", f"⏭️ '{d}' dilewati (folder kosong/tanpa karya)")
+                continue
             shutil.copytree(src, os.path.join(dst_root, d),
                             ignore=shutil.ignore_patterns(*_HARVEST_EXCLUDE),
                             dirs_exist_ok=True)
