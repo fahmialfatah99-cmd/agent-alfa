@@ -2905,6 +2905,29 @@ async def antigravity_logout_endpoint(payload: Dict[str, Any]):
     return agy_oauth.remove_account(payload.get("name", ""))
 
 
+@app.get("/api/swarm/folders")
+async def swarm_list_folders():
+    """Daftar folder proyek yang bisa dipilih sebagai target edit agen."""
+    import os as _os
+    candidates = []
+
+    def _add(root: str, label_prefix: str):
+        try:
+            if not os.path.isdir(root):
+                return
+            for d in sorted(_os.listdir(root)):
+                p = _os.path.join(root, d)
+                if _os.path.isdir(p) and not d.startswith("."):
+                    candidates.append({"path": p, "label": f"{label_prefix}/{d}"})
+        except Exception:
+            pass
+
+    _add("/dev/shm/alfa_sandbox", "sandbox")
+    _add(_os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites")
+    _add(_os.path.expanduser("~/alfa_projects"), "alfa_projects")
+    return {"folders": candidates}
+
+
 @app.get("/api/meetings")
 async def list_meetings(limit: int = 50):
     """List recent multi-agent meetings."""

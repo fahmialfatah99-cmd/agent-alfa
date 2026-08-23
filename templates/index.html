@@ -387,9 +387,9 @@
                         <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="users" class="w-4 h-4 text-violet-400"></i>
-                                <span>AI Swarm & Rapat</span>
+                                <span>AI Swarm & Eksekusi</span>
                             </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">2 MODES</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">⚡ EXECUTE</span>
                         </button>
                         <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-orange-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
@@ -1930,18 +1930,17 @@
                         </div>
                     </div>
 
-                    <!-- Folder target kerja agen -->
+                    <!-- Folder target kerja agen (pilih dari daftar, bukan ketik) -->
                     <div class="space-y-1.5">
-                        <label class="block text-xs font-mono font-bold text-slate-200">📁 Folder yang Mau Diedit Agen (opsional):</label>
-                        <input type="text" id="meeting-folder-input" placeholder="/home/username/alfa_projects/proyek-anda — kosongkan biar agen bebas"
-                            class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono shadow-inner transition-all" />
-                        <div id="meeting-folder-quick" class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
-                            <span class="text-slate-500 whitespace-nowrap">⚡ Cepat:</span>
-                            <button type="button" onclick="setMeetingFolder('/dev/shm/alfa_sandbox/wisata-indonesia')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-white/10 whitespace-nowrap transition-all">wisata-indonesia</button>
-                            <button type="button" onclick="setMeetingFolder('/dev/shm/alfa_sandbox/nike-promo')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-white/10 whitespace-nowrap transition-all">nike-promo</button>
-                            <button type="button" onclick="setMeetingFolder('/dev/shm/alfa_sandbox/office-manager')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-white/10 whitespace-nowrap transition-all">office-manager</button>
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-mono font-bold text-slate-200">📁 Folder yang Mau Diedit Agen:</label>
+                            <button type="button" onclick="loadMeetingFolders()" class="text-[10px] font-mono text-cyan-400 hover:underline">↻ Muat Ulang Daftar</button>
                         </div>
-                        <p class="text-[10px] text-slate-500 leading-snug">Jika diisi, SEMUA agen wajib mengedit hanya di folder ini + diverifikasi ground-truth perubahan file.</p>
+                        <select id="meeting-folder-select" onchange="onMeetingFolderChange()" class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono shadow-inner transition-all">
+                            <option value="">🌐 Bebas — agen pilih lokasi sendiri</option>
+                        </select>
+                        <input type="text" id="meeting-folder-custom" placeholder="atau tempel path lain di sini (opsional)..." class="hidden w-full p-2.5 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono" />
+                        <p class="text-[10px] text-slate-500 leading-snug">Folder dipilih dari daftar proyek di sandbox & outputs — SEMUA agen wajib mengedit di dalamnya + diverifikasi ground-truth.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3781,7 +3780,7 @@
 
         const tabTitles = {
             'overview': 'Telemetry & Live Overview',
-            'swarm': 'AI Swarm & War Room (2 Modes)',
+            'swarm': 'AI Swarm — Eksekusi Langsung',
             'scraper': 'Master Scraper Pro Studio',
             'affiliate': 'Affiliate Sales Studio',
             'vault': 'Passkey Vault & Security',
@@ -4264,7 +4263,7 @@
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
             if (tabId === 'guardian') fetchGuardian();
-            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchSwarmLive(); }
+            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchSwarmLive(); loadMeetingFolders(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
             if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); fetchAntigravityAccounts(); }
             if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
@@ -6431,14 +6430,47 @@
 
         // ==================== AI MEETING & SWARM WORKSPACE CONTROLLER ====================
         let currentMeetingMode = 'execute';
+
+        async function loadMeetingFolders() {
+            const sel = document.getElementById('meeting-folder-select');
+            if (!sel) return;
+            try {
+                const res = await fetch('/api/swarm/folders');
+                const data = await res.json();
+                const cur = sel.value;
+                sel.innerHTML = '<option value="">🌐 Bebas — agen pilih lokasi sendiri</option>';
+                for (const f of (data.folders || [])) {
+                    const opt = document.createElement('option');
+                    opt.value = f.path;
+                    opt.textContent = `${f.label} — ${f.path}`;
+                    sel.appendChild(opt);
+                }
+                if (cur) sel.value = cur;
+            } catch (e) { console.warn('gagal muat folder', e); }
+        }
+
+        function onMeetingFolderChange() {
+            const sel = document.getElementById('meeting-folder-select');
+            const custom = document.getElementById('meeting-folder-custom');
+            if (!sel || !custom) return;
+            custom.classList.toggle('hidden', sel.value !== '__custom__');
+        }
+
+        function getMeetingFolder() {
+            const sel = document.getElementById('meeting-folder-select')?.value || '';
+            if (sel === '__custom__') {
+                return (document.getElementById('meeting-folder-custom')?.value || '').trim();
+            }
+            return sel;
+        }
+
         function setMeetingFolder(path) {
-            const inp = document.getElementById('meeting-folder-input');
-            if (inp) { inp.value = path; inp.classList.add('border-emerald-500'); }
+            const sel = document.getElementById('meeting-folder-select');
+            if (sel && path) { sel.value = path; onMeetingFolderChange(); }
         }
 
         function setMeetingMode(mode) {
-            currentMeetingMode = mode;
-            const btnPlan = document.getElementById('btn-mode-plan');
+            currentMeetingMode = 'execute';
             const btnExec = document.getElementById('btn-mode-execute');
             const topicLabel = document.getElementById('meeting-topic-label');
             const topicInput = document.getElementById('meeting-topic-input');
@@ -6446,6 +6478,8 @@
             const roundsSelect = document.getElementById('meeting-rounds-select');
             const btnStart = document.getElementById('btn-start-meeting');
             const statusBadge = document.getElementById('meeting-status-badge');
+
+            if (btnExec) btnExec.className = 'w-full py-3 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-violet cursor-default';
 
             if (mode === 'execute') {
                 btnExec.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-amber';
@@ -6467,28 +6501,6 @@
                 if (statusBadge) {
                     statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 self-start sm:self-auto font-bold';
                     statusBadge.innerText = 'SWARM WORK STANDBY';
-                }
-            } else {
-                btnPlan.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-glow-violet';
-                btnExec.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent';
-                
-                if (topicLabel) topicLabel.innerText = 'Topik / Agenda Rapat yang Dibahas:';
-                if (topicInput) topicInput.placeholder = 'Contoh: Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding...';
-                if (roundsLabel) roundsLabel.innerText = 'Putaran Diskusi (Rounds):';
-                if (roundsSelect) {
-                    roundsSelect.innerHTML = `
-                        <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
-                        <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
-                        <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
-                    `;
-                }
-                if (btnStart) {
-                    btnStart.className = 'w-full mt-3 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all';
-                    btnStart.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent';
-                }
-                if (statusBadge) {
-                    statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-white/5 text-slate-400 border border-white/10 self-start sm:self-auto font-bold';
-                    statusBadge.innerText = 'MEETING STANDBY';
                 }
             }
             lucide.createIcons();
@@ -6549,7 +6561,7 @@
                         participants, 
                         rounds, 
                         mode: 'execute',
-                        folder: (document.getElementById('meeting-folder-input')?.value || '').trim()
+                        folder: getMeetingFolder()
                     })
                 });
                 const data = await res.json();
