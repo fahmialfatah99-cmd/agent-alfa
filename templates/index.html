@@ -1842,7 +1842,7 @@
             </div>
         </section>
 
-        <!-- ==================== TAB: AI SWARM & RUANG RAPAT AGENT ==================== -->
+        <!-- ==================== TAB: AI SWARM — EKSEKUSI LANGSUNG ==================== -->
         <section id="view-swarm" class="tab-view hidden space-y-6">
             <!-- Header Banner & Controls -->
             <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/20">
@@ -1851,16 +1851,16 @@
                         <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold">
                             <i data-lucide="users" class="w-4 h-4"></i>
                         </div>
-                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">AUTONOMOUS AI WORKFORCE & MEETING ROOM</h2>
+                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">AUTONOMOUS AI WORKFORCE</h2>
                     </div>
-                    <p class="text-xs text-slate-400">Lingkungan kolaboratif antar AI Agent spesialis yang mampu berdiskusi, merapatkan masalah, dan merumuskan Action Plan secara mandiri.</p>
+                    <p class="text-xs text-slate-400">Tim agen AI spesialis yang bekerja nyata: menulis kode, riset data, scraping, dan audit — dengan verifikasi bukti file di setiap langkah.</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <button onclick="openAgentModal()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-bold font-mono flex items-center gap-2 transition-all">
                         <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i> + Tambah Agent
                     </button>
                     <button onclick="scrollToMeetingRoom()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 text-xs font-bold font-mono flex items-center gap-2 shadow-glow-cyan transition-all">
-                        <i data-lucide="message-square-plus" class="w-4 h-4"></i> 🏛️ Buka Ruang Rapat
+                        <i data-lucide="zap" class="w-4 h-4"></i> ⚡ Mulai Eksekusi Swarm
                     </button>
                 </div>
             </div>
@@ -1878,7 +1878,7 @@
                     </div>
                 </div>
                 <div id="sw-terminal" class="h-[560px] overflow-y-auto custom-scrollbar bg-black/70 rounded-xl p-4 font-mono text-[11px] leading-relaxed space-y-0.5 border border-emerald-500/10 shadow-inner">
-                    <p class="text-slate-600">// Menunggu aktivitas swarm... jalankan rapat di bawah untuk melihat agen bekerja realtime.</p>
+                    <p class="text-slate-600">// Menunggu aktivitas swarm... jalankan eksekusi swarm di bawah untuk melihat agen bekerja realtime.</p>
                 </div>
             </div>
 
@@ -1895,12 +1895,12 @@
                             🏛️
                         </div>
                         <div>
-                            <h3 class="text-sm font-black text-white font-mono tracking-wide">RUANG RAPAT & SWARM WORKSPACE OTONOM</h3>
-                            <p class="text-xs text-slate-400 font-mono">Pilih mode: Brainstorming & Rapat Strategis (Plan) ATAU Eksekusi Bersama Nyata (Live Actions).</p>
+                            <h3 class="text-sm font-black text-white font-mono tracking-wide">KENDALI EKSEKUSI SWARM</h3>
+                            <p class="text-xs text-slate-400 font-mono">Tentukan tugas, pilih folder target, lalu agen langsung bekerja nyata — tiap langkah terverifikasi bukti file.</p>
                         </div>
                     </div>
                     <span id="meeting-status-badge" class="px-3.5 py-1 text-xs font-mono rounded-xl bg-white/5 text-slate-300 border border-white/10 self-start sm:self-auto font-black shadow-sm">
-                        MEETING STANDBY
+                        SWARM STANDBY
                     </span>
                 </div>
 
@@ -1946,7 +1946,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between">
-                                <label class="block text-xs font-mono font-bold text-slate-200">Peserta Rapat & Swarm:</label>
+                                <label class="block text-xs font-mono font-bold text-slate-200">Peserta Swarm:</label>
                                 <div class="flex items-center gap-2 text-[10px] font-mono">
                                     <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Pilih Semua</button>
                                     <span class="text-slate-600">|</span>
@@ -1959,7 +1959,7 @@
                         </div>
                         <div class="space-y-1.5 flex flex-col justify-between">
                             <div>
-                                <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-200 mb-1.5">Putaran Diskusi (Rounds):</label>
+                                <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-200 mb-1.5">Alur Koordinasi & Eksekusi:</label>
                                 <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
                                     <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
                                     <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
@@ -2007,7 +2007,7 @@
                     <div id="meeting-consensus-box" class="hidden p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-dark-900 to-dark-950 border border-emerald-500/30 space-y-4 shadow-glow-emerald">
                         <div class="flex items-center justify-between border-b border-emerald-500/20 pb-3">
                             <h4 id="meeting-consensus-header" class="text-sm font-black text-emerald-300 font-mono flex items-center gap-2">
-                                <i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT
+                                <i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> LAPORAN HASIL EKSEKUSI SWARM
                             </h4>
                             <button onclick="copyConsensus()" class="px-3 py-1.5 text-xs rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm">
                                 <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Laporan
@@ -2019,51 +2019,6 @@
                 </div>
             </div>
 
-            <!-- Past Meetings Archive Table -->
-
-            <!-- 👥 ROSTER TIM AI (COMPACT) -->
-            <div class="glass-card p-4 rounded-2xl border border-white/10 space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                    <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
-                        <i data-lucide="bot" class="w-3.5 h-3.5 text-cyan-400"></i> ANGGOTA TIM AI
-                        <span id="agents-count-badge" class="text-[10px] text-slate-500 font-normal"></span>
-                    </h4>
-                    <button onclick="openAgentModal()" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 text-[10px] font-bold transition-all">+ Tambah</button>
-                </div>
-                <p class="text-[10px] text-slate-500 leading-snug">Agen aktif otomatis ikut rapat swarm. Klik pensil untuk atur provider/model tiap agen.</p>
-                <div id="agents-grid" class="space-y-1.5">
-                    <!-- Dynamic Agent Cards -->
-                </div>
-            </div>
-
-            </div>
-
-<div class="glass-card p-6 rounded-2xl space-y-4 border border-white/5">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xs font-bold text-slate-300 font-mono flex items-center gap-2">
-                        <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i> ARSIP RIWAYAT RAPAT & KEPUTUSAN
-                    </h3>
-                    <button onclick="fetchMeetings()" class="p-1.5 rounded-lg bg-white/5 text-slate-400 hover:text-white">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                    </button>
-                </div>
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left text-xs font-mono">
-                        <thead class="text-[11px] text-slate-400 uppercase border-b border-white/5">
-                            <tr>
-                                <th class="pb-2.5">WAKTU</th>
-                                <th class="pb-2.5">AGENDA / TOPIK</th>
-                                <th class="pb-2.5">PESERTA AGENT</th>
-                                <th class="pb-2.5">STATUS</th>
-                                <th class="pb-2.5 text-right">AKSI</th>
-                            </tr>
-                        </thead>
-                        <tbody id="meetings-history-tbody" class="divide-y divide-white/5">
-                            <!-- Meeting archive rows -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </section>
 
         <!-- ==================== TAB: AUTOMATED AFFILIATE SALES WAR ROOM ==================== -->
@@ -4263,7 +4218,7 @@
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
             if (tabId === 'guardian') fetchGuardian();
-            if (tabId === 'swarm') { fetchAgents(); fetchMeetings(); fetchSwarmLive(); loadMeetingFolders(); }
+            if (tabId === 'swarm') { fetchAgents(); fetchSwarmLive(); loadMeetingFolders(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
             if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); fetchAntigravityAccounts(); }
             if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
@@ -6580,7 +6535,7 @@
                     if (headerEl) {
                         headerEl.innerHTML = data.mode === 'execute' 
                             ? '<i data-lucide="award" class="w-5 h-5 text-amber-400"></i> 🏆 LAPORAN HASIL EKSEKUSI NYATA SWARM' 
-                            : '<i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> KONSENSUS & KEPUTUSAN FINAL RAPAT';
+                            : '<i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> LAPORAN HASIL EKSEKUSI SWARM';
                     }
 
                     const markedConsensus = marked.parse(data.consensus || 'Tidak ada konsensus.');
@@ -6593,7 +6548,6 @@
                     statusBadge.innerText = data.mode === 'execute' ? 'EKSEKUSI SUKSES ⚡' : 'KONSENSUS TERCAPAI ✅';
                     
                     showToast(data.mode === 'execute' ? 'Swarm selesai mengeksekusi semua tugas langsung!' : 'Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
-                    fetchMeetings();
 
                     // Scroll to visual virtual HQ
                     document.getElementById('ai-virtual-hq')?.scrollIntoView({ behavior: 'smooth' });
@@ -9121,7 +9075,6 @@
             fetchKeys();
             startTokenUsagePolling();
             fetchAntigravityAccounts();
-            fetchMeetings();
             fetchSettings();
             setInterval(fetchStats, 2000);
             setInterval(fetchWaQr, 4000);
