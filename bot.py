@@ -232,6 +232,29 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
 _gemini_client_cache: Dict[str, Any] = {}
 
 
+def _main_brain_gemini_model() -> str:
+    """Model Gemini aktif sesuai konfigurasi Otak Utama (vault).
+
+    Prioritas: override main_brain_model -> default_model kunci gemini aktif
+    di vault -> GEMINI_MODEL env. Mencegah loop latar memakai model .env
+    yang sudah usang/retire sementara dashboard memakai model lain.
+    """
+    try:
+        override = database.get_main_brain_model()
+        if override:
+            return override.strip()
+    except Exception:
+        pass
+    try:
+        active = database.get_active_api_key_sync("gemini")
+        m = (active or {}).get("default_model")
+        if m and m.strip():
+            return m.strip()
+    except Exception:
+        pass
+    return GEMINI_MODEL
+
+
 def resolve_main_gemini():
     """Return (client, key_id, key_label) for the MAIN agent.
 
@@ -1521,11 +1544,12 @@ async def proactive_ambient_agent_loop(application: Application):
                         p_client, p_key_id, p_key_label = resolve_main_gemini()
                         if not p_client:
                             raise RuntimeError("Tidak ada API key Gemini aktif (vault/env) untuk loop proaktif.")
+                        proactive_model = _main_brain_gemini_model()
                         resp = await p_client.aio.models.generate_content(
-                            model=GEMINI_MODEL,
+                            model=proactive_model,
                             contents=[types.Content(role="user", parts=[types.Part.from_text(text=proactive_eval_prompt)])]
                         )
-                        token_usage.from_gemini_response(resp, model=GEMINI_MODEL,
+                        token_usage.from_gemini_response(resp, model=proactive_model,
                                                          key_id=p_key_id,
                                                          key_label=p_key_label or "gemini-env",
                                                          context="proactive")
