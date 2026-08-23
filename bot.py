@@ -615,7 +615,7 @@ async def run_agent_turn(
                 # AFC SDK dimatikan saat gate aktif agar tiap tool call
                 # melewati persetujuan manusia (loop manual di bawah).
                 automatic_function_calling=(
-                    types.AutomaticFunctionCallingOptions(disable=True)
+                    types.AutomaticFunctionCallingConfig(disable=True)
                     if gate_on else None
                 ),
             )
