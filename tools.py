@@ -947,6 +947,8 @@ _CODE_INDEX_SKIP_DIRS = {
 }
 _CODE_INDEX_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 _CODE_CHUNK_LINES = 70
+# Batas pengaman jangka panjang: cegah indeks raksasa membengkakkan DB lagi
+_CODE_INDEX_MAX_CHUNKS = int(os.getenv("ALFA_INDEX_MAX_CHUNKS", "6000"))
 
 
 def _code_index_connect():
@@ -1048,11 +1050,27 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
         if not os.path.isdir(root):
             return {"status": "error", "message": f"Direktori tidak ditemukan: {repo_path}"}
 
+        # Pengaman: jangan indeks home dir / filesystem root utuh — ini yang
+        # dulu membengkakkan DB 857MB. Minta folder proyek spesifik.
+        if os.path.realpath(root) in (
+            os.path.realpath(os.path.expanduser("~")), "/"
+        ):
+            return {
+                "status": "error",
+                "message": ("[KEAMANAN DB] Folder terlalu luas (home/root). "
+                            f"Sebutkan folder proyek spesifik, mis. "
+                            f"~/alfa_projects/<nama-proyek>."),
+            }
+
         conn = _code_index_connect()
         files_scanned, chunks_inserted, skipped_big = 0, 0, 0
+        truncated = False
         try:
             rows = []
             for fpath in _iter_code_files(root, file_extensions):
+                if len(rows) >= _CODE_INDEX_MAX_CHUNKS:
+                    truncated = True
+                    break
                 try:
                     if os.path.getsize(fpath) > _MAX_EDIT_FILE_BYTES:
                         skipped_big += 1
@@ -1088,10 +1106,12 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
 
         return {
             "status": "success",
-            "message": f"Index selesai: {files_scanned} file, {chunks_inserted} chunk tersimpan"
-                       f"{' (' + str(skipped_big) + ' file besar dilewati)' if skipped_big else ''}.",
+            "message": (f"Index selesai: {files_scanned} file, {chunks_inserted} chunk tersimpan"
+                        f"{' (' + str(skipped_big) + ' file besar dilewati)' if skipped_big else ''}"
+                        f"{f'. [DIPOTONG di batas {_CODE_INDEX_MAX_CHUNKS} chunk — indeks folder lebih spesifik bila perlu]' if truncated else ''}."),
             "files_indexed": files_scanned,
             "chunks": chunks_inserted,
+            "truncated": truncated,
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
