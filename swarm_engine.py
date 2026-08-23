@@ -46,6 +46,37 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 _HARVEST_EXCLUDE = {"node_modules", ".next", ".git", ".toolchain",
                     "__pycache__", ".cache", ".local", ".venv", "venv"}
 _SANDBOX_SNAPSHOT: set = set()
+# Ground-truth filesystem utk verifikasi anti-bohong (execute mode):
+# {path_file: "size:mtime_ns"} dari seluruh folder proyek sandbox.
+_EXEC_FS_SNAPSHOT: Dict[str, str] = {}
+
+
+def _hash_sandbox_projects() -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    try:
+        sb = tools.SANDBOX_DIR
+        for d in os.listdir(sb):
+            pdir = os.path.join(sb, d)
+            if not os.path.isdir(pdir) or d.startswith("."):
+                continue
+            for root, dirs, files in os.walk(pdir):
+                dirs[:] = [x for x in dirs if x not in _HARVEST_EXCLUDE]
+                for f in files:
+                    fp = os.path.join(root, f)
+                    try:
+                        st = os.stat(fp)
+                        out[fp] = f"{st.st_size}:{st.st_mtime_ns}"
+                    except OSError:
+                        pass
+    except Exception:
+        pass
+    return out
+
+
+def _fs_changed_since_snapshot() -> bool:
+    if not _EXEC_FS_SNAPSHOT:
+        return True  # tanpa snapshot: jangan blokir
+    return _hash_sandbox_projects() != _EXEC_FS_SNAPSHOT
 
 
 def _sandbox_project_dirs() -> set:
@@ -643,6 +674,23 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
 
 async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     """LLM judge for a swarm execution step. Returns (passed: bool, feedback: str)."""
+    # ── GROUND-TRUTH FILESYSTEM CHECK ──
+    # Untuk tugas yang mengklaim membangun/mengubah kode: kalau tidak ada
+    # SATU pun file proyek yang berubah sejak rapat dimulai, tolak mekanis
+    # tanpa perlu bertanya ke LLM (klaim kosong = mustahil lolos).
+    low_task = (task or "").lower()
+    claims_file_work = any(k in low_task for k in (
+        "bangun", "buat", "perbaiki", "sempurnakan", "refactor", "tulis",
+        "kode", "website", "aplikasi", "file", "deploy", "komponen", "halaman"))
+    if claims_file_work and _EXEC_FS_SNAPSHOT and step_result.get("status") == "success":
+        changed = _fs_changed_since_snapshot()
+        if not changed:
+            log_live("VERIFY",
+                     "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis")
+            return False, ("FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
+                           "yang berubah sejak rapat dimulai. Kerjakan nyata dan tulis "
+                           "perubahan ke folder proyek, jangan hanya klaim.")
+
     summary = (step_result.get("execution_summary") or "")[:600]
     prompt = (
         f"TUGAS YANG DIMINTA: {task[:300]}\n\n"
@@ -916,6 +964,10 @@ async def conduct_multi_agent_meeting(
     # Snapshot folder sandbox utk auto-harvester di akhir rapat
     _SANDBOX_SNAPSHOT.clear()
     _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
+    # Ground-truth filesystem utk verifikasi anti-bohong (execute mode)
+    if mode == "execute":
+        _EXEC_FS_SNAPSHOT.clear()
+        _EXEC_FS_SNAPSHOT.update(_hash_sandbox_projects())
 
     # --- PHASE 1: Dialogue & Alignment ---
     actual_rounds = 1 if mode in ["execute", "plan_and_execute"] else rounds
