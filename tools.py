@@ -237,8 +237,17 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             ]
             if wd_abs and os.path.isdir(wd_abs):
                 cmd += ["-v", f"{wd_abs}:/workspace", "-w", "/workspace"]
+                # Mirror path absolut: /tmp/x di kontainer == host /tmp/x.
+                # Agen kerap memakai path absolut; tanpa mirror ini hasil
+                # tulisnya hilang ke tmpfs kontainer (klaim sukses palsu).
+                cmd += ["-v", f"{wd_abs}:{wd_abs}"]
             else:
                 cmd += ["-w", "/sandbox"]
+            # Mirror folder target swarm (bila diset) meski working_dir
+            # tidak dipakai model — path absolut agen tetap mengenai host.
+            tf = os.getenv("ALFA_TARGET_FOLDER", "").strip()
+            if tf and os.path.isdir(tf) and tf != wd_abs:
+                cmd += ["-v", f"{tf}:{tf}"]
             cmd += [_SANDBOX_IMAGE, "bash", f"/sandbox/{script_name}"]
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
             isolation = "docker"

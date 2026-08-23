@@ -518,20 +518,46 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     provider, api_key, model, base_url, key_id = get_agent_api_client(agent)
     agent_name = agent.get("name", "Agent")
     enable_tools = bool(agent.get("enable_tools"))
+    # Agen ber-tool butuh budget jauh lebih besar: siklus thinking ->
+    # function call -> eksekusi -> ringkasan tak muat di 500 token
+    # (dulu penyebab model halusinasi 'file berhasil dibuat' tanpa file).
+    eff_max_tokens = max_tokens or (4000 if enable_tools else 500)
 
     tone_directive = (
         "\n\n[PANDUAN OUTPUT & GAYA BICARA]:"
         "\n1. BICARA SANTAI & GAUL: Gunakan gaya bahasa santai, luwes, natural ala software engineer/tech specialist di war room (jangan kaku, hindari basa-basi robot seperti 'Sebagai AI...', 'Tentu saja...')."
         "\n2. ON-POINT & REALISTIS: Langsung sebutkan fakta teknis nyata dan aksi nyata yang dilakukan tanpa bertele-tele. Maksimal 2-4 kalimat."
     )
-    final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
+    if enable_tools:
+        # Agen ber-tool: disiplin kerja ketat. Tone santai membuat model
+        # menjawab singkat TANPA memanggil tool (hallusinasi sukses).
+        final_instruction = (
+            (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.")
+            + "\n\n[DISIPLIN EKSEKUSI]:\n"
+            "1. Setiap giliran WAJIB memuat panggilan function call.\n"
+            "2. Kerjakan sendiri lewat tool — jangan memberi instruksi ke orang lain.\n"
+            "3. Sebelum melapor selesai, pastikan file benar-benar ditulis via tool."
+        )
+    else:
+        final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
 
     key_label = f"agent:{agent_name}"
+
+    def gemini_like_tools() -> List[Any]:
+        """Subset aman tool swarm (identik dgn jalur gemini enable_tools)."""
+        try:
+            import main_brain as _mb
+            import tools as _t
+            return [getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
+                    if hasattr(_t, n) and callable(getattr(_t, n))]
+        except Exception:
+            return []
 
     result = None
     if provider == "gemini":
         gemini_tools = None
         if enable_tools:
+            gemini_tools = gemini_like_tools() or None
             try:
                 import main_brain as _mb
                 import tools as _t
@@ -550,7 +576,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_id=key_id,
             key_label=key_label,
             context="swarm",
-            max_tokens=max_tokens or 500,
+            max_tokens=eff_max_tokens,
             timeout_s=timeout_s,
             thinking_budget=thinking_budget,
             tools=gemini_tools,
@@ -575,6 +601,16 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             except Exception as agentic_err:
                 logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
                 result = None
+            # Sentinel kegagalan senyap: provider balas 200 tapi kosong
+            # (terlihat di ox-alpha). Perlakukan sebagai gagal agar
+            # fallback gemini-agentic ber-tool yang mengambil alih.
+            if isinstance(result, str) and (
+                result.startswith("(provider tidak mengirim teks)")
+                or not result.strip()
+            ):
+                logger.warning(
+                    f"Agentic turn '{agent_name}' balas kosong -> paksa fallback.")
+                result = None
         if result is None:
             # Semua provider non-gemini dicoba sebagai OpenAI-compatible
             # (termasuk 'custom' dgn Base URL bebas: Tokenra, Ox Alpha, dll).
@@ -594,9 +630,40 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             key_id=key_id,
             key_label=key_label,
             context="swarm",
-            max_tokens=max_tokens or 500,
+            max_tokens=eff_max_tokens,
             timeout_s=timeout_s,
         )
+        if result is None and enable_tools:
+            # Agen ber-tool TIDAK boleh jatuh ke jalur tanpa tool (sumber
+            # hallusinasi 'berhasil' kosong). Fallback: agen Gemini dengan
+            # disiplin & tool identik, memakai kunci gemini aktif di vault.
+            try:
+                gk = database.get_active_api_key_sync("gemini")
+                if gk and (gk.get("api_key") or "").strip():
+                    logger.warning(
+                        f"Agen ber-tool '{agent_name}' gagal via {provider} "
+                        f"-> fallback Gemini agentic (tools tetap aktif).")
+                    gagent = {
+                        "name": agent_name,
+                        "provider": "gemini",
+                        "model": (gk.get("default_model") or "gemini-flash-latest").strip(),
+                        "api_key_id": gk.get("id"),
+                        "enable_tools": 1,
+                    }
+                    result = await generate_agent_response(
+                        gagent,
+                        prompt,
+                        "Kamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap "
+                        "giliran WAJIB memuat panggilan function call "
+                        "(write_local_file / edit_file_precise / execute_bash_command). "
+                        "Membalas teks saja = GAGAL.",
+                        max_tokens=eff_max_tokens,
+                        timeout_s=timeout_s,
+                        thinking_budget=thinking_budget,
+                    )
+            except Exception as fb_err:
+                logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
+
         if result is None and os.getenv("GEMINI_API_KEY"):
             logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
             result = await _generate_with_gemini(
@@ -686,27 +753,34 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
 async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     """LLM judge for a swarm execution step. Returns (passed: bool, feedback: str)."""
     # ── GROUND-TRUTH FILESYSTEM CHECK ──
-    # Untuk tugas yang mengklaim membangun/mengubah kode: kalau tidak ada
-    # SATU pun file proyek yang berubah sejak rapat dimulai, tolak mekanis
-    # tanpa perlu bertanya ke LLM (klaim kosong = mustahil lolos).
+    # Untuk tugas yang mengklaim membangun/mengubah kode: pakai bukti
+    # perubahan file tingkat-langkah (pre/post hash) bila tersedia;
+    # fallback ke snapshot global untuk data lama.
     low_task = (task or "").lower()
     claims_file_work = any(k in low_task for k in (
         "bangun", "buat", "perbaiki", "sempurnakan", "refactor", "tulis",
         "kode", "website", "aplikasi", "file", "deploy", "komponen", "halaman"))
-    if claims_file_work and _EXEC_FS_SNAPSHOT and step_result.get("status") == "success":
-        changed = _fs_changed_since_snapshot()
-        if not changed:
+    if claims_file_work and step_result.get("status") == "success":
+        fs_changed = step_result.get("fs_changed")
+        if fs_changed is None and _EXEC_FS_SNAPSHOT:
+            fs_changed = len(_hash_sandbox_projects()) != len(_EXEC_FS_SNAPSHOT) or \
+                         bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
+        if fs_changed == 0:
             log_live("VERIFY",
                      "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis")
             return False, ("FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
-                           "yang berubah sejak rapat dimulai. Kerjakan nyata dan tulis "
-                           "perubahan ke folder proyek, jangan hanya klaim.")
+                           "yang berubah. Kerjakan nyata dan tulis perubahan ke folder kerja.")
+        changed_sample = step_result.get("changed_sample") or []
 
     summary = (step_result.get("execution_summary") or "")[:600]
+    fs_evidence = ""
+    if claims_file_work and fs_changed is not None:
+        samp = "; ".join(changed_sample[:4]) if changed_sample else "(detail tak tersedia)"
+        fs_evidence = f"\n- BUKTI FILESYSTEM: {fs_changed} file berubah ({samp})\n"
     prompt = (
         f"TUGAS YANG DIMINTA: {task[:300]}\n\n"
         f"HASIL EKSEKUSI:\n- Tool: {step_result.get('tool_used')}\n"
-        f"- Status: {step_result.get('status')}\n- Output: {summary}\n\n"
+        f"- Status: {step_result.get('status')}\n{fs_evidence}- Output: {summary}\n\n"
         "Apakah hasil ini bukti nyata tugas tercapai (data/file/output riil, bukan janji)?\n"
         "Balas TEPAT satu baris: PASS atau: FAIL: <alasan singkat>"
     )
@@ -726,6 +800,110 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
         return True, ""   # don't block pipeline on verifier outage
 
 
+
+
+async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: str,
+                                     target_folder: str) -> str:
+    """Penyelesai pamungkas: minta KONTEN PENUH satu file utama dari model,
+    lalu engine menulisnya sendiri (tanpa bergantung tool-call model)."""
+    import glob as _glob
+    cands = []
+    for pat in ("index.html", "page.html", "*.html", "*.htm",
+                "main.py", "app.py", "*.py", "*.md"):
+        cands += [p for p in _glob.glob(os.path.join(target_folder, "**", pat),
+                                        recursive=True)
+                  if "node_modules" not in p]
+    cands = sorted(set(cands), key=lambda p: os.path.getmtime(p), reverse=True)
+    main_file = cands[0] if cands else os.path.join(
+        target_folder,
+        re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-") + ".html")
+    ext = os.path.splitext(main_file)[1].lower()
+    fmt_hint = ("Dokumen HTML5 utuh mulai <!DOCTYPE html>." if ext.startswith(".h")
+                else "Kode sumber lengkap tanpa penjelasan.")
+    prompt = (
+        f"Tugas: {task_instruction[:400]}\n\n"
+        f"Kembalikan HANYA isi penuh TERBARU untuk file `{main_file}` "
+        f"setelah tugas diterapkan. {fmt_hint} "
+        f"Tanpa penjelasan, tanpa fence markdown."
+    )
+    content = await generate_agent_response(
+        agent, prompt,
+        "Kamu code generator. Output = isi file mentah saja.",
+        max_tokens=8000, timeout_s=300.0)
+    if not content or len(content.strip()) < 20:
+        return "(single-shot) konten kosong dari model"
+    content = content.strip()
+    if content.startswith("```"):
+        content = re.sub(r"^```[a-zA-Z]*\n?", "", content)
+        content = re.sub("\n?```$", "", content)
+    try:
+        res = tools.write_local_file(file_path=main_file, content=content)
+        st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"
+        log_live("FILE", f"📝 single-shot write {os.path.basename(main_file)} -> {st}")
+        return f"(single-shot) {main_file} diperbarui ({len(content)} char)"
+    except Exception as w_err:
+        return f"(single-shot) gagal tulis: {w_err}"
+
+
+async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -> str:
+    """Eksekusi deterministik: model hanya menyusun rencana JSON aksi tool,
+    engine-lah yang menjalankannya. Menutup kelemahan model yang menolak
+    memanggil function call sendiri."""
+    plan_sys = (
+        "Kamu execution planner. Output HANYA array JSON murni (tanpa teks lain) "
+        'berisi aksi tool berurutan untuk menyelesaikan tugas. Skema aksi:\n'
+        '[{"tool":"write_local_file","path":"/abs/file","content":"isi file"},\n'
+        ' {"tool":"edit_file_precise","path":"/abs/file","old_text":"...","new_text":"..."},\n'
+        ' {"tool":"execute_bash_command","command":"...","working_dir":"/abs/folder"}]\n'
+        "Gunakan path ABSOLUT folder kerja. Konten file ditulis penuh di JSON."
+    )
+    raw = await generate_agent_response(
+        agent, "TUGAS:\n" + task_instruction[:1500], plan_sys,
+        max_tokens=4000, timeout_s=240.0)
+    if not raw:
+        return "(forced-exec) planner tidak merespons"
+
+    m = re.search(r"\[.*\]", raw, re.DOTALL)
+    if not m:
+        return f"(forced-exec) rencana tidak valid: {raw[:120]}"
+
+    import json as _json
+    try:
+        actions = _json.loads(m.group(0))
+    except Exception as je:
+        return f"(forced-exec) JSON rusak: {je}"
+
+    allowed = {
+        "write_local_file": tools.write_local_file,
+        "edit_file_precise": tools.edit_file_precise,
+        "execute_bash_command": tools.execute_bash_command,
+    }
+    logs = []
+    for i, act in enumerate(actions[:8]):
+        if not isinstance(act, dict):
+            continue
+        tool_nm = act.get("tool", "")
+        fn = allowed.get(tool_nm)
+        if not fn:
+            continue
+        # Normalisasi nama argumen skema-planner -> signature fungsi asli
+        kwargs = {k: v for k, v in act.items() if k != "tool"}
+        if tool_nm in ("write_local_file", "edit_file_precise") and "path" in kwargs:
+            kwargs["file_path"] = kwargs.pop("path")
+        if tool_nm == "edit_file_precise":
+            kwargs.setdefault("replace_all", False)
+        try:
+            res = fn(**kwargs)
+            st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"
+            hint = str(act.get("command") or act.get("path") or "")[:80]
+            logs.append(f"{i+1}. {tool_nm} -> {st}")
+            log_live("TOOL", f"⚙️ forced-exec {tool_nm} -> {st} | {hint}")
+        except Exception as ex:
+            logs.append(f"{i+1}. {tool_nm} -> EXC {str(ex)[:80]}")
+            log_live("TOOL", f"⚠️ forced-exec {tool_nm} error: {str(ex)[:80]}")
+    return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
+
+
 async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, topic: str, intent_info: Dict[str, Any]) -> Dict[str, Any]:
     """
     Executes a real action for an agent in Swarm Live Execution mode.
@@ -736,6 +914,10 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
     role = agent.get("role", "Specialist")
     agent_id = agent.get("id", 1)
     
+    # Snapshot hash utk bukti perubahan file tingkat-langkah
+    pre_hash = _hash_sandbox_projects()
+    step_fs_changed = None
+    changed_files = []
     action_type = "execution"
     tool_name = "ai_agent_task"
     tool_input = task_instruction
@@ -778,130 +960,75 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             tool_output = f"Error in Deep Scraper: {str(e)}"
             generated_content = f"Gagal mengeksekusi scraper: {str(e)}"
 
-    # 2. SPECIALIST: CODE CRAFTER (Real Python Automation & Sandbox Execution)
-    elif "Code" in agent_name or "Engineer" in role or "Architect" in role:
-        # ── WEB BUILDER: bangun website nyata dalam satu file ──
-        is_web_build = any(k in (task_instruction + " " + topic).lower()
-                           for k in ("website", "web ", "landing page", "html",
-                                     "halaman web", "web app", "dashboard web"))
-
-        if is_web_build:
-            tool_name = "build_web_page"
-            status = "error"
-
-            web_prompt = (
-                f"=== PERINTAH WEB BUILDER NYATA SWARM ===\n"
-                f"Brief klien: {task_instruction}\n"
-                f"Konteks topik: {topic[:200]}\n\n"
-                f"Tugas: Bangun WEBSITE LENGKAP dalam SATU file index.html "
-                f"(HTML5 + CSS inline di <style> + JS di <script>, responsif, tema dark modern).\n"
-                f"WAJIB blok ```html ... ``` berisi dokumen utuh mulai <!DOCTYPE html>."
-            )
-            WEB_ENGINEER_SYS = (
-                "Kamu adalah Senior Web Engineer. Hasilkan website production-quality "
-                "dalam SATU file HTML utuh yang langsung bisa dibuka di browser."
-            )
-
-            provider_used = agent.get("provider", "?")
-            log_live("TOOL", f"🌐 {agent_name} membangun website via {provider_used}...")
-
-            def _valid(p):
-                lowp = p.lower()
-                return len(p) >= 400 and ("<html" in lowp or "<!doctype" in lowp) and "</body>" in lowp
-
-            generated_content = await generate_agent_response(
-                agent, web_prompt, WEB_ENGINEER_SYS,
-                max_tokens=16000, timeout_s=70.0,
-                thinking_budget=0,
-            )
-            log_live("TOOL", f"⏱️ attempt-1 ({provider_used}) -> {len(generated_content or '')} char")
-
-            page = _extract_html_doc(generated_content)
-            fb_note = ""
-
-            if not _valid(page):
-                log_live("VERIFY", f"⏳ {agent_name}: otak utama gagal/lambat - Nemotron Ultra mengambil alih")
-                fb = {**agent, "name": f"{agent_name} (Nemotron)",
-                      "provider": "openrouter",
-                      "model": "nvidia/nemotron-3-ultra-550b-a55b"}
-                log_live("TOOL", "🔁 Nemotron Ultra mulai membangun ulang website...")
-                generated_content = await generate_agent_response(
-                    fb, web_prompt, WEB_ENGINEER_SYS,
-                    max_tokens=16000, timeout_s=190.0,
-                )
-                log_live("TOOL", f"⏱️ Nemotron selesai -> {len(generated_content or '')} char")
-                page = _extract_html_doc(generated_content)
-                fb_note = " (via Nemotron Ultra)"
-
-            if _valid(page):
-                if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
-                    # Folder target dihormati: tulis langsung ke sana
-                    site_dir = _TARGET_FOLDER
-                else:
-                    slug = re.sub(r"[^a-z0-9]+", "_", topic.lower())[:30].strip("_") or "site"
-                    site_dir = os.path.join(SWARM_OUTPUT_DIR, "websites",
-                                            slug + "_" + str(int(time.time())))
-                os.makedirs(site_dir, exist_ok=True)
-                fpath = os.path.join(site_dir, "index.html")
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write(page)
-                deliverable_file = fpath
-                status = "success"
-                tool_output = (
-                    f"Website tersimpan: {fpath} ({len(page)//1024} KB){fb_note}\n"
-                    f"Struktur valid: doctype+html+body OK - buka langsung di browser."
-                )
-                generated_content = (
-                    f"Website '{topic[:50]}' selesai dibangun ({len(page)//1024} KB){fb_note}, "
-                    f"tersimpan di {fpath}. Buka index.html di browser untuk preview."
-                )
-            else:
-                status = "error"
-                tool_output = (
-                    f"Website ditolak validasi: dokumen tidak utuh "
-                    f"(panjang {len(page)} char). Coba instruksi lebih spesifik."
-                )
-                generated_content = (
-                    "Gagal membangun website yang valid untuk brief ini. "
-                    "Butuh brief lebih detail dari pengguna."
-                )
-
-    # 3. SPECIALIST: CYBER SENTRY / AUDITOR (Real System Security & Resource Audit)
-    elif "Sentry" in agent_name or "Security" in role or "Auditor" in role:
-        tool_name = "audit_system_integrity"
-        try:
-            import security_auditor
-            audit = security_auditor.audit_local_host_security()
-        except Exception as audit_err:
-            audit = {"status": "error", "error": str(audit_err)}
-
-        if audit.get("status") == "success":
-            status = "error" if audit.get("critical_findings") else "success"
-            check_lines = "\n".join(
-                f"{'✅' if c['status'] == 'PASS' else '❌'} {c['check']}: {c['detail']}"
-                for c in audit["checks"]
-            )
-            tool_output = (
-                f"Host Security Audit (skor {audit['score']}/100, grade {audit['grade']}):\n{check_lines}"
-            )
-            critical_note = (
-                f" TEMUAN KRITIS: {'; '.join(audit['critical_findings'])}." if audit.get("critical_findings") else ""
-            )
-            generated_content = (
-                f"Audit host selesai: {audit['passed']}/{audit['total_checks']} cek lolos "
-                f"(grade {audit['grade']}).{critical_note}"
-            )
-        else:
-            status = "error"
-            tool_output = f"Host audit gagal dieksekusi: {audit.get('error')}"
-            generated_content = f"Audit keamanan host gagal dijalankan: {audit.get('error')}"
-
-    # 4. GENERAL / LEAD SYNTHESIS
+    # 2. EKSEKUSI AGENTIK UMUM — semua agen memakai tool sesuai subtasknya.
+    #    (Routing kaku per-peran dihapus; hasil dekomposisi kini dihormati.)
     else:
-        tool_name = "strategic_orchestration"
-        prompt = f"Berikan deklarasi eksekusi tugas nyata untuk `{topic}` secara santai dan tegas."
-        generated_content = await generate_agent_response(agent, prompt, "Kamu adalah manajer strategi Swarm AI.")
-        tool_output = f"Koordinasi tugas `{topic[:60]}` sukses didistribusikan ke seluruh agen pelaksana."
+        tool_name = "agentic_autonomous"
+        work_agent = {**agent, "enable_tools": 1}
+        folder_rule = ""
+        if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
+            folder_rule = (
+                f"\nFOLDER KERJA WAJIB: {_TARGET_FOLDER}\n"
+                f"PADA execute_bash_command: WAJIB working_dir='{_TARGET_FOLDER}' "
+                f"dan gunakan PATH RELATIF (mis. 'cat index.html') — JANGAN path absolut, "
+                f"karena folder dimount sebagai /workspace di dalam sandbox.\n"
+                f"PREFERSIKAN edit_file_precise / write_local_file untuk ubah file "
+                f"(tool ini langsung menyentuh disk host dengan path lengkap)."
+            )
+        exec_prompt = (
+            f"=== TUGAS EKSEKUSI NYATA (SWARM) ===\n{task_instruction}\n"
+            f"{folder_rule}\n"
+            f"=== ATURAN EKSEKUSI (WAJIB) ===\n"
+            f"1. KAMU WAJIB MEMANGGIL TOOL — jawaban teks tanpa panggilan tool = TUGAS GAGAL.\n"
+            f"2. Langkah pertama: baca file terkait dengan `read_local_file`.\n"
+            f"3. Lakukan perubahan dengan `edit_file_precise` / `write_local_file` "
+            f"/ `execute_bash_command`.\n"
+            f"4. Setiap hasil WAJIB berupa file nyata di folder kerja.\n"
+            f"5. Akhiri dengan daftar path file yang kamu buat/ubah.\n"
+            f"DILARANG memberi rencana/koordinasi/instruksi ke orang lain — "
+            f"kamu sendiri yang mengeksekusi lewat tool."
+        )
+        generated_content = await generate_agent_response(
+            work_agent, exec_prompt,
+            "Kamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap giliranmu WAJIB "
+            "memuat panggilan function call (read_local_file / edit_file_precise / "
+            "write_local_file / execute_bash_command / web_search). Membalas teks saja "
+            "tanpa memanggil tool dianggap GAGAL.",
+            max_tokens=3000,
+            timeout_s=300.0,
+        )
+
+        # Bukti filesystem tingkat-langkah (anti klaim kosong)
+        post_hash = _hash_sandbox_projects()
+        changed_files = [p for p in set(pre_hash) | set(post_hash)
+                         if pre_hash.get(p) != post_hash.get(p)]
+        step_fs_changed = len(changed_files)
+        if step_fs_changed == 0 and status == "success":
+            log_live("EXEC", "🔄 Tidak ada file berubah -> beralih ke forced-JSON execution...")
+            generated_content = await _forced_json_execution(
+                work_agent, task_instruction)
+            post_hash = _hash_sandbox_projects()
+            changed_files = [p for p in set(pre_hash) | set(post_hash)
+                             if pre_hash.get(p) != post_hash.get(p)]
+            step_fs_changed = len(changed_files)
+        if step_fs_changed == 0 and status == "success":
+            if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
+                log_live("EXEC", "🛟 Single-shot edit fallback dijalankan...")
+                generated_content = await _single_shot_edit_fallback(
+                    work_agent, task_instruction, _TARGET_FOLDER)
+                post_hash = _hash_sandbox_projects()
+                changed_files = [p for p in set(pre_hash) | set(post_hash)
+                                 if pre_hash.get(p) != post_hash.get(p)]
+                step_fs_changed = len(changed_files)
+            else:
+                generated_content = await _forced_json_execution(
+                    work_agent, task_instruction)
+        if changed_files:
+            sample = "; ".join(os.path.basename(p) for p in changed_files[:3])
+            tool_output = (f"{len(generated_content or '')} char respons; "
+                           f"{step_fs_changed} file berubah: {sample}")
+        else:
+            tool_output = f"{len(generated_content or '')} char respons; TIDAK ada file berubah"
 
     duration_ms = round((time.time() - t0) * 1000, 2)
 
@@ -930,6 +1057,8 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         "deliverable_data": deliverable_data,
         "duration_ms": duration_ms,
         "status": status,
+        "fs_changed": step_fs_changed,
+        "changed_sample": [os.path.basename(p) for p in changed_files[:5]],
         "timestamp": datetime.now().strftime("%H:%M:%S")
     }
 
@@ -1012,6 +1141,13 @@ async def conduct_multi_agent_meeting(
     if mode == "execute":
         _EXEC_FS_SNAPSHOT.clear()
         _EXEC_FS_SNAPSHOT.update(_hash_sandbox_projects())
+        # Publikasikan folder target ke tool sandbox agar dimount dengan
+        # path identik di dalam kontainer (path absolut agen jadi valid).
+        import os as _os
+        if _TARGET_FOLDER:
+            _os.environ["ALFA_TARGET_FOLDER"] = _TARGET_FOLDER
+        else:
+            _os.environ.pop("ALFA_TARGET_FOLDER", None)
 
     # --- MODE EKSEKUSI LANGSUNG MURNI: tanpa putaran dialog/diskusi ---
     actual_rounds = 0
@@ -1086,8 +1222,11 @@ async def conduct_multi_agent_meeting(
             if _TARGET_FOLDER:
                 task_desc += (
                     f"\n\nFOLDER KERJA WAJIB: {_TARGET_FOLDER}\n"
-                    f"SEMUA file yang dibaca/ditulis/diubah WAJIB berada di dalam folder ini. "
-                    f"Pada execute_bash_command selalu sertakan working_dir='{_TARGET_FOLDER}'. "
+                    f"SEMUA file yang dibaca/ditulis WAJIB di dalam folder ini. "
+                    f"Pada execute_bash_command: sertakan working_dir='{_TARGET_FOLDER}' "
+                    f"dan gunakan PATH RELATIF (folder ter-mount sebagai /workspace). "
+                    f"Untuk mengubah isi file, PAKAI edit_file_precise/write_local_file "
+                    f"dengan path lengkap '{_TARGET_FOLDER}/<nama>'. "
                     f"DILARANG membuat proyek di lokasi lain."
                 )
 
