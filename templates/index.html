@@ -1936,7 +1936,7 @@
                 </select>
             </div>
 
-            <button type="button" id="btn-start-meeting"
+            <button type="button" id="btn-start-meeting" onclick="startAiMeeting()"
                 class="w-full mt-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-amber transition-all">
                 <i data-lucide="zap" class="w-4 h-4 text-amber-200"></i> Jalankan Eksekusi Swarm!
             </button>
@@ -2321,6 +2321,7 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <select id="video-engine-select" onchange="toggleVideoEngineConfig()" class="w-full p-2 bg-dark-950 border border-white/10 rounded-xl text-white font-mono text-xs">
                                             <option value="local_pro">⚡ Local Pro Compositor (Two-Layer 1080x1920 HD • Free)</option>
+                                            <option value="google_omni_flash">🤖 Gemini Omni Flash (Cepat ±1 mnt • Edit Percakapan • Gemini Key)</option>
                                             <option value="google_veo">🎬 Google Veo 3.1 (Kualitas Maksimal • Gemini Key)</option>
                                             <option value="google_veo_fast">🎬 Google Veo 3.1 Fast (Cepat • Gemini Key)</option>
                                             <option value="google_veo_lite">🎬 Google Veo 3.1 Lite (Hemat Kuota • Gemini Key)</option>

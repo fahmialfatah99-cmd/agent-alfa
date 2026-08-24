@@ -2179,10 +2179,11 @@ def main():
     application.add_handler(CommandHandler("voice", voice_command))
     application.add_handler(CommandHandler("help", start_command))
 
-    # Callback Query (Buttons)
-    application.add_handler(CallbackQueryHandler(handle_callback_query))
+    # Callback Query (Buttons) — handler perm| HARUS lebih dulu agar tidak
+    # ditelan handler generik yang match semua callback.
     application.add_handler(CallbackQueryHandler(
         permission_gate.handle_permission_callback, pattern=r"^perm\|"))
+    application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Multimodal message handlers
     application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message))

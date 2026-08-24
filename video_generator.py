@@ -65,9 +65,9 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     if not os.path.exists(edge_tts_bin):
         edge_tts_bin = shutil.which("edge-tts") or "edge-tts"
         
-    cmd = [edge_tts_bin, "--voice", voice, "--write-media", audio_path]
-    # Pass the text via stdin to keep it out of the process list (ps aux)
-    # and avoid ARG_MAX limits on long voiceovers.
+    cmd = [edge_tts_bin, "--voice", voice, "-f", "-", "--write-media", audio_path]
+    # Teks dikirim via stdin ("-f -") agar tidak muncul di process list (ps aux)
+    # dan tidak kena batas ARG_MAX pada voiceover panjang.
     subprocess.run(
         cmd,
         input=text.encode("utf-8"),
@@ -314,6 +314,12 @@ VEO_MODEL_MAP = {
     "google_veo_lite": "veo-3.1-lite-generate-preview",
 }
 
+# Gemini Omni Flash — video gen/edit generatif via Interactions API.
+# Endpoint-nya BEDA dari Veo (/v1beta/interactions, bukan predictLongRunning).
+OMNI_MODEL_MAP = {
+    "google_omni_flash": "gemini-omni-flash-preview",
+}
+
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
@@ -492,6 +498,188 @@ def _generate_google_veo_video(
     }
 
 
+def _find_video_payload(obj: Any, hint: str = "") -> Optional[Dict[str, Any]]:
+    """Telusuri JSON respons Interactions API secara rekursif mencari payload
+    video: inline base64 (mime_type video/* + data) atau URI yang bisa diunduh.
+    `hint` membawa nama kunci induk agar URI di bawah kunci seperti
+    "videos"/"generatedSamples" tetap dikenali."""
+    if isinstance(obj, dict):
+        mime = str(obj.get("mime_type") or obj.get("mimeType") or "")
+        data = obj.get("data")
+        if "video" in mime and isinstance(data, str) and len(data) > 128:
+            return {"inline": True, "data": data}
+        uri = obj.get("uri") or obj.get("videoUri") or obj.get("file_uri")
+        if isinstance(uri, str) and uri.startswith("http") and (
+            "video" in mime or "video" in uri.lower()
+            or "video" in hint.lower() or obj.get("role") == "model"
+        ):
+            return {"inline": False, "uri": uri}
+        for k, v in obj.items():
+            found = _find_video_payload(v, hint=str(k))
+            if found:
+                return found
+    elif isinstance(obj, list):
+        for item in obj:
+            found = _find_video_payload(item, hint=hint)
+            if found:
+                return found
+    return None
+
+
+def _generate_gemini_omni_video(
+    engine: str,
+    api_key: str,
+    image_paths: List[str],
+    product_name: str,
+    visual_prompt: str,
+    voiceover_text: str,
+    orig_price: str,
+    disc_price: str,
+    voice: str,
+    theme: str = "viral_tiktok",
+    badge_text: str = "",
+    call_to_action: str = "",
+    output_filename: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Generate video AI dengan Gemini Omni Flash (Interactions API).
+    Flow: POST /v1beta/interactions (background) -> poll by name ->
+    unduh/decode MP4 -> komposit overlay UI promo + dubbing lokal.
+    """
+    start_t = time.time()
+    model = OMNI_MODEL_MAP.get(engine, engine)
+    logger.info(f"Dispatching Gemini Omni Flash request: model={model}")
+
+    ts = int(time.time() * 1000)
+
+    # 1. Susun input multimodal: gambar referensi (image_to_video) atau teks saja
+    parts: List[Dict[str, Any]] = []
+    task = "text_to_video"
+    for p in image_paths:
+        exp = os.path.expanduser(p.strip())
+        if os.path.exists(exp):
+            try:
+                with open(exp, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("ascii")
+                mime = "image/png" if exp.lower().endswith(".png") else "image/jpeg"
+                parts.append({"type": "image", "data": b64, "mime_type": mime})
+                task = "image_to_video"
+            except Exception as e:
+                logger.warning(f"Gagal membaca gambar referensi {exp}: {e}")
+            break
+
+    prompt = (visual_prompt or "").strip() or (
+        f"Cinematic commercial studio video showcasing '{product_name}'. "
+        f"Dramatic lighting, slow elegant camera push-in, premium product "
+        f"photography style, vertical 9:16 composition.")
+    parts.append({"type": "text", "text": prompt})
+
+    body = {
+        "model": model,
+        "input": parts,
+        "generation_config": {"video_config": {"task": task}},
+        "response_format": {"type": "video", "aspect_ratio": "9:16"},
+        "background": True,
+    }
+
+    # 2. Submit interaksi background
+    submit_url = f"{GEMINI_API_BASE}/interactions"
+    op = _veo_api_request(submit_url, payload=body, api_key=api_key, method="POST")
+    op_name = op.get("name") or op.get("id")
+    if not op_name:
+        raise RuntimeError(f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}")
+
+    # 3. Polling status (maks ±10 menit; umumnya selesai ~45-90 detik)
+    poll_url = f"{GEMINI_API_BASE}/{op_name}"
+    payload_found = None
+    for _ in range(60):
+        time.sleep(10)
+        status = _veo_api_request(poll_url, api_key=api_key)
+        if status.get("error"):
+            raise RuntimeError(f"Omni Flash error: {json.dumps(status.get('error'))[:400]}")
+        state = str(status.get("status") or "").lower()
+        done = status.get("done")
+        if done is False or state in ("pending", "running", "in_progress", "queued"):
+            continue
+        payload_found = _find_video_payload(status)
+        if payload_found or done is True or state in ("completed", "succeeded", "active", "finished"):
+            break
+    if not payload_found:
+        raise RuntimeError("Omni Flash timeout: video tidak selesai dalam 10 menit.")
+
+    # 4. Dapatkan MP4 mentah (inline base64 atau unduh via URI)
+    raw_path = os.path.join(VIDEO_OUT_DIR, f"omni_raw_{ts}.mp4")
+    if payload_found.get("inline"):
+        with open(raw_path, "wb") as f:
+            f.write(base64.b64decode(payload_found["data"]))
+    else:
+        req = urllib.request.Request(payload_found["uri"], headers={"x-goog-api-key": api_key})
+        with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:
+            shutil.copyfileobj(resp, f)
+
+    # 5. Dubbing voiceover + overlay UI promo (komposit lokal, sama dgn jalur Veo)
+    audio_path = generate_voiceover(voiceover_text, voice=voice)
+    overlay_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"overlay_{ts}.png")
+    create_ui_overlay_layer(
+        product_name=product_name,
+        orig_price=orig_price,
+        disc_price=disc_price,
+        badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
+        call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
+        theme=theme,
+        output_path=overlay_out
+    )
+
+    if not output_filename:
+        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        output_filename = f"{safe_stem}_omni_{int(time.time())}.mp4"
+    else:
+        output_filename = os.path.basename(output_filename.strip())
+        if not output_filename.endswith(".mp4"):
+            output_filename = f"{output_filename}.mp4"
+    final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
+
+    omni_dur = get_audio_duration(raw_path)
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", raw_path,
+        "-loop", "1", "-i", overlay_out,
+        "-i", audio_path,
+        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map", "[outv]", "-map", "2:a",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
+        "-c:a", "aac", "-b:a", "192k",
+        "-t", str(round(omni_dur, 2)),
+        final_video_path
+    ]
+    subprocess.run(cmd, check=True, timeout=600)
+    try:
+        os.remove(raw_path)
+    except OSError:
+        pass
+
+    duration_ms = round((time.time() - start_t) * 1000, 1)
+    file_size_mb = round(os.path.getsize(final_video_path) / (1024 * 1024), 2)
+
+    return {
+        "status": "success",
+        "engine": "google_omni_flash",
+        "model": model,
+        "task": task,
+        "product_name": product_name,
+        "video_path": final_video_path,
+        "video_filename": output_filename,
+        "resolution": "1080x1920 (9:16 Vertical AI Generative)",
+        "duration_seconds": round(omni_dur, 1),
+        "file_size_mb": file_size_mb,
+        "render_duration_ms": duration_ms,
+        "download_url": f"/api/artifacts/download?path={final_video_path}",
+        "audio_voice": voice,
+        "theme": theme,
+        "visual_prompt": prompt
+    }
+
+
 def generate_video_from_images(
     image_paths: List[str],
     product_name: str,
@@ -517,7 +705,32 @@ def generate_video_from_images(
     start_t = time.time()
     logger.info(f"Starting Video Render for {product_name}, engine={engine}")
 
-    # Cloud AI Video API Handler Dispatcher (Google Veo / Kling / Luma / Runway / Fal / Replicate)
+    # Cloud AI Video API Handler Dispatcher (Google Veo / Omni Flash / Kling / Luma / Runway)
+    if engine in OMNI_MODEL_MAP:
+        try:
+            return _generate_gemini_omni_video(
+                engine=engine,
+                api_key=api_key or "",
+                image_paths=image_paths,
+                product_name=product_name,
+                visual_prompt=visual_prompt,
+                voiceover_text=voiceover_text,
+                orig_price=orig_price,
+                disc_price=disc_price,
+                voice=voice,
+                theme=theme,
+                badge_text=badge_text,
+                call_to_action=call_to_action,
+                output_filename=output_filename
+            )
+        except Exception as e:
+            logger.error(f"Omni Flash render gagal: {e}")
+            return {
+                "status": "error",
+                "engine": engine,
+                "model": OMNI_MODEL_MAP.get(engine),
+                "message": str(e)
+            }
     if engine in VEO_MODEL_MAP:
         try:
             return _generate_google_veo_video(

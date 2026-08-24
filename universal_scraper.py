@@ -106,6 +106,21 @@ PLATFORM_SEARCH_TEMPLATES = {
 }
 
 
+def _ddgs_text_with_retry(ddgs, query: str, max_results: int, attempts: int = 3):
+    """Panggilan DDGS dgn retry + backoff. SSL handshake failure & connect
+    error dari DuckDuckGo biasanya transient — sering berhasil pada cobaan
+    berikutnya."""
+    last_err = None
+    for i in range(attempts):
+        try:
+            return list(ddgs.text(query, max_results=max_results))
+        except Exception as e:
+            last_err = e
+            if i < attempts - 1:
+                time.sleep(2 * (i + 1))
+    raise last_err
+
+
 def scrape_universal_keyword(
     query: str,
     category: str = "all_marketplace",
@@ -127,11 +142,13 @@ def scrape_universal_keyword(
 
     all_raw_results = []
     seen_urls = set()
+    failed_queries = 0
 
     with DDGS() as ddgs:
         for q in queries_to_run:
             try:
-                sub_results = list(ddgs.text(q, max_results=max(10, limit // len(queries_to_run) + 5)))
+                sub_results = _ddgs_text_with_retry(
+                    ddgs, q, max_results=max(10, limit // len(queries_to_run) + 5))
                 for r in sub_results:
                     url = r.get("href", "").strip()
                     if url and url not in seen_urls:
@@ -144,7 +161,8 @@ def scrape_universal_keyword(
                     if len(all_raw_results) >= limit:
                         break
             except Exception as e:
-                logger.warning(f"Error querying '{q}': {e}")
+                failed_queries += 1
+                logger.warning(f"Error querying '{q}' (setelah retry): {e}")
             if len(all_raw_results) >= limit:
                 break
 
@@ -152,7 +170,7 @@ def scrape_universal_keyword(
     if len(all_raw_results) < min(10, limit):
         try:
             with DDGS() as ddgs:
-                general_results = list(ddgs.text(query, max_results=limit))
+                general_results = _ddgs_text_with_retry(ddgs, query, max_results=limit)
                 for r in general_results:
                     url = r.get("href", "").strip()
                     if url and url not in seen_urls:
@@ -162,8 +180,23 @@ def scrape_universal_keyword(
                             "snippet": r.get("body", ""),
                             "link": url
                         })
-        except Exception:
-            pass
+        except Exception as e:
+            failed_queries += 1
+            logger.warning(f"Fallback query '{query}' gagal (setelah retry): {e}")
+
+    # Jujur ke pemanggil: bila SEMUA query gagal & hasil kosong, ini error
+    # koneksi/blokiran — bukan "sukses dengan nol data".
+    if not all_raw_results and failed_queries > 0:
+        return {
+            "status": "error",
+            "message": (
+                f"Semua {failed_queries} query pencarian gagal (kemungkinan "
+                "koneksi SSL/rate-limit DuckDuckGo). Tunggu 1-2 menit lalu coba lagi."),
+            "batch_id": batch_id,
+            "failed_queries": failed_queries,
+            "total_scraped": 0,
+            "items": []
+        }
 
     # Process and enrich each item
     processed_items = []

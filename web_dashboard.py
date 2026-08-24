@@ -433,7 +433,9 @@ async def generate_promo_video(payload: Dict[str, Any]):
     if engine in ("kling", "luma", "runway", "fal_ai", "replicate"):
         return {"status": "error",
                 "message": f"Engine '{engine}' belum terimplementasi. Gunakan 'local_pro' atau 'google_veo*'."}
-    if engine in video_generator.VEO_MODEL_MAP and not (api_key or "").strip():
+    if (engine in video_generator.VEO_MODEL_MAP
+            or engine in getattr(video_generator, "OMNI_MODEL_MAP", {})) \
+            and not (api_key or "").strip():
         try:
             with database.get_sync_db() as conn:
                 r = conn.execute(
@@ -3103,6 +3105,35 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         "agent_report": final_report,
         "duration_ms": duration_ms
     }
+
+
+# ==================== MEMORY MAINTENANCE (glibc heap trim) ====================
+# Endpoint berat (swarm/scrape/index) meninggalkan heap yang tidak dikembalikan
+# ke OS oleh glibc -> RSS menetap di puncak pemakaian. malloc_trim berkala
+# memulangkan halaman memori kosong tersebut.
+_TRIM_INTERVAL_SEC = int(os.getenv("DASHBOARD_MALLOC_TRIM_SEC", "900"))
+
+
+async def _malloc_trim_loop():
+    import ctypes
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+    except OSError:
+        return
+    while True:
+        await asyncio.sleep(_TRIM_INTERVAL_SEC)
+        try:
+            freed = libc.malloc_trim(0)
+            if freed:
+                rss_mb = int(open("/proc/self/status").read().split("VmRSS:")[1].split()[0]) // 1024
+                logger.debug(f"malloc_trim OK — RSS sekarang {rss_mb} MB")
+        except Exception as e:
+            logger.debug(f"malloc_trim gagal (abaikan): {e}")
+
+
+@app.on_event("startup")
+async def _start_memory_maintenance():
+    asyncio.create_task(_malloc_trim_loop())
 
 
 
