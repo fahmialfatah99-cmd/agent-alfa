@@ -4218,7 +4218,7 @@
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
             if (tabId === 'guardian') fetchGuardian();
-            if (tabId === 'swarm') { fetchAgents(); fetchSwarmLive(); loadMeetingFolders(); }
+            if (tabId === 'swarm') { fetchAgents(); fetchKeys(); fetchSwarmLive(); loadMeetingFolders(); }
             if (tabId === 'affiliate') fetchAffiliateCampaigns();
             if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); fetchAntigravityAccounts(); }
             if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
@@ -6120,9 +6120,18 @@
             }
         }
 
-        function populateAgentKeySources(selectedKeyId = null) {
+        async function populateAgentKeySources(selectedKeyId = null) {
             const sel = document.getElementById('agent-key-source-select');
             if (!sel) return;
+            // Muat daftar kunci bila belum ada (bug: sebelumnya kosong bila
+            // user langsung ke tab Swarm tanpa membuka tab API Keys dulu)
+            if (!allKeysData.length) {
+                try {
+                    const res = await fetch('/api/keys');
+                    const data = await res.json();
+                    if (data.status === 'success') allKeysData = data.keys || [];
+                } catch (e) { console.warn('gagal muat keys', e); }
+            }
             let html = '<option value="default">🌐 Gunakan Default Aktif Provider</option>';
             allKeysData.forEach(k => {
                 const isSel = (Number(selectedKeyId) === Number(k.id));
