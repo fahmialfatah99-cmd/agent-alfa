@@ -1843,200 +1843,155 @@
         </section>
 
         <!-- ==================== TAB: AI SWARM — EKSEKUSI LANGSUNG ==================== -->
-        <section id="view-swarm" class="tab-view hidden space-y-6">
-            <!-- Header Banner & Controls -->
-            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/20">
-                <div class="space-y-1">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold">
-                            <i data-lucide="users" class="w-4 h-4"></i>
-                        </div>
-                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">AUTONOMOUS AI WORKFORCE</h2>
-                    </div>
-                    <p class="text-xs text-slate-400">Tim agen AI spesialis yang bekerja nyata: menulis kode, riset data, scraping, dan audit — dengan verifikasi bukti file di setiap langkah.</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="openAgentModal()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-bold font-mono flex items-center gap-2 transition-all">
-                        <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i> + Tambah Agent
-                    </button>
-                    <button onclick="scrollToMeetingRoom()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 text-xs font-bold font-mono flex items-center gap-2 shadow-glow-cyan transition-all">
-                        <i data-lucide="zap" class="w-4 h-4"></i> ⚡ Mulai Eksekusi Swarm
-                    </button>
+        <section id="view-swarm" class="tab-view hidden space-y-5">
+
+    <!-- ═══ HEADER ═══ -->
+    <div class="glass-card p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 border border-cyan-500/20">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-9 h-9 shrink-0 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+                <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+                <h2 class="text-sm font-bold text-white tracking-wide font-mono truncate">AUTONOMOUS AI WORKFORCE</h2>
+                <p class="text-xs text-slate-400 truncate">Eksekusi nyata • folder target • verifikasi bukti file</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 flex-wrap">
+            <span id="meeting-status-badge" class="px-3 py-1 text-xs font-mono rounded-lg bg-white/5 text-slate-300 border border-white/10 font-bold">SWARM STANDBY</span>
+            <button onclick="openAgentModal()" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs font-bold font-mono transition-all whitespace-nowrap">+ Agent</button>
+        </div>
+    </div>
+
+    <!-- ═══ LIVE TERMINAL (penuh lebar) ═══ -->
+    <div class="glass-card p-4 rounded-2xl border border-emerald-500/25 space-y-2 min-w-0">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2 min-w-0">
+                <span id="sw-live-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0"></span>
+                <h3 class="text-xs font-black text-white font-mono tracking-wide truncate">LIVE TERMINAL — AKTIVITAS SWARM</h3>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="toggleSwLiveScroll()" id="btn-sw-scroll" class="text-[10px] font-mono px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-bold whitespace-nowrap">AUTO-SCROLL</button>
+                <button onclick="clearSwLiveView()" class="text-[10px] font-mono px-2 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white border border-white/10 whitespace-nowrap">BERSIHKAN</button>
+            </div>
+        </div>
+        <div id="sw-terminal" class="h-[380px] overflow-auto custom-scrollbar bg-black/70 rounded-xl p-3 font-mono text-[11px] leading-relaxed border border-emerald-500/10 shadow-inner">
+            <p class="text-slate-600">// Menunggu aktivitas swarm... jalankan eksekusi di panel sebelah untuk melihat agen bekerja realtime.</p>
+        </div>
+    </div>
+
+    <!-- ═══ FORM + HASIL ═══ -->
+    <div class="grid grid-cols-1 xl:grid-cols-5 gap-4 items-start min-w-0">
+
+        <!-- KOLOM KIRI: FORM EKSEKUSI -->
+        <div id="meeting-room-panel" class="xl:col-span-2 glass-card p-5 rounded-2xl space-y-4 border border-violet-500/30 min-w-0">
+            <h3 class="text-xs font-black text-white font-mono tracking-wide flex items-center gap-2">
+                ⚙️ KENDALI EKSEKUSI SWARM
+            </h3>
+
+            <!-- Tugas -->
+            <div class="space-y-1.5 min-w-0">
+                <label id="meeting-topic-label" class="block text-xs font-mono font-bold text-slate-200">Tugas untuk Tim Swarm:</label>
+                <textarea id="meeting-topic-input" rows="3" placeholder="Contoh: Perbaiki bug login dan tambahkan halaman kontak..."
+                    class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans shadow-inner resize-y break-words"></textarea>
+                <div id="meeting-presets-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
+                    <span class="text-slate-500 whitespace-nowrap shrink-0">Preset:</span>
+                    <button type="button" onclick="setMeetingTopic('Perbaiki bug login dan tambahkan halaman kontak')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 whitespace-nowrap transition-all">🐞 Fix Bug</button>
+                    <button type="button" onclick="setMeetingTopic('Scrape 20 produk terlaris dan buatkan CSV')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/10 whitespace-nowrap transition-all">🕷️ Scrape</button>
+                    <button type="button" onclick="setMeetingTopic('Audit keamanan sistem dan validasi port terbuka')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 whitespace-nowrap transition-all">🛡️ Audit</button>
                 </div>
             </div>
 
-            <!-- 🖥️ LIVE TERMINAL — JENDELA UTAMA -->
-            <div class="glass-card p-5 rounded-2xl border border-emerald-500/25 space-y-3">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <span id="sw-live-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
-                        <h3 class="text-sm font-black text-white font-mono tracking-wide">LIVE TERMINAL — AKTIVITAS SWARM REALTIME</h3>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="toggleSwLiveScroll()" id="btn-sw-scroll" class="text-[10px] font-mono px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-bold">AUTO-SCROLL</button>
-                        <button onclick="clearSwLiveView()" class="text-[10px] font-mono px-2 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white border border-white/10">BERSIHKAN</button>
-                    </div>
-                </div>
-                <div id="sw-terminal" class="h-[560px] overflow-y-auto custom-scrollbar bg-black/70 rounded-xl p-4 font-mono text-[11px] leading-relaxed space-y-0.5 border border-emerald-500/10 shadow-inner">
-                    <p class="text-slate-600">// Menunggu aktivitas swarm... jalankan eksekusi swarm di bawah untuk melihat agen bekerja realtime.</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-<!-- Round-Table Meeting & Live Swarm Command Deck -->
-            <div id="meeting-room-panel" class="glass-card p-6 sm:p-7 rounded-3xl space-y-6 border border-violet-500/30 relative overflow-hidden shadow-2xl">
-                <!-- Background Neon Glow Accents -->
-                <div class="absolute -top-24 -right-24 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
-                <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-5">
-                    <div class="flex items-center space-x-3.5">
-                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500/20 via-indigo-500/20 to-dark-950 border border-violet-500/40 flex items-center justify-center text-xl shadow-glow-violet">
-                            🏛️
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-black text-white font-mono tracking-wide">KENDALI EKSEKUSI SWARM</h3>
-                            <p class="text-xs text-slate-400 font-mono">Tentukan tugas, pilih folder target, lalu agen langsung bekerja nyata — tiap langkah terverifikasi bukti file.</p>
-                        </div>
-                    </div>
-                    <span id="meeting-status-badge" class="px-3.5 py-1 text-xs font-mono rounded-xl bg-white/5 text-slate-300 border border-white/10 self-start sm:self-auto font-black shadow-sm">
-                        SWARM STANDBY
-                    </span>
-                </div>
-
-                <!-- Meeting & Swarm Formulation Form -->
-                <div class="space-y-5">
-                    <!-- Mode: hanya eksekusi langsung (plan dihapus) -->
-                    <div class="p-3 bg-dark-950/90 rounded-2xl border border-amber-500/30 shadow-inner">
-                        <button type="button" id="btn-mode-execute" class="w-full py-3 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-violet cursor-default">
-                            <i data-lucide="zap" class="w-4 h-4"></i> ⚡ Swarm Eksekusi Langsung — agen bekerja nyata, tanpa debat
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <label id="meeting-topic-label" class="block text-xs font-mono font-bold text-slate-200">Target Eksekusi Swarm:</label>
-                            <span class="text-[10px] text-slate-500 font-mono hidden sm:inline">Pilih preset cepat di bawah ⬇️</span>
-                        </div>
-                        <textarea id="meeting-topic-input" rows="2" placeholder="Contoh: Perbaiki bug dan tambahkan halaman kontak pada website di folder target..." class="w-full p-3.5 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans shadow-inner transition-all"></textarea>
-                        
-                        <!-- Quick Topic Presets -->
-                        <div id="meeting-presets-container" class="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono">
-                            <span class="text-slate-500 whitespace-nowrap">💡 Preset:</span>
-                            <button type="button" onclick="setMeetingTopic('Rancang arsitektur otonom multi-agent untuk otomatisasi tugas dan coding')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-violet-500/20 text-slate-300 hover:text-violet-300 border border-white/10 whitespace-nowrap transition-all">🚀 Arsitektur Multi-Agent</button>
-                            <button type="button" onclick="setMeetingTopic('Scrape 20 mouse gaming terlaris di Shopee & Tokopedia dan buatkan CSV-nya')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 border border-white/10 whitespace-nowrap transition-all">🕷️ Scrape Marketplace</button>
-                            <button type="button" onclick="setMeetingTopic('Buatkan script Python monitoring server, audit resource RAM/CPU, dan jalankan')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/10 whitespace-nowrap transition-all">💻 Coding & Host Sandbox</button>
-                            <button type="button" onclick="setMeetingTopic('Audit keamanan sistem, scanning celah terbuka, dan validasi sertifikat SSL')" class="px-3 py-1 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 whitespace-nowrap transition-all">🛡️ Audit Keamanan Swarm</button>
-                        </div>
-                    </div>
-
-                    <!-- Folder target kerja agen (pilih dari daftar, bukan ketik) -->
-                    <div class="space-y-1.5">
-                        <div class="flex items-center justify-between">
-                            <label class="block text-xs font-mono font-bold text-slate-200">📁 Folder yang Mau Diedit Agen:</label>
-                            <button type="button" onclick="loadMeetingFolders()" class="text-[10px] font-mono text-cyan-400 hover:underline">↻ Muat Ulang Daftar</button>
-                        </div>
-                        <select id="meeting-folder-select" onchange="onMeetingFolderChange()" class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono shadow-inner transition-all">
-                            <option value="">🌐 Bebas — agen pilih lokasi sendiri</option>
-                        </select>
-                        <input type="text" id="meeting-folder-custom" placeholder="atau tempel path lain di sini (opsional)..." class="hidden w-full p-2.5 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono" />
-                        <p class="text-[10px] text-slate-500 leading-snug">Folder dipilih dari daftar proyek di sandbox & outputs — SEMUA agen wajib mengedit di dalamnya + diverifikasi ground-truth.</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="space-y-1.5">
-                            <div class="flex items-center justify-between">
-                                <label class="block text-xs font-mono font-bold text-slate-200">Peserta Swarm:</label>
-                                <div class="flex items-center gap-2 text-[10px] font-mono">
-                                    <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Pilih Semua</button>
-                                    <span class="text-slate-600">|</span>
-                                    <button type="button" onclick="toggleAllParticipants(false)" class="text-slate-400 hover:underline">Kosongkan</button>
-                                </div>
-                            </div>
-                            <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-3 bg-dark-950/90 rounded-2xl border border-white/10 max-h-36 overflow-y-auto custom-scrollbar text-xs">
-                                <!-- Checkbox list of agents -->
-                            </div>
-                        </div>
-                        <div class="space-y-1.5 flex flex-col justify-between">
-                            <div>
-                                <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-200 mb-1.5">Alur Koordinasi & Eksekusi:</label>
-                                <select id="meeting-rounds-select" class="w-full p-3 bg-dark-950/90 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
-                                    <option value="1">1 Putaran (Cepat / Brainstorm Singkat)</option>
-                                    <option value="2" selected>2 Putaran (Standar / Diskusi & Debat Kritis)</option>
-                                    <option value="3">3 Putaran (Mendalam / Analisis Kompleks)</option>
-                                </select>
-                            </div>
-                            <button onclick="startAiMeeting()" id="btn-start-meeting" class="w-full mt-2 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all">
-                                <i data-lucide="play" class="w-4 h-4"></i> Mulai Konferensi Antar Agent
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Live Dialogue & Live Swarm Execution Container -->
-                <div id="meeting-dialogue-container" class="hidden space-y-4 pt-5 border-t border-white/10">
-                    <div class="flex items-center justify-between">
-                        <span id="meeting-transcript-header-label" class="text-xs font-mono font-bold text-slate-200 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-                            TRANSKRIP KOORDINASI ANTAGENT
-                        </span>
-                        <span id="meeting-dialogue-count" class="text-xs text-slate-400 font-mono">0 Masukan</span>
-                    </div>
-
-                    <!-- Transcript Feed -->
-                    <div id="meeting-transcript-feed" class="space-y-3 max-h-[360px] overflow-y-auto custom-scrollbar p-4 bg-dark-950/90 rounded-2xl border border-white/10">
-                        <!-- Dialogue speech bubbles -->
-                    </div>
-
-                    <!-- Live Swarm Real Execution Cards Container (Mode 2) -->
-                    <div id="meeting-execution-results-container" class="hidden space-y-3 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/30 shadow-glow-amber">
-                        <div class="flex items-center justify-between border-b border-amber-500/20 pb-3">
-                            <h4 class="text-xs font-black text-amber-300 font-mono flex items-center gap-2">
-                                <i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i> HASIL EKSEKUSI NYATA OLEH TIM SWARM (LIVE ARTIFACTS)
-                            </h4>
-                            <span class="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">
-                                Autonomous Tool Execution
-                            </span>
-                        </div>
-                        <div id="meeting-execution-steps-feed" class="grid grid-cols-1 gap-3">
-                            <!-- Live execution step cards -->
-                        </div>
-                    </div>
-
-                    <!-- Consensus & Action Plan / Deliverable Result Box -->
-                    <div id="meeting-consensus-box" class="hidden p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-dark-900 to-dark-950 border border-emerald-500/30 space-y-4 shadow-glow-emerald">
-                        <div class="flex items-center justify-between border-b border-emerald-500/20 pb-3">
-                            <h4 id="meeting-consensus-header" class="text-sm font-black text-emerald-300 font-mono flex items-center gap-2">
-                                <i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> LAPORAN HASIL EKSEKUSI SWARM
-                            </h4>
-                            <button onclick="copyConsensus()" class="px-3 py-1.5 text-xs rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm">
-                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Laporan
-                            </button>
-                        </div>
-                        <div id="meeting-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none"></div>
-                        <div id="meeting-action-plan-text" class="text-xs text-emerald-200 leading-relaxed font-sans pt-2 border-t border-emerald-500/20"></div>
-                    </div>
-                </div>
-            </div>
-
-
-            <!-- 👥 ROSTER TIM AI (COMPACT) -->
-            <div class="glass-card p-4 rounded-2xl border border-white/10 space-y-3">
+            <!-- Folder target -->
+            <div class="space-y-1.5 min-w-0">
                 <div class="flex items-center justify-between gap-2">
-                    <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
-                        <i data-lucide="bot" class="w-3.5 h-3.5 text-cyan-400"></i> ANGGOTA TIM AI
-                        <span id="agents-count-badge" class="text-[10px] text-slate-500 font-normal"></span>
-                    </h4>
-                    <button onclick="openAgentModal()" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 text-[10px] font-bold transition-all">+ Tambah</button>
+                    <label class="text-xs font-mono font-bold text-slate-200">📁 Folder Target:</label>
+                    <button type="button" onclick="loadMeetingFolders()" class="text-[10px] font-mono text-cyan-400 hover:underline whitespace-nowrap">↻ Refresh</button>
                 </div>
-                <p class="text-[10px] text-slate-500 leading-snug">Agen aktif otomatis ikut rapat swarm. Klik pensil untuk atur provider/model tiap agen.</p>
-                <div id="agents-grid" class="space-y-1.5">
-                    <!-- Dynamic Agent Cards -->
+                <select id="meeting-folder-select" onchange="onMeetingFolderChange()"
+                    class="w-full p-2.5 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono">
+                    <option value="">🌐 Bebas — agen pilih lokasi</option>
+                </select>
+                <input type="text" id="meeting-folder-custom" placeholder="path kustom (opsional)"
+                    class="hidden w-full p-2 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono break-all" />
+            </div>
+
+            <!-- Peserta + Rounds berdampingan -->
+            <div class="space-y-1.5 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                    <label class="text-xs font-mono font-bold text-slate-200">Peserta Swarm:</label>
+                    <div class="flex gap-2 text-[10px] font-mono">
+                        <button type="button" onclick="toggleAllParticipants(true)" class="text-cyan-400 hover:underline">Semua</button>
+                        <span class="text-slate-600">|</span>
+                        <button type="button" onclick="toggleAllParticipants(false)" class="text-slate-400 hover:underline">Kosongkan</button>
+                    </div>
+                </div>
+                <div id="meeting-participants-selector" class="flex flex-wrap gap-2 p-2.5 bg-dark-950/90 rounded-xl border border-white/10 max-h-32 overflow-y-auto custom-scrollbar text-xs w-full"></div>
+            </div>
+
+            <div class="space-y-1.5 min-w-0">
+                <label id="meeting-rounds-label" class="block text-xs font-mono font-bold text-slate-200">Alur Koordinasi & Eksekusi:</label>
+                <select id="meeting-rounds-select" class="w-full p-2.5 bg-dark-950/90 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+                    <option value="1">⚡ Eksekusi Cepat (Rekomendasi)</option>
+                    <option value="2">⚡ Eksekusi Mendalam + Validasi Multi-Tahap</option>
+                </select>
+            </div>
+
+            <button type="button" id="btn-start-meeting"
+                class="w-full mt-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-amber transition-all">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-200"></i> Jalankan Eksekusi Swarm!
+            </button>
+        </div>
+
+        <!-- KOLOM KANAN: TRANSCRIPT & HASIL -->
+        <div class="xl:col-span-3 space-y-4 min-w-0">
+
+            <div id="meeting-dialogue-container" class="glass-card p-4 rounded-2xl border border-white/10 space-y-3 min-w-0">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <span id="meeting-transcript-header-label" class="text-xs font-mono font-bold text-slate-200 flex items-center gap-2 min-w-0">
+                        📜 Alur Kerja & Dialog Agen
+                    </span>
+                    <span id="meeting-dialogue-count" class="text-[10px] font-mono text-slate-500 whitespace-nowrap">0 Aksi</span>
+                </div>
+                <div id="meeting-transcript-feed"
+                    class="space-y-2.5 max-h-[520px] overflow-y-auto custom-scrollbar p-1 text-xs text-slate-200 min-w-0 [word-break:break-word]">
+                    <p class="text-slate-600 font-mono">// Hasil dialog & langkah agen akan muncul di sini.</p>
                 </div>
             </div>
 
+            <div id="meeting-execution-results-container" class="hidden glass-card p-4 rounded-2xl border border-amber-500/25 space-y-3 min-w-0">
+                <h4 class="text-xs font-black text-amber-300 font-mono tracking-wide">🛠️ DETAIL LANGKAH EKSEKUSI NYATA</h4>
+                <div id="meeting-execution-steps-feed" class="grid grid-cols-1 gap-3 min-w-0"></div>
             </div>
-        </section>
+
+            <div id="meeting-consensus-box" class="hidden p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-dark-900 to-dark-950 border border-emerald-500/30 space-y-3 min-w-0">
+                <div class="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-3 flex-wrap">
+                    <h4 id="meeting-consensus-header" class="text-sm font-black text-emerald-300 font-mono flex items-center gap-2 min-w-0">
+                        <i data-lucide="award" class="w-5 h-5 text-emerald-400 shrink-0"></i> LAPORAN HASIL EKSEKUSI SWARM
+                    </h4>
+                    <button onclick="copyConsensus()" class="px-3 py-1.5 text-xs rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono font-bold transition-all flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin Laporan
+                    </button>
+                </div>
+                <div id="meeting-consensus-text" class="text-xs text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none break-words"></div>
+                <div id="meeting-action-plan-text" class="text-xs text-emerald-200 leading-relaxed font-sans pt-2 border-t border-emerald-500/20 break-words"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ ROSTER TIM AI ═══ -->
+    <div class="glass-card p-4 rounded-2xl border border-white/10 space-y-3 min-w-0">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+            <h4 class="text-xs font-extrabold text-white font-mono flex items-center gap-1.5">
+                <i data-lucide="bot" class="w-3.5 h-3.5 text-cyan-400"></i> ANGGOTA TIM AI
+                <span id="agents-count-badge" class="text-[10px] text-slate-500 font-normal"></span>
+            </h4>
+            <button onclick="openAgentModal()" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-cyan-300 border border-white/10 text-[10px] font-bold transition-all">+ Tambah</button>
+        </div>
+        <p class="text-[10px] text-slate-500 leading-snug">Agen aktif otomatis ikut eksekusi swarm. Klik pensil untuk atur provider/model tiap agen.</p>
+        <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 min-w-0"></div>
+    </div>
+
+</section>
 
         <!-- ==================== TAB: AUTOMATED AFFILIATE SALES WAR ROOM ==================== -->
         <section id="view-affiliate" class="tab-view hidden space-y-6">
@@ -6452,7 +6407,6 @@
 
         function setMeetingMode(mode) {
             currentMeetingMode = 'execute';
-            const btnExec = document.getElementById('btn-mode-execute');
             const topicLabel = document.getElementById('meeting-topic-label');
             const topicInput = document.getElementById('meeting-topic-input');
             const roundsLabel = document.getElementById('meeting-rounds-label');
@@ -6460,11 +6414,7 @@
             const btnStart = document.getElementById('btn-start-meeting');
             const statusBadge = document.getElementById('meeting-status-badge');
 
-            if (btnExec) btnExec.className = 'w-full py-3 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-violet cursor-default';
-
-            if (mode === 'execute') {
-                btnExec.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-glow-amber';
-                btnPlan.className = 'w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all bg-transparent text-slate-400 hover:text-violet-300 hover:bg-white/5 border border-transparent';
+            {
                 
                 if (topicLabel) topicLabel.innerText = 'Perintah / Tugas Nyata untuk Dikerjakan Bersama oleh Tim Swarm:';
                 if (topicInput) topicInput.placeholder = 'Contoh: Buatkan script Python monitoring server, scrape data lowongan AI, audit keamanan port, dan buatkan laporan analitik lengkap...';
