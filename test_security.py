@@ -330,7 +330,7 @@ class TestWorkspaceExplorer:
         r = client.get("/api/workspace/tree", params={"path": "/etc"})
         assert r.status_code == 403
         r2 = client.get("/api/workspace/file",
-                        params={"path": "/home/fahmial/telegram-ai-bot/.env"})
+                        params={"path": "/home/pengguna_lain/rahasia/.env"})
         assert r2.status_code == 403
 
     def test_file_di_luar_root_ditolak(self, tmp_path):

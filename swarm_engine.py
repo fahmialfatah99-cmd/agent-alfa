@@ -35,7 +35,7 @@ KNOWN_OPENAI_PROVIDERS = {
     "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope",
 }
 
-SWARM_OUTPUT_DIR = "/home/fahmial/Dokumen/ALFA_SWARM_OUTPUTS"
+SWARM_OUTPUT_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
 os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
 # ── AUTO-HARVESTER: arsipkan proyek baru dari sandbox di akhir rapat ────────

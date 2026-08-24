@@ -1384,7 +1384,6 @@ def _find_camofox_bin() -> Optional[str]:
     if found:
         return found
     candidates = [
-        "/home/fahmial/.nvm/versions/node/v24.19.0/bin/camofox",
         os.path.expanduser("~/.nvm/versions/node/v24.19.0/bin/camofox"),
         os.path.expanduser("~/.npm-global/bin/camofox"),
         "/usr/local/bin/camofox",
@@ -1549,7 +1548,7 @@ def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
             return {"status": "error", "message": res.get("stderr") or res.get("error")}
             
         out = res.get("stdout", "")
-        # Camofox returns "path: /home/fahmial/.camofox/screenshots/..."
+        # Camofox returns "path: ~/.camofox/screenshots/..."
         import shutil
         target_path = os.path.join(SANDBOX_DIR, "browser_screenshot.png")
         
@@ -2961,7 +2960,7 @@ def compress_folder_to_zip(folder_path: str, output_filename: str = "archive.zip
     Use this when the user wants to send a whole folder, backup a project, or archive files.
     
     Args:
-        folder_path: Path to the folder to compress (e.g. '~/Documents/project', '/home/fahmial/telegram-ai-bot').
+        folder_path: Path to the folder to compress (e.g. '~/Documents/project', '~/telegram-ai-bot').
         output_filename: Output ZIP filename (default: archive.zip).
     """
     try:

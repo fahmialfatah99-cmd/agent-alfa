@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Terapkan persona tersinkron ke custom_agents + sinkronkan otak utama."""
+import os
 import sqlite3
 import sys
 
-sys.path.insert(0, "/home/fahmial/telegram-ai-bot")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from swarm_personas import AGENTS, DNA, build_prompts
 
-DB = "/home/fahmial/telegram-ai-bot/agent_data.db"
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
 
 def apply_db():
@@ -27,7 +28,7 @@ def apply_db():
         conn.close()
 
 
-PROMPT_FILE = "/home/fahmial/.alfa/system_prompt.txt"
+PROMPT_FILE = os.path.expanduser("~/.alfa/system_prompt.txt")
 TEAM_SECTION = """
 
 ### 🤝 TIM SWARM (UNIT EKSEKUSI KOLEKTIF ALFA)
