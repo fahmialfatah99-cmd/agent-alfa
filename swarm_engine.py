@@ -144,8 +144,38 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
 # Sumber kebenaran: file JSONL agar lintas-proses (rapat dari Telegram maupun
 # dashboard sama-sama terlihat di Live Terminal web).
 LIVE_FEED_FILE = os.path.join(SWARM_OUTPUT_DIR, "live_meeting_feed.jsonl")
+# Flag cancel berbasis file: eksekusi swarm bisa berjalan di proses bot ATAU
+# dashboard, jadi sinyal batalkan harus lintas proses.
+CANCEL_FLAG_FILE = os.path.join(SWARM_OUTPUT_DIR, "swarm_cancel.flag")
 LIVE_LOG: "collections.deque" = collections.deque(maxlen=400)
 MEETING_RUNNING = False
+
+
+def request_cancel_swarm() -> bool:
+    """Minta pembatalan eksekusi swarm yang sedang berjalan.
+    Return True bila memang ada sesi aktif untuk dibatalkan."""
+    if not MEETING_RUNNING:
+        return False
+    try:
+        os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
+        with open(CANCEL_FLAG_FILE, "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+    except OSError:
+        pass
+    log_live("CANCEL", "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...")
+    return True
+
+
+def _cancel_requested() -> bool:
+    return os.path.exists(CANCEL_FLAG_FILE)
+
+
+def _clear_cancel_flag() -> None:
+    try:
+        if os.path.exists(CANCEL_FLAG_FILE):
+            os.remove(CANCEL_FLAG_FILE)
+    except OSError:
+        pass
 
 
 def _load_last_seq() -> int:
@@ -1133,6 +1163,7 @@ async def conduct_multi_agent_meeting(
     logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents.")
     global MEETING_RUNNING
     MEETING_RUNNING = True
+    _clear_cancel_flag()  # sesi baru = reset sinyal cancel lama
     log_live("SESSION", f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)")
     # Snapshot folder sandbox utk auto-harvester di akhir rapat
     _SANDBOX_SNAPSHOT.clear()
@@ -1203,6 +1234,7 @@ async def conduct_multi_agent_meeting(
             log_live("DIALOG", f"💬 {entry['agent_name']}: {response_text[:140]}")
 
     # --- PHASE 2: Live Autonomous Swarm Execution (Real Tools & Real Data) ---
+    swarm_cancelled = False
     if mode in ["execute", "plan_and_execute"]:
         logger.info(f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents...")
 
@@ -1216,6 +1248,11 @@ async def conduct_multi_agent_meeting(
 
         ctx_lines: List[str] = []
         for idx, agent in enumerate(participants):
+            if _cancel_requested():
+                log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum giliran {agent['name']}.")
+                swarm_cancelled = True
+                break
+
             task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
 
             # Folder target wajib: injeksi keras ke setiap tugas agen
@@ -1253,6 +1290,7 @@ async def conduct_multi_agent_meeting(
                 not passed
                 and attempts < 1
                 and step_result.get("tool_used") != "strategic_orchestration"
+                and not _cancel_requested()
             ):
                 attempts += 1
                 logger.warning(f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections...")
@@ -1292,7 +1330,30 @@ async def conduct_multi_agent_meeting(
         }
 
     lead_agent = participants[0]
-    
+
+    # --- PEMBATALAN: kembalikan hasil parsial tanpa sintesis konsensus ---
+    if swarm_cancelled or _cancel_requested():
+        MEETING_RUNNING = False
+        _clear_cancel_flag()
+        log_live("DONE", f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.")
+        return {
+            "status": "cancelled",
+            "meeting_id": None,
+            "title": meeting_title,
+            "topic": topic,
+            "mode": mode,
+            "target_folder": _TARGET_FOLDER,
+            "participants": [a["name"] for a in participants],
+            "dialogue_transcript": dialogue_transcript,
+            "execution_results": execution_steps,
+            "consensus": (
+                f"⏹ **Eksekusi dibatalkan pengguna.** {len(execution_steps)} dari "
+                f"{len(participants)} agen tuntas dieksekusi sebelum berhenti. "
+                "File/hasil yang sudah dibuat tetap tersimpan."
+            ),
+            "action_plan": ""
+        }
+
     if mode in ["execute", "plan_and_execute"]:
         # Collect real files and real data extracted
         real_files = [s['deliverable_file'] for s in execution_steps if s.get('deliverable_file')]

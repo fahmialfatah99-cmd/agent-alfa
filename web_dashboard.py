@@ -2846,6 +2846,16 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     return result
 
 
+@app.post("/api/meetings/cancel")
+async def cancel_agent_meeting():
+    """Minta pembatalan eksekusi swarm yang sedang berjalan (lintas proses)."""
+    import swarm_engine
+    ok = swarm_engine.request_cancel_swarm()
+    if ok:
+        return {"status": "success", "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai."}
+    return {"status": "error", "message": "Tidak ada sesi swarm yang sedang berjalan."}
+
+
 @app.get("/api/swarm/live")
 async def swarm_live_feed(since: int = 0):
     """Realtime terminal feed of what the swarm agents are doing right now.

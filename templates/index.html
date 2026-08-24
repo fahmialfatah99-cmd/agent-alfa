@@ -1936,10 +1936,16 @@
                 </select>
             </div>
 
-            <button type="button" id="btn-start-meeting" onclick="startAiMeeting()"
-                class="w-full mt-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-amber transition-all">
-                <i data-lucide="zap" class="w-4 h-4 text-amber-200"></i> Jalankan Eksekusi Swarm!
-            </button>
+            <div class="flex gap-2">
+                <button type="button" id="btn-start-meeting" onclick="startAiMeeting()"
+                    class="flex-1 mt-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-amber transition-all">
+                    <i data-lucide="zap" class="w-4 h-4 text-amber-200"></i> Jalankan Eksekusi Swarm!
+                </button>
+                <button type="button" id="btn-cancel-meeting" onclick="cancelSwarmMeeting()" style="display:none"
+                    class="mt-1 px-4 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-lg shadow-rose-500/30 transition-all">
+                    <i data-lucide="square" class="w-3.5 h-3.5"></i> Batalkan
+                </button>
+            </div>
         </div>
 
         <!-- KOLOM KANAN: TRANSCRIPT & HASIL -->
@@ -6454,6 +6460,7 @@
 
             const rounds = Number(document.getElementById('meeting-rounds-select').value) || 2;
             const btn = document.getElementById('btn-start-meeting');
+            const btnCancel = document.getElementById('btn-cancel-meeting');
             const statusBadge = document.getElementById('meeting-status-badge');
             const dialogueContainer = document.getElementById('meeting-dialogue-container');
             const transcriptFeed = document.getElementById('meeting-transcript-feed');
@@ -6462,6 +6469,7 @@
             const execFeed = document.getElementById('meeting-execution-steps-feed');
 
             btn.disabled = true;
+            if (btnCancel) { btnCancel.style.display = 'flex'; btnCancel.disabled = false; }
             if (currentMeetingMode === 'execute') {
                 btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Swarm Sedang Bekerja & Mengeksekusi Tugas...';
                 statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold animate-pulse';
@@ -6497,7 +6505,22 @@
                     })
                 });
                 const data = await res.json();
-                if (data.status === 'success') {
+                if (data.status === 'cancelled') {
+                    // Render hasil parsial lalu tandai sesi dibatalkan
+                    renderMeetingDialogue(data.dialogue_transcript || []);
+                    document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
+                    if (data.execution_results && data.execution_results.length > 0) {
+                        renderSwarmExecutionResults(data.execution_results);
+                        if (execContainer) execContainer.classList.remove('hidden');
+                    }
+                    const markedConsensusC = marked.parse(data.consensus || 'Eksekusi dibatalkan.');
+                    document.getElementById('meeting-consensus-text').innerHTML = markedConsensusC;
+                    document.getElementById('meeting-action-plan-text').innerHTML = '';
+                    consensusBox.classList.remove('hidden');
+                    statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-slate-500/20 text-slate-300 border border-slate-400/40 font-black';
+                    statusBadge.innerText = 'DIBATALKAN ⏹';
+                    showToast('Eksekusi swarm dibatalkan. Hasil parsial tetap tersimpan.', 'warning');
+                } else if (data.status === 'success') {
                     renderMeetingDialogue(data.dialogue_transcript || []);
                     document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
 
@@ -6538,8 +6561,27 @@
                 statusBadge.innerText = 'SESI ERROR';
             } finally {
                 btn.disabled = false;
+                if (btnCancel) btnCancel.style.display = 'none';
                 setMeetingMode(currentMeetingMode);
                 lucide.createIcons();
+            }
+        }
+
+        async function cancelSwarmMeeting() {
+            const btnCancel = document.getElementById('btn-cancel-meeting');
+            try {
+                if (btnCancel) {
+                    btnCancel.disabled = true;
+                    btnCancel.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menghentikan...';
+                    lucide.createIcons();
+                }
+                const res = await fetch('/api/meetings/cancel', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || (data.status === 'success' ? 'Sinyal pembatalan terkirim.' : 'Tidak ada sesi aktif.'), data.status === 'success' ? 'success' : 'error');
+            } catch (err) {
+                showToast(`Gagal mengirim sinyal batal: ${err.message}`, 'error');
+            } finally {
+                if (btnCancel) setTimeout(() => { btnCancel.disabled = false; }, 1500);
             }
         }
 
