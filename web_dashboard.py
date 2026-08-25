@@ -165,17 +165,34 @@ async def get_stats():
         cpu_count = psutil.cpu_count(logical=True)
         ram = psutil.virtual_memory()
         swap = psutil.swap_memory()
-        disk = psutil.disk_usage("/")
+        disk = psutil.disk_usage(os.path.abspath(os.sep))
         battery = psutil.sensors_battery()
         
         uptime_secs = int(time.time() - psutil.boot_time())
         hours, remainder = divmod(uptime_secs, 3600)
         minutes, seconds = divmod(remainder, 60)
         
-        # Check active background services
-        tb_res = subprocess.run(["systemctl", "--user", "is-active", "telegram-ai-bot.service"], capture_output=True, text=True)
-        wa_res = subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
-        dash_res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
+        # Check active background services (cross-platform: systemctl on Linux, psutil elsewhere)
+        if os.name == "nt":
+            def _svc_active(script_hint):
+                for p in psutil.process_iter(['cmdline']):
+                    try:
+                        cl = p.info.get('cmdline') or []
+                        if any(script_hint in str(c) for c in cl):
+                            return True
+                    except Exception:
+                        continue
+                return False
+            tb_active = _svc_active("bot.py")
+            wa_active = _svc_active("wa_sheets")
+            dash_active = _svc_active("web_dashboard.py")
+        else:
+            tb_res = subprocess.run(["systemctl", "--user", "is-active", "telegram-ai-bot.service"], capture_output=True, text=True)
+            wa_res = subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
+            dash_res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
+            tb_active = tb_res.stdout.strip() == "active"
+            wa_active = wa_res.stdout.strip() == "active"
+            dash_active = dash_res.stdout.strip() == "active"
 
         return {
             "status": "success",
@@ -210,9 +227,9 @@ async def get_stats():
                 "status": "Charging ⚡" if (battery and battery.power_plugged) else "Discharging 🔋"
             },
             "services": {
-                "telegram_bot": tb_res.stdout.strip() == "active",
-                "wa_sheets_bot": wa_res.stdout.strip() == "active",
-                "dashboard": dash_res.stdout.strip() == "active"
+                "telegram_bot": tb_active,
+                "wa_sheets_bot": wa_active,
+                "dashboard": dash_active
             },
             "top_ram_processes": raw_stats.get("top_ram_processes", [])[:8]
         }
@@ -1265,6 +1282,31 @@ async def get_services_status():
     results = []
     for s in services:
         svc = s["name"]
+        if os.name == "nt":
+            def _svc_active(hint):
+                for p in psutil.process_iter(['cmdline']):
+                    try:
+                        cl = p.info.get('cmdline') or []
+                        if any(hint in str(c) for c in cl):
+                            return True
+                    except Exception:
+                        continue
+                return False
+            hint_map = {
+                "telegram-ai-bot.service": "bot.py",
+                "wa-sheets-bot.service": "wa_sheets",
+                "alfa-dashboard.service": "web_dashboard.py"
+            }
+            active = _svc_active(hint_map.get(svc, ""))
+            results.append({
+                "name": svc,
+                "title": s["title"],
+                "is_active": active,
+                "state": "active (process)" if active else "inactive",
+                "is_enabled": active,
+                "details": "systemd tidak tersedia di Windows; status dideteksi dari proses berjalan."
+            })
+            continue
         res_act = subprocess.run(["systemctl", "--user", "is-active", svc], capture_output=True, text=True)
         res_enb = subprocess.run(["systemctl", "--user", "is-enabled", svc], capture_output=True, text=True)
         res_stat = subprocess.run(["systemctl", "--user", "status", svc, "--no-pager", "-n", "8"], capture_output=True, text=True)
@@ -1710,7 +1752,19 @@ async def service_action(payload: Dict[str, Any]):
 
 @app.get("/api/services/logs")
 async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 50):
-    """Fetch live service journalctl logs."""
+    """Fetch live service logs (journalctl di Linux, file log lokal di Windows)."""
+    lines = max(10, min(int(lines), 500))
+    if os.name == "nt":
+        log_file = "bot_err.log" if "telegram" in service else (
+            "dash_err.log" if "dashboard" in service else "wa_bot.log")
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), log_file)
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                tail = f.readlines()[-lines:]
+            return {"status": "success", "service": service, "logs": "".join(tail).strip()}
+        except FileNotFoundError:
+            return {"status": "success", "service": service,
+                    "logs": f"(file log '{log_file}' belum ada)"}
     res = subprocess.run(["journalctl", "--user", "-u", service, "-n", str(lines), "--no-pager"], capture_output=True, text=True)
     return {
         "status": "success",

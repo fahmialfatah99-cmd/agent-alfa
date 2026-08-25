@@ -1743,16 +1743,18 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
         try:
             online = await asyncio.to_thread(is_internet_connected)
             if online:
-                # 1. Ensure service is active
-                res = await asyncio.to_thread(
-                    lambda: subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
-                )
-                state = res.stdout.strip()
-                if state in ["inactive", "failed"]:
-                    logger.info("🌐 Internet connected & wa-sheets-bot is offline. Auto-starting wa-sheets-bot.service...")
-                    await asyncio.to_thread(
-                        lambda: subprocess.run(["systemctl", "--user", "start", "wa-sheets-bot.service"], capture_output=True, text=True)
+                # 1. Ensure service is active (systemd tersedia hanya di Linux;
+                #    di Windows layanan WA dikelola manual via /wa)
+                if os.name != "nt":
+                    res = await asyncio.to_thread(
+                        lambda: subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
                     )
+                    state = res.stdout.strip()
+                    if state in ["inactive", "failed"]:
+                        logger.info("🌐 Internet connected & wa-sheets-bot is offline. Auto-starting wa-sheets-bot.service...")
+                        await asyncio.to_thread(
+                            lambda: subprocess.run(["systemctl", "--user", "start", "wa-sheets-bot.service"], capture_output=True, text=True)
+                        )
 
                 # 2. Check WhatsApp authentication status & alert if logged out
                 if os.path.exists(status_file) and primary_uid:
@@ -2143,6 +2145,7 @@ def main():
     application = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
+        .concurrent_updates(True)
         .post_init(post_init)
         .build()
     )
@@ -2173,10 +2176,10 @@ def main():
     application.add_handler(CommandHandler("voice", voice_command))
     application.add_handler(CommandHandler("help", start_command))
 
-    # Callback Query (Buttons) — handler perm| HARUS lebih dulu agar tidak
-    # ditelan handler generik yang match semua callback.
+    # Callback Query (Buttons) — handler perm| di group terpisah agar selalu
+    # dieksekusi walau turn agent sedang menunggu keputusan izin.
     application.add_handler(CallbackQueryHandler(
-        permission_gate.handle_permission_callback, pattern=r"^perm\|"))
+        permission_gate.handle_permission_callback, pattern=r"^perm\|"), group=1)
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Multimodal message handlers

@@ -50,6 +50,18 @@ SANDBOX_DIR = "/dev/shm/alfa_sandbox"
 os.makedirs(SANDBOX_DIR, exist_ok=True)
 
 
+def normalize_path(p: str) -> str:
+    """Samakan path gaya Linux (/dev/shm/...) dengan lokasi fisiknya di Windows
+    (C:\\dev\\shm\\...) dan rapikan pemisah campuran / vs \\. No-op di Linux."""
+    if not p or not isinstance(p, str):
+        return p
+    q = p.replace("\\", "/")
+    if os.name == "nt" and (q.startswith("/dev/shm") or q.startswith("C:/dev/shm")):
+        drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
+        q = drive + q if not q.lower().startswith(("c:/", "d:/")) else q
+    return os.path.normpath(q) if os.name == "nt" else p
+
+
 def get_system_stats() -> Dict[str, Any]:
     """
     Get real-time Linux system health metrics including CPU cores/frequencies, RAM, Swap,
@@ -214,6 +226,7 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
         and _ensure_sandbox_image()
     )
 
+    script_path = None
     try:
         if use_docker:
             stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
@@ -230,7 +243,9 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                 "-v", f"{SANDBOX_DIR}:/sandbox",
                 "--cap-drop", "ALL",
                 "--security-opt", "no-new-privileges",
-                "--user", f"{os.getuid()}:{os.getgid()}",
+                # POSIX saja: os.getuid/getgid tidak ada di Windows; di Linux
+                # flag ini penting agar file mount bukan milik root.
+                *(["--user", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []),
                 "-e", f"HOME={home_in_box}",
                 "--memory", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
                 "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
@@ -259,19 +274,30 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             target_dir = os.path.expanduser(working_dir) if working_dir else os.path.expanduser("~")
             if not os.path.exists(target_dir):
                 target_dir = os.path.expanduser("~")
-            cmd = ["bash", "-c", command]
+            if os.name == "nt":
+                # Windows: utamakan Git Bash bila tersedia (perintah gaya
+                # Linux tetap jalan), jika tidak ada fallback ke PowerShell.
+                git_bash = r"C:\Program Files\Git\bin\bash.exe"
+                if os.path.exists(git_bash):
+                    cmd = [git_bash, "-lc", command]
+                else:
+                    cmd = ["powershell", "-NoProfile", "-Command", command]
+            else:
+                cmd = ["bash", "-c", command]
             timeout_secs, isolation = 45, "none"
 
         logger.info(f"Executing bash ({isolation}): {command[:150]}")
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs,
+                                    cwd=target_dir if isolation == "none" else None)
         finally:
             # Skrip wrapper adalah infrastruktur internal; jangan tinggalkan
             # agar tidak ikut terkirim ke chat oleh auto-dispatcher.
-            try:
-                os.remove(script_path)
-            except OSError:
-                pass
+            if script_path:
+                try:
+                    os.remove(script_path)
+                except OSError:
+                    pass
 
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
@@ -621,6 +647,7 @@ def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -
         start_line: Starting line number (1-indexed).
     """
     try:
+        file_path = normalize_path(file_path)
         expanded_path = os.path.expanduser(file_path)
         if not os.path.isabs(expanded_path):
             expanded_path = os.path.join(os.path.expanduser("~"), file_path)
@@ -662,6 +689,7 @@ def write_local_file(file_path: str, content: str) -> Dict[str, Any]:
         content: Text content to write.
     """
     try:
+        file_path = normalize_path(file_path)
         expanded_path = os.path.expanduser(file_path)
         if not os.path.isabs(expanded_path):
             expanded_path = os.path.join(os.path.expanduser("~"), file_path)
@@ -699,6 +727,7 @@ def _py_syntax_guard(path: str, original_content: str) -> Optional[str]:
 
 
 def _resolve_host_path(file_path: str) -> str:
+    file_path = normalize_path(file_path)
     expanded = os.path.expanduser(file_path)
     if not os.path.isabs(expanded):
         expanded = os.path.join(os.path.expanduser("~"), file_path)
@@ -898,7 +927,7 @@ def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int =
         max_results: Maximum number of files to return.
     """
     try:
-        root_dir = os.path.expanduser(base_dir)
+        root_dir = os.path.expanduser(normalize_path(base_dir))
         matches = []
         for root, dirs, files in os.walk(root_dir):
             # Ignore heavy/hidden directories
@@ -932,7 +961,37 @@ def grep_workspace(query: str, base_dir: str = "~", file_pattern: str = "") -> D
         file_pattern: Optional glob filter for files (e.g. '*.py').
     """
     try:
-        root_dir = os.path.expanduser(base_dir)
+        root_dir = os.path.expanduser(normalize_path(base_dir))
+        if os.name == "nt":
+            # Windows: cari dengan Python murni (biner 'grep' tidak di PATH)
+            import re as _re
+            try:
+                rx = _re.compile(query)
+                use_regex = True
+            except _re.error:
+                use_regex = False
+            matches = []
+            for r, dirs, files in os.walk(root_dir):
+                dirs[:] = [d for d in dirs if d not in _CODE_INDEX_SKIP_DIRS]
+                for fn in files:
+                    if file_pattern and not glob.fnmatch.fnmatch(fn, file_pattern):
+                        continue
+                    fpath = os.path.join(r, fn)
+                    try:
+                        if os.path.getsize(fpath) > 2 * 1024 * 1024:
+                            continue
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                            for i, ln in enumerate(fh, 1):
+                                ok = rx.search(ln) if use_regex else (query.lower() in ln.lower())
+                                if ok:
+                                    matches.append(f"{fpath}:{i}:{ln.strip()[:200]}")
+                                    if len(matches) >= 30:
+                                        raise StopIteration
+                    except StopIteration:
+                        raise
+                    except OSError:
+                        continue
+            return {"status": "success", "matches_count": len(matches), "results": matches[:30]}
         cmd = ["grep", "-rnI", "--exclude-dir={.git,venv,node_modules,__pycache__}"]
         if file_pattern:
             cmd.append(f"--include={file_pattern}")
@@ -3001,7 +3060,8 @@ def compress_folder_to_zip(folder_path: str, output_filename: str = "archive.zip
 
 def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
     """
-    Record the Linux desktop screen as an MP4 video for a specified duration and send to Telegram.
+    Record the desktop screen as an MP4 video for a specified duration and send to Telegram.
+    Cross-platform: Windows (ffmpeg gdigrab), Linux (wf-recorder / x11grab).
     
     Args:
         duration_seconds: Recording duration in seconds (1-60, default: 10).
@@ -3009,6 +3069,19 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
     try:
         duration = max(1, min(60, duration_seconds))
         output_path = os.path.join(SANDBOX_DIR, "screen_recording.mp4")
+        
+        # Windows: ffmpeg dengan capture driver gdigrab
+        if os.name == "nt":
+            res = subprocess.run(
+                f'ffmpeg -y -f gdigrab -framerate 15 -i desktop -t {duration} '
+                f'-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p "{output_path}"',
+                shell=True, capture_output=True, text=True, timeout=duration + 30
+            )
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
+            err = (res.stderr or "")[-300:]
+            return {"status": "error", "message": f"Gagal merekam layar via ffmpeg/gdigrab: {err}"}
         
         # Try Wayland wf-recorder first
         res = subprocess.run(
@@ -3039,13 +3112,19 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
 
 def read_clipboard() -> Dict[str, Any]:
     """
-    Read the current content of the Linux desktop clipboard (copy-paste buffer).
+    Read the current desktop clipboard content (Windows: PowerShell, Linux: wl-paste/xclip/xsel).
     """
     try:
-        # Try Wayland wl-paste
-        res = subprocess.run("wl-paste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null",
-                             shell=True, capture_output=True, text=True, timeout=3)
-        content = res.stdout.strip()
+        if os.name == "nt":
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", "Get-Clipboard"],
+                capture_output=True, text=True, timeout=5)
+            content = (res.stdout or "").strip()
+        else:
+            # Try Wayland wl-paste
+            res = subprocess.run("wl-paste 2>/dev/null || xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null",
+                                 shell=True, capture_output=True, text=True, timeout=3)
+            content = res.stdout.strip()
         if content:
             return {"status": "success", "clipboard_content": content[:5000]}
         return {"status": "success", "clipboard_content": "(Clipboard kosong)"}
@@ -3055,12 +3134,22 @@ def read_clipboard() -> Dict[str, Any]:
 
 def write_to_clipboard(text: str) -> Dict[str, Any]:
     """
-    Write/copy text to the Linux desktop clipboard so it can be pasted (Ctrl+V) anywhere.
+    Write/copy text to the desktop clipboard so it can be pasted (Ctrl+V) anywhere.
     
     Args:
         text: The text string to copy to clipboard.
     """
     try:
+        if os.name == "nt":
+            import base64 as _b64
+            encoded = _b64.b64encode(text.encode("utf-16-le")).decode("ascii")
+            cmd = ("$t=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('" + encoded + "')); "
+                   "Set-Clipboard -Value $t")
+            res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
+                                 capture_output=True, text=True, timeout=10)
+            if res.returncode == 0:
+                return {"status": "success", "message": f"Teks berhasil disalin ke clipboard ({len(text)} karakter). Siap di-paste (Ctrl+V)."}
+            return {"status": "error", "message": f"Set-Clipboard gagal: {(res.stderr or '')[:200]}"}
         proc = subprocess.Popen("wl-copy 2>/dev/null || xclip -selection clipboard 2>/dev/null",
                                 shell=True, stdin=subprocess.PIPE, text=True)
         proc.communicate(input=text, timeout=3)
@@ -4203,8 +4292,34 @@ def manage_system_services(service_name: str, action: str = "status", scope: str
         scope: 'user' (default, for user-space services) or 'system' (system-wide).
     """
     try:
-        flag = "--user" if scope == "user" else ""
         act = action.strip().lower()
+        if os.name == "nt":
+            # Windows: petakan aksi service systemd ke Task Scheduler / proses lokal.
+            svc_map = {
+                "telegram-ai-bot.service": ("ALFA Telegram Bot", "bot.py"),
+                "alfa-dashboard.service": ("ALFA Dashboard", "web_dashboard.py"),
+                "wa-sheets-bot.service": ("WA Sheets Bot", "wa_sheets_bot"),
+            }
+            name, hint = svc_map.get(service_name, (service_name, service_name))
+            running = False
+            for p in psutil.process_iter(['cmdline']):
+                try:
+                    cl = p.info.get('cmdline') or []
+                    if any(hint in str(c) for c in cl):
+                        running = True
+                        break
+                except Exception:
+                    continue
+            if act in ("status", "is-active"):
+                return {"status": "success", "service": service_name, "action": "status",
+                        "scope": scope, "exit_code": 0,
+                        "output": f"{name}: {'RUNNING (proses terdeteksi)' if running else 'STOPPED'} "
+                                  f"(Windows: systemd tidak tersedia)"}
+            return {"status": "error", "service": service_name, "action": act,
+                    "message": f"Aksi '{act}' untuk '{name}' tidak didukung di Windows. "
+                               f"Status saat ini: {'RUNNING' if running else 'STOPPED'}. "
+                               f"Restart layanan dilakukan manual/Task Scheduler."}
+        flag = "--user" if scope == "user" else ""
         valid_actions = ["status", "restart", "start", "stop", "enable", "disable", "is-active"]
         if act not in valid_actions:
             return {"status": "error", "message": f"Aksi '{action}' tidak valid. Pilihan: {', '.join(valid_actions)}"}
@@ -4236,6 +4351,11 @@ def manage_crontab_jobs(action: str = "list", cron_line: str = "", search_patter
         search_pattern: Keyword/pattern to match when removing crontab entries.
     """
     try:
+        if os.name == "nt":
+            return {"status": "error",
+                    "message": "Crontab hanya tersedia di Linux. Di Windows gunakan Task Scheduler: "
+                               "`schtasks /create /tn Nama /tr 'perintah' /sc hourly` (atau minta agent "
+                               "membuatnya lewat tool execute_bash_command)."}
         if action == "list":
             res = subprocess.run("crontab -l 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
             entries = res.stdout.strip()
