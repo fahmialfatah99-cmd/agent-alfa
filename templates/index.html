@@ -5190,6 +5190,20 @@
             sendBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
             lucide.createIcons();
 
+            // Indikator "sedang memproses" agar tidak terlihat diam/hang
+            const pendingId = 'chat-pending-' + Date.now();
+            box.innerHTML += `
+                <div id="${pendingId}" class="p-3.5 bg-dark-900 border border-white/10 rounded-xl text-slate-400 text-xs animate-pulse">
+                    <span class="text-cyan-400 font-bold font-mono">ALFA:</span>
+                    <span class="cv-wait-msg">sedang memproses...</span>
+                </div>
+            `;
+            box.scrollTop = box.scrollHeight;
+            const waitTimer = setTimeout(() => {
+                const w = document.querySelector(`#${pendingId} .cv-wait-msg`);
+                if (w) w.innerText = 'masih memproses — tugas besar bisa memakan waktu beberapa menit. Tetap terbuka ya!';
+            }, 30000);
+
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
@@ -5197,6 +5211,8 @@
                     body: JSON.stringify({ message: msg })
                 });
                 const data = await res.json();
+                clearTimeout(waitTimer);
+                document.getElementById(pendingId)?.remove();
                 const parsedMD = marked.parse(data.reply || '');
                 box.innerHTML += `
                     <div class="p-3.5 bg-dark-900 border border-white/5 rounded-xl text-slate-300 leading-relaxed prose prose-invert max-w-none text-xs">
@@ -5205,6 +5221,8 @@
                     </div>
                 `;
             } catch (err) {
+                clearTimeout(waitTimer);
+                document.getElementById(pendingId)?.remove();
                 box.innerHTML += `
                     <div class="p-3.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300">
                         <span class="font-bold">Error:</span> ${err.message}
