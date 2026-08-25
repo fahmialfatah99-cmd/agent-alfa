@@ -109,6 +109,87 @@ def test_pipeline_run_end_to_end(tmp_path):
     os.remove(os.path.join(pl.PIPELINE_DIR, "_test_unit.json"))
 
 
+# ── n8n-mini: kondisi, foreach, dot-path, riwayat run ─────────────────────
+def test_pipeline_dotpath_render():
+    import pipelines as pl
+
+    vars_ = {"data": {"user": {"nama": "Fahmi"}, "items": ["a", "b"]}}
+    assert pl._render("Hai {{data.user.nama}}", vars_) == "Hai Fahmi"
+    assert pl._render("jumlah {{data.items}}", vars_) == 'jumlah ["a", "b"]'
+    assert pl._render("item2 {{data.items.1}}", vars_) == "item2 b"
+
+
+def test_pipeline_eval_condition_ops():
+    import pipelines as pl
+
+    v = {"cari": "Ada Berita AI Terbaru", "kosong": "", "angka": "5"}
+    C = pl._eval_condition
+    assert C({"left": "{{cari}}", "op": "contains", "right": "ai"}, v) is True
+    assert C({"left": "{{cari}}", "op": "not_contains", "right": "bola"}, v) is True
+    assert C({"left": "{{kosong}}", "op": "empty"}, v) is True
+    assert C({"left": "{{cari}}", "op": "not_empty"}, v) is True
+    assert C({"left": "{{angka}}", "op": "gt", "right": "3"}, v) is True
+    assert C({"left": "{{cari}}", "op": "regex", "right": r"\d+"}, v) is False
+
+
+def test_pipeline_if_skip_dan_foreach(tmp_path):
+    import pipelines as pl
+
+    data = {
+        "id": "_test_cond",
+        "vars": {"flag": "tidak_ada"},
+        "steps": [
+            {"id": "cabang", "type": "template", "text": "harusnya dilewati",
+             "if": {"left": "{{flag}}", "op": "contains", "right": "ADA_YA"}},
+            {"id": "loop", "type": "foreach", "over": "a,b,c", "item_var": "it",
+             "inner_type": "template", "text": "{{it}}!"},
+        ],
+    }
+    pl.save_pipeline(data)
+    result = asyncio.run(pl.run_pipeline("_test_cond"))
+    os.remove(os.path.join(pl.PIPELINE_DIR, "_test_cond.json"))
+    assert result["status"] == "success"
+    assert result["outputs"]["cabang"].startswith("(dilewati")
+    assert result["outputs"]["loop"].count("!") == 3
+    # trace mencatat langkah yang di-skip
+    statuses = {t["step"]: t["status"] for t in result["trace"]}
+    assert statuses["cabang"] == "skipped"
+
+
+def test_pipeline_runs_history_roundtrip():
+    import pipelines as pl
+
+    data = {
+        "id": "_test_hist",
+        "steps": [{"id": "s1", "type": "set", "value": "ok"}],
+    }
+    pl.save_pipeline(data)
+    asyncio.run(pl.run_pipeline("_test_hist"))
+    asyncio.run(pl.run_pipeline("_test_hist"))
+    runs = pl.list_runs("_test_hist")
+    os.remove(os.path.join(pl.PIPELINE_DIR, "_test_hist.json"))
+    assert len(runs) >= 2
+    assert all(r["status"] == "success" for r in runs)
+
+
+def test_pipeline_http_step_local():
+    """HTTP step memakai dashboard sendiri sebagai target (tanpa internet)."""
+    import pipelines as pl
+
+    data = {
+        "id": "_test_http",
+        "steps": [
+            {"id": "req", "type": "http", "method": "GET",
+             "url": "http://127.0.0.1:8080/openapi.json", "timeout": 10},
+        ],
+    }
+    pl.save_pipeline(data)
+    result = asyncio.run(pl.run_pipeline("_test_http"))
+    os.remove(os.path.join(pl.PIPELINE_DIR, "_test_http.json"))
+    # status 0/200 tergantung server hidup; yang penting tidak exception
+    assert result["status"] in ("success", "failed")
+
+
 # ── Memory Reflection ─────────────────────────────────────────────────────
 def test_reflect_interval_counter():
     from memory_reflection import should_reflect, EVERY

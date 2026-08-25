@@ -87,6 +87,22 @@ app.add_middleware(
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 
 
+@app.on_event("startup")
+async def _pipeline_trigger_scheduler():
+    """Background loop: eksekusi pipeline ber-trigger interval tiap 60 detik cek."""
+    import pipelines as pl
+
+    async def _loop():
+        while True:
+            try:
+                await pl.scheduler_tick()
+            except Exception as e:
+                logger.debug(f"pipeline scheduler: {e}")
+            await asyncio.sleep(60)
+
+    asyncio.create_task(_loop())
+
+
 def get_primary_user_id() -> int:
     """Safely get primary telegram user id from ALLOWED_USER_IDS env var."""
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
@@ -1796,6 +1812,58 @@ async def save_pipeline_endpoint(pid: str, request: Request):
     try:
         path = pl.save_pipeline(data)
         return {"status": "success", "file": os.path.basename(path)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/pipelines/{pid}/webhook")
+async def pipeline_webhook_endpoint(pid: str, request: Request):
+    """Trigger webhook ala n8n: POST di sini menjalankan pipeline.
+    Body JSON dikirim sebagai variabel 'payload'. Bila pipeline punya
+    trigger.secret, wajib kirim header X-Webhook-Key yang cocok."""
+    import pipelines as pl
+    try:
+        data = pl.load_pipeline(pid)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
+    secret = ((data.get("trigger") or {}).get("secret") or "").strip()
+    if secret:
+        provided = (request.headers.get("X-Webhook-Key") or
+                    request.query_params.get("key") or "")
+        if provided != secret:
+            raise HTTPException(status_code=401, detail="Webhook key salah.")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    overrides = {"payload": payload if isinstance(payload, dict) else {"raw": payload}}
+    result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)
+    return {k: result[k] for k in ("pipeline", "status", "duration_ms", "outputs") if k in result}
+
+
+@app.get("/api/pipelines/{pid}/runs")
+async def pipeline_runs_endpoint(pid: str, limit: int = 10):
+    """Riwayat eksekusi pipeline terakhir."""
+    import pipelines as pl
+    return {"status": "success", "pid": pid, "runs": pl.list_runs(pid, limit)}
+
+
+@app.post("/api/pipelines/{pid}/enable")
+async def pipeline_trigger_toggle_endpoint(pid: str, request: Request):
+    """Aktif/matikan trigger jadwal: body {\"enabled\": true/false}."""
+    import pipelines as pl
+    try:
+        data = pl.load_pipeline(pid)
+        body = await request.json()
+        trig = data.get("trigger") or {}
+        trig["type"] = trig.get("type") or "interval"
+        trig["minutes"] = int(body.get("minutes", trig.get("minutes", 30)))
+        trig["enabled"] = bool(body.get("enabled"))
+        data["trigger"] = trig
+        pl.save_pipeline(data)
+        return {"status": "success", "trigger": trig}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

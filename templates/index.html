@@ -3310,6 +3310,18 @@
                     <button onclick="cvAddNode('tool')"    class="w-full py-2 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-left text-xs font-bold hover:bg-cyan-500/20 transition-all">🛠 Tool<br><span class="font-normal text-[10px] text-slate-400">jalankan tool agent</span></button>
                     <button onclick="cvAddNode('template')" class="w-full py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-left text-xs font-bold hover:bg-amber-500/20 transition-all">📝 Template<br><span class="font-normal text-[10px] text-slate-400">susun teks {{var}}</span></button>
                     <button onclick="cvAddNode('set')"     class="w-full py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-left text-xs font-bold hover:bg-emerald-500/20 transition-all">📌 Set Var<br><span class="font-normal text-[10px] text-slate-400">set nilai variabel</span></button>
+                    <button onclick="cvAddNode('http')"    class="w-full py-2 px-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-left text-xs font-bold hover:bg-sky-500/20 transition-all">🌐 HTTP Request<br><span class="font-normal text-[10px] text-slate-400">panggil API apa pun</span></button>
+                    <button onclick="cvAddNode('foreach')" class="w-full py-2 px-3 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-300 text-left text-xs font-bold hover:bg-orange-500/20 transition-all">🔁 Ulangi Item<br><span class="font-normal text-[10px] text-slate-400">AI per item daftar</span></button>
+                    <div class="pt-2 mt-1 border-t border-white/10 space-y-1.5">
+                        <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer">
+                            <input type="checkbox" id="cv-trig-en" onchange="cvTriggerChanged()" class="accent-fuchsia-500">
+                            ⏰ Jadwal otomatis
+                        </label>
+                        <input type="number" id="cv-trig-min" value="60" min="5" onchange="cvTriggerChanged()"
+                               class="w-full px-2 py-1 bg-dark-950 border border-white/10 rounded-md text-[10px] text-slate-300 font-mono" placeholder="menit">
+                        <p id="cv-webhook-hint" class="text-[9px] text-slate-600 leading-tight break-all"></p>
+                    </div>
+                    <button onclick="cvShowRuns()" class="w-full py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 text-[10px] font-bold border border-white/10">🕘 Riwayat Run</button>
                     <p class="text-[10px] text-slate-500 leading-relaxed px-1 pt-1">Tarik titik kanan → kiri untuk menyambung (depends_on). Klik garis untuk hapus.</p>
                 </div>
 
@@ -9170,12 +9182,15 @@
         });
 
         // ==================== PIPELINE CANVAS STUDIO ====================
-        const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, view: 'canvas', toolNames: [] };
+        const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, view: 'canvas', toolNames: [],
+                          trigger: { enabled: false, minutes: 60 } };
         const cvTypeMeta = {
-            prompt:   { color: 'violet',  label: '🧠 Prompt',   verb: 'Tanya AI' },
-            tool:     { color: 'cyan',    label: '🛠 Tool',     verb: 'Jalankan tool' },
-            template: { color: 'amber',   label: '📝 Template', verb: 'Susun teks' },
-            set:      { color: 'emerald', label: '📌 Set Var',  verb: 'Set nilai' },
+            prompt:   { color: 'violet',  label: '🧠 Prompt',      verb: 'Tanya AI' },
+            tool:     { color: 'cyan',    label: '🛠 Tool',       verb: 'Jalankan tool' },
+            template: { color: 'amber',   label: '📝 Template',   verb: 'Susun teks' },
+            set:      { color: 'emerald', label: '📌 Set Var',    verb: 'Set nilai' },
+            http:     { color: 'sky',     label: '🌐 HTTP',       verb: 'Panggil API' },
+            foreach:  { color: 'orange',  label: '🔁 Ulangi Item', verb: 'Ulangi per item' },
         };
         const cvPresets = {
             riset: { id: 'riset_dan_ringkas', nodes: [
@@ -9211,6 +9226,8 @@
             if (n.type === 'prompt') return `Tanya AI: "${(n.config.text || '(kosong)').slice(0, 70)}"`;
             if (n.type === 'template') return `Susun teks: "${(n.config.text || '').slice(0, 70)}"`;
             if (n.type === 'set') return `Set variabel "${n.id}" = ${(n.config.value || '').slice(0, 50)}`;
+            if (n.type === 'http') return `${(n.config.method || 'GET')} ${(n.config.url || '(url kosong)').slice(0, 60)}`;
+            if (n.type === 'foreach') return `Ulangi tiap item dari {{${(n.config.over || '?').replace(/[{}]/g, '')}}}: "${(n.config.text || '').slice(0, 50)}"`;
             let a = '';
             try { a = Object.values(JSON.parse(n.config.args || '{}')).map(v => String(v).slice(0, 30)).join(', '); } catch {}
             return `Jalankan tool ${n.config.tool || '?'}${a ? ` (${a})` : ''}`;
@@ -9261,6 +9278,10 @@
                     issues.push(`Step "${n.id}": nama tool belum diisi.`);
                 if ((n.type === 'prompt' || n.type === 'template') && !(n.config.text || '').trim())
                     issues.push(`Step "${n.id}": teks masih kosong.`);
+                if (n.type === 'http' && !/^https?:\/\//.test((n.config.url || '').trim()))
+                    issues.push(`Step "${n.id}": URL HTTP harus diawali http:// atau https://`);
+                if (n.type === 'foreach' && !(n.config.over || '').includes('{{'))
+                    issues.push(`Step "${n.id}": isi daftar dengan variabel, contoh {{hasil_sebelumnya}}`);
             });
             // variabel {{x}} dipakai tapi tidak pernah dibuat oleh step manapun
             const defined = new Set([...cvState.nodes.map(n => n.id)]);
@@ -9320,6 +9341,9 @@
                 const p = d.pipeline;
                 document.getElementById('cv-pid').value = p.id;
                 cvState.nodes = []; cvState.edges = []; cvState.seq = 0;
+                cvState.trigger = Object.assign({ enabled: false, minutes: 60 }, p.trigger || {});
+                document.getElementById('cv-trig-en').checked = !!cvState.trigger.enabled;
+                document.getElementById('cv-trig-min').value = cvState.trigger.minutes;
                 (p.steps || []).forEach((s, i) => {
                     cvState.seq++;
                     const cfg = {};
@@ -9327,10 +9351,14 @@
                     if (s.type === 'tool') { cfg.tool = s.tool || ''; cfg.args = JSON.stringify(s.args || {}); }
                     if (s.type === 'template') cfg.text = s.text || '';
                     if (s.type === 'set') cfg.value = s.value == null ? '' : String(s.value);
+                    if (s.type === 'http') { cfg.method = s.method || 'GET'; cfg.url = s.url || ''; cfg.body = s.body || ''; }
+                    if (s.type === 'foreach') { cfg.over = s.over || ''; cfg.item_var = s.item_var || 'item'; cfg.text = s.text || ''; }
+                    if (s.if) { const c = s.if; const opLbl = ({ contains: 'mengandung', not_contains: 'tidak mengandung', eq: '==', neq: '!=', empty: 'kosong', not_empty: 'tidak kosong', gt: '>', lt: '<', regex: '~' })[c.op] || c.op; cfg.if_expr = `${c.left || ''} ${opLbl} ${c.right || ''}`.trim(); }
                     cvState.nodes.push({ id: s.id, type: s.type, x: 60 + (i % 3) * 240, y: 40 + Math.floor(i / 3) * 170, config: cfg });
                     (s.depends_on || []).forEach(dep => cvState.edges.push({ from: dep, to: s.id }));
                 });
                 cvRender();
+                cvTriggerChanged();
                 cvStatus(`Dimuat: ${p.id}`);
             } catch (e) { cvStatus('Gagal muat: ' + e.message, true); }
         }
@@ -9346,10 +9374,12 @@
             }
             try {
                 const steps = cvSerialize();
+                const body = { id: pid, name: pid.replace(/_/g, ' '), steps,
+                               trigger: cvState.trigger };
                 const res = await fetch('/api/pipelines/' + encodeURIComponent(pid), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: pid, name: pid.replace(/_/g, ' '), steps }),
+                    body: JSON.stringify(body),
                 });
                 const d = await res.json();
                 if (d.status !== 'success') throw new Error(d.detail || 'gagal');
@@ -9423,9 +9453,28 @@
             }
             if (n.type === 'template') body = `<textarea data-f="text" rows="2" placeholder="teks dengan {{var}}">${cfg.text || ''}</textarea>`;
             if (n.type === 'set') body = `<input data-f="value" value="${(cfg.value || '').replace(/"/g, '&quot;')}" placeholder="nilai">`;
+            if (n.type === 'http') body = `
+                <div class="flex gap-1">
+                    <select data-f="method" class="w-20 font-mono">
+                        ${['GET','POST','PUT','DELETE'].map(m => `<option ${m === (cfg.method || 'GET') ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select>
+                    <input data-f="url" value="${(cfg.url || '').replace(/"/g, '&quot;')}" placeholder="https://api..." class="font-mono">
+                </div>
+                <textarea data-f="body" rows="1" placeholder='body (opsional) {"q": "{{var}}"}' class="mt-1 font-mono text-[10px]">${cfg.body || ''}</textarea>`;
+            if (n.type === 'foreach') body = `
+                <input data-f="over" value="${(cfg.over || '').replace(/"/g, '&quot;')}" placeholder="{{daftar_var}}" class="font-mono">
+                <input data-f="item_var" value="${(cfg.item_var || 'item').replace(/"/g, '&quot;')}" placeholder="nama item" class="font-mono mt-1">
+                <textarea data-f="text" rows="2" placeholder="proses tiap item: ringkas {{item}}" class="mt-1">${cfg.text || ''}</textarea>`;
 
-            const border = { prompt: 'border-violet-500/40', tool: 'border-cyan-500/40',
-                             template: 'border-amber-500/40', set: 'border-emerald-500/40' }[n.type];
+            const cond = cfg.if_expr || '';
+            const condHtml = `
+                <input data-f="if_expr" value="${cond.replace(/"/g, '&quot;')}"
+                       placeholder="Jika... contoh: {{cari}} mengandung AI"
+                       title="Step dijalankan HANYA bila kondisi terpenuhi. Operator: mengandung, ==, !=, kosong, tidak kosong, >, <"
+                       class="mt-1 border-amber-500/30">`;
+
+            const border = { prompt: 'border-violet-500/40', tool: 'border-cyan-500/40', template: 'border-amber-500/40',
+                             set: 'border-emerald-500/40', http: 'border-sky-500/40', foreach: 'border-orange-500/40' }[n.type];
             return `
             <div class="cv-node absolute w-52 bg-dark-900/95 rounded-xl border ${border} shadow-lg select-none"
                  style="left:${n.x}px; top:${n.y}px" data-id="${n.id}">
@@ -9435,8 +9484,9 @@
                     <button onclick="cvDeleteNode('${n.id}')" class="text-slate-500 hover:text-rose-400 text-[11px] leading-none">✕</button>
                 </div>
                 <div class="p-2 space-y-1">
-                ${body}
-            </div>
+                    ${body}
+                    ${condHtml}
+                </div>
                 <div class="cv-in"  data-node="${n.id}" title="input"></div>
                 <div class="cv-out" data-node="${n.id}" title="tarik ke node lain"></div>
             </div>`;
@@ -9536,6 +9586,19 @@
 
         document.addEventListener('mouseup', () => { cvState.dragging = null; setTimeout(() => { if (cvState.linking) { cvState.linking = null; cvDrawEdges(); } }, 50); });
 
+        function cvParseCond(s) {
+            s = (s || '').trim();
+            if (!s) return null;
+            const ops = [['tidak mengandung', 'not_contains'], ['mengandung', 'contains'],
+                         ['==', 'eq'], ['!=', 'neq'], ['tidak kosong', 'not_empty'],
+                         ['kosong', 'empty'], ['>', 'gt'], ['<', 'lt']];
+            for (const [lbl, op] of ops) {
+                const idx = s.indexOf(lbl);
+                if (idx >= 0) return { left: s.slice(0, idx).trim(), op, right: s.slice(idx + lbl.length).trim() };
+            }
+            return { left: s, op: 'not_empty', right: '' };
+        }
+
         function cvSerialize() {
             return cvState.nodes.map(n => {
                 const step = { id: n.id, type: n.type };
@@ -9544,8 +9607,40 @@
                 if (n.type === 'tool') { step.tool = n.config.tool || ''; try { step.args = JSON.parse(n.config.args || '{}'); } catch { step.args = {}; } }
                 if (n.type === 'template') step.text = n.config.text || '';
                 if (n.type === 'set') step.value = n.config.value || '';
+                if (n.type === 'http') { step.method = n.config.method || 'GET'; step.url = n.config.url || ''; if (n.config.body) step.body = n.config.body; }
+                if (n.type === 'foreach') { step.over = n.config.over || ''; step.item_var = n.config.item_var || 'item'; step.inner_type = 'template'; step.text = n.config.text || ''; }
+                const cond = cvParseCond(n.config.if_expr);
+                if (cond) step.if = cond;
                 return step;
             });
+        }
+
+        function cvTriggerChanged() {
+            const en = document.getElementById('cv-trig-en').checked;
+            const min = parseInt(document.getElementById('cv-trig-min').value) || 60;
+            cvState.trigger = { enabled: en, minutes: Math.max(5, min) };
+            const pid = document.getElementById('cv-pid').value.trim() || '<pipeline_id>';
+            document.getElementById('cv-webhook-hint').innerText =
+                `Webhook: POST /api/pipelines/${pid}/webhook`;
+        }
+
+        async function cvShowRuns() {
+            const pid = document.getElementById('cv-pid').value.trim();
+            if (!pid) return cvStatus('Beri nama pipeline dulu!', true);
+            try {
+                const res = await fetch(`/api/pipelines/${encodeURIComponent(pid)}/runs?limit=10`);
+                const d = await res.json();
+                document.getElementById('cv-result').classList.remove('hidden');
+                if (!(d.runs || []).length) {
+                    document.getElementById('cv-result-body').innerText = 'Belum ada riwayat eksekusi.';
+                    return;
+                }
+                let txt = `🕘 ${d.runs.length} run terakhir:\n`;
+                d.runs.forEach(r => {
+                    txt += `  • ${new Date(r.ts * 1000).toLocaleString()} — ${r.status} (${r.duration_ms} ms, ${r.steps} langkah)\n`;
+                });
+                document.getElementById('cv-result-body').innerText = txt;
+            } catch (e) { cvStatus('Gagal ambil riwayat: ' + e.message, true); }
         }
         // ==================== /PIPELINE CANVAS STUDIO ====================
     </script>
