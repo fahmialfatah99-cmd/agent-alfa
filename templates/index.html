@@ -3289,6 +3289,16 @@
                 </select>
                 <button onclick="cvSave()" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-500/30">💾 Simpan</button>
                 <button onclick="cvRun()" id="cv-run-btn" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">▶ Jalankan</button>
+                <div class="flex items-center gap-1 ml-1 p-0.5 rounded-lg bg-dark-950 border border-white/10">
+                    <button onclick="cvSetView('canvas')" id="cv-view-canvas" class="px-2.5 py-1 rounded-md bg-white/10 text-slate-200 text-[11px] font-bold">Kanvas</button>
+                    <button onclick="cvSetView('list')"   id="cv-view-list" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200 text-[11px] font-bold">Daftar</button>
+                </div>
+                <select id="cv-preset" onchange="cvLoadPreset(this.value); this.selectedIndex=0" class="px-2.5 py-1.5 bg-dark-950 border border-fuchsia-500/30 rounded-lg text-xs text-fuchsia-300 max-w-[190px]">
+                    <option value="">✨ Contoh siap pakai...</option>
+                    <option value="riset">Riset web → rangkum → simpan file</option>
+                    <option value="tulis">AI menulis → simpan ke file</option>
+                    <option value="cek_status">Cek kesehatan sistem → lapor singkat</option>
+                </select>
                 <span id="cv-status" class="text-xs text-slate-400 ml-auto font-mono"></span>
             </div>
 
@@ -3303,15 +3313,19 @@
                     <p class="text-[10px] text-slate-500 leading-relaxed px-1 pt-1">Tarik titik kanan → kiri untuk menyambung (depends_on). Klik garis untuk hapus.</p>
                 </div>
 
-                <!-- Canvas -->
-                <div id="cv-canvas-wrap" class="relative min-h-[480px] rounded-2xl bg-dark-950/80 border border-white/10 overflow-hidden"
-                     style="background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 22px 22px;">
-                    <svg id="cv-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
-                    <div id="cv-nodes" class="absolute inset-0"></div>
-                    <div id="cv-empty" class="absolute inset-0 flex items-center justify-center text-slate-600 text-sm font-mono pointer-events-none">
-                        Klik jenis step di kiri untuk mulai membangun workflow →
-                    </div>
+            <!-- Canvas -->
+            <div id="cv-canvas-wrap" class="relative min-h-[480px] rounded-2xl bg-dark-950/80 border border-white/10 overflow-hidden"
+                 style="background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 22px 22px;">
+                <svg id="cv-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                <div id="cv-nodes" class="absolute inset-0"></div>
+                <div id="cv-empty" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-600 text-sm font-mono pointer-events-none">
+                    <span>Klik jenis step di kiri, atau pilih ✨ contoh siap pakai.</span>
+                    <span class="text-[11px] text-slate-700">Sambungkan node: titik kanan ➜ titik kiri (artinya "kerjakan setelah sebelumnya selesai")</span>
                 </div>
+            </div>
+
+            <!-- List View (Mode Mudah) -->
+            <div id="cv-list-wrap" class="hidden min-h-[480px] rounded-2xl bg-dark-950/80 border border-white/10 p-4 space-y-2 overflow-auto max-h-[560px]"></div>
             </div>
 
             <!-- Run result -->
@@ -9156,13 +9170,120 @@
         });
 
         // ==================== PIPELINE CANVAS STUDIO ====================
-        const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, loadedId: '' };
+        const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, view: 'canvas', toolNames: [] };
         const cvTypeMeta = {
-            prompt:   { color: 'violet',  label: '🧠 Prompt',   fields: ['text', 'system'] },
-            tool:     { color: 'cyan',    label: '🛠 Tool',     fields: ['tool', 'args'] },
-            template: { color: 'amber',   label: '📝 Template', fields: ['text'] },
-            set:      { color: 'emerald', label: '📌 Set Var',  fields: ['value'] },
+            prompt:   { color: 'violet',  label: '🧠 Prompt',   verb: 'Tanya AI' },
+            tool:     { color: 'cyan',    label: '🛠 Tool',     verb: 'Jalankan tool' },
+            template: { color: 'amber',   label: '📝 Template', verb: 'Susun teks' },
+            set:      { color: 'emerald', label: '📌 Set Var',  verb: 'Set nilai' },
         };
+        const cvPresets = {
+            riset: { id: 'riset_dan_ringkas', nodes: [
+                { id: 'cari',    type: 'tool',     x: 40,  y: 60,  config: { tool: 'web_search', args: '{"query": "berita {{topik}} terbaru"}' } },
+                { id: 'rangkum', type: 'prompt',   x: 330, y: 60,  config: { text: 'Ringkas hasil pencarian ini menjadi 3 poin utama:\n{{cari}}' } },
+                { id: 'simpan',  type: 'tool',     x: 620, y: 60,  config: { tool: 'write_local_file', args: '{"file_path": "/dev/shm/alfa_sandbox/pipeline_out/ringkasan.md", "content": "# Ringkasan\\n\\n{{rangkum}}"}' } },
+            ], edges: [ { from: 'cari', to: 'rangkum' }, { from: 'rangkum', to: 'simpan' } ] },
+            tulis: { id: 'ai_tulis_file', nodes: [
+                { id: 'tulisd', type: 'prompt', x: 40, y: 60,
+                  config: { text: 'Tulis puisi pendek 4 baris tentang teknologi AI.' } },
+                { id: 'simpsn', type: 'tool',   x: 330, y: 60,
+                  config: { tool: 'write_local_file', args: '{"file_path": "/dev/shm/alfa_sandbox/pipeline_out/puisi.txt", "content": "{{tulisd}}"}' } },
+            ], edges: [ { from: 'tulisd', to: 'simpsn' } ] },
+            cek_status: { id: 'cek_sistem', nodes: [
+                { id: 'cek',   type: 'tool',   x: 40,  y: 60,  config: { tool: 'get_system_stats', args: '{}' } },
+                { id: 'lapor', type: 'prompt', x: 330, y: 60,
+                  config: { text: 'Berdasarkan data sistem ini, buat laporan kesehatan 2 kalimat:\n{{cek}}' } },
+            ], edges: [ { from: 'cek', to: 'lapor' } ] },
+        };
+
+        function cvSetView(mode) {
+            cvState.view = mode;
+            document.getElementById('cv-canvas-wrap').classList.toggle('hidden', mode !== 'canvas');
+            document.getElementById('cv-list-wrap').classList.toggle('hidden', mode !== 'list');
+            const on = 'px-2.5 py-1 rounded-md bg-white/10 text-slate-200 text-[11px] font-bold';
+            const off = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200 text-[11px] font-bold';
+            document.getElementById('cv-view-canvas').className = mode === 'canvas' ? on : off;
+            document.getElementById('cv-view-list').className = mode === 'list' ? on : off;
+            if (mode === 'list') cvRenderList();
+        }
+
+        function cvStepSummary(n) {
+            if (n.type === 'prompt') return `Tanya AI: "${(n.config.text || '(kosong)').slice(0, 70)}"`;
+            if (n.type === 'template') return `Susun teks: "${(n.config.text || '').slice(0, 70)}"`;
+            if (n.type === 'set') return `Set variabel "${n.id}" = ${(n.config.value || '').slice(0, 50)}`;
+            let a = '';
+            try { a = Object.values(JSON.parse(n.config.args || '{}')).map(v => String(v).slice(0, 30)).join(', '); } catch {}
+            return `Jalankan tool ${n.config.tool || '?'}${a ? ` (${a})` : ''}`;
+        }
+
+        function cvRenderList() {
+            const wrap = document.getElementById('cv-list-wrap');
+            if (!cvState.nodes.length) {
+                wrap.innerHTML = '<p class="text-slate-500 text-sm font-mono text-center py-10">Belum ada langkah. Kembali ke Kanvas atau pilih ✨ contoh siap pakai.</p>';
+                return;
+            }
+            // urutkan berdasar dependensi (sederhana: BFS dari yang tanpa input)
+            const order = [];
+            const done = new Set();
+            while (order.length < cvState.nodes.length) {
+                const ready = cvState.nodes.filter(n => !done.has(n.id) &&
+                    cvState.edges.filter(e => e.to === n.id).every(e => done.has(e.from)));
+                if (!ready.length) { cvState.nodes.filter(n => !done.has(n.id)).forEach(n => order.push(n)); break; }
+                ready.forEach(n => { order.push(n); done.add(n.id); });
+            }
+            wrap.innerHTML = '<p class="text-[11px] text-slate-500 mb-1">Alur kerja dibaca dari atas ke bawah:</p>' + order.map((n, i) => {
+                const meta = cvTypeMeta[n.type];
+                const deps = cvState.edges.filter(e => e.to === n.id).map(e => order.indexOf(cvState.nodes.find(x => x.id === e.from)) + 1);
+                const after = deps.length ? `<span class="text-[10px] text-slate-500">setelah langkah ${deps.join(', ')}</span>` : '';
+                return `<div class="flex items-start gap-3 p-2.5 rounded-xl bg-dark-900/80 border border-white/5">
+                    <span class="w-6 h-6 shrink-0 rounded-full bg-fuchsia-500/20 text-fuchsia-300 text-xs font-bold flex items-center justify-center">${i + 1}</span>
+                    <div class="text-xs"><span class="font-bold text-slate-300">${meta.verb}</span>
+                        <span class="text-slate-400">— ${cvStepSummary(n).replace(/</g, '&lt;')}</span>
+                        <div>${after}</div></div>
+                </div>`;
+            }).join('');
+        }
+
+        async function cvEnsureToolNames() {
+            if (cvState.toolNames.length) return;
+            try {
+                const res = await fetch('/api/tools');
+                const d = await res.json();
+                cvState.toolNames = (d.tools || []).map(t => t.name || t.function?.name).filter(Boolean);
+            } catch { cvState.toolNames = []; }
+        }
+
+        function cvValidate() {
+            const issues = [];
+            if (!cvState.nodes.length) issues.push('Kanvas masih kosong.');
+            cvState.nodes.forEach(n => {
+                if (n.type === 'tool' && !(n.config.tool || '').trim())
+                    issues.push(`Step "${n.id}": nama tool belum diisi.`);
+                if ((n.type === 'prompt' || n.type === 'template') && !(n.config.text || '').trim())
+                    issues.push(`Step "${n.id}": teks masih kosong.`);
+            });
+            // variabel {{x}} dipakai tapi tidak pernah dibuat oleh step manapun
+            const defined = new Set([...cvState.nodes.map(n => n.id)]);
+            cvState.nodes.forEach(n => {
+                const blob = JSON.stringify(n.config || {});
+                (blob.match(/\{\{\s*(\w+)\s*\}\}/g) || []).forEach(m => {
+                    const v = m.replace(/[{}]/g, '').trim();
+                    if (!defined.has(v)) issues.push(`Step "${n.id}" memakai variabel {{${v}}} yang tidak ada sumbernya.`);
+                });
+            });
+            return issues;
+        }
+
+        function cvLoadPreset(key) {
+            const p = cvPresets[key];
+            if (!p) return;
+            cvState.nodes = JSON.parse(JSON.stringify(p.nodes));
+            cvState.edges = JSON.parse(JSON.stringify(p.edges));
+            document.getElementById('cv-pid').value = p.id;
+            cvRender(); cvRenderList();
+            cvStatus(`Contoh "${key}" dimuat — klik ▶ Jalankan untuk mencoba!`);
+            if (cvState.view === 'canvas') setTimeout(() => cvSetView('list'), 150), setTimeout(() => cvSetView('canvas'), 1400);
+        }
 
         function initCanvas() {
             const sel = document.getElementById('cv-load');
@@ -9174,6 +9295,7 @@
                     sel.appendChild(o);
                 });
             }).catch(() => {});
+            cvEnsureToolNames();
         }
 
         function cvStatus(msg, isErr = false) {
@@ -9213,10 +9335,15 @@
             } catch (e) { cvStatus('Gagal muat: ' + e.message, true); }
         }
 
-        async function cvSave() {
+        async function cvSave(silent = false) {
             const pid = document.getElementById('cv-pid').value.trim();
-            if (!pid) return cvStatus('Isi pipeline_id dulu!', true);
-            if (!cvState.nodes.length) return cvStatus('Kanvas kosong!', true);
+            if (!pid) return cvStatus('Beri nama pipeline dulu! (kolom kiri atas)', true);
+            if (!cvState.nodes.length) return cvStatus('Kanvas masih kosong — tambah step atau pilih ✨ contoh.', true);
+            const issues = cvValidate();
+            if (issues.length) {
+                if (!silent) return cvStatus('⚠ ' + issues[0], true);
+                issues.forEach(i => console.warn('[Canvas]', i));
+            }
             try {
                 const steps = cvSerialize();
                 const res = await fetch('/api/pipelines/' + encodeURIComponent(pid), {
@@ -9228,12 +9355,19 @@
                 if (d.status !== 'success') throw new Error(d.detail || 'gagal');
                 cvStatus('💾 Tersimpan sebagai ' + pid);
                 initCanvas._done = false;
-            } catch (e) { cvStatus('Simpan gagal: ' + e.message, true); }
+            } catch (e) { if (!silent) cvStatus('Simpan gagal: ' + e.message, true); }
         }
 
         async function cvRun() {
             const pid = document.getElementById('cv-pid').value.trim();
-            if (!pid) return cvStatus('Isi pipeline_id dulu!', true);
+            if (!pid) return cvStatus('Beri nama pipeline dulu!', true);
+            const issues = cvValidate();
+            if (issues.length) {
+                document.getElementById('cv-result').classList.remove('hidden');
+                document.getElementById('cv-result-body').innerText =
+                    '⚠ Periksa dulu sebelum menjalankan:\n' + issues.map(i => '  • ' + i).join('\n');
+                return cvStatus(`⚠ ${issues.length} masalah perlu diperbaiki`, true);
+            }
             const btn = document.getElementById('cv-run-btn');
             btn.disabled = true; btn.innerText = '⏳ Menjalankan...'; cvStatus('Eksekusi pipeline...');
             try {
@@ -9253,6 +9387,7 @@
         }
 
         function cvAddNode(type) {
+            if (cvState.view !== 'canvas') cvSetView('canvas');
             cvState.seq++;
             const n = { id: `step_${cvState.seq}`, type,
                         x: 40 + Math.random() * 420, y: 30 + Math.random() * 300, config: {} };
@@ -9275,9 +9410,17 @@
             if (n.type === 'prompt') body = `
                 <textarea data-f="text" rows="2" placeholder="instruksi... gunakan {{var}}">${cfg.text || ''}</textarea>
                 <textarea data-f="system" rows="1" placeholder="system (opsional)" class="mt-1 opacity-80">${cfg.system || ''}</textarea>`;
-            if (n.type === 'tool') body = `
-                <input data-f="tool" value="${(cfg.tool || '').replace(/"/g, '&quot;')}" placeholder="nama_tool" class="font-mono">
-                <textarea data-f="args" rows="2" placeholder='{"arg": "{{var}}"}' class="mt-1 font-mono text-[10px]">${cfg.args || '{}'}</textarea>`;
+            if (n.type === 'tool') {
+                const opts = cvState.toolNames.map(tn =>
+                    `<option value="${tn}" ${tn === cfg.tool ? 'selected' : ''}>${tn}</option>`).join('');
+                body = `
+                <select data-f="tool" class="font-mono">
+                    <option value="">— pilih tool —</option>${opts}
+                    ${cfg.tool && !cvState.toolNames.includes(cfg.tool) ? `<option value="${cfg.tool}" selected>${cfg.tool} (manual)</option>` : ''}
+                </select>
+                <textarea data-f="args" rows="2" placeholder='{"query": "{{topik}}"}' class="mt-1 font-mono text-[10px]">${cfg.args || '{}'}</textarea>
+                <p class="text-[9px] text-slate-500 leading-tight">Isi {{nama_step}} untuk memakai hasil langkah lain.</p>`;
+            }
             if (n.type === 'template') body = `<textarea data-f="text" rows="2" placeholder="teks dengan {{var}}">${cfg.text || ''}</textarea>`;
             if (n.type === 'set') body = `<input data-f="value" value="${(cfg.value || '').replace(/"/g, '&quot;')}" placeholder="nilai">`;
 
@@ -9324,6 +9467,7 @@
             });
             cvDrawEdges();
             if (cvState.nodes.length) document.getElementById('cv-empty')?.classList.add('hidden');
+            if (cvState.view === 'list') cvRenderList();
         }
 
         function cvDrawEdges(tempLine) {
