@@ -361,9 +361,21 @@ async def get_affiliate_campaign_detail(campaign_id: int):
     return {"status": "success", "campaign": data}
 
 
+def _parse_ai_sections(text: str) -> Dict[str, str]:
+    """Pecah output AI bertanda ===NAMA_SEKSI=== menjadi dict."""
+    import re as _re
+    out: Dict[str, str] = {}
+    parts = _re.split(r"={3,}\s*([A-Za-z_]+)\s*={3,}", text or "")
+    for i in range(1, len(parts) - 1, 2):
+        out[parts[i].strip().lower()] = parts[i + 1].strip()
+    return out
+
+
 @app.post("/api/affiliate/generate")
 async def generate_affiliate_campaign(payload: Dict[str, Any]):
-    """Generate viral affiliate campaign using the 6-agent sales force."""
+    """Generate viral affiliate campaign: template engine + personalisasi AI
+    oleh agen Content Alchemist (fail-safe: bila AI gagal/timeout, hasil
+    template murni tetap dikembalikan)."""
     import affiliate_engine
     product_name = payload.get("product_name", "").strip()
     key_features = payload.get("key_features", "").strip()
@@ -385,6 +397,60 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
         target_audience=target_audience,
         platform=platform
     )
+
+    # ── ENRICHMENT AI: Content Alchemist mempersonalisasi konten template ──
+    res["ai_enriched"] = False
+    try:
+        import asyncio as _asyncio
+        import swarm_engine
+        alchemist = next(
+            (a for a in database.list_custom_agents_sync()
+             if a.get("name") == "Content Alchemist" and a.get("is_enabled", 1)),
+            None)
+        if alchemist:
+            prompt = (
+                f"Personalisasi konten jualan affiliate berikut agar UNIK dan berbasis data.\n\n"
+                f"DATA PRODUK:\n"
+                f"- Nama: {product_name}\n- Fitur: {key_features}\n"
+                f"- Harga normal: {original_price} -> Flash sale: {discount_price}\n"
+                f"- Target: {target_audience} | Platform: {platform}\n"
+                f"- Link WAJIB dipertahankan di CTA: {affiliate_link}\n\n"
+                f"DRAF TEMPLATE (bahan mentah — boleh rombak struktur & hook):\n"
+                f"[SCRIPT DASAR]\n{res['tiktok_script'][:1500]}\n\n"
+                f"ATURAN:\n"
+                f"1. Hook 3 detik yang spesifik produk (sebut angka/masalah nyata dari fitur).\n"
+                f"2. Script 25-40 detik, gaya anak TikTok Indonesia, ada timestamp.\n"
+                f"3. Telegram card & WA broadcast dengan urgensi FOMO yang tidak klise.\n\n"
+                f"KELUARAN WAJIB PERSIS FORMAT INI (tanpa teks lain):\n"
+                f"===TIKTOK_SCRIPT===\n<script lengkap>\n"
+                f"===TELEGRAM_CARD===\n<kartu diskon>\n"
+                f"===WA_BROADCAST===\n<pesan broadcast>"
+            )
+            enriched = await _asyncio.wait_for(
+                swarm_engine.generate_agent_response(
+                    agent=alchemist, prompt=prompt,
+                    system_instruction=alchemist.get("system_instruction")
+                    or "Kamu adalah copywriter viral Indonesia.",
+                    timeout_s=110.0),
+                timeout=120.0)
+            sections = _parse_ai_sections(enriched)
+            replaced = 0
+            for key_src, key_out in (("tiktok_script", "tiktok_script"),
+                                     ("telegram_card", "telegram_card"),
+                                     ("wa_broadcast", "wa_broadcast")):
+                val = sections.get(key_src)
+                if val and len(val) > 80:
+                    res[f"{key_out}_template"] = res[key_out]
+                    res[key_out] = val
+                    replaced += 1
+            if replaced:
+                res["ai_enriched"] = True
+    except Exception as aff_ai_err:
+        import traceback as _tb
+        logging.getLogger("Dashboard").warning(
+            f"Enrichment affiliate AI gagal — pakai template: "
+            f"{type(aff_ai_err).__name__}: {aff_ai_err}\n{_tb.format_exc()[-600:]}")
+
     return {"status": "success", "result": res}
 
 

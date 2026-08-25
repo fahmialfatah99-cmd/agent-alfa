@@ -36,6 +36,11 @@ KNOWN_OPENAI_PROVIDERS = {
 }
 
 SWARM_OUTPUT_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
+# Batas maksimal agen yang dieksekusi dalam satu sesi swarm (mode otomatis
+# tanpa pilihan peserta). Naikkan via .env: ALFA_SWARM_MAX_AGENTS=15
+MAX_SWARM_AGENTS = max(1, int(os.getenv("ALFA_SWARM_MAX_AGENTS", "15")))
+# Jumlah maksimal putaran uji QA (Sentinel QA) sampai zero bug. 0 = matikan.
+MAX_QA_ROUNDS = max(0, int(os.getenv("ALFA_SWARM_QA_ROUNDS", "3")))
 os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
 # ── AUTO-HARVESTER: arsipkan proyek baru dari sandbox di akhir rapat ────────
@@ -508,9 +513,11 @@ async def _generate_with_openai_compat(
                         f"[{provider}] kuota terbatas - retry dengan max_tokens={afford}"
                     )
                     try:
-                        res = await client.post(f"{url.rstrip('/')}/chat/completions",
-                                                headers=headers, json=payload)
-                    except Exception:
+                        res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
+                                                     headers=headers, json=payload)
+                    except Exception as retry_err:
+                        logger.error(
+                            f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}")
                         return None
                     if res.status_code == 200:
                         data = res.json()
@@ -790,6 +797,10 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     claims_file_work = any(k in low_task for k in (
         "bangun", "buat", "perbaiki", "sempurnakan", "refactor", "tulis",
         "kode", "website", "aplikasi", "file", "deploy", "komponen", "halaman"))
+    # Inisialisasi dulu: langkah berstatus gagal (error) tidak boleh
+    # memunculkan NameError saat variabel ini dirujuk di bawah.
+    fs_changed = None
+    changed_sample: List[str] = []
     if claims_file_work and step_result.get("status") == "success":
         fs_changed = step_result.get("fs_changed")
         if fs_changed is None and _EXEC_FS_SNAPSHOT:
@@ -1148,7 +1159,7 @@ async def conduct_multi_agent_meeting(
     if participant_names:
         participants = [a for a in all_agents if a["name"] in participant_names and a.get("is_enabled", 1)]
     else:
-        participants = [a for a in all_agents if a.get("is_enabled", 1)][:5]
+        participants = [a for a in all_agents if a.get("is_enabled", 1)][:MAX_SWARM_AGENTS]
 
     if not participants:
         participants = all_agents[:3]
@@ -1309,6 +1320,89 @@ async def conduct_multi_agent_meeting(
 
             brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
             ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
+
+    # --- PHASE 2.5: SENTINEL QA — LOOP ZERO BUG ---
+    # Setelah semua agen selesai, Sentinel QA menguji hasil kerja secara
+    # independen (menjalankan kode/file sendiri). Bila ditemukan bug, tugas
+    # perbaikan dikembalikan ke agen pelaku, lalu diuji ulang — sampai
+    # QA_VERDICT: PASS atau batas putaran habis.
+    if mode == "execute" and not swarm_cancelled and not _cancel_requested() \
+            and execution_steps and MAX_QA_ROUNDS > 0:
+        qa_agent = next(
+            (a for a in all_agents
+             if a.get("name") == "Sentinel QA" and a.get("is_enabled", 1)),
+            None)
+        if not qa_agent:
+            # Fallback: pakai agen baku yang memang berperan QA/audit
+            # (instalasi default tidak punya agen bernama "Sentinel QA").
+            _qa_kw = ("qa", "audit", "sentinel", "quality", "tester", "uji")
+            qa_agent = next(
+                (a for a in all_agents
+                 if a.get("is_enabled", 1) and (
+                     any(k in a.get("name", "").lower() for k in _qa_kw)
+                     or any(k in a.get("role", "").lower() for k in _qa_kw))),
+                None)
+        if qa_agent:
+            fix_feedback = ""
+            zero_bug = False
+            for qa_round in range(1, MAX_QA_ROUNDS + 1):
+                if _cancel_requested():
+                    break
+                # Snapshot hasil kerja TERKINI tiap putaran: setelah putaran
+                # perbaikan, file baru dari fixer ikut diuji ulang.
+                deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+                work_summary = "\n".join(
+                    f"- {s['agent_name']} ({s.get('tool_used','?')}): {(s.get('execution_summary') or '')[:220]}"
+                    for s in execution_steps)
+                log_live("QA", f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...")
+                qa_task = (
+                    f"=== MISI TIM YANG HARUS KAMU UJI ===\n{topic[:120]}\n\n"
+                    f"=== HASIL KERJA AGEN (JANGAN DIPERCAYA — BUKTIKAN SENDIRI) ===\n{work_summary}\n"
+                    + (f"=== FILE DELIVERABLE ===\n{chr(10).join(deliverables)}\n" if deliverables else "")
+                    + (f"\nFOLDER KERJA: {_TARGET_FOLDER} — jalankan file/kode dari sini.\n" if _TARGET_FOLDER else "")
+                    + (f"\n=== BUG PUTARAN SEBELUMNYA (diklaim sudah diperbaiki — VERIFIKASI ULANG) ===\n{fix_feedback}\n" if fix_feedback else "")
+                    + "\n=== ATURAN QA ===\n"
+                    "1. JALANKAN sendiri kode/file hasil tim via tool (execute_bash_command / read_local_file / sandbox).\n"
+                    "2. Catat tiap bug dengan bukti: command + output error.\n"
+                    "3. Akhiri respons dengan TEPAT satu baris:\n"
+                    "   QA_VERDICT: PASS   (terbukti nol bug)\n"
+                    "   QA_VERDICT: FAIL - <daftar bug bernomor + file penyebab>"
+                )
+                qa_step = await execute_swarm_task_step(qa_agent, qa_task, topic, intent_info)
+                qa_step["phase"] = f"qa_round_{qa_round}"
+                execution_steps.append(qa_step)
+                # Verdict ada di teks jawaban model (generated_content), bukan
+                # execution_summary (hanya ringkasan jumlah karakter/file).
+                qa_text = str(qa_step.get("generated_content")
+                              or qa_step.get("execution_summary") or "")
+                if re.search(r"QA_VERDICT\s*:\s*PASS", qa_text, re.IGNORECASE):
+                    zero_bug = True
+                    log_live("QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}.")
+                    break
+
+                fix_feedback = qa_text[-1500:]
+                log_live("QA", f"🐞 Bug terdeteksi (putaran {qa_round}) — dikembalikan ke tim pelaksana.")
+                fixers = [a for a in participants if a.get("name") != qa_agent.get("name")] or participants
+                for fa in fixers:
+                    if _cancel_requested():
+                        break
+                    fix_task = (
+                        f"QA MENEMUKAN BUG PADA HASIL KERJA TIM — PERBAIKI BAGIANMU SEKARANG SAMPAI BENAR.\n\n"
+                        f"MISI ASLI: {topic[:120]}\n"
+                        f"LAPORAN QA (bukti + daftar bug):\n{fix_feedback}\n\n"
+                        f"ATURAN PERBAIKAN:\n"
+                        f"1. Perbaiki HANYA file/kode yang kamu buat"
+                        + (f" (folder {_TARGET_FOLDER})." if _TARGET_FOLDER else ".") + "\n"
+                        "2. Jalankan ulang untuk MEMBUKTIKAN fix bekerja.\n"
+                        "3. Laporkan apa yang diubah + bukti hasil uji ulang."
+                    )
+                    fix_step = await execute_swarm_task_step(fa, fix_task, topic, intent_info)
+                    fix_step["phase"] = f"qa_fix_round_{qa_round}"
+                    execution_steps.append(fix_step)
+                    ctx_lines.append(
+                        f"[QA-FIX r{qa_round}] {fa['name']} -> {(fix_step.get('execution_summary') or '')[:150]}")
+            if not zero_bug:
+                log_live("QA", "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.")
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
     if not participants:

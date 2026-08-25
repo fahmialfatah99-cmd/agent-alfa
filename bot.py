@@ -813,7 +813,7 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     import sqlite3 as _sq
-    conn = _sq.connect(os.path.join(PROJECT_DIR, "agent_data.db"))
+    conn = _sq.connect(database.DB_PATH)
     conn.row_factory = _sq.Row
     try:
         brain_key = conn.execute(
