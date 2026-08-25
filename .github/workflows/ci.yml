@@ -16,7 +16,7 @@ jobs:
           python-version: "3.12"
       - name: Install ruff
         run: pip install ruff
-      - name: Ruff check (gate bug nyata: F, E, B006)
+      - name: "Ruff check - gate bug nyata (F/E/B006)"
         run: ruff check .
 
   test:
