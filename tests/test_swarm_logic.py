@@ -103,3 +103,82 @@ class TestConfigEnv:
     def test_batas_qa_selalu_valid(self):
         assert swarm_engine.MAX_QA_ROUNDS >= 0
         assert swarm_engine.MAX_SWARM_AGENTS >= 1
+
+
+class TestSwarmCheckpoint:
+    def test_save_and_load(self, tmp_path, monkeypatch):
+        """Checkpoint tersimpan dan dapat dimuat kembali."""
+        import swarm_checkpoint
+        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        sid = "test-session-001"
+        swarm_checkpoint.SwarmCheckpoint.save(
+            session_id=sid, topic="Buat website", mode="execute",
+            participants=[{"name": "Alpha Lead"}],
+            steps=[{"agent": "Alpha Lead", "task": "Buat index.html", "status": "done"}],
+            steps_done=1, status="paused"
+        )
+        loaded = swarm_checkpoint.SwarmCheckpoint.load(sid)
+        assert loaded is not None
+        assert loaded["session_id"] == sid
+        assert loaded["topic"] == "Buat website"
+        assert loaded["steps_done"] == 1
+        assert loaded["status"] == "paused"
+
+    def test_list_resumable_excludes_completed(self, tmp_path, monkeypatch):
+        import swarm_checkpoint
+        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save("s1", "T1", "execute", [], [], 0, status="paused")
+        swarm_checkpoint.SwarmCheckpoint.save("s2", "T2", "execute", [], [], 2, status="completed")
+        swarm_checkpoint.SwarmCheckpoint.save("s3", "T3", "execute", [], [], 1, status="cancelled")
+
+        resumable = swarm_checkpoint.SwarmCheckpoint.list_resumable()
+        ids = [r["session_id"] for r in resumable]
+        assert "s1" in ids
+        assert "s3" in ids
+        assert "s2" not in ids
+
+    def test_mark_cancelled_and_resume(self, tmp_path, monkeypatch):
+        import swarm_checkpoint
+        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save("s-cancel", "T", "execute", [], [], 0, status="running")
+        swarm_checkpoint.SwarmCheckpoint.mark_cancelled("s-cancel")
+        loaded = swarm_checkpoint.SwarmCheckpoint.load("s-cancel")
+        assert loaded["status"] == "cancelled"
+
+    def test_add_error_log(self, tmp_path, monkeypatch):
+        import swarm_checkpoint
+        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save("s-err", "T", "execute", [], [], 0)
+        swarm_checkpoint.SwarmCheckpoint.add_error("s-err", "step1", "Code Crafter", "Provider timeout")
+        loaded = swarm_checkpoint.SwarmCheckpoint.load("s-err")
+        assert len(loaded["error_log"]) == 1
+        assert loaded["error_log"][0]["error"] == "Provider timeout"
+
+    def test_clear_checkpoint(self, tmp_path, monkeypatch):
+        import swarm_checkpoint
+        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save("s-del", "T", "execute", [], [], 0)
+        assert swarm_checkpoint.SwarmCheckpoint.load("s-del") is not None
+        swarm_checkpoint.SwarmCheckpoint.clear("s-del")
+        assert swarm_checkpoint.SwarmCheckpoint.load("s-del") is None
+
+
+class TestErrorPropagation:
+    def test_build_error_context_empty(self):
+        ctx = swarm_engine._build_error_context([])
+        assert ctx == ""
+
+    def test_build_error_context_with_failures(self):
+        failures = [
+            {"agent_name": "Code Crafter", "tool_used": "write_local_file", "feedback": "File syntax error in line 12"},
+            {"agent_name": "System Auditor", "tool_used": "execute_bash_command", "feedback": "Port 8080 already in use"},
+        ]
+        ctx = swarm_engine._build_error_context(failures)
+        assert "Code Crafter" in ctx
+        assert "System Auditor" in ctx
+        assert "Port 8080" in ctx

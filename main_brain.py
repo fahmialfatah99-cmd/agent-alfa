@@ -223,6 +223,12 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     except Exception:
         pass
 
+    try:
+        import tracing as _tr
+        _span = _tr.new_span(f"tool:{name}", tool=name)
+    except Exception:
+        _span = None
+
     def _call():
         try:
             return fn(**args)
@@ -236,10 +242,16 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             fut = pool.submit(_call)
             raw = fut.result(timeout=TOOL_EXEC_TIMEOUT)
     except Exception as e:
+        if _span:
+            _span.finish(status="error", error=str(e))
         return f"[ERROR eksekusi] {e}"
 
     if not isinstance(raw, str):
         raw = json.dumps(raw, ensure_ascii=False, default=str)
+
+    if _span:
+        _status = "error" if raw.startswith("[ERROR") else "success"
+        _span.finish(status=_status)
 
     # Laporkan hasil ke live feed juga
     try:

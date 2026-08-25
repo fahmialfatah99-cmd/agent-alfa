@@ -46,7 +46,14 @@ from runtime_ctx import (
     get_current_user_id as get_current_user_id,
 )
 
-SANDBOX_DIR = "/dev/shm/alfa_sandbox"
+if os.name == "nt":
+    # Windows: gunakan C:\dev\shm\alfa_sandbox (meniru konvensi /dev/shm Linux)
+    # splitdrive("C:\foo") → ("C:", "\foo") — tambah os.sep agar join benar
+    _drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
+    _sandbox_base = os.path.join(_drive + os.sep, "dev", "shm", "alfa_sandbox")
+else:
+    _sandbox_base = "/dev/shm/alfa_sandbox"
+SANDBOX_DIR = _sandbox_base
 os.makedirs(SANDBOX_DIR, exist_ok=True)
 
 
@@ -56,9 +63,14 @@ def normalize_path(p: str) -> str:
     if not p or not isinstance(p, str):
         return p
     q = p.replace("\\", "/")
-    if os.name == "nt" and (q.startswith("/dev/shm") or q.startswith("C:/dev/shm")):
-        drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
-        q = drive + q if not q.lower().startswith(("c:/", "d:/")) else q
+    if os.name == "nt":
+        # /dev/shm/... → C:\dev\shm\...
+        if q.startswith("/dev/shm"):
+            drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
+            q = drive + q
+        # Jika belum punya drive letter, tambahkan
+        elif not q[1:3] in (":/", ":\\"):
+            pass  # path relatif — biarkan
     return os.path.normpath(q) if os.name == "nt" else p
 
 
@@ -269,8 +281,22 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
             isolation = "docker"
         else:
+            allow_host = os.getenv("ALFA_ALLOW_HOST_EXEC", "false").strip().lower() == "true"
+            if not allow_host:
+                logger.warning("[SECURITY] Host execution blocked: Docker unavailable and ALFA_ALLOW_HOST_EXEC != true.")
+                return {
+                    "status": "error",
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": (
+                        "[SECURITY] Eksekusi bash di host diblokir karena Docker tidak tersedia. "
+                        "Set ALFA_ALLOW_HOST_EXEC=true di .env untuk mengizinkan eksekusi langsung di host. "
+                        "PERINGATAN: Ini memungkinkan kode AI berjalan dengan hak akses penuh mesin ini."
+                    ),
+                    "isolation": "blocked",
+                }
             if pref in ("auto", "docker"):
-                logger.warning("Docker unavailable - bash falls back to HOST execution.")
+                logger.warning("[SECURITY] Docker tidak tersedia — eksekusi bash dialihkan ke HOST (ALFA_ALLOW_HOST_EXEC=true). Pastikan ALLOWED_USER_IDS terkonfigurasi ketat.")
             target_dir = os.path.expanduser(working_dir) if working_dir else os.path.expanduser("~")
             if not os.path.exists(target_dir):
                 target_dir = os.path.expanduser("~")
@@ -3742,7 +3768,7 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             )
             
             response = client.models.generate_content(
-                model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+                model=os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
                 contents=[image_part, vision_prompt]
             )
             
@@ -5512,7 +5538,7 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
         return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
 
 
-def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_key: str = "", default_model: str = "gemini-3.5-flash-lite", base_url: str = "", key_id: int = None) -> Dict[str, Any]:
+def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_key: str = "", default_model: str = "gemini-3.6-flash", base_url: str = "", key_id: int = None) -> Dict[str, Any]:
     """
     Manage API keys and multi-provider endpoints (Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama, NVIDIA NIM).
     Enables switching active keys or assigning specific provider keys to specialized agents.
@@ -5522,7 +5548,7 @@ def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_k
         name: Label name for the key (e.g. 'Production Gemini', 'NVIDIA NIM Llama 3.3', 'Groq Llama 3').
         provider: 'gemini', 'openai', 'groq', 'openrouter', 'anthropic', 'ollama', 'nvidia'.
         api_key: The API secret key string (e.g. nvapi-..., AIza..., sk-...).
-        default_model: Default model string (e.g. 'meta/llama-3.3-70b-instruct', 'gemini-3.5-flash-lite', 'gpt-4o').
+        default_model: Default model string (e.g. 'meta/llama-3.3-70b-instruct', 'gemini-3.6-flash', 'gpt-4o').
         base_url: Optional custom proxy or Ollama/NVIDIA NIM base URL (default for nvidia: 'https://integrate.api.nvidia.com/v1').
         key_id: Target key ID for 'activate' or 'delete'.
     """
@@ -5561,7 +5587,7 @@ def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_k
         return {"status": "error", "message": f"Manage API keys error: {str(e)}"}
 
 
-def manage_custom_agents(action: str, name: str = "", role: str = "", persona: str = "", system_instruction: str = "", provider: str = "gemini", model: str = "gemini-2.5-flash", avatar_emoji: str = "🤖", color_theme: str = "cyan", agent_id: int = None) -> Dict[str, Any]:
+def manage_custom_agents(action: str, name: str = "", role: str = "", persona: str = "", system_instruction: str = "", provider: str = "gemini", model: str = "gemini-3.6-flash", avatar_emoji: str = "🤖", color_theme: str = "cyan", agent_id: int = None) -> Dict[str, Any]:
     """
     Manage the Autonomous AI Agent Workforce (Society of Agents).
     Create, list, update, and configure specialized agents that can collaborate, hold meetings, and execute tasks.
@@ -5573,7 +5599,7 @@ def manage_custom_agents(action: str, name: str = "", role: str = "", persona: s
         persona: Persona description (e.g. 'Kritis, teliti, mengutamakan performa').
         system_instruction: Detailed system prompt for this agent.
         provider: 'gemini', 'openai', 'groq', 'openrouter', 'ollama'.
-        model: Model identifier (default: 'gemini-2.5-flash').
+        model: Model identifier (default: 'gemini-3.6-flash').
         avatar_emoji: Avatar emoji (e.g. '👑', '⚡', '🛡️', '🌐', '💡').
         color_theme: 'cyan', 'emerald', 'violet', 'amber', 'rose', 'blue'.
         agent_id: Target agent ID for update or delete.

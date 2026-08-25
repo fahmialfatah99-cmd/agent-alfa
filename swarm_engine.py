@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import time
+import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -26,6 +27,21 @@ from google.genai import types
 import database
 import token_usage
 import tools
+
+# Checkpoint & tracing: opsional — bot tetap berjalan tanpa keduanya
+try:
+    from swarm_checkpoint import SwarmCheckpoint as _SwarmCheckpoint
+    _CHECKPOINT_AVAILABLE = True
+except ImportError:
+    _CHECKPOINT_AVAILABLE = False
+    _SwarmCheckpoint = None
+
+try:
+    import tracing as _tracing
+    _TRACING_AVAILABLE = True
+except ImportError:
+    _TRACING_AVAILABLE = False
+    _tracing = None
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +254,42 @@ def log_tool_live(text: str) -> None:
     log_live("TOOL", text)
 
 
+# ── ERROR PROPAGATION ────────────────────────────────────────────────────────
+# Structured error record per step, dikumpulkan selama sesi berlangsung
+# dan dikirim ke agen berikutnya sebagai konteks agar pipeline tidak buta.
+
+def _build_error_context(failed_steps: list) -> str:
+    """Format daftar kegagalan agen menjadi blok konteks untuk agen berikutnya.
+
+    Dipanggil setiap kali ada agen yang gagal verifikasi, sehingga agen
+    selanjutnya dalam pipeline mengetahui apa yang sudah TIDAK berhasil
+    dan tidak mengulangi pekerjaan yang sama.
+    """
+    if not failed_steps:
+        return ""
+    lines = ["⚠️ KEGAGALAN AGEN SEBELUMNYA (jangan ulangi — selesaikan yang belum):"]
+    for fs in failed_steps[-3:]:  # hanya 3 terakhir agar tidak overflow
+        lines.append(
+            f"  • {fs.get('agent_name','?')} [{fs.get('tool_used','?')}]: "
+            f"{(fs.get('feedback') or fs.get('execution_summary',''))[:120]}"
+        )
+    return "\n".join(lines)
+
+
+def _record_step_error(session_id: str, step_result: dict, feedback: str) -> None:
+    """Catat kegagalan satu step ke checkpoint jika tersedia."""
+    if _CHECKPOINT_AVAILABLE and session_id:
+        try:
+            _SwarmCheckpoint.add_error(
+                session_id=session_id,
+                step_name=step_result.get("task_assigned", "")[:80],
+                agent_name=step_result.get("agent_name", "?"),
+                error=feedback or step_result.get("execution_summary", "")
+            )
+        except Exception:
+            pass
+
+
 def qa_verdict_passed(text: str) -> bool:
     """True bila teks laporan QA memuat verdict LULUS (QA_VERDICT: PASS).
 
@@ -370,7 +422,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-flash-latest"
+        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -715,7 +767,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             result = await _generate_with_gemini(
                 agent_name=f"{agent_name} (fallback)",
                 api_key=os.getenv("GEMINI_API_KEY", ""),
-                models=["gemini-3.5-flash-lite"],
+                models=["gemini-3.6-flash"],
                 prompt=prompt,
                 final_instruction=final_instruction,
                 key_id=None,
@@ -1118,6 +1170,7 @@ async def conduct_multi_agent_meeting(
     rounds: int = 2,
     mode: str = "execute",
     target_folder: str = "",
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     SWARM EKSEKUSI LANGSUNG — tanpa mode rapat/diskusi lagi.
@@ -1128,6 +1181,7 @@ async def conduct_multi_agent_meeting(
     Riwayat/keputusan TIDAK lagi disimpan ke database (arsip dihapus).
     """
     mode = "execute"
+    session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
 
     # ── Folder target kerja agen (opsional tapi divalidasi keras) ──
     global _TARGET_FOLDER
@@ -1172,6 +1226,20 @@ async def conduct_multi_agent_meeting(
     if not participants:
         participants = all_agents[:3]
 
+    if _CHECKPOINT_AVAILABLE:
+        try:
+            _SwarmCheckpoint.save(
+                session_id=session_id,
+                topic=topic,
+                mode=mode,
+                participants=participants,
+                steps=[],
+                steps_done=0,
+                status="running"
+            )
+        except Exception:
+            pass
+
     dialogue_transcript = []
     history_summary = []
     execution_steps = []
@@ -1179,7 +1247,7 @@ async def conduct_multi_agent_meeting(
     meeting_type_label = "⚡ SWARM EKSEKUSI LANGSUNG" if mode in ["execute", "plan_and_execute"] else "📋 RAPAT STRATEGIS & PLAN"
     meeting_title = f"{meeting_type_label}: {topic[:60]}"
 
-    logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents.")
+    logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id}).")
     global MEETING_RUNNING
     MEETING_RUNNING = True
     _clear_cancel_flag()  # sesi baru = reset sinyal cancel lama
@@ -1265,14 +1333,25 @@ async def conduct_multi_agent_meeting(
             for _n, _t in subtask_map.items():
                 log_live("PLAN", f"🗂️ {_n}: {_t[:90]}")
 
+        failed_steps: List[Dict[str, Any]] = []
         ctx_lines: List[str] = []
         for idx, agent in enumerate(participants):
             if _cancel_requested():
                 log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum giliran {agent['name']}.")
                 swarm_cancelled = True
+                if _CHECKPOINT_AVAILABLE:
+                    try:
+                        _SwarmCheckpoint.mark_cancelled(session_id)
+                    except Exception:
+                        pass
                 break
 
             task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+
+            # Error propagation: kirimkan kegagalan langkah sebelumnya ke agen ini
+            err_ctx = _build_error_context(failed_steps)
+            if err_ctx:
+                task_desc += f"\n\n{err_ctx}"
 
             # Folder target wajib: injeksi keras ke setiap tugas agen
             if _TARGET_FOLDER:
@@ -1322,9 +1401,33 @@ async def conduct_multi_agent_meeting(
                 step_result["retry_count"] = attempts
                 passed, feedback = await _verify_step_result(retry_desc, step_result)
 
+            if not passed and step_result.get("tool_used") != "strategic_orchestration":
+                failed_steps.append({
+                    "agent_name": agent["name"],
+                    "tool_used": step_result.get("tool_used"),
+                    "feedback": feedback,
+                    "execution_summary": step_result.get("execution_summary", ""),
+                })
+                _record_step_error(session_id, step_result, feedback)
+
             step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
             log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
             execution_steps.append(step_result)
+
+            # Simpan progress checkpoint setelah setiap langkah selesai
+            if _CHECKPOINT_AVAILABLE:
+                try:
+                    _SwarmCheckpoint.save(
+                        session_id=session_id,
+                        topic=topic,
+                        mode=mode,
+                        participants=participants,
+                        steps=execution_steps,
+                        steps_done=len(execution_steps),
+                        status="cancelled" if swarm_cancelled else "running"
+                    )
+                except Exception:
+                    pass
 
             brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
             ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
@@ -1506,10 +1609,20 @@ async def conduct_multi_agent_meeting(
     MEETING_RUNNING = False
     # Auto-harvester: arsipkan proyek baru yang dibangun agen ke outputs
     _harvest_new_sandbox_projects(topic)
+
+    # Tandai checkpoint selesai
+    if _CHECKPOINT_AVAILABLE:
+        try:
+            _deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+            _SwarmCheckpoint.mark_completed(session_id, deliverables=_deliverables)
+        except Exception:
+            pass
+
     log_live("DONE", "🏁 Eksekusi swarm selesai.")
 
     return {
         "status": "success",
+        "session_id": session_id,
         "meeting_id": None,
         "title": meeting_title,
         "topic": topic,
@@ -1521,3 +1634,29 @@ async def conduct_multi_agent_meeting(
         "consensus": consensus_text_clean,
         "action_plan": action_plan_text
     }
+
+
+async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
+    """
+    Melanjutkan sesi swarm yang sebelumnya dibatalkan atau tertunda berdasarkan checkpoint.
+    """
+    if not _CHECKPOINT_AVAILABLE or not _SwarmCheckpoint:
+        return {"status": "error", "message": "Checkpoint system tidak tersedia."}
+
+    ckpt = _SwarmCheckpoint.load(session_id)
+    if not ckpt:
+        return {"status": "error", "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan."}
+
+    topic = ckpt.get("topic", "")
+    mode = ckpt.get("mode", "execute")
+    participant_names = [a["name"] for a in ckpt.get("participants", []) if isinstance(a, dict) and "name" in a]
+
+    log_live("RESUME", f"🔄 Melanjutkan sesi {session_id} (Topik: {topic[:60]})...")
+
+    return await conduct_multi_agent_meeting(
+        topic=topic,
+        participant_names=participant_names or None,
+        mode=mode,
+        session_id=session_id,
+    )
+

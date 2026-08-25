@@ -66,7 +66,7 @@ logger = logging.getLogger("TelegramAIAgent")
 # Configuration
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
 # Nama pemilik bot — dipakai di persona & prompt agar bot personal bagi
 # siapa pun yang menginstalnya (default netral untuk distribusi publik).
 OWNER_NAME = os.getenv("OWNER_NAME", "Pemilik").strip() or "Pemilik"
@@ -540,7 +540,7 @@ async def run_agent_turn(
     # 7. Call Gemini with Agent Tools and fast fallback chain
     fallback_chain = [m.strip() for m in os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-flash-latest"
+        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
     ).split(",") if m.strip()]
 
     # Model otak utama (dari System Settings) menang atas preferensi per-user
@@ -2132,6 +2132,60 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}")
 
 
+async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /resume_swarm or /resume to resume an interrupted/cancelled swarm session."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not is_authorized(user_id):
+        return
+
+    from swarm_checkpoint import SwarmCheckpoint
+    resumable = SwarmCheckpoint.list_resumable()
+
+    session_id = (context.args[0].strip()) if context.args else ""
+    if not session_id:
+        if not resumable:
+            await safe_send_message(context, chat_id, "ℹ️ Tidak ada sesi swarm yang tertunda atau bisa dilanjutkan saat ini.")
+            return
+
+        text = "🔄 **Daftar Sesi Swarm yang Bisa Dilanjutkan (Checkpoints):**\n\n"
+        for r in resumable[:5]:
+            text += (
+                f"• `{r['session_id']}` [{r['status'].upper()}]\n"
+                f"  📌 Topik: _{r['topic']}_\n"
+                f"  📊 Progres: {r['steps_done']}/{r['steps_total']} langkah\n"
+                f"  🕒 Update: `{r['updated_at'][:19]}`\n\n"
+            )
+        text += "Gunakan `/resume <session_id>` untuk melanjutkan sesi."
+        await safe_send_message(context, chat_id, text)
+        return
+
+    await safe_send_message(context, chat_id, f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**")
+    try:
+        import swarm_engine
+        result = await swarm_engine.resume_swarm_session(session_id)
+        if result.get("status") == "error":
+            await safe_send_message(context, chat_id, f"❌ Gagal resume: {result.get('message', 'Unknown error')}")
+            return
+
+        steps = result.get("execution_results", [])
+        steps_text = "⚡ **Hasil Lanjutan Sesi Swarm:**\n\n"
+        for s in steps:
+            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += f"   • Tool: `{s['tool_used']}`\n"
+            steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
+        await safe_send_message(context, chat_id, steps_text)
+
+        final_text = (
+            f"🏆 **LAPORAN HASIL LANJUTAN EKSEKUSI:**\n\n"
+            f"{result.get('consensus', '')}"
+        )
+        await safe_send_message(context, chat_id, final_text)
+    except Exception as e:
+        logger.error(f"Error during /resume_swarm: {e}")
+        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}")
+
+
 def main():
     """Main application launcher."""
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token_here":
@@ -2168,6 +2222,8 @@ def main():
     application.add_handler(CommandHandler("agents", agents_command))
     application.add_handler(CommandHandler("swarm", swarm_command))
     application.add_handler(CommandHandler("eksekusi", swarm_command))
+    application.add_handler(CommandHandler("resume_swarm", resume_swarm_command))
+    application.add_handler(CommandHandler("resume", resume_swarm_command))
     application.add_handler(CommandHandler("rapat", rapat_command))
     application.add_handler(CommandHandler("meeting", rapat_command))
     application.add_handler(CommandHandler("clear", clear_command))

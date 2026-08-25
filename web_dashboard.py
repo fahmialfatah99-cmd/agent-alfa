@@ -718,7 +718,7 @@ async def get_system_settings():
             "masked_bot_token": masked_bot_token,
             "has_gemini_key": bool(gemini_key and gemini_key != "your_gemini_api_key_here"),
             "masked_gemini_key": masked_gemini_key,
-            "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-2.5-flash"),
+            "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-3.6-flash"),
             "allowed_user_ids": env_vals.get("ALLOWED_USER_IDS", ""),
             "system_instruction": active_instruction,
             "system_instruction_source": prompt_source,
@@ -780,16 +780,12 @@ async def models_for_key(key_id: int):
                 models = [
                     "gemini-3.7-flash",
                     "gemini-3.6-flash",
-                    "gemini-3.5-flash",
-                    "gemini-3.5-flash-lite",
+                    "gemini-3.6-flash-lite",
                     "gemini-3.1-pro-preview",
                     "gemini-3.1-flash-lite",
                     "gemini-3-flash-preview",
                     "gemini-flash-latest",
                     "gemini-pro-latest",
-                    "gemini-2.5-pro",
-                    "gemini-2.5-flash",
-                    "gemini-2.5-flash-lite",
                 ]
         else:
             base = base_url or {
@@ -835,13 +831,13 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
     if not target_key:
         r = _db.add_api_key_sync(name="Antigravity Multi-Account", provider="custom",
                                  api_key="antigravity",
-                                 default_model=model or "gemini-3.5-flash",
+                                 default_model=model or "gemini-3.6-flash",
                                  base_url="http://127.0.0.1:8890/v1",
                                  set_active=False)
         key_id = r.get("id")
     else:
         key_id = target_key["id"]
-        _db.update_api_key_model(key_id, model or "gemini-3.5-flash")
+        _db.update_api_key_model(key_id, model or "gemini-3.6-flash")
 
     updated = []
 
@@ -851,7 +847,7 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
             if a.get("is_enabled", 1):
                 _db.update_custom_agent_sync(a["id"], {
                     "provider": "custom",
-                    "model": model or "gemini-3.5-flash",
+                    "model": model or "gemini-3.6-flash",
                     "api_key_id": key_id,
                 })
                 updated.append(a["name"])
@@ -861,7 +857,7 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
 
     # 3. Hanya jadi otak utama jika user EXPLISIT memintanya
     if as_main_brain:
-        brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.5-flash")
+        brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.6-flash")
         main_brain_info = brain_res.get("main_brain")
         brain_note = " Otak utama dialihkan ke Antigravity."
     else:
@@ -925,7 +921,7 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
             from google.genai import types as _types
             client = _genai.Client(api_key=row["api_key"])
             resp = await client.aio.models.generate_content(
-                model=model or "gemini-3.5-flash-lite",
+                model=model or "gemini-3.6-flash",
                 contents="Balas satu kata: SIAP",
                 config=_types.GenerateContentConfig(max_output_tokens=100))
             text = (resp.text or "").strip()
@@ -2457,7 +2453,7 @@ async def add_api_key_endpoint(payload: Dict[str, Any]):
     name = payload.get("name")
     provider = payload.get("provider", "gemini")
     api_key = payload.get("api_key")
-    default_model = payload.get("default_model", "gemini-2.5-flash")
+    default_model = payload.get("default_model", "gemini-3.6-flash")
     base_url = payload.get("base_url", "")
     set_active = payload.get("set_active", True)
     
@@ -2610,9 +2606,9 @@ PROVIDER_MODELS = {
         # --- Gemini 3.7 / 3.6 (Terbaru) ---
         {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash (Generasi Termbaru)", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        # --- Gemini 3.5 ---
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Cepat & Stabil)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Ultra Ringan)", "category": "Gemini 3.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 3.5 (DEPRECATED — pakai 3.6+) ---
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
+        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
         # --- Gemini 3.1 Pro & Flash ---
         {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview (Penalaran Kompleks)", "category": "Gemini 3.1 Pro", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "category": "Gemini 3.1", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
@@ -2622,10 +2618,10 @@ PROVIDER_MODELS = {
         {"id": "gemini-flash-latest", "name": "Gemini Flash Latest (Otomatis Versi Termbaru)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-flash-lite-latest", "name": "Gemini Flash Lite Latest", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-pro-latest", "name": "Gemini Pro Latest (Flagship)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        # --- Gemini 2.5 ---
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "category": "Gemini 2.5", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        # --- Gemini 2.5 (DEPRECATED — pakai 3.6+) ---
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
+        {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
         # --- Image Generation ---
         {"id": "nano-banana-pro-preview", "name": "Nano Banana Pro (Image Gen Flagship)", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-3-pro-image", "name": "Gemini 3 Pro Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
@@ -2848,7 +2844,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
         try:
             from google import genai
             from google.genai import types
-            target_model = model or "gemini-3.5-flash-lite"
+            target_model = model or "gemini-3.6-flash"
             client = genai.Client(api_key=api_key)
             await client.aio.models.generate_content(
                 model=target_model,
@@ -2877,7 +2873,7 @@ async def create_custom_agent(payload: Dict[str, Any]):
     persona = payload.get("persona", "")
     system_instruction = payload.get("system_instruction", "")
     provider = payload.get("provider", "gemini")
-    model = payload.get("model", "gemini-2.5-flash")
+    model = payload.get("model", "gemini-3.6-flash")
     api_key_id = payload.get("api_key_id")
     avatar_emoji = payload.get("avatar_emoji", "🤖")
     color_theme = payload.get("color_theme", "cyan")
@@ -3265,10 +3261,49 @@ async def _malloc_trim_loop():
             logger.debug(f"malloc_trim gagal (abaikan): {e}")
 
 
-@app.on_event("startup")
-async def _start_memory_maintenance():
-    asyncio.create_task(_malloc_trim_loop())
+# ==================== OBSERVABILITY & CHECKPOINTS API ====================
+@app.get("/api/traces")
+async def get_traces_endpoint(limit: int = 50):
+    """Ambil riwayat trace observability terbaru."""
+    try:
+        import tracing
+        traces = tracing.get_recent_traces(n=min(200, max(1, limit)))
+        return {"status": "success", "total": len(traces), "traces": traces}
+    except Exception as e:
+        return {"status": "error", "message": f"Error fetching traces: {e}"}
 
+
+@app.get("/api/traces/{trace_id}")
+async def get_trace_detail_endpoint(trace_id: str):
+    """Ambil detail span dari satu trace ID tertentu."""
+    try:
+        import tracing
+        spans = tracing.get_trace_by_id(trace_id)
+        return {"status": "success", "trace_id": trace_id, "spans": spans}
+    except Exception as e:
+        return {"status": "error", "message": f"Error fetching trace detail: {e}"}
+
+
+@app.get("/api/checkpoints")
+async def get_checkpoints_endpoint():
+    """Ambil daftar checkpoint swarm yang dapat di-resume."""
+    try:
+        from swarm_checkpoint import SwarmCheckpoint
+        resumable = SwarmCheckpoint.list_resumable()
+        return {"status": "success", "total": len(resumable), "checkpoints": resumable}
+    except Exception as e:
+        return {"status": "error", "message": f"Error listing checkpoints: {e}"}
+
+
+@app.post("/api/checkpoints/{session_id}/resume")
+async def resume_checkpoint_endpoint(session_id: str):
+    """Lanjutkan sesi swarm dari checkpoint."""
+    try:
+        import swarm_engine
+        res = await swarm_engine.resume_swarm_session(session_id)
+        return res
+    except Exception as e:
+        return {"status": "error", "message": f"Error resuming session: {e}"}
 
 
 if __name__ == "__main__":

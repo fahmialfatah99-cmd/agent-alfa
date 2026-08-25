@@ -140,7 +140,7 @@ def init_db_sync():
                 user_id INTEGER PRIMARY KEY,
                 voice_reply INTEGER DEFAULT 0,
                 system_prompt_override TEXT,
-                model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
+                model_name TEXT DEFAULT 'gemini-3.6-flash'
             );
             CREATE TABLE IF NOT EXISTS knowledge_graph (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,7 +182,7 @@ def init_db_sync():
                 persona TEXT NOT NULL,
                 system_instruction TEXT NOT NULL,
                 provider TEXT NOT NULL DEFAULT 'gemini',
-                model TEXT NOT NULL DEFAULT 'gemini-2.5-flash',
+                model TEXT NOT NULL DEFAULT 'gemini-3.6-flash',
                 api_key_id INTEGER,
                 avatar_emoji TEXT DEFAULT '🤖',
                 color_theme TEXT DEFAULT 'cyan',
@@ -241,7 +241,7 @@ def init_db_sync():
                 conn.execute(
                     """
                     INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
-                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-2.5-flash', 1)
+                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.6-flash', 1)
                     """,
                     (encrypt_key(env_gemini_key),)
                 )
@@ -276,7 +276,7 @@ def init_db_sync():
                     _seed_meta.get(2, "Engineer kode ALFA."),
                     _seed_persona.get(2, "Kamu adalah Code Crafter, engineer kode ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.6-flash",
                     "⚡",
                     "emerald"
                 ),
@@ -286,7 +286,7 @@ def init_db_sync():
                     _seed_meta.get(3, "Pengkritik kritis ALFA."),
                     _seed_persona.get(3, "Kamu adalah System Auditor, penguji kritis ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.6-flash",
                     "🛡️",
                     "rose"
                 ),
@@ -296,7 +296,7 @@ def init_db_sync():
                     _seed_meta.get(4, "Intel riset ALFA."),
                     _seed_persona.get(4, "Kamu adalah Researcher Prime, spesialis riset ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.6-flash",
                     "🌐",
                     "violet"
                 ),
@@ -306,7 +306,7 @@ def init_db_sync():
                     _seed_meta.get(5, "Perancang strategi ALFA."),
                     _seed_persona.get(5, "Kamu adalah Strategic Planner, perancang strategi ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.6-flash",
                     "💡",
                     "amber"
                 ),
@@ -316,7 +316,7 @@ def init_db_sync():
                     _seed_meta.get(6, "Garda depan triase ALFA."),
                     _seed_persona.get(6, "Kamu adalah Laguna Co-Pilot, triase cepat ALFA."),
                     "gemini",
-                    "gemini-2.5-flash",
+                    "gemini-3.6-flash",
                     "🚀",
                     "teal"
                 )
@@ -740,7 +740,7 @@ async def get_user_settings(user_id: int) -> Dict[str, Any]:
             row = await cursor.fetchone()
             if row:
                 return dict(row)
-            return {"voice_reply": 0, "system_prompt_override": None, "model_name": "gemini-2.5-flash"}
+            return {"voice_reply": 0, "system_prompt_override": None, "model_name": "gemini-3.6-flash"}
 
 
 async def toggle_voice_setting(user_id: int) -> bool:
@@ -988,6 +988,25 @@ def get_main_brain_model() -> str:
         return ""
 
 
+def get_api_key_by_id_sync(key_id: int) -> Optional[Dict[str, Any]]:
+    """Ambil record API key berdasarkan ID dengan kunci terdekripsi."""
+    try:
+        with get_sync_db() as conn:
+            cursor = conn.execute(
+                "SELECT id, name, provider, api_key, base_url, default_model, is_active, created_at FROM api_keys WHERE id = ?",
+                (key_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            res = dict(row)
+            res["api_key"] = decrypt_key(res["api_key"])
+            return res
+    except Exception as e:
+        logger.error(f"Error fetching API key #{key_id}: {e}")
+        return None
+
+
 def get_main_brain_key_id() -> Optional[int]:
     """Return key id marked as main brain, if still valid."""
     try:
@@ -1059,7 +1078,7 @@ def list_custom_agents_sync() -> List[Dict[str, Any]]:
 
 
 def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction: str, 
-                           provider: str = "gemini", model: str = "gemini-2.5-flash", 
+                           provider: str = "gemini", model: str = "gemini-3.6-flash", 
                            api_key_id: Optional[int] = None, avatar_emoji: str = "🤖", 
                            color_theme: str = "cyan") -> Dict[str, Any]:
     """Create a new specialized AI agent in the workforce."""
