@@ -9441,12 +9441,15 @@
                 <textarea data-f="text" rows="2" placeholder="instruksi... gunakan {{var}}">${cfg.text || ''}</textarea>
                 <textarea data-f="system" rows="1" placeholder="system (opsional)" class="mt-1 opacity-80">${cfg.system || ''}</textarea>`;
             if (n.type === 'tool') {
-                const opts = cvState.toolNames.map(tn =>
-                    `<option value="${tn}" ${tn === cfg.tool ? 'selected' : ''}>${tn}</option>`).join('');
+                const sorted = [...new Set([...cvState.toolNames].sort((a, b) => a.localeCompare(b)))]
+                    .filter(tn => tn !== cfg.tool);
+                const opts = (cfg.tool ? [cfg.tool] : []).concat(sorted)
+                    .map(tn => `<option value="${tn}" ${tn === cfg.tool ? 'selected' : ''} style="background:#0f172a;color:#e2e8f0;font-size:13px">${tn}</option>`).join('');
                 body = `
                 <select data-f="tool" class="font-mono">
-                    <option value="">— pilih tool —</option>${opts}
-                    ${cfg.tool && !cvState.toolNames.includes(cfg.tool) ? `<option value="${cfg.tool}" selected>${cfg.tool} (manual)</option>` : ''}
+                    <option value="" style="background:#0f172a;color:#94a3b8">— pilih tool (${cvState.toolNames.length + 1}) —</option>
+                    ${opts}
+                    ${!cfg.tool || cvState.toolNames.includes(cfg.tool) ? '' : ''}
                 </select>
                 <textarea data-f="args" rows="2" placeholder='{"query": "{{topik}}"}' class="mt-1 font-mono text-[10px]">${cfg.args || '{}'}</textarea>
                 <p class="text-[9px] text-slate-500 leading-tight">Isi {{nama_step}} untuk memakai hasil langkah lain.</p>`;
@@ -9648,10 +9651,23 @@
         /* Pipeline Canvas Studio */
         .cv-node textarea, .cv-node input {
             width: 100%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08);
-            border-radius: 8px; padding: 5px 7px; font-size: 10.5px; color: #e2e8f0;
+            border-radius: 8px; padding: 5px 7px; font-size: 11.5px; color: #e2e8f0;
             outline: none; resize: vertical; font-family: ui-monospace, monospace;
         }
-        .cv-node textarea:focus, .cv-node input:focus { border-color: #06b6d4; }
+        /* Dropdown pemilih tool agar terbaca jelas di tema gelap */
+        .cv-node select {
+            width: 100%; background: #101a2c; border: 1px solid rgba(255,255,255,.15);
+            border-radius: 8px; padding: 6px 8px; font-size: 12px; color: #e2e8f0;
+            outline: none; cursor: pointer;
+            font-family: ui-monospace, monospace; appearance: auto;
+        }
+        .cv-node select:hover { border-color: rgba(34,211,238,.5); }
+        .cv-node select:focus { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.25); }
+        .cv-node select option,
+        .cv-node select optgroup {
+            background: #0f172a; color: #e2e8f0; font-size: 13px; padding: 8px 10px;
+        }
+        .cv-node textarea:focus, .cv-node input:focus, .cv-node select:focus { border-color: #22d3ee; }
         .cv-in, .cv-out {
             position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
             background: #0f172a; border: 2px solid #22d3ee; transform: translateY(-50%);
@@ -9660,7 +9676,7 @@
         .cv-in { left: -7px; border-color: #94a3b8; }
         .cv-out { right: -7px; }
         .cv-in:hover, .cv-out:hover { background: #22d3ee; box-shadow: 0 0 8px #22d3ee88; }
-        .cv-node { z-index: 2; }
+        .cv-node { z-index: 2; width: 15rem; }
         #cv-svg { z-index: 1; }
     </style>
 </body>
