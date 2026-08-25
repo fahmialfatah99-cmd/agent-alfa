@@ -472,6 +472,13 @@
                             </div>
                             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                         </button>
+                        <button onclick="switchTab('canvas')" id="tab-btn-canvas" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="workflow" class="w-4 h-4 text-fuchsia-400"></i>
+                                <span>Pipeline Canvas</span>
+                            </div>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/20 text-fuchsia-300 font-bold">BETA</span>
+                        </button>
                         <button onclick="switchTab('guardian')" id="tab-btn-guardian" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-blue-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
@@ -3270,6 +3277,49 @@
                 </div>
             </div>
         </section>
+
+        <!-- ================= PIPELINE CANVAS STUDIO (drag-drop DAG) ================= -->
+        <section id="view-canvas" class="tab-view hidden space-y-4">
+            <div class="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-dark-900/70 border border-white/10">
+                <input id="cv-pid" placeholder="pipeline_id" value="my_pipeline"
+                       class="w-40 px-3 py-1.5 bg-dark-950 border border-white/10 rounded-lg text-sm text-white font-mono focus:outline-none focus:border-fuchsia-500">
+                <button onclick="cvNew()" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-bold border border-white/10">Baru</button>
+                <select id="cv-load" onchange="cvLoad(this.value)" class="px-3 py-1.5 bg-dark-950 border border-white/10 rounded-lg text-xs text-slate-200 max-w-[180px]">
+                    <option value="">Muat pipeline...</option>
+                </select>
+                <button onclick="cvSave()" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-500/30">💾 Simpan</button>
+                <button onclick="cvRun()" id="cv-run-btn" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">▶ Jalankan</button>
+                <span id="cv-status" class="text-xs text-slate-400 ml-auto font-mono"></span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-4">
+                <!-- Palette -->
+                <div class="p-3 rounded-2xl bg-dark-900/70 border border-white/10 space-y-2 self-start">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-1">Tambah Step</p>
+                    <button onclick="cvAddNode('prompt')"  class="w-full py-2 px-3 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-300 text-left text-xs font-bold hover:bg-violet-500/20 transition-all">🧠 Prompt<br><span class="font-normal text-[10px] text-slate-400">tanya otak utama</span></button>
+                    <button onclick="cvAddNode('tool')"    class="w-full py-2 px-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-left text-xs font-bold hover:bg-cyan-500/20 transition-all">🛠 Tool<br><span class="font-normal text-[10px] text-slate-400">jalankan tool agent</span></button>
+                    <button onclick="cvAddNode('template')" class="w-full py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-left text-xs font-bold hover:bg-amber-500/20 transition-all">📝 Template<br><span class="font-normal text-[10px] text-slate-400">susun teks {{var}}</span></button>
+                    <button onclick="cvAddNode('set')"     class="w-full py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-left text-xs font-bold hover:bg-emerald-500/20 transition-all">📌 Set Var<br><span class="font-normal text-[10px] text-slate-400">set nilai variabel</span></button>
+                    <p class="text-[10px] text-slate-500 leading-relaxed px-1 pt-1">Tarik titik kanan → kiri untuk menyambung (depends_on). Klik garis untuk hapus.</p>
+                </div>
+
+                <!-- Canvas -->
+                <div id="cv-canvas-wrap" class="relative min-h-[480px] rounded-2xl bg-dark-950/80 border border-white/10 overflow-hidden"
+                     style="background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 22px 22px;">
+                    <svg id="cv-svg" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                    <div id="cv-nodes" class="absolute inset-0"></div>
+                    <div id="cv-empty" class="absolute inset-0 flex items-center justify-center text-slate-600 text-sm font-mono pointer-events-none">
+                        Klik jenis step di kiri untuk mulai membangun workflow →
+                    </div>
+                </div>
+            </div>
+
+            <!-- Run result -->
+            <div id="cv-result" class="hidden p-4 rounded-2xl bg-dark-900/70 border border-white/10">
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">Hasil Eksekusi</p>
+                <pre id="cv-result-body" class="text-xs text-emerald-200 whitespace-pre-wrap font-mono max-h-72 overflow-auto"></pre>
+            </div>
+        </section>
         </main>
         </div>
     </div>
@@ -3724,6 +3774,7 @@
             'artifacts': 'File Artifacts & Storage',
             'gdrive': 'Google Drive & Google Cloud Suite',
             'services': 'System Services & Background Tasks',
+            'canvas': 'Pipeline Canvas Studio — Drag & Drop Workflow',
             'guardian': 'Guardian Defense & Integrity',
             'console': 'Linux Web Console',
             'settings': 'System Settings & Environment Config'
@@ -4194,6 +4245,7 @@
 
             if (tabId === 'tools') { if (allToolsData.length === 0) fetchTools(); fetchDynamicPlugins(); }
             if (tabId === 'services') fetchServices();
+            if (tabId === 'canvas') initCanvas();
             if (tabId === 'memory') fetchMemory();
             if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
             if (tabId === 'guardian') fetchGuardian();
@@ -9102,6 +9154,275 @@
             setInterval(fetchWaDriveUploads, 8000);
             setInterval(fetchSwarmLive, 2500);
         });
+
+        // ==================== PIPELINE CANVAS STUDIO ====================
+        const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, loadedId: '' };
+        const cvTypeMeta = {
+            prompt:   { color: 'violet',  label: '🧠 Prompt',   fields: ['text', 'system'] },
+            tool:     { color: 'cyan',    label: '🛠 Tool',     fields: ['tool', 'args'] },
+            template: { color: 'amber',   label: '📝 Template', fields: ['text'] },
+            set:      { color: 'emerald', label: '📌 Set Var',  fields: ['value'] },
+        };
+
+        function initCanvas() {
+            const sel = document.getElementById('cv-load');
+            if (!sel || sel.options.length > 1) return;
+            fetch('/api/pipelines').then(r => r.json()).then(d => {
+                (d.pipelines || []).forEach(p => {
+                    const o = document.createElement('option');
+                    o.value = p.id; o.textContent = `${p.name} (${p.steps} step)`;
+                    sel.appendChild(o);
+                });
+            }).catch(() => {});
+        }
+
+        function cvStatus(msg, isErr = false) {
+            const el = document.getElementById('cv-status');
+            el.innerText = msg;
+            el.className = isErr ? 'text-xs text-rose-400 ml-auto font-mono' : 'text-xs text-emerald-400 ml-auto font-mono';
+        }
+
+        function cvNew() {
+            cvState.nodes = []; cvState.edges = []; cvState.seq = 1; cvState.loadedId = '';
+            document.getElementById('cv-pid').value = 'my_pipeline';
+            cvRender();
+            cvStatus('Kanvas baru dibuat');
+        }
+
+        async function cvLoad(pid) {
+            if (!pid) return;
+            try {
+                const res = await fetch('/api/pipelines/' + encodeURIComponent(pid));
+                const d = await res.json();
+                if (d.status !== 'success') throw new Error('tidak ditemukan');
+                const p = d.pipeline;
+                document.getElementById('cv-pid').value = p.id;
+                cvState.nodes = []; cvState.edges = []; cvState.seq = 0;
+                (p.steps || []).forEach((s, i) => {
+                    cvState.seq++;
+                    const cfg = {};
+                    if (s.type === 'prompt') { cfg.text = s.text || ''; cfg.system = s.system || ''; }
+                    if (s.type === 'tool') { cfg.tool = s.tool || ''; cfg.args = JSON.stringify(s.args || {}); }
+                    if (s.type === 'template') cfg.text = s.text || '';
+                    if (s.type === 'set') cfg.value = s.value == null ? '' : String(s.value);
+                    cvState.nodes.push({ id: s.id, type: s.type, x: 60 + (i % 3) * 240, y: 40 + Math.floor(i / 3) * 170, config: cfg });
+                    (s.depends_on || []).forEach(dep => cvState.edges.push({ from: dep, to: s.id }));
+                });
+                cvRender();
+                cvStatus(`Dimuat: ${p.id}`);
+            } catch (e) { cvStatus('Gagal muat: ' + e.message, true); }
+        }
+
+        async function cvSave() {
+            const pid = document.getElementById('cv-pid').value.trim();
+            if (!pid) return cvStatus('Isi pipeline_id dulu!', true);
+            if (!cvState.nodes.length) return cvStatus('Kanvas kosong!', true);
+            try {
+                const steps = cvSerialize();
+                const res = await fetch('/api/pipelines/' + encodeURIComponent(pid), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: pid, name: pid.replace(/_/g, ' '), steps }),
+                });
+                const d = await res.json();
+                if (d.status !== 'success') throw new Error(d.detail || 'gagal');
+                cvStatus('💾 Tersimpan sebagai ' + pid);
+                initCanvas._done = false;
+            } catch (e) { cvStatus('Simpan gagal: ' + e.message, true); }
+        }
+
+        async function cvRun() {
+            const pid = document.getElementById('cv-pid').value.trim();
+            if (!pid) return cvStatus('Isi pipeline_id dulu!', true);
+            const btn = document.getElementById('cv-run-btn');
+            btn.disabled = true; btn.innerText = '⏳ Menjalankan...'; cvStatus('Eksekusi pipeline...');
+            try {
+                // auto-save sebelum run agar server memakai versi terbaru
+                await cvSave(true);
+                const res = await fetch(`/api/pipelines/${encodeURIComponent(pid)}/run`, { method: 'POST' });
+                const d = await res.json();
+                document.getElementById('cv-result').classList.remove('hidden');
+                let txt = `STATUS : ${d.status} (${d.duration_ms} ms)\n`;
+                (d.trace || []).forEach(t => { txt += `  • ${t.step}: ${t.status}${t.detail ? ' — ' + t.detail : ''}\n`; });
+                txt += '\n--- OUTPUT ---\n' + Object.entries(d.outputs || {}).map(([k, v]) => `[${k}]\n${v}`).join('\n\n');
+                if (d.error) txt += `\n\nERROR: ${d.error}`;
+                document.getElementById('cv-result-body').innerText = txt;
+                cvStatus(d.status === 'success' ? '✅ Pipeline sukses' : '❌ Pipeline gagal', d.status !== 'success');
+            } catch (e) { cvStatus('Run gagal: ' + e.message, true); }
+            btn.disabled = false; btn.innerText = '▶ Jalankan';
+        }
+
+        function cvAddNode(type) {
+            cvState.seq++;
+            const n = { id: `step_${cvState.seq}`, type,
+                        x: 40 + Math.random() * 420, y: 30 + Math.random() * 300, config: {} };
+            if (type === 'tool') n.config.args = '{}';
+            cvState.nodes.push(n);
+            document.getElementById('cv-empty')?.classList.add('hidden');
+            cvRender();
+        }
+
+        function cvDeleteNode(id) {
+            cvState.nodes = cvState.nodes.filter(n => n.id !== id);
+            cvState.edges = cvState.edges.filter(e => e.from !== id && e.to !== id);
+            cvRender();
+        }
+
+        function cvNodeHtml(n) {
+            const meta = cvTypeMeta[n.type];
+            const cfg = n.config;
+            let body = '';
+            if (n.type === 'prompt') body = `
+                <textarea data-f="text" rows="2" placeholder="instruksi... gunakan {{var}}">${cfg.text || ''}</textarea>
+                <textarea data-f="system" rows="1" placeholder="system (opsional)" class="mt-1 opacity-80">${cfg.system || ''}</textarea>`;
+            if (n.type === 'tool') body = `
+                <input data-f="tool" value="${(cfg.tool || '').replace(/"/g, '&quot;')}" placeholder="nama_tool" class="font-mono">
+                <textarea data-f="args" rows="2" placeholder='{"arg": "{{var}}"}' class="mt-1 font-mono text-[10px]">${cfg.args || '{}'}</textarea>`;
+            if (n.type === 'template') body = `<textarea data-f="text" rows="2" placeholder="teks dengan {{var}}">${cfg.text || ''}</textarea>`;
+            if (n.type === 'set') body = `<input data-f="value" value="${(cfg.value || '').replace(/"/g, '&quot;')}" placeholder="nilai">`;
+
+            const border = { prompt: 'border-violet-500/40', tool: 'border-cyan-500/40',
+                             template: 'border-amber-500/40', set: 'border-emerald-500/40' }[n.type];
+            return `
+            <div class="cv-node absolute w-52 bg-dark-900/95 rounded-xl border ${border} shadow-lg select-none"
+                 style="left:${n.x}px; top:${n.y}px" data-id="${n.id}">
+                <div class="cv-drag flex items-center justify-between px-2.5 py-1.5 cursor-move rounded-t-xl bg-white/5">
+                    <span class="text-[11px] font-bold ${meta.color === 'violet' ? 'text-violet-300' : meta.color === 'cyan' ? 'text-cyan-300' : meta.color === 'amber' ? 'text-amber-300' : 'text-emerald-300'}">
+                        ${meta.label} · <span class="opacity-60 font-mono">${n.id}</span></span>
+                    <button onclick="cvDeleteNode('${n.id}')" class="text-slate-500 hover:text-rose-400 text-[11px] leading-none">✕</button>
+                </div>
+                <div class="p-2 space-y-1">
+                ${body}
+            </div>
+                <div class="cv-in"  data-node="${n.id}" title="input"></div>
+                <div class="cv-out" data-node="${n.id}" title="tarik ke node lain"></div>
+            </div>`;
+        }
+
+        function cvRender() {
+            const wrap = document.getElementById('cv-nodes');
+            wrap.innerHTML = cvState.nodes.map(cvNodeHtml).join('');
+            // pasang event
+            wrap.querySelectorAll('.cv-node').forEach(el => {
+                const id = el.dataset.id;
+                el.querySelector('.cv-drag').addEventListener('mousedown', ev => cvStartDrag(ev, id));
+                el.querySelectorAll('[data-f]').forEach(inp => {
+                    inp.addEventListener('change', () => {
+                        const n = cvState.nodes.find(x => x.id === id);
+                        n.config[inp.dataset.f] = inp.value;
+                    });
+                });
+                const inP = el.querySelector('.cv-in'), outP = el.querySelector('.cv-out');
+                outP.addEventListener('mousedown', ev => { ev.stopPropagation(); cvState.linking = { from: id }; ev.preventDefault(); });
+                inP.addEventListener('mouseup', () => {
+                    if (cvState.linking && cvState.linking.from && cvState.linking.from !== id) {
+                        if (!cvState.edges.some(e => e.from === cvState.linking.from && e.to === id))
+                            cvState.edges.push({ from: cvState.linking.from, to: id });
+                    }
+                    cvState.linking = null; cvDrawEdges();
+                });
+            });
+            cvDrawEdges();
+            if (cvState.nodes.length) document.getElementById('cv-empty')?.classList.add('hidden');
+        }
+
+        function cvDrawEdges(tempLine) {
+            const svg = document.getElementById('cv-svg');
+            const wrapEl = document.getElementById('cv-canvas-wrap');
+            if (!svg || !wrapEl) return;
+            const wRect = wrapEl.getBoundingClientRect();
+            svg.innerHTML = '';
+            const posOf = (nodeId, side) => {
+                const el = wrapEl.querySelector(`.cv-node[data-id="${nodeId}"]`);
+                if (!el) return null;
+                const r = el.getBoundingClientRect();
+                return {
+                    x: (side === 'out' ? r.right : r.left) - wRect.left,
+                    y: r.top - wRect.top + r.height / 2,
+                };
+            };
+            cvState.edges.forEach(e => {
+                const a = posOf(e.from, 'out'); if (!a) return;
+                const b = posOf(e.to, 'in');    if (!b) return;
+                cvAddEdgePath(svg, a.x, a.y, b.x, b.y, e);
+            });
+            if (tempLine) cvAddEdgePath(svg, tempLine.x1, tempLine.y1, tempLine.x2, tempLine.y2, null, true);
+        }
+
+        function cvAddEdgePath(svg, x1, y1, x2, y2, edge, temp = false) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const mx = (x1 + x2) / 2;
+            path.setAttribute('d', `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', temp ? '#64748b' : '#22d3ee');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-dasharray', temp ? '5,4' : '');
+            if (edge) {
+                path.style.pointerEvents = 'stroke'; path.style.cursor = 'pointer';
+                path.addEventListener('click', () => {
+                    cvState.edges = cvState.edges.filter(e2 => e2 !== edge); cvDrawEdges();
+                });
+            }
+            svg.appendChild(path);
+        }
+
+        function cvStartDrag(ev, id) {
+            if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
+            const n = cvState.nodes.find(x => x.id === id);
+            const wrapRect = document.getElementById('cv-canvas-wrap').getBoundingClientRect();
+            cvState.dragging = { id, dx: ev.clientX - (wrapRect.left + n.x), dy: ev.clientY - (wrapRect.top + n.y) };
+            ev.preventDefault();
+        }
+
+        document.addEventListener('mousemove', ev => {
+            if (cvState.dragging) {
+                const n = cvState.nodes.find(x => x.id === cvState.dragging.id);
+                const wr = document.getElementById('cv-canvas-wrap').getBoundingClientRect();
+                n.x = Math.max(0, ev.clientX - cvState.dragging.dx - wr.left);
+                n.y = Math.max(0, ev.clientY - cvState.dragging.dy - wr.top);
+                const el = document.querySelector(`.cv-node[data-id="${n.id}"]`);
+                if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
+                cvDrawEdges();
+            } else if (cvState.linking) {
+                const wr = document.getElementById('cv-canvas-wrap').getBoundingClientRect();
+                cvDrawEdges({ x1: ev.clientX - wr.left, y1: ev.clientY - wr.top,
+                              x2: ev.clientX - wr.left + 1, y2: ev.clientY - wr.top + 1 });
+            }
+        });
+
+        document.addEventListener('mouseup', () => { cvState.dragging = null; setTimeout(() => { if (cvState.linking) { cvState.linking = null; cvDrawEdges(); } }, 50); });
+
+        function cvSerialize() {
+            return cvState.nodes.map(n => {
+                const step = { id: n.id, type: n.type };
+                step.depends_on = cvState.edges.filter(e => e.to === n.id).map(e => e.from);
+                if (n.type === 'prompt') { step.text = n.config.text || ''; if (n.config.system) step.system = n.config.system; }
+                if (n.type === 'tool') { step.tool = n.config.tool || ''; try { step.args = JSON.parse(n.config.args || '{}'); } catch { step.args = {}; } }
+                if (n.type === 'template') step.text = n.config.text || '';
+                if (n.type === 'set') step.value = n.config.value || '';
+                return step;
+            });
+        }
+        // ==================== /PIPELINE CANVAS STUDIO ====================
     </script>
+    <style>
+        /* Pipeline Canvas Studio */
+        .cv-node textarea, .cv-node input {
+            width: 100%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 8px; padding: 5px 7px; font-size: 10.5px; color: #e2e8f0;
+            outline: none; resize: vertical; font-family: ui-monospace, monospace;
+        }
+        .cv-node textarea:focus, .cv-node input:focus { border-color: #06b6d4; }
+        .cv-in, .cv-out {
+            position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+            background: #0f172a; border: 2px solid #22d3ee; transform: translateY(-50%);
+            cursor: crosshair; z-index: 5;
+        }
+        .cv-in { left: -7px; border-color: #94a3b8; }
+        .cv-out { right: -7px; }
+        .cv-in:hover, .cv-out:hover { background: #22d3ee; box-shadow: 0 0 8px #22d3ee88; }
+        .cv-node { z-index: 2; }
+        #cv-svg { z-index: 1; }
+    </style>
 </body>
 </html>

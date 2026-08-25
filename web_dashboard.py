@@ -1782,6 +1782,24 @@ async def run_pipeline_endpoint(pid: str, request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/pipelines/{pid}")
+async def save_pipeline_endpoint(pid: str, request: Request):
+    """Simpan/overwrite definisi pipeline dari Canvas Studio."""
+    import pipelines as pl
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Body harus JSON valid.")
+    if not isinstance(data, dict) or not data.get("steps"):
+        raise HTTPException(status_code=400, detail="Pipeline wajib punya 'steps'.")
+    data["id"] = pid
+    try:
+        path = pl.save_pipeline(data)
+        return {"status": "success", "file": os.path.basename(path)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/services/logs")
 async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 50):
     """Fetch live service logs (journalctl di Linux, file log lokal di Windows)."""
