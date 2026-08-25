@@ -4,26 +4,28 @@ Enables round-table AI meetings, inter-agent dialogue, debate, consensus buildin
 and live autonomous collaborative execution (Swarm Work Mode with REAL tools, files, and scraping).
 """
 
-import os
-import time
+import asyncio
+import collections
+import itertools
 import json
 import logging
-import asyncio
+import os
 import re
 import shutil
-import itertools
-import collections
+import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-import database
-import tools
-import token_usage
 from google import genai
 from google.genai import types
+
+import database
+import token_usage
+import tools
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +238,16 @@ def log_tool_live(text: str) -> None:
     log_live("TOOL", text)
 
 
+def qa_verdict_passed(text: str) -> bool:
+    """True bila teks laporan QA memuat verdict LULUS (QA_VERDICT: PASS).
+
+    Fungsi murni sengaja dipisah agar keputusan zero-bug bisa diuji unit
+    tanpa menjalankan seluruh sesi swarm. Toleran terhadap varian spasi
+    dan huruf besar-kecil dari keluaran model.
+    """
+    return bool(re.search(r"QA_VERDICT\s*:\s*PASS", text or "", re.IGNORECASE))
+
+
 def detect_task_intent(topic: str) -> Dict[str, Any]:
     """Analyze the user's topic/command to determine tool strategy, categories, and limits."""
     low = topic.lower()
@@ -309,7 +321,6 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
     api_key = ""
     base_url = ""
     key_id = None
-    key_label = ""
 
     if agent.get("api_key_id"):
         with database.get_sync_db() as conn:
@@ -319,7 +330,6 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
                 api_key = database.decrypt_key(row["api_key"])
                 base_url = row["base_url"] or ""
                 key_id = row["id"]
-                key_label = f"#{row['id']}"
                 if not agent.get("model"):
                     model = row["default_model"]
 
@@ -329,7 +339,6 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
             api_key = active_key["api_key"]
             base_url = active_key.get("base_url") or ""
             key_id = active_key.get("id")
-            key_label = f"#{active_key.get('id')}" if key_id else ""
 
     if not api_key:
         if provider == "gemini":
@@ -978,7 +987,6 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             scrape_res = tools.universal_deep_scraper(query=search_query, category=cat, limit=limit)
             total = scrape_res.get("total_scraped", len(scrape_res.get("items", [])))
             csv_path = scrape_res.get("csv_path") or scrape_res.get("csv_file", "")
-            json_path = scrape_res.get("json_path") or scrape_res.get("json_file", "")
             items = scrape_res.get("items") or scrape_res.get("results", [])
 
             # Copy to SWARM_OUTPUT_DIR for easy access
@@ -1375,7 +1383,7 @@ async def conduct_multi_agent_meeting(
                 # execution_summary (hanya ringkasan jumlah karakter/file).
                 qa_text = str(qa_step.get("generated_content")
                               or qa_step.get("execution_summary") or "")
-                if re.search(r"QA_VERDICT\s*:\s*PASS", qa_text, re.IGNORECASE):
+                if qa_verdict_passed(qa_text):
                     zero_bug = True
                     log_live("QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}.")
                     break

@@ -7,20 +7,19 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os
-import re
 import csv
 import json
-import time
-import uuid
-import sqlite3
 import logging
-import asyncio
+import os
+import re
+import sqlite3
+import time
 import urllib.parse
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from bs4 import BeautifulSoup
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from typing import Any, Dict, List
+
 from ddgs import DDGS
 
 logger = logging.getLogger("alfa.universal_scraper")

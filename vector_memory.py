@@ -4,15 +4,13 @@ Provides vector embeddings, semantic search, sliding-window chunking, and docume
 for permanent long-term memory across chat turns, documents, and research notes.
 """
 
-import os
-import sys
-import json
-import math
-import sqlite3
 import hashlib
+import json
 import logging
-from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+import math
+import os
+import sqlite3
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 

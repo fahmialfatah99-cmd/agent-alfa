@@ -17,48 +17,41 @@ Features:
 - Interactive Telegram Control Center & Inline Menus
 """
 
-import os
-import sys
+import asyncio
 import io
 import json
-import asyncio
 import logging
-import glob
+import os
 import subprocess
-import psutil
+import sys
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
+import psutil
 from dotenv import load_dotenv
 from telegram import (
-    Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    Update,
     constants,
 )
 from telegram.ext import (
     Application,
-    CommandHandler,
-    MessageHandler,
     CallbackQueryHandler,
+    CommandHandler,
     ContextTypes,
+    MessageHandler,
     filters,
 )
 
 # Local modules
 import database
 import main_brain
-import tools
-import token_usage
 import permission_gate
-from tools import (
-    AVAILABLE_TOOLS,
-    get_system_stats,
-    current_user_id_var,
-    current_chat_id_var,
-    SANDBOX_DIR
-)
+import token_usage
+import tools
 import tts_engine
+from tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_chat_id_var, current_user_id_var, get_system_stats
 
 # Load environment
 load_dotenv()
@@ -434,7 +427,6 @@ async def run_agent_turn(
     Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault.
     """
     global gemini_client
-    import main_brain
 
     brain = main_brain.get_main_brain()
     if brain["provider"] == "gemini":
@@ -886,7 +878,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **IP Addr:** `{stats.get('ip_addresses')}`\n"
         f"• **Uptime:** `{stats.get('uptime')}`\n\n"
         f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])]) + "\n\n"
-        f"⚡ **Top CPU:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_cpu_processes', [])])
+        "⚡ **Top CPU:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_cpu_processes', [])])
     )
     await safe_send_message(context, chat_id, text)
 
@@ -1555,7 +1547,7 @@ async def proactive_system_guardian_loop(application: Application):
             
             # Send alerts to all authorized users
             if alerts:
-                alert_text = f"🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
+                alert_text = "🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
                 for uid in ALLOWED_USER_IDS:
                     try:
                         await safe_send_message(application, uid, alert_text)
@@ -1781,8 +1773,9 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                 "Ketik `/wa` untuk kontrol penuh."
                             )
                             if qr_str:
-                                import qrcode
                                 import io
+
+                                import qrcode
                                 img = qrcode.make(qr_str)
                                 buf = io.BytesIO()
                                 img.save(buf, format="PNG")
@@ -1925,8 +1918,9 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if wa_auth_status == "QR_READY" and qr_str:
         try:
-            import qrcode
             import io
+
+            import qrcode
             img = qrcode.make(qr_str)
             buf = io.BytesIO()
             img.save(buf, format="PNG")
@@ -2191,7 +2185,7 @@ def main():
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
-    print(f"✅ Bot Telegram Otonom siap melayani! Menunggu interaksi...")
+    print("✅ Bot Telegram Otonom siap melayani! Menunggu interaksi...")
     application.run_polling(drop_pending_updates=True)
 
 

@@ -3,13 +3,14 @@ Database module for Telegram AI Bot.
 Handles persistent chat history, long-term knowledge memory, reminders, and settings.
 """
 
-import aiosqlite
-import sqlite3
-import os
-import json
 import contextlib
+import json
+import os
+import sqlite3
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
+import aiosqlite
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
@@ -250,7 +251,8 @@ def init_db_sync():
         if agent_count and agent_count[0] == 0:
             # Persona tersinkron dengan identitas ALFA (sumber: swarm_personas.py)
             try:
-                from swarm_personas import AGENTS as _AG, DNA as _DNA
+                from swarm_personas import AGENTS as _AG
+                from swarm_personas import DNA as _DNA
                 _seed_persona = {
                     aid: d["system_instruction"].replace("{DNA}", _DNA)
                     for aid, d in _AG.items()}

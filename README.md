@@ -3,6 +3,7 @@
 <div align="center">
 
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI%20v4.5-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
+[![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Google Gemini](https://img.shields.io/badge/Google-Gemini%203.x-4285F4?style=for-the-badge&logo=google&logoColor=white)

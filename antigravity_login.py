@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger("AntigravityLogin")
 
@@ -217,7 +217,6 @@ def start_login(name: str) -> Dict[str, Any]:
         _pending[name] = entry
 
     def worker(entry=entry):
-        result: Dict[str, str] = {}
         server = None
         try:
             _Handler.result = {}

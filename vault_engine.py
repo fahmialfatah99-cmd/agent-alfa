@@ -6,14 +6,14 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os
-import json
 import base64
-import sqlite3
 import hashlib
 import logging
+import os
+import sqlite3
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 logger = logging.getLogger("alfa.vault")
@@ -154,7 +154,6 @@ class AlfaSecureVault:
         """, (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes))
         
         conn.commit()
-        last_id = cursor.lastrowid
         conn.close()
         
         logger.info(f"Secret '{clean_name}' successfully encrypted with AES-256-GCM into vault.")

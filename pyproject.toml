@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 200
+target-version = "py310"
+extend-exclude = ["venv", "__pycache__", ".pytest_cache"]
+
+[tool.ruff.lint]
+# Gerbang kualitas fokus bug nyata (bukan restyling):
+# E4/E7/E9 = error sintaks & logika dasar; F = pyflakes (nama undefined,
+# import/variabel tak terpakai); W605 = escape tidak valid;
+# I = urutan import (autofix aman); B006 = default argumen mutable.
+select = ["E4", "E7", "E9", "F", "W605", "I", "B006"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "database", "tools", "main_brain", "swarm_engine", "vector_memory",
+    "vault_engine", "tts_engine", "token_usage", "permission_gate",
+    "security_auditor", "affiliate_engine", "universal_scraper",
+    "fast_scraper", "subagents", "swarm_personas", "plugins", "web_dashboard",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Impor di tengah file disengaja: .env harus dimuat dulu sebelum modul
+# yang membaca env saat impor (pola lazy-init proyek ini).
+"tools.py" = ["E402"]
+"swarm_engine.py" = ["E402"]
+"web_dashboard.py" = ["E402"]
+"swarm_personas.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "test_security.py", "test_agent.py"]

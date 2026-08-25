@@ -11,13 +11,13 @@ Konfigurasi .env:
     PERMISSION_GATE_TIMEOUT=300     detik menunggu keputusan (auto-tolak)
 """
 
-import os
+import asyncio
 import json
+import logging
+import os
+import sqlite3
 import time
 import uuid
-import sqlite3
-import asyncio
-import logging
 from typing import Dict, Optional
 
 logger = logging.getLogger("PermissionGate")
@@ -178,8 +178,9 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
 
     sent_message = None
     try:
-        from subagents import get_telegram_app
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        from subagents import get_telegram_app
         app = get_telegram_app()
         markup = InlineKeyboardMarkup([[
             InlineKeyboardButton(text, callback_data=f"perm|{req_id}|{act}")

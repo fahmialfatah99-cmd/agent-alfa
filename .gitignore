@@ -51,3 +51,6 @@ gdrive_credentials.json
 gdrive_oauth_token.json
 gdrive_oauth_client_secret.json
 client_secret.json
+
+# Ruff
+.ruff_cache/

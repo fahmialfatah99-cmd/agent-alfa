@@ -4,17 +4,17 @@ Allows the bot to dynamically create, compile, sandbox-test, and hot-load new to
 into the plugins/ directory without restarting or modifying core codebase files.
 """
 
-import os
-import sys
-import glob
 import ast
-import inspect
+import glob
 import importlib.util
-import logging
-import sqlite3
+import inspect
 import json
+import logging
+import os
+import sqlite3
+import sys
 from datetime import datetime
-from typing import List, Callable, Dict, Any, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger("PluginsLoader")
 PLUGINS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -145,7 +145,7 @@ def create_and_register_plugin(
     
     # 3. AST Syntax Validation
     try:
-        parsed_ast = ast.parse(full_content, filename=f"{clean_name}.py")
+        ast.parse(full_content, filename=f"{clean_name}.py")
     except SyntaxError as syn_err:
         return {
             "status": "error",

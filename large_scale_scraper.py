@@ -10,9 +10,11 @@ Usage examples:
   python3 large_scale_scraper.py --file list_urls.txt --concurrency 25 --engine fast_tls
 """
 
-import sys
 import argparse
+import sys
+
 import fast_scraper
+
 
 def main():
     parser = argparse.ArgumentParser(description="ALFA Industrial High-Speed Product Scraper")

@@ -169,6 +169,7 @@ class TestRegression:
     def test_generate_with_gemini_menerima_timeout_s(self):
         """Regresi: dulu TypeError karena timeout_s dikirim tanpa ada di signature."""
         import inspect
+
         import swarm_engine
         sig = inspect.signature(swarm_engine._generate_with_gemini)
         assert "timeout_s" in sig.parameters
@@ -176,6 +177,7 @@ class TestRegression:
 
     def test_agentic_turn_menerima_tools_schema(self):
         import inspect
+
         import main_brain
         sig = inspect.signature(main_brain.run_openai_agentic_turn)
         assert "tools_schema" in sig.parameters
@@ -256,10 +258,12 @@ class TestCodeIndex:
     def test_search_repo_lain_terisolasi(self, tmp_path):
         from tools import index_codebase, search_codebase
         repo_a, repo_b = tmp_path / "a", tmp_path / "b"
-        repo_a.mkdir(); repo_b.mkdir()
+        repo_a.mkdir()
+        repo_b.mkdir()
         (repo_a / "x.py").write_text("UNIK_ALPHA_TOKEN = 1\n")
         (repo_b / "y.py").write_text("def lain():\n    pass\n")
-        index_codebase(str(repo_a)); index_codebase(str(repo_b))
+        index_codebase(str(repo_a))
+        index_codebase(str(repo_b))
         s = search_codebase("UNIK_ALPHA_TOKEN", repo_path=str(repo_b))
         assert s.get("matches", 0) == 0  # tidak bocor lintas repo
 
@@ -294,6 +298,7 @@ class TestSyntaxGuardAndFreshness:
     def test_index_stale_warning(self, tmp_path):
         import os as _os
         import time as _time
+
         from tools import index_codebase, search_codebase
         repo = tmp_path / "repo_stale"
         repo.mkdir()
@@ -322,6 +327,7 @@ class TestSyntaxGuardAndFreshness:
 class TestWorkspaceExplorer:
     def _app(self):
         from fastapi.testclient import TestClient
+
         import web_dashboard
         return TestClient(web_dashboard.app)
 
@@ -338,8 +344,8 @@ class TestWorkspaceExplorer:
         assert _ws_real_path(str(tmp_path / "x.txt")) is None
 
     def test_root_terdaftar_diterima(self):
-        from web_dashboard import _ws_real_path
         import swarm_engine
+        from web_dashboard import _ws_real_path
         p = _ws_real_path(swarm_engine.SWARM_OUTPUT_DIR)
         assert p is not None
 

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff check (gate bug nyata: F, E, B006)
+        run: ruff check .
+
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Nilai dummy: modul wajib punya kunci di env saat impor,
+      # tidak ada panggilan jaringan di unit test.
+      TELEGRAM_BOT_TOKEN: "000000000:CI_DUMMY_TOKEN"
+      GEMINI_API_KEY: "CI_DUMMY_KEY"
+      ALLOWED_USER_IDS: "123456789"
+      OWNER_NAME: "CI Runner"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies lengkap (best-effort)
+        run: pip install -r requirements.txt || true
+      - name: Pastikan dependensi inti terpasang
+        run: |
+          pip install python-telegram-bot google-genai python-dotenv \
+            aiosqlite psutil httpx fastapi uvicorn pillow pypdf tabulate \
+            pytest
+      - name: Jalankan seluruh suite
+        run: pytest -q

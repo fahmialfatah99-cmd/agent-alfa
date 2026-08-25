@@ -5,21 +5,21 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
+import base64
+import json
+import logging
+import math
 import os
 import re
-import math
-import time
-import json
 import shutil
-import base64
-import logging
-import textwrap
-import urllib.request
-import urllib.error
 import subprocess
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+import textwrap
+import time
+import urllib.error
+import urllib.request
+from typing import Any, Dict, List, Optional
+
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 logger = logging.getLogger("alfa.video_gen")
 

@@ -41,7 +41,7 @@ def main():
         sys.exit(1)
 
     print("🔑 Memulai login OAuth Google Drive...")
-    print(f"   Jika browser tidak terbuka otomatis, salin URL dari bawah ke browser.")
+    print("   Jika browser tidak terbuka otomatis, salin URL dari bawah ke browser.")
     print()
 
     res = tools.gdrive_oauth_login(port=8999, wait_timeout=300)

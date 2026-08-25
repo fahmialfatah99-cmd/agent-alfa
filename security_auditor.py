@@ -6,17 +6,17 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import ssl
-import time
+import logging
 import os
-import stat
 import socket
+import ssl
+import stat
+import subprocess
+import time
 import urllib.parse
 import urllib.request
-import logging
-import subprocess
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List
 
 logger = logging.getLogger("alfa.cyber_sentry")
 
@@ -319,8 +319,10 @@ def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:
     x_powered = headers_dict.get("x-powered-by")
     if server_hdr or x_powered:
         leaks = []
-        if server_hdr: leaks.append(f"Server: {server_hdr}")
-        if x_powered: leaks.append(f"X-Powered-By: {x_powered}")
+        if server_hdr:
+            leaks.append(f"Server: {server_hdr}")
+        if x_powered:
+            leaks.append(f"X-Powered-By: {x_powered}")
         checks["info_leak"] = {"status": "WARN", "value": ", ".join(leaks), "desc": "Header membocorkan versi/teknologi server"}
         score -= 10
         findings.append({

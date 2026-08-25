@@ -5,11 +5,10 @@ coding, or analysis independently without blocking the user Telegram chat sessio
 """
 
 import asyncio
+import logging
 import os
 import uuid
-import logging
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
 import database
 

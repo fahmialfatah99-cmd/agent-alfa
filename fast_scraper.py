@@ -5,17 +5,18 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os
-import re
+import asyncio
 import csv
 import json
-import time
-import asyncio
 import logging
+import os
+import re
 import sqlite3
+import time
 from datetime import datetime
-from typing import Dict, Any, List, Optional
-from urllib.parse import urlparse, quote_plus
+from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger("alfa.scraper")

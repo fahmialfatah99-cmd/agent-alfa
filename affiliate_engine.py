@@ -5,14 +5,13 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
+import json
+import logging
 import os
 import re
-import json
-import time
 import sqlite3
-import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("alfa.affiliate")
 
@@ -154,13 +153,16 @@ On-Screen Text: "KLIK KERANJANG KUNING / LINK DI BIO NOMOR 1 👇🔥"
 """
 
     # 2. Telegram Deals Card
+    # (pre-compute: backslash di dalam ekspresi f-string baru valid di 3.12+;
+    # proyek menarget 3.10+)
+    feat_bullet = key_features.replace(",", "\n• ")
     telegram_card = f"""🔥 *RACUN DISKON SPESIAL HARI INI!* 🔥
 
 📦 *{product_name}*
 ⭐ *Rating:* 4.9 / 5.0 | *Terjual:* 2.500+ Pcs
 
 💡 *Keunggulan Utama:*
-• {key_features.replace(',', '\n• ')}
+• {feat_bullet}
 
 💰 *Harga Normal:* ~{original_price}~
 🏷️ *Harga Flash Sale:* *{discount_price}* (Hemat Gila!)
@@ -186,12 +188,13 @@ Stok flash sale sangat terbatas. Checkout sekarang sebelum kehabisan!
 🛒 {affiliate_link}"""
 
     # 4. WhatsApp Community Broadcast
+    feat_check = key_features.replace(",", "\n✅ ")
     wa_broadcast = f"""Halo semuanya! Buat yang kemarin nanyain rekomendasi *{product_name}*, kebetulan lagi ada promo flash sale parah hari ini! 😱🔥
 
 Biasanya harganya {original_price}, hari ini cuma *{discount_price}* + gratis ongkir!
 
 Fitur andalannya:
-✅ {key_features.replace(',', '\n✅ ')}
+✅ {feat_check}
 
 Udah bintang 4.9 dan ribuan orang udah checkout. 
 
@@ -358,8 +361,9 @@ def _deliver_telegram_broadcast(uid: int, message_text: str, reply_markup) -> Di
     threads/loops (FastAPI dashboard) by marshalling onto the bot's loop.
     """
     import asyncio
-    import subagents
+
     import bot as bot_module
+    import subagents
 
     tg_app = subagents.get_telegram_app()
     tg_loop = subagents.get_telegram_loop()
@@ -389,11 +393,13 @@ def broadcast_affiliate_deal(
     product_name: str,
     message_text: str,
     affiliate_link: str,
-    channels: List[str] = ["telegram", "whatsapp"]
+    channels: List[str] = None
 ) -> Dict[str, Any]:
     """
     Mengirimkan konten promosi affiliate secara otomatis ke Telegram Channel atau WhatsApp Broadcast.
     """
+    if channels is None:
+        channels = ["telegram", "whatsapp"]
     results = {}
     
     # 1. Telegram
@@ -471,7 +477,7 @@ def get_affiliate_campaign_detail(campaign_id: int) -> Optional[Dict[str, Any]]:
         data = dict(row)
         try:
             data["spill_link_templates"] = json.loads(data.get("spill_link_templates", "[]"))
-        except:
+        except Exception:
             pass
         return data
     return None

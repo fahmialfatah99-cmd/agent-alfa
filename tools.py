@@ -5,47 +5,49 @@ live web search, web page content extraction, file & workspace intelligence,
 persistent isolated long-term memory, proactive reminders, and desktop/webcam vision.
 """
 
-import os
-import sys
-import json
-import time
-import difflib
-import subprocess
 import asyncio
-import psutil
 import datetime
-import logging
-import re
+import difflib
 import glob
-from contextvars import ContextVar
-from typing import Dict, Any, List, Optional
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+import time
+from typing import Any, Dict, List, Optional
+
+import psutil
+from dotenv import load_dotenv
 
 import database
 import plugins
-from dotenv import load_dotenv
+
 load_dotenv()
 from ddgs import DDGS
 
 logger = logging.getLogger("AgentTools")
 
 # Context Variables for Multi-user Dynamic Context Isolation
-current_user_id_var: ContextVar[int] = ContextVar("current_user_id", default=0)
-current_chat_id_var: ContextVar[int] = ContextVar("current_chat_id", default=0)
+# Definisi asli dipindah ke runtime_ctx (modul netral anti-siklus impor);
+# di sini cukup re-export agar `from tools import current_user_id_var`
+# pada bot.py & modul lain tetap valid.
+from runtime_ctx import (  # noqa: E402
+    current_chat_id_var as current_chat_id_var,
+)
+from runtime_ctx import (
+    current_user_id_var as current_user_id_var,
+)
+from runtime_ctx import (
+    get_current_chat_id as get_current_chat_id,
+)
+from runtime_ctx import (
+    get_current_user_id as get_current_user_id,
+)
 
 SANDBOX_DIR = "/dev/shm/alfa_sandbox"
 os.makedirs(SANDBOX_DIR, exist_ok=True)
-
-
-def get_current_user_id() -> int:
-    """Get active Telegram User ID for the current agent turn."""
-    uid = current_user_id_var.get()
-    return uid if uid else 0
-
-
-def get_current_chat_id() -> int:
-    """Get active Telegram Chat ID for the current agent turn."""
-    cid = current_chat_id_var.get()
-    return cid if cid else get_current_user_id()
 
 
 def get_system_stats() -> Dict[str, Any]:
@@ -743,7 +745,7 @@ def edit_file_precise(file_path: str, old_text: str, new_text: str,
             for i in range(0, max(1, len(lines) - window + 1)):
                 cand = "\n".join(lines[i:i + window])
                 score = difflib.SequenceMatcher(None, norm_old,
-                                                "\n".join(l.rstrip() for l in cand.splitlines())).ratio()
+                                                "\n".join(ln.rstrip() for ln in cand.splitlines())).ratio()
                 if score > best_score:
                     best, best_score = (i + 1, cand), score
             hint = ""
@@ -1067,8 +1069,8 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
             return {
                 "status": "error",
                 "message": ("[KEAMANAN DB] Folder terlalu luas (home/root). "
-                            f"Sebutkan folder proyek spesifik, mis. "
-                            f"~/alfa_projects/<nama-proyek>."),
+                            "Sebutkan folder proyek spesifik, mis. "
+                            "~/alfa_projects/<nama-proyek>."),
             }
 
         conn = _code_index_connect()
@@ -1785,10 +1787,11 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
     """
     try:
         import json
-        from reportlab.lib.pagesizes import letter
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
         from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
         
         table_data = None
         if table_data_json:
@@ -1926,8 +1929,9 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
         output_dir: Direktori output file (opsional, default ke ~/Dokumen/ALFA_PDF_TOOLS/Split/).
     """
     try:
-        from pypdf import PdfReader, PdfWriter
         from pathlib import Path
+
+        from pypdf import PdfReader, PdfWriter
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
@@ -2034,8 +2038,9 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
         }
     except Exception as e:
         try:
-            from pypdf import PdfReader
             from pathlib import Path
+
+            from pypdf import PdfReader
             reader = PdfReader(exp_p)
             texts = [f"--- [Halaman {i+1}] ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages)]
             full = "\n\n".join(texts)
@@ -2206,10 +2211,11 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
     """
     try:
         import io
+
         from pypdf import PdfReader, PdfWriter
-        from reportlab.pdfgen import canvas as rl_canvas
-        from reportlab.lib.pagesizes import A4
         from reportlab.lib.colors import HexColor
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas as rl_canvas
         
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
@@ -2265,9 +2271,10 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
     """
     try:
         import io
+
         from pypdf import PdfReader, PdfWriter
-        from reportlab.pdfgen import canvas as rl_canvas
         from reportlab.lib.colors import HexColor
+        from reportlab.pdfgen import canvas as rl_canvas
         
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
@@ -2341,7 +2348,7 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
         out_prefix = os.path.join(target_dir, f"{base_name}_page")
         
         cmd = ["pdftoppm", "-png", "-r", str(dpi), exp_p, out_prefix]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         generated_images = [os.path.join(target_dir, f) for f in os.listdir(target_dir) if f.startswith(f"{base_name}_page") and f.endswith(".png")]
         generated_images.sort()
@@ -2402,8 +2409,9 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
         pdf_path: Path ke file PDF yang ingin diinspeksi.
     """
     try:
-        from pypdf import PdfReader
         from pathlib import Path
+
+        from pypdf import PdfReader
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
@@ -2546,7 +2554,7 @@ def affiliate_broadcast_deal(
     product_name: str,
     message_text: str,
     affiliate_link: str,
-    channels: List[str] = ["telegram", "whatsapp"]
+    channels: List[str] = None
 ) -> Dict[str, Any]:
     """
     Kirimkan penawaran diskon affiliate secara otomatis ke Telegram Channel atau broadcast WhatsApp (Dikelola oleh Code Crafter).
@@ -2557,6 +2565,8 @@ def affiliate_broadcast_deal(
         affiliate_link: URL link affiliate resmi.
         channels: Daftar channel tujuan (['telegram', 'whatsapp']).
     """
+    if channels is None:
+        channels = ["telegram", "whatsapp"]
     try:
         import affiliate_engine
         return affiliate_engine.broadcast_affiliate_deal(
@@ -2736,8 +2746,9 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
     """
     try:
         import json
+
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter
         
         safe_name = filename if filename.endswith(".xlsx") else f"{filename}.xlsx"
@@ -2807,6 +2818,7 @@ def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, file
     """
     try:
         import json
+
         from pptx import Presentation
         
         # Accept either a JSON string or an already-parsed list
@@ -3188,10 +3200,10 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
     """
     try:
         import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.base import MIMEBase
         from email import encoders
+        from email.mime.base import MIMEBase
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
         
         smtp_email = os.environ.get("SMTP_EMAIL", "")
         smtp_password = os.environ.get("SMTP_PASSWORD", "")
@@ -3298,7 +3310,7 @@ def kill_process(pid_or_name: str) -> Dict[str, Any]:
     except psutil.NoSuchProcess:
         return {"status": "error", "message": f"Proses dengan PID/nama '{pid_or_name}' tidak ditemukan."}
     except psutil.AccessDenied:
-        return {"status": "error", "message": f"Akses ditolak. Coba jalankan dengan sudo."}
+        return {"status": "error", "message": "Akses ditolak. Coba jalankan dengan sudo."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -3325,7 +3337,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
         params: Parameters for the action (depends on action type).
     """
     try:
-        from PIL import Image, ImageFilter, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw, ImageFilter, ImageFont
         
         expanded = os.path.expanduser(file_path)
         if not os.path.exists(expanded):
@@ -3601,11 +3613,10 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
         action: What to do with the found element: 'click' (default), 'double_click', 'right_click', 'identify_only'.
     """
     try:
+        import json as _json
+
         from google import genai
         from google.genai import types
-        from PIL import Image
-        import io as _io
-        import json as _json
         
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
@@ -3618,7 +3629,7 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
         
         for attempt in range(1, attempts + 1):
             # Step 1: Capture desktop screenshot
-            screenshot_result = capture_desktop_screenshot()
+            capture_desktop_screenshot()
             screenshot_path = os.path.join(SANDBOX_DIR, "desktop_screen.png")
             
             if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
@@ -3695,12 +3706,12 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             # Step 3: Click the target
             clicks = 2 if action == "double_click" else 1
             button = "right" if action == "right_click" else "left"
-            click_result = desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
+            desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
             
             # Step 4: Wait briefly then take verification screenshot
             import time
             time.sleep(0.8)
-            verify_result = capture_desktop_screenshot()
+            capture_desktop_screenshot()
             
             return {
                 "status": "success",
@@ -3729,9 +3740,10 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
         max_depth: Maximum number of search iteration queries (1-5, default: 3).
     """
     try:
-        from ddgs import DDGS
-        import httpx
         from urllib.parse import urlparse
+
+        import httpx
+        from ddgs import DDGS
         
         queries = [
             topic,
@@ -3871,6 +3883,7 @@ def text_to_audio_file(text: str, filename: str = "audio_speech.mp3", voice: str
     """
     try:
         import asyncio
+
         import edge_tts
         
         if not filename.endswith(".mp3"):
@@ -3988,8 +4001,9 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
         title: Chart title.
     """
     try:
-        import json
         import csv
+        import json
+
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
@@ -4091,7 +4105,7 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
         # Local socket listening check
         if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:
             res_ss = subprocess.run("ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
-            listening_lines = [l for l in res_ss.stdout.strip().splitlines() if "LISTEN" in l or "State" in l][:20]
+            listening_lines = [ln for ln in res_ss.stdout.strip().splitlines() if "LISTEN" in ln or "State" in ln][:20]
             result["local_listening_sockets"] = "\n".join(listening_lines)
             
             # Firewall check
@@ -4239,7 +4253,7 @@ def manage_crontab_jobs(action: str = "list", cron_line: str = "", search_patter
             if not search_pattern:
                 return {"status": "error", "message": "Parameter search_pattern harus diisi untuk menghapus entri crontab."}
             res_curr = subprocess.run("crontab -l 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
-            lines = [l for l in res_curr.stdout.splitlines() if search_pattern not in l]
+            lines = [ln for ln in res_curr.stdout.splitlines() if search_pattern not in ln]
             new_cron = "\n".join(lines).strip() + "\n"
             proc = subprocess.Popen("crontab -", shell=True, stdin=subprocess.PIPE, text=True)
             proc.communicate(input=new_cron, timeout=5)
@@ -4295,7 +4309,7 @@ def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
             out_name = f"second_brain_export_{uid}.md"
             out_path = os.path.join(SANDBOX_DIR, out_name)
             md_lines = [
-                f"# 🧠 Second Brain Knowledge Export",
+                "# 🧠 Second Brain Knowledge Export",
                 f"**User ID:** `{uid}` | **Exported At:** `{data['exported_at']}`\n",
                 f"## 📌 Fakta Memori Permanen ({data['total_facts']} fakta)",
             ]
@@ -4554,8 +4568,7 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
         expanded = os.path.expanduser(document_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File tidak ditemukan: {document_path}"}
-            
-        base_name = os.path.splitext(os.path.basename(expanded))[0]
+        
         temp_dir = f"/tmp/lo_txt_{os.getpid()}"
         os.makedirs(temp_dir, exist_ok=True)
         
@@ -4800,9 +4813,10 @@ def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_it
         max_items: Maximum items to extract per selector.
     """
     try:
-        import urllib.request
-        from parsel import Selector
         import json
+        import urllib.request
+
+        from parsel import Selector
         
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ScrapyCrawler/2.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -4849,6 +4863,7 @@ def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any
     """
     try:
         import asyncio
+
         from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
         
         urls = [u.strip() for u in start_urls.split(",") if u.strip()]
@@ -4898,8 +4913,9 @@ def crawl4ai_web_crawler(url: str, extract_markdown: bool = True, wait_for_selec
     """
     try:
         import urllib.request
-        from bs4 import BeautifulSoup
+
         import markdownify
+        from bs4 import BeautifulSoup
         
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawl4AI/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -5020,8 +5036,8 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
         command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
         capture_screenshot: If True, takes a fresh screenshot after performing the action.
     """
-    import subprocess
     import shutil
+    import subprocess
     import time
     
     adb_bin = shutil.which("adb")
@@ -5091,533 +5107,43 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
 
 
 # ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ====================
-
-def _get_default_gdrive_folder_id() -> str:
-    """Return default Google Drive folder ID from database or environment."""
-    try:
-        with database.get_sync_db() as conn:
-            row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_default_folder_id'").fetchone()
-            if row and row[0] and row[0].strip():
-                return row[0].strip()
-    except Exception:
-        pass
-    return os.getenv("GDRIVE_DEFAULT_FOLDER_ID", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE").strip()
-
-
-def _get_gdrive_service():
-    """Helper to initialize and return an authorized Google Drive API v3 resource service."""
-    import json
-    from google.oauth2 import service_account
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
-    
-    scopes = [
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/drive.file"
-    ]
-    
-    creds = None
-    
-    # 1. Check OAuth 2.0 User Token (allows uploading to personal Google Drive with user's quota)
-    oauth_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
-    if os.path.exists(oauth_file):
-        try:
-            # Honor the scopes actually granted during consent - forcing extra
-            # scopes here makes Google reject the refresh with invalid_scope.
-            try:
-                with open(oauth_file, "r", encoding="utf-8") as f:
-                    stored_scopes = json.load(f).get("scopes") or scopes
-            except Exception:
-                stored_scopes = scopes
-            creds = Credentials.from_authorized_user_file(oauth_file, scopes=stored_scopes)
-            if creds and creds.expired and creds.refresh_token:
-                from google.auth.transport.requests import Request
-                creds.refresh(Request())
-        except Exception as e:
-            logger.error(f"Error loading gdrive_oauth_token.json: {e}")
-            creds = None
-            
-    if not creds:
-        try:
-            with database.get_sync_db() as conn:
-                row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'").fetchone()
-                if row and row[0]:
-                    info = json.loads(row[0])
-                    creds = Credentials.from_authorized_user_info(info, scopes=info.get("scopes") or scopes)
-                    if creds and creds.expired and creds.refresh_token:
-                        from google.auth.transport.requests import Request
-                        creds.refresh(Request())
-        except Exception as e:
-            creds = None
-
-    # 2. Check Service Account JSON file
-    if not creds:
-        cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
-        if os.path.exists(cred_file):
-            try:
-                creds = service_account.Credentials.from_service_account_file(cred_file, scopes=scopes)
-            except Exception as e:
-                logger.error(f"Error loading gdrive_credentials.json: {e}")
-                
-    if not creds:
-        env_json = os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip()
-        if env_json:
-            try:
-                info = json.loads(env_json)
-                creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
-            except Exception as e:
-                logger.error(f"Error loading GDRIVE_SERVICE_ACCOUNT_JSON from env: {e}")
-                
-    if not creds:
-        try:
-            with database.get_sync_db() as conn:
-                row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_credentials_json'").fetchone()
-                if row and row[0]:
-                    info = json.loads(row[0])
-                    creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
-        except Exception as e:
-            logger.error(f"Error loading gdrive credentials from database: {e}")
-            
-    if not creds:
-        raise ValueError(
-            "Google Drive credentials belum dikonfigurasi! "
-            "Unggah Service Account JSON dari Google Cloud Console ke menu Google Drive Hub atau simpan file 'gdrive_credentials.json'."
-        )
-        
-    return build("drive", "v3", credentials=creds)
-
-
-def _detect_gdrive_auth_mode() -> str:
-    """Return which credential source will be used: 'oauth' or 'service_account'."""
-    oauth_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
-    if os.path.exists(oauth_file):
-        return "oauth"
-    try:
-        with database.get_sync_db() as conn:
-            row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'").fetchone()
-            if row and row[0]:
-                return "oauth"
-    except Exception:
-        pass
-    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
-    if os.path.exists(cred_file):
-        return "service_account"
-    if os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip():
-        return "service_account"
-    return "none"
-
-
-def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, Any]:
-    """
-    Run the OAuth 2.0 consent flow so uploads use YOUR personal Drive quota.
-
-    Service accounts created recently have ZERO storage quota and cannot upload
-    anywhere ("Service Accounts do not have storage quota"), so the reliable
-    method is logging in as your own Google account once; the refreshable token
-    is stored locally and picked up automatically afterwards.
-
-    Requires an OAuth Client ID (type: Desktop app) downloaded from Google Cloud
-    Console, saved as 'gdrive_oauth_client_secret.json' in the project directory.
-
-    Args:
-        port: Local redirect port for the consent callback (default 8999).
-        wait_timeout: Seconds to wait for you to finish the browser login (default 300).
-    """
-    import json as _json
-
-    project_dir = os.path.dirname(os.path.abspath(__file__))
-    secret_candidates = [
-        os.path.join(project_dir, "gdrive_oauth_client_secret.json"),
-        os.path.join(project_dir, "client_secret.json"),
-    ]
-    secret_path = next((p for p in secret_candidates if os.path.exists(p)), None)
-
-    if not secret_path:
-        return {
-            "status": "error",
-            "needs_client_secret": True,
-            "message": (
-                "File OAuth client secret belum ada. Langkah persisnya:\n"
-                "1. Buka https://console.cloud.google.com/apis/credentials (project yang sama dgn service account)\n"
-                "2. Create Credentials > OAuth client ID > Application type: Desktop app\n"
-                "3. Download JSON, simpan sebagai: " + secret_candidates[0] + "\n"
-                "4. Tambahkan email Anda sebagai Test user di OAuth consent screen\n"
-                "5. Jalankan lagi login ini."
-            ),
-        }
-
-    # Detect the classic mix-up: renaming a SERVICE ACCOUNT key instead of
-    # downloading an OAuth client ID (they are different credential types).
-    try:
-        with open(secret_path, "r", encoding="utf-8") as f:
-            probe = _json.load(f)
-        if isinstance(probe, dict) and "installed" not in probe and "web" not in probe:
-            if probe.get("type") == "service_account" or "private_key" in probe:
-                return {
-                    "status": "error",
-                    "needs_client_secret": True,
-                    "wrong_type": "service_account",
-                    "message": (
-                        f"'{os.path.basename(secret_path)}' adalah file SERVICE ACCOUNT, "
-                        "bukan OAuth client secret - keduanya jenis kredensial berbeda.\n"
-                        "Yang dibutuhkan: OAuth Client ID tipe Desktop app.\n"
-                        "1. https://console.cloud.google.com/apis/credentials\n"
-                        "2. Create Credentials > OAuth client ID > Desktop app > Create\n"
-                        "3. Klik ikon Download pada client baru itu, rename hasilnya menjadi "
-                        + os.path.basename(secret_candidates[0]) + "\n"
-                        "4. OAuth consent screen > Audience > tambahkan email Anda sebagai Test user"
-                    ),
-                }
-    except Exception as probe_err:
-        logger.warning(f"Could not probe oauth secret file: {probe_err}")
-
-    try:
-        from google_auth_oauthlib.flow import InstalledAppFlow
-
-        scopes = ["https://www.googleapis.com/auth/drive"]
-        flow = InstalledAppFlow.from_client_secrets_file(secret_path, scopes=scopes)
-
-        creds = flow.run_local_server(
-            host="localhost",
-            port=port,
-            open_browser=True,
-            timeout_seconds=wait_timeout,
-            authorization_prompt_message=(
-                "\n🔐 Buka link berikut di browser untuk login Google Drive:\n%s\n"
-                "Menunggu konfirmasi...\n"
-            ),
-            success_message="✅ Login Google Drive berhasil! Jendela boleh ditutup.\n",
-        )
-
-        token_data = {
-            "refresh_token": creds.refresh_token,
-            "token": creds.token,
-            "token_uri": creds.token_uri,
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret,
-            "scopes": creds.scopes,
-        }
-        token_file = os.path.join(project_dir, "gdrive_oauth_token.json")
-        with open(token_file, "w", encoding="utf-8") as f:
-            _json.dump(token_data, f, indent=2)
-        try:
-            os.chmod(token_file, 0o600)
-        except OSError:
-            pass
-
-        # Backup into DB so other services/processes share the same token
-        try:
-            with database.get_sync_db() as conn:
-                conn.execute(
-                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_token_json', ?)",
-                    (_json.dumps(token_data),),
-                )
-                conn.commit()
-        except Exception as db_err:
-            logger.warning(f"Could not mirror OAuth token to DB: {db_err}")
-
-        return {
-            "status": "success",
-            "message": "Login OAuth Google Drive berhasil. Upload kini memakai kuota akun Anda.",
-            "token_file": token_file,
-            "scopes": list(creds.scopes or []),
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"OAuth login gagal/dibatalkan: {str(e)}"}
-
-
-def gdrive_oauth_logout() -> Dict[str, Any]:
-    """Remove stored OAuth tokens (falls back to service account auth)."""
-    removed = False
-    token_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_token.json")
-    if os.path.exists(token_file):
-        try:
-            os.remove(token_file)
-            removed = True
-        except OSError:
-            pass
-    try:
-        with database.get_sync_db() as conn:
-            conn.execute("DELETE FROM system_settings WHERE key = 'gdrive_oauth_token_json'")
-            conn.commit()
-    except Exception:
-        pass
-    return {"status": "success", "removed": removed, "message": "Token OAuth dihapus."}
-
-
-def gdrive_status() -> Dict[str, Any]:
-    """
-    Check the connection status of Google Drive Integration, storage quota, and default folder info.
-    """
-    try:
-        service = _get_gdrive_service()
-        about = service.about().get(fields="user, storageQuota").execute()
-        def_folder = _get_default_gdrive_folder_id()
-        folder_name = "alfa agent"
-        
-        try:
-            with database.get_sync_db() as conn:
-                r = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_default_folder_name'").fetchone()
-                if r and r[0]:
-                    folder_name = r[0]
-        except Exception:
-            pass
-            
-        return {
-            "status": "success",
-            "connected": True,
-            "auth_mode": _detect_gdrive_auth_mode(),
-            "user": about.get("user", {}),
-            "storage_quota": about.get("storageQuota", {}),
-            "default_folder_id": def_folder,
-            "default_folder_name": folder_name,
-            "default_folder_url": f"https://drive.google.com/drive/folders/{def_folder}"
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "connected": False,
-            "message": str(e),
-            "default_folder_id": _get_default_gdrive_folder_id()
-        }
-
-
-def gdrive_list_files(folder_id: str = "", query: str = "", limit: int = 20) -> Dict[str, Any]:
-    """
-    List, search, and browse files and folders stored in Google Drive.
-    
-    Args:
-        folder_id: Optional ID of the Google Drive folder to list (defaults to configured folder).
-        query: Optional search keyword or query term.
-        limit: Max number of files to return (default 20, max 100).
-    """
-    try:
-        service = _get_gdrive_service()
-        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
-        q_parts = ["trashed = false"]
-        if target_folder:
-            q_parts.append(f"'{target_folder}' in parents")
-        if query:
-            q_parts.append(f"(name contains '{query}' or fullText contains '{query}')")
-        q_str = " and ".join(q_parts)
-        
-        results = service.files().list(
-            q=q_str,
-            pageSize=min(limit, 100),
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True,
-            fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink)"
-        ).execute()
-        
-        files = results.get("files", [])
-        return {
-            "status": "success",
-            "total_found": len(files),
-            "folder_id": target_folder,
-            "files": files
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Gagal mengambil daftar file Google Drive: {str(e)}"}
-
-
-def gdrive_upload_file(filepath: str, folder_id: str = "", custom_filename: str = "") -> Dict[str, Any]:
-    """
-    Upload a local file or document (PDF, Excel, Word, images, code, archive) to Google Drive.
-    
-    Args:
-        filepath: Path to the local file (e.g. '~/Dokumen/ALFA_SWARM_OUTPUTS/laporan.pdf' or filename).
-        folder_id: Optional Google Drive folder ID to upload into (defaults to configured folder).
-        custom_filename: Optional custom file name on Google Drive.
-    """
-    try:
-        import mimetypes
-        from googleapiclient.http import MediaFileUpload
-        
-        resolved_path = os.path.expanduser(filepath)
-        if not os.path.exists(resolved_path):
-            alt_path = os.path.join(SANDBOX_DIR, filepath)
-            if os.path.exists(alt_path):
-                resolved_path = alt_path
-            else:
-                return {"status": "error", "message": f"File '{filepath}' tidak ditemukan di sistem lokal."}
-                
-        service = _get_gdrive_service()
-        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
-        upload_name = custom_filename or os.path.basename(resolved_path)
-        mime_type, _ = mimetypes.guess_type(resolved_path)
-        if not mime_type:
-            mime_type = "application/octet-stream"
-            
-        file_metadata = {"name": upload_name}
-        if target_folder:
-            file_metadata["parents"] = [target_folder]
-            
-        media = MediaFileUpload(resolved_path, mimetype=mime_type, resumable=True)
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            supportsAllDrives=True,
-            fields="id, name, mimeType, size, webViewLink, webContentLink"
-        ).execute()
-        
-        try:
-            service.permissions().create(
-                fileId=file.get("id"),
-                body={"role": "reader", "type": "anyone"},
-                supportsAllDrives=True
-            ).execute()
-        except Exception:
-            pass
-            
-        return {
-            "status": "success",
-            "message": f"File '{upload_name}' berhasil diunggah ke Google Drive di folder target!",
-            "file_id": file.get("id"),
-            "file_name": file.get("name"),
-            "folder_id": target_folder,
-            "web_link": file.get("webViewLink"),
-            "download_link": file.get("webContentLink")
-        }
-    except Exception as e:
-        err_str = str(e)
-        if "Service Accounts do not have storage quota" in err_str:
-            return {
-                "status": "error",
-                "message": (
-                    "Upload gagal: Service Account Google tidak punya kuota penyimpanan "
-                    "(kebijakan Google terbaru). Solusi: lakukan login OAuth sekali via "
-                    "Dashboard > Google Drive > 'Login OAuth', atau jalankan "
-                    "./venv/bin/python scripts/gdrive_oauth_login.py - upload selanjutnya memakai kuota akun Anda."
-                ),
-                "needs_oauth": True,
-            }
-        return {"status": "error", "message": f"Gagal mengunggah file ke Google Drive: {err_str}"}
-
-
-def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any]:
-    """
-    Download a file from Google Drive by its File ID to the local system.
-    
-    Args:
-        file_id: The unique Google Drive File ID.
-        save_filename: Optional local filename to save the downloaded content as.
-    """
-    try:
-        import io
-        from googleapiclient.http import MediaIoBaseDownload
-        
-        service = _get_gdrive_service()
-        file_meta = service.files().get(fileId=file_id, supportsAllDrives=True, fields="id, name, mimeType").execute()
-        target_name = save_filename or file_meta.get("name", f"gdrive_{file_id}")
-        target_path = os.path.join(SANDBOX_DIR, target_name)
-        
-        request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
-        fh = io.FileIO(target_path, "wb")
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            status, done = downloader.next_chunk()
-            
-        return {
-            "status": "success",
-            "message": f"File '{target_name}' berhasil diunduh dari Google Drive!",
-            "file_id": file_id,
-            "saved_path": target_path,
-            "file_size": os.path.getsize(target_path)
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Gagal mengunduh file dari Google Drive: {str(e)}"}
-
-
-def gdrive_create_folder(folder_name: str, parent_folder_id: str = "") -> Dict[str, Any]:
-    """
-    Create a new folder in Google Drive.
-    
-    Args:
-        folder_name: Name of the folder to create.
-        parent_folder_id: Optional ID of the parent folder (defaults to configured folder).
-    """
-    try:
-        service = _get_gdrive_service()
-        target_parent = parent_folder_id.strip() if parent_folder_id else _get_default_gdrive_folder_id()
-        file_metadata = {
-            "name": folder_name,
-            "mimeType": "application/vnd.google-apps.folder"
-        }
-        if target_parent:
-            file_metadata["parents"] = [target_parent]
-            
-        folder = service.files().create(
-            body=file_metadata,
-            supportsAllDrives=True,
-            fields="id, name, webViewLink"
-        ).execute()
-        
-        return {
-            "status": "success",
-            "message": f"Folder '{folder_name}' berhasil dibuat di Google Drive!",
-            "folder_id": folder.get("id"),
-            "folder_name": folder.get("name"),
-            "web_link": folder.get("webViewLink")
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Gagal membuat folder Google Drive: {str(e)}"}
-
-
-def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[str, Any]:
-    """
-    Ingest and sync documents from Google Drive directly into ALFA's Neural Vector Brain (Second Brain RAG).
-    
-    Args:
-        folder_id: Optional Google Drive folder ID to ingest from (defaults to configured folder).
-        limit: Max documents to ingest (default 10).
-    """
-    try:
-        import vector_memory
-        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
-        list_res = gdrive_list_files(folder_id=target_folder, limit=limit)
-        if list_res.get("status") != "success":
-            return list_res
-            
-        files = list_res.get("files", [])
-        ingested = []
-        # Attribute to the PRIMARY user so the main agent (Telegram/Web) can
-        # retrieve these chunks - dashboard context has no telegram user id.
-        uid = current_user_id_var.get()
-        if not uid:
-            try:
-                allowed = os.getenv("ALLOWED_USER_IDS", "").strip()
-                uid = int(allowed.split(",")[0]) if allowed.split(",")[0].strip().isdigit() else 0
-            except Exception:
-                uid = 0
-        
-        for f in files:
-            fid = f.get("id")
-            fname = f.get("name", "")
-            mime = f.get("mimeType", "")
-            
-            if "folder" in mime:
-                continue
-                
-            dl_res = gdrive_download_file(file_id=fid, save_filename=fname)
-            if dl_res.get("status") == "success":
-                local_f = dl_res.get("saved_path")
-                v_res = vector_memory.ingest_document(
-                    user_id=uid,
-                    title=f"GDrive: {fname}",
-                    content_or_path=local_f,
-                    category="Google Drive Sync"
-                )
-                ingested.append({"name": fname, "file_id": fid, "vector_status": v_res.get("status")})
-                
-        return {
-            "status": "success",
-            "total_ingested": len(ingested),
-            "folder_id": target_folder,
-            "synced_files": ingested
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Gagal sinkronisasi Google Drive ke Second Brain: {str(e)}"}
+# Sudah dimigrasi ke modul sendiri (pilot pemecahan monolit tools.py).
+# Facade re-export di bawah menjaga kompatibilitas penuh semua pemanggil
+# lama (tools.gdrive_*, from tools import ...). Bentuk `X as X` menandai
+# re-export disengaja agar linter tidak menyalakannya.
+from gdrive_suite import (
+    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
+)
+from gdrive_suite import (
+    _get_default_gdrive_folder_id as _get_default_gdrive_folder_id,
+)
+from gdrive_suite import (
+    _get_gdrive_service as _get_gdrive_service,
+)
+from gdrive_suite import (
+    gdrive_create_folder as gdrive_create_folder,
+)
+from gdrive_suite import (
+    gdrive_download_file as gdrive_download_file,
+)
+from gdrive_suite import (
+    gdrive_list_files as gdrive_list_files,
+)
+from gdrive_suite import (
+    gdrive_oauth_login as gdrive_oauth_login,
+)
+from gdrive_suite import (
+    gdrive_oauth_logout as gdrive_oauth_logout,
+)
+from gdrive_suite import (
+    gdrive_status as gdrive_status,
+)
+from gdrive_suite import (
+    gdrive_sync_to_second_brain as gdrive_sync_to_second_brain,
+)
+from gdrive_suite import (
+    gdrive_upload_file as gdrive_upload_file,
+)
 
 
 def self_restart_service() -> Dict[str, Any]:
@@ -5846,7 +5372,6 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
             subprocess.run(["systemctl", "--user", "start", "alfa-dashboard.service"], capture_output=True, text=True)
             
         import socket
-        hostname = socket.gethostname()
         local_ip = "127.0.0.1"
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -6042,8 +5567,9 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
         folder: Path folder lokal yang WAJIB diedit agen, contoh '/home/user/proyek'. Kosongkan biar agen bebas.
     """
     try:
-        import swarm_engine
         import concurrent.futures
+
+        import swarm_engine
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
         

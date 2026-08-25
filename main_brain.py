@@ -17,11 +17,11 @@ Semua fungsi fail-safe: kegagalan mengembalikan None agar pemanggil bisa
 fallback ke Gemini.
 """
 
-import os
-import json
 import inspect
+import json
 import logging
-from typing import Dict, Any, List, Optional
+import os
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("MainBrain")
 
@@ -205,7 +205,6 @@ def _find_tool(name: str):
 
 
 def _execute_tool(name: str, arguments_json: str) -> str:
-    import asyncio
     fn = _find_tool(name)
     if fn is None:
         return f"[ERROR] Tool '{name}' tidak ditemukan."
@@ -310,6 +309,7 @@ async def run_openai_agentic_turn(
     """
     try:
         import httpx
+
         import token_usage
         if tools_schema is None:
             tools_schema = build_openai_tools()

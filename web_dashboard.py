@@ -5,36 +5,34 @@ live telemetry timeline, 72+ tools explorer, service orchestrator,
 artifact gallery, and second brain visualizer.
 """
 
-import os
-import sys
-import glob
-import json
-import time
-import base64
-import secrets
-import inspect
 import asyncio
+import base64
+import inspect
+import json
 import logging
+import os
+import secrets
 import shutil
 import subprocess
+import time
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import psutil
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
 logger = logging.getLogger("Dashboard")
 
 # Import project modules
-import tools
-import database
 import bot
+import database
+import tools
 
 app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
 
@@ -402,6 +400,7 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
     res["ai_enriched"] = False
     try:
         import asyncio as _asyncio
+
         import swarm_engine
         alchemist = next(
             (a for a in database.list_custom_agents_sync()
@@ -476,6 +475,7 @@ async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
 async def generate_promo_video(payload: Dict[str, Any]):
     """Generate 9:16 vertical promo video from images and script."""
     import asyncio
+
     import video_generator
     image_paths = payload.get("image_paths", [])
     product_name = payload.get("product_name", "Produk Pilihan").strip()
@@ -640,6 +640,7 @@ async def toggle_passkey_lock(payload: Dict[str, Any]):
 async def get_system_settings():
     """Retrieve current system configuration (.env and database settings)."""
     import os
+
     from dotenv import dotenv_values
     
     env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -718,6 +719,7 @@ _models_cache: Dict[int, tuple] = {}
 async def models_for_key(key_id: int):
     """Fetch live model list dari provider kunci terpilih (60s cache)."""
     import time as _t
+
     import httpx
     key_id = safe_int(key_id, 0)
     cached = _models_cache.get(key_id)
@@ -863,8 +865,8 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
 
 
 async def antigravity_set_main_brain_impl(key_id: int, model: str):
+
     import database as _db
-    from datetime import datetime as _dt
     with _db.get_sync_db() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
@@ -882,7 +884,7 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
 async def test_main_brain_combo(payload: Dict[str, Any]):
     """Tes koneksi kombinasi kunci + model sebelum diterapkan."""
     import httpx as _hx
-    import main_brain as _mb
+
     try:
         key_id = int(payload.get("key_id", 0))
     except (TypeError, ValueError):
@@ -936,7 +938,6 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
                 "message": f"Error: {str(e)[:200]}"}
 
 
-import datetime as _dt_mod
 
 @app.post("/api/settings/main-brain")
 
@@ -1300,9 +1301,10 @@ async def get_wa_qr():
             qr_str = data.get("qr", "")
             qr_data_url = None
             if qr_str:
-                import qrcode
-                import io
                 import base64
+                import io
+
+                import qrcode
                 img = qrcode.make(qr_str)
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
@@ -1338,7 +1340,7 @@ async def logout_wa():
             resp = await client.post("http://localhost:3000/api/logout")
             if resp.status_code == 200:
                 return resp.json()
-    except Exception as e:
+    except Exception:
         pass
     return {"status": "error", "message": "Failed to connect to WhatsApp bot server on port 3000"}
 
@@ -1852,7 +1854,7 @@ async def get_meeting_history():
         try:
             with open(history_path, "r") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception:
             return []
     return []
 
@@ -2084,8 +2086,8 @@ async def workspace_read_file(path: str):
 @app.get("/api/artifacts/download")
 async def download_artifact(path: str):
     """Safely download an artifact file (restricted to known artifact directories)."""
-    import video_generator
     import swarm_engine
+    import video_generator
     allowed_dirs = [
         os.path.realpath("/dev/shm/alfa_sandbox"),
         os.path.realpath(os.path.expanduser("~/output")),
@@ -2794,7 +2796,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
             from google.genai import types
             target_model = model or "gemini-3.5-flash-lite"
             client = genai.Client(api_key=api_key)
-            response = await client.aio.models.generate_content(
+            await client.aio.models.generate_content(
                 model=target_model,
                 contents="Tes koneksi",
                 config=types.GenerateContentConfig(max_output_tokens=10)
@@ -2926,8 +2928,9 @@ async def cancel_agent_meeting():
 async def swarm_live_feed(since: int = 0):
     """Realtime terminal feed of what the swarm agents are doing right now.
     Sumber: file JSONL bersama (lintas proses bot & dashboard)."""
-    import swarm_engine as _se
     import json as _json
+
+    import swarm_engine as _se
     since = safe_int(since, 0, minimum=0)
     entries = []
     try:
@@ -3073,7 +3076,8 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
-    import tools, swarm_engine
+    import swarm_engine
+    import tools
     start_t = time.time()
     
     # 1. Ask agent to formulate action plan and tool command
