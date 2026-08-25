@@ -189,7 +189,7 @@ def select_relevant_functions(
         if not filtered:
             return functions
         logger.info(f"[ToolRAG] {len(functions)} -> {len(filtered)} fungsi "
-                    f"(hemat ~{len(functions) - len(filtered) * 90} token/turn)")
+                    f"(hemat ~{(len(functions) - len(filtered)) * 90} token/turn)")
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
@@ -253,7 +253,7 @@ def select_relevant_tools(
             return tools_schema
         dropped = len(tools_schema) - len(filtered)
         logger.info(f"[ToolRAG] {len(tools_schema)} -> {len(filtered)} tool "
-                    f"({dropped} disembunyikan; hemat ~{dropped * 90} token/turn)")
+                    f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)")
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")

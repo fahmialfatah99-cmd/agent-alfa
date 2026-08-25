@@ -438,7 +438,13 @@ async def run_agent_turn(
                 "kunci yang terakhir diaktifkan menjadi otak utama agent."
             )
     else:
-        gemini_client, gkey_id, gkey_label = None, None, ""
+        # FIX: provider non-Gemini TIDAK boleh mengosongkan klien Gemini —
+        # rantai fallback di bawah masih membutuhkannya saat otak utama gagal.
+        try:
+            gemini_client, gkey_id, gkey_label = resolve_main_gemini()
+        except Exception as e:
+            logger.warning(f"Gagal menyiapkan klien Gemini fallback: {e}")
+            gemini_client, gkey_id, gkey_label = None, None, ""
 
     # Set context variables for tools
     current_user_id_var.set(user_id)
@@ -607,6 +613,15 @@ async def run_agent_turn(
             return reply_text
         logger.warning(f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini")
 
+    # Guard: rantai fallback Gemini butuh klien; resolve ulang bila masih kosong
+    if gemini_client is None:
+        gemini_client, gkey_id, gkey_label = resolve_main_gemini()
+    if gemini_client is None:
+        return (
+            "⚠️ **Semua otak AI gagal merespons** (OpenRouter/NVIDIA error dan "
+            "kunci Gemini tidak tersedia). Coba lagi nanti atau cek Dashboard > API Keys."
+        )
+
     for model_name in models_to_try:
         try:
             gate_on = approval_gate is not None
@@ -738,6 +753,38 @@ async def run_agent_turn(
         except Exception as e:
             logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
             last_error = e
+
+    # ── CROSS-PROVIDER FALLBACK ───────────────────────────────────────
+    # Kuota Gemini habis? Coba semua kunci non-Gemini aktif di vault
+    # (OpenRouter / NVIDIA / custom) sesuai urutan pembuatan kunci.
+    logger.error(f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain...")
+    try:
+        alt_keys = database.list_active_keys_sync(exclude_provider="gemini")
+    except Exception:
+        alt_keys = []
+    for key in alt_keys:
+        prov = (key.get("provider") or "").lower()
+        if not (key.get("api_key") or "").strip():
+            continue
+        try:
+            logger.info(f"[Fallback] mencoba {prov} ({key.get('name')}) model "
+                        f"{key.get('default_model')}")
+            reply_text = await main_brain.run_openai_agentic_turn(
+                provider=prov,
+                base_url=key.get("base_url") or "",
+                api_key=key["api_key"].strip(),
+                model=key.get("default_model") or "",
+                system_instruction=full_system_instruction,
+                user_text=user_prompt,
+                history=[{"role": r["role"], "content": r["content"]} for r in history_rows],
+                context="telegram_chat",
+            )
+            if reply_text:
+                logger.info(f"[Fallback] sukses via {prov}/{key.get('default_model')}")
+                await database.save_chat_message(user_id, "model", reply_text)
+                return reply_text
+        except Exception as fe:
+            logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
 
     logger.error(f"All candidate models failed: {last_error}", exc_info=True)
     return f"❌ Terjadi kesalahan saat memproses permintaan:\n`{str(last_error)}`"

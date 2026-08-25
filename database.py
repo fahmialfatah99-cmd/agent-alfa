@@ -1058,6 +1058,31 @@ def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]
     return None
 
 
+def list_active_keys_sync(exclude_provider: str = "") -> List[Dict[str, Any]]:
+    """Daftar semua kunci aktif (didekripsi), opsional kecualikan satu provider.
+    Urutan berdasarkan id (paling lama dibuat duluan) — deterministik utk fallback.
+    Dipakai bot saat seluruh rantai Gemini habis kuota."""
+    import logging
+    out: List[Dict[str, Any]] = []
+    try:
+        excl = (exclude_provider or "").lower()
+        with get_sync_db() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM api_keys WHERE is_active = 1 ORDER BY id ASC")
+            for row in cursor.fetchall():
+                d = dict(row)
+                if excl and (d.get("provider") or "").lower() == excl:
+                    continue
+                try:
+                    d["api_key"] = decrypt_key(d.get("api_key") or "")
+                except Exception:
+                    continue
+                out.append(d)
+    except Exception as e:
+        logging.getLogger("DB").warning(f"list_active_keys_sync gagal: {e}")
+    return out
+
+
 # --- Custom Autonomous Agents (AI Workforce) ---
 def list_custom_agents_sync() -> List[Dict[str, Any]]:
     """List all registered custom agents."""
