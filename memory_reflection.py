@@ -73,7 +73,7 @@ async def reflect_recent_conversation(user_id: int, history: List[Dict[str, str]
             provider=brain["provider"],
             base_url=brain["base_url"],
             api_key=brain["api_key"],
-            model=brain["model"] or "gemini-3.5-flash",
+            model=brain["model"] or "gemini-3.6-flash",
             system_instruction=(
                 "Kamu adalah mesin ekstraksi memori. Balas HANYA JSON array valid, "
                 "tanpa penjelasan, tanpa markdown fence."
