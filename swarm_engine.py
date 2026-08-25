@@ -1335,27 +1335,27 @@ async def conduct_multi_agent_meeting(
 
         failed_steps: List[Dict[str, Any]] = []
         ctx_lines: List[str] = []
-        for idx, agent in enumerate(participants):
-            if _cancel_requested():
-                log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum giliran {agent['name']}.")
-                swarm_cancelled = True
-                if _CHECKPOINT_AVAILABLE:
-                    try:
-                        _SwarmCheckpoint.mark_cancelled(session_id)
-                    except Exception:
-                        pass
-                break
 
-            task_desc = subtask_map.get(agent["name"]) or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+        # ── PARALLEL FAN-OUT / FAN-IN ──────────────────────────────
+        # Agen dieksekusi per gelombang (wave) secara bersamaan, hasilnya
+        # di-merge ke konteks agen gelombang berikutnya (Map-Reduce ringan).
+        # ALFA_SWARM_PARALLEL=off  -> mode sekuensial klasik.
+        # ALFA_SWARM_MAX_CONCURRENT -> batas beban paralel (default 3).
+        _parallel = os.getenv("ALFA_SWARM_PARALLEL", "on").strip().lower() != "off"
+        try:
+            _wave_size = max(1, int(os.getenv("ALFA_SWARM_MAX_CONCURRENT", "3")))
+        except ValueError:
+            _wave_size = 3
+        if not _parallel:
+            _wave_size = 1
 
-            # Error propagation: kirimkan kegagalan langkah sebelumnya ke agen ini
-            err_ctx = _build_error_context(failed_steps)
+        def _build_task_desc(agent: Dict[str, Any], err_ctx: str) -> str:
+            td = subtask_map.get(agent["name"]) or \
+                f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
             if err_ctx:
-                task_desc += f"\n\n{err_ctx}"
-
-            # Folder target wajib: injeksi keras ke setiap tugas agen
+                td += f"\n\n{err_ctx}"
             if _TARGET_FOLDER:
-                task_desc += (
+                td += (
                     f"\n\nFOLDER KERJA WAJIB: {_TARGET_FOLDER}\n"
                     f"SEMUA file yang dibaca/ditulis WAJIB di dalam folder ini. "
                     f"Pada execute_bash_command: sertakan working_dir='{_TARGET_FOLDER}' "
@@ -1364,24 +1364,19 @@ async def conduct_multi_agent_meeting(
                     f"dengan path lengkap '{_TARGET_FOLDER}/<nama>'. "
                     f"DILARANG membuat proyek di lokasi lain."
                 )
-
-            # Konteks berantai: agen berikutnya mengetahui hasil agen sebelumnya,
-            # sehingga misi bertingkat (riset -> kode -> audit) benar2 menyambung.
             if ctx_lines:
-                task_desc += (
-                    "\n\nKONTEKS HASIL AGEN SEBELUMNYA (gunakan bila relevan):\n- "
+                td += (
+                    "\n\nKONTEKS HASIL AGEN GELOMBANG SEBELUMNYA (gunakan bila relevan):\n- "
                     + "\n- ".join(ctx_lines[-3:])
                 )
+            return td
 
+        async def _execute_agent_step(agent: Dict[str, Any], task_desc: str):
             log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
-
             step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
             if step_result.get("deliverable_file"):
                 log_live("FILE", f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}")
 
-            # Verification loop: a strict QA judge checks for real evidence;
-            # failed steps get ONE retry with corrective feedback. Pure-text
-            # orchestration steps are recorded but not retried.
             passed, feedback = await _verify_step_result(task_desc, step_result)
             attempts = 0
             while (
@@ -1400,37 +1395,75 @@ async def conduct_multi_agent_meeting(
                 step_result = await execute_swarm_task_step(agent, retry_desc, topic, intent_info)
                 step_result["retry_count"] = attempts
                 passed, feedback = await _verify_step_result(retry_desc, step_result)
+            return step_result, passed, feedback
 
-            if not passed and step_result.get("tool_used") != "strategic_orchestration":
-                failed_steps.append({
-                    "agent_name": agent["name"],
-                    "tool_used": step_result.get("tool_used"),
-                    "feedback": feedback,
-                    "execution_summary": step_result.get("execution_summary", ""),
-                })
-                _record_step_error(session_id, step_result, feedback)
+        for wave_start in range(0, len(participants), _wave_size):
+            wave = participants[wave_start:wave_start + _wave_size]
+            if _cancel_requested():
+                log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.")
+                swarm_cancelled = True
+                if _CHECKPOINT_AVAILABLE:
+                    try:
+                        _SwarmCheckpoint.mark_cancelled(session_id)
+                    except Exception:
+                        pass
+                break
 
-            step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
-            log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
-            execution_steps.append(step_result)
+            # Error propagation: kegagalan gelombang sebelumnya disuntikkan
+            # ke seluruh agen gelombang ini (dalam-wave tidak bisa, by design).
+            err_ctx_snapshot = _build_error_context(failed_steps)
 
-            # Simpan progress checkpoint setelah setiap langkah selesai
-            if _CHECKPOINT_AVAILABLE:
-                try:
-                    _SwarmCheckpoint.save(
-                        session_id=session_id,
-                        topic=topic,
-                        mode=mode,
-                        participants=participants,
-                        steps=execution_steps,
-                        steps_done=len(execution_steps),
-                        status="cancelled" if swarm_cancelled else "running"
-                    )
-                except Exception:
-                    pass
+            try:
+                wave_results = await asyncio.gather(
+                    *[_execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot)) for a in wave],
+                    return_exceptions=True,
+                )
+            except Exception as wave_err:  # safety net; gather rarely raises dgn return_exceptions
+                logger.error(f"Wave execution error: {wave_err}")
+                wave_results = [wave_err] * len(wave)
 
-            brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
-            ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
+            for agent, res in zip(wave, wave_results):
+                if isinstance(res, Exception):
+                    step_result = {
+                        "agent_name": agent["name"],
+                        "tool_used": None,
+                        "execution_summary": f"[EXCEPTION] {res}",
+                        "deliverable_file": None,
+                    }
+                    passed, feedback = False, str(res)
+                else:
+                    step_result, passed, feedback = res
+
+                if not passed and step_result.get("tool_used") != "strategic_orchestration":
+                    failed_steps.append({
+                        "agent_name": agent["name"],
+                        "tool_used": step_result.get("tool_used"),
+                        "feedback": feedback,
+                        "execution_summary": step_result.get("execution_summary", ""),
+                    })
+                    _record_step_error(session_id, step_result, feedback)
+
+                step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
+                log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
+                execution_steps.append(step_result)
+
+                # Simpan progress checkpoint setelah setiap langkah selesai
+                if _CHECKPOINT_AVAILABLE:
+                    try:
+                        _SwarmCheckpoint.save(
+                            session_id=session_id,
+                            topic=topic,
+                            mode=mode,
+                            participants=participants,
+                            steps=execution_steps,
+                            steps_done=len(execution_steps),
+                            status="cancelled" if swarm_cancelled else "running"
+                        )
+                    except Exception:
+                        pass
+
+                brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
+                ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
 
     # --- PHASE 2.5: SENTINEL QA — LOOP ZERO BUG ---
     # Setelah semua agen selesai, Sentinel QA menguji hasil kerja secara

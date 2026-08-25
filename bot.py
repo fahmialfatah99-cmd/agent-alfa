@@ -594,16 +594,34 @@ async def run_agent_turn(
                     reply_text = corrected
         if reply_text:
             await database.save_chat_message(user_id, "model", reply_text)
+            # MEMORY REFLECTION: refleksi otomatis tiap N giliran (fire-and-forget)
+            try:
+                import memory_reflection
+                refl_history = list(history_rows) + [
+                    {"role": "user", "content": display_user_text},
+                    {"role": "model", "content": reply_text},
+                ]
+                memory_reflection.maybe_schedule_reflection(user_id, refl_history)
+            except Exception:
+                pass
             return reply_text
         logger.warning(f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini")
 
     for model_name in models_to_try:
         try:
             gate_on = approval_gate is not None
+            # TOOL-RAG: filter fungsi relevan saja (hemat token & cegah confusion)
+            gemini_tools = AVAILABLE_TOOLS
+            try:
+                from tool_rag import select_relevant_functions
+                gemini_tools = select_relevant_functions(
+                    AVAILABLE_TOOLS, user_prompt or "", history=history_msgs)
+            except Exception:
+                pass
             config = types.GenerateContentConfig(
                 system_instruction=full_system_instruction,
                 temperature=0.75,
-                tools=AVAILABLE_TOOLS,
+                tools=gemini_tools,
                 # AFC SDK dimatikan saat gate aktif agar tiap tool call
                 # melewati persetujuan manusia (loop manual di bawah).
                 automatic_function_calling=(

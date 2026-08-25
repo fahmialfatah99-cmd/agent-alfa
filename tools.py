@@ -1131,11 +1131,34 @@ def _chunk_code_lines(lines):
     return chunks
 
 
+def _index_one_file(fpath: str, root: str):
+    """Baca + pecah satu file jadi chunk index rows (modul-level agar picklable
+    untuk ProcessPoolExecutor). None = dilewati (terlalu besar / tak terbaca)."""
+    try:
+        if os.path.getsize(fpath) > _MAX_EDIT_FILE_BYTES:
+            return None
+        with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.read().split("\n")
+    except OSError:
+        return None
+    rel = os.path.relpath(fpath, root)
+    rows = []
+    offset = 0
+    for chunk_lines, sym in _chunk_code_lines(lines):
+        content = "\n".join(chunk_lines)
+        n = len(chunk_lines)
+        if content.strip():
+            rows.append((rel, content, sym or "", root, offset + 1, offset + n))
+        offset += n
+    return (fpath, rows)
+
+
 def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml") -> Dict[str, Any]:
     """
     Build/refresh a full-text INDEX of a repository so later searches are fast
     and context-aware (RAG-style retrieval without external services).
     Run once per repo; call again after big changes to refresh.
+    Repo besar (>40 file) diproses paralel lintas proses (ProcessPoolExecutor).
 
     Args:
         repo_path: Root directory of the project to index.
@@ -1161,29 +1184,44 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
         conn = _code_index_connect()
         files_scanned, chunks_inserted, skipped_big = 0, 0, 0
         truncated = False
+        rows = []
         try:
-            rows = []
-            for fpath in _iter_code_files(root, file_extensions):
-                if len(rows) >= _CODE_INDEX_MAX_CHUNKS:
-                    truncated = True
-                    break
-                try:
-                    if os.path.getsize(fpath) > _MAX_EDIT_FILE_BYTES:
-                        skipped_big += 1
-                        continue
-                    with open(fpath, "r", encoding="utf-8", errors="replace") as f:
-                        lines = f.read().split("\n")
-                except OSError:
-                    continue
-                rel = os.path.relpath(fpath, root)
-                offset = 0
-                for chunk_lines, sym in _chunk_code_lines(lines):
-                    content = "\n".join(chunk_lines)
-                    n = len(chunk_lines)
-                    if content.strip():
-                        rows.append((rel, content, sym or "", root, offset + 1, offset + n))
-                    offset += n
+            file_list = list(_iter_code_files(root, file_extensions))
+
+            def _consume(result):
+                """Gabungkan hasil satu file ke akumulator global."""
+                nonlocal files_scanned, skipped_big
+                if result is None:
+                    skipped_big += 1
+                    return
+                _fpath, frows = result
+                rows.extend(frows)
                 files_scanned += 1
+
+            # Paralel lintas proses utk repo besar (CPU-bound: baca+parse ribuan
+            # file memblokir event loop bila dilakukan di satu proses).
+            if len(file_list) >= 50:
+                try:
+                    from concurrent.futures import ProcessPoolExecutor
+                    workers = max(2, min(4, (os.cpu_count() or 2)))
+                    with ProcessPoolExecutor(max_workers=workers) as pool:
+                        for res in pool.map(_index_one_file,
+                                            file_list[:_CODE_INDEX_MAX_CHUNKS * 3],
+                                            (root,)):
+                            _consume(res)
+                except Exception as pe:
+                    logger.warning(f"Index paralel gagal ({pe}); fallback sekuensial.")
+                    rows.clear()
+                    files_scanned, skipped_big = 0, 0
+                    for fpath in file_list:
+                        _consume(_index_one_file(fpath, root))
+            else:
+                for fpath in file_list:
+                    _consume(_index_one_file(fpath, root))
+
+            if len(rows) >= _CODE_INDEX_MAX_CHUNKS:
+                rows = rows[:_CODE_INDEX_MAX_CHUNKS]
+                truncated = True
 
             # SATU transaksi utk seluruh index (hindari lock war dgn service lain)
             with conn:

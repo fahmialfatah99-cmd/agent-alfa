@@ -1746,6 +1746,42 @@ async def service_action(payload: Dict[str, Any]):
     }
 
 
+@app.get("/api/pipelines")
+async def list_pipelines_endpoint():
+    """Daftar pipeline workflow yang tersedia."""
+    import pipelines as pl
+    return {"status": "success", "pipelines": pl.list_pipelines()}
+
+
+@app.get("/api/pipelines/{pid}")
+async def get_pipeline_endpoint(pid: str):
+    import pipelines as pl
+    try:
+        return {"status": "success", "pipeline": pl.load_pipeline(pid)}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
+
+
+@app.post("/api/pipelines/{pid}/run")
+async def run_pipeline_endpoint(pid: str, request: Request):
+    """Jalankan pipeline; body JSON opsional: overrides variabel {\"vars\": {...}}."""
+    import pipelines as pl
+    try:
+        overrides = {}
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                overrides = body.get("vars") or {}
+        except Exception:
+            pass
+        result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)
+        return result
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/services/logs")
 async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 50):
     """Fetch live service logs (journalctl di Linux, file log lokal di Windows)."""

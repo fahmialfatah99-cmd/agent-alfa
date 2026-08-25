@@ -325,6 +325,12 @@ async def run_openai_agentic_turn(
         import token_usage
         if tools_schema is None:
             tools_schema = build_openai_tools()
+            # TOOL-RAG: suntikkan hanya tool relevan (hemat token, cegah confusion)
+            try:
+                from tool_rag import select_relevant_tools
+                tools_schema = select_relevant_tools(tools_schema, user_text, history=history)
+            except Exception:
+                pass  # fail-open: set lengkap
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system_instruction}]
         for h in (history or [])[-10:]:
