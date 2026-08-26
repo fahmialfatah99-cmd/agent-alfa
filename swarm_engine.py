@@ -606,12 +606,17 @@ async def _generate_with_openai_compat(
 async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str,
                                   max_tokens: Optional[int] = None,
                                   timeout_s: float = 180.0,
-                                  thinking_budget: Optional[int] = None) -> str:
+                                  thinking_budget: Optional[int] = None) -> Optional[str]:
     """Generate response for a specific agent using its configured provider and key.
 
     If the agent's primary provider fails (timeout, bad key, quota, etc.), it
     automatically falls back to Gemini so the swarm conversation never loses
     a participant silently.
+
+    Return None saat SEMUA provider & fallback gagal — pemanggil WAJIB
+    memeriksa None; jangan pernah mengembalikan teks error sebagai
+    respons sukses (dulu penyebab teks '[Error: ...]' tercatat sebagai
+    hasil kerja dan terlanjur tertulis ke file deliverable).
     """
     provider, api_key, model, base_url, key_id = get_agent_api_client(agent)
     agent_name = agent.get("name", "Agent")
@@ -734,13 +739,20 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         if result is None and enable_tools:
             # Agen ber-tool TIDAK boleh jatuh ke jalur tanpa tool (sumber
             # hallusinasi 'berhasil' kosong). Fallback: agen Gemini dengan
-            # disiplin & tool identik, memakai kunci gemini aktif di vault.
+            # disiplin & tool identik — coba SEMUA kunci gemini aktif
+            # KECUALI kunci yang baru saja gagal (kunci bermasalah, mis.
+            # kuota habis, tak akan menyembuhkan dirinya sendiri).
             try:
-                gk = database.get_active_api_key_sync("gemini")
-                if gk and (gk.get("api_key") or "").strip():
+                gem_keys = [k for k in database.list_active_keys_sync()
+                            if (k.get("provider") or "").lower() == "gemini"
+                            and k.get("id") != key_id]
+            except Exception:
+                gem_keys = []
+            for gk in gem_keys:
+                try:
                     logger.warning(
                         f"Agen ber-tool '{agent_name}' gagal via {provider} "
-                        f"-> fallback Gemini agentic (tools tetap aktif).")
+                        f"-> fallback Gemini agentic k#{gk.get('id')} (tools tetap aktif).")
                     gagent = {
                         "name": agent_name,
                         "provider": "gemini",
@@ -759,8 +771,10 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                         timeout_s=timeout_s,
                         thinking_budget=thinking_budget,
                     )
-            except Exception as fb_err:
-                logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
+                    if result is not None:
+                        break
+                except Exception as fb_err:
+                    logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
 
         if result is None and os.getenv("GEMINI_API_KEY"):
             logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
@@ -777,7 +791,10 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             )
 
     if result is None:
-        return f"[Error: Semua provider gagal untuk '{agent_name}' (primary: {provider})]"
+        logger.error(
+            f"[Swarm] '{agent_name}': semua provider & fallback gagal "
+            f"(primary: {provider}) — langkah ini dilaporkan GAGAL.")
+        return None
     return result
 
 
@@ -831,7 +848,7 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
             prompt,
             "Kamu planner teknis. Output WAJIB array JSON murni tanpa penjelasan.",
         )
-        m = re.search(r"\[.*\]", raw, re.DOTALL)
+        m = re.search(r"\[.*\]", raw or "", re.DOTALL)
         if not m:
             return {}
         items = json.loads(m.group(0))
@@ -1099,6 +1116,13 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             timeout_s=300.0,
         )
 
+        # Gagal total semua provider: tandai step ERROR agar tidak dianggap
+        # sukses, tidak di-retry paksa, dan tidak ditulis ke deliverable.
+        if generated_content is None or str(generated_content).startswith("[Error:"):
+            status = "error"
+            tool_output = "SEMUA provider gagal (kuota/kunci/jaringan) — langkah dibatalkan"
+            generated_content = "(gagal: tidak ada respons dari provider mana pun)"
+
         # Bukti filesystem tingkat-langkah (anti klaim kosong)
         post_hash = _hash_sandbox_projects()
         changed_files = [p for p in set(pre_hash) | set(post_hash)
@@ -1305,7 +1329,7 @@ async def conduct_multi_agent_meeting(
                 agent=agent,
                 prompt=prompt,
                 system_instruction=agent.get("system_instruction", "Kamu adalah anggota tim AI otonom profesional.")
-            )
+            ) or "(tidak merespons — semua provider gagal)"
 
             entry = {
                 "round": r,
@@ -1625,7 +1649,7 @@ async def conduct_multi_agent_meeting(
         agent=lead_agent,
         prompt=consensus_prompt,
         system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir dan pelaporan hasil eksekusi nyata."
-    )
+    ) or "(laporan gagal: semua provider tidak merespons)"
 
     action_plan_text = ""
     marker = "ACTION PLAN"
