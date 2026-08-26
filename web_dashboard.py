@@ -2317,7 +2317,7 @@ async def chat_with_agent(payload: Dict[str, Any]):
     message = payload.get("message")
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
-        
+
     uid = get_primary_user_id()
     reply = await bot.run_agent_turn(user_id=uid, user_prompt=message, chat_id=uid)
     return {
@@ -2325,6 +2325,38 @@ async def chat_with_agent(payload: Dict[str, Any]):
         "reply": reply,
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.post("/api/chat/async")
+async def chat_with_agent_async(payload: Dict[str, Any]):
+    """Kirim tugas ke agent secara LATAR BELAKANG (fire-and-forget).
+    Tahan disconnect/refresh browser — hasil tersimpan ke riwayat chat."""
+    import asyncio as _asyncio
+
+    message = payload.get("message")
+    if not message:
+        raise HTTPException(status_code=400, detail="message is required")
+    uid = get_primary_user_id()
+    task_tag = f"[tugas-latar {datetime.now().strftime('%H:%M:%S')}]"
+
+    async def _runner():
+        try:
+            reply = await bot.run_agent_turn(user_id=uid, user_prompt=message, chat_id=uid)
+            await database.save_chat_message(
+                uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}")
+            logger.info(f"chat_async selesai: {task_tag}")
+        except Exception as e:
+            logger.error(f"chat_async gagal ({task_tag}): {e}")
+            try:
+                await database.save_chat_message(
+                    uid, "model", f"{task_tag} GAGAL ❌: {e}")
+            except Exception:
+                pass
+
+    _asyncio.get_running_loop().create_task(_runner())
+    return {"status": "accepted",
+            "message": "Tugas dijalankan di latar belakang. Hasil muncul di riwayat chat saat selesai.",
+            "tag": task_tag}
 
 
 # ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ENDPOINTS ====================
