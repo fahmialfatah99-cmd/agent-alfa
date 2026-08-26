@@ -314,8 +314,39 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
 
         logger.info(f"Executing bash ({isolation}): {command[:150]}")
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_secs,
-                                    cwd=target_dir if isolation == "none" else None)
+            # Popen + kill pohon proses: mencegah HANG permanen ketika agent
+            # menjalankan server background (mis. `node serve.mjs &`) yang
+            # menahan pipe stdout/stderr walau bash induk sudah dibunuh.
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, cwd=target_dir if isolation == "none" else None,
+            )
+            timed_out = False
+            try:
+                out, errout = proc.communicate(timeout=timeout_secs)
+                result = subprocess.CompletedProcess(cmd, proc.returncode or 0, out, errout)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                try:
+                    if os.name == "nt":
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                       capture_output=True, timeout=10)
+                    else:
+                        import signal as _sig
+                        os.killpg(os.getpgid(proc.pid), _sig.SIGKILL)
+                except Exception:
+                    pass
+                try:
+                    out, errout = proc.communicate(timeout=5)
+                except Exception:
+                    out, errout = "", ""
+                return {
+                    "status": "error",
+                    "exit_code": -1,
+                    "stdout": (out or "")[:3500],
+                    "stderr": f"[TIMEOUT] Perintah melebihi {timeout_secs}s — pohon proses dihentikan paksa.",
+                    "isolation": isolation,
+                }
         finally:
             # Skrip wrapper adalah infrastruktur internal; jangan tinggalkan
             # agar tidak ikut terkirim ke chat oleh auto-dispatcher.
