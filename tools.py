@@ -69,7 +69,7 @@ def normalize_path(p: str) -> str:
             drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
             q = drive + q
         # Jika belum punya drive letter, tambahkan
-        elif not q[1:3] in (":/", ":\\"):
+        elif q[1:3] not in (":/", ":\\"):
             pass  # path relatif — biarkan
     return os.path.normpath(q) if os.name == "nt" else p
 
@@ -321,12 +321,10 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, cwd=target_dir if isolation == "none" else None,
             )
-            timed_out = False
             try:
                 out, errout = proc.communicate(timeout=timeout_secs)
                 result = subprocess.CompletedProcess(cmd, proc.returncode or 0, out, errout)
             except subprocess.TimeoutExpired:
-                timed_out = True
                 try:
                     if os.name == "nt":
                         subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],

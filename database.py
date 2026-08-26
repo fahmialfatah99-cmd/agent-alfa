@@ -5,12 +5,15 @@ Handles persistent chat history, long-term knowledge memory, reminders, and sett
 
 import contextlib
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import aiosqlite
+
+logger = logging.getLogger("DB")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 

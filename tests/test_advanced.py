@@ -192,7 +192,7 @@ def test_pipeline_http_step_local():
 
 # ── Memory Reflection ─────────────────────────────────────────────────────
 def test_reflect_interval_counter():
-    from memory_reflection import should_reflect, EVERY
+    from memory_reflection import EVERY, should_reflect
     uid = 987654321
     hits = []
     for i in range(1, EVERY * 2 + 2):
