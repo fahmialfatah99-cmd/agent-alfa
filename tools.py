@@ -4435,6 +4435,85 @@ def manage_system_services(service_name: str, action: str = "status", scope: str
         return {"status": "error", "message": f"Systemd control error: {str(e)}"}
 
 
+def find_user_files(pattern: str = "", file_types: str = "all", folder: str = "") -> Dict[str, Any]:
+    """
+    Cari file/aset ASLI yang disediakan pengguna di folder-folder umum
+    (Downloads, Documents, Desktop, Pictures). WAJIB dipanggil sebelum
+    membuat gambar/dokumen sendiri bila user menyebut 'sudah disediakan'.
+
+    Args:
+        pattern: Kata kunci nama file (mis. 'porsche', 'logo', 'laporan'). Kosong = semua.
+        file_types: 'image', 'video', 'audio', 'doc', 'archive', 'data', atau 'all'.
+        folder: Nama subfolder spesifik di dalam lokasi umum (mis. 'WEBSITE PROMOSI').
+    """
+    try:
+        from datetime import datetime as _dtmod
+        home = os.path.expanduser("~")
+        roots = [os.path.join(home, f) for f in ("Downloads", "Documents", "Desktop", "Pictures")]
+        if folder:
+            roots = [os.path.join(r, folder) for r in roots]
+
+        ext_map = {
+            "image": {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".bmp", ".svg", ".heic"},
+            "video": {".mp4", ".mov", ".mkv", ".webm", ".avi"},
+            "audio": {".mp3", ".wav", ".ogg", ".m4a", ".flac"},
+            "doc": {".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".md", ".csv"},
+            "archive": {".zip", ".rar", ".7z", ".tar", ".gz"},
+            "data": {".json", ".xml", ".yaml", ".yml", ".db"},
+        }
+        wanted = set()
+        for t in file_types.split(","):
+            t = t.strip().lower()
+            if t == "all":
+                wanted |= set().union(*ext_map.values())
+            elif t in ext_map:
+                wanted |= ext_map[t]
+        if not wanted:
+            wanted |= set().union(*ext_map.values())
+
+        skip_dirs = {"node_modules", ".git", "venv", "__pycache__", "AppData",
+                     "_backup-pre-audit", "_evidence"}
+        results = []
+        pat = pattern.strip().lower()
+        for root in roots:
+            if not os.path.isdir(root):
+                continue
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if d not in skip_dirs and not d.startswith(".")]
+                for fn in filenames:
+                    low = fn.lower()
+                    ext = os.path.splitext(low)[1]
+                    if ext not in wanted:
+                        continue
+                    if pat and pat not in low:
+                        continue
+                    fp = os.path.join(dirpath, fn)
+                    try:
+                        st = os.stat(fp)
+                        if st.st_size < 1024:  # skip file korup/tersembunyi kecil
+                            continue
+                        results.append({
+                            "path": fp,
+                            "name": fn,
+                            "size_mb": round(st.st_size / 1024 / 1024, 2),
+                            "modified": _dtmod.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                        })
+                    except OSError:
+                        continue
+        # terbaru dulu, batasi 25
+        results.sort(key=lambda x: x["modified"], reverse=True)
+        return {
+            "status": "success",
+            "total": len(results),
+            "files": results[:25],
+            "message": (f"Ditemukan {len(results)} file. GUNAKAN path asli ini — "
+                        "DILARANG membuat gambar/file dummy pengganti.") if results
+                        else "Tidak ditemukan. Konfirmasi ke pengguna bila perlu.",
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 def manage_crontab_jobs(action: str = "list", cron_line: str = "", search_pattern: str = "") -> Dict[str, Any]:
     """
     GOD MODE: Real Linux OS Crontab Manager.
@@ -5959,6 +6038,7 @@ def scrape_custom_urls_batch(urls: List[str], concurrency: int = 15, use_camoufo
 
 # List of all tools available to the Gemini Model
 AVAILABLE_TOOLS = [
+    find_user_files,
     universal_deep_scraper,
     scrape_custom_urls_batch,
     vault_store_secret,

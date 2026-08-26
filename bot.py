@@ -116,6 +116,11 @@ ENFORCEMENT_BLOCK = (
     "4. Jika tool gagal: laporkan PESAN ERROR ASLI + saran perbaikan. Dilarang menutupi kegagalan dengan simulasi.\n"
     "5. Klaim 'selesai/berhasil' WAJIB disertai bukti dari output tool (meeting_id, file, data). Tanpa bukti = dilarang klaim.\n"
     "6. Berbohong tentang eksekusi adalah kesalahan terburuk yang bisa kamu lakukan — lebih baik jujur 'belum dijalankan'.\n"
+    "7. ASET PENGGUNA ADALAH SUCI: Jika tugas menyebut foto/gambar/video/dokumen yang 'sudah disediakan' atau ada di "
+    "folder download/website, WAJIB panggil tool `find_user_files` DULU untuk menemukan file aslinya di "
+    "Downloads/Documents/Desktop/Pictures. GUNAKAN file asli itu (path persis). "
+    "DILARANG KERAS membuat gambar placeholder/render/dummy untuk menggantikan aset asli pengguna — "
+    "itu pelanggaran seberat mengarang hasil.\n"
 )
 
 # ── ETIKA PENGIRIMAN KODE: tulis file lokal, chat cukup ringkasan ────────────

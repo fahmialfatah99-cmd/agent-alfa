@@ -180,9 +180,11 @@ def build_openai_tools(safe_only: bool = False) -> List[Dict[str, Any]]:
 SAFE_TOOL_NAMES = {
     "web_search",
     "fetch_web_page_content",
+    "deep_research_topic",
     "read_local_file",
     "search_workspace_files",
     "grep_workspace",
+    "find_user_files",
     "index_codebase",
     "search_codebase",
     "execute_python_sandbox",

@@ -58,6 +58,7 @@ GATED_TOOLS = {
 SAFE_TOOLS = {
     "web_search", "fetch_web_page_content", "deep_research_topic",
     "read_local_file", "search_workspace_files", "grep_workspace",
+    "find_user_files",
     "index_codebase", "search_codebase",
     "save_knowledge_memory", "search_knowledge_memory",
     "get_system_stats", "get_current_user_id", "get_current_chat_id",
