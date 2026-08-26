@@ -3824,14 +3824,6 @@
         }
 
         // ==================== SYSTEM SETTINGS MANAGER ====================
-        function waMainBrainModelPrefill() {
-            // Saat ganti kunci: prefill model dgn default kunci tsb
-            const sel = document.getElementById('cfg-main-brain');
-            const inp = document.getElementById('cfg-main-brain-model');
-            if (!sel || !inp) return;
-            const k = (dataSettingsCache?.vault_keys || []).find(x => String(x.id) === sel.value);
-            if (k) inp.value = k.model || '';
-        }
 
         // ── Model dropdown live per kunci ──
         const _modelCache = {};
@@ -4080,6 +4072,11 @@
             if (!keySel) return;
             if (keys.length === 0) {
                 keySel.innerHTML = '<option value="">Tidak ada kunci utk provider ini</option>';
+                const msel = document.getElementById('cfg-main-brain-model');
+                if (msel) {
+                    msel.dataset.current = '';
+                    msel.innerHTML = '<option value="">Pilih kunci dahulu</option>';
+                }
                 return;
             }
             keySel.innerHTML = keys.map(k =>
@@ -4090,6 +4087,10 @@
 
         function mbOnKeyChange(keyId) {
             const k = (dataSettingsCache?.vault_keys || []).find(x => String(x.id) === String(keyId));
+            // Sinkronkan pilihan model dgn kunci/provider baru: pakai default
+            // kunci tsb, jangan sisakan model milik provider sebelumnya.
+            const msel = document.getElementById('cfg-main-brain-model');
+            if (msel) msel.dataset.current = k?.model || '';
             const prov = k ? k.provider : (document.getElementById('cfg-mb-provider')?.value || '');
             loadModelsForKey(keyId, prov);
         }
