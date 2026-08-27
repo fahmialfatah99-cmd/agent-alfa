@@ -377,6 +377,13 @@
                         <div class="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-2 py-1">
                             WORKSPACE UTAMA
                         </div>
+                        <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-cyan-300 hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="bot-message-square" class="w-4 h-4 text-cyan-400"></i>
+                                <span>Chat Agent</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">LIVE AI</span>
+                        </button>
                         <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
@@ -483,12 +490,6 @@
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
                                 <span>Guardian Defense</span>
-                            </div>
-                        </button>
-                        <button onclick="switchTab('console')" id="tab-btn-console" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-yellow-300 hover:bg-white/5 font-semibold text-left">
-                            <div class="flex items-center gap-2.5">
-                                <i data-lucide="terminal" class="w-4 h-4 text-yellow-400"></i>
-                                <span>Web Console</span>
                             </div>
                         </button>
                         <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-cyan-300 hover:bg-white/5 font-semibold text-left">
@@ -1720,10 +1721,10 @@
                         <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono font-bold text-sm">A</div>
                         <div>
                             <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
-                                ALFA LIVE AGENT CONSOLE
+                                CHAT AGENT ALFA
                                 <span class="text-[10px] font-normal px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Multimodal &amp; 130+ Tools</span>
                             </h3>
-                            <p class="text-xs text-slate-400">Direct AI Agent with Full Vision, Document Parser, and Code Sandboxes</p>
+                            <p class="text-xs text-slate-400">Direct Live Chat with Full Vision, Document Parser, and Autonomous Execution</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -3840,7 +3841,7 @@
             'services': 'System Services & Background Tasks',
             'canvas': 'Pipeline Canvas Studio — Drag & Drop Workflow',
             'guardian': 'Guardian Defense & Integrity',
-            'console': 'Linux Web Console',
+            'console': 'Chat Agent ALFA (Multimodal Live)',
             'settings': 'System Settings & Environment Config'
         };
 
