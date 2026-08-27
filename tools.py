@@ -2553,6 +2553,109 @@ def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images
         return {"status": "error", "message": f"Gagal mengubah gambar ke PDF: {str(e)}"}
 
 
+def upscale_image_hd(
+    image_path: str,
+    scale: int = 2,
+    mode: str = "auto",
+    denoise: int = 1,
+    output_filename: str = ""
+) -> Dict[str, Any]:
+    """
+    Perbesar (scale / upscale / super-resolution) resolusi gambar/foto 2x, 4x, atau 8x dengan AI Waifu2x Engine atau Lanczos HD Enhancement.
+    
+    Args:
+        image_path: Path ke file gambar (PNG, JPG, WEBP, BMP).
+        scale: Faktor perbesaran (2, 4, atau 8, default: 2).
+        mode: Mode upscale ('waifu2x_anime', 'waifu2x_photo', 'lanczos_hd', 'pixel_art', atau 'auto').
+        denoise: Tingkat pembersihan noise/bintik (0: off, 1: low, 2: medium, 3: high).
+        output_filename: Nama file hasil perbesaran (opsional).
+    """
+    try:
+        from PIL import Image, ImageFilter, ImageEnhance
+        import subprocess
+
+        exp_p = os.path.expanduser(image_path.strip())
+        if not os.path.exists(exp_p):
+            return {"status": "error", "message": f"File gambar tidak ditemukan di '{image_path}'."}
+
+        out_dir = os.path.expanduser("~/Dokumen/ALFA_PDF_TOOLS/Image_Upscaling")
+        os.makedirs(out_dir, exist_ok=True)
+
+        base_name = os.path.splitext(os.path.basename(exp_p))[0]
+        ext = os.path.splitext(exp_p)[1].lower() or ".png"
+        if ext not in (".png", ".jpg", ".jpeg", ".webp"):
+            ext = ".png"
+
+        scale_factor = int(scale) if scale in (2, 4, 8) else 2
+        safe_name = output_filename if output_filename else f"{base_name}_upscaled_{scale_factor}x{ext}"
+        if not safe_name.endswith(ext):
+            safe_name += ext
+        target_path = os.path.join(out_dir, safe_name)
+
+        used_engine = "Lanczos Ultra-HD"
+
+        # 1. Try waifu2x-ncnn-vulkan if requested or auto
+        waifu_bin = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux/waifu2x-ncnn-vulkan"
+        model_dir = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux"
+        
+        if mode in ("waifu2x_anime", "waifu2x_photo", "auto") and os.path.exists(waifu_bin):
+            selected_model = "models-cunet"
+            if mode == "waifu2x_anime":
+                selected_model = "models-upconv_7_anime_style_art_rgb"
+            elif mode == "waifu2x_photo":
+                selected_model = "models-upconv_7_photo"
+            
+            cmd = [
+                waifu_bin,
+                "-i", exp_p,
+                "-o", target_path,
+                "-s", str(scale_factor),
+                "-n", str(max(0, min(3, int(denoise)))),
+                "-m", os.path.join(model_dir, selected_model),
+            ]
+            try:
+                sub_res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                if sub_res.returncode == 0 and os.path.exists(target_path):
+                    used_engine = f"Waifu2x AI ({selected_model})"
+            except Exception:
+                pass
+
+        # 2. Fallback to PIL Advanced Lanczos + Unsharp Sharpening if target_path not yet created
+        if not os.path.exists(target_path):
+            img = Image.open(exp_p).convert("RGBA" if ext == ".png" else "RGB")
+            orig_w, orig_h = img.size
+            new_w, new_h = orig_w * scale_factor, orig_h * scale_factor
+
+            if mode == "pixel_art":
+                upscaled = img.resize((new_w, new_h), resample=Image.Resampling.NEAREST)
+                used_engine = "Nearest Neighbor (Pixel Art)"
+            else:
+                upscaled = img.resize((new_w, new_h), resample=Image.Resampling.LANCZOS)
+                if ext != ".png" or img.mode == "RGB":
+                    upscaled = upscaled.filter(ImageFilter.UnsharpMask(radius=2, percent=140, threshold=3))
+                used_engine = "Lanczos High-Fidelity + Edge Sharpener"
+
+            upscaled.save(target_path, quality=95 if ext in (".jpg", ".jpeg") else None)
+
+        out_img = Image.open(target_path)
+        out_w, out_h = out_img.size
+        size_kb = os.path.getsize(target_path) / 1024
+
+        return {
+            "status": "success",
+            "message": f"Berhasil memperbesar gambar {scale_factor}x ({used_engine}) menjadi {out_w}x{out_h} px di {target_path}.",
+            "file_path": target_path,
+            "filename": safe_name,
+            "engine": used_engine,
+            "original_resolution": f"{out_w // scale_factor}x{out_h // scale_factor}",
+            "new_resolution": f"{out_w}x{out_h}",
+            "scale": scale_factor,
+            "size_kb": round(size_kb, 1)
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal memperbesar resolusi gambar: {str(e)}"}
+
+
 def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
     """
     Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata) dan simpan salinan JSON.
@@ -6097,6 +6200,7 @@ AVAILABLE_TOOLS = [
     pdf_insert_page_numbers,
     pdf_convert_to_images,
     images_convert_to_pdf,
+    upscale_image_hd,
     pdf_inspect_metadata,
     pdf_compress_and_optimize,
     affiliate_hunt_trending_products,
