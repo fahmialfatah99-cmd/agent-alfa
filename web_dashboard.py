@@ -2435,11 +2435,11 @@ async def get_chat_available_models():
                 })
         elif prov == "openrouter":
             or_models = [
-                {"id": def_m if def_m else "google/gemini-2.5-flash", "name": f"Default ({def_m or 'gemini-2.5-flash'})"},
-                {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 (Reasoning)"},
-                {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet"},
-                {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct"},
-                {"id": "qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct"},
+                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nvidia Nemotron 120B (Free)"},
+                {"id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (Paid)"},
+                {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Reasoning (Paid)"},
+                {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 (Paid)"},
+                {"id": def_m if def_m else "google/gemini-2.5-flash", "name": f"Kunci Default ({def_m or 'gemini-2.5-flash'})"},
             ]
             seen_ids = set()
             for om in or_models:

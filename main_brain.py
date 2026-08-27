@@ -355,7 +355,24 @@ async def run_openai_agentic_turn(
                     payload["tools"] = tools_schema
                 res = await client.post(url, headers=headers, json=payload)
                 if res.status_code != 200:
-                    logger.error(f"[MainBrain:{provider}] HTTP {res.status_code}: {res.text[:200]}")
+                    err_text = res.text[:300]
+                    logger.error(f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}")
+                    if res.status_code == 402:
+                        return (
+                            f"⚠️ **Gagal memanggil `{model}` via {provider.upper()} (HTTP 402: Saldo / Credit Habis).**\n\n"
+                            f"Kredit di akun {provider.upper()} kamu kosong/tidak mencukupi untuk menjalankan model ini. "
+                            f"Silakan top up kredit di dashboard provider atau beralih ke model Gemini / model gratis di menu dropdown."
+                        )
+                    if res.status_code == 404:
+                        return (
+                            f"⚠️ **Model `{model}` tidak ditemukan di gateway {provider.upper()} (HTTP 404).**\n\n"
+                            f"Silakan gunakan model lain yang aktif di daftar dropdown pemilih model."
+                        )
+                    if res.status_code == 429:
+                        return (
+                            f"⚠️ **Rate Limit Terlampaui ({provider.upper()} HTTP 429).**\n\n"
+                            f"Batas kuota/request per menit untuk model ini telah tercapai. Coba beberapa saat lagi."
+                        )
                     return None
                 data = res.json()
                 token_usage.from_openai_json(data, provider=provider, model=model,
