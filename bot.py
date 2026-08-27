@@ -1343,10 +1343,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE))
-    reply = "❌ Maaf, terjadi kesalahan saat memproses pesan suaramu."
-
     try:
-        # Download voice audio
+        # 1. Download voice audio
         file_obj = await context.bot.get_file(voice.file_id)
         voice_bytes_io = io.BytesIO()
         await file_obj.download_to_memory(voice_bytes_io)
@@ -1356,7 +1354,33 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         mime = getattr(voice, "mime_type", None) or "audio/ogg"
         audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
-        prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
+        # 2. Transcribe voice audio fast with Gemini fallback so all models understand
+        transcription_text = None
+        if gemini_client:
+            try:
+                tr_resp = await gemini_client.aio.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[
+                                audio_part,
+                                types.Part.from_text(text="Transkripsikan isi rekaman suara ini secara akurat ke dalam teks. Kembalikan HANYA teks transkripsinya tanpa kata pengantar.")
+                            ]
+                        )
+                    ]
+                )
+                if tr_resp and tr_resp.text:
+                    transcription_text = tr_resp.text.strip()
+                    logger.info(f"Transkripsi pesan suara: {transcription_text}")
+            except Exception as tr_err:
+                logger.debug(f"Fast transcription skipped: {tr_err}")
+
+        if transcription_text:
+            prompt = f"[PESAN SUARA PENGGUNA (Transkripsi): \"{transcription_text}\"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat."
+        else:
+            prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
+
         reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
     finally:
         stop_typing.set()

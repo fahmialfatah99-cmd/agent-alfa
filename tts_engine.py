@@ -58,16 +58,39 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     temp_path = temp_file.name
     temp_file.close()
 
+    # 1. Try Primary Edge-TTS
     try:
         communicate = edge_tts.Communicate(clean_text, voice)
         await communicate.save(temp_path)
-        return temp_path
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+            return temp_path
     except Exception as e:
-        logger.error(f"TTS generation error: {e}")
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass
-        raise e
+        logger.warning(f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback...")
+
+    # 2. Try Secondary Edge-TTS voice
+    fallback_voice = "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
+    try:
+        communicate = edge_tts.Communicate(clean_text, fallback_voice)
+        await communicate.save(temp_path)
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+            return temp_path
+    except Exception as e:
+        logger.warning(f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS...")
+
+    # 3. Try gTTS (Google Translate TTS) as robust fallback
+    try:
+        import gtts
+        tts_obj = gtts.gTTS(text=clean_text, lang='id', slow=False)
+        tts_obj.save(temp_path)
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+            return temp_path
+    except Exception as e:
+        logger.error(f"gTTS fallback error: {e}")
+
+    if os.path.exists(temp_path):
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+    raise RuntimeError("Semua engine TTS (Edge-TTS & gTTS) gagal memproduksi audio.")
 

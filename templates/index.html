@@ -5875,23 +5875,23 @@
         // Speech-to-Text Voice Recording (Web Speech API)
         function toggleVoiceRecording() {
             const micBtn = document.getElementById('chat-mic-btn');
-            const micIcon = document.getElementById('chat-mic-icon');
             const micLabel = document.getElementById('chat-mic-label');
             const input = document.getElementById('chat-input-text');
 
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRec) {
-                showToast('Browser Anda tidak mendukung Web Speech API. Gunakan Chrome atau Edge.', 'warning');
+                showToast('Browser ini belum mendukung Web Speech API. Disarankan menggunakan Google Chrome, Edge, atau Safari.', 'warning');
                 return;
             }
 
             if (isRecordingVoice) {
-                // Stop recording
-                if (speechRecognition) speechRecognition.stop();
+                if (speechRecognition) {
+                    try { speechRecognition.stop(); } catch (e) {}
+                }
                 isRecordingVoice = false;
-                if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'animate-pulse', 'border-rose-500/40');
+                if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'border-rose-500/40');
                 if (micLabel) micLabel.innerText = 'Suara';
-                showToast('Perekaman suara selesai.', 'info');
+                showToast('Perekaman suara dihentikan.', 'info');
                 return;
             }
 
@@ -5903,9 +5903,9 @@
 
                 speechRecognition.onstart = () => {
                     isRecordingVoice = true;
-                    if (micBtn) micBtn.classList.add('bg-rose-500/20', 'text-rose-400', 'animate-pulse', 'border-rose-500/40');
+                    if (micBtn) micBtn.classList.add('bg-rose-500/20', 'text-rose-400', 'border-rose-500/40');
                     if (micLabel) micLabel.innerText = 'Mendengarkan...';
-                    showToast('Silakan berbicara dalam Bahasa Indonesia atau Inggris...', 'info');
+                    showToast('🎙️ Mikrofon aktif. Silakan bicara sekarang...', 'info');
                 };
 
                 speechRecognition.onresult = (event) => {
@@ -5913,48 +5913,85 @@
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         transcript += event.results[i][0].transcript;
                     }
-                    if (input) {
+                    if (input && transcript) {
                         input.value = transcript;
                         autoGrowChatInput(input);
                     }
                 };
 
                 speechRecognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
                     isRecordingVoice = false;
-                    if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'animate-pulse', 'border-rose-500/40');
+                    if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'border-rose-500/40');
                     if (micLabel) micLabel.innerText = 'Suara';
-                    showToast(`Error suara: ${event.error}`, 'error');
+
+                    const err = event.error;
+                    if (err === 'not-allowed' || err === 'service-not-allowed') {
+                        showToast('Izin mikrofon belum aktif. Izinkan akses mikrofon di pengaturan browser.', 'warning');
+                    } else if (err === 'no-speech') {
+                        showToast('Tidak ada suara terdeteksi. Silakan coba bicara kembali.', 'info');
+                    } else if (err === 'audio-capture') {
+                        showToast('Perangkat mikrofon tidak ditemukan atau sedang dipakai aplikasi lain.', 'error');
+                    } else {
+                        showToast(`Status suara: ${err}`, 'info');
+                    }
                 };
 
                 speechRecognition.onend = () => {
                     isRecordingVoice = false;
-                    if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'animate-pulse', 'border-rose-500/40');
+                    if (micBtn) micBtn.classList.remove('bg-rose-500/20', 'text-rose-400', 'border-rose-500/40');
                     if (micLabel) micLabel.innerText = 'Suara';
                 };
 
                 speechRecognition.start();
             } catch (err) {
                 console.error('Failed to start speech recognition:', err);
-                showToast('Gagal memulai mikrofon: ' + err.message, 'error');
+                showToast('Gagal mengaktifkan mikrofon: ' + err.message, 'error');
             }
         }
 
-        // Text-to-Speech (Voice Readout)
+        // Text-to-Speech (Voice Readout with Natural Voice Selection)
         function speakTextMessage(text) {
             if (!('speechSynthesis' in window)) {
                 showToast('Browser Anda tidak mendukung Text-to-Speech.', 'warning');
                 return;
             }
-            window.speechSynthesis.cancel();
-            // Clean markdown tags for clear speech
-            const cleanText = text.replace(/[#*`_\[\]\(\)>~]/g, ' ').replace(/\n+/g, '. ').slice(0, 800);
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'id-ID';
-            utterance.rate = 1.05;
-            utterance.pitch = 1.0;
-            utterance.onstart = () => showToast('Membacakan pesan dengan suara...', 'info');
-            window.speechSynthesis.speak(utterance);
+            try {
+                window.speechSynthesis.cancel();
+                if (!text || !text.trim()) {
+                    showToast('Tidak ada teks untuk dibacakan.', 'info');
+                    return;
+                }
+
+                // Clean markdown symbols, code blocks, URLs for natural pronunciation
+                const cleanText = text
+                    .replace(/```[\s\S]*?```/g, ' [cuplikan kode] ')
+                    .replace(/`[^`]*`/g, ' ')
+                    .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+                    .replace(/https?:\/\/\S+/g, ' ')
+                    .replace(/[#*`_\[\]\(\)>~|\\]/g, ' ')
+                    .replace(/\n+/g, '. ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .slice(0, 900);
+
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'id-ID';
+                utterance.rate = 1.05;
+                utterance.pitch = 1.0;
+
+                // Pick best natural voice if available
+                const voices = window.speechSynthesis.getVoices();
+                const idVoice = voices.find(v => v.lang.startsWith('id') || v.name.toLowerCase().includes('indonesia'));
+                if (idVoice) utterance.voice = idVoice;
+
+                utterance.onstart = () => showToast('🔊 Membacakan jawaban AI...', 'info');
+                utterance.onerror = (e) => console.warn('Speech synthesis error:', e);
+
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.error('TTS error:', err);
+                showToast('Gagal memutar audio: ' + err.message, 'error');
+            }
         }
 
         // Copy Text with Toast
