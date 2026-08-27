@@ -2407,12 +2407,11 @@ async def get_chat_available_models():
     model_list = []
     
     gemini_models = [
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash (Super Cepat)", "provider": "gemini"},
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro (Deep Reasoning)", "provider": "gemini"},
         {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Default Agentic)", "provider": "gemini"},
-        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking", "provider": "gemini"},
-        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "provider": "gemini"},
-        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "provider": "gemini"},
+        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking (Deep Logic)", "provider": "gemini"},
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Stabil & Cepat)", "provider": "gemini"},
+        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite (Ultra Ringan)", "provider": "gemini"},
+        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite", "provider": "gemini"},
     ]
 
     has_gemini = False
