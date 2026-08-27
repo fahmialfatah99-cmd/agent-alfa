@@ -2517,6 +2517,134 @@ async def clear_chat_history_api():
     return {"status": "success", "message": "Riwayat percakapan berhasil dibersihkan dari memori!"}
 
 
+@app.post("/api/chat/execute-code")
+async def execute_chat_code_block(payload: Dict[str, Any]):
+    """
+    Live Interactive Code Sandbox Execution right from Chat Code Blocks.
+    Supports Python, Bash/Shell, and JavaScript/Node.
+    """
+    language = (payload.get("language") or "python").lower().strip()
+    code = (payload.get("code") or "").strip()
+
+    if not code:
+        raise HTTPException(status_code=400, detail="code is required")
+
+    uid = get_primary_user_id()
+    tools.current_user_id_var.set(uid)
+    tools.current_chat_id_var.set(uid)
+
+    t0 = time.perf_counter()
+
+    if language in ("python", "py", "python3"):
+        result = tools.execute_python_sandbox(code=code)
+    elif language in ("bash", "sh", "shell", "zsh"):
+        result = tools.execute_bash_command(command=code)
+    elif language in ("js", "javascript", "node"):
+        # Run node in sandbox
+        tmp_js = f"/dev/shm/alfa_sandbox/script_{int(time.time()*1000)}.js"
+        os.makedirs("/dev/shm/alfa_sandbox", exist_ok=True)
+        with open(tmp_js, "w", encoding="utf-8") as f:
+            f.write(code)
+        result = tools.execute_bash_command(command=f"node {tmp_js}")
+    else:
+        # Fallback to python
+        result = tools.execute_python_sandbox(code=code)
+
+    elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
+
+    return {
+        "status": "success",
+        "language": language,
+        "execution_time_ms": elapsed_ms,
+        "result": result
+    }
+
+
+@app.get("/api/chat/export")
+async def export_chat_history(format: str = "markdown"):
+    """Export current user conversation history into Markdown (.md) or JSON."""
+    uid = get_primary_user_id()
+    rows = await database.get_recent_chat_history(uid, limit=100)
+
+    if format == "json":
+        return {
+            "status": "success",
+            "exported_at": datetime.now().isoformat(),
+            "total_messages": len(rows),
+            "messages": [dict(r) for r in rows]
+        }
+
+    # Markdown format
+    lines = [
+        "# ALFA Sovereign Agent — Riwayat Percakapan",
+        f"*Diekspor pada: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} WIB*",
+        "",
+        "---",
+        ""
+    ]
+    for r in rows:
+        role_label = "👤 **Fahmi (User)**" if r["role"] == "user" else "🤖 **Agent ALFA**"
+        ts = r.get("timestamp") or ""
+        lines.append(f"### {role_label}  `{ts}`")
+        lines.append("")
+        lines.append(r["content"])
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    md_content = "\n".join(lines)
+    return Response(
+        content=md_content,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename=alfa_chat_export_{int(time.time())}.md"}
+    )
+
+
+@app.get("/api/chat/modes")
+async def get_chat_expert_modes():
+    """Available expert persona modes with tailored system instructions."""
+    return {
+        "status": "success",
+        "modes": [
+            {
+                "id": "general",
+                "name": "Super Agent (130+ Tools)",
+                "icon": "bot",
+                "color": "cyan",
+                "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory."
+            },
+            {
+                "id": "coder",
+                "name": "Senior Software Architect",
+                "icon": "code-2",
+                "color": "emerald",
+                "description": "Fokus pada pembuatan kode berkualitas tinggi, refactoring, debug, dan testing di sandbox."
+            },
+            {
+                "id": "researcher",
+                "name": "Deep Web & Academic Researcher",
+                "icon": "search",
+                "color": "violet",
+                "description": "Riset mendalam menggunakan internet live, arXiv, PubMed, Wikipedia, dan perbandingan referensi."
+            },
+            {
+                "id": "data",
+                "name": "Data Analyst & PDF Maestro",
+                "icon": "file-spreadsheet",
+                "color": "amber",
+                "description": "Analisis Excel/CSV, visualisasi data, manipulasi PDF, OCR, dan konversi dokumen."
+            },
+            {
+                "id": "fast",
+                "name": "Sub-Second Fast Native",
+                "icon": "zap",
+                "color": "rose",
+                "description": "Eksekusi instan deterministik (< 50ms) untuk konversi gambar ke PDF, waifu2x, dll."
+            }
+        ]
+    }
+
+
 @app.post("/api/chat/async")
 async def chat_with_agent_async(payload: Dict[str, Any]):
     """Kirim tugas ke agent secara LATAR BELAKANG (fire-and-forget).
