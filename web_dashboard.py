@@ -2313,13 +2313,68 @@ async def update_guardian_config(payload: Dict[str, Any]):
 
 @app.post("/api/chat")
 async def chat_with_agent(payload: Dict[str, Any]):
-    """Send a message directly to the ALFA Agent and receive real response."""
-    message = payload.get("message")
-    if not message:
-        raise HTTPException(status_code=400, detail="message is required")
+    """Send a message directly to the ALFA Agent with optional multimodal attachments."""
+    message = (payload.get("message") or "").strip()
+    attachments = payload.get("attachments") or []
+
+    if not message and not attachments:
+        raise HTTPException(status_code=400, detail="message or attachments is required")
 
     uid = get_primary_user_id()
-    reply = await bot.run_agent_turn(user_id=uid, user_prompt=message, chat_id=uid)
+    
+    multimodal_parts = []
+    text_contexts = []
+
+    for att in attachments:
+        fname = att.get("name", "attachment")
+        mime = att.get("type", "application/octet-stream")
+        b64_data = att.get("base64", "")
+        if not b64_data:
+            continue
+        if "," in b64_data:
+            b64_data = b64_data.split(",", 1)[1]
+        try:
+            raw_bytes = base64.b64decode(b64_data)
+        except Exception:
+            continue
+
+        if mime.startswith("image/") or mime == "application/pdf":
+            try:
+                from google.genai import types
+                multimodal_parts.append(types.Part.from_bytes(data=raw_bytes, mime_type=mime))
+            except Exception:
+                pass
+        else:
+            try:
+                from markitdown import MarkItDown
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{fname}") as tmp:
+                    tmp.write(raw_bytes)
+                    tmp_path = tmp.name
+                try:
+                    md_res = MarkItDown().convert(tmp_path)
+                    content_str = md_res.text_content
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                text_contexts.append(f"[LAMPIRAN DOKUMEN: {fname}]\n{content_str}")
+            except Exception:
+                try:
+                    decoded_text = raw_bytes.decode("utf-8", errors="replace")
+                    text_contexts.append(f"[LAMPIRAN FILE: {fname}]\n{decoded_text}")
+                except Exception:
+                    pass
+
+    full_prompt = message
+    if text_contexts:
+        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+
+    reply = await bot.run_agent_turn(
+        user_id=uid,
+        user_prompt=full_prompt,
+        multimodal_parts=multimodal_parts if multimodal_parts else None,
+        chat_id=uid
+    )
     return {
         "status": "success",
         "reply": reply,
@@ -2333,15 +2388,52 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
     Tahan disconnect/refresh browser — hasil tersimpan ke riwayat chat."""
     import asyncio as _asyncio
 
-    message = payload.get("message")
-    if not message:
-        raise HTTPException(status_code=400, detail="message is required")
+    message = (payload.get("message") or "").strip()
+    attachments = payload.get("attachments") or []
+    if not message and not attachments:
+        raise HTTPException(status_code=400, detail="message or attachments is required")
     uid = get_primary_user_id()
     task_tag = f"[tugas-latar {datetime.now().strftime('%H:%M:%S')}]"
 
     async def _runner():
         try:
-            reply = await bot.run_agent_turn(user_id=uid, user_prompt=message, chat_id=uid)
+            multimodal_parts = []
+            text_contexts = []
+            for att in attachments:
+                fname = att.get("name", "attachment")
+                mime = att.get("type", "application/octet-stream")
+                b64_data = att.get("base64", "")
+                if not b64_data:
+                    continue
+                if "," in b64_data:
+                    b64_data = b64_data.split(",", 1)[1]
+                try:
+                    raw_bytes = base64.b64decode(b64_data)
+                except Exception:
+                    continue
+                if mime.startswith("image/") or mime == "application/pdf":
+                    try:
+                        from google.genai import types
+                        multimodal_parts.append(types.Part.from_bytes(data=raw_bytes, mime_type=mime))
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        decoded_text = raw_bytes.decode("utf-8", errors="replace")
+                        text_contexts.append(f"[LAMPIRAN FILE: {fname}]\n{decoded_text}")
+                    except Exception:
+                        pass
+
+            full_prompt = message
+            if text_contexts:
+                full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+
+            reply = await bot.run_agent_turn(
+                user_id=uid,
+                user_prompt=full_prompt,
+                multimodal_parts=multimodal_parts if multimodal_parts else None,
+                chat_id=uid
+            )
             await database.save_chat_message(
                 uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}")
             logger.info(f"chat_async selesai: {task_tag}")

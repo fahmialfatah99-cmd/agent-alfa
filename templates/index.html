@@ -1714,22 +1714,30 @@
 
         <!-- ==================== TAB 7: LIVE AI CONSOLE ==================== -->
         <section id="view-console" class="tab-view hidden space-y-6">
-            <div class="glass-card p-6 rounded-2xl space-y-4 max-w-4xl mx-auto flex flex-col h-[680px]">
+            <div id="chat-dropzone-container" class="glass-card p-6 rounded-2xl space-y-4 max-w-4xl mx-auto flex flex-col h-[700px] relative transition-all duration-300">
                 <div class="flex items-center justify-between border-b border-white/5 pb-3">
                     <div class="flex items-center space-x-3">
                         <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-mono font-bold text-sm">A</div>
                         <div>
-                            <h3 class="text-sm font-bold text-white font-mono">ALFA LIVE AGENT CONSOLE</h3>
-                            <p class="text-xs text-slate-400">Direct Gemini Multi-Turn Agent with 72 Tools Real Execution</p>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                ALFA LIVE AGENT CONSOLE
+                                <span class="text-[10px] font-normal px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Multimodal &amp; 130+ Tools</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">Direct AI Agent with Full Vision, Document Parser, and Code Sandboxes</p>
                         </div>
                     </div>
-                    <span class="px-2.5 py-1 text-xs font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">READY</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearWebChatHistory()" class="px-2.5 py-1 text-[11px] font-mono rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all flex items-center gap-1" title="Bersihkan riwayat tampilan chat">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Clear
+                        </button>
+                        <span class="px-2.5 py-1 text-xs font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">READY</span>
+                    </div>
                 </div>
 
                 <!-- Chat Messages Box -->
                 <div id="chat-messages-box" class="flex-1 bg-dark-950 border border-white/5 rounded-xl p-4 overflow-y-auto custom-scrollbar space-y-3 font-sans text-xs">
                     <div class="p-3.5 bg-dark-900 border border-white/5 rounded-xl text-slate-300 leading-relaxed">
-                        <span class="text-cyan-400 font-bold font-mono">ALFA:</span> Halo Fahmi! Ini konsol web interaktif dengan koneksi langsung ke otak Gemini dan 72 tools otonom. Coba salah satu tombol di bawah atau ketik perintah langsung!
+                        <span class="text-cyan-400 font-bold font-mono">ALFA:</span> Halo Fahmi! Ini konsol web interaktif dengan koneksi langsung ke otak AI dan 130+ tools otonom. Kamu bisa kirim teks, tempel screenshot (Ctrl+V), atau unggah file dokumen/gambar langsung lewat tombol klip kertas &amp; foto di bawah! 🚀
                     </div>
                 </div>
 
@@ -1738,12 +1746,30 @@
                     <button onclick="sendPresetChat('Cek status performa laptop real-time')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap">📊 Cek Performa</button>
                     <button onclick="sendPresetChat('Apa saja yang kamu ingat tentang saya?')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap">🧠 Cek Memori</button>
                     <button onclick="sendPresetChat('Ambil screenshot desktop sekarang')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap">📸 Screenshot Layar</button>
-                    <button onclick="sendPresetChat('Buatkan dokumen Writer LibreOffice ODT laporan singkat')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap">📄 Buat Dokumen ODT</button>
+                    <button onclick="sendPresetChat('Riset paper ilmiah terbaru tentang autonomous AI reasoning')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap">📚 Riset Paper Ilmiah</button>
                 </div>
+
+                <!-- Attachment Previews Tray -->
+                <div id="chat-attachments-preview" class="hidden flex flex-wrap gap-2 p-2.5 bg-dark-900/90 border border-cyan-500/30 rounded-xl max-h-36 overflow-y-auto custom-scrollbar"></div>
 
                 <!-- Input Box -->
                 <form onsubmit="sendWebChat(event)" class="flex items-center gap-2 pt-1">
-                    <input type="text" id="chat-input-text" placeholder="Ketik perintah atau pertanyaan untuk ALFA..." class="flex-1 p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    <!-- Hidden File & Photo Inputs -->
+                    <input type="file" id="chat-file-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*,application/pdf,text/*,.csv,.docx,.xlsx,.json,.py,.md,.js,.ts,.html,.css,.log,.txt">
+                    <input type="file" id="chat-photo-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*">
+
+                    <!-- Attachment Buttons -->
+                    <button type="button" onclick="document.getElementById('chat-file-input').click()" class="p-3 rounded-xl bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 transition-all flex items-center justify-center" title="Unggah File / Dokumen (PDF, TXT, DOCX, CSV, Kode)">
+                        <i data-lucide="paperclip" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" onclick="document.getElementById('chat-photo-input').click()" class="p-3 rounded-xl bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 transition-all flex items-center justify-center" title="Unggah Foto / Gambar (Vision Analysis)">
+                        <i data-lucide="image" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Text Input -->
+                    <input type="text" id="chat-input-text" placeholder="Ketik pesan, tempel (Ctrl+V) screenshot, atau seret file ke sini..." class="flex-1 p-3 bg-dark-950 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans">
+                    
+                    <!-- Send Button -->
                     <button type="submit" id="chat-send-btn" class="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-dark-950 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-glow-cyan">
                         <i data-lucide="send" class="w-4 h-4"></i> Kirim
                     </button>
@@ -5182,20 +5208,141 @@
             }
         }
 
-        // Live Chat AI
+        // ==================== MULTIMODAL LIVE AI CONSOLE CONTROLLER ====================
+        let attachedChatFiles = [];
+
+        function clearWebChatHistory() {
+            const box = document.getElementById('chat-messages-box');
+            if (box) {
+                box.innerHTML = `
+                    <div class="p-3.5 bg-dark-900 border border-white/5 rounded-xl text-slate-300 leading-relaxed">
+                        <span class="text-cyan-400 font-bold font-mono">ALFA:</span> Riwayat tampilan chat dibersihkan. Silakan ajukan pertanyaan atau unggah file/gambar baru! 🚀
+                    </div>
+                `;
+            }
+        }
+
+        function handleChatFilesSelected(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            processIncomingChatFiles(files);
+            e.target.value = '';
+        }
+
+        function processIncomingChatFiles(files) {
+            files.forEach(file => {
+                if (file.size > 25 * 1024 * 1024) {
+                    showToast(`File ${file.name} terlalu besar (>25MB).`, 'warning');
+                    return;
+                }
+                const reader = new FileReader();
+                const isImage = file.type.startsWith('image/');
+                reader.onload = (event) => {
+                    attachedChatFiles.push({
+                        name: file.name,
+                        type: file.type || 'application/octet-stream',
+                        size: file.size,
+                        base64: event.target.result,
+                        isImage: isImage
+                    });
+                    renderChatAttachmentsPreview();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderChatAttachmentsPreview() {
+            const tray = document.getElementById('chat-attachments-preview');
+            if (!tray) return;
+            if (!attachedChatFiles.length) {
+                tray.classList.add('hidden');
+                tray.innerHTML = '';
+                return;
+            }
+            tray.classList.remove('hidden');
+            tray.innerHTML = attachedChatFiles.map((f, idx) => {
+                const sizeKB = (f.size / 1024).toFixed(1);
+                if (f.isImage) {
+                    return `
+                        <div class="relative group flex items-center gap-2 p-1.5 bg-dark-950/80 border border-cyan-500/30 rounded-lg">
+                            <img src="${f.base64}" class="w-10 h-10 object-cover rounded border border-white/10" alt="${f.name}">
+                            <div class="max-w-[120px] truncate text-[11px] text-slate-300">
+                                <p class="truncate font-mono">${f.name}</p>
+                                <span class="text-[10px] text-slate-500">${sizeKB} KB</span>
+                            </div>
+                            <button type="button" onclick="removeChatAttachment(${idx})" class="p-1 text-slate-400 hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all" title="Hapus lampiran">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="flex items-center gap-2 p-2 bg-dark-950/80 border border-cyan-500/30 rounded-lg text-[11px] text-slate-300">
+                            <div class="w-8 h-8 rounded bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                            </div>
+                            <div class="max-w-[140px] truncate">
+                                <p class="truncate font-mono font-medium">${f.name}</p>
+                                <span class="text-[10px] text-slate-500">${sizeKB} KB</span>
+                            </div>
+                            <button type="button" onclick="removeChatAttachment(${idx})" class="p-1 text-slate-400 hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all" title="Hapus lampiran">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function removeChatAttachment(index) {
+            attachedChatFiles.splice(index, 1);
+            renderChatAttachmentsPreview();
+        }
+
+        // Live Chat AI with Multimodal Payload
         async function sendWebChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
             const msg = input.value.trim();
-            if (!msg) return;
+            const currentFiles = [...attachedChatFiles];
+
+            if (!msg && currentFiles.length === 0) return;
 
             const box = document.getElementById('chat-messages-box');
+            
+            // Build visual attachments for user bubble
+            let attachmentsHTML = '';
+            if (currentFiles.length > 0) {
+                attachmentsHTML = `
+                    <div class="flex flex-wrap justify-end gap-2 my-2">
+                        ${currentFiles.map(f => {
+                            if (f.isImage) {
+                                return `<img src="${f.base64}" class="max-w-[200px] max-h-[140px] object-cover rounded-lg border border-cyan-500/30 shadow-md">`;
+                            } else {
+                                return `
+                                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-900/40 border border-cyan-500/30 text-[11px] text-cyan-200 font-mono">
+                                        <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+                                        <span class="max-w-[150px] truncate">${f.name}</span>
+                                    </div>
+                                `;
+                            }
+                        }).join('')}
+                    </div>
+                `;
+            }
+
             box.innerHTML += `
                 <div class="p-3.5 bg-cyan-950/40 border border-cyan-500/20 rounded-xl text-slate-200 text-right">
-                    <span class="text-cyan-400 font-bold font-mono">Fahmi:</span> ${msg}
+                    <span class="text-cyan-400 font-bold font-mono">Fahmi:</span>
+                    ${msg ? `<div class="mt-1">${msg}</div>` : ''}
+                    ${attachmentsHTML}
                 </div>
             `;
+
             input.value = '';
+            attachedChatFiles = [];
+            renderChatAttachmentsPreview();
             box.scrollTop = box.scrollHeight;
 
             const sendBtn = document.getElementById('chat-send-btn');
@@ -5203,25 +5350,28 @@
             sendBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
             lucide.createIcons();
 
-            // Indikator "sedang memproses" agar tidak terlihat diam/hang
+            // Indikator "sedang memproses"
             const pendingId = 'chat-pending-' + Date.now();
             box.innerHTML += `
                 <div id="${pendingId}" class="p-3.5 bg-dark-900 border border-white/10 rounded-xl text-slate-400 text-xs animate-pulse">
                     <span class="text-cyan-400 font-bold font-mono">ALFA:</span>
-                    <span class="cv-wait-msg">sedang memproses...</span>
+                    <span class="cv-wait-msg">sedang memproses pesan &amp; lampiran...</span>
                 </div>
             `;
             box.scrollTop = box.scrollHeight;
             const waitTimer = setTimeout(() => {
                 const w = document.querySelector(`#${pendingId} .cv-wait-msg`);
-                if (w) w.innerText = 'masih memproses — tugas besar bisa memakan waktu beberapa menit. Tetap terbuka ya!';
-            }, 30000);
+                if (w) w.innerText = 'masih memproses dokumen/gambar — tugas analisis mendalam bisa memakan waktu beberapa saat...';
+            }, 25000);
 
             try {
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg })
+                    body: JSON.stringify({
+                        message: msg,
+                        attachments: currentFiles
+                    })
                 });
                 const data = await res.json();
                 clearTimeout(waitTimer);
@@ -9701,10 +9851,59 @@
                 d.runs.forEach(r => {
                     txt += `  • ${new Date(r.ts * 1000).toLocaleString()} — ${r.status} (${r.duration_ms} ms, ${r.steps} langkah)\n`;
                 });
-                document.getElementById('cv-result-body').innerText = txt;
             } catch (e) { cvStatus('Gagal ambil riwayat: ' + e.message, true); }
         }
         // ==================== /PIPELINE CANVAS STUDIO ====================
+
+        // Global Drag & Drop and Clipboard Paste Initializer for Live AI Console
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropzone = document.getElementById('chat-dropzone-container');
+            const chatInput = document.getElementById('chat-input-text');
+
+            if (dropzone) {
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.add('border-cyan-500', 'shadow-glow-cyan');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropzone.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.remove('border-cyan-500', 'shadow-glow-cyan');
+                    }, false);
+                });
+
+                dropzone.addEventListener('drop', (e) => {
+                    const dt = e.dataTransfer;
+                    const files = dt ? Array.from(dt.files) : [];
+                    if (files.length) {
+                        processIncomingChatFiles(files);
+                        showToast(`${files.length} berkas berhasil dilampirkan ke chat!`, 'success');
+                    }
+                }, false);
+            }
+
+            if (chatInput) {
+                chatInput.addEventListener('paste', (e) => {
+                    const items = (e.clipboardData || window.clipboardData).items;
+                    const pastedFiles = [];
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].kind === 'file') {
+                            const file = items[i].getAsFile();
+                            if (file) pastedFiles.push(file);
+                        }
+                    }
+                    if (pastedFiles.length) {
+                        processIncomingChatFiles(pastedFiles);
+                        showToast(`Gambar / file berhasil ditempel dari clipboard!`, 'info');
+                    }
+                });
+            }
+        });
     </script>
     <style>
         /* Pipeline Canvas Studio */
