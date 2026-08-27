@@ -2264,6 +2264,9 @@ async def download_artifact(path: str):
         os.path.realpath("/dev/shm/alfa_sandbox"),
         os.path.realpath(os.path.expanduser("~/output")),
         os.path.realpath(os.path.expanduser("~/.alfa")),
+        os.path.realpath(os.path.expanduser("~/Dokumen/ALFA_PDF_TOOLS")),
+        os.path.realpath(os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")),
+        os.path.realpath(os.path.expanduser("~/Dokumen")),
         os.path.realpath(video_generator.VIDEO_OUT_DIR),
         os.path.realpath(swarm_engine.SWARM_OUTPUT_DIR),
     ]
@@ -2313,8 +2316,10 @@ async def update_guardian_config(payload: Dict[str, Any]):
 
 @app.post("/api/chat")
 async def chat_with_agent(payload: Dict[str, Any]):
-    """Send a message directly to the ALFA Agent with optional multimodal attachments (Word, Excel, PPTX, PDF, Code, Images, Audio, ZIP)."""
+    """Send a message directly to the ALFA Agent with optional multimodal attachments and sub-second Fast-Path tool execution."""
+    import re
     import universal_file_extractor as ufe
+    import fast_path_executor as fpe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []
@@ -2326,6 +2331,7 @@ async def chat_with_agent(payload: Dict[str, Any]):
     
     multimodal_parts = []
     text_contexts = []
+    saved_disk_paths = []
 
     for att in attachments:
         fname = att.get("name", "attachment")
@@ -2340,12 +2346,28 @@ async def chat_with_agent(payload: Dict[str, Any]):
         except Exception:
             continue
 
-        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes)
+        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
         if part is not None:
             multimodal_parts.append(part)
         if txt_ctx:
             text_contexts.append(txt_ctx)
+            # Find disk path
+            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            if m:
+                saved_disk_paths.append(m.group(1).strip())
 
+    # 1. Check Sub-second Fast-Path Engine first (0.05s response)
+    fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+    if fast_result is not None:
+        return {
+            "status": "success",
+            "reply": fast_result.get("reply"),
+            "tool_used": fast_result.get("tool_name"),
+            "execution_time_ms": fast_result.get("execution_time_ms"),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # 2. Autonomous Multi-step LLM Turn
     full_prompt = message
     if text_contexts:
         full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")

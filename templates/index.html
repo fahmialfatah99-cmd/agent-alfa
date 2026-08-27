@@ -5351,19 +5351,74 @@
             sendBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
             lucide.createIcons();
 
-            // Indikator "sedang memproses"
+            // Indikator UI saat proses (Live Multi-Step Agent Stepper)
             const pendingId = 'chat-pending-' + Date.now();
+            const startTime = Date.now();
+            
             box.innerHTML += `
-                <div id="${pendingId}" class="p-3.5 bg-dark-900 border border-white/10 rounded-xl text-slate-400 text-xs animate-pulse">
-                    <span class="text-cyan-400 font-bold font-mono">ALFA:</span>
-                    <span class="cv-wait-msg">sedang memproses pesan &amp; lampiran...</span>
+                <div id="${pendingId}" class="p-4 bg-dark-900/90 border border-cyan-500/30 rounded-2xl space-y-3 font-sans text-xs shadow-lg relative overflow-hidden backdrop-blur-md transition-all duration-300">
+                    <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span class="font-mono font-bold text-cyan-400 flex items-center gap-1.5">
+                                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> ALFA AUTONOMOUS ENGINE
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 font-mono text-[11px]">
+                            <span id="${pendingId}-timer" class="px-2 py-0.5 rounded bg-dark-950 border border-white/10 text-cyan-300 font-bold">0.0s</span>
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">ACTIVE</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 py-1 font-mono text-[11px]">
+                        <div id="${pendingId}-step1" class="flex items-center gap-2 text-cyan-300 font-medium">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400"></i>
+                            <span>1. Mengunggah &amp; memvalidasi berkas ke disk...</span>
+                        </div>
+                        <div id="${pendingId}-step2" class="flex items-center gap-2 text-slate-300">
+                            <i id="${pendingId}-step2-icon" data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-amber-400"></i>
+                            <span id="${pendingId}-step2-text">2. Menganalisis niat perintah &amp; memanggil tool native...</span>
+                        </div>
+                        <div id="${pendingId}-step3" class="flex items-center gap-2 text-slate-500">
+                            <i id="${pendingId}-step3-icon" data-lucide="circle-dashed" class="w-3.5 h-3.5"></i>
+                            <span id="${pendingId}-step3-text">3. Menjalankan operasi tools &amp; menyusun berkas artefak...</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden border border-white/5">
+                        <div class="bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-400 h-full w-2/3 animate-pulse rounded-full"></div>
+                    </div>
                 </div>
             `;
             box.scrollTop = box.scrollHeight;
-            const waitTimer = setTimeout(() => {
-                const w = document.querySelector(`#${pendingId} .cv-wait-msg`);
-                if (w) w.innerText = 'masih memproses dokumen/gambar — tugas analisis mendalam bisa memakan waktu beberapa saat...';
-            }, 25000);
+            lucide.createIcons();
+
+            // Real-time live timer & dynamic step updater
+            const timerInterval = setInterval(() => {
+                const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+                const timerEl = document.getElementById(`${pendingId}-timer`);
+                if (timerEl) timerEl.innerText = `${elapsedSec}s`;
+
+                if (elapsedSec > 1.0) {
+                    const s2Icon = document.getElementById(`${pendingId}-step2-icon`);
+                    const s3Icon = document.getElementById(`${pendingId}-step3-icon`);
+                    const s3Div = document.getElementById(`${pendingId}-step3`);
+                    if (s2Icon && s2Icon.getAttribute('data-lucide') === 'loader') {
+                        s2Icon.setAttribute('data-lucide', 'check-circle-2');
+                        s2Icon.classList.remove('animate-spin', 'text-amber-400');
+                        s2Icon.classList.add('text-cyan-400');
+                    }
+                    if (s3Div && s3Div.classList.contains('text-slate-500')) {
+                        s3Div.classList.remove('text-slate-500');
+                        s3Div.classList.add('text-slate-200');
+                        if (s3Icon) {
+                            s3Icon.setAttribute('data-lucide', 'loader');
+                            s3Icon.classList.add('animate-spin', 'text-cyan-400');
+                        }
+                    }
+                    lucide.createIcons();
+                }
+            }, 100);
 
             try {
                 const res = await fetch('/api/chat', {
@@ -5375,7 +5430,7 @@
                     })
                 });
                 const data = await res.json();
-                clearTimeout(waitTimer);
+                clearInterval(timerInterval);
                 document.getElementById(pendingId)?.remove();
                 const parsedMD = marked.parse(data.reply || '');
                 box.innerHTML += `
@@ -5385,7 +5440,7 @@
                     </div>
                 `;
             } catch (err) {
-                clearTimeout(waitTimer);
+                clearInterval(timerInterval);
                 document.getElementById(pendingId)?.remove();
                 box.innerHTML += `
                     <div class="p-3.5 bg-rose-950/40 border border-rose-500/30 rounded-xl text-rose-300">
