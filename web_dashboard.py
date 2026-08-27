@@ -2311,6 +2311,81 @@ async def update_guardian_config(payload: Dict[str, Any]):
     return {"status": "success", "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!"}
 
 
+def _extract_document_text(fname: str, mime: str, raw_bytes: bytes) -> str:
+    """Extract text from uploaded spreadsheets, documents, and code files cleanly."""
+    ext = os.path.splitext(fname)[1].lower()
+
+    # 1. Excel files (.xlsx, .xlsm, .xltx)
+    if ext in ('.xlsx', '.xlsm', '.xltx'):
+        try:
+            import io, openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
+            out_sheets = []
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                rows = list(ws.iter_rows(values_only=True))
+                if not rows:
+                    continue
+                clean_rows = []
+                for r in rows[:300]:
+                    if any(cell is not None for cell in r):
+                        clean_rows.append([str(c) if c is not None else "" for c in r])
+                if clean_rows:
+                    headers = clean_rows[0]
+                    col_count = len(headers)
+                    table_md = [f"### Sheet: {sheet_name} (Total {len(rows)} baris)"]
+                    table_md.append("| " + " | ".join(headers) + " |")
+                    table_md.append("| " + " | ".join(["---"] * col_count) + " |")
+                    for r in clean_rows[1:]:
+                        padded = r + [""] * (col_count - len(r))
+                        table_md.append("| " + " | ".join(padded[:col_count]) + " |")
+                    out_sheets.append("\n".join(table_md))
+            if out_sheets:
+                return "\n\n".join(out_sheets)
+        except Exception as e:
+            logger.warning(f"openpyxl parse failed for {fname}: {e}")
+
+    # 2. Legacy Excel (.xls), CSV, TSV
+    if ext in ('.xls', '.csv', '.tsv'):
+        try:
+            import io, pandas as pd
+            if ext == '.csv':
+                df = pd.read_csv(io.BytesIO(raw_bytes))
+            elif ext == '.tsv':
+                df = pd.read_csv(io.BytesIO(raw_bytes), sep='\t')
+            else:
+                df = pd.read_excel(io.BytesIO(raw_bytes))
+            return f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n" + df.head(150).to_markdown(index=False)
+        except Exception as e:
+            logger.warning(f"pandas parse failed for {fname}: {e}")
+
+    # 3. MarkItDown for Word (.docx), PPTX, and general documents
+    try:
+        from markitdown import MarkItDown
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{fname}") as tmp:
+            tmp.write(raw_bytes)
+            tmp_path = tmp.name
+        try:
+            md_res = MarkItDown().convert(tmp_path)
+            if md_res.text_content and md_res.text_content.strip():
+                return md_res.text_content.strip()
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    except Exception as e:
+        logger.warning(f"MarkItDown convert failed for {fname}: {e}")
+
+    # 4. UTF-8 Plain text & code fallback (only for text files)
+    if ext in ('.txt', '.md', '.json', '.py', '.js', '.ts', '.html', '.css', '.sh', '.yaml', '.yml', '.sql', '.log', '.csv', '.env'):
+        try:
+            return raw_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            pass
+
+    return f"[File biner '{fname}' ({len(raw_bytes)} bytes) tidak dapat diubah ke teks otomatis]"
+
+
 @app.post("/api/chat")
 async def chat_with_agent(payload: Dict[str, Any]):
     """Send a message directly to the ALFA Agent with optional multimodal attachments."""
@@ -2345,25 +2420,8 @@ async def chat_with_agent(payload: Dict[str, Any]):
             except Exception:
                 pass
         else:
-            try:
-                from markitdown import MarkItDown
-                import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{fname}") as tmp:
-                    tmp.write(raw_bytes)
-                    tmp_path = tmp.name
-                try:
-                    md_res = MarkItDown().convert(tmp_path)
-                    content_str = md_res.text_content
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.remove(tmp_path)
-                text_contexts.append(f"[LAMPIRAN DOKUMEN: {fname}]\n{content_str}")
-            except Exception:
-                try:
-                    decoded_text = raw_bytes.decode("utf-8", errors="replace")
-                    text_contexts.append(f"[LAMPIRAN FILE: {fname}]\n{decoded_text}")
-                except Exception:
-                    pass
+            doc_text = _extract_document_text(fname, mime, raw_bytes)
+            text_contexts.append(f"[LAMPIRAN DOKUMEN: {fname}]\n{doc_text}")
 
     full_prompt = message
     if text_contexts:
@@ -2418,11 +2476,8 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
                     except Exception:
                         pass
                 else:
-                    try:
-                        decoded_text = raw_bytes.decode("utf-8", errors="replace")
-                        text_contexts.append(f"[LAMPIRAN FILE: {fname}]\n{decoded_text}")
-                    except Exception:
-                        pass
+                    doc_text = _extract_document_text(fname, mime, raw_bytes)
+                    text_contexts.append(f"[LAMPIRAN DOKUMEN: {fname}]\n{doc_text}")
 
             full_prompt = message
             if text_contexts:
