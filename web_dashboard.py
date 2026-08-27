@@ -2367,7 +2367,33 @@ async def chat_with_agent(payload: Dict[str, Any]):
             "timestamp": datetime.now().isoformat()
         }
 
-    # 2. Autonomous Multi-step LLM Turn
+    # 2. Check Swarm Multi-Agent Mode Execution
+    is_swarm = payload.get("is_swarm", False)
+    if is_swarm:
+        import tools
+        swarm_res = tools.conduct_ai_meeting(topic=message, mode="execute")
+        summary_md = f"### ⚡ EKSEKUSI SWARM MULTI-AGEN SELESAI\n\n"
+        summary_md += f"**Topik:** {message}\n"
+        participants = swarm_res.get('participants', [])
+        if participants:
+            summary_md += f"**Tim Agen Terlibat:** {', '.join(participants)}\n\n"
+        if swarm_res.get("consensus"):
+            summary_md += f"#### 🎯 Konsensus & Hasil Akhir:\n{swarm_res.get('consensus')}\n\n"
+        if swarm_res.get("action_plan"):
+            summary_md += f"#### 📋 Rencana Aksi / Langkah Nyata:\n{swarm_res.get('action_plan')}\n\n"
+        if swarm_res.get("execution_results"):
+            summary_md += f"#### 🛠️ Detail Hasil Eksekusi:\n"
+            for r in swarm_res.get("execution_results", []):
+                summary_md += f"- **{r.get('agent', 'Agent')}**: {r.get('output', '')}\n"
+        return {
+            "status": "success",
+            "reply": summary_md,
+            "is_swarm": True,
+            "meeting_id": swarm_res.get("meeting_id"),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # 3. Autonomous Multi-step LLM Turn
     full_prompt = message
     if text_contexts:
         full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
@@ -2383,6 +2409,14 @@ async def chat_with_agent(payload: Dict[str, Any]):
         "reply": reply,
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.delete("/api/chat/history")
+async def clear_chat_history_api():
+    """Wipe chat conversation history from database."""
+    uid = get_primary_user_id()
+    await database.clear_user_chat_history(uid)
+    return {"status": "success", "message": "Riwayat percakapan berhasil dibersihkan dari memori!"}
 
 
 @app.post("/api/chat/async")
