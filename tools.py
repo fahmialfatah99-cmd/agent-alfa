@@ -5446,6 +5446,20 @@ from gdrive_suite import (
     gdrive_oauth_exchange_code as gdrive_oauth_exchange_code,
 )
 
+from lsp_code_intelligence import (
+    lsp_find_symbol_definition as lsp_find_symbol_definition,
+    lsp_find_symbol_references as lsp_find_symbol_references,
+    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
+)
+from git_sandbox import (
+    git_worktree_sandbox_create as git_worktree_sandbox_create,
+    git_worktree_sandbox_verify_and_merge as git_worktree_sandbox_verify_and_merge,
+    git_worktree_sandbox_rollback as git_worktree_sandbox_rollback,
+    git_worktree_sandbox_list as git_worktree_sandbox_list,
+)
+from visual_tester import browser_visual_test_page as browser_visual_test_page
+from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
+
 
 def self_restart_service() -> Dict[str, Any]:
     """
@@ -6169,6 +6183,15 @@ AVAILABLE_TOOLS = [
     apply_unified_diff,
     index_codebase,
     search_codebase,
+    lsp_find_symbol_definition,
+    lsp_find_symbol_references,
+    lsp_analyze_module_hierarchy,
+    git_worktree_sandbox_create,
+    git_worktree_sandbox_verify_and_merge,
+    git_worktree_sandbox_rollback,
+    git_worktree_sandbox_list,
+    browser_visual_test_page,
+    academic_deep_research_paper,
     schedule_reminder,
     capture_desktop_screenshot,
     capture_webcam_frame,
