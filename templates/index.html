@@ -1728,11 +1728,13 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-dark-950/80 border border-violet-500/30 text-[11px] font-mono text-violet-300 cursor-pointer hover:bg-violet-950/30 transition-all select-none" title="Aktifkan Swarm Mode untuk mempekerjakan tim multi-agen secara otonom">
-                            <input type="checkbox" id="chat-swarm-toggle" class="w-3.5 h-3.5 accent-violet-500 rounded cursor-pointer">
-                            <i data-lucide="users" class="w-3.5 h-3.5 text-violet-400"></i>
-                            <span class="font-bold">Swarm Mode</span>
-                        </label>
+                        <!-- AI Model Selector Dropdown based on connected API Keys -->
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-dark-950/90 border border-cyan-500/30 text-[11px] font-mono text-cyan-300 shadow-sm" title="Ganti model AI aktif sesuai API Key yang terhubung pada website">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                            <select id="chat-model-selector" onchange="onChatModelChanged(this)" class="bg-transparent text-white font-mono text-xs focus:outline-none cursor-pointer pr-1 max-w-[180px] sm:max-w-[240px]">
+                                <option value="" disabled selected>Memuat Model AI...</option>
+                            </select>
+                        </div>
                         <button onclick="clearWebChatHistory()" class="px-2.5 py-1 text-[11px] font-mono rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-300 border border-white/10 transition-all flex items-center gap-1" title="Hapus seluruh riwayat percakapan dari layar dan memori">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Riwayat
                         </button>
@@ -4337,6 +4339,7 @@
                 toggleSidebar(false);
             }
 
+            if (tabId === 'console') loadChatAvailableModels();
             if (tabId === 'tools') { if (allToolsData.length === 0) fetchTools(); fetchDynamicPlugins(); }
             if (tabId === 'services') fetchServices();
             if (tabId === 'canvas') initCanvas();
@@ -5402,13 +5405,68 @@
             renderChatAttachmentsPreview();
         }
 
-        // Live Chat AI with Multimodal Payload & Swarm Multi-Agent Mode
+        // ==================== DYNAMIC AI MODEL SELECTOR CONTROLLER ====================
+        async function loadChatAvailableModels() {
+            const selector = document.getElementById('chat-model-selector');
+            if (!selector) return;
+            try {
+                const res = await fetch('/api/chat/models');
+                const data = await res.json();
+                if (data.status === 'success' && data.models && data.models.length > 0) {
+                    const groups = {};
+                    data.models.forEach(m => {
+                        const prov = m.provider || 'Other';
+                        if (!groups[prov]) groups[prov] = [];
+                        groups[prov].push(m);
+                    });
+
+                    let html = '';
+                    for (const [provName, mList] of Object.entries(groups)) {
+                        html += `<optgroup label="── ${provName} ──" class="bg-dark-950 text-slate-300 font-bold">`;
+                        mList.forEach(m => {
+                            const isSelected = (m.id === data.active_model) ? 'selected' : '';
+                            html += `<option value="${m.id}" data-key-id="${m.key_id || ''}" ${isSelected} class="bg-dark-900 text-white font-normal">${m.name}</option>`;
+                        });
+                        html += `</optgroup>`;
+                    }
+                    selector.innerHTML = html;
+                } else {
+                    selector.innerHTML = '<option value="gemini-3.6-flash">Gemini 3.6 Flash (Default)</option>';
+                }
+            } catch (err) {
+                selector.innerHTML = '<option value="gemini-3.6-flash">Gemini 3.6 Flash (Default)</option>';
+            }
+        }
+
+        async function onChatModelChanged(selectEl) {
+            const selectedOpt = selectEl.options[selectEl.selectedIndex];
+            const modelId = selectEl.value;
+            const keyId = selectedOpt ? selectedOpt.getAttribute('data-key-id') : null;
+            try {
+                const res = await fetch('/api/chat/model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: modelId, key_id: keyId })
+                });
+                const data = await res.json();
+                showToast(`Model AI aktif dialihkan ke: ${selectedOpt.text.replace(/^[✨🌐⚡]\s*/, '')}`, 'success');
+            } catch (err) {
+                showToast(`Gagal mengubah model: ${err.message}`, 'error');
+            }
+        }
+
+        // Live Chat AI with Multimodal Payload & Dynamic Model Switching
         async function sendWebChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
             const msg = input.value.trim();
             const currentFiles = [...attachedChatFiles];
-            const isSwarm = document.getElementById('chat-swarm-toggle')?.checked || false;
+
+            const modelSelector = document.getElementById('chat-model-selector');
+            const selectedModel = modelSelector ? modelSelector.value : '';
+            const selectedOpt = modelSelector && modelSelector.selectedIndex >= 0 ? modelSelector.options[modelSelector.selectedIndex] : null;
+            const selectedKeyId = selectedOpt ? selectedOpt.getAttribute('data-key-id') : null;
+            const modelDisplayName = selectedOpt ? selectedOpt.text.replace(/^[✨🌐⚡]\s*/, '') : 'Gemini';
 
             if (!msg && currentFiles.length === 0) return;
 
@@ -5435,11 +5493,8 @@
                 `;
             }
 
-            const swarmBadge = isSwarm ? '<span class="inline-block px-2 py-0.5 mb-1 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-mono font-bold">⚡ SWARM MODE</span><br>' : '';
-
             box.innerHTML += `
                 <div class="p-3.5 bg-cyan-950/40 border border-cyan-500/20 rounded-xl text-slate-200 text-right">
-                    ${swarmBadge}
                     <span class="text-cyan-400 font-bold font-mono">Fahmi:</span>
                     ${msg ? `<div class="mt-1">${msg}</div>` : ''}
                     ${attachmentsHTML}
@@ -5459,15 +5514,14 @@
             // Indikator UI saat proses (Live Multi-Step Agent Stepper)
             const pendingId = 'chat-pending-' + Date.now();
             const startTime = Date.now();
-            const engineLabel = isSwarm ? 'ALFA SWARM MULTI-AGENT' : 'ALFA AUTONOMOUS ENGINE';
             
             box.innerHTML += `
                 <div id="${pendingId}" class="p-4 bg-dark-900/90 border border-cyan-500/30 rounded-2xl space-y-3 font-sans text-xs shadow-lg relative overflow-hidden backdrop-blur-md transition-all duration-300">
                     <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
                         <div class="flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full ${isSwarm ? 'bg-violet-400' : 'bg-cyan-400'} animate-ping"></span>
-                            <span class="font-mono font-bold ${isSwarm ? 'text-violet-400' : 'text-cyan-400'} flex items-center gap-1.5">
-                                <i data-lucide="${isSwarm ? 'users' : 'cpu'}" class="w-3.5 h-3.5"></i> ${engineLabel}
+                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span class="font-mono font-bold text-cyan-400 flex items-center gap-1.5">
+                                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> ${modelDisplayName}
                             </span>
                         </div>
                         <div class="flex items-center gap-2 font-mono text-[11px]">
@@ -5479,11 +5533,11 @@
                     <div class="space-y-2 py-1 font-mono text-[11px]">
                         <div id="${pendingId}-step1" class="flex items-center gap-2 text-cyan-300 font-medium">
                             <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-cyan-400"></i>
-                            <span>1. Mengunggah &amp; memvalidasi konteks ke memori...</span>
+                            <span>1. Menyiapkan konteks &amp; memvalidasi berkas...</span>
                         </div>
                         <div id="${pendingId}-step2" class="flex items-center gap-2 text-slate-300">
                             <i id="${pendingId}-step2-icon" data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-amber-400"></i>
-                            <span id="${pendingId}-step2-text">${isSwarm ? '2. Mengkoordinasikan tim agen &amp; mengeksekusi peran...' : '2. Menganalisis niat perintah &amp; memanggil tool native...'}</span>
+                            <span id="${pendingId}-step2-text">2. Memanggil engine ${modelDisplayName} &amp; tools native...</span>
                         </div>
                         <div id="${pendingId}-step3" class="flex items-center gap-2 text-slate-500">
                             <i id="${pendingId}-step3-icon" data-lucide="circle-dashed" class="w-3.5 h-3.5"></i>
@@ -5492,7 +5546,7 @@
                     </div>
 
                     <div class="w-full bg-dark-950 rounded-full h-1.5 overflow-hidden border border-white/5">
-                        <div class="bg-gradient-to-r ${isSwarm ? 'from-violet-500 via-purple-500 to-pink-500' : 'from-cyan-500 via-blue-500 to-emerald-400'} h-full w-2/3 animate-pulse rounded-full"></div>
+                        <div class="bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-400 h-full w-2/3 animate-pulse rounded-full"></div>
                     </div>
                 </div>
             `;
@@ -5533,7 +5587,8 @@
                     body: JSON.stringify({
                         message: msg,
                         attachments: currentFiles,
-                        is_swarm: isSwarm
+                        selected_model: selectedModel,
+                        key_id: selectedKeyId
                     })
                 });
                 const data = await res.json();
@@ -5543,7 +5598,7 @@
                 const bubble = document.createElement('div');
                 bubble.className = "p-3.5 bg-dark-900 border border-white/5 rounded-xl text-slate-300 leading-relaxed prose prose-invert max-w-none text-xs";
                 bubble.innerHTML = `
-                    <span class="${isSwarm ? 'text-violet-400' : 'text-cyan-400'} font-bold font-mono block mb-1">${isSwarm ? 'ALFA SWARM:' : 'ALFA:'}</span>
+                    <span class="text-cyan-400 font-bold font-mono block mb-1">ALFA (${modelDisplayName}):</span>
                     ${parsedMD}
                 `;
                 box.appendChild(bubble);
@@ -10068,6 +10123,9 @@
                     }
                 });
             }
+
+            // Load available models for Chat Agent on init
+            loadChatAvailableModels();
         });
     </script>
     <style>

@@ -304,16 +304,24 @@ def _main_brain_gemini_model() -> str:
     return GEMINI_MODEL
 
 
-def resolve_main_gemini():
+def resolve_main_gemini(key_id: Optional[int] = None):
     """Return (client, key_id, key_label) for the MAIN agent.
 
-    Priority: active 'gemini' key in the vault -> GEMINI_API_KEY env.
+    Priority: key_id -> active 'gemini' key in the vault -> GEMINI_API_KEY env.
     Clients are cached per key string to avoid rebuilding per message.
     """
-    try:
-        active = database.get_active_api_key_sync("gemini")
-    except Exception:
-        active = None
+    active = None
+    if key_id:
+        try:
+            active = database.get_api_key_by_id_sync(key_id)
+        except Exception:
+            active = None
+
+    if not active:
+        try:
+            active = database.get_active_api_key_sync("gemini")
+        except Exception:
+            active = None
 
     if active and (active.get("api_key") or "").strip():
         api_key = active["api_key"].strip()
@@ -454,18 +462,20 @@ async def run_agent_turn(
     user_id: int,
     user_prompt: str,
     multimodal_parts: Optional[list] = None,
-    chat_id: Optional[int] = None
+    chat_id: Optional[int] = None,
+    override_model: Optional[str] = None,
+    override_key_id: Optional[int] = None
 ) -> str:
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
     Propagates contextvars for per-user tool isolation.
-    Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault.
+    Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault atau pilihan model aktif.
     """
     global gemini_client
 
-    brain = main_brain.get_main_brain()
+    brain = main_brain.get_main_brain(override_key_id=override_key_id, override_model=override_model)
     if brain["provider"] == "gemini":
-        gemini_client, gkey_id, gkey_label = resolve_main_gemini()
+        gemini_client, gkey_id, gkey_label = resolve_main_gemini(key_id=override_key_id)
         if not gemini_client:
             return (
                 "⚠️ **API key belum tersedia.**\n"
@@ -579,7 +589,7 @@ async def run_agent_turn(
         base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
         CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
     )
-    preferred_model = user_settings.get("model_name") or GEMINI_MODEL
+    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
     fallback_chain = [m.strip() for m in os.getenv(
@@ -587,9 +597,9 @@ async def run_agent_turn(
         "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
     ).split(",") if m.strip()]
 
-    # Model otak utama (dari System Settings) menang atas preferensi per-user
+    # Model otak utama (dari System Settings) menang atas preferensi per-user jika tidak ada override
     brain_model_override = database.get_main_brain_model()
-    base_model = brain_model_override or preferred_model
+    base_model = override_model or brain_model_override or preferred_model
     candidate_models = [base_model] + (
         [preferred_model] if preferred_model and preferred_model != base_model else []
     ) + fallback_chain

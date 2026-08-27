@@ -37,13 +37,13 @@ _TOOL_KEEP_RECENT = 6       # jumlah pesan tool terakhir yang dijaga utuh
 
 
 # ── Resolusi otak utama ──────────────────────────────────────────────────────
-def get_main_brain() -> Dict[str, Any]:
+def get_main_brain(override_key_id: Optional[int] = None, override_model: Optional[str] = None) -> Dict[str, Any]:
     """
     Return dict: {provider, api_key, model, base_url, key_id, label}
-    Prioritas: pointer main_brain_key_id -> kunci gemini aktif di vault -> .env
+    Prioritas: override_key_id -> pointer main_brain_key_id -> kunci aktif di vault -> .env
     """
     import database
-    kid = database.get_main_brain_key_id()
+    kid = override_key_id or database.get_main_brain_key_id()
     if kid:
         try:
             with database.get_sync_db() as conn:
@@ -52,10 +52,11 @@ def get_main_brain() -> Dict[str, Any]:
                     "FROM api_keys WHERE id = ?", (kid,)
                 ).fetchone()
             if row:
-                model = row["default_model"]
-                override = database.get_main_brain_model()
-                if override:
-                    model = override
+                model = override_model or row["default_model"]
+                if not override_model:
+                    override = database.get_main_brain_model()
+                    if override:
+                        model = override
                 return {
                     "provider": row["provider"].lower(),
                     "api_key": database.decrypt_key(row["api_key"]),
@@ -76,7 +77,7 @@ def get_main_brain() -> Dict[str, Any]:
         return {
             "provider": "gemini",
             "api_key": gk["api_key"].strip(),
-            "model": gk.get("default_model") or "",
+            "model": override_model or gk.get("default_model") or "",
             "base_url": "",
             "key_id": gk.get("id"),
             "label": f"brain#{gk.get('id')}",
@@ -88,7 +89,7 @@ def get_main_brain() -> Dict[str, Any]:
     return {
         "provider": "gemini" if env_key else "none",
         "api_key": env_key,
-        "model": os.getenv("GEMINI_MODEL", ""),
+        "model": override_model or os.getenv("GEMINI_MODEL", ""),
         "base_url": "",
         "key_id": None,
         "label": "gemini-env",

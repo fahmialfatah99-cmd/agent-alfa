@@ -2367,31 +2367,14 @@ async def chat_with_agent(payload: Dict[str, Any]):
             "timestamp": datetime.now().isoformat()
         }
 
-    # 2. Check Swarm Multi-Agent Mode Execution
-    is_swarm = payload.get("is_swarm", False)
-    if is_swarm:
-        import tools
-        swarm_res = tools.conduct_ai_meeting(topic=message, mode="execute")
-        summary_md = f"### ⚡ EKSEKUSI SWARM MULTI-AGEN SELESAI\n\n"
-        summary_md += f"**Topik:** {message}\n"
-        participants = swarm_res.get('participants', [])
-        if participants:
-            summary_md += f"**Tim Agen Terlibat:** {', '.join(participants)}\n\n"
-        if swarm_res.get("consensus"):
-            summary_md += f"#### 🎯 Konsensus & Hasil Akhir:\n{swarm_res.get('consensus')}\n\n"
-        if swarm_res.get("action_plan"):
-            summary_md += f"#### 📋 Rencana Aksi / Langkah Nyata:\n{swarm_res.get('action_plan')}\n\n"
-        if swarm_res.get("execution_results"):
-            summary_md += f"#### 🛠️ Detail Hasil Eksekusi:\n"
-            for r in swarm_res.get("execution_results", []):
-                summary_md += f"- **{r.get('agent', 'Agent')}**: {r.get('output', '')}\n"
-        return {
-            "status": "success",
-            "reply": summary_md,
-            "is_swarm": True,
-            "meeting_id": swarm_res.get("meeting_id"),
-            "timestamp": datetime.now().isoformat()
-        }
+    # 2. Extract active model override from payload
+    selected_model = payload.get("selected_model")
+    selected_key_id = payload.get("key_id")
+    if selected_key_id:
+        try:
+            selected_key_id = int(selected_key_id)
+        except Exception:
+            selected_key_id = None
 
     # 3. Autonomous Multi-step LLM Turn
     full_prompt = message
@@ -2402,13 +2385,117 @@ async def chat_with_agent(payload: Dict[str, Any]):
         user_id=uid,
         user_prompt=full_prompt,
         multimodal_parts=multimodal_parts if multimodal_parts else None,
-        chat_id=uid
+        chat_id=uid,
+        override_model=selected_model,
+        override_key_id=selected_key_id
     )
     return {
         "status": "success",
         "reply": reply,
+        "model_used": selected_model or "default",
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.get("/api/chat/models")
+async def get_chat_available_models():
+    """Get all available AI models grouped by connected API keys in the vault."""
+    keys = database.list_api_keys_sync()
+    active_brain_model = database.get_main_brain_model()
+    active_key_id = database.get_main_brain_key_id()
+    
+    model_list = []
+    
+    gemini_models = [
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash (Super Cepat)", "provider": "gemini"},
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro (Deep Reasoning)", "provider": "gemini"},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Default Agentic)", "provider": "gemini"},
+        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking", "provider": "gemini"},
+        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "provider": "gemini"},
+        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest", "provider": "gemini"},
+    ]
+
+    has_gemini = False
+    for k in keys:
+        prov = (k.get("provider") or "").lower()
+        def_m = k.get("default_model") or ""
+        kid = k.get("id")
+        kname = k.get("name")
+        is_act = k.get("is_active", False)
+
+        if prov == "gemini":
+            has_gemini = True
+            for gm in gemini_models:
+                model_list.append({
+                    "id": gm["id"],
+                    "name": f"✨ {gm['name']}",
+                    "provider": f"Gemini ({kname})",
+                    "key_id": kid,
+                    "key_name": kname,
+                    "is_active_key": is_act
+                })
+        elif prov == "openrouter":
+            or_models = [
+                {"id": def_m if def_m else "google/gemini-2.5-flash", "name": f"Default ({def_m or 'gemini-2.5-flash'})"},
+                {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 (Reasoning)"},
+                {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet"},
+                {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B Instruct"},
+                {"id": "qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct"},
+            ]
+            seen_ids = set()
+            for om in or_models:
+                if om["id"] not in seen_ids:
+                    seen_ids.add(om["id"])
+                    model_list.append({
+                        "id": om["id"],
+                        "name": f"🌐 {om['name']}",
+                        "provider": f"OpenRouter ({kname})",
+                        "key_id": kid,
+                        "key_name": kname,
+                        "is_active_key": is_act
+                    })
+        elif prov in ("groq", "openai", "custom", "nvidia"):
+            model_list.append({
+                "id": def_m or f"{prov}-model",
+                "name": f"⚡ {kname} ({def_m or prov})",
+                "provider": prov.upper(),
+                "key_id": kid,
+                "key_name": kname,
+                "is_active_key": is_act
+            })
+
+    if not has_gemini:
+        for gm in gemini_models:
+            model_list.append({
+                "id": gm["id"],
+                "name": f"✨ {gm['name']}",
+                "provider": "Gemini (Env)",
+                "key_id": None,
+                "key_name": "GEMINI_API_KEY",
+                "is_active_key": True
+            })
+
+    return {
+        "status": "success",
+        "active_model": active_brain_model or "gemini-3.6-flash",
+        "active_key_id": active_key_id,
+        "models": model_list
+    }
+
+
+@app.post("/api/chat/model")
+async def set_chat_active_model(payload: Dict[str, Any]):
+    """Set and persist default active model."""
+    model = (payload.get("model") or "").strip()
+    key_id = payload.get("key_id")
+    if model:
+        database.set_main_brain_model(model)
+    if key_id:
+        try:
+            database.activate_api_key_sync(int(key_id))
+        except Exception:
+            pass
+    return {"status": "success", "message": f"Model aktif berhasil dialihkan ke: {model}"}
 
 
 @app.delete("/api/chat/history")
