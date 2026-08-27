@@ -5436,6 +5436,15 @@ from gdrive_suite import (
 from gdrive_suite import (
     gdrive_upload_file as gdrive_upload_file,
 )
+from gdrive_suite import (
+    gdrive_save_oauth_client_secret as gdrive_save_oauth_client_secret,
+)
+from gdrive_suite import (
+    gdrive_oauth_get_auth_url as gdrive_oauth_get_auth_url,
+)
+from gdrive_suite import (
+    gdrive_oauth_exchange_code as gdrive_oauth_exchange_code,
+)
 
 
 def self_restart_service() -> Dict[str, Any]:

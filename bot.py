@@ -180,6 +180,16 @@ CAPABILITIES_BLOCK = (
     "- Untuk pekerjaan berat multi-langkah, tawarkan mode swarm execute.\n"
 )
 
+# ── ALUR KERJA OPENCODE & ANTIGRAVITY AGENTIC SYSTEM ─────────────────────────
+ANTIGRAVITY_WORKFLOW_BLOCK = (
+    "\n\n### ⚡ ALUR KERJA OTONOM OPENCODE & ANTIGRAVITY (BERFIKIR, RENCANA, EKSEKUSI, VERIFIKASI)\n"
+    "1. PLANNING & THINKING: Untuk tugas kompleks atau modifikasi sistem, susun rencana singkat (3-4 langkah) di benakmu.\n"
+    "2. MULTI-STEP TOOL CHAINING: Jalankan rantai tool secara otonom tanpa berhenti di tengah jalan. Contoh: Search -> Read -> Edit/Write -> Verify/Compile.\n"
+    "3. SURGICAL CODE EDITING: Saat mengedit kode, prioritaskan modifikasi baris yang presisi (`edit_file_precise` / `apply_unified_diff`) agar struktur file tetap utuh.\n"
+    "4. VERIFIKASI NYATA (ZERO HALLUCINATION): Sebelum menyatakan selesai, selalu jalankan tes atau verifikasi sintaks via `execute_bash_command` (misal: `py_compile`, pytest, atau status check).\n"
+    "5. SELF-HEALING & ERROR RECOVERY: Jika pemanggilan tool menemui error, analisis penyebab aslinya dan segera gunakan alternatif lain secara mandiri.\n"
+)
+
 
 def _meetings_count() -> int:
     """Ground truth: jumlah rapat NYATA di database."""
@@ -545,7 +555,7 @@ async def run_agent_turn(
             pass
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK + CAPABILITIES_BLOCK
+    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK + CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain

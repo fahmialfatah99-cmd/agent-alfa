@@ -2512,6 +2512,96 @@ async def gdrive_oauth_secret_check():
     return result
 
 
+@app.post("/api/gdrive/oauth/upload-secret")
+async def gdrive_oauth_upload_secret(
+    file: Optional[UploadFile] = File(None),
+    raw_json: Optional[str] = Form(None)
+):
+    """Upload OAuth Client Secret JSON (Desktop or Web App) or paste raw JSON."""
+    content = ""
+    if file:
+        content_bytes = await file.read()
+        content = content_bytes.decode("utf-8")
+    elif raw_json:
+        content = raw_json.strip()
+    else:
+        raise HTTPException(status_code=400, detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.")
+        
+    return tools.gdrive_save_oauth_client_secret(content)
+
+
+@app.get("/api/gdrive/oauth/auth-url")
+async def gdrive_oauth_auth_url(request: Request):
+    """Generate authorization URL for Google Drive OAuth."""
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
+    return tools.gdrive_oauth_get_auth_url(redirect_uri=redirect_uri)
+
+
+@app.get("/api/gdrive/oauth/callback")
+async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str] = None, request: Request = None):
+    """Handle OAuth redirect callback from Google."""
+    if error:
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Otentikasi Gagal</title></head>
+        <body style="font-family: sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 50px;">
+            <h2 style="color: #f43f5e;">❌ Otentikasi Google Dibatalkan / Gagal</h2>
+            <p style="color: #94a3b8;">{error}</p>
+            <p><a href="/" style="color: #38bdf8; text-decoration: none; font-weight: bold;">← Kembali ke Dashboard</a></p>
+        </body>
+        </html>
+        """)
+        
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code tidak ditemukan dalam URL callback.")
+        
+    base_url = str(request.base_url).rstrip("/") if request else "http://localhost:8080"
+    redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
+    res = tools.gdrive_oauth_exchange_code(auth_code=code, redirect_uri=redirect_uri)
+    
+    if res.get("status") == "success":
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login Berhasil</title>
+            <meta http-equiv="refresh" content="2;url=/?gdrive_oauth=success#view-gdrive">
+        </head>
+        <body style="font-family: sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 50px;">
+            <h2 style="color: #10b981;">🎉 Login Google Drive Berhasil!</h2>
+            <p style="color: #94a3b8;">Upload Google Drive sekarang menggunakan kuota akun pribadi Anda (15 GB+).</p>
+            <p style="color: #64748b; font-size: 12px;">Mengarahkan kembali ke Dashboard ALFA...</p>
+            <p><a href="/#view-gdrive" style="color: #38bdf8; text-decoration: none; font-weight: bold;">Klik di sini jika tidak otomatis diarahkan</a></p>
+        </body>
+        </html>
+        """)
+    else:
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Otentikasi Gagal</title></head>
+        <body style="font-family: sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 50px;">
+            <h2 style="color: #f43f5e;">❌ Gagal Menyimpan Token</h2>
+            <p style="color: #94a3b8;">{res.get('message')}</p>
+            <p><a href="/#view-gdrive" style="color: #38bdf8; text-decoration: none; font-weight: bold;">← Kembali ke Dashboard</a></p>
+        </body>
+        </html>
+        """)
+
+
+@app.post("/api/gdrive/oauth/exchange-code")
+async def gdrive_oauth_exchange_code_endpoint(payload: Dict[str, Any], request: Request):
+    """Exchange manually pasted authorization code for OAuth token."""
+    code = payload.get("code", "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="code wajib diisi.")
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
+    return tools.gdrive_oauth_exchange_code(auth_code=code, redirect_uri=redirect_uri)
+
+
 @app.post("/api/gdrive/oauth/start")
 async def gdrive_oauth_start():
     """Start the OAuth login flow. Opens a browser on this machine; waits for

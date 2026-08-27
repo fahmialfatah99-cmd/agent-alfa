@@ -257,6 +257,160 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, A
         return {"status": "error", "message": f"OAuth login gagal/dibatalkan: {str(e)}"}
 
 
+def gdrive_save_oauth_client_secret(raw_content: Any) -> Dict[str, Any]:
+    """Save uploaded or pasted OAuth Client Secret JSON (Desktop or Web App)."""
+    import json as _json
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    target_file = os.path.join(project_dir, "gdrive_oauth_client_secret.json")
+    
+    try:
+        if isinstance(raw_content, str):
+            data = _json.loads(raw_content)
+        elif isinstance(raw_content, dict):
+            data = raw_content
+        else:
+            return {"status": "error", "message": "Format data client secret tidak valid."}
+            
+        if "installed" not in data and "web" not in data:
+            if data.get("type") == "service_account" or "private_key" in data:
+                return {
+                    "status": "error",
+                    "message": "File yang Anda masukkan adalah Service Account JSON, bukan OAuth Client Secret. "
+                               "Silakan unduh OAuth Client ID (tipe Desktop App atau Web Application) dari Google Cloud Console."
+                }
+            return {"status": "error", "message": "JSON harus memiliki key 'installed' atau 'web' dari Google Cloud Console."}
+            
+        with open(target_file, "w", encoding="utf-8") as f:
+            _json.dump(data, f, indent=2)
+            
+        try:
+            with database.get_sync_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_client_secret_json', ?)",
+                    (_json.dumps(data),)
+                )
+                conn.commit()
+        except Exception as db_err:
+            logger.warning(f"Could not mirror client secret to DB: {db_err}")
+            
+        return {
+            "status": "success",
+            "message": "OAuth Client Secret berhasil disimpan. Sekarang Anda dapat menghubungkan akun Google pribadi Anda!",
+            "file": target_file
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menyimpan client secret: {str(e)}"}
+
+
+def gdrive_oauth_get_auth_url(redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback") -> Dict[str, Any]:
+    """Generate Google OAuth 2.0 authorization URL for 1-click browser login."""
+    import json as _json
+    from google_auth_oauthlib.flow import Flow
+    
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    secret_candidates = [
+        os.path.join(project_dir, "gdrive_oauth_client_secret.json"),
+        os.path.join(project_dir, "client_secret.json"),
+    ]
+    secret_path = next((p for p in secret_candidates if os.path.exists(p)), None)
+    
+    # Check DB if not on disk
+    if not secret_path:
+        try:
+            with database.get_sync_db() as conn:
+                row = conn.execute("SELECT value FROM system_settings WHERE key = 'gdrive_oauth_client_secret_json'").fetchone()
+                if row and row[0]:
+                    secret_path = os.path.join(project_dir, "gdrive_oauth_client_secret.json")
+                    with open(secret_path, "w", encoding="utf-8") as f:
+                        f.write(row[0])
+        except Exception:
+            pass
+            
+    if not secret_path:
+        return {
+            "status": "error",
+            "needs_client_secret": True,
+            "message": "File OAuth Client Secret belum diunggah. Unggah file JSON client secret di Dashboard terlebih dahulu."
+        }
+        
+    try:
+        scopes = ["https://www.googleapis.com/auth/drive"]
+        flow = Flow.from_client_secrets_file(
+            secret_path,
+            scopes=scopes,
+            redirect_uri=redirect_uri
+        )
+        auth_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent"
+        )
+        return {
+            "status": "success",
+            "auth_url": auth_url,
+            "state": state,
+            "redirect_uri": redirect_uri
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membuat URL otentikasi Google: {str(e)}"}
+
+
+def gdrive_oauth_exchange_code(auth_code: str, redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback") -> Dict[str, Any]:
+    """Exchange authorization code for OAuth credentials and store token permanently."""
+    import json as _json
+    from google_auth_oauthlib.flow import Flow
+    
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    secret_candidates = [
+        os.path.join(project_dir, "gdrive_oauth_client_secret.json"),
+        os.path.join(project_dir, "client_secret.json"),
+    ]
+    secret_path = next((p for p in secret_candidates if os.path.exists(p)), None)
+    
+    if not secret_path:
+        return {"status": "error", "message": "OAuth client secret tidak ditemukan."}
+        
+    try:
+        scopes = ["https://www.googleapis.com/auth/drive"]
+        flow = Flow.from_client_secrets_file(
+            secret_path,
+            scopes=scopes,
+            redirect_uri=redirect_uri
+        )
+        flow.fetch_token(code=auth_code.strip())
+        creds = flow.credentials
+        
+        token_data = {
+            "refresh_token": creds.refresh_token,
+            "token": creds.token,
+            "token_uri": creds.token_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret,
+            "scopes": creds.scopes,
+        }
+        token_file = os.path.join(project_dir, "gdrive_oauth_token.json")
+        with open(token_file, "w", encoding="utf-8") as f:
+            _json.dump(token_data, f, indent=2)
+            
+        try:
+            with database.get_sync_db() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_token_json', ?)",
+                    (_json.dumps(token_data),),
+                )
+                conn.commit()
+        except Exception as db_err:
+            logger.warning(f"Could not mirror OAuth token to DB: {db_err}")
+            
+        return {
+            "status": "success",
+            "message": "Login Google Drive berhasil! Upload sekarang menggunakan kuota akun pribadi Anda.",
+            "token_file": token_file
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Pertukaran kode otorisasi gagal: {str(e)}"}
+
+
 def gdrive_oauth_logout() -> Dict[str, Any]:
     """Remove stored OAuth tokens (falls back to service account auth)."""
     removed = False

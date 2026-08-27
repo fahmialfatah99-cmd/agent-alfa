@@ -1374,28 +1374,40 @@
                         </div>
 
                         <!-- OAuth Personal Account Login Card -->
-                        <div class="p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/30 space-y-2.5">
+                        <div class="p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/30 space-y-3">
                             <div class="flex items-start gap-2">
                                 <i data-lucide="user-check" class="w-4 h-4 text-violet-400 mt-0.5 shrink-0"></i>
                                 <div class="space-y-1">
-                                    <p class="text-xs font-bold text-white">Login OAuth — Akun Google Pribadi</p>
-                                    <p class="text-[10px] text-slate-400 leading-relaxed">Service account baru dari Google punya kuota <span class="text-rose-400 font-bold">0 byte</span> sehingga selalu gagal upload. Login sekali dengan akun Anda agar upload memakai kuota pribadi (15GB+).</p>
+                                    <p class="text-xs font-bold text-white">Login OAuth — Akun Google Pribadi (15 GB+)</p>
+                                    <p class="text-[10px] text-slate-400 leading-relaxed">Service Account Google memiliki limit <span class="text-rose-400 font-bold">0 MB kuota</span> pada Gmail personal. Hubungkan akun Google pribadi Anda sekali untuk membuka akses upload tanpa batas.</p>
+                                </div>
+                            </div>
+
+                            <!-- 1-Click OAuth Client Secret Upload -->
+                            <div class="space-y-1.5 p-2.5 rounded-lg bg-dark-950/60 border border-violet-500/20">
+                                <label class="block text-[11px] font-bold text-violet-300">1. Unggah OAuth Client Secret (*.json)</label>
+                                <div class="border border-dashed border-violet-500/30 hover:border-violet-400 rounded-lg p-2.5 text-center cursor-pointer transition-all bg-violet-950/20 group" onclick="document.getElementById('gdrive-oauth-secret-file-input').click()">
+                                    <input type="file" id="gdrive-oauth-secret-file-input" accept=".json" class="hidden" onchange="handleGdriveOauthSecretUpload(event)">
+                                    <i data-lucide="file-key" class="w-5 h-5 text-violet-400 mx-auto mb-1 group-hover:scale-110 transition-transform"></i>
+                                    <p id="gdrive-oauth-secret-preview" class="text-[11px] text-slate-300 font-medium">Klik untuk upload <span class="text-violet-300 font-bold">client_secret_*.json</span></p>
                                 </div>
                             </div>
 
                             <div id="gdrive-oauth-secret-help" class="hidden p-2.5 rounded-lg bg-dark-950/80 border border-amber-500/40 text-[10px] text-amber-200 space-y-1 leading-relaxed">
-                                <p class="font-bold">⚠️ Client secret belum ada. Persiapkan dulu:</p>
+                                <p class="font-bold">⚠️ Panduan Buat OAuth Client Secret:</p>
                                 <ol class="list-decimal list-inside space-y-0.5 text-slate-300">
-                                    <li>console.cloud.google.com/apis/credentials</li>
+                                    <li>Buka <b>console.cloud.google.com/apis/credentials</b></li>
                                     <li>Create Credentials &gt; OAuth client ID &gt; <b>Desktop app</b></li>
-                                    <li>Download JSON, rename jadi <code class="text-cyan-300">gdrive_oauth_client_secret.json</code>, taruh di folder proyek</li>
-                                    <li>OAuth consent screen &gt; tambahkan email Anda sebagai Test user</li>
+                                    <li>Download file JSON dan langsung unggah ke kotak di atas!</li>
+                                    <li>Di menu <b>OAuth consent screen</b> &gt; tambahkan email Anda sebagai Test user.</li>
                                 </ol>
                             </div>
 
-                            <button onclick="startGdriveOauth()" id="btn-gdrive-oauth" class="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
-                                <i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login dengan Akun Google
-                            </button>
+                            <div class="grid grid-cols-1 gap-2">
+                                <button onclick="startGdriveOauth()" id="btn-gdrive-oauth" class="w-full py-2.5 px-4 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25">
+                                    <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 2. Login dengan Akun Google
+                                </button>
+                            </div>
 
                             <div id="gdrive-oauth-status" class="hidden p-2.5 rounded-lg bg-dark-950/80 border border-white/10 text-[10px] font-mono text-slate-300 leading-relaxed"></div>
 
@@ -8889,6 +8901,34 @@
             const r2 = await saveWaMediaRules(true);
             const okCount = [r1, r2].filter(r => r && r.status === 'success').length;
             if (okCount === 2) showToast('Format & aturan Drive tersimpan.', 'success');
+        }
+
+        async function handleGdriveOauthSecretUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const preview = document.getElementById('gdrive-oauth-secret-preview');
+            if (preview) preview.innerText = `Mengunggah ${file.name}...`;
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/gdrive/oauth/upload-secret', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('OAuth Client Secret berhasil disimpan! Silakan klik "Login dengan Akun Google".', 'success');
+                    if (preview) preview.innerHTML = `✅ <span class="text-emerald-400 font-bold">${file.name}</span> siap!`;
+                    const helpBox = document.getElementById('gdrive-oauth-secret-help');
+                    if (helpBox) helpBox.classList.add('hidden');
+                } else {
+                    showToast(data.message || 'Gagal menyimpan client secret', 'error');
+                    if (preview) preview.innerHTML = `❌ <span class="text-rose-400 font-bold">Gagal</span>`;
+                }
+            } catch (err) {
+                showToast(`Upload error: ${err.message}`, 'error');
+            }
         }
 
         async function startGdriveOauth() {
