@@ -60,17 +60,21 @@
 
     <style>
         /* ==========================================================================
-           1. UNIVERSAL TYPOGRAPHY & SMOOTH RENDERING
+           1. UNIVERSAL SOLID TYPOGRAPHY & ZERO-BLUR RENDERING
            ========================================================================== */
         *, *::before, *::after {
             -webkit-font-smoothing: antialiased !important;
             -moz-osx-font-smoothing: grayscale !important;
             text-rendering: optimizeLegibility !important;
             box-sizing: border-box;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
         }
 
         body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, span, div, a, td, th, label, li, ul {
-            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             letter-spacing: normal;
         }
 
@@ -79,117 +83,127 @@
         }
 
         /* ==========================================================================
-           2. DARK THEME (DEFAULT - SOVEREIGN OBSIDIAN PRO-MAX)
+           2. DARK THEME (SOLID CRISP HIGH-CONTRAST)
            ========================================================================== */
         body {
-            background-color: #060911;
-            color: #F1F5F9;
+            background-color: #0B0F19;
+            color: #F3F4F6;
             min-height: 100vh;
-            font-size: 13.5px;
-            line-height: 1.6;
-            transition: background-color 0.25s ease, color 0.25s ease;
+            font-size: 14px;
+            line-height: 1.5;
         }
 
-        /* High-Contrast Dark Surface Elements */
+        /* Solid Cards & Containers */
         .glass-card {
-            background: #0E1424;
-            border: 1px solid #1E2B45;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
-            transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease;
+            background: #111827;
+            border: 1px solid #1F2937;
         }
 
         .glass-card:hover {
             border-color: #06B6D4;
-            box-shadow: 0 6px 24px -2px rgba(6, 182, 212, 0.15), 0 2px 8px -1px rgba(0, 0, 0, 0.3);
         }
 
         .glass-nav {
-            background: rgba(6, 9, 17, 0.88);
-            border-bottom: 1px solid #1A243B;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            transition: background-color 0.25s ease, border-color 0.25s ease;
+            background: #0B0F19;
+            border-bottom: 1px solid #1F2937;
         }
 
         #main-sidebar {
-            background: #0A0E1A !important;
-            border-right: 1px solid #1A243B !important;
-            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
-            transition: background-color 0.25s ease, border-color 0.25s ease;
+            background: #0D111A !important;
+            border-right: 1px solid #1F2937 !important;
         }
 
-        /* Inputs in Dark Mode */
+        /* High Contrast Dark Typography */
+        .text-white {
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+        }
+
+        .text-slate-100, .text-slate-200 {
+            color: #F3F4F6 !important;
+            font-weight: 500 !important;
+        }
+
+        .text-slate-300 {
+            color: #E5E7EB !important;
+            font-weight: 500 !important;
+        }
+
+        .text-slate-400 {
+            color: #9CA3AF !important;
+            font-weight: 500 !important;
+        }
+
+        .text-slate-500 {
+            color: #6B7280 !important;
+        }
+
+        /* Solid Inputs & Form Controls in Dark Mode */
         input, textarea, select {
-            background-color: #090E18 !important;
-            color: #F8FAFC !important;
-            border: 1px solid #1E2D47 !important;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.25s ease;
+            background-color: #030712 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #374151 !important;
+            font-size: 13px !important;
         }
 
         input::placeholder, textarea::placeholder {
-            color: #64748B !important;
+            color: #9CA3AF !important;
         }
 
         input:focus, textarea:focus, select:focus {
             outline: none !important;
             border-color: #06B6D4 !important;
-            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2) !important;
         }
 
         select option {
-            background-color: #0E1424 !important;
-            color: #F8FAFC !important;
+            background-color: #111827 !important;
+            color: #FFFFFF !important;
         }
 
-        /* Custom Scrollbar */
+        /* Custom Clean Scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+            width: 6px;
+            height: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(6, 9, 17, 0.6);
-            border-radius: 9999px;
+            background: #0B0F19;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 9999px;
+            background: #374151;
+            border-radius: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #06B6D4;
         }
 
         /* ==========================================================================
-           3. LIGHT THEME (CRYSTAL CLEAR MINIMALIST ENTERPRISE SAAS)
+           3. LIGHT THEME (SOLID CLEAN HIGH-CONTRAST)
            ========================================================================== */
         html:not(.dark) body {
-            background-color: #F1F5F9 !important;
-            color: #0F172A !important;
+            background-color: #F3F4F6 !important;
+            color: #111827 !important;
         }
 
-        /* High-Contrast Light Cards */
+        /* Solid Light Cards */
         html:not(.dark) .glass-card {
             background: #FFFFFF !important;
-            border: 1px solid #CBD5E1 !important;
-            box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.05), 0 4px 16px -2px rgba(0, 0, 0, 0.04) !important;
-            color: #0F172A !important;
+            border: 1px solid #D1D5DB !important;
+            color: #111827 !important;
         }
 
         html:not(.dark) .glass-card:hover {
             border-color: #0284C7 !important;
-            box-shadow: 0 6px 20px -2px rgba(2, 132, 199, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.06) !important;
         }
 
         /* Navigation in Light Mode */
         html:not(.dark) .glass-nav {
-            background: rgba(255, 255, 255, 0.92) !important;
-            border-bottom: 1px solid #CBD5E1 !important;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+            background: #FFFFFF !important;
+            border-bottom: 1px solid #D1D5DB !important;
         }
 
         html:not(.dark) #main-sidebar {
             background: #FFFFFF !important;
-            border-right: 1px solid #CBD5E1 !important;
-            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.04) !important;
+            border-right: 1px solid #D1D5DB !important;
         }
 
         /* Background Utilities in Light Mode */
@@ -197,9 +211,9 @@
         html:not(.dark) .bg-dark-950\/90,
         html:not(.dark) .bg-dark-950\/80,
         html:not(.dark) .bg-dark-950\/60 {
-            background-color: #F8FAFC !important;
-            color: #0F172A !important;
-            border-color: #CBD5E1 !important;
+            background-color: #F9FAFB !important;
+            color: #111827 !important;
+            border-color: #D1D5DB !important;
         }
 
         html:not(.dark) .bg-dark-900,
@@ -207,41 +221,41 @@
         html:not(.dark) .bg-dark-900\/90,
         html:not(.dark) .bg-dark-900\/80 {
             background-color: #FFFFFF !important;
-            color: #0F172A !important;
-            border-color: #E2E8F0 !important;
+            color: #111827 !important;
+            border-color: #E5E7EB !important;
         }
 
         html:not(.dark) .bg-dark-850,
         html:not(.dark) .bg-dark-800 {
-            background-color: #F1F5F9 !important;
-            color: #0F172A !important;
-            border-color: #CBD5E1 !important;
+            background-color: #F3F4F6 !important;
+            color: #111827 !important;
+            border-color: #D1D5DB !important;
         }
 
         /* Text Contrast Overrides in Light Mode */
         html:not(.dark) .text-white {
-            color: #0F172A !important;
+            color: #111827 !important;
             font-weight: 700 !important;
         }
 
         html:not(.dark) .text-slate-100,
         html:not(.dark) .text-slate-200 {
-            color: #0F172A !important;
+            color: #111827 !important;
             font-weight: 500 !important;
         }
 
         html:not(.dark) .text-slate-300 {
-            color: #1E293B !important;
+            color: #1F2937 !important;
             font-weight: 500 !important;
         }
 
         html:not(.dark) .text-slate-400 {
-            color: #334155 !important;
+            color: #374151 !important;
             font-weight: 500 !important;
         }
 
         html:not(.dark) .text-slate-500 {
-            color: #475569 !important;
+            color: #4B5563 !important;
             font-weight: 500 !important;
         }
 
@@ -250,51 +264,50 @@
         html:not(.dark) textarea,
         html:not(.dark) select {
             background-color: #FFFFFF !important;
-            color: #0F172A !important;
-            border: 1.5px solid #CBD5E1 !important;
+            color: #111827 !important;
+            border: 1.5px solid #D1D5DB !important;
             font-weight: 500 !important;
         }
 
         html:not(.dark) input::placeholder,
         html:not(.dark) textarea::placeholder {
-            color: #94A3B8 !important;
+            color: #6B7280 !important;
         }
 
         html:not(.dark) input:focus,
         html:not(.dark) textarea:focus,
         html:not(.dark) select:focus {
             border-color: #0284C7 !important;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
         }
 
         html:not(.dark) select option {
             background-color: #FFFFFF !important;
-            color: #0F172A !important;
+            color: #111827 !important;
         }
 
         /* Border & Subtle Background Utilities in Light Mode */
         html:not(.dark) .border-white\/5,
         html:not(.dark) .border-white\/10,
+        html:not(.dark) .border-white\/15,
         html:not(.dark) .border-white\/20 {
-            border-color: #E2E8F0 !important;
+            border-color: #E5E7EB !important;
         }
 
         html:not(.dark) .bg-white\/5 {
-            background-color: #F8FAFC !important;
-            color: #0F172A !important;
-            border-color: #CBD5E1 !important;
+            background-color: #F9FAFB !important;
+            color: #111827 !important;
+            border-color: #D1D5DB !important;
         }
 
         html:not(.dark) .bg-white\/10 {
-            background-color: #F1F5F9 !important;
-            color: #0F172A !important;
-            border-color: #CBD5E1 !important;
+            background-color: #F3F4F6 !important;
+            color: #111827 !important;
+            border-color: #D1D5DB !important;
         }
 
         /* ==========================================================================
-           4. COLOR BADGES & PILLS HIGH-CONTRAST IN LIGHT MODE
+           4. SOLID HIGH-CONTRAST BADGES IN LIGHT MODE
            ========================================================================== */
-        /* Cyan / Sky Badges */
         html:not(.dark) .text-cyan-300,
         html:not(.dark) .text-cyan-400 {
             color: #0369A1 !important;
@@ -306,7 +319,6 @@
             border-color: #7DD3FC !important;
         }
 
-        /* Emerald / Green Badges */
         html:not(.dark) .text-emerald-300,
         html:not(.dark) .text-emerald-400 {
             color: #15803D !important;
@@ -318,7 +330,6 @@
             border-color: #86EFAC !important;
         }
 
-        /* Amber / Yellow Badges */
         html:not(.dark) .text-amber-300,
         html:not(.dark) .text-amber-400 {
             color: #B45309 !important;
@@ -330,7 +341,6 @@
             border-color: #FCD34D !important;
         }
 
-        /* Violet / Purple Badges */
         html:not(.dark) .text-violet-300,
         html:not(.dark) .text-violet-400 {
             color: #6D28D9 !important;
@@ -342,7 +352,6 @@
             border-color: #C4B5FD !important;
         }
 
-        /* Orange Badges */
         html:not(.dark) .text-orange-300,
         html:not(.dark) .text-orange-400 {
             color: #C2410C !important;
@@ -354,35 +363,6 @@
             border-color: #FDBA74 !important;
         }
 
-        /* Fuchsia / Pink Badges */
-        html:not(.dark) .text-fuchsia-300,
-        html:not(.dark) .text-fuchsia-400,
-        html:not(.dark) .text-pink-300,
-        html:not(.dark) .text-pink-400 {
-            color: #A21CAF !important;
-            font-weight: 700 !important;
-        }
-        html:not(.dark) .bg-fuchsia-500\/10,
-        html:not(.dark) .bg-fuchsia-500\/20,
-        html:not(.dark) .bg-pink-500\/10,
-        html:not(.dark) .bg-pink-500\/20 {
-            background-color: #FDF4FF !important;
-            border-color: #F0ABFC !important;
-        }
-
-        /* Blue Badges */
-        html:not(.dark) .text-blue-300,
-        html:not(.dark) .text-blue-400 {
-            color: #1D4ED8 !important;
-            font-weight: 700 !important;
-        }
-        html:not(.dark) .bg-blue-500\/10,
-        html:not(.dark) .bg-blue-500\/20 {
-            background-color: #DBEAFE !important;
-            border-color: #93C5FD !important;
-        }
-
-        /* Rose / Red Badges */
         html:not(.dark) .text-rose-300,
         html:not(.dark) .text-rose-400 {
             color: #BE123C !important;
@@ -394,16 +374,14 @@
             border-color: #FDA4AF !important;
         }
 
-        /* ==========================================================================
-           5. SIDEBAR TAB BUTTONS IN LIGHT MODE
-           ========================================================================== */
+        /* Tab Buttons in Light Mode */
         html:not(.dark) .tab-btn {
-            color: #334155 !important;
+            color: #374151 !important;
             font-weight: 600 !important;
         }
 
         html:not(.dark) .tab-btn:hover {
-            background-color: #F1F5F9 !important;
+            background-color: #F3F4F6 !important;
             color: #0284C7 !important;
         }
 
@@ -411,26 +389,21 @@
             background-color: #E0F2FE !important;
             color: #0369A1 !important;
             border: 1px solid #7DD3FC !important;
-            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12) !important;
             font-weight: 700 !important;
         }
 
         /* ==========================================================================
-           6. LIVE CHAT & MARKDOWN STYLING
+           5. CODE & MARKDOWN STYLING
            ========================================================================== */
         #chat-messages-box {
             scroll-behavior: smooth;
         }
 
-        /* Markdown in Chat */
         #chat-messages-box h1, #chat-messages-box h2, #chat-messages-box h3 {
             font-weight: 700;
-            margin-top: 10px;
-            margin-bottom: 6px;
+            margin-top: 8px;
+            margin-bottom: 4px;
         }
-        #chat-messages-box h1 { font-size: 16px; }
-        #chat-messages-box h2 { font-size: 14.5px; }
-        #chat-messages-box h3 { font-size: 13.5px; }
 
         #chat-messages-box p {
             margin-bottom: 6px;
@@ -448,35 +421,33 @@
 
         #chat-messages-box code {
             padding: 2px 6px;
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 4px;
+            font-size: 13px;
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Dark code blocks */
         .dark #chat-messages-box code {
-            background: rgba(6, 182, 212, 0.12);
+            background: #1F2937;
             color: #22D3EE;
-            border: 1px solid rgba(6, 182, 212, 0.2);
+            border: 1px solid #374151;
         }
 
         .dark #chat-messages-box pre {
-            background: #060911;
-            border: 1px solid #1E2B45;
-            border-radius: 10px;
+            background: #030712;
+            border: 1px solid #1F2937;
+            border-radius: 8px;
             padding: 12px;
             overflow-x: auto;
-            margin: 8px 0;
+            margin: 6px 0;
         }
 
         .dark #chat-messages-box pre code {
             background: transparent;
-            color: #E2E8F0;
+            color: #F3F4F6;
             border: none;
             padding: 0;
         }
 
-        /* Light code blocks */
         html:not(.dark) #chat-messages-box code {
             background: #E0F2FE;
             color: #0369A1;
@@ -484,190 +455,64 @@
         }
 
         html:not(.dark) #chat-messages-box pre {
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 10px;
+            background: #F9FAFB;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
             padding: 12px;
             overflow-x: auto;
-            margin: 8px 0;
+            margin: 6px 0;
         }
 
         html:not(.dark) #chat-messages-box pre code {
             background: transparent;
-            color: #0F172A;
+            color: #111827;
             border: none;
             padding: 0;
         }
 
-        /* Tables in Chat */
+        /* Clean Tables */
         #chat-messages-box table {
             width: 100%;
             border-collapse: collapse;
             margin: 8px 0;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .dark #chat-messages-box th {
-            background: #111A2E;
-            color: #22D3EE;
-            border: 1px solid #1E2B45;
+            background: #1F2937;
+            color: #FFFFFF;
+            border: 1px solid #374151;
             padding: 6px 10px;
             text-align: left;
         }
 
         .dark #chat-messages-box td {
-            border: 1px solid #1E2B45;
-            padding: 5px 10px;
-            color: #E2E8F0;
+            border: 1px solid #374151;
+            padding: 6px 10px;
+            color: #F3F4F6;
         }
 
         html:not(.dark) #chat-messages-box th {
-            background: #F1F5F9;
-            color: #0369A1;
-            border: 1px solid #CBD5E1;
+            background: #F3F4F6;
+            color: #111827;
+            border: 1px solid #D1D5DB;
             padding: 6px 10px;
             text-align: left;
             font-weight: 700;
         }
 
         html:not(.dark) #chat-messages-box td {
-            border: 1px solid #E2E8F0;
-            padding: 5px 10px;
-            color: #0F172A;
-        }
-
-        /* ==========================================================================
-           7. 3D HOLOGRAM ARENA & SPECIAL VISUAL EFFECTS
-           ========================================================================== */
-        .cyber-grid-floor {
-            background-size: 28px 28px;
-            background-image: 
-                linear-gradient(to right, rgba(6, 182, 212, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
-        }
-
-        html:not(.dark) .cyber-grid-floor {
-            background-image: 
-                linear-gradient(to right, rgba(14, 165, 233, 0.12) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(14, 165, 233, 0.12) 1px, transparent 1px) !important;
-        }
-
-        .holo-core-glow {
-            box-shadow: 0 0 50px rgba(139, 92, 246, 0.5), inset 0 0 30px rgba(6, 182, 212, 0.6);
-            animation: core-pulse 3s ease-in-out infinite alternate;
-        }
-        @keyframes core-pulse {
-            0% { transform: scale(0.96); filter: drop-shadow(0 0 18px rgba(139, 92, 246, 0.7)); }
-            100% { transform: scale(1.04); filter: drop-shadow(0 0 40px rgba(6, 182, 212, 0.95)); }
-        }
-
-        .holo-spin-ring-1 { animation: spin-ring-cw 12s linear infinite; }
-        .holo-spin-ring-2 { animation: spin-ring-ccw 8s linear infinite; }
-        @keyframes spin-ring-cw {
-            from { transform: rotateX(65deg) rotateZ(0deg); }
-            to { transform: rotateX(65deg) rotateZ(360deg); }
-        }
-        @keyframes spin-ring-ccw {
-            from { transform: rotateX(65deg) rotateZ(360deg); }
-            to { transform: rotateX(65deg) rotateZ(0deg); }
-        }
-
-        /* Equalizer & Audio Wave */
-        .equalizer-bar { animation: equalize 0.8s ease-in-out infinite alternate; }
-        @keyframes equalize { 0% { height: 4px; } 100% { height: 18px; } }
-
-        .speaking-aura { animation: speaking-pulse 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-        @keyframes speaking-pulse {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7); }
-            50% { transform: scale(1.02); box-shadow: 0 0 15px 4px rgba(6, 182, 212, 0.4); }
-        }
-
-        .hq-speech-bubble { animation: bubble-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        @keyframes bubble-pop {
-            0% { opacity: 0; transform: scale(0.9) translateY(8px); }
-            100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-
-        .float-anim { animation: float-slow 3s ease-in-out infinite alternate; }
-        @keyframes float-slow {
-            0% { transform: translateY(0px); }
-            100% { transform: translateY(-4px); }
-        }
-
-        .coffee-steam { animation: steam-rise 2s ease-out infinite; }
-        @keyframes steam-rise {
-            0% { opacity: 0; transform: translateY(0) scaleX(0.8); }
-            50% { opacity: 0.8; }
-            100% { opacity: 0; transform: translateY(-12px) scaleX(1.4); }
-        }
-
-        .pulse-dot { animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.15); }
-        }
-
-        /* Toast Notifications */
-        .toast { animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        @keyframes slideIn {
-            from { transform: translateY(100%) scale(0.95); opacity: 0; }
-            to { transform: translateY(0) scale(1); opacity: 1; }
-        }
-
-        /* ==========================================================================
-           8. LIGHT MODE SPECIAL OVERRIDES (HQ, SPEECH BUBBLES, CONSENSUS)
-           ========================================================================== */
-        html:not(.dark) #hq-stage-container {
-            background-color: #F8FAFC !important;
-            border-color: #CBD5E1 !important;
-        }
-
-        html:not(.dark) #hq-active-speech-bubble {
-            background-color: #FFFFFF !important;
-            border: 2px solid #0284C7 !important;
-            color: #0F172A !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        html:not(.dark) #speech-bubble-text {
-            color: #0F172A !important;
-            font-weight: 600 !important;
-        }
-
-        html:not(.dark) #speech-bubble-name {
-            color: #0369A1 !important;
-            font-weight: 800 !important;
-        }
-
-        html:not(.dark) #speech-bubble-model {
-            background-color: #E0F2FE !important;
-            color: #0369A1 !important;
-            font-weight: 700 !important;
-        }
-
-        html:not(.dark) #meeting-consensus-box {
-            background: #F0FDF4 !important;
-            border: 2px solid #22C55E !important;
-            color: #0F172A !important;
-        }
-
-        html:not(.dark) #meeting-consensus-text,
-        html:not(.dark) #meeting-action-plan-text {
-            color: #0F172A !important;
-            font-weight: 500 !important;
-        }
-
-        html:not(.dark) #meeting-execution-results-container {
-            background: #FFFBEB !important;
-            border: 2px solid #F59E0B !important;
+            border: 1px solid #E5E7EB;
+            padding: 6px 10px;
+            color: #111827;
         }
 
         html:not(.dark) .custom-scrollbar::-webkit-scrollbar-track {
-            background: #F1F5F9 !important;
+            background: #F3F4F6 !important;
         }
 
         html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #94A3B8 !important;
+            background: #9CA3AF !important;
         }
     </style>
 </head>
@@ -925,8 +770,8 @@
                 </div>
             </header>
 
-            <!-- Main Content Container -->
-            <main class="p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+            <!-- Main Content Container (Full Frame Utuh) -->
+            <main class="p-3 sm:p-4 space-y-4 w-full flex-1 flex flex-col min-w-0">
 
         <!-- ==================== TAB 1: OVERVIEW & TELEMETRY ==================== -->
         <section id="view-overview" class="tab-view space-y-6">
@@ -1980,7 +1825,7 @@
 
 <!-- ==================== TAB 6: GUARDIAN & WATCHDOGS ==================== -->
         <section id="view-guardian" class="tab-view hidden space-y-6">
-            <div class="glass-card p-6 rounded-2xl space-y-6 max-w-3xl mx-auto">
+            <div class="glass-card p-6 rounded-2xl space-y-6 w-full">
                 <div class="border-b border-white/5 pb-4">
                     <h3 class="text-base font-bold text-white flex items-center gap-2 font-mono">
                         <i data-lucide="shield-check" class="w-5 h-5 text-cyan-400"></i> 24/7 SYSTEM GUARDIAN & AMBIENT ENGINE
@@ -2048,9 +1893,9 @@
         </section>
 
 
-        <!-- ==================== TAB 7: LIVE AI CONSOLE (NEXT-GEN EDITION) ==================== -->
-        <section id="view-console" class="tab-view hidden space-y-4">
-            <div id="chat-dropzone-container" class="glass-card p-4 sm:p-5 rounded-2xl space-y-3 max-w-5xl mx-auto flex flex-col h-[calc(100vh-130px)] min-h-[620px] max-h-[900px] relative transition-all duration-300 shadow-2xl">
+        <!-- ==================== TAB 7: LIVE AI CONSOLE (FULL FRAME UTUH) ==================== -->
+        <section id="view-console" class="tab-view hidden w-full flex-1 flex flex-col space-y-0">
+            <div id="chat-dropzone-container" class="glass-card p-3 sm:p-4 rounded-xl space-y-3 w-full flex-1 flex flex-col h-[calc(100vh-100px)] min-h-[550px] relative">
                 
                 <!-- TOP BAR: Bot Info, Expert Mode Pills, Model Selector & Quick Actions -->
                 <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/10 pb-3">
@@ -2239,7 +2084,7 @@
 
         <!-- ==================== TAB: SYSTEM SETTINGS & ENVIRONMENT ==================== -->
         <section id="view-settings" class="tab-view hidden space-y-6">
-            <div class="glass-card p-6 rounded-2xl space-y-6 max-w-4xl mx-auto">
+            <div class="glass-card p-6 rounded-2xl space-y-6 w-full">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl shadow-sm">
@@ -6329,7 +6174,7 @@
             const startTime = Date.now();
             
             box.innerHTML += `
-                <div id="${pendingId}" class="p-4 bg-dark-900/95 border border-cyan-500/30 rounded-2xl space-y-3 font-sans text-xs shadow-xl relative overflow-hidden backdrop-blur-xl transition-all duration-300 max-w-2xl">
+                <div id="${pendingId}" class="p-4 bg-dark-900 border border-cyan-500/40 rounded-xl space-y-3 font-sans text-xs relative overflow-hidden w-full">
                     <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
@@ -6424,16 +6269,16 @@
                 const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
 
                 const bubbleWrapper = document.createElement('div');
-                bubbleWrapper.className = "flex justify-start items-start gap-2.5 my-3";
+                bubbleWrapper.className = "flex justify-start items-start gap-2.5 my-3 w-full";
 
                 const responseId = 'ai-resp-' + Date.now();
                 bubbleWrapper.innerHTML = `
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center text-white font-black font-mono text-xs flex-shrink-0 shadow-glow-cyan">
+                    <div class="w-8 h-8 rounded-xl bg-cyan-700 flex items-center justify-center text-white font-black font-mono text-xs flex-shrink-0">
                         α
                     </div>
-                    <div class="max-w-[92%] sm:max-w-3xl space-y-2">
+                    <div class="flex-1 min-w-0 space-y-2 w-full">
                         <!-- AI Bubble Card -->
-                        <div id="${responseId}" class="p-4 sm:p-5 rounded-2xl bg-dark-900 border border-white/10 text-slate-200 leading-relaxed shadow-xl space-y-2">
+                        <div id="${responseId}" class="p-4 sm:p-5 rounded-xl bg-dark-900 border border-white/10 text-slate-100 leading-relaxed space-y-2 w-full">
                             <!-- Model Header Bar -->
                             <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-mono text-slate-400">
                                 <span class="text-cyan-400 font-bold flex items-center gap-1.5">
