@@ -172,6 +172,12 @@ async def serve_index():
     return HTMLResponse("<h2>Dashboard template not found. Please create templates/index.html</h2>")
 
 
+@app.get("/api/system/home-dir")
+async def get_home_dir():
+    """Return server-side home directory so frontend path regex works for any Linux username."""
+    return {"home_dir": os.path.expanduser("~"), "username": os.environ.get("USER", "unknown")}
+
+
 @app.get("/api/stats")
 async def get_stats():
     """Live Linux system telemetry."""
@@ -965,11 +971,6 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
     except Exception as e:
         return {"status": "error",
                 "message": f"Error: {str(e)[:200]}"}
-
-
-
-@app.post("/api/settings/main-brain")
-
 
 @app.post("/api/settings/main-brain")
 async def set_main_brain_endpoint(payload: Dict[str, Any]):
@@ -2019,16 +2020,27 @@ async def api_vector_ingest(payload: Dict[str, Any]):
 
 
 @app.get("/api/meeting/history")
-async def get_meeting_history():
-    """Get AI agent meeting history logs."""
-    history_path = os.path.expanduser("~/my-agent-workspace/logs/meeting_history.json")
-    if os.path.exists(history_path):
-        try:
-            with open(history_path, "r") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
+async def get_meeting_history(limit: int = 50):
+    """Get AI agent meeting history from SQLite (real data)."""
+    try:
+        with database.get_sync_db() as conn:
+            rows = conn.execute(
+                """SELECT id, title, topic, mode, status, participants,
+                          consensus, action_plan, created_at
+                   FROM agent_meetings ORDER BY id DESC LIMIT ?""",
+                (limit,)
+            ).fetchall()
+        meetings = []
+        for r in rows:
+            m = dict(r)
+            try:
+                m["participants"] = json.loads(m.get("participants") or "[]")
+            except Exception:
+                pass
+            meetings.append(m)
+        return {"status": "success", "total": len(meetings), "meetings": meetings}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "meetings": []}
 
 
 @app.get("/api/brain/vector/list")

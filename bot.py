@@ -625,12 +625,14 @@ async def run_agent_turn(
     prompt_low = (user_prompt or "").lower()
     meeting_intent = any(k in prompt_low for k in MEETING_INTENT_KEYWORDS)
 
+    # Build history_msgs once — dipakai di SEMUA path (Gemini, non-Gemini, fallback, Tool-RAG)
+    history_msgs = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+
     # ══ OTAK UTAMA LINTAS PROVIDER (OpenRouter/Ox Alpha/Custom/NVIDIA dll) ══
     if brain["provider"] != "gemini":
         compat_text = user_prompt or ""
         if multimodal_parts:
             compat_text = (compat_text + "\n[Lampiran media tidak didukung provider otak utama saat ini]").strip()
-        history_msgs = [{"role": r["role"], "content": r["content"]} for r in history_rows]
         reply_text = await main_brain.run_openai_agentic_turn(
             provider=brain["provider"],
             base_url=brain["base_url"],
@@ -837,8 +839,10 @@ async def run_agent_turn(
                 model=key.get("default_model") or "",
                 system_instruction=full_system_instruction,
                 user_text=user_prompt,
-                history=[{"role": r["role"], "content": r["content"]} for r in history_rows],
-                context="telegram_chat",
+                history=history_msgs,
+                key_id=key.get("id"),
+                key_label=key.get("name", f"{prov}-fallback"),
+                context="telegram_chat:fallback",
             )
             if reply_text:
                 logger.info(f"[Fallback] sukses via {prov}/{key.get('default_model')}")

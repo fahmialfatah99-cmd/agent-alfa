@@ -234,6 +234,10 @@ def init_db_sync():
             );
             CREATE INDEX IF NOT EXISTS idx_atu_ts ON api_token_usage(ts);
             CREATE INDEX IF NOT EXISTS idx_atu_key ON api_token_usage(key_id);
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL DEFAULT ''
+            );
         """)
         
         # Seed default API key from environment if empty

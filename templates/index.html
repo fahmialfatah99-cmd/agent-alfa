@@ -5307,8 +5307,10 @@
 
         function decorateArtifactCards(container) {
             if (!container) return;
-            // Scan for file paths in text or code blocks (e.g. /home/fahmial/... or ~/Dokumen/...)
-            const pathRegex = /(?:\/home\/fahmial\/[^\s`"'<>\)]+|~\/Dokumen\/[^\s`"'<>\)]+)/g;
+            // Scan for file paths in text or code blocks — uses dynamic home dir to support any username
+            const homeDir = window._alfaHomeDir || '/home';
+            const escapedHome = homeDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pathRegex = new RegExp('(?:' + escapedHome + '\\/[^\\s`"\'<>\\)]+|~\\/Dokumen\\/[^\\s`"\'<>\\)]+|~\\/output\\/[^\\s`"\'<>\\)]+|\\/dev\\/shm\\/alfa_sandbox\\/[^\\s`"\'<>\\)]+)', 'g');
             const textNodes = [];
             const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
             let n;
@@ -10145,6 +10147,11 @@
 
             // Load available models for Chat Agent on init
             loadChatAvailableModels();
+
+            // Fetch home dir from server so artifact path detection works on any username
+            fetch('/api/system/home-dir').then(r => r.json()).then(d => {
+                if (d && d.home_dir) window._alfaHomeDir = d.home_dir;
+            }).catch(() => {});
         });
     </script>
     <style>
