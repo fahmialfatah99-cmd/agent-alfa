@@ -1944,6 +1944,12 @@
                             </select>
                         </div>
 
+                        <!-- New Chat Session Button -->
+                        <button type="button" onclick="startNewChatSession()" class="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-mono font-bold transition-all flex items-center gap-1.5" title="Mulai Sesi Obrolan Baru Bersih">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span class="hidden sm:inline">Obrolan Baru</span>
+                        </button>
+
                         <!-- Export Button -->
                         <button type="button" onclick="exportCurrentChat('markdown')" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-cyan-300 border border-white/10 transition-all" title="Ekspor Riwayat Percakapan ke Markdown (.md)">
                             <i data-lucide="download" class="w-4 h-4"></i>
@@ -2035,19 +2041,35 @@
                     </div>
                 </div>
 
+                <!-- INTERACTIVE LINUX CLI DRAWER -->
+                <div id="chat-cli-drawer" class="hidden p-3 rounded-xl bg-dark-950 border border-emerald-500/40 space-y-2 text-xs font-mono">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-1.5 text-[11px]">
+                        <span class="text-emerald-400 font-bold flex items-center gap-1.5">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5"></i> Terminal Linux Host (Live Sandbox)
+                        </span>
+                        <button type="button" onclick="toggleChatCliDrawer(false)" class="text-slate-400 hover:text-white">✕ Tutup</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-emerald-400 font-bold">$</span>
+                        <input type="text" id="chat-cli-input" onkeydown="handleCliInputKeyDown(event)" placeholder="Ketik perintah linux (contoh: ls -la, uname -a, free -m, docker ps)..." class="flex-1 bg-transparent border-none text-white text-xs font-mono focus:outline-none">
+                        <button type="button" onclick="runCliTerminalCommand()" id="chat-cli-run-btn" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-all">Jalankan</button>
+                    </div>
+                    <div id="chat-cli-output" class="hidden p-2.5 bg-black/80 rounded-lg border border-white/10 text-slate-200 text-[11px] max-h-48 overflow-y-auto custom-scrollbar whitespace-pre-wrap font-mono"></div>
+                </div>
+
                 <!-- ADVANCED INPUT FORM WITH AUTO-GROWING TEXTAREA, VOICE MIC, FILE DROP & SEND -->
                 <form id="chat-form" onsubmit="sendWebChat(event)" class="relative pt-1">
                     <!-- Hidden File & Photo Inputs -->
                     <input type="file" id="chat-file-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*,application/pdf,text/*,.csv,.docx,.xlsx,.json,.py,.md,.js,.ts,.html,.css,.log,.txt">
                     <input type="file" id="chat-photo-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*">
 
-                    <div class="p-2.5 rounded-2xl bg-dark-950 border border-white/15 focus-within:border-cyan-500/70 focus-within:shadow-glow-cyan transition-all flex flex-col space-y-2">
+                    <div class="p-2.5 rounded-xl bg-dark-950 border border-white/15 focus-within:border-cyan-500/70 transition-all flex flex-col space-y-2">
                         <!-- Auto-growing Textarea -->
                         <textarea id="chat-input-text" rows="1" oninput="autoGrowChatInput(this); handleSlashCommandInput(this);" onkeydown="handleChatKeyDown(event)" placeholder="Ketik pesan, ketik '/' untuk tools cepat, tempel (Ctrl+V) gambar, atau seret file..." class="w-full px-3 py-1.5 bg-transparent border-none text-xs sm:text-[13px] text-white focus:outline-none resize-none font-sans max-h-36 overflow-y-auto custom-scrollbar leading-relaxed"></textarea>
 
                         <!-- Bottom Control Toolbar inside Input -->
                         <div class="flex items-center justify-between pt-1 border-t border-white/5 text-xs font-mono">
-                            <!-- Left: Attachment buttons & Voice Mic -->
+                            <!-- Left: Attachment buttons, Voice Mic, CLI -->
                             <div class="flex items-center gap-1 text-slate-400">
                                 <!-- Paperclip (Docs / Code) -->
                                 <button type="button" onclick="document.getElementById('chat-file-input').click()" class="px-2.5 py-1.5 rounded-xl hover:bg-white/10 hover:text-cyan-400 transition-all flex items-center gap-1.5 text-[11px]" title="Lampirkan Dokumen (PDF, DOCX, CSV, Kode, Teks)">
@@ -2066,12 +2088,18 @@
                                     <i data-lucide="mic" class="w-4 h-4" id="chat-mic-icon"></i>
                                     <span id="chat-mic-label" class="hidden sm:inline">Suara</span>
                                 </button>
+
+                                <!-- CLI Terminal Toggle Button -->
+                                <button type="button" id="chat-cli-toggle-btn" onclick="toggleChatCliDrawer()" class="px-2.5 py-1.5 rounded-xl hover:bg-white/10 hover:text-emerald-400 text-slate-400 transition-all flex items-center gap-1.5 text-[11px]" title="Buka Terminal Linux CLI Interaktif">
+                                    <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+                                    <span class="hidden sm:inline">CLI</span>
+                                </button>
                             </div>
 
                             <!-- Right: Character counter & Send Button -->
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">Enter kirim • Shift+Enter baris baru</span>
-                                <button type="submit" id="chat-send-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 font-black rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-glow-cyan cursor-pointer">
+                                <button type="submit" id="chat-send-btn" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 font-black rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer">
                                     <i data-lucide="send" class="w-3.5 h-3.5"></i>
                                     <span>Kirim</span>
                                 </button>
@@ -6250,72 +6278,116 @@
                     finalPrompt = personaPrefixes[currentExpertMode] + finalPrompt;
                 }
 
-                const res = await fetch('/api/chat', {
+                const res = await fetch('/api/chat/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: finalPrompt,
                         attachments: currentFiles,
                         selected_model: selectedModel,
-                        key_id: selectedKeyId
+                        key_id: selectedKeyId,
+                        expert_mode: currentExpertMode
                     })
                 });
-                const data = await res.json();
-                clearInterval(timerInterval);
-                document.getElementById(pendingId)?.remove();
 
-                const rawReply = data.reply || '';
-                const parsedMD = marked.parse(rawReply);
-                const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(2);
+                if (!res.ok) {
+                    throw new Error(`Server returned HTTP ${res.status}: ${res.statusText}`);
+                }
 
-                const bubbleWrapper = document.createElement('div');
-                bubbleWrapper.className = "flex justify-start items-start gap-2.5 my-3 w-full";
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let streamedText = '';
+                let bubbleWrapper = null;
+                let responseId = null;
+                let bodyEl = null;
 
-                const responseId = 'ai-resp-' + Date.now();
-                bubbleWrapper.innerHTML = `
-                    <div class="w-8 h-8 rounded-xl bg-cyan-700 flex items-center justify-center text-white font-black font-mono text-xs flex-shrink-0">
-                        α
-                    </div>
-                    <div class="flex-1 min-w-0 space-y-2 w-full">
-                        <!-- AI Bubble Card -->
-                        <div id="${responseId}" class="p-4 sm:p-5 rounded-xl bg-dark-900 border border-white/10 text-slate-100 leading-relaxed space-y-2 w-full">
-                            <!-- Model Header Bar -->
-                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-mono text-slate-400">
-                                <span class="text-cyan-400 font-bold flex items-center gap-1.5">
-                                    <i data-lucide="bot" class="w-3.5 h-3.5"></i> ALFA // ${modelDisplayName}
-                                </span>
-                                <span class="text-slate-400">⚡ ${elapsedSec}s</span>
-                            </div>
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
 
-                            <!-- Markdown Body -->
-                            <div class="prose prose-invert max-w-none text-xs sm:text-[13px] space-y-2 leading-relaxed">
-                                ${parsedMD}
-                            </div>
-                        </div>
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop(); // keep partial
 
-                        <!-- Interactive Action Toolbar under message -->
-                        <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400 pl-1">
-                            <button type="button" onclick="speakTextMessage(\`${rawReply.replace(/[`$\\]/g, ' ')}\`)" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Dengarkan Suara (Text to Speech)">
-                                <i data-lucide="volume-2" class="w-3.5 h-3.5 text-cyan-400"></i> Suara
-                            </button>
-                            <button type="button" onclick="copyTextMessage(\`${rawReply.replace(/[`$\\]/g, ' ')}\`, this)" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Salin Seluruh Jawaban">
-                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin
-                            </button>
-                            <button type="button" onclick="regenerateLastTurn()" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Generate Ulang Jawaban">
-                                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Ulang
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                box.appendChild(bubbleWrapper);
-                enhanceCodeBlocks(bubbleWrapper);
-                decorateArtifactCards(bubbleWrapper);
+                    for (const block of lines) {
+                        if (!block.trim()) continue;
+                        const line = block.trim();
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.type === 'progress') {
+                                    const s2Text = document.getElementById(`${pendingId}-step2-text`);
+                                    if (s2Text) s2Text.innerText = data.step;
+                                } else if (data.type === 'start') {
+                                    if (!bubbleWrapper) {
+                                        clearInterval(timerInterval);
+                                        document.getElementById(pendingId)?.remove();
+                                        bubbleWrapper = document.createElement('div');
+                                        bubbleWrapper.className = "flex justify-start items-start gap-2.5 my-3 w-full";
+                                        responseId = 'ai-resp-' + Date.now();
+                                        bubbleWrapper.innerHTML = `
+                                            <div class="w-8 h-8 rounded-xl bg-cyan-700 flex items-center justify-center text-white font-black font-mono text-xs flex-shrink-0">α</div>
+                                            <div class="flex-1 min-w-0 space-y-2 w-full">
+                                                <div id="${responseId}" class="p-4 sm:p-5 rounded-xl bg-dark-900 border border-white/10 text-slate-100 leading-relaxed space-y-2 w-full">
+                                                    <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-mono text-slate-400">
+                                                        <span class="text-cyan-400 font-bold flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i> ALFA // ${modelDisplayName}</span>
+                                                        <span id="${responseId}-elapsed" class="text-slate-400 font-mono">⚡ Mengetik...</span>
+                                                    </div>
+                                                    <div id="${responseId}-body" class="prose prose-invert max-w-none text-xs sm:text-[13px] space-y-2 leading-relaxed">
+                                                        <span class="animate-pulse text-cyan-300">●</span>
+                                                    </div>
+                                                </div>
+                                                <div id="${responseId}-toolbar" class="flex items-center gap-2 text-[11px] font-mono text-slate-400 pl-1 hidden">
+                                                    <button type="button" class="btn-speak px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Dengarkan Suara (Text to Speech)"><i data-lucide="volume-2" class="w-3.5 h-3.5 text-cyan-400"></i> Suara</button>
+                                                    <button type="button" class="btn-copy px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Salin Seluruh Jawaban"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin</button>
+                                                    <button type="button" onclick="regenerateLastTurn()" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Generate Ulang Jawaban"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Ulang</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                        box.appendChild(bubbleWrapper);
+                                        bodyEl = document.getElementById(`${responseId}-body`);
+                                        lucide.createIcons();
+                                    }
+                                } else if (data.type === 'token') {
+                                    streamedText += data.chunk;
+                                    if (bodyEl) {
+                                        bodyEl.innerHTML = marked.parse(streamedText);
+                                        box.scrollTop = box.scrollHeight;
+                                    }
+                                } else if (data.type === 'done') {
+                                    clearInterval(timerInterval);
+                                    document.getElementById(pendingId)?.remove();
+                                    const finalSec = data.execution_time_ms ? (data.execution_time_ms / 1000).toFixed(2) : ((Date.now() - startTime) / 1000).toFixed(2);
+                                    const elBadge = document.getElementById(`${responseId}-elapsed`);
+                                    if (elBadge) elBadge.innerText = `⚡ ${finalSec}s`;
+                                    const toolbar = document.getElementById(`${responseId}-toolbar`);
+                                    if (toolbar) {
+                                        toolbar.classList.remove('hidden');
+                                        const spkBtn = toolbar.querySelector('.btn-speak');
+                                        const cpyBtn = toolbar.querySelector('.btn-copy');
+                                        if (spkBtn) spkBtn.onclick = () => speakTextMessage(streamedText);
+                                        if (cpyBtn) cpyBtn.onclick = function() { copyTextMessage(streamedText, this); };
+                                    }
+                                    if (bubbleWrapper) {
+                                        enhanceCodeBlocks(bubbleWrapper);
+                                        decorateArtifactCards(bubbleWrapper);
+                                    }
+                                    lucide.createIcons();
+                                } else if (data.type === 'error') {
+                                    throw new Error(data.message || 'Error dalam streaming jawaban.');
+                                }
+                            } catch (parseErr) {
+                                console.warn('Stream chunk parse error:', parseErr);
+                            }
+                        }
+                    }
+                }
             } catch (err) {
                 clearInterval(timerInterval);
                 document.getElementById(pendingId)?.remove();
                 box.innerHTML += `
-                    <div class="p-4 bg-rose-950/40 border border-rose-500/40 rounded-2xl text-rose-300 space-y-1 shadow-lg max-w-xl">
+                    <div class="p-4 bg-rose-950/40 border border-rose-500/40 rounded-xl text-rose-300 space-y-1 shadow-sm max-w-xl">
                         <div class="flex items-center gap-2 font-bold font-mono text-xs">
                             <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i> Gagal Memproses Permintaan
                         </div>
@@ -6327,6 +6399,98 @@
                 sendBtn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> <span>Kirim</span>';
                 box.scrollTop = box.scrollHeight;
                 lucide.createIcons();
+            }
+        }
+
+        // Start New Clean Chat Session
+        function startNewChatSession() {
+            const box = document.getElementById('chat-messages-box');
+            if (box) {
+                box.innerHTML = `
+                    <div id="chat-welcome-card" class="p-5 rounded-xl bg-dark-900 border border-cyan-500/30 text-slate-200 space-y-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center font-bold font-mono text-lg">
+                                🚀
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white font-mono">Sesi Obrolan Baru Dimulai</h4>
+                                <p class="text-xs text-slate-400">Silakan ajukan tugas baru, jalankan script di sandbox, atau lampirkan berkas!</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('chat-input-text').value = '';
+            attachedChatFiles = [];
+            renderChatAttachmentsPreview();
+            showToast('Sesi obrolan baru siap! 🌟', 'info');
+            lucide.createIcons();
+        }
+
+        // Toggle Linux CLI Drawer
+        function toggleChatCliDrawer(forceState = null) {
+            const drawer = document.getElementById('chat-cli-drawer');
+            if (!drawer) return;
+            if (forceState === false || (forceState === null && !drawer.classList.contains('hidden'))) {
+                drawer.classList.add('hidden');
+            } else {
+                drawer.classList.remove('hidden');
+                document.getElementById('chat-cli-input')?.focus();
+            }
+            lucide.createIcons();
+        }
+
+        function handleCliInputKeyDown(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runCliTerminalCommand();
+            }
+        }
+
+        async function runCliTerminalCommand() {
+            const input = document.getElementById('chat-cli-input');
+            const outDiv = document.getElementById('chat-cli-output');
+            const btn = document.getElementById('chat-cli-run-btn');
+            if (!input || !outDiv) return;
+
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Menjalankan...';
+            outDiv.classList.remove('hidden');
+            outDiv.innerHTML = `<span class="text-slate-400 animate-pulse">Menjalankan \`${cmd}\` di Linux Host...</span>`;
+
+            try {
+                const res = await fetch('/api/system/cli-exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                btn.innerText = 'Jalankan';
+
+                const result = data.result || {};
+                const isSuccess = result.status === 'success' && result.exit_code === 0;
+                const stdout = result.stdout || result.output || '';
+                const stderr = result.stderr ? `\n[STDERR]: ${result.stderr}` : '';
+
+                outDiv.innerHTML = `
+                    <div class="flex items-center justify-between pb-1 mb-1 border-b border-white/10 text-[10px] text-slate-400">
+                        <span class="${isSuccess ? 'text-emerald-400' : 'text-rose-400'} font-bold">
+                            ${isSuccess ? '✓ Exit 0 (Sukses)' : `✗ Exit ${result.exit_code || 1} (Error)`}
+                        </span>
+                        <span>⏱️ ${data.execution_time_ms} ms • 📁 ${data.current_dir || '~'}</span>
+                    </div>
+                    <div>${stdout + stderr || '(Perintah selesai tanpa output terminal)'}</div>
+                `;
+                showToast(`CLI: Perintah selesai dalam ${data.execution_time_ms} ms!`, isSuccess ? 'success' : 'warning');
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerText = 'Jalankan';
+                outDiv.innerHTML = `<span class="text-rose-400">Error: ${err.message}</span>`;
+                showToast('Gagal menjalankan CLI: ' + err.message, 'error');
             }
         }
 

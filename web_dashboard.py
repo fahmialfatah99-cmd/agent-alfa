@@ -22,7 +22,7 @@ import psutil
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
@@ -2406,6 +2406,146 @@ async def chat_with_agent(payload: Dict[str, Any]):
         "reply": reply,
         "model_used": selected_model or "default",
         "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.post("/api/chat/stream")
+async def chat_with_agent_stream(payload: Dict[str, Any]):
+    """Server-Sent Events (SSE) streaming endpoint for real-time token delivery and live reasoning steps."""
+    import re
+    import universal_file_extractor as ufe
+    import fast_path_executor as fpe
+
+    message = (payload.get("message") or "").strip()
+    attachments = payload.get("attachments") or payload.get("files") or []
+
+    if not message and not attachments:
+        raise HTTPException(status_code=400, detail="message or attachments is required")
+
+    uid = get_primary_user_id()
+    
+    multimodal_parts = []
+    text_contexts = []
+    saved_disk_paths = []
+
+    for att in attachments:
+        fname = att.get("name", "attachment")
+        mime = att.get("type", "application/octet-stream")
+        b64_data = att.get("base64", "")
+        if not b64_data:
+            continue
+        if "," in b64_data:
+            b64_data = b64_data.split(",", 1)[1]
+        try:
+            raw_bytes = base64.b64decode(b64_data)
+        except Exception:
+            continue
+
+        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
+        if part is not None:
+            multimodal_parts.append(part)
+        if txt_ctx:
+            text_contexts.append(txt_ctx)
+            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            if m:
+                saved_disk_paths.append(m.group(1).strip())
+
+    selected_model = payload.get("selected_model") or payload.get("model")
+    selected_key_id = payload.get("key_id")
+    if selected_key_id:
+        try:
+            selected_key_id = int(selected_key_id)
+        except Exception:
+            selected_key_id = None
+
+    expert_mode = payload.get("expert_mode", "general")
+
+    full_prompt = message
+    if text_contexts:
+        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+
+    async def event_generator():
+        start_t = time.time()
+        
+        # 1. Check Fast Path
+        fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+        if fast_result is not None:
+            reply = fast_result.get("reply", "")
+            yield f"data: {json.dumps({'type': 'start', 'model': 'fast_path'})}\n\n"
+            words = reply.split(" ")
+            for i, w in enumerate(words):
+                chunk = w + (" " if i < len(words) - 1 else "")
+                yield f"data: {json.dumps({'type': 'token', 'chunk': chunk})}\n\n"
+                await asyncio.sleep(0.015)
+            elapsed_ms = round((time.time() - start_t) * 1000, 1)
+            yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'model_used': 'Fast-Path Engine', 'execution_time_ms': elapsed_ms})}\n\n"
+            return
+
+        # 2. Yield reasoning progress
+        yield f"data: {json.dumps({'type': 'progress', 'step': '1. Memvalidasi berkas & menyiapkan memori...'})}\n\n"
+        await asyncio.sleep(0.05)
+        engine_label = selected_model or 'Otak Utama'
+        yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
+        
+        try:
+            reply = await bot.run_agent_turn(
+                user_id=uid,
+                user_prompt=full_prompt,
+                multimodal_parts=multimodal_parts if multimodal_parts else None,
+                chat_id=uid,
+                override_model=selected_model,
+                override_key_id=selected_key_id
+            )
+        except Exception as e:
+            logger.error(f"Error in chat stream: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'type': 'progress', 'step': '3. Memformat respon Markdown & artefak...'})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'model': selected_model or 'default'})}\n\n"
+
+        # Stream chunked tokens
+        lines = reply.split("\n")
+        for line_idx, line in enumerate(lines):
+            words = line.split(" ")
+            for w_idx, w in enumerate(words):
+                token = w + (" " if w_idx < len(words) - 1 else "")
+                yield f"data: {json.dumps({'type': 'token', 'chunk': token})}\n\n"
+                await asyncio.sleep(0.008)
+            if line_idx < len(lines) - 1:
+                yield f"data: {json.dumps({'type': 'token', 'chunk': chr(10)})}\n\n"
+                await asyncio.sleep(0.01)
+
+        elapsed_ms = round((time.time() - start_t) * 1000, 1)
+        yield f"data: {json.dumps({'type': 'done', 'reply': reply, 'model_used': selected_model or 'default', 'execution_time_ms': elapsed_ms})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/api/system/cli-exec")
+async def execute_cli_terminal_command(payload: Dict[str, Any]):
+    """Execute arbitrary bash/linux terminal command directly in the host system with timing and exit codes."""
+    command = (payload.get("command") or "").strip()
+    if not command:
+        raise HTTPException(status_code=400, detail="command is required")
+    
+    start_t = time.time()
+    res = tools.execute_bash_command(command=command)
+    elapsed_ms = round((time.time() - start_t) * 1000, 1)
+    
+    return {
+        "status": "success",
+        "result": res,
+        "execution_time_ms": elapsed_ms,
+        "current_dir": os.getcwd()
     }
 
 
