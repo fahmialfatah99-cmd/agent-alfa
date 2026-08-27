@@ -1415,48 +1415,22 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         await doc_file.download_to_memory(doc_bytes_io)
         doc_bytes = doc_bytes_io.getvalue()
 
-        from google.genai import types
+        import universal_file_extractor as ufe
+
+        txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
         
-        # Audio meeting recording file (.mp3, .m4a, .wav, .aac, .ogg)
-        if mime_type.startswith("audio/") or any(file_name.lower().endswith(ext) for ext in ['.mp3', '.m4a', '.wav', '.aac', '.flac', '.ogg']):
-            audio_part = types.Part.from_bytes(data=doc_bytes, mime_type=mime_type if mime_type.startswith("audio/") else "audio/mp3")
-            prompt = (
-                f"Ini adalah rekaman audio/rapat '{file_name}'.\n"
-                f"Instruksi Khusus: {caption}\n\n"
-                f"Tugas Anda:\n"
-                f"1. Buatkan Ringkasan Eksekutif (Executive Summary).\n"
-                f"2. Notulen Rapat lengkap dengan poin-poin diskusi utama.\n"
-                f"3. Keputusan Penting yang diambil.\n"
-                f"4. Daftar Tindak Lanjut / Action Items beserta PIC/tanggung jawab jika disebutkan."
-            )
-            reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
-
-        # PDF Document
-        elif file_name.lower().endswith(".pdf") or mime_type == "application/pdf":
-            try:
-                import pypdf
-                reader = pypdf.PdfReader(io.BytesIO(doc_bytes))
-                extracted_text = ""
-                for page_num, page in enumerate(reader.pages[:20]):
-                    extracted_text += f"\n--- Halaman {page_num + 1} ---\n" + (page.extract_text() or "")
-                
-                prompt = f"Isi Dokumen PDF '{file_name}':\n```\n{extracted_text[:12000]}\n```\n\nInstruksi: {caption}"
-                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
-            except Exception:
-                pdf_part = types.Part.from_bytes(data=doc_bytes, mime_type="application/pdf")
-                prompt = f"Dokumen PDF '{file_name}': {caption}"
-                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[pdf_part], chat_id=chat_id)
-
-        # Text / Code / CSV Document
+        multimodal_parts = [part] if part is not None else None
+        if txt_ctx:
+            prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}"
         else:
-            try:
-                text_content = doc_bytes.decode("utf-8", errors="replace")
-                prompt = f"Isi file '{file_name}':\n```\n{text_content[:10000]}\n```\n\nInstruksi: {caption}"
-                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
-            except Exception:
-                doc_part = types.Part.from_bytes(data=doc_bytes, mime_type=mime_type)
-                prompt = f"Dokumen '{file_name}': {caption}"
-                reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[doc_part], chat_id=chat_id)
+            prompt = f"Dokumen/Berkas '{file_name}': {caption}"
+
+        reply = await run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            multimodal_parts=multimodal_parts,
+            chat_id=chat_id
+        )
 
     finally:
         stop_typing.set()
