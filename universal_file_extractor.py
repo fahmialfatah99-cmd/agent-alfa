@@ -10,13 +10,14 @@ Enterprise-grade parser for all document, spreadsheet, code, archive, audio, and
 - JSON/YAML/TOML: structure parser
 - Code: 30+ programming language syntax blocks with line numbers
 - Archives: ZIP/TAR directory hierarchy and nested file extractor
-- Audio/Video/Images: Gemini native multimodal Part generator
+- Audio/Video/Images: Gemini native multimodal Part generator + Real File Path Persistence
 """
 
 import io
 import os
 import re
 import csv
+import time
 import json
 import tarfile
 import zipfile
@@ -25,84 +26,112 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("UniversalFileExtractor")
 
+UPLOAD_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 def process_uploaded_attachment(
     filename: str,
     mime_type: str,
-    raw_bytes: bytes
+    raw_bytes: bytes,
+    save_disk: bool = True
 ) -> Tuple[Optional[str], Optional[Any]]:
     """
     Process any uploaded file and return (text_context, multimodal_part).
+    - Persists file to ~/Dokumen/ALFA_SWARM_OUTPUTS/uploads/ so real tools can operate on it.
     - If file is an image or audio or native PDF: returns multimodal_part for Gemini vision/audio/doc models.
-    - If file is a document/spreadsheet/code/archive: returns clean formatted Markdown text_context.
+    - Returns rich structured text context with exact file disk path for immediate tool execution.
     """
     ext = os.path.splitext(filename)[1].lower()
     fname_clean = os.path.basename(filename)
+    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', fname_clean)
+    
+    file_disk_path = ""
+    if save_disk:
+        try:
+            file_disk_path = os.path.join(UPLOAD_DIR, f"{int(time.time())}_{safe_name}")
+            with open(file_disk_path, "wb") as f_disk:
+                f_disk.write(raw_bytes)
+        except Exception as e:
+            logger.warning(f"Gagal simpan upload ke disk: {e}")
 
-    # 1. IMAGES (Vision)
+    path_header = f"[FILE TERSIMPAN DI DISK: {file_disk_path}]\n" if file_disk_path else ""
+    tool_hint = "*(Gunakan path file nyata di atas jika ada instruksi konversi seperti 'jadikan pdf', 'merge', 'kompres', 'ubah format', dll.)*\n"
+
+    # 1. IMAGES (Vision + Real Tool Execution)
     if mime_type.startswith("image/") or ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".ico"):
+        multimodal_part = None
         try:
             from google.genai import types
             img_mime = mime_type if mime_type.startswith("image/") else f"image/{ext.lstrip('.')}"
             if img_mime == "image/jpg":
                 img_mime = "image/jpeg"
-            return None, types.Part.from_bytes(data=raw_bytes, mime_type=img_mime)
+            multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=img_mime)
         except Exception as e:
             logger.warning(f"Native image part error: {e}")
 
-    # 2. AUDIO & VOICE (Native Audio)
+        text_ctx = f"[LAMPIRAN GAMBAR/FOTO: {fname_clean}]\n{path_header}{tool_hint}"
+        return text_ctx, multimodal_part
+
+    # 2. AUDIO & VOICE (Native Audio + Real Tool Execution)
     if mime_type.startswith("audio/") or ext in (".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac"):
+        multimodal_part = None
         try:
             from google.genai import types
             aud_mime = mime_type if mime_type.startswith("audio/") else f"audio/{ext.lstrip('.')}"
-            return None, types.Part.from_bytes(data=raw_bytes, mime_type=aud_mime)
+            multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=aud_mime)
         except Exception as e:
             logger.warning(f"Native audio part error: {e}")
+
+        text_ctx = f"[LAMPIRAN AUDIO/SUARA: {fname_clean}]\n{path_header}{tool_hint}"
+        return text_ctx, multimodal_part
 
     # 3. PDF DOCUMENTS (Dual mode: PyMuPDF text + Native Part)
     if ext == ".pdf" or mime_type == "application/pdf":
         pdf_text = _extract_pdf(raw_bytes, fname_clean)
+        multimodal_part = None
         try:
             from google.genai import types
-            return f"[DOKUMEN PDF: {fname_clean}]\n{pdf_text}", types.Part.from_bytes(data=raw_bytes, mime_type="application/pdf")
+            multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type="application/pdf")
         except Exception:
-            return f"[DOKUMEN PDF: {fname_clean}]\n{pdf_text}", None
+            pass
+        return f"[DOKUMEN PDF: {fname_clean}]\n{path_header}{tool_hint}\n{pdf_text}", multimodal_part
 
     # 4. WORD DOCUMENTS (.docx, .doc)
     if ext in (".docx", ".doc"):
         doc_text = _extract_word(raw_bytes, fname_clean)
-        return f"[DOKUMEN WORD: {fname_clean}]\n{doc_text}", None
+        return f"[DOKUMEN WORD: {fname_clean}]\n{path_header}{tool_hint}\n{doc_text}", None
 
     # 5. POWERPOINT PRESENTATIONS (.pptx, .ppt)
     if ext in (".pptx", ".ppt"):
         pptx_text = _extract_powerpoint(raw_bytes, fname_clean)
-        return f"[PRESENTASI PPTX: {fname_clean}]\n{pptx_text}", None
+        return f"[PRESENTASI PPTX: {fname_clean}]\n{path_header}{tool_hint}\n{pptx_text}", None
 
     # 6. SPREADSHEETS (.xlsx, .xls, .xlsm, .ods)
     if ext in (".xlsx", ".xls", ".xlsm", ".xltx", ".ods"):
         sheet_text = _extract_excel(raw_bytes, fname_clean, ext)
-        return f"[SPREADSHEET EXCEL: {fname_clean}]\n{sheet_text}", None
+        return f"[SPREADSHEET EXCEL: {fname_clean}]\n{path_header}{tool_hint}\n{sheet_text}", None
 
     # 7. CSV / TSV / DELIMITED DATA
     if ext in (".csv", ".tsv", ".dsv", ".txt") and ("," in raw_bytes[:1000].decode("utf-8", errors="ignore") or "\t" in raw_bytes[:1000].decode("utf-8", errors="ignore")):
         csv_text = _extract_csv(raw_bytes, fname_clean)
         if csv_text:
-            return f"[DATA TABEL CSV: {fname_clean}]\n{csv_text}", None
+            return f"[DATA TABEL CSV: {fname_clean}]\n{path_header}{tool_hint}\n{csv_text}", None
 
     # 8. ARCHIVES (.zip, .tar, .tar.gz, .tgz)
     if ext in (".zip", ".tar", ".gz", ".tgz", ".bz2"):
         archive_text = _extract_archive(raw_bytes, fname_clean, ext)
-        return f"[ARSIP TERKOMPRESI: {fname_clean}]\n{archive_text}", None
+        return f"[ARSIP TERKOMPRESI: {fname_clean}]\n{path_header}{tool_hint}\n{archive_text}", None
 
     # 9. HTML / XML / SVG
     if ext in (".html", ".htm", ".xhtml", ".xml", ".svg"):
         html_text = _extract_html_xml(raw_bytes, fname_clean, ext)
-        return f"[KODE WEB / STRUKTUR: {fname_clean}]\n{html_text}", None
+        return f"[KODE WEB / STRUKTUR: {fname_clean}]\n{path_header}\n{html_text}", None
 
     # 10. JSON / YAML / TOML
     if ext in (".json", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml"):
         data_text = _extract_data_formats(raw_bytes, fname_clean, ext)
-        return f"[DATA KONFIGURASI: {fname_clean}]\n{data_text}", None
+        return f"[DATA KONFIGURASI: {fname_clean}]\n{path_header}\n{data_text}", None
 
     # 11. SOURCE CODE & SCRIPTS
     code_exts = {
@@ -121,17 +150,16 @@ def process_uploaded_attachment(
             lines = decoded.splitlines()
             numbered = "\n".join([f"{i+1:4d} | {line}" for i, line in enumerate(lines[:1000])])
             total_hint = f" (Menampilkan {min(len(lines), 1000)} dari total {len(lines)} baris)" if len(lines) > 1000 else ""
-            bt = "```"
-            return f"[KODE SUMBER: {fname_clean}{total_hint}]\n{bt}{lang}\n{numbered}\n{bt}", None
+            return f"[KODE SUMBER: {fname_clean}{total_hint}]\n{path_header}\n```{lang}\n{numbered}\n```", None
         except Exception:
             pass
 
     # 12. Fallback UTF-8 text decoder
     try:
         decoded = raw_bytes.decode("utf-8", errors="replace")
-        return f"[BERKAS TEKS: {fname_clean}]\n{decoded}", None
+        return f"[BERKAS TEKS: {fname_clean}]\n{path_header}\n{decoded}", None
     except Exception:
-        return f"[BERKAS BINER: {fname_clean} ({len(raw_bytes)} bytes)]", None
+        return f"[BERKAS BINER: {fname_clean} ({len(raw_bytes)} bytes)]\n{path_header}", None
 
 
 # ── EXTRACTOR IMPLEMENTATIONS ─────────────────────────────────────────────────
@@ -275,8 +303,7 @@ def _extract_csv(raw_bytes: bytes, fname: str) -> Optional[str]:
         try:
             decoded = raw_bytes.decode("utf-8", errors="replace")
             lines = decoded.splitlines()[:150]
-            bt = "```"
-            return f"{bt}csv\n" + "\n".join(lines) + f"\n{bt}"
+            return "```csv\n" + "\n".join(lines) + "\n```"
         except Exception:
             return None
 
@@ -296,8 +323,7 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
                     if not info.is_dir() and info.file_size < 30000 and any(info.filename.endswith(e) for e in (".txt", ".md", ".json", ".py", ".csv")):
                         try:
                             content = zf.read(info.filename).decode("utf-8", errors="replace")
-                            bt = "```"
-                            out.append(f"\n#### 📄 Pratinjau Isi: `{info.filename}`\n{bt}\n{content[:2000]}\n{bt}")
+                            out.append(f"\n#### 📄 Pratinjau Isi: `{info.filename}`\n```\n{content[:2000]}\n```")
                             break
                         except Exception:
                             pass
@@ -333,18 +359,17 @@ def _extract_html_xml(raw_bytes: bytes, fname: str, ext: str) -> str:
 def _extract_data_formats(raw_bytes: bytes, fname: str, ext: str) -> str:
     try:
         decoded = raw_bytes.decode("utf-8", errors="replace")
-        bt = "```"
         if ext in (".json", ".jsonl", ".ndjson"):
             if ext == ".json":
                 parsed = json.loads(decoded)
-                return f"{bt}json\n" + json.dumps(parsed, indent=2, ensure_ascii=False)[:4000] + f"\n{bt}"
+                return "```json\n" + json.dumps(parsed, indent=2, ensure_ascii=False)[:4000] + "\n```"
             else:
                 lines = decoded.splitlines()
-                return f"Total {len(lines)} baris JSONL:\n{bt}json\n" + "\n".join(lines[:50]) + f"\n{bt}"
+                return f"Total {len(lines)} baris JSONL:\n```json\n" + "\n".join(lines[:50]) + "\n```"
         elif ext in (".yaml", ".yml"):
             import yaml
             parsed = yaml.safe_load(decoded)
-            return f"{bt}yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + f"\n{bt}"
-        return f"{bt}\n" + decoded[:4000] + f"\n{bt}"
+            return "```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```"
+        return "```\n" + decoded[:4000] + "\n```"
     except Exception:
         return raw_bytes.decode("utf-8", errors="replace")[:4000]

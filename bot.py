@@ -194,6 +194,22 @@ ANTIGRAVITY_WORKFLOW_BLOCK = (
     "5. SELF-HEALING & ERROR RECOVERY: Jika pemanggilan tool menemui error, analisis penyebab aslinya dan segera gunakan alternatif lain secara mandiri.\n"
 )
 
+# ── PRINSIP TOOL-FIRST (EKSEKUSI TOOL NYATA, BUKAN SIMULASI TEKS) ────────────
+TOOL_FIRST_EXECUTION_BLOCK = (
+    "\n\n### ⚡ PRINSIP UTAMA: EKSEKUSI TOOL NYATA LANGSUNG (TOOL-FIRST AGENT)\n"
+    "Jika pengguna memberikan perintah yang membutuhkan aksi/manipulasi/konversi berkas atau sistem "
+    "(contoh: 'jadikan foto ini pdf', 'gabung pdf', 'pecah pdf', 'ubah format video/audio', 'ekstrak zip', "
+    "'jalankan skrip python', 'buat laporan pdf', 'buat spreadsheet excel', 'screenshot layar', 'perintah terminal'), "
+    "kamu WAJIB LANGSUNG MEMANGGIL TOOL YANG TEPAT DARI 130+ TOOLS NYATA! Dilarang hanya mengetik teks basa-basi atau simulasi.\n"
+    "• CONTOH GAMBAR KE PDF: Jika user mengunggah foto dan meminta 'jadikan ini pdf', panggil tool `images_convert_to_pdf(image_paths=[...])` "
+    "menggunakan path file yang tertera di context `[FILE TERSIMPAN DI DISK: ...]`. Tool akan membuat file PDF nyata di filesystem.\n"
+    "• CONTOH PDF SUITE: Gunakan suite `pdf_merge_documents`, `pdf_split_document`, `pdf_extract_full_text`, `pdf_rotate_pages`, `pdf_apply_watermark_text`, `pdf_encrypt_password`.\n"
+    "• CONTOH MEDIA CONVERT: Gunakan `convert_media_format` untuk video/audio.\n"
+    "• CONTOH DOKUMEN LAIN: Gunakan `generate_pdf_report`, `generate_excel_spreadsheet`, `generate_presentation_pptx`, `libreoffice_*`.\n"
+    "• CONTOH LINUX & KODE: Gunakan `execute_bash_command` atau `execute_python_sandbox`.\n"
+    "Tool akan memproses berkas secara native dalam hitungan milidetik dan menghasilkan file fisik yang bisa langsung diunduh/dibuka user!\n"
+)
+
 
 def _meetings_count() -> int:
     """Ground truth: jumlah rapat NYATA di database."""
@@ -559,7 +575,10 @@ async def run_agent_turn(
             pass
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    full_system_instruction = base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK + CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK
+    full_system_instruction = (
+        base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
+        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
+    )
     preferred_model = user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
