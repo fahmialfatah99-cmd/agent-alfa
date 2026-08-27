@@ -943,7 +943,7 @@ def add_api_key_sync(name: str, provider: str, api_key: str, default_model: str,
     return {"status": "success", "id": key_id, "name": name, "provider": provider_norm}
 
 
-def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
+def activate_api_key_sync(key_id: int, custom_model: Optional[str] = None) -> Dict[str, Any]:
     """Set an API key as active. The MOST RECENTLY activated key across any
     provider automatically becomes the MAIN BRAIN for the Telegram/Web agent."""
     with get_sync_db() as conn:
@@ -959,14 +959,13 @@ def activate_api_key_sync(key_id: int) -> Dict[str, Any]:
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
             (str(key_id),)
         )
-        # AUTO-GUARD: selaraskan override model dengan kunci baru supaya
-        # ganti provider tidak meninggalkan model provider lama yang usang.
+        target_model = (custom_model or "").strip() or (row["default_model"] or "").strip()
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
-            ((row["default_model"] or "").strip(),)
+            (target_model,)
         )
         conn.commit()
-    return {"status": "success", "message": f"API key #{key_id} activated & ditetapkan sebagai otak utama"}
+    return {"status": "success", "message": f"API key #{key_id} activated & model disetel ke '{target_model}'"}
 
 
 def set_main_brain_model(model: str) -> None:

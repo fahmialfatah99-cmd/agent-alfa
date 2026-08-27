@@ -5420,16 +5420,35 @@
                         groups[prov].push(m);
                     });
 
+                    let matchedActive = false;
                     let html = '';
                     for (const [provName, mList] of Object.entries(groups)) {
                         html += `<optgroup label="── ${provName} ──" class="bg-dark-950 text-slate-300 font-bold">`;
                         mList.forEach(m => {
-                            const isSelected = (m.id === data.active_model) ? 'selected' : '';
+                            let isSelected = '';
+                            if (!matchedActive) {
+                                if (data.active_key_id && m.key_id && String(m.key_id) === String(data.active_key_id) && m.id === data.active_model) {
+                                    isSelected = 'selected';
+                                    matchedActive = true;
+                                } else if (!data.active_key_id && m.id === data.active_model) {
+                                    isSelected = 'selected';
+                                    matchedActive = true;
+                                }
+                            }
                             html += `<option value="${m.id}" data-key-id="${m.key_id || ''}" ${isSelected} class="bg-dark-900 text-white font-normal">${m.name}</option>`;
                         });
                         html += `</optgroup>`;
                     }
                     selector.innerHTML = html;
+
+                    if (!matchedActive && data.active_model) {
+                        for (let i = 0; i < selector.options.length; i++) {
+                            if (selector.options[i].value === data.active_model) {
+                                selector.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     selector.innerHTML = '<option value="gemini-3.6-flash">Gemini 3.6 Flash (Default)</option>';
                 }

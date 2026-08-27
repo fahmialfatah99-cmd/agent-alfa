@@ -2488,13 +2488,13 @@ async def set_chat_active_model(payload: Dict[str, Any]):
     """Set and persist default active model."""
     model = (payload.get("model") or "").strip()
     key_id = payload.get("key_id")
-    if model:
-        database.set_main_brain_model(model)
     if key_id:
         try:
-            database.activate_api_key_sync(int(key_id))
-        except Exception:
-            pass
+            database.activate_api_key_sync(int(key_id), custom_model=model if model else None)
+        except Exception as e:
+            logger.warning(f"Failed activating key #{key_id}: {e}")
+    if model:
+        database.set_main_brain_model(model)
     return {"status": "success", "message": f"Model aktif berhasil dialihkan ke: {model}"}
 
 

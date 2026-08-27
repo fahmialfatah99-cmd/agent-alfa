@@ -584,12 +584,26 @@ async def run_agent_turn(
         except Exception:
             pass
 
+    brain_model_override = database.get_main_brain_model()
+    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
+    current_active_model = override_model or brain.get("model") or brain_model_override or preferred_model
+    current_active_provider = brain.get("provider", "gemini").upper()
+    current_key_label = brain.get("label", "")
+
+    active_identity_block = (
+        f"\n\n### 🤖 INFORMASI ENGINE & MODEL AKTIF SAAT INI (GROUND TRUTH)\n"
+        f"- MODEL AI AKTIF SAAT INI: `{current_active_model}`\n"
+        f"- PROVIDER / GATEWAY: `{current_active_provider}`\n"
+        f"- KUNCI/AKUN VAULT: `{current_key_label}`\n"
+        f"- Jika pengguna bertanya kamu pakai model apa, model apa yang sedang aktif, atau identitas enginemu, "
+        f"jawab dengan jujur dan jelas bahwa saat ini kamu ditenagai oleh model `{current_active_model}` ({current_active_provider})!\n"
+    )
+
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
     full_system_instruction = (
-        base_instruction + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
+        base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
         CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
     )
-    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
     fallback_chain = [m.strip() for m in os.getenv(
@@ -598,8 +612,7 @@ async def run_agent_turn(
     ).split(",") if m.strip()]
 
     # Model otak utama (dari System Settings) menang atas preferensi per-user jika tidak ada override
-    brain_model_override = database.get_main_brain_model()
-    base_model = override_model or brain_model_override or preferred_model
+    base_model = current_active_model
     candidate_models = [base_model] + (
         [preferred_model] if preferred_model and preferred_model != base_model else []
     ) + fallback_chain
