@@ -75,65 +75,72 @@ def audit_local_host_security() -> Dict[str, Any]:
     except Exception as net_err:
         add_check("listening_ports", True, f"Tidak dapat memeriksa ({net_err})")
 
-    # 2. Sensitive file permissions
-    home = os.path.expanduser("~")
-    sensitive_targets = [
-        (os.path.join(home, ".ssh"), 0o700),
-        (os.path.join(home, ".alfa_vault_master.key"), 0o600),
-        (os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), 0o600),
-    ]
-    ssh_dir = os.path.join(home, ".ssh")
-    if os.path.isdir(ssh_dir):
-        for fn in os.listdir(ssh_dir):
-            if fn.endswith(".pub") or fn in ("known_hosts", ".known_hosts", "config", "authorized_keys"):
-                continue
-            sensitive_targets.append((os.path.join(ssh_dir, fn), 0o600))
+    # 2. Sensitive file permissions (POSIX platforms)
+    if os.name != "nt":
+        home = os.path.expanduser("~")
+        sensitive_targets = [
+            (os.path.join(home, ".ssh"), 0o700),
+            (os.path.join(home, ".alfa_vault_master.key"), 0o600),
+            (os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), 0o600),
+        ]
+        ssh_dir = os.path.join(home, ".ssh")
+        if os.path.isdir(ssh_dir):
+            for fn in os.listdir(ssh_dir):
+                if fn.endswith(".pub") or fn in ("known_hosts", ".known_hosts", "config", "authorized_keys"):
+                    continue
+                sensitive_targets.append((os.path.join(ssh_dir, fn), 0o600))
 
-    perm_problems = []
-    perm_checked = 0
-    for path, max_mode in sensitive_targets:
-        if not os.path.exists(path):
-            continue
-        perm_checked += 1
-        mode = stat.S_IMODE(os.stat(path).st_mode)
-        # group/other must have no access at all on these
-        if mode & 0o077:
-            perm_problems.append(f"{os.path.basename(path)} = {oct(mode)} (harus <= {oct(max_mode)})")
-    if perm_checked == 0:
-        add_check("sensitive_permissions", True, "Tidak ada file sensitif untuk diperiksa")
+        perm_problems = []
+        perm_checked = 0
+        for path, max_mode in sensitive_targets:
+            if not os.path.exists(path):
+                continue
+            perm_checked += 1
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+            # group/other must have no access at all on these
+            if mode & 0o077:
+                perm_problems.append(f"{os.path.basename(path)} = {oct(mode)} (harus <= {oct(max_mode)})")
+        if perm_checked == 0:
+            add_check("sensitive_permissions", True, "Tidak ada file sensitif untuk diperiksa")
+        else:
+            is_ssh_loose = any(".ssh" in p for p in perm_problems)
+            add_check(
+                "sensitive_permissions",
+                len(perm_problems) == 0,
+                f"{perm_checked} file diperiksa; " + ("aman" if not perm_problems else "; ".join(perm_problems)),
+                severity="CRITICAL" if is_ssh_loose else "HIGH",
+            )
     else:
-        is_ssh_loose = any(".ssh" in p for p in perm_problems)
-        add_check(
-            "sensitive_permissions",
-            len(perm_problems) == 0,
-            f"{perm_checked} file diperiksa; " + ("aman" if not perm_problems else "; ".join(perm_problems)),
-            severity="CRITICAL" if is_ssh_loose else "HIGH",
-        )
+        add_check("sensitive_permissions", True, "Izin file POSIX dilewati pada Windows (ACL digunakan)")
 
     # 3. Failed systemd user services
-    try:
-        res = subprocess.run(
-            ["systemctl", "--user", "--failed", "--no-legend", "--plain"],
-            capture_output=True, text=True, timeout=10,
-        )
-        failed_units = [ln.split()[0] for ln in res.stdout.strip().splitlines() if ln.strip() and ".service" in ln]
-        add_check(
-            "failed_services",
-            len(failed_units) == 0,
-            f"{len(failed_units)} service user gagal: {', '.join(failed_units[:5])}" if failed_units else "Semua service user sehat",
-            severity="MEDIUM",
-        )
-    except Exception as svc_err:
-        add_check("failed_services", True, f"Tidak dapat memeriksa ({svc_err})")
+    if shutil.which("systemctl") is not None:
+        try:
+            res = subprocess.run(
+                ["systemctl", "--user", "--failed", "--no-legend", "--plain"],
+                capture_output=True, text=True, timeout=10,
+            )
+            failed_units = [ln.split()[0] for ln in res.stdout.strip().splitlines() if ln.strip() and ".service" in ln]
+            add_check(
+                "failed_services",
+                len(failed_units) == 0,
+                f"{len(failed_units)} service user gagal: {', '.join(failed_units[:5])}" if failed_units else "Semua service user sehat",
+                severity="MEDIUM",
+            )
+        except Exception as svc_err:
+            add_check("failed_services", True, f"Tidak dapat memeriksa ({svc_err})")
+    else:
+        add_check("failed_services", True, "systemctl tidak tersedia di OS ini")
 
-    # 4. Root filesystem usage
+    # 4. Root / Primary filesystem usage
     try:
-        du = psutil.disk_usage("/")
+        root_path = os.path.abspath(os.sep)
+        du = psutil.disk_usage(root_path)
         pct = du.percent
         add_check(
             "disk_usage",
             pct < 90,
-            f"/ terpakai {pct:.0f}% ({du.free // (1024**3)} GB bebas)",
+            f"{root_path} terpakai {pct:.0f}% ({du.free // (1024**3)} GB bebas)",
             severity="HIGH",
         )
     except Exception as du_err:

@@ -4,14 +4,14 @@ Direct integration with arXiv API and Europe PMC:
 - academic_deep_research_paper: Search peer-reviewed academic papers, extract abstracts, author citations, PDF links, and synthesize literature review.
 """
 
+import logging
 import os
 import re
 import time
-import urllib.request
 import urllib.parse
+import urllib.request
 import xml.etree.ElementTree as ET
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger("AcademicResearcher")
 

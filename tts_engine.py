@@ -8,7 +8,10 @@ import os
 import re
 import tempfile
 
-import edge_tts
+try:
+    import edge_tts
+except ImportError:
+    edge_tts = None
 
 logger = logging.getLogger("TTSEngine")
 
@@ -59,23 +62,26 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     temp_file.close()
 
     # 1. Try Primary Edge-TTS
-    try:
-        communicate = edge_tts.Communicate(clean_text, voice)
-        await communicate.save(temp_path)
-        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
-            return temp_path
-    except Exception as e:
-        logger.warning(f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback...")
+    if edge_tts is not None:
+        try:
+            communicate = edge_tts.Communicate(clean_text, voice)
+            await communicate.save(temp_path)
+            if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+                return temp_path
+        except Exception as e:
+            logger.warning(f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback...")
 
-    # 2. Try Secondary Edge-TTS voice
-    fallback_voice = "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
-    try:
-        communicate = edge_tts.Communicate(clean_text, fallback_voice)
-        await communicate.save(temp_path)
-        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
-            return temp_path
-    except Exception as e:
-        logger.warning(f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS...")
+        # 2. Try Secondary Edge-TTS voice
+        fallback_voice = "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
+        try:
+            communicate = edge_tts.Communicate(clean_text, fallback_voice)
+            await communicate.save(temp_path)
+            if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
+                return temp_path
+        except Exception as e:
+            logger.warning(f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS...")
+    else:
+        logger.debug("edge_tts module is not installed, skipping Edge-TTS.")
 
     # 3. Try gTTS (Google Translate TTS) as robust fallback
     try:

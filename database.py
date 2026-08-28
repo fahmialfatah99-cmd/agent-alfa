@@ -87,9 +87,11 @@ def migrate_encrypt_api_keys() -> Dict[str, int]:
 
 def init_db_sync():
     """Synchronously ensure all SQLite tables and indices exist."""
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     try:
-        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout = 30000;")
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -376,16 +378,18 @@ except Exception as _init_err:
     )
 
 
-def get_sync_db():
+def get_sync_db(timeout: float = 30.0):
     """Get a synchronous SQLite connection wrapped so `with` blocks close it.
 
     sqlite3.Connection's own context manager only commits/rolls back the
     transaction; wrapping in contextlib.closing guarantees the connection
     (and its WAL file descriptors) are released when the block exits.
     """
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(DB_PATH, timeout=timeout)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout = 30000;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
     return contextlib.closing(conn)
 
 

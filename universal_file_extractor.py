@@ -13,16 +13,16 @@ Enterprise-grade parser for all document, spreadsheet, code, archive, audio, and
 - Audio/Video/Images: Gemini native multimodal Part generator + Real File Path Persistence
 """
 
+import csv
 import io
+import json
+import logging
 import os
 import re
-import csv
-import time
-import json
 import tarfile
+import time
 import zipfile
-import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger("UniversalFileExtractor")
 
@@ -349,7 +349,7 @@ def _extract_html_xml(raw_bytes: bytes, fname: str, ext: str) -> str:
         for tag in soup(["script", "style", "nav", "footer"]):
             tag.decompose()
         text = soup.get_text(separator="\n").strip()
-        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
         clean_text = "\n".join(lines[:500])
         return f"### Konten Web/Struktur {fname}:\n\n{clean_text}"
     except Exception:

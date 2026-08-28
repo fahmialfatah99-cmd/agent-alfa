@@ -4,11 +4,10 @@ Uses Camoufox / Playwright headless browser to:
 - browser_visual_test_page: Load webpage, capture console errors, network failures, responsive screenshots, and detect layout overflow bugs.
 """
 
+import logging
 import os
 import time
-import json
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger("VisualTester")
 
@@ -88,7 +87,7 @@ def browser_visual_test_page(
 
                 try:
                     page.goto(url, timeout=20000, wait_until="load")
-                except Exception as e:
+                except Exception:
                     page.goto(url, timeout=20000)
 
                 time.sleep(wait_seconds)

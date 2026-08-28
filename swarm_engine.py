@@ -595,6 +595,29 @@ async def _generate_with_openai_compat(
                 logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
                 return None
 
+            if res.status_code == 429:
+                retry_after_str = res.headers.get("Retry-After", "2")
+                try:
+                    delay = min(max(float(retry_after_str), 1.0), 5.0)
+                except ValueError:
+                    delay = 2.0
+                logger.warning(f"[{provider}] HTTP 429 Rate Limit for '{agent_name}'. Backing off {delay}s...")
+                await asyncio.sleep(delay)
+                try:
+                    res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
+                                                 headers=headers, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        token_usage.from_openai_json(data, provider=provider, model=model,
+                                                     key_id=key_id, key_label=key_label,
+                                                     context=context)
+                        msg0 = (data.get("choices") or [{}])[0].get("message") or {}
+                        content = (msg0.get("content") or "").strip()
+                        if content:
+                            return content
+                except Exception as retry_err:
+                    logger.error(f"[{provider}] retry 429 failed: {retry_err}")
+
             err_detail = res.text[:200] or "(empty body)"
             logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
             return None

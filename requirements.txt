@@ -19,6 +19,7 @@ paramiko>=3.0.0
 deep-translator>=1.11.0
 odfpy>=1.4.0
 fastapi>=0.115.0
+python-multipart>=0.0.9
 uvicorn>=0.30.0
 qrcode>=8.0
 markitdown>=0.1.0

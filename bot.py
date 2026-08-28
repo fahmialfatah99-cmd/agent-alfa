@@ -1354,27 +1354,43 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         mime = getattr(voice, "mime_type", None) or "audio/ogg"
         audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
-        # 2. Transcribe voice audio fast with Gemini fallback so all models understand
+        # 2. Transcribe with the active Gemini model first, then newer flash
+        # fallbacks. Hardcoding gemini-2.5-flash fails because that model is retired.
+        # Gunakan klien vault (dashboard) — sama seperti run_agent_turn — bukan
+        # hanya GEMINI_API_KEY di .env.
         transcription_text = None
-        if gemini_client:
-            try:
-                tr_resp = await gemini_client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[
-                                audio_part,
-                                types.Part.from_text(text="Transkripsikan isi rekaman suara ini secara akurat ke dalam teks. Kembalikan HANYA teks transkripsinya tanpa kata pengantar.")
-                            ]
-                        )
-                    ]
-                )
-                if tr_resp and tr_resp.text:
-                    transcription_text = tr_resp.text.strip()
-                    logger.info(f"Transkripsi pesan suara: {transcription_text}")
-            except Exception as tr_err:
-                logger.debug(f"Fast transcription skipped: {tr_err}")
+        transcribe_client, _, _ = resolve_main_gemini()
+        if transcribe_client:
+            transcribe_models = []
+            for candidate in (
+                _main_brain_gemini_model(),
+                GEMINI_MODEL,
+                "gemini-3.6-flash",
+                "gemini-3.5-flash",
+            ):
+                name = (candidate or "").strip()
+                if name and name not in transcribe_models:
+                    transcribe_models.append(name)
+            transcribe_prompt = types.Part.from_text(
+                text="Transkripsikan isi rekaman suara ini secara akurat ke dalam teks. Kembalikan HANYA teks transkripsinya tanpa kata pengantar."
+            )
+            for model_id in transcribe_models:
+                try:
+                    tr_resp = await transcribe_client.aio.models.generate_content(
+                        model=model_id,
+                        contents=[
+                            types.Content(
+                                role="user",
+                                parts=[audio_part, transcribe_prompt],
+                            )
+                        ],
+                    )
+                    if tr_resp and tr_resp.text:
+                        transcription_text = tr_resp.text.strip()
+                        logger.info(f"Transkripsi pesan suara ({model_id}): {transcription_text}")
+                        break
+                except Exception as tr_err:
+                    logger.debug(f"Fast transcription skipped ({model_id}): {tr_err}")
 
         if transcription_text:
             prompt = f"[PESAN SUARA PENGGUNA (Transkripsi): \"{transcription_text}\"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat."

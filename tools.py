@@ -25,7 +25,10 @@ import database
 import plugins
 
 load_dotenv()
-from ddgs import DDGS
+try:
+    from ddgs import DDGS
+except ImportError:  # opsional: bot tetap bisa start tanpa paket pencarian
+    DDGS = None
 
 logger = logging.getLogger("AgentTools")
 
@@ -591,6 +594,11 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
         max_results: Maximum number of search results to return (default: 5).
     """
     try:
+        if DDGS is None:
+            return {
+                "status": "error",
+                "message": "Paket pencarian web (ddgs) belum terpasang. Jalankan: pip install ddgs",
+            }
         logger.info(f"Searching web for: {query}")
         results = list(DDGS(verify=False).text(query, max_results=max_results))
         if not results:
@@ -2571,8 +2579,9 @@ def upscale_image_hd(
         output_filename: Nama file hasil perbesaran (opsional).
     """
     try:
-        from PIL import Image, ImageFilter, ImageEnhance
         import subprocess
+
+        from PIL import Image, ImageFilter
 
         exp_p = os.path.expanduser(image_path.strip())
         if not os.path.exists(exp_p):
@@ -5506,6 +5515,7 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
 # Facade re-export di bawah menjaga kompatibilitas penuh semua pemanggil
 # lama (tools.gdrive_*, from tools import ...). Bentuk `X as X` menandai
 # re-export disengaja agar linter tidak menyalakannya.
+from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
 from gdrive_suite import (
     _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
 )
@@ -5525,10 +5535,19 @@ from gdrive_suite import (
     gdrive_list_files as gdrive_list_files,
 )
 from gdrive_suite import (
+    gdrive_oauth_exchange_code as gdrive_oauth_exchange_code,
+)
+from gdrive_suite import (
+    gdrive_oauth_get_auth_url as gdrive_oauth_get_auth_url,
+)
+from gdrive_suite import (
     gdrive_oauth_login as gdrive_oauth_login,
 )
 from gdrive_suite import (
     gdrive_oauth_logout as gdrive_oauth_logout,
+)
+from gdrive_suite import (
+    gdrive_save_oauth_client_secret as gdrive_save_oauth_client_secret,
 )
 from gdrive_suite import (
     gdrive_status as gdrive_status,
@@ -5539,29 +5558,28 @@ from gdrive_suite import (
 from gdrive_suite import (
     gdrive_upload_file as gdrive_upload_file,
 )
-from gdrive_suite import (
-    gdrive_save_oauth_client_secret as gdrive_save_oauth_client_secret,
-)
-from gdrive_suite import (
-    gdrive_oauth_get_auth_url as gdrive_oauth_get_auth_url,
-)
-from gdrive_suite import (
-    gdrive_oauth_exchange_code as gdrive_oauth_exchange_code,
-)
-
-from lsp_code_intelligence import (
-    lsp_find_symbol_definition as lsp_find_symbol_definition,
-    lsp_find_symbol_references as lsp_find_symbol_references,
-    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
-)
 from git_sandbox import (
     git_worktree_sandbox_create as git_worktree_sandbox_create,
-    git_worktree_sandbox_verify_and_merge as git_worktree_sandbox_verify_and_merge,
-    git_worktree_sandbox_rollback as git_worktree_sandbox_rollback,
+)
+from git_sandbox import (
     git_worktree_sandbox_list as git_worktree_sandbox_list,
 )
+from git_sandbox import (
+    git_worktree_sandbox_rollback as git_worktree_sandbox_rollback,
+)
+from git_sandbox import (
+    git_worktree_sandbox_verify_and_merge as git_worktree_sandbox_verify_and_merge,
+)
+from lsp_code_intelligence import (
+    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
+)
+from lsp_code_intelligence import (
+    lsp_find_symbol_definition as lsp_find_symbol_definition,
+)
+from lsp_code_intelligence import (
+    lsp_find_symbol_references as lsp_find_symbol_references,
+)
 from visual_tester import browser_visual_test_page as browser_visual_test_page
-from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
 
 
 def self_restart_service() -> Dict[str, Any]:

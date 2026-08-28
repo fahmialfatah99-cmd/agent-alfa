@@ -113,6 +113,10 @@ class TestBashBlacklist:
 # ── 3. Eksekusi bash nyata di sandbox ────────────────────────────────────────
 
 class TestBashExecution:
+    @pytest.fixture(autouse=True)
+    def enable_host_exec(self, monkeypatch):
+        monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "true")
+
     def test_sandbox_echo(self):
         from tools import execute_bash_command
         r = execute_bash_command("echo UJI-SANDBOX-ALFA")

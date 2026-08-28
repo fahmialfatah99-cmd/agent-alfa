@@ -27,12 +27,23 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
-logger = logging.getLogger("Dashboard")
-
-# Import project modules
-import bot
+# Import project modules safely
+try:
+    import bot
+except Exception as _e:
+    bot = None
 import database
 import tools
+
+
+def _get_bot():
+    """Lazily load or retrieve bot module."""
+    global bot
+    if bot is None:
+        import bot as _bot_mod
+        bot = _bot_mod
+    return bot
+
 
 app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
 
@@ -2330,8 +2341,9 @@ async def update_guardian_config(payload: Dict[str, Any]):
 async def chat_with_agent(payload: Dict[str, Any]):
     """Send a message directly to the ALFA Agent with optional multimodal attachments and sub-second Fast-Path tool execution."""
     import re
-    import universal_file_extractor as ufe
+
     import fast_path_executor as fpe
+    import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []
@@ -2393,7 +2405,7 @@ async def chat_with_agent(payload: Dict[str, Any]):
     if text_contexts:
         full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
 
-    reply = await bot.run_agent_turn(
+    reply = await _get_bot().run_agent_turn(
         user_id=uid,
         user_prompt=full_prompt,
         multimodal_parts=multimodal_parts if multimodal_parts else None,
@@ -2413,8 +2425,9 @@ async def chat_with_agent(payload: Dict[str, Any]):
 async def chat_with_agent_stream(payload: Dict[str, Any]):
     """Server-Sent Events (SSE) streaming endpoint for real-time token delivery and live reasoning steps."""
     import re
-    import universal_file_extractor as ufe
+
     import fast_path_executor as fpe
+    import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or payload.get("files") or []
@@ -2458,8 +2471,6 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         except Exception:
             selected_key_id = None
 
-    expert_mode = payload.get("expert_mode", "general")
-
     full_prompt = message
     if text_contexts:
         full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
@@ -2488,7 +2499,7 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
         
         try:
-            reply = await bot.run_agent_turn(
+            reply = await _get_bot().run_agent_turn(
                 user_id=uid,
                 user_prompt=full_prompt,
                 multimodal_parts=multimodal_parts if multimodal_parts else None,
@@ -2790,6 +2801,7 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
     """Kirim tugas ke agent secara LATAR BELAKANG (fire-and-forget).
     Tahan disconnect/refresh browser — hasil tersimpan ke riwayat chat."""
     import asyncio as _asyncio
+
     import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
@@ -2826,7 +2838,7 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
             if text_contexts:
                 full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
 
-            reply = await bot.run_agent_turn(
+            reply = await _get_bot().run_agent_turn(
                 user_id=uid,
                 user_prompt=full_prompt,
                 multimodal_parts=multimodal_parts if multimodal_parts else None,

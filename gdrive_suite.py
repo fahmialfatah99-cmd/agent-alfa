@@ -304,7 +304,6 @@ def gdrive_save_oauth_client_secret(raw_content: Any) -> Dict[str, Any]:
 
 def gdrive_oauth_get_auth_url(redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback") -> Dict[str, Any]:
     """Generate Google OAuth 2.0 authorization URL for 1-click browser login."""
-    import json as _json
     from google_auth_oauthlib.flow import Flow
     
     project_dir = os.path.dirname(os.path.abspath(__file__))
@@ -358,6 +357,7 @@ def gdrive_oauth_get_auth_url(redirect_uri: str = "http://localhost:8080/api/gdr
 def gdrive_oauth_exchange_code(auth_code: str, redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback") -> Dict[str, Any]:
     """Exchange authorization code for OAuth credentials and store token permanently."""
     import json as _json
+
     from google_auth_oauthlib.flow import Flow
     
     project_dir = os.path.dirname(os.path.abspath(__file__))

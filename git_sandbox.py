@@ -7,12 +7,12 @@ Allows ALFA to work in isolated branches without contaminating master:
 - git_worktree_sandbox_list: Lists active worktree sandboxes.
 """
 
+import logging
 import os
 import re
 import shutil
 import subprocess
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger("GitSandbox")
 
@@ -175,8 +175,8 @@ def git_worktree_sandbox_list() -> Dict[str, Any]:
         res = _run_git(["worktree", "list"])
         lines = res.stdout.strip().splitlines()
         trees = []
-        for l in lines:
-            parts = l.split()
+        for line in lines:
+            parts = line.split()
             if len(parts) >= 3 and ".alfa_worktrees" in parts[0]:
                 trees.append({
                     "path": parts[0],

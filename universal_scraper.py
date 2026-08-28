@@ -20,7 +20,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List
 
-from ddgs import DDGS
+try:
+    from ddgs import DDGS
+except ImportError:
+    DDGS = None
 
 logger = logging.getLogger("alfa.universal_scraper")
 
@@ -131,6 +134,11 @@ def scrape_universal_keyword(
     Paginates and merges results to yield 20 - 500+ rich records.
     """
     start_time = time.time()
+    if DDGS is None:
+        return {
+            "status": "error",
+            "message": "Paket pencarian web (ddgs) belum terpasang. Jalankan: pip install ddgs",
+        }
     batch_id = f"batch_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     batch_name = f"Scrape_{category}_{re.sub(r'[^a-zA-Z0-9]', '_', query)[:20]}"
 

@@ -31,6 +31,7 @@ build/
 logs/
 temp/
 tmp/
+storage/traces/
 .tempmediaStorage/
 .user_uploaded/
 

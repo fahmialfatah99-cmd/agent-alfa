@@ -14,8 +14,9 @@ Provides sub-second (10-100ms) execution for direct deterministic file & tool co
 import os
 import re
 import time
+from typing import Any, Dict, List, Optional
+
 import tools
-from typing import Any, Dict, List, Optional, Tuple
 
 
 def try_execute_fast_path(
@@ -90,8 +91,10 @@ def try_execute_fast_path(
     ])
     if is_upscale:
         scale_val = 2
-        if '4x' in p_low or '4 kali' in p_low or 'empat kali' in p_low: scale_val = 4
-        elif '8x' in p_low or '8 kali' in p_low or 'delapan kali' in p_low: scale_val = 8
+        if '4x' in p_low or '4 kali' in p_low or 'empat kali' in p_low:
+            scale_val = 4
+        elif '8x' in p_low or '8 kali' in p_low or 'delapan kali' in p_low:
+            scale_val = 8
         
         mode_val = "auto"
         if 'anime' in p_low or 'kartun' in p_low or 'waifu' in p_low:
@@ -186,8 +189,10 @@ def try_execute_fast_path(
     is_pdf_rotate = bool(pdf_paths) and any(k in p_low for k in ['putar', 'rotate', 'rotasi', 'miring'])
     if is_pdf_rotate:
         angle = 90
-        if '180' in p_low: angle = 180
-        elif '270' in p_low: angle = 270
+        if '180' in p_low:
+            angle = 180
+        elif '270' in p_low:
+            angle = 270
         res = tools.pdf_rotate_pages(pdf_path=pdf_paths[0], angle=angle, output_filename=f"rotated_{int(time.time())}.pdf")
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
