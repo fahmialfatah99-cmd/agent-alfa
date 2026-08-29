@@ -1,3 +1,17 @@
+"""System & Infrastructure Tools for ALFA Agent."""
+
+import datetime
+import logging
+import os
+import re
+import subprocess
+from typing import Any, Dict, List, Optional
+
+import psutil
+
+logger = logging.getLogger(__name__)
+
+
 def get_system_stats() -> Dict[str, Any]:
     """
     Get real-time Linux system health metrics including CPU cores/frequencies, RAM, Swap,
@@ -108,5 +122,86 @@ _RM_DANGER_TARGETS = (
 
 def _bash_blocked_reason(command: str) -> Optional[str]:
     """Kembalikan alasan pemblokiran bila perintah cocok pola berbahaya."""
+    for pattern, reason in _BASH_BLOCK_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return reason
+    return None
 
-# Additional system tools can be extracted from tools.py
+
+def execute_bash_command(command: str, working_dir: str = "", backend: str = "") -> Dict[str, Any]:
+    """Execute a bash command with security checks."""
+    # Check for blocked commands
+    blocked = _bash_blocked_reason(command)
+    if blocked:
+        return {
+            "status": "blocked",
+            "message": f"Command blocked: {blocked}",
+            "command": command
+        }
+    
+    try:
+        cwd = working_dir if working_dir else os.getcwd()
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=cwd
+        )
+        
+        return {
+            "status": "success" if result.returncode == 0 else "error",
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "returncode": result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "message": "Command timed out"}
+    except Exception as e:
+        logger.error(f"Bash command error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def execute_python_sandbox(code: str) -> Dict[str, Any]:
+    """Execute Python code in a sandboxed environment."""
+    try:
+        # Create a restricted environment
+        restricted_globals = {"__builtins__": {}}
+        
+        # Execute code with timeout
+        import signal
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Code execution timed out")
+        
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(30)  # 30 second timeout
+        
+        try:
+            # Capture output
+            import io
+            import sys
+            
+            old_stdout = sys.stdout
+            sys.stdout = io.StringIO()
+            
+            exec(code, restricted_globals)
+            
+            output = sys.stdout.getvalue()
+            sys.stdout = old_stdout
+            signal.alarm(0)  # Cancel alarm
+            
+            return {
+                "status": "success",
+                "output": output
+            }
+        except TimeoutError:
+            signal.alarm(0)
+            return {"status": "error", "message": "Code execution timed out"}
+        except Exception as e:
+            signal.alarm(0)
+            return {"status": "error", "message": str(e)}
+    except Exception as e:
+        logger.error(f"Python sandbox error: {e}")
+        return {"status": "error", "message": str(e)}
