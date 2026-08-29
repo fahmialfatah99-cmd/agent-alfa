@@ -51,7 +51,7 @@ import permission_gate
 import token_usage
 import tools
 import tts_engine
-from tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_chat_id_var, current_user_id_var, get_system_stats
+from tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_user_id_var, get_current_chat_id, get_system_stats
 
 # Load environment
 load_dotenv()
@@ -493,7 +493,7 @@ async def run_agent_turn(
 
     # Set context variables for tools
     current_user_id_var.set(user_id)
-    current_chat_id_var.set(chat_id or user_id)
+    get_current_chat_id().set(chat_id or user_id)
 
     # Permission Gate (human-in-the-loop) utk tool berbahaya
     approval_gate = permission_gate.make_gate(chat_id or user_id)
