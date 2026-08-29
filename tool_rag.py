@@ -64,7 +64,7 @@ _SYNONYMS = {
 
 
 def _tokenize(text: str) -> List[str]:
-    toks = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]{1,}", (text or "").lower())
+    toks = re.findall(r"[a-zA-Z_][a-zA-Z0 - 9_]{1,}", (text or "").lower())
     out: List[str] = []
     for t in toks:
         # pecahkan snake_case agar 'record_desktop_screen' cocok dgn 'screen'

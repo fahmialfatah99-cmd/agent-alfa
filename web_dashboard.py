@@ -215,11 +215,11 @@ async def get_stats():
         swap = psutil.swap_memory()
         disk = psutil.disk_usage(os.path.abspath(os.sep))
         battery = psutil.sensors_battery()
-        
+
         uptime_secs = int(time.time() - psutil.boot_time())
         hours, remainder = divmod(uptime_secs, 3600)
         minutes, seconds = divmod(remainder, 60)
-        
+
         # Check active background services (cross-platform: systemctl on Linux, psutil elsewhere)
         if os.name == "nt":
             def _svc_active(script_hint):
@@ -295,7 +295,7 @@ async def get_tools_list():
         doc = (t.__doc__ or "No documentation provided.").strip()
         doc_lines = doc.split("\n")
         short_desc = doc_lines[0].strip() if doc_lines else "No description."
-        
+
         params = []
         for p_name, param in sig.parameters.items():
             params.append({
@@ -304,7 +304,7 @@ async def get_tools_list():
                 "required": param.default == inspect.Parameter.empty,
                 "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
             })
-            
+
         tools_list.append({
             "name": name,
             "short_description": short_desc,
@@ -313,7 +313,7 @@ async def get_tools_list():
             "signature": f"{name}{str(sig)}",
             "parameters": params
         })
-        
+
     return {
         "status": "success",
         "total_tools": len(tools_list),
@@ -326,28 +326,28 @@ async def execute_tool(payload: Dict[str, Any]):
     """Execute any tool directly with supplied arguments."""
     tool_name = payload.get("tool_name")
     args = payload.get("args", {})
-    
+
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
-        
+
     target_fn = getattr(tools, tool_name, None)
     if not target_fn or not callable(target_fn):
         import plugins
         target_fn = plugins._RUNTIME_PLUGIN_REGISTRY.get(tool_name)
-        
+
     if not target_fn or not callable(target_fn):
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
-        
+
     try:
         # Set primary user context
         uid = get_primary_user_id()
         tools.current_user_id_var.set(uid)
         tools.current_chat_id_var.set(uid)
-        
+
         start_t = time.time()
         result = target_fn(**args)
         duration_ms = round((time.time() - start_t) * 1000, 1)
-        
+
         return {
             "status": "success",
             "tool": tool_name,
@@ -367,21 +367,21 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
     """Upload one or more files from user computer for tool processing."""
     upload_dir = tools.get_pdf_output_dir("Uploads")
     saved_files = []
-    
+
     for f in files:
         safe_name = os.path.basename(f.filename or "upload_file")
         target_path = os.path.join(upload_dir, safe_name)
-        
+
         # If already exists, create a unique timestamped name
         if os.path.exists(target_path):
             stem, ext = os.path.splitext(safe_name)
             safe_name = f"{stem}_{int(time.time())}{ext}"
             target_path = os.path.join(upload_dir, safe_name)
-            
+
         content = await f.read()
         with open(target_path, "wb") as out_f:
             out_f.write(content)
-            
+
         saved_files.append({
             "filename": safe_name,
             "original_name": f.filename,
@@ -389,7 +389,7 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
             "size_bytes": len(content),
             "size_kb": round(len(content) / 1024, 2)
         })
-        
+
     return {
         "status": "success",
         "message": f"Berhasil mengunggah {len(saved_files)} file ke {upload_dir}",
@@ -447,10 +447,10 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
     affiliate_link = payload.get("affiliate_link", "https://shopee.co.id").strip()
     target_audience = payload.get("target_audience", "Pemburu Diskon & Gadget").strip()
     platform = payload.get("platform", "shopee_tiktok").strip()
-    
+
     if not product_name or not affiliate_link:
         raise HTTPException(status_code=400, detail="product_name and affiliate_link are required")
-        
+
     res = affiliate_engine.generate_affiliate_campaign_content(
         product_name=product_name,
         key_features=key_features,
@@ -483,7 +483,7 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
                 f"[SCRIPT DASAR]\n{res['tiktok_script'][:1500]}\n\n"
                 f"ATURAN:\n"
                 f"1. Hook 3 detik yang spesifik produk (sebut angka/masalah nyata dari fitur).\n"
-                f"2. Script 25-40 detik, gaya anak TikTok Indonesia, ada timestamp.\n"
+                f"2. Script 25 - 40 detik, gaya anak TikTok Indonesia, ada timestamp.\n"
                 f"3. Telegram card & WA broadcast dengan urgensi FOMO yang tidak klise.\n\n"
                 f"KELUARAN WAJIB PERSIS FORMAT INI (tanpa teks lain):\n"
                 f"===TIKTOK_SCRIPT===\n<script lengkap>\n"
@@ -526,7 +526,7 @@ async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
     message_text = payload.get("message_text", "")
     affiliate_link = payload.get("affiliate_link", "")
     channels = payload.get("channels", ["telegram", "whatsapp"])
-    
+
     res = affiliate_engine.broadcast_affiliate_deal(
         product_name=product_name,
         message_text=message_text,
@@ -625,10 +625,10 @@ async def store_vault_secret(payload: Dict[str, Any]):
     value = payload.get("value", "").strip()
     category = payload.get("category", "api_key").strip()
     notes = payload.get("notes", "").strip()
-    
+
     if not name or not value:
         return {"status": "error", "message": "Nama dan nilai secret wajib diisi."}
-        
+
     res = vault_engine.vault.store_secret(name=name, value=value, category=category, notes=notes)
     return res
 
@@ -640,11 +640,11 @@ async def reveal_vault_secret(payload: Dict[str, Any]):
     secret_id = payload.get("id") or payload.get("name")
     if not secret_id:
         return {"status": "error", "message": "Secret ID atau nama diperlukan."}
-        
+
     sec = vault_engine.vault.get_secret(str(secret_id))
     if not sec:
         return {"status": "error", "message": "Secret tidak ditemukan di dalam vault."}
-        
+
     return {
         "status": "success",
         "name": sec["name"],
@@ -670,7 +670,7 @@ async def audit_target_security(payload: Dict[str, Any]):
     target_url = payload.get("url", "").strip()
     if not target_url:
         return {"status": "error", "message": "URL target wajib dimasukkan."}
-        
+
     res = security_auditor.audit_website_security(target_url)
     return res
 
@@ -707,21 +707,21 @@ async def get_system_settings():
     import os
 
     from dotenv import dotenv_values
-    
+
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
-    
+
     bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", "")
     masked_bot_token = (bot_token[:6] + "..." + bot_token[-4:]) if len(bot_token) > 10 else ("***" if bot_token else "")
-    
+
     gemini_key = env_vals.get("GEMINI_API_KEY", "")
     masked_gemini_key = (gemini_key[:6] + "..." + gemini_key[-4:]) if len(gemini_key) > 10 else ("***" if gemini_key else "")
-    
+
     with database.get_sync_db() as conn:
         c = conn.cursor()
         c.execute("SELECT key, value FROM system_settings")
         db_settings = {row[0]: row[1] for row in c.fetchall()}
-        
+
     # The active personality source is ~/.alfa/system_prompt.txt (it overrides
     # .env SYSTEM_INSTRUCTION inside run_agent_turn). Show the user what is
     # actually governing the agent, not the silently-ignored env value.
@@ -735,7 +735,7 @@ async def get_system_settings():
             prompt_source = "file"
         except Exception:
             pass
-        
+
     # Main brain info + pilihan kunci dari vault utk pengaturan System Settings
     try:
         import main_brain as _mb
@@ -1066,16 +1066,16 @@ async def update_system_settings(payload: Dict[str, Any]):
     gemini_model = _get("gemini_model")
     allowed_ids = _get("allowed_user_ids")
     system_instruction = _get("system_instruction")
-    
+
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
     else:
         lines = []
-        
+
     new_lines = []
     keys_seen = set()
-    
+
     for line in lines:
         if line.startswith("TELEGRAM_BOT_TOKEN="):
             keys_seen.add("TELEGRAM_BOT_TOKEN")
@@ -1110,7 +1110,7 @@ async def update_system_settings(payload: Dict[str, Any]):
                 new_lines.append(line)
         else:
             new_lines.append(line)
-            
+
     # Append any settings whose key was not present in the file yet
     # (only for fields the client explicitly sent).
     pending = []
@@ -1125,11 +1125,11 @@ async def update_system_settings(payload: Dict[str, Any]):
     if "SYSTEM_INSTRUCTION" not in keys_seen and system_instruction:
         escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
         pending.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
-    
+
     if pending or new_lines != lines:
         with open(env_path, "w", encoding="utf-8") as f:
             f.writelines(new_lines + pending)
-            
+
     # Write the personality to its authoritative location. run_agent_turn
     # re-reads this file on EVERY message, so changes take effect immediately
     # for both Telegram and the web chat - no restart needed.
@@ -1146,7 +1146,7 @@ async def update_system_settings(payload: Dict[str, Any]):
                 f.write(system_instruction + "\n")
         except Exception as prompt_err:
             return {"status": "error", "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}"}
-            
+
     db_updates = payload.get("db_settings", {})
     if db_updates:
         with database.get_sync_db() as conn:
@@ -1155,7 +1155,7 @@ async def update_system_settings(payload: Dict[str, Any]):
             for k, v in db_updates.items():
                 c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (str(k), str(v)))
             conn.commit()
-            
+
     return {"status": "success", "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart."}
 
 
@@ -1170,7 +1170,7 @@ async def api_universal_scrape(payload: Dict[str, Any]):
     limit = safe_int(payload.get("limit", 50), 50, minimum=1, maximum=200)
     if not query:
         return {"status": "error", "message": "Query pencarian wajib diisi."}
-    
+
     res = universal_scraper.scrape_universal_keyword(query=query, category=category, limit=limit)
     return res
 
@@ -1184,7 +1184,7 @@ async def api_custom_batch_scrape(payload: Dict[str, Any]):
     use_camoufox = bool(payload.get("use_camoufox", False))
     if not urls:
         return {"status": "error", "message": "Daftar URL wajib diisi."}
-    
+
     res = universal_scraper.scrape_custom_urls_or_selectors(urls=urls, concurrency=concurrency, use_camoufox=use_camoufox)
     return res
 
@@ -1209,23 +1209,23 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
     extract_type = payload.get("extract_type", "markdown")
     max_pages = safe_int(payload.get("max_pages", 3), 3, minimum=1, maximum=50)
     auto_ingest = bool(payload.get("auto_ingest_vector", False))
-    
+
     if not url:
         return {"status": "error", "message": "URL target wajib diisi."}
-        
+
     start_t = time.time()
     extracted_text = ""
     markdown_output = ""
     raw_data = None
     engine_used = engine
-    
+
     try:
         if engine == "crawl4ai":
             res = tools.crawl4ai_web_crawler(url=url)
             markdown_output = res.get("markdown", "")
             extracted_text = markdown_output
             raw_data = res
-            
+
         elif engine == "scrapling":
             res = tools.scrapling_stealth_fetch(url=url, css_selector=css_selector, extract_type=extract_type)
             raw_data = res
@@ -1234,33 +1234,33 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
             else:
                 extracted_text = str(res.get("data", ""))
             markdown_output = f"# Scraped from {url}\n\n" + extracted_text
-            
+
         elif engine == "markitdown":
             res = tools.markitdown_convert_document(source_path_or_url=url)
             markdown_output = res.get("markdown_snippet", "")
             extracted_text = markdown_output
             raw_data = res
-            
+
         elif engine == "scrapy":
             item_json = json.dumps({"selected": css_selector}) if css_selector else "{}"
             res = tools.scrapy_spider_quick_scrape(url=url, item_selectors_json=item_json)
             raw_data = res
             extracted_text = json.dumps(res.get("extracted_fields", {}), indent=2)
             markdown_output = f"# Scrapy Parsel Result for {url}\n\n```json\n{extracted_text}\n```"
-            
+
         elif engine == "crawlee":
             res = tools.crawlee_web_scraper(start_urls=url, max_requests=max_pages)
             raw_data = res
             pages = res.get("pages", [])
             extracted_text = "\n\n".join([f"### {p.get('title')}\nURL: {p.get('url')}\n{p.get('text_summary')}" for p in pages])
             markdown_output = f"# Crawlee Multi-Page Result ({len(pages)} pages)\n\n" + extracted_text
-            
+
         elif engine == "firecrawl":
             res = tools.firecrawl_scrape_and_crawl(url=url)
             raw_data = res
             markdown_output = res.get("markdown", "")
             extracted_text = markdown_output
-            
+
         else:  # auto_hybrid
             engine_used = "auto_hybrid (Scrapling -> Crawl4AI -> MarkItDown)"
             res = tools.scrapling_stealth_fetch(url=url, css_selector=css_selector, extract_type="text")
@@ -1282,7 +1282,7 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
                     raw_data = res3
 
         duration_ms = round((time.time() - start_t) * 1000, 1)
-        
+
         vector_status = None
         if auto_ingest and extracted_text.strip():
             import vector_memory
@@ -1294,7 +1294,7 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
                 category="Scraped Web Lab"
             )
             vector_status = v_res
-            
+
         return {
             "status": "success",
             "url": url,
@@ -1349,7 +1349,7 @@ async def get_services_status():
         res_act = subprocess.run(["systemctl", "--user", "is-active", svc], capture_output=True, text=True)
         res_enb = subprocess.run(["systemctl", "--user", "is-enabled", svc], capture_output=True, text=True)
         res_stat = subprocess.run(["systemctl", "--user", "status", svc, "--no-pager", "-n", "8"], capture_output=True, text=True)
-        
+
         results.append({
             "name": svc,
             "title": s["title"],
@@ -1372,7 +1372,7 @@ async def get_wa_qr():
                 return resp.json()
     except Exception:
         pass
-        
+
     # Fallback to local sync file
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     if os.path.exists(status_file):
@@ -1401,7 +1401,7 @@ async def get_wa_qr():
             }
         except Exception:
             pass
-            
+
     return {
         "status": "DISCONNECTED",
         "is_ready": False,
@@ -1768,18 +1768,18 @@ async def service_action(payload: Dict[str, Any]):
     """Start, stop, or restart a systemd user service."""
     service_name = payload.get("service")
     action = payload.get("action", "status")
-    
+
     if action not in ["start", "stop", "restart", "enable", "disable"]:
         raise HTTPException(status_code=400, detail="Invalid action")
-        
+
     allowed_services = ["telegram-ai-bot.service", "wa-sheets-bot.service", "alfa-dashboard.service"]
     if service_name not in allowed_services:
         raise HTTPException(status_code=403, detail="Unauthorized service management")
-        
+
     res = subprocess.run(["systemctl", "--user", action, service_name], capture_output=True, text=True)
     time.sleep(1)
     res_act = subprocess.run(["systemctl", "--user", "is-active", service_name], capture_output=True, text=True)
-    
+
     return {
         "status": "success" if res.returncode == 0 else "error",
         "service": service_name,
@@ -1924,7 +1924,7 @@ async def get_memory_data():
     uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
-    
+
     return {
         "status": "success",
         "user_id": uid,
@@ -1940,7 +1940,7 @@ async def add_memory(payload: Dict[str, Any]):
     """Add a new memory fact or knowledge graph relation."""
     uid = get_primary_user_id()
     m_type = payload.get("type", "fact")
-    
+
     if m_type == "fact":
         key = payload.get("key_topic")
         content = payload.get("content")
@@ -1968,13 +1968,13 @@ async def delete_memory(payload: Dict[str, Any]):
     key_topic = payload.get("key_topic")
     if not key_topic:
         raise HTTPException(status_code=400, detail="key_topic is required")
-        
+
     import aiosqlite
     db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
     async with aiosqlite.connect(db_path) as db:
         await db.execute("DELETE FROM knowledge_memory WHERE user_id = ? AND key_topic = ?", (uid, key_topic))
         await db.commit()
-        
+
     return {"status": "success", "message": f"Fakta '{key_topic}' berhasil dihapus."}
 
 
@@ -1984,15 +1984,15 @@ async def export_brain():
     uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
-    
+
     md_lines = ["# 🧠 ALFA SECOND BRAIN KNOWLEDGE EXPORT\n", f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n## 📝 Permanent Facts & Memories\n"]
     for m in memories:
         md_lines.append(f"- **[{m['category'].upper()}] {m['key_topic']}**: {m['content']}")
-        
+
     md_lines.append("\n## 🕸️ Semantic Knowledge Graph\n")
     for k in kg:
         md_lines.append(f"- `{k['entity']}` ──*({k['relation']})*──> `{k['target_value']}` [{k['category']}]")
-        
+
     return {
         "status": "success",
         "markdown": "\n".join(md_lines),
@@ -2015,10 +2015,10 @@ async def api_vector_search(payload: Dict[str, Any]):
     top_k = safe_int(payload.get("top_k", 5), 5, minimum=1, maximum=50)
     category = payload.get("category", "")
     uid = get_primary_user_id()
-    
+
     if not query:
         return {"status": "error", "message": "Search query is required"}
-        
+
     matches = vector_memory.semantic_search(user_id=uid, query=query, top_k=top_k, category=category or None)
     return {
         "status": "success",
@@ -2036,10 +2036,10 @@ async def api_vector_ingest(payload: Dict[str, Any]):
     content = payload.get("content", "").strip()
     category = payload.get("category", "general").strip()
     uid = get_primary_user_id()
-    
+
     if not title or not content:
         raise HTTPException(status_code=400, detail="title and content are required")
-        
+
     res = vector_memory.ingest_document(user_id=uid, title=title, content_or_path=content, category=category)
     return res
 
@@ -2090,7 +2090,7 @@ async def api_vector_delete(payload: Dict[str, Any]):
     uid = get_primary_user_id()
     if not doc_title:
         raise HTTPException(status_code=400, detail="doc_title is required")
-        
+
     return vector_memory.delete_document(user_id=uid, doc_title=doc_title)
 
 
@@ -2116,10 +2116,10 @@ async def api_plugins_create(payload: Dict[str, Any]):
     tool_description = payload.get("tool_description", "").strip()
     tool_code = payload.get("tool_code", "").strip()
     test_kwargs = payload.get("test_kwargs", {})
-    
+
     if not tool_name or not tool_code:
         raise HTTPException(status_code=400, detail="tool_name and tool_code are required")
-        
+
     res = plugins.create_and_register_plugin(tool_name, tool_description, tool_code, test_kwargs=test_kwargs)
     return res
 
@@ -2142,7 +2142,7 @@ async def api_plugins_execute(payload: Dict[str, Any]):
     kwargs = payload.get("kwargs", {})
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
-        
+
     try:
         start_t = time.time()
         result = plugins.execute_plugin_direct(tool_name, **kwargs)
@@ -2167,7 +2167,7 @@ async def list_artifacts():
     ]
     artifacts = []
     valid_exts = {".png", ".jpg", ".jpeg", ".pdf", ".odt", ".ods", ".odp", ".docx", ".xlsx", ".pptx", ".mp3", ".mp4", ".csv", ".json", ".zip"}
-    
+
     for s_dir in search_dirs:
         if os.path.exists(s_dir):
             for root, _, files in os.walk(s_dir):
@@ -2184,7 +2184,7 @@ async def list_artifacts():
                             "extension": ext[1:].upper(),
                             "is_image": ext in [".png", ".jpg", ".jpeg"]
                         })
-                        
+
     artifacts = sorted(artifacts, key=lambda x: x["modified"], reverse=True)[:30]
     return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
 
@@ -2367,7 +2367,7 @@ async def chat_with_agent(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="message or attachments is required")
 
     uid = get_primary_user_id()
-    
+
     multimodal_parts = []
     text_contexts = []
     saved_disk_paths = []
@@ -2451,7 +2451,7 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="message or attachments is required")
 
     uid = get_primary_user_id()
-    
+
     multimodal_parts = []
     text_contexts = []
     saved_disk_paths = []
@@ -2495,7 +2495,7 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
 
     async def event_generator():
         start_t = time.time()
-        
+
         # 1. Check Fast Path
         fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
         if fast_result is not None:
@@ -2515,7 +2515,7 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         await asyncio.sleep(0.05)
         engine_label = selected_model or 'Otak Utama'
         yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
-        
+
         try:
             reply = await _get_bot().run_agent_turn(
                 user_id=uid,
@@ -2565,11 +2565,11 @@ async def execute_cli_terminal_command(payload: Dict[str, Any]):
     command = (payload.get("command") or "").strip()
     if not command:
         raise HTTPException(status_code=400, detail="command is required")
-    
+
     start_t = time.time()
     res = tools.execute_bash_command(command=command)
     elapsed_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     return {
         "status": "success",
         "result": res,
@@ -2584,9 +2584,9 @@ async def get_chat_available_models():
     keys = database.list_api_keys_sync()
     active_brain_model = database.get_main_brain_model()
     active_key_id = database.get_main_brain_key_id()
-    
+
     model_list = []
-    
+
     gemini_models = [
         {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Default Agentic)", "provider": "gemini"},
         {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking (Deep Logic)", "provider": "gemini"},
@@ -2895,7 +2895,7 @@ async def gdrive_status_endpoint():
         res = tools.gdrive_status()
         cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
         has_file = os.path.exists(cred_file)
-        
+
         account_email = ""
         project_id = ""
         if has_file:
@@ -2906,7 +2906,7 @@ async def gdrive_status_endpoint():
                     project_id = cdata.get("project_id", "")
             except Exception:
                 pass
-                
+
         # Prefer the ACTIVE credential's identity (OAuth account if logged in)
         active_email = (res.get("user") or {}).get("emailAddress", "")
         return {
@@ -2930,10 +2930,10 @@ async def gdrive_set_default_folder(payload: Dict[str, Any]):
     """Set default Google Drive folder ID and name."""
     folder_id = payload.get("folder_id", "").strip()
     folder_name = payload.get("folder_name", "alfa agent").strip()
-    
+
     if not folder_id:
         raise HTTPException(status_code=400, detail="folder_id wajib diisi.")
-        
+
     with database.get_sync_db() as conn:
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -2947,7 +2947,7 @@ async def gdrive_set_default_folder(payload: Dict[str, Any]):
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (f"https://drive.google.com/drive/folders/{folder_id}",)
         )
-        
+
     return {
         "status": "success",
         "message": f"Folder default Google Drive berhasil disetel ke '{folder_name}' ({folder_id})",
@@ -2964,7 +2964,7 @@ async def gdrive_save_credentials(
     """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
     cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
     content = ""
-    
+
     if file:
         content_bytes = await file.read()
         content = content_bytes.decode("utf-8")
@@ -2972,22 +2972,22 @@ async def gdrive_save_credentials(
         content = raw_json.strip()
     else:
         raise HTTPException(status_code=400, detail="File JSON atau teks JSON Service Account wajib disediakan.")
-        
+
     try:
         data = json.loads(content)
         if "type" not in data or data.get("type") != "service_account":
             if "client_email" not in data:
                 return {"status": "error", "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console."}
-                
+
         with open(cred_file, "w", encoding="utf-8") as f:
             f.write(content)
-            
+
         with database.get_sync_db() as conn:
             conn.execute(
                 "INSERT INTO system_settings (key, value) VALUES ('gdrive_credentials_json', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (content,)
             )
-            
+
         # Test connection immediately
         test_res = tools.gdrive_status()
         return {
@@ -3053,7 +3053,7 @@ async def gdrive_oauth_upload_secret(
         content = raw_json.strip()
     else:
         raise HTTPException(status_code=400, detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.")
-        
+
     return tools.gdrive_save_oauth_client_secret(content)
 
 
@@ -3080,14 +3080,14 @@ async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str]
         </body>
         </html>
         """)
-        
+
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code tidak ditemukan dalam URL callback.")
-        
+
     base_url = str(request.base_url).rstrip("/") if request else "http://localhost:8080"
     redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
     res = tools.gdrive_oauth_exchange_code(auth_code=code, redirect_uri=redirect_uri)
-    
+
     if res.get("status") == "success":
         return HTMLResponse("""
         <!DOCTYPE html>
@@ -3227,10 +3227,10 @@ async def add_api_key_endpoint(payload: Dict[str, Any]):
     default_model = payload.get("default_model", "gemini-3.6-flash")
     base_url = payload.get("base_url", "")
     set_active = payload.get("set_active", True)
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="api_key is required")
-        
+
     res = database.add_api_key_sync(
         name=name or f"{provider.capitalize()} Key",
         provider=provider,
@@ -3306,14 +3306,14 @@ PROVIDER_MODELS = {
     "nvidia": [
         # --- NVIDIA Nemotron Suite ---
         {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B Ultra Instruct (Model Unggulan NVIDIA)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/nemotron-4-340b-instruct", "name": "NVIDIA Nemotron-4 340B Instruct (Model Raksasa 340B)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/nemotron-4 - 340b-instruct", "name": "NVIDIA Nemotron-4 340B Instruct (Model Raksasa 340B)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "nvidia/llama-3.1-nemotron-51b-instruct", "name": "NVIDIA Nemotron 51B Instruct (Efisiensi Tinggi)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "nvidia/nemotron-mini-4b-instruct", "name": "NVIDIA Nemotron Mini 4B Instruct (Ringan & Cepat)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "nvidia/mistral-nemo-minitron-8b-8k-instruct", "name": "NVIDIA Minitron 8B 8k Instruct (Kompak & Cerdas)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-11b-vision-instruct", "name": "NVIDIA Llama 3.2 11B Vision Instruct (Multimodal)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-90b-vision-instruct", "name": "NVIDIA Llama 3.2 90B Vision Instruct (Vision Pro)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-1b-instruct", "name": "NVIDIA Llama 3.2 1B Instruct (Ultra Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-3b-instruct", "name": "NVIDIA Llama 3.2 3B Instruct (Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2 - 11b-vision-instruct", "name": "NVIDIA Llama 3.2 11B Vision Instruct (Multimodal)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2 - 90b-vision-instruct", "name": "NVIDIA Llama 3.2 90B Vision Instruct (Vision Pro)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2 - 1b-instruct", "name": "NVIDIA Llama 3.2 1B Instruct (Ultra Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "nvidia/llama-3.2 - 3b-instruct", "name": "NVIDIA Llama 3.2 3B Instruct (Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
 
         # --- DeepSeek on NVIDIA ---
         {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 671B (Penalaran & Logic Terkuat Dunia)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
@@ -3324,18 +3324,18 @@ PROVIDER_MODELS = {
         {"id": "deepseek-ai/deepseek-r1-distill-llama-8b", "name": "DeepSeek R1 Distill Llama 8B (Kilat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
 
         # --- Meta Llama on NVIDIA ---
-        {"id": "meta/llama-3.3-70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Flagship Raksasa)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "Meta General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Meta Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.3 - 70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1 - 405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Flagship Raksasa)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1 - 70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "Meta General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "meta/llama-3.1 - 8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Meta Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
 
         # --- Qwen on NVIDIA ---
         {"id": "qwen/qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Programming)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "qwen/qwen2.5-coder-7b-instruct", "name": "Qwen 2.5 Coder 7B (Coding Cepat)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct (General Terkuat)", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-32b-instruct", "name": "Qwen 2.5 32B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-14b-instruct", "name": "Qwen 2.5 14B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-7b-instruct", "name": "Qwen 2.5 7B Instruct", "category": "Qwen Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5 - 72b-instruct", "name": "Qwen 2.5 72B Instruct (General Terkuat)", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5 - 32b-instruct", "name": "Qwen 2.5 32B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5 - 14b-instruct", "name": "Qwen 2.5 14B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "qwen/qwen2.5 - 7b-instruct", "name": "Qwen 2.5 7B Instruct", "category": "Qwen Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
 
         # --- Mistral on NVIDIA ---
         {"id": "mistralai/mixtral-8x22b-instruct-v0.1", "name": "Mistral Mixtral 8x22B Instruct (MoE Kuat)", "category": "Mistral MoE", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
@@ -3348,13 +3348,13 @@ PROVIDER_MODELS = {
         {"id": "microsoft/phi-4", "name": "Microsoft Phi 4 (14B Penalaran Akurat)", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "microsoft/phi-3.5-moe-instruct", "name": "Microsoft Phi 3.5 MoE Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
         {"id": "microsoft/phi-3.5-mini-instruct", "name": "Microsoft Phi 3.5 Mini Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "google/gemma-2-27b-it", "name": "Google Gemma 2 27B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "google/gemma-2-9b-it", "name": "Google Gemma 2 9B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"}
+        {"id": "google/gemma-2 - 27b-it", "name": "Google Gemma 2 27B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
+        {"id": "google/gemma-2 - 9b-it", "name": "Google Gemma 2 9B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"}
     ],
     "deepseek": [
-        {"id": "deepseek-chat", "name": "DeepSeek-V3 671B MoE (Sangat Cerdas & Cepat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"},
-        {"id": "deepseek-reasoner", "name": "DeepSeek-R1 671B (Penalaran & Logic Terkuat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.55/1M)"},
-        {"id": "deepseek-coder", "name": "DeepSeek Coder 33B (Spesialis Kode)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"}
+        {"id": "deepseek-chat", "name": "DeepSeek-V3 671B MoE (Sangat Cerdas & Cepat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14 / 1M)"},
+        {"id": "deepseek-reasoner", "name": "DeepSeek-R1 671B (Penalaran & Logic Terkuat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.55 / 1M)"},
+        {"id": "deepseek-coder", "name": "DeepSeek Coder 33B (Spesialis Kode)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14 / 1M)"}
     ],
     "minimax": [
         {"id": "MiniMax-Text-01", "name": "MiniMax-01 Flagship (Konteks Raksasa 4 Juta Token)", "category": "MiniMax AI", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Murah"},
@@ -3363,9 +3363,9 @@ PROVIDER_MODELS = {
         {"id": "abab6.5t-chat", "name": "MiniMax abab6.5t (Long Context)", "category": "MiniMax AI", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
     ],
     "moonshot": [
-        {"id": "moonshot-v1-8k", "name": "Moonshot Kimi v1 8K (Cerdas & Cepat)", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL (15 RMB Bonus)"},
-        {"id": "moonshot-v1-32k", "name": "Moonshot Kimi v1 32K", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"},
-        {"id": "moonshot-v1-128k", "name": "Moonshot Kimi v1 128K (Konteks Panjang)", "category": "Moonshot Kimi", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
+        {"id": "moonshot-v1 - 8k", "name": "Moonshot Kimi v1 8K (Cerdas & Cepat)", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL (15 RMB Bonus)"},
+        {"id": "moonshot-v1 - 32k", "name": "Moonshot Kimi v1 32K", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"},
+        {"id": "moonshot-v1 - 128k", "name": "Moonshot Kimi v1 128K (Konteks Panjang)", "category": "Moonshot Kimi", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
     ],
     "qwen": [
         {"id": "qwen-max", "name": "Qwen 2.5 Max (Flagship Alibaba Cloud Terkuat)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Token"},
@@ -3399,48 +3399,48 @@ PROVIDER_MODELS = {
         {"id": "gemini-3.1-flash-image", "name": "Gemini 3.1 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         {"id": "gemini-2.5-flash-image", "name": "Gemini 2.5 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
         # --- Gemma Open Model ---
-        {"id": "gemma-4-31b-it", "name": "Gemma 4 31B IT (Open Model)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemma-4-26b-a4b-it", "name": "Gemma 4 26B A4B IT (Open Model Efisien)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemma-4 - 31b-it", "name": "Gemma 4 31B IT (Open Model)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {"id": "gemma-4 - 26b-a4b-it", "name": "Gemma 4 26B A4B IT (Open Model Efisien)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
     ],
 
     "groq": [
-        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "llama-3.3 - 70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "llama-3.1 - 8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "deepseek-r1-distill-qwen-32b", "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k Konteks", "category": "Groq MoE", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "gemma2-9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
+        {"id": "gemma2 - 9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
         {"id": "qwen-qwq-32b-preview", "name": "Qwen QwQ 32B Reasoning Preview", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"}
     ],
     "openrouter": [
         {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
-        {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B Instruct (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
+        {"id": "meta-llama/llama-3.3 - 70b-instruct:free", "name": "Llama 3.3 70B Instruct (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
         {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
-        {"id": "minimax/minimax-01", "name": "MiniMax-01 4M Context (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.20/1M)"},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Full 671B (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.55/1M)"},
-        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 Full (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.14/1M)"},
+        {"id": "minimax/minimax-01", "name": "MiniMax-01 4M Context (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.20 / 1M)"},
+        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Full 671B (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.55 / 1M)"},
+        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 Full (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.14 / 1M)"},
         {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"},
         {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"}
     ],
     "openai": [
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Sangat Murah, Cepat & Cerdas)", "category": "OpenAI Fast", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.15/1M)"},
-        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($2.50/1M)"},
-        {"id": "o3-mini", "name": "OpenAI o3 Mini (Reasoning Model Terbaru)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
-        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
-        {"id": "o1", "name": "OpenAI o1 (Full Reasoning Flagship)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($10/1M)"}
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Sangat Murah, Cepat & Cerdas)", "category": "OpenAI Fast", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.15 / 1M)"},
+        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($2.50 / 1M)"},
+        {"id": "o3-mini", "name": "OpenAI o3 Mini (Reasoning Model Terbaru)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10 / 1M)"},
+        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10 / 1M)"},
+        {"id": "o1", "name": "OpenAI o1 (Full Reasoning Flagship)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15 / 1M)"},
+        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($10 / 1M)"}
     ],
     "anthropic": [
-        {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan, Murah & Kilat)", "category": "Anthropic Haiku", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.80/1M)"},
-        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)", "category": "Anthropic Sonnet", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($3.00/1M)"},
-        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
+        {"id": "claude-3 - 5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan, Murah & Kilat)", "category": "Anthropic Haiku", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.80 / 1M)"},
+        {"id": "claude-3 - 5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)", "category": "Anthropic Sonnet", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($3.00 / 1M)"},
+        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15 / 1M)"}
     ],
     "9router": [
-        {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "claude-3 - 5-sonnet", "name": "Claude 3.5 Sonnet (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "gpt-4o", "name": "GPT-4o (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "deepseek-reasoner", "name": "DeepSeek R1 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "deepseek-chat", "name": "DeepSeek V3 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "llama-3.3-70b", "name": "Llama 3.3 70B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
+        {"id": "llama-3.3 - 70b", "name": "Llama 3.3 70B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "qwen-2.5-coder-32b", "name": "Qwen 2.5 Coder 32B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
         {"id": "auto", "name": "Auto Intelligent Fallback (9Router Best Available)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 AUTO ROUTE"}
@@ -3482,7 +3482,7 @@ async def get_available_models():
                             cat = "DeepSeek on NVIDIA"
                         elif "google" in mid or "gemma" in mid:
                             cat = "Google on NVIDIA"
-                        
+
                         PROVIDER_MODELS["nvidia"].append({
                             "id": mid,
                             "name": f"{mid} (Live NVIDIA NIM)",
@@ -3525,10 +3525,10 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
     api_key = payload.get("api_key", "").strip()
     model = payload.get("model", "").strip()
     base_url = payload.get("base_url", "").strip()
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="API Key wajib diisi untuk divalidasi")
-        
+
     start_t = time.time()
     if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "9router", "ollama", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
         try:
@@ -3555,7 +3555,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                     url = "http://localhost:20128/v1"
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
-            
+
             target_model = model
             if not target_model:
                 if provider in ["nvidia", "nim"]:
@@ -3565,11 +3565,11 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 elif provider == "minimax":
                     target_model = "MiniMax-Text-01"
                 elif provider in ["moonshot", "kimi"]:
-                    target_model = "moonshot-v1-8k"
+                    target_model = "moonshot-v1 - 8k"
                 elif provider in ["qwen", "dashscope"]:
                     target_model = "qwen-plus"
                 elif provider == "groq":
-                    target_model = "llama-3.3-70b-versatile"
+                    target_model = "llama-3.3 - 70b-versatile"
                 elif provider == "openrouter":
                     target_model = "deepseek/deepseek-r1:free"
                 elif provider == "9router":
@@ -3597,7 +3597,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                         "status": "error",
                         "status_code": 404,
                         "duration_ms": duration_ms,
-                        "message": f"Model '{target_model}' memerlukan izin khusus enterprise di NVIDIA NIM. Coba pilih model aktif 'nvidia/llama-3.1-nemotron-70b-instruct' atau 'meta/llama-3.3-70b-instruct' yang 100% aktif untuk akun Free NIM!"
+                        "message": f"Model '{target_model}' memerlukan izin khusus enterprise di NVIDIA NIM. Coba pilih model aktif 'nvidia/llama-3.1-nemotron-70b-instruct' atau 'meta/llama-3.3 - 70b-instruct' yang 100% aktif untuk akun Free NIM!"
                     }
                 elif res.status_code == 401:
                     return {
@@ -3648,10 +3648,10 @@ async def create_custom_agent(payload: Dict[str, Any]):
     api_key_id = payload.get("api_key_id")
     avatar_emoji = payload.get("avatar_emoji", "🤖")
     color_theme = payload.get("color_theme", "cyan")
-    
+
     if not name or not role:
         raise HTTPException(status_code=400, detail="name and role are required")
-        
+
     res = database.add_custom_agent_sync(
         name=name,
         role=role,
@@ -3686,13 +3686,13 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
     prompt = payload.get("message")
     if not prompt:
         raise HTTPException(status_code=400, detail="message is required")
-        
+
     with database.get_sync_db() as conn:
         row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
-        
+
     import swarm_engine
     start_t = time.time()
     resp = await swarm_engine.generate_agent_response(
@@ -3701,7 +3701,7 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
         system_instruction=agent_data.get("system_instruction") or f"Kamu adalah {agent_data['name']}, {agent_data['role']}."
     )
     duration_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     return {
         "status": "success",
         "agent_name": agent_data["name"],
@@ -3719,7 +3719,7 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     topic = payload.get("topic")
     if not topic:
         raise HTTPException(status_code=400, detail="topic is required")
-        
+
     participants = payload.get("participants")
     rounds = payload.get("rounds", 2)
     folder = payload.get("folder", "")
@@ -3853,7 +3853,7 @@ async def get_agent_activity():
     activities = database.list_agent_activities_sync(limit=30)
     subagent_tasks = database.list_subagent_tasks_sync(limit=10)
     agents = database.list_custom_agents_sync()
-    
+
     agent_states = []
     for a in agents:
         last_act = next((act for act in activities if act.get("agent_id") == a["id"] or act.get("agent_name") == a["name"]), None)
@@ -3890,7 +3890,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
     instruction = payload.get("instruction")
     if not instruction:
         raise HTTPException(status_code=400, detail="instruction is required")
-        
+
     with database.get_sync_db() as conn:
         row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
         if not row:
@@ -3900,7 +3900,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
     import swarm_engine
     import tools
     start_t = time.time()
-    
+
     # 1. Ask agent to formulate action plan and tool command
     tool_router_prompt = (
         f"USER REQUEST:\n{instruction}\n\n"
@@ -3914,18 +3914,18 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         f"- DIRECT_ANSWER: Jika tidak butuh tool, jawab langsung.\n\n"
         f"Format jawaban baris pertama harus TOOL: <NAMA_TOOL> | <PARAM> jika memanggil tool!"
     )
-    
+
     decision = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=tool_router_prompt,
         system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem."
     )
-    
+
     tool_called = None
     tool_input = None
     tool_output_str = ""
     action_type = "tool_call"
-    
+
     # Parse decision
     if "TOOL: BASH |" in decision:
         cmd = decision.split("TOOL: BASH |", 1)[1].strip().split("\n")[0]
@@ -3971,15 +3971,15 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         f"Output:\n{tool_output_str[:3000]}\n\n"
         f"Berikan laporan ringkas, santai, gaul, dan to-the-point mengenai hasil eksekusi di atas!"
     )
-    
+
     final_report = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=synth_prompt,
         system_instruction=agent_data.get("system_instruction") or "Kamu adalah engineer spesialis AI."
     )
-    
+
     duration_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     # Log to SQLite
     database.log_agent_activity_sync(
         agent_id=agent_data["id"],
@@ -3992,7 +3992,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         status="success",
         duration_ms=duration_ms
     )
-    
+
     return {
         "status": "success",
         "agent_name": agent_data["name"],

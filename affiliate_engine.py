@@ -27,7 +27,7 @@ def init_affiliate_tables():
     """Ensure affiliate database tables exist."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS affiliate_products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +45,7 @@ def init_affiliate_tables():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
-    
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS affiliate_campaigns (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,7 +86,7 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> Dict[str, A
         import tools
         query = f"produk viral terlaris {niche} {platform} diskon murah review rating tinggi 2026"
         search_res = tools.web_search(query)
-        
+
         results = search_res.get("results", [])
         top_insights = []
         for r in results[:5]:
@@ -95,7 +95,7 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> Dict[str, A
                 "snippet": r.get("snippet", ""),
                 "link": r.get("link", "")
             })
-            
+
         return {
             "status": "success",
             "niche": niche,
@@ -181,7 +181,7 @@ On-Screen Text: "KLIK KERANJANG KUNING / LINK DI BIO NOMOR 1 👇🔥"
 ❌ Harga normal: {original_price}
 ✅ Harga flash sale: {discount_price} (Hemat gila!)
 
-⭐ Rating 4.9/5 dari 2.500+ pembeli
+⭐ Rating 4.9 / 5 dari 2.500+ pembeli
 🚚 Gratis ongkir + voucher cashback tersedia
 
 Stok flash sale sangat terbatas. Checkout sekarang sebelum kehabisan!
@@ -196,7 +196,7 @@ Biasanya harganya {original_price}, hari ini cuma *{discount_price}* + gratis on
 Fitur andalannya:
 ✅ {feat_check}
 
-Udah bintang 4.9 dan ribuan orang udah checkout. 
+Udah bintang 4.9 dan ribuan orang udah checkout.
 
 Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 👇👇
@@ -297,9 +297,9 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 """
 
     # Save scripts to Dokumen/ALFA_AFFILIATE_TOOLS/Scripts/
-    safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:30]
+    safe_stem = re.sub(r'[^a-zA-Z0 - 9_-]', '_', product_name)[:30]
     out_file = os.path.join(AFFILIATE_DIR, "Scripts", f"{safe_stem}_campaign.json")
-    
+
     campaign_data = {
         "product_name": product_name,
         "key_features": key_features,
@@ -318,7 +318,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         "visual_storyboard_text": visual_storyboard_text,
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    
+
     with open(out_file, "w", encoding="utf-8") as f_out:
         json.dump(campaign_data, f_out, indent=2, ensure_ascii=False)
 
@@ -327,7 +327,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
     try:
         cur = conn.cursor()
         cur.execute("""
-        INSERT INTO affiliate_campaigns 
+        INSERT INTO affiliate_campaigns
         (product_name, platform, target_audience, tiktok_script, shopee_copy, wa_broadcast, telegram_card, spill_link_templates)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -401,21 +401,21 @@ def broadcast_affiliate_deal(
     if channels is None:
         channels = ["telegram", "whatsapp"]
     results = {}
-    
+
     # 1. Telegram
     if "telegram" in channels:
         try:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            
+
             allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
             if not allowed_env:
                 raise ValueError("ALLOWED_USER_IDS belum diatur di .env")
             uid = int(allowed_env.split(",")[0].strip())
-            
+
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🛒 Beli Sekarang / Cek Diskon", url=affiliate_link)]
             ])
-            
+
             results["telegram"] = _deliver_telegram_broadcast(uid, message_text, keyboard)
         except Exception as e:
             results["telegram"] = {"status": "error", "message": str(e)}
@@ -454,8 +454,8 @@ def list_affiliate_campaigns(limit: int = 20) -> List[Dict[str, Any]]:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("""
-        SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at 
-        FROM affiliate_campaigns 
+        SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at
+        FROM affiliate_campaigns
         ORDER BY id DESC LIMIT ?
         """, (limit,))
         return [dict(r) for r in cur.fetchall()]

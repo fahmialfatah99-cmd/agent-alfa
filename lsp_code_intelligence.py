@@ -61,7 +61,7 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> Dict[st
                         start_l = getattr(node, "lineno", 1)
                         end_l = getattr(node, "end_lineno", start_l)
                         doc = ast.get_docstring(node) or ""
-                        
+
                         sig = ""
                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                             args_list = []
@@ -84,7 +84,7 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> Dict[st
                         rel_path = os.path.relpath(fpath, root)
                         snippet_lines = lines[max(0, start_l - 1):min(len(lines), start_l + 15)]
                         snippet = chr(10).join(snippet_lines)
-                        
+
                         matches.append({
                             "symbol": symbol_name,
                             "kind": kind,
@@ -195,7 +195,7 @@ def lsp_analyze_module_hierarchy(target_file: str, repo_path: str = "") -> Dict[
     abs_path = os.path.realpath(os.path.expanduser(target_file))
     if not os.path.isabs(abs_path) or not os.path.exists(abs_path):
         abs_path = os.path.join(root, target_file)
-        
+
     if not os.path.exists(abs_path):
         return {"status": "error", "message": f"File '{target_file}' tidak ditemukan."}
 

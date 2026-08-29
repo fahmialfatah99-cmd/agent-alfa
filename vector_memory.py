@@ -56,14 +56,14 @@ def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     vec = np.zeros(dim, dtype=np.float32)
     clean_text = text.lower().strip()
     words = clean_text.split()
-    
+
     # 1. Word level hashing
     for w in words:
         h = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16)
         idx = h % dim
         sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0
         vec[idx] += sign * (1.0 + math.log(len(w) + 1))
-        
+
     # 2. Character 3-gram and 4-gram hashing
     for n in (3, 4):
         for i in range(max(0, len(clean_text) - n + 1)):
@@ -72,7 +72,7 @@ def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
             idx = h % dim
             sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0
             vec[idx] += sign * 0.5
-            
+
     # L2 normalize
     norm = np.linalg.norm(vec)
     if norm > 1e-6:
@@ -108,7 +108,7 @@ def get_text_embedding(text: str) -> List[float]:
                 return vec.tolist()
         except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
-            
+
     return _local_subword_embedding(text, dim=768)
 
 
@@ -139,11 +139,11 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
     if not paragraphs:
         return []
-        
+
     chunks = []
     current_chunk = []
     current_len = 0
-    
+
     for p in paragraphs:
         p_len = len(p)
         if current_len + p_len > chunk_size and current_chunk:
@@ -157,17 +157,17 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]
         else:
             current_chunk.append(p)
             current_len += p_len + 1
-            
+
     if current_chunk:
         chunks.append("\n".join(current_chunk))
-        
+
     return chunks
 
 
 def ingest_document(
-    user_id: int, 
-    title: str, 
-    content_or_path: str, 
+    user_id: int,
+    title: str,
+    content_or_path: str,
     category: str = "general"
 ) -> Dict[str, Any]:
     """
@@ -177,7 +177,7 @@ def ingest_document(
     init_vector_db()
     source_type = "text"
     text_content = content_or_path.strip()
-    
+
     # Check if content_or_path is an existing file
     if os.path.isfile(content_or_path):
         source_type = os.path.splitext(content_or_path)[1].lstrip(".").lower() or "file"
@@ -195,15 +195,15 @@ def ingest_document(
                     text_content = f.read()
         except Exception as read_err:
             return {"status": "error", "message": f"Gagal membaca file {content_or_path}: {read_err}"}
-            
+
     if not text_content:
         return {"status": "error", "message": "Konten dokumen kosong."}
-        
+
     # Chunk text
     chunks = chunk_text(text_content, chunk_size=500, overlap=60)
     if not chunks:
         chunks = [text_content[:1000]]
-        
+
     # Reindex atomically in a single transaction: delete old chunks and insert
     # new ones together so a failure never leaves the document half-deleted.
     saved_count = 0
@@ -217,13 +217,13 @@ def ingest_document(
                 (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (
-                user_id, 
-                title, 
-                idx, 
-                chunk, 
-                json.dumps(emb), 
-                category, 
-                source_type, 
+                user_id,
+                title,
+                idx,
+                chunk,
+                json.dumps(emb),
+                category,
+                source_type,
                 len(chunk)
             ))
             saved_count += 1
@@ -233,7 +233,7 @@ def ingest_document(
         raise
     finally:
         conn.close()
-        
+
     logger.info(f"Ingested '{title}' ({saved_count} chunks, category: {category}) into Vector Brain for user {user_id}")
     return {
         "status": "success",
@@ -247,9 +247,9 @@ def ingest_document(
 
 
 def semantic_search(
-    user_id: int, 
-    query: str, 
-    top_k: int = 5, 
+    user_id: int,
+    query: str,
+    top_k: int = 5,
     category: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
@@ -258,9 +258,9 @@ def semantic_search(
     init_vector_db()
     if not query.strip():
         return []
-        
+
     query_emb = get_text_embedding(query)
-    
+
     # Fetch candidate embeddings
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
@@ -279,10 +279,10 @@ def semantic_search(
             """, (user_id,)).fetchall()
     finally:
         conn.close()
-            
+
     if not rows:
         return []
-        
+
     scored_results = []
     for r in rows:
         try:
@@ -300,7 +300,7 @@ def semantic_search(
             })
         except Exception as parse_err:
             logger.debug(f"Error parsing embedding for row {r['id']}: {parse_err}")
-            
+
     # Sort descending by similarity
     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return scored_results[:top_k]
@@ -344,7 +344,7 @@ def delete_document(user_id: int, doc_title: str) -> Dict[str, Any]:
         conn.commit()
     finally:
         conn.close()
-        
+
     return {
         "status": "success",
         "message": f"Dokumen '{doc_title}' ({deleted_count} chunks) berhasil dihapus dari Vector Brain.",

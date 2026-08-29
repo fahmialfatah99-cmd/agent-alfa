@@ -80,7 +80,7 @@ class TestVerifyStepResult:
 
 
 class TestQaVerdict:
-    @pytest.mark.parametrize("teks,harap", [
+    @pytest.mark.parametrize("teks, harap", [
         ("laporan penuh...\nQA_VERDICT: PASS", True),
         ("qa_verdict : pass — semua aman", True),
         ("QA VERDICT:PASS", False),          # tanpa titik dua rapat beda format

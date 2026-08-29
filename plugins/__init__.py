@@ -57,12 +57,12 @@ def load_all_plugin_tools() -> List[Callable]:
     """
     loaded_tools = []
     py_files = glob.glob(os.path.join(PLUGINS_DIR, "*.py"))
-    
+
     for filepath in py_files:
         basename = os.path.basename(filepath)
         if basename == "__init__.py" or basename.startswith("."):
             continue
-            
+
         tool_name = os.path.splitext(basename)[0]
         module_name = f"plugins.{tool_name}"
         try:
@@ -72,7 +72,7 @@ def load_all_plugin_tools() -> List[Callable]:
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-            
+
             # Find the primary tool function
             target_fn = getattr(module, tool_name, None)
             if target_fn and callable(target_fn):
@@ -92,14 +92,14 @@ def load_all_plugin_tools() -> List[Callable]:
                             logger.info(f"Loaded dynamic plugin helper: {attr_name} from {basename}")
         except Exception as e:
             logger.error(f"Failed to load plugin {basename}: {e}")
-            
+
     return loaded_tools
 
 
 def create_and_register_plugin(
-    tool_name: str, 
-    tool_description: str, 
-    tool_code: str, 
+    tool_name: str,
+    tool_description: str,
+    tool_code: str,
     test_kwargs: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
@@ -108,17 +108,17 @@ def create_and_register_plugin(
     """
     import re
     import subprocess
-    
+
     # 1. Validate tool name
     clean_name = tool_name.strip().lower()
-    if not re.match(r"^[a-z][a-z0-9_]*$", clean_name):
+    if not re.match(r"^[a-z][a-z0 - 9_]*$", clean_name):
         return {
-            "status": "error", 
+            "status": "error",
             "message": f"Nama tool '{tool_name}' tidak valid. Harus huruf kecil, angka, underscore, dan dimulai huruf."
         }
-        
+
     plugin_path = os.path.join(PLUGINS_DIR, f"{clean_name}.py")
-    
+
     # 2. Build full module content with standard preamble
     preamble = (
         f'"""\n'
@@ -134,15 +134,15 @@ def create_and_register_plugin(
         f'import subprocess\n'
         f'from typing import Dict, Any, List, Optional, Union\n\n'
     )
-    
+
     # Ensure tool_code defines def clean_name(...)
     code_body = tool_code.strip()
     if f"def {clean_name}" not in code_body:
         # Wrap or notify if function name mismatch
         pass
-        
+
     full_content = preamble + code_body + "\n"
-    
+
     # 3. AST Syntax Validation
     try:
         ast.parse(full_content, filename=f"{clean_name}.py")
@@ -151,29 +151,29 @@ def create_and_register_plugin(
             "status": "error",
             "message": f"Syntax Error pada kode plugin: line {syn_err.lineno}: {syn_err.msg}"
         }
-        
+
     # 4. Write to disk temporarily
     try:
         with open(plugin_path, "w", encoding="utf-8") as f:
             f.write(full_content)
-            
+
         # Verify byte compilation
         res = subprocess.run([sys.executable, "-m", "py_compile", plugin_path], capture_output=True, text=True)
         if res.returncode != 0:
             if os.path.exists(plugin_path):
                 os.remove(plugin_path)
             return {"status": "error", "message": f"Plugin compilation failed: {res.stderr}"}
-            
+
         # 5. Hot-Load module into Python runtime immediately
         module_name = f"plugins.{clean_name}"
         spec = importlib.util.spec_from_file_location(module_name, plugin_path)
         if not spec or not spec.loader:
             raise ImportError(f"Cannot create module spec for {module_name}")
-            
+
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
-        
+
         target_fn = getattr(module, clean_name, None)
         if not target_fn or not callable(target_fn):
             # Check if any callable exists
@@ -181,15 +181,15 @@ def create_and_register_plugin(
                 if not attr.startswith("_") and callable(getattr(module, attr)):
                     target_fn = getattr(module, attr)
                     break
-                    
+
         if not target_fn:
             if os.path.exists(plugin_path):
                 os.remove(plugin_path)
             return {"status": "error", "message": f"Plugin tidak mendefinisikan fungsi callable '{clean_name}'."}
-            
+
         # Register into runtime cache
         _RUNTIME_PLUGIN_REGISTRY[clean_name] = target_fn
-        
+
         # 6. Sandbox Test Execution (if test_kwargs provided)
         test_result = None
         if test_kwargs is not None and isinstance(test_kwargs, dict):
@@ -198,7 +198,7 @@ def create_and_register_plugin(
             except Exception as run_err:
                 logger.warning(f"Plugin sandbox test failed with kwargs {test_kwargs}: {run_err}")
                 test_result = f"Test warning/error: {str(run_err)}"
-                
+
         # 7. Extract Parameters Signature
         sig = inspect.signature(target_fn)
         params_info = {
@@ -208,27 +208,27 @@ def create_and_register_plugin(
             }
             for p in sig.parameters.values()
         }
-        
+
         # 8. Persist to dynamic_plugins Database
         conn = sqlite3.connect(DB_PATH, timeout=10)
         try:
             conn.execute("""
-                INSERT OR REPLACE INTO dynamic_plugins 
+                INSERT OR REPLACE INTO dynamic_plugins
                 (tool_name, description, code, parameters_json, status, last_test_output, updated_at)
                 VALUES (?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP)
             """, (
-                clean_name, 
-                tool_description, 
-                full_content, 
-                json.dumps(params_info), 
+                clean_name,
+                tool_description,
+                full_content,
+                json.dumps(params_info),
                 json.dumps(test_result, default=str) if test_result is not None else "Passed compilation"
             ))
             conn.commit()
         finally:
             conn.close()
-            
+
         logger.info(f"🧬 Dynamic plugin '{clean_name}' successfully compiled, tested, and hot-loaded!")
-        
+
         return {
             "status": "success",
             "message": f"🧬 Plugin '{clean_name}' berhasil dibuat, diuji sandbox, dan aktif seketika di memory!",
@@ -269,7 +269,7 @@ def list_all_plugins() -> List[Dict[str, Any]]:
         logger.error(f"Error listing plugins from DB: {e}")
     finally:
         conn.close()
-        
+
     return plugins_list
 
 
@@ -277,7 +277,7 @@ def delete_plugin(tool_name: str) -> Dict[str, Any]:
     """Permanently delete a dynamic plugin and unregister from memory."""
     clean_name = tool_name.strip().lower()
     plugin_path = os.path.join(PLUGINS_DIR, f"{clean_name}.py")
-    
+
     deleted_file = False
     if os.path.exists(plugin_path):
         try:
@@ -285,14 +285,14 @@ def delete_plugin(tool_name: str) -> Dict[str, Any]:
             deleted_file = True
         except Exception as e:
             logger.error(f"Error removing plugin file {plugin_path}: {e}")
-            
+
     # Remove from runtime cache
     if clean_name in _RUNTIME_PLUGIN_REGISTRY:
         del _RUNTIME_PLUGIN_REGISTRY[clean_name]
     module_name = f"plugins.{clean_name}"
     if module_name in sys.modules:
         del sys.modules[module_name]
-        
+
     # Delete from DB
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
@@ -302,7 +302,7 @@ def delete_plugin(tool_name: str) -> Dict[str, Any]:
         logger.error(f"Error deleting plugin {clean_name} from DB: {e}")
     finally:
         conn.close()
-        
+
     return {
         "status": "success",
         "message": f"Plugin '{clean_name}' berhasil dihapus secara permanen.",
@@ -319,9 +319,8 @@ def execute_plugin_direct(tool_name: str, **kwargs) -> Any:
         # Try loading on the fly
         load_all_plugin_tools()
         fn = _RUNTIME_PLUGIN_REGISTRY.get(clean_name)
-        
+
     if not fn:
         raise ValueError(f"Dynamic plugin '{clean_name}' tidak ditemukan atau gagal dimuat.")
-        
-    return fn(**kwargs)
 
+    return fn(**kwargs)

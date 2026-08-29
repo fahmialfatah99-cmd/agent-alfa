@@ -42,9 +42,9 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
     Runs an independent ReAct agent turn with specialized role instructions.
     """
     logger.info(f"Subagent worker [{task_id}] started for user {user_id}. Role: {role}")
-    
+
     from bot import run_agent_turn, safe_send_message
-    
+
     subagent_prompt = (
         f"[SUBAGENT TASK: {role.upper()}]\n"
         f"Anda adalah Subagent Mandiri ({role}) yang ditugaskan untuk menyelesaikan tugas berikut secara tuntas.\n"
@@ -52,12 +52,12 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
         f"TUGAS:\n{task_description}\n\n"
         f"Sajikan hasil akhir secara lengkap, terstruktur, mendalam, dan siap digunakan oleh pengguna."
     )
-    
+
     try:
         result = await run_agent_turn(user_id=user_id, user_prompt=subagent_prompt, chat_id=chat_id)
         database.update_subagent_task_sync(task_id=task_id, status="completed", result=result)
         logger.info(f"Subagent [{task_id}] completed successfully.")
-        
+
         app = get_telegram_app()
         if app and chat_id:
             completion_msg = (
@@ -66,7 +66,7 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
                 f"{result}"
             )
             await safe_send_message(app, chat_id, completion_msg)
-            
+
             from tools import SANDBOX_DIR, is_internal_sandbox_artifact, is_source_code_file
             if os.path.exists(SANDBOX_DIR):
                 for fname in os.listdir(SANDBOX_DIR):
@@ -90,7 +90,7 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
     except Exception as e:
         logger.error(f"Subagent [{task_id}] encountered error: {e}", exc_info=True)
         database.update_subagent_task_sync(task_id=task_id, status="failed", result=str(e))
-        
+
         app = get_telegram_app()
         if app and chat_id:
             error_msg = f"⚠️ **Subagent [{role}] Gagal Menyelesaikan Tugas:**\n`{str(e)}`"
@@ -107,13 +107,13 @@ def spawn_subagent(user_id: int, chat_id: int, role: str, task_description: str)
         role=role,
         description=task_description
     )
-    
+
     try:
         loop = asyncio.get_running_loop()
         loop.create_task(_run_subagent_worker(task_id, user_id, chat_id, role, task_description))
     except RuntimeError:
         pass
-        
+
     return {
         "status": "success",
         "task_id": task_id,

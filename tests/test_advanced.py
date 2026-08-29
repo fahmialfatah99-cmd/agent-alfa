@@ -63,7 +63,7 @@ def test_pipeline_topological_waves_paralel():
         {"id": "c", "type": "template", "text": "{{a}}-{{b}}", "depends_on": ["a", "b"]},
     ]
     waves = pl._topological_waves(steps)
-    assert len(waves) == 2                      # [a,b] paralel lalu [c]
+    assert len(waves) == 2                      # [a, b] paralel lalu [c]
     assert {s["id"] for s in waves[0]} == {"a", "b"}
     assert waves[1][0]["id"] == "c"
 
@@ -141,7 +141,7 @@ def test_pipeline_if_skip_dan_foreach(tmp_path):
         "steps": [
             {"id": "cabang", "type": "template", "text": "harusnya dilewati",
              "if": {"left": "{{flag}}", "op": "contains", "right": "ADA_YA"}},
-            {"id": "loop", "type": "foreach", "over": "a,b,c", "item_var": "it",
+            {"id": "loop", "type": "foreach", "over": "a, b,c", "item_var": "it",
              "inner_type": "template", "text": "{{it}}!"},
         ],
     }
@@ -186,7 +186,7 @@ def test_pipeline_http_step_local():
     pl.save_pipeline(data)
     result = asyncio.run(pl.run_pipeline("_test_http"))
     os.remove(os.path.join(pl.PIPELINE_DIR, "_test_http.json"))
-    # status 0/200 tergantung server hidup; yang penting tidak exception
+    # status 0 / 200 tergantung server hidup; yang penting tidak exception
     assert result["status"] in ("success", "failed")
 
 

@@ -3,7 +3,6 @@ Database module for Telegram AI Bot.
 Handles persistent chat history, long-term knowledge memory, reminders, and settings.
 """
 
-import asyncio
 import contextlib
 import json
 import logging
@@ -273,7 +272,7 @@ def init_db_sync():
                 value TEXT NOT NULL DEFAULT ''
             );
         """)
-        
+
         # Seed default API key from environment if empty
         row = conn.execute("SELECT COUNT(*) as count FROM api_keys").fetchone()
         if row and row[0] == 0:
@@ -458,8 +457,8 @@ def list_cron_jobs_sync(user_id: int) -> List[Dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run 
-            FROM scheduled_cron_jobs 
+            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run
+            FROM scheduled_cron_jobs
             WHERE user_id = ?
             ORDER BY id ASC
             """,
@@ -486,8 +485,8 @@ async def get_due_cron_jobs() -> List[Dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes 
-            FROM scheduled_cron_jobs 
+            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes
+            FROM scheduled_cron_jobs
             WHERE is_active = 1 AND next_run <= ?
             """,
             (now_str,)
@@ -529,7 +528,7 @@ def update_subagent_task_sync(task_id: str, status: str, result: str):
     with get_sync_db() as conn:
         conn.execute(
             """
-            UPDATE subagent_tasks 
+            UPDATE subagent_tasks
             SET status = ?, result = ?, finished_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -551,7 +550,7 @@ def list_subagent_tasks_sync(limit: int = 20) -> List[Dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT * FROM subagent_tasks 
+            SELECT * FROM subagent_tasks
             ORDER BY created_at DESC LIMIT ?
             """,
             (limit,)
@@ -560,9 +559,9 @@ def list_subagent_tasks_sync(limit: int = 20) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def log_agent_activity_sync(agent_id: Optional[int], agent_name: str, action_type: str, 
-                            description: str, tool_name: Optional[str] = None, 
-                            tool_input: Optional[str] = None, tool_output: Optional[str] = None, 
+def log_agent_activity_sync(agent_id: Optional[int], agent_name: str, action_type: str,
+                            description: str, tool_name: Optional[str] = None,
+                            tool_input: Optional[str] = None, tool_output: Optional[str] = None,
                             status: str = "success", duration_ms: float = 0.0) -> int:
     """Record an agent tool execution or real-time activity log."""
     with get_sync_db() as conn:
@@ -582,7 +581,7 @@ def list_agent_activities_sync(limit: int = 30) -> List[Dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT * FROM agent_activity_logs 
+            SELECT * FROM agent_activity_logs
             ORDER BY id DESC LIMIT ?
             """,
             (limit,)
@@ -610,8 +609,8 @@ async def get_recent_chat_history(user_id: int, limit: int = 15) -> List[Dict[st
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT role, content FROM chat_history 
-            WHERE user_id = ? 
+            SELECT role, content FROM chat_history
+            WHERE user_id = ?
             ORDER BY id DESC LIMIT ?
             """,
             (user_id, limit)
@@ -676,7 +675,7 @@ def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
         pattern = f"%{query.strip().lower()}%"
         cursor = conn.execute(
             """
-            SELECT category, key_topic, content, updated_at FROM knowledge_memory 
+            SELECT category, key_topic, content, updated_at FROM knowledge_memory
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
@@ -707,7 +706,7 @@ async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
         search_pattern = f"%{query.strip().lower()}%"
         async with db.execute(
             """
-            SELECT category, key_topic, content FROM knowledge_memory 
+            SELECT category, key_topic, content FROM knowledge_memory
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
@@ -769,8 +768,8 @@ async def get_due_reminders() -> List[Dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT id, user_id, chat_id, message, reminder_time 
-            FROM reminders 
+            SELECT id, user_id, chat_id, message, reminder_time
+            FROM reminders
             WHERE is_executed = 0 AND reminder_time <= ?
             """,
             (now_iso,)
@@ -829,7 +828,7 @@ def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target
             """
             INSERT INTO knowledge_graph (user_id, entity, relation, target_value, category, tags)
             VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, entity, relation) DO UPDATE SET 
+            ON CONFLICT(user_id, entity, relation) DO UPDATE SET
                 target_value = excluded.target_value,
                 category = excluded.category,
                 tags = excluded.tags,
@@ -890,7 +889,7 @@ def export_full_second_brain_sync(user_id: int) -> Dict[str, Any]:
         # Relations
         c2 = conn.execute("SELECT entity, relation, target_value, category, tags, created_at FROM knowledge_graph WHERE user_id = ?", (user_id,))
         relations = [dict(r) for r in c2.fetchall()]
-        
+
         return {
             "user_id": user_id,
             "exported_at": datetime.now().isoformat(),
@@ -908,7 +907,7 @@ def start_focus_session_sync(user_id: int, chat_id: int, title: str, duration_mi
     start_dt = datetime.now()
     end_dt = start_dt + timedelta(minutes=duration_minutes)
     end_iso = end_dt.strftime("%Y-%m-%d %H:%M:%S")
-    
+
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
@@ -919,7 +918,7 @@ def start_focus_session_sync(user_id: int, chat_id: int, title: str, duration_mi
         )
         conn.commit()
         session_id = cursor.lastrowid
-        
+
     return {
         "status": "success",
         "session_id": session_id,
@@ -1151,7 +1150,7 @@ def list_custom_agents_sync() -> List[Dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model, 
+            SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model,
                    a.api_key_id, a.avatar_emoji, a.color_theme, a.is_enabled, a.created_at,
                    COALESCE(a.enable_tools, 0) as enable_tools,
                    k.name as key_name
@@ -1164,9 +1163,9 @@ def list_custom_agents_sync() -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction: str, 
-                           provider: str = "gemini", model: str = "gemini-3.6-flash", 
-                           api_key_id: Optional[int] = None, avatar_emoji: str = "🤖", 
+def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction: str,
+                           provider: str = "gemini", model: str = "gemini-3.6-flash",
+                           api_key_id: Optional[int] = None, avatar_emoji: str = "🤖",
                            color_theme: str = "cyan") -> Dict[str, Any]:
     """Create a new specialized AI agent in the workforce."""
     with get_sync_db() as conn:
@@ -1226,9 +1225,9 @@ def get_custom_agent_sync(name_or_id: Any) -> Optional[Dict[str, Any]]:
 
 
 # --- AI Round-Table Meetings (Konferensi & Rapat Antar Agent) ---
-def create_agent_meeting_sync(title: str, topic: str, participants: List[str], 
-                              dialogue_transcript: List[Dict[str, Any]], 
-                              consensus: str, action_plan: str, 
+def create_agent_meeting_sync(title: str, topic: str, participants: List[str],
+                              dialogue_transcript: List[Dict[str, Any]],
+                              consensus: str, action_plan: str,
                               mode: str = "plan",
                               execution_results: Any = "",
                               status: str = "completed") -> Dict[str, Any]:
@@ -1272,7 +1271,7 @@ def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
                 parts = json.loads(r["participants"])
             except Exception:
                 pass
-            
+
             exec_res = []
             if r["execution_results"]:
                 try:

@@ -1,6 +1,6 @@
 """
 FAST-PATH TOOL EXECUTOR.
-Provides sub-second (10-100ms) execution for direct deterministic file & tool commands:
+Provides sub-second (10 - 100ms) execution for direct deterministic file & tool commands:
 - Image to PDF ('jadikan pdf', 'ubah foto ini ke pdf', 'convert to pdf')
 - Image Upscale & Waifu2x ('scale gambar', 'waifu2x', 'upscale foto', 'perbesar resolusi 2x/4x')
 - PDF Merge ('gabung pdf', 'merge pdf')
@@ -29,7 +29,7 @@ def try_execute_fast_path(
     """
     t0 = time.perf_counter()
     p_low = (user_prompt or "").lower().strip()
-    
+
     if not saved_file_paths:
         return None
 
@@ -43,27 +43,27 @@ def try_execute_fast_path(
         any(k in p_low for k in ['to pdf', 'ke pdf', 'image to pdf', 'foto ke pdf', 'gambar ke pdf'])
     )
     if is_image_to_pdf:
-        m = re.search(r'bernama\s+([a-zA-Z0-9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
+        m = re.search(r'bernama\s+([a-zA-Z0 - 9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
         custom_name = m.group(1) if m else f"album_dokumen_{int(time.time())}.pdf"
         if not custom_name.endswith('.pdf'):
             custom_name += '.pdf'
-            
+
         res = tools.images_convert_to_pdf(image_paths=image_paths, output_filename=custom_name)
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
             download_url = f"/api/artifacts/download?path={target_path}"
             size_kb = os.path.getsize(target_path) / 1024 if os.path.exists(target_path) else 0
-            
+
             md_reply = f"""⚡ **Konversi Berkas Selesai Instan ({dt_ms} ms via Native Engine)!**
 
-📄 **Dokumen PDF:** `{custom_name}`  
-📊 **Ukuran:** `{size_kb:.1f} KB` ({len(image_paths)} Gambar)  
-📁 **Lokasi Penyimpanan:** `{target_path}`  
+📄 **Dokumen PDF:** `{custom_name}`
+📊 **Ukuran:** `{size_kb:.1f} KB` ({len(image_paths)} Gambar)
+📁 **Lokasi Penyimpanan:** `{target_path}`
 
-<div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
+<div class="my-3 p-3.5 bg-cyan-950 / 60 border border-cyan-500 / 40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">
-        <div class="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+        <div class="w-9 h-9 rounded-lg bg-cyan-500 / 20 border border-cyan-500 / 30 flex items-center justify-center text-cyan-400">
             <i data-lucide="file-check" class="w-5 h-5"></i>
         </div>
         <div>
@@ -95,7 +95,7 @@ def try_execute_fast_path(
             scale_val = 4
         elif '8x' in p_low or '8 kali' in p_low or 'delapan kali' in p_low:
             scale_val = 8
-        
+
         mode_val = "auto"
         if 'anime' in p_low or 'kartun' in p_low or 'waifu' in p_low:
             mode_val = "waifu2x_anime"
@@ -117,17 +117,17 @@ def try_execute_fast_path(
 
             md_reply = f"""⚡ **Perbesaran Resolusi Gambar Berhasil Instan ({dt_ms} ms via {engine})!**
 
-🖼️ **Resolusi Awal:** `{orig_res}` ➡️ **Resolusi Baru ({scale_val}x HD):** `{new_res}`  
-📊 **Ukuran File:** `{size_kb} KB`  
-📁 **Lokasi:** `{target_path}`  
+🖼️ **Resolusi Awal:** `{orig_res}` ➡️ **Resolusi Baru ({scale_val}x HD):** `{new_res}`
+📊 **Ukuran File:** `{size_kb} KB`
+📁 **Lokasi:** `{target_path}`
 
-<div class="my-3 p-3.5 bg-dark-950/80 border border-cyan-500/40 rounded-xl space-y-3 shadow-lg max-w-md">
+<div class="my-3 p-3.5 bg-dark-950 / 80 border border-cyan-500 / 40 rounded-xl space-y-3 shadow-lg max-w-md">
     <div class="relative group overflow-hidden rounded-lg border border-white/10 bg-black/40">
         <img src="{download_url}" class="w-full max-h-56 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-all" onclick="openMediaPreviewModal('{fname}', '{download_url}', 'image')" alt="{fname}">
     </div>
     <div class="flex items-center justify-between pt-1 border-t border-white/10">
         <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono text-[10px] font-bold">{scale_val}x HD</span>
+            <span class="px-2 py-0.5 rounded bg-cyan-500 / 20 text-cyan-300 font-mono text-[10px] font-bold">{scale_val}x HD</span>
             <span class="text-slate-300 font-mono text-xs truncate max-w-[150px]">{fname}</span>
         </div>
         <a href="{download_url}" download class="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-dark-950 font-bold font-mono text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-glow-cyan">
@@ -147,7 +147,7 @@ def try_execute_fast_path(
     # 3. FAST-PATH: PDF MERGE (< 50ms)
     is_pdf_merge = len(pdf_paths) >= 2 and any(k in p_low for k in ['gabung', 'merge', 'satukan', 'combine', 'jadikan satu', 'satukan pdf'])
     if is_pdf_merge:
-        m = re.search(r'bernama\s+([a-zA-Z0-9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
+        m = re.search(r'bernama\s+([a-zA-Z0 - 9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
         custom_name = m.group(1) if m else f"merged_{int(time.time())}.pdf"
         res = tools.pdf_merge_documents(pdf_paths=pdf_paths, output_filename=custom_name)
         if res.get("status") == "success":
@@ -156,15 +156,15 @@ def try_execute_fast_path(
             download_url = f"/api/artifacts/download?path={target_path}"
             size_kb = os.path.getsize(target_path) / 1024 if os.path.exists(target_path) else 0
             fname = os.path.basename(target_path)
-            
+
             md_reply = f"""⚡ **Penggabungan PDF Selesai Instan ({dt_ms} ms via Native Engine)!**
 
-📄 **Dokumen:** `{fname}`  
-📊 **Ukuran:** `{size_kb:.1f} KB` ({len(pdf_paths)} File Digabungkan)  
+📄 **Dokumen:** `{fname}`
+📊 **Ukuran:** `{size_kb:.1f} KB` ({len(pdf_paths)} File Digabungkan)
 
-<div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
+<div class="my-3 p-3.5 bg-cyan-950 / 60 border border-cyan-500 / 40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">
-        <div class="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+        <div class="w-9 h-9 rounded-lg bg-cyan-500 / 20 border border-cyan-500 / 30 flex items-center justify-center text-cyan-400">
             <i data-lucide="file-check" class="w-5 h-5"></i>
         </div>
         <div>
@@ -201,7 +201,7 @@ def try_execute_fast_path(
             fname = os.path.basename(target_path)
             md_reply = f"""⚡ **Rotasi PDF ({angle}°) Selesai Instan ({dt_ms} ms)!**
 
-<div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
+<div class="my-3 p-3.5 bg-cyan-950 / 60 border border-cyan-500 / 40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">
         <i data-lucide="file-check" class="w-5 h-5 text-cyan-400"></i>
         <p class="font-mono font-bold text-xs text-white">{fname}</p>
@@ -224,7 +224,7 @@ def try_execute_fast_path(
             fname = os.path.basename(target_path)
             md_reply = f"""⚡ **Konversi Audio ke MP3 Berhasil Instan ({dt_ms} ms)!**
 
-<div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
+<div class="my-3 p-3.5 bg-cyan-950 / 60 border border-cyan-500 / 40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">
         <i data-lucide="music" class="w-5 h-5 text-cyan-400"></i>
         <p class="font-mono font-bold text-xs text-white">{fname}</p>
