@@ -13,11 +13,10 @@ import json
 import logging
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import psutil
 from dotenv import load_dotenv
@@ -47,6 +46,122 @@ from lsp_code_intelligence import (
     lsp_find_symbol_references as lsp_find_symbol_references,
 )
 from visual_tester import browser_visual_test_page as browser_visual_test_page
+
+# =============================================================================
+# CONFIGURATION CONSTANTS
+# =============================================================================
+
+# Screen dimensions
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
+# Timeout configurations (in seconds)
+DEFAULT_TIMEOUT = 300
+BASH_COMMAND_TIMEOUT = 60
+PYTHON_SANDBOX_TIMEOUT = 30
+WEB_SEARCH_TIMEOUT = 10
+WEB_PAGE_FETCH_TIMEOUT = 15
+FILE_OPERATION_TIMEOUT = 30
+
+# Retry configurations
+MAX_RETRY_ATTEMPTS = 5
+RETRY_DELAY_SECONDS = 1
+
+# File operation limits
+MAX_FILE_LINES = 300
+MAX_FILE_SIZE_MB = 50
+MAX_SEARCH_RESULTS = 30
+MAX_WEB_RESULTS = 5
+MAX_CONTENT_LENGTH = 4000
+
+# Code indexing
+DEFAULT_FILE_EXTENSIONS = "py, js, ts, tsx, jsx, go, rs, java, c,cpp, h,md, json, yaml, yml, toml"
+CHUNK_SIZE_LINES = 100
+
+# Sandbox configurations
+SANDBOX_IMAGE_NAME = "python-sandbox"
+SANDBOX_WORK_DIR = "/workspace"
+
+# Memory configurations
+MEMORY_CATEGORY_GENERAL = "general"
+MEMORY_CATEGORY_CODE = "code"
+MEMORY_CATEGORY_RESEARCH = "research"
+
+# Error messages
+ERROR_PERMISSION_DENIED = "Permission denied: Operation blocked by security policy"
+ERROR_FILE_NOT_FOUND = "File not found"
+ERROR_INVALID_PATH = "Invalid path"
+ERROR_TIMEOUT = "Operation timed out"
+ERROR_INTERNAL = "Internal error occurred"
+
+
+# =============================================================================
+# TYPE DEFINITIONS
+# =============================================================================
+
+
+class ToolResult(TypedDict, total=False):
+    """Standard response structure for all tool functions."""
+    status: str  # "success" or "error"
+    message: str
+    data: Optional[Any]
+    error: Optional[str]
+    output: Optional[str]
+    exit_code: Optional[int]
+    execution_time: Optional[float]
+
+
+class SystemStats(TypedDict):
+    """System statistics structure."""
+    cpu_percent: float
+    memory_percent: float
+    memory_used_gb: float
+    memory_total_gb: float
+    disk_usage_percent: float
+    network_sent_mb: float
+    network_recv_mb: float
+    uptime_hours: float
+    process_count: int
+
+
+class BashResult(TypedDict, total=False):
+    """Bash command execution result."""
+    status: str
+    message: str
+    output: str
+    exit_code: int
+    execution_time: float
+    error: Optional[str]
+    blocked_reason: Optional[str]
+
+
+class FileReadResult(TypedDict, total=False):
+    """File read operation result."""
+    status: str
+    message: str
+    content: str
+    lines_returned: int
+    total_lines: int
+    error: Optional[str]
+
+
+class FileWriteResult(TypedDict, total=False):
+    """File write operation result."""
+    status: str
+    message: str
+    bytes_written: int
+    path: str
+    error: Optional[str]
+
+
+class SearchResult(TypedDict, total=False):
+    """Search operation result."""
+    status: str
+    message: str
+    results: List[Dict[str, Any]]
+    count: int
+    error: Optional[str]
+
 
 load_dotenv()
 try:
@@ -572,7 +687,7 @@ def _ensure_sandbox_image() -> bool:
             )
         build = subprocess.run(
             ["docker", "build", "-t", _SANDBOX_IMAGE, SANDBOX_DIR],
-            capture_output=True, text=True, timeout=600,
+            capture_output=True, text=True, timeout=DEFAULT_TIMEOUT * 2,
         )
         if build.returncode == 0:
             logger.info("Sandbox image built successfully.")
@@ -682,11 +797,11 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
                     ]
 
             cmd += [_SANDBOX_IMAGE, "python", f"/sandbox/{script_name}"]
-            timeout_secs = 45
+            timeout_secs = PYTHON_SANDBOX_TIMEOUT + 15
             isolation = "docker"
         else:
             cmd = [sys.executable, script_path]
-            timeout_secs = 30
+            timeout_secs = PYTHON_SANDBOX_TIMEOUT
             isolation = "none"
             if backend_pref in ("auto", "docker"):
                 logger.warning("Docker sandbox unavailable - falling back to DIRECT execution (no isolation).")
@@ -721,14 +836,14 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
         return {"status": "error", "message": f"Python runner error: {str(e)}", "isolation": "none"}
 
 
-def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
+def web_search(query: str, max_results: int = MAX_WEB_RESULTS) -> Dict[str, Any]:
     """
     Perform a live web search using DuckDuckGo to get up-to-date real-time information, news, or facts.
     Use this tool whenever the user asks about current events, stock prices, weather, documentation, or recent news.
 
     Args:
         query: Search query string.
-        max_results: Maximum number of search results to return (default: 5).
+        max_results: Maximum number of search results to return (default: {MAX_WEB_RESULTS}).
     """
     try:
         if DDGS is None:
@@ -755,14 +870,14 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
         return {"status": "error", "message": f"Gagal melakukan pencarian web: {str(e)}"}
 
 
-def fetch_web_page_content(url: str, max_length: int = 4000) -> Dict[str, Any]:
+def fetch_web_page_content(url: str, max_length: int = MAX_CONTENT_LENGTH) -> Dict[str, Any]:
     """
     Fetch and extract clean text and main content from a website/article URL.
     Use this tool when you need to read documentation, read a specific article, or analyze a web page.
 
     Args:
         url: Full web URL (e.g. 'https://en.wikipedia.org/wiki/Python').
-        max_length: Maximum text length to extract (default: 4000 chars).
+        max_length: Maximum text length to extract (default: {MAX_CONTENT_LENGTH} chars).
     """
     try:
         import httpx
@@ -837,13 +952,13 @@ def search_knowledge_memory(query: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
-def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -> Dict[str, Any]:
+def read_local_file(file_path: str, max_lines: int = MAX_FILE_LINES, start_line: int = 1) -> Dict[str, Any]:
     """
     Read the text content of a local file on the system safely.
 
     Args:
         file_path: Absolute or relative path to the file.
-        max_lines: Maximum number of lines to read (default: 300).
+        max_lines: Maximum number of lines to read (default: {MAX_FILE_LINES}).
         start_line: Starting line number (1-indexed).
     """
     try:
@@ -1117,14 +1232,14 @@ def apply_unified_diff(file_path: str, diff_text: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
-def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int = 30) -> Dict[str, Any]:
+def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int = MAX_SEARCH_RESULTS) -> Dict[str, Any]:
     """
     Search for files and directories matching a glob pattern (e.g. '*.py', '*.json', 'bot*').
 
     Args:
         pattern: Glob pattern to search.
         base_dir: Root search directory (default: user home).
-        max_results: Maximum number of files to return.
+        max_results: Maximum number of files to return (default: {MAX_SEARCH_RESULTS}).
     """
     try:
         root_dir = os.path.expanduser(normalize_path(base_dir))
@@ -1733,7 +1848,7 @@ def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
 
     cmd = [camofox_bin] + args
     try:
-        res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=30)
+        res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=WEB_PAGE_FETCH_TIMEOUT)
         stdout = res.stdout.strip()
         stderr = res.stderr.strip()
         return {
@@ -1892,8 +2007,8 @@ def desktop_click_coordinate(x: int, y: int, button: str = "left", clicks: int =
     Use this tool for GUI desktop automation (e.g. clicking buttons, icons, or menus on active windows).
 
     Args:
-        x: X coordinate pixel on screen (0 to 1920).
-        y: Y coordinate pixel on screen (0 to 1080).
+        x: X coordinate pixel on screen (0 to {SCREEN_WIDTH}).
+        y: Y coordinate pixel on screen (0 to {SCREEN_HEIGHT}).
         button: Mouse button ('left', 'right', 'middle'). Default: 'left'.
         clicks: Number of clicks (1 for single click, 2 for double click).
     """
@@ -2646,7 +2761,7 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
         out_prefix = os.path.join(target_dir, f"{base_name}_page")
 
         cmd = ["pdftoppm", "-png", "-r", str(dpi), exp_p, out_prefix]
-        subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        subprocess.run(cmd, capture_output=True, text=True, timeout=FILE_OPERATION_TIMEOUT)
 
         generated_images = [os.path.join(target_dir, f) for f in os.listdir(target_dir) if f.startswith(f"{base_name}_page") and f.endswith(".png")]
         generated_images.sort()
@@ -3560,7 +3675,7 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
             connect_kwargs["key_filename"] = ssh_key
 
         client.connect(**connect_kwargs)
-        stdin, stdout, stderr = client.exec_command(command, timeout=30)
+        stdin, stdout, stderr = client.exec_command(command, timeout=BASH_COMMAND_TIMEOUT)
 
         out = stdout.read().decode("utf-8", errors="replace").strip()
         err = stderr.read().decode("utf-8", errors="replace").strip()
@@ -3896,7 +4011,7 @@ def git_operations(action: str, repo_path: str = ".", message: str = "", remote:
         if not cmd:
             return {"status": "error", "message": f"Git action '{action}' tidak dikenal. Pilihan: {', '.join(cmd_map.keys())}"}
 
-        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30)
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=BASH_COMMAND_TIMEOUT)
         output = res.stdout.strip() or res.stderr.strip()
 
         return {
@@ -3952,7 +4067,7 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
 
         dest_path = os.path.join(SANDBOX_DIR, filename)
 
-        with httpx.Client(follow_redirects=True, timeout=60) as client:
+        with httpx.Client(follow_redirects=True, timeout=WEB_PAGE_FETCH_TIMEOUT + 45) as client:
             resp = client.get(url)
             resp.raise_for_status()
             with open(dest_path, "wb") as f:
@@ -4371,7 +4486,7 @@ def convert_media_format(source_file: str, output_format: str = "mp3", extra_par
         dest_path = os.path.join(SANDBOX_DIR, out_name)
 
         cmd = f'ffmpeg -y -i "{expanded}" {extra_params} "{dest_path}"'
-        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=DEFAULT_TIMEOUT)
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
             size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
@@ -4403,7 +4518,7 @@ def extract_audio_from_video(video_path: str, output_filename: str = "extracted_
 
         dest_path = os.path.join(SANDBOX_DIR, output_filename)
         cmd = f'ffmpeg -y -i "{expanded}" -vn -acodec libmp3lame -q:a 2 "{dest_path}"'
-        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=DEFAULT_TIMEOUT)
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
             size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
