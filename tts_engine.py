@@ -3,17 +3,33 @@ TTS Engine for Telegram AI Bot using Edge-TTS.
 Generates ultra-natural voice audio for Telegram Voice Notes.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import re
 import tempfile
+from typing import TYPE_CHECKING
 
-try:
-    import edge_tts
-except ImportError:
-    edge_tts = None
+if TYPE_CHECKING:
+    import edge_tts as _edge_tts
 
 logger = logging.getLogger("TTSEngine")
+
+# Lazy import for edge_tts to speed up module loading
+_edge_tts_module = None
+
+
+def _get_edge_tts():
+    """Lazy load edge_tts module."""
+    global _edge_tts_module
+    if _edge_tts_module is None:
+        try:
+            import edge_tts
+            _edge_tts_module = edge_tts
+        except ImportError:
+            _edge_tts_module = None
+    return _edge_tts_module
 
 # Available high-quality neural voices
 VOICE_MAP = {
