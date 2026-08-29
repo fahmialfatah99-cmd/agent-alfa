@@ -67,7 +67,7 @@ def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     # 2. Character 3-gram and 4-gram hashing
     for n in (3, 4):
         for i in range(max(0, len(clean_text) - n + 1)):
-            ngram = clean_text[i:i+n]
+            ngram = clean_text[i:i + n]
             h = int(hashlib.sha256(ngram.encode("utf-8")).hexdigest(), 16)
             idx = h % dim
             sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0

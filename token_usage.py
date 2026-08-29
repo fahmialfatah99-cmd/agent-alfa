@@ -36,7 +36,7 @@ def from_gemini_response(response, provider: str = "gemini", model: str = "",
             context=context,
             prompt_tokens=getattr(um, "prompt_token_count", 0) or 0,
             completion_tokens=(getattr(um, "candidates_token_count", 0) or 0)
-                              + (getattr(um, "thoughts_token_count", 0) or 0),
+            + (getattr(um, "thoughts_token_count", 0) or 0),
         )
     except Exception as e:
         logger.debug(f"from_gemini_response skipped: {e}")

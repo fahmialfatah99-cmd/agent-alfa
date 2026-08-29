@@ -5,6 +5,17 @@ live web search, web page content extraction, file & workspace intelligence,
 persistent isolated long-term memory, proactive reminders, and desktop/webcam vision.
 """
 
+from visual_tester import browser_visual_test_page as browser_visual_test_page
+from lsp_code_intelligence import (
+    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
+)
+from git_sandbox import (
+    git_worktree_sandbox_create as git_worktree_sandbox_create,
+)
+from gdrive_suite import (
+    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
+)
+from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
 import asyncio
 import datetime
 import difflib
@@ -263,7 +274,7 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
     script_path = None
     try:
         if use_docker:
-            stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+            stamp = f"{os.getpid()}_{int(time.time() * 1000) % 10**9}"
             script_name = f"sandbox_sh_{stamp}.sh"
             script_path = os.path.join(SANDBOX_DIR, script_name)
             with open(script_path, "w", encoding="utf-8") as f:
@@ -544,7 +555,7 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
     )
 
     # Unique per-invocation filenames avoid races between concurrent runs
-    stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+    stamp = f"{os.getpid()}_{int(time.time() * 1000) % 10**9}"
     script_name = f"sandbox_run_{stamp}.py"
     plot_name = f"generated_plot_{stamp}.png"
     script_path = os.path.join(SANDBOX_DIR, script_name)
@@ -641,7 +652,7 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             "generated_chart_photo": has_plot,
             "isolation": isolation,
             "message": ("Grafik visual berhasil dibuat dan akan dikirim ke Telegram!" if has_plot else "Eksekusi kode selesai.")
-                        + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
+            + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
         }
     except subprocess.TimeoutExpired:
         return {"status": "error", "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).", "isolation": isolation}
@@ -795,13 +806,13 @@ def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -
         end_idx = min(total_lines, start_idx + max_lines)
         selected_lines = lines[start_idx:end_idx]
 
-        numbered_content = "".join([f"{i+1}: {line}" for i, line in enumerate(selected_lines, start=start_idx)])
+        numbered_content = "".join([f"{i + 1}: {line}" for i, line in enumerate(selected_lines, start=start_idx)])
 
         return {
             "status": "success",
             "file_path": expanded_path,
             "total_lines": total_lines,
-            "showing_lines": f"{start_idx+1} to {end_idx}",
+            "showing_lines": f"{start_idx + 1} to {end_idx}",
             "content": numbered_content
         }
     except Exception as e:
@@ -2073,12 +2084,12 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
                 ('TOPPADDING', (0, 0), (-1, 0), 8),
-                ('BACKGROUND', (0, 1), (-1,-1), colors.HexColor('#F8FAFC')),
-                ('GRID', (0, 0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-                ('ALIGN', (0, 0), (-1,-1), 'LEFT'),
-                ('FONTSIZE', (0, 1), (-1,-1), 9),
-                ('TOPPADDING', (0, 1), (-1,-1), 6),
-                ('BOTTOMPADDING', (0, 1), (-1,-1), 6),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8FAFC')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('TOPPADDING', (0, 1), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
             ])
             elements.append(t)
 
@@ -2189,7 +2200,7 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
         for idx in indices:
             writer = PdfWriter()
             writer.add_page(reader.pages[idx])
-            out_file = os.path.join(target_dir, f"{base_stem}_page_{idx+1:03d}.pdf")
+            out_file = os.path.join(target_dir, f"{base_stem}_page_{idx + 1:03d}.pdf")
             with open(out_file, "wb") as f_out:
                 writer.write(f_out)
             output_files.append(out_file)
@@ -2230,7 +2241,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
                     p = p.strip()
                     if "-" in p:
                         s, e = p.split("-", 1)
-                        req_indices.extend(range(max(0, int(s)-1), min(total_pages, int(e))))
+                        req_indices.extend(range(max(0, int(s) - 1), min(total_pages, int(e))))
                     elif p.isdigit():
                         idx = int(p) - 1
                         if 0 <= idx < total_pages:
@@ -2239,7 +2250,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
 
             for idx in indices:
                 t = pdf.pages[idx].extract_text() or ""
-                extracted_pages.append(f"--- [Halaman {idx+1}/{total_pages}] ---\n{t.strip()}")
+                extracted_pages.append(f"--- [Halaman {idx + 1}/{total_pages}] ---\n{t.strip()}")
 
         full_text = "\n\n".join(extracted_pages)
 
@@ -2267,7 +2278,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
 
             from pypdf import PdfReader
             reader = PdfReader(exp_p)
-            texts = [f"--- [Halaman {i+1}] ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages)]
+            texts = [f"--- [Halaman {i + 1}] ---\n{p.extract_text() or ''}" for i, p in enumerate(reader.pages)]
             full = "\n\n".join(texts)
             out_dir = get_pdf_output_dir("Extract_Text")
             txt_filename = f"{Path(exp_p).stem}_extracted.txt"
@@ -2398,7 +2409,7 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
                 p = p.strip()
                 if "-" in p:
                     s, e = p.split("-", 1)
-                    req.extend(range(max(0, int(s)-1), min(total, int(e))))
+                    req.extend(range(max(0, int(s) - 1), min(total, int(e))))
                 elif p.isdigit():
                     idx = int(p) - 1
                     if 0 <= idx < total:
@@ -4587,8 +4598,8 @@ def manage_system_services(service_name: str, action: str = "status", scope: str
                                   f"(Windows: systemd tidak tersedia)"}
             return {"status": "error", "service": service_name, "action": act,
                     "message": f"Aksi '{act}' untuk '{name}' tidak didukung di Windows. "
-                               f"Status saat ini: {'RUNNING' if running else 'STOPPED'}. "
-                               f"Restart layanan dilakukan manual/Task Scheduler."}
+                    f"Status saat ini: {'RUNNING' if running else 'STOPPED'}. "
+                    f"Restart layanan dilakukan manual/Task Scheduler."}
         flag = "--user" if scope == "user" else ""
         valid_actions = ["status", "restart", "start", "stop", "enable", "disable", "is-active"]
         if act not in valid_actions:
@@ -4683,7 +4694,7 @@ def find_user_files(pattern: str = "", file_types: str = "all", folder: str = ""
             "files": results[:25],
             "message": (f"Ditemukan {len(results)} file. GUNAKAN path asli ini — "
                         "DILARANG membuat gambar/file dummy pengganti.") if results
-                        else "Tidak ditemukan. Konfirmasi ke pengguna bila perlu.",
+            else "Tidak ditemukan. Konfirmasi ke pengguna bila perlu.",
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -5580,71 +5591,6 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
 # Facade re-export di bawah menjaga kompatibilitas penuh semua pemanggil
 # lama (tools.gdrive_*, from tools import ...). Bentuk `X as X` menandai
 # re-export disengaja agar linter tidak menyalakannya.
-from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
-from gdrive_suite import (
-    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
-)
-from gdrive_suite import (
-    _get_default_gdrive_folder_id as _get_default_gdrive_folder_id,
-)
-from gdrive_suite import (
-    _get_gdrive_service as _get_gdrive_service,
-)
-from gdrive_suite import (
-    gdrive_create_folder as gdrive_create_folder,
-)
-from gdrive_suite import (
-    gdrive_download_file as gdrive_download_file,
-)
-from gdrive_suite import (
-    gdrive_list_files as gdrive_list_files,
-)
-from gdrive_suite import (
-    gdrive_oauth_exchange_code as gdrive_oauth_exchange_code,
-)
-from gdrive_suite import (
-    gdrive_oauth_get_auth_url as gdrive_oauth_get_auth_url,
-)
-from gdrive_suite import (
-    gdrive_oauth_login as gdrive_oauth_login,
-)
-from gdrive_suite import (
-    gdrive_oauth_logout as gdrive_oauth_logout,
-)
-from gdrive_suite import (
-    gdrive_save_oauth_client_secret as gdrive_save_oauth_client_secret,
-)
-from gdrive_suite import (
-    gdrive_status as gdrive_status,
-)
-from gdrive_suite import (
-    gdrive_sync_to_second_brain as gdrive_sync_to_second_brain,
-)
-from gdrive_suite import (
-    gdrive_upload_file as gdrive_upload_file,
-)
-from git_sandbox import (
-    git_worktree_sandbox_create as git_worktree_sandbox_create,
-)
-from git_sandbox import (
-    git_worktree_sandbox_list as git_worktree_sandbox_list,
-)
-from git_sandbox import (
-    git_worktree_sandbox_rollback as git_worktree_sandbox_rollback,
-)
-from git_sandbox import (
-    git_worktree_sandbox_verify_and_merge as git_worktree_sandbox_verify_and_merge,
-)
-from lsp_code_intelligence import (
-    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
-)
-from lsp_code_intelligence import (
-    lsp_find_symbol_definition as lsp_find_symbol_definition,
-)
-from lsp_code_intelligence import (
-    lsp_find_symbol_references as lsp_find_symbol_references,
-)
-from visual_tester import browser_visual_test_page as browser_visual_test_page
 
 
 def self_restart_service() -> Dict[str, Any]:
