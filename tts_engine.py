@@ -9,10 +9,6 @@ import logging
 import os
 import re
 import tempfile
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import edge_tts as _edge_tts
 
 logger = logging.getLogger("TTSEngine")
 
@@ -79,6 +75,7 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     temp_file.close()
 
     # 1. Try Primary Edge-TTS
+    edge_tts = _get_edge_tts()
     if edge_tts is not None:
         try:
             communicate = edge_tts.Communicate(clean_text, voice)

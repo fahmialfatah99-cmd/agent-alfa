@@ -29,10 +29,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
 
+logger = logging.getLogger("Dashboard")
+
 # Import project modules safely
 try:
     import bot
-except Exception as _e:
+except Exception:
     bot = None
 
 

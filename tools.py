@@ -8,12 +8,11 @@ persistent isolated long-term memory, proactive reminders, and desktop/webcam vi
 from visual_tester import browser_visual_test_page as browser_visual_test_page
 from lsp_code_intelligence import (
     lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
+    lsp_find_symbol_definition as lsp_find_symbol_definition,
+    lsp_find_symbol_references as lsp_find_symbol_references,
 )
 from git_sandbox import (
     git_worktree_sandbox_create as git_worktree_sandbox_create,
-)
-from gdrive_suite import (
-    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
 )
 from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
 import asyncio
@@ -48,7 +47,6 @@ logger = logging.getLogger("AgentTools")
 # di sini cukup re-export agar `from tools import current_user_id_var`
 # pada bot.py & modul lain tetap valid.
 from runtime_ctx import (  # noqa: E402
-    current_chat_id_var as current_chat_id_var,
     current_user_id_var as current_user_id_var,
     get_current_chat_id as get_current_chat_id,
     get_current_user_id as get_current_user_id,
@@ -2272,7 +2270,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
             "text_preview": full_text[:4000],
             "full_text": full_text
         }
-    except Exception as e:
+    except Exception:
         try:
             from pathlib import Path
 
@@ -4038,7 +4036,6 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
 
             if not result.get("found", False):
                 if attempt < attempts:
-                    import time
                     time.sleep(1)
                     continue
                 return {
@@ -4076,9 +4073,6 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             # Step 3: Click the target
             clicks = 2 if action == "double_click" else 1
             button = "right" if action == "right_click" else "left"
-            desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
-
-            # Step 4: Wait briefly then take verification screenshot
             import time
             time.sleep(0.8)
             capture_desktop_screenshot()
@@ -6300,22 +6294,10 @@ AVAILABLE_TOOLS = [
     browser_use_autonomous_task,
     firecrawl_scrape_and_crawl,
     scrcpy_android_control,
-    gdrive_status,
-    gdrive_list_files,
-    gdrive_upload_file,
-    gdrive_download_file,
-    gdrive_create_folder,
-    gdrive_sync_to_second_brain,
     save_knowledge_memory,
     search_knowledge_memory,
     read_local_file,
     write_local_file,
-    search_workspace_files,
-    grep_workspace,
-    edit_file_precise,
-    apply_unified_diff,
-    index_codebase,
-    search_codebase,
     lsp_find_symbol_definition,
     lsp_find_symbol_references,
     lsp_analyze_module_hierarchy,
