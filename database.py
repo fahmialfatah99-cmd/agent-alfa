@@ -3,12 +3,14 @@ Database module for Telegram AI Bot.
 Handles persistent chat history, long-term knowledge memory, reminders, and settings.
 """
 
+import asyncio
 import contextlib
 import json
 import logging
 import os
 import sqlite3
 from datetime import datetime
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import aiosqlite
@@ -16,6 +18,35 @@ import aiosqlite
 logger = logging.getLogger("DB")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+
+# Connection pool for better performance
+_db_pool: Optional[aiosqlite.Pool] = None
+_POOL_SIZE = 10
+_POOL_TIMEOUT = 30.0
+
+
+async def get_db_pool() -> aiosqlite.Pool:
+    """Get or create the database connection pool."""
+    global _db_pool
+    if _db_pool is None:
+        _db_pool = await aiosqlite.create_pool(
+            DB_PATH,
+            minsize=5,
+            maxsize=_POOL_SIZE,
+            timeout=_POOL_TIMEOUT
+        )
+    return _db_pool
+
+
+@lru_cache(maxsize=128)
+def _cached_memory_lookup(user_id: int, key_topic: str) -> Optional[str]:
+    """Cached lookup for memory facts (read-only, invalidated on write)."""
+    with get_sync_db() as conn:
+        row = conn.execute(
+            "SELECT content FROM knowledge_memory WHERE user_id = ? AND key_topic = ?",
+            (user_id, key_topic)
+        ).fetchone()
+        return row[0] if row else None
 
 
 # ── Enkripsi API key at-rest (AES-256-GCM, memakai master key vault) ─────────
@@ -236,6 +267,12 @@ def init_db_sync():
             );
             CREATE INDEX IF NOT EXISTS idx_atu_ts ON api_token_usage(ts);
             CREATE INDEX IF NOT EXISTS idx_atu_key ON api_token_usage(key_id);
+            CREATE INDEX IF NOT EXISTS idx_ch_user_ts ON chat_history(user_id, timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_km_user_topic ON knowledge_memory(user_id, key_topic);
+            CREATE INDEX IF NOT EXISTS idx_rem_user_exec ON reminders(user_id, is_executed);
+            CREATE INDEX IF NOT EXISTS idx_cron_user_next ON scheduled_cron_jobs(user_id, next_run);
+            CREATE INDEX IF NOT EXISTS idx_subagent_user_status ON subagent_tasks(user_id, status);
+            CREATE INDEX IF NOT EXISTS idx_aal_agent_ts ON agent_activity_logs(agent_id, created_at DESC);
             CREATE TABLE IF NOT EXISTS system_settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL DEFAULT ''
@@ -449,7 +486,8 @@ async def get_due_cron_jobs() -> List[Dict[str, Any]]:
     """Get all active recurring cron jobs whose next_run is due."""
     from datetime import datetime
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
@@ -468,7 +506,8 @@ async def update_cron_job_after_run(job_id: int, interval_minutes: int):
     from datetime import datetime, timedelta
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     next_run = (datetime.now() + timedelta(minutes=interval_minutes)).strftime("%Y-%m-%d %H:%M:%S")
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute(
             "UPDATE scheduled_cron_jobs SET last_run = ?, next_run = ? WHERE id = ?",
             (now_str, next_run, job_id)
@@ -560,7 +599,8 @@ def list_agent_activities_sync(limit: int = 30) -> List[Dict[str, Any]]:
 # --- Chat History Functions ---
 async def save_chat_message(user_id: int, role: str, content: str):
     """Save a chat message to history."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute(
             "INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)",
             (user_id, role, content)
@@ -570,7 +610,8 @@ async def save_chat_message(user_id: int, role: str, content: str):
 
 async def get_recent_chat_history(user_id: int, limit: int = 15) -> List[Dict[str, str]]:
     """Get the most recent messages for a user in chronological order."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
@@ -588,7 +629,8 @@ async def get_recent_chat_history(user_id: int, limit: int = 15) -> List[Dict[st
 
 async def clear_user_chat_history(user_id: int):
     """Clear chat history for a user."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
         await db.commit()
 
@@ -614,7 +656,10 @@ def save_memory_fact_sync(user_id: int, key_topic: str, content: str, category: 
 
 async def save_memory_fact(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
     """Async save or update a persistent fact/memory."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    # Invalidate cache on write
+    _cached_memory_lookup.cache_clear()
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute(
             """
             INSERT INTO knowledge_memory (user_id, category, key_topic, content, updated_at)
@@ -648,7 +693,8 @@ def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
 
 async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
     """Retrieve all long-term memories for a user."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT category, key_topic, content, updated_at FROM knowledge_memory WHERE user_id = ? ORDER BY category, key_topic",
@@ -660,7 +706,8 @@ async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
 
 async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
     """Search long-term memories matching query for a user."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         search_pattern = f"%{query.strip().lower()}%"
         async with db.execute(
@@ -677,7 +724,10 @@ async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
 
 async def delete_memory(user_id: int, key_topic: str) -> bool:
     """Delete a specific memory."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    # Invalidate cache on delete
+    _cached_memory_lookup.cache_clear()
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         cursor = await db.execute(
             "DELETE FROM knowledge_memory WHERE user_id = ? AND LOWER(key_topic) = ?",
             (user_id, key_topic.strip().lower())
@@ -703,7 +753,8 @@ def add_reminder_sync(user_id: int, chat_id: int, reminder_time_iso: str, messag
 
 async def add_reminder(user_id: int, chat_id: int, reminder_time_iso: str, message: str) -> int:
     """Add a scheduled reminder."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         cursor = await db.execute(
             """
             INSERT INTO reminders (user_id, chat_id, reminder_time, message)
@@ -718,7 +769,8 @@ async def add_reminder(user_id: int, chat_id: int, reminder_time_iso: str, messa
 async def get_due_reminders() -> List[Dict[str, Any]]:
     """Get all pending reminders that are due now."""
     now_iso = datetime.now().isoformat()
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
@@ -734,7 +786,8 @@ async def get_due_reminders() -> List[Dict[str, Any]]:
 
 async def mark_reminder_executed(reminder_id: int):
     """Mark reminder as completed."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute("UPDATE reminders SET is_executed = 1 WHERE id = ?", (reminder_id,))
         await db.commit()
 
@@ -742,7 +795,8 @@ async def mark_reminder_executed(reminder_id: int):
 # --- User Settings ---
 async def get_user_settings(user_id: int) -> Dict[str, Any]:
     """Get settings for a user."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT voice_reply, system_prompt_override, model_name FROM user_settings WHERE user_id = ?",
@@ -756,7 +810,8 @@ async def get_user_settings(user_id: int) -> Dict[str, Any]:
 
 async def toggle_voice_setting(user_id: int) -> bool:
     """Toggle voice reply setting on/off (atomic read-modify-write)."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute(
             """
             INSERT INTO user_settings (user_id, voice_reply)
@@ -882,7 +937,8 @@ def start_focus_session_sync(user_id: int, chat_id: int, title: str, duration_mi
 async def get_due_focus_sessions() -> List[Dict[str, Any]]:
     """Retrieve active focus sessions that have reached their end_time."""
     now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
@@ -898,7 +954,8 @@ async def get_due_focus_sessions() -> List[Dict[str, Any]]:
 
 async def mark_focus_session_completed(session_id: int):
     """Mark a focus session as completed and notified."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    pool = await get_db_pool()
+    async with pool.acquire() as db:
         await db.execute(
             "UPDATE focus_sessions SET status = 'completed', is_notified = 1 WHERE id = ?",
             (session_id,)
