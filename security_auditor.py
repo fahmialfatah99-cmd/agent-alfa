@@ -195,11 +195,11 @@ def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:
                     cert = ssock.getpeercert()
                     cipher = ssock.cipher()
                     version = ssock.version()
-                    
+
                     not_after = cert.get('notAfter', '')
                     issuer = dict(x[0] for x in cert.get('issuer', []))
                     subject = dict(x[0] for x in cert.get('subject', []))
-                    
+
                     ssl_info = {
                         "valid": True,
                         "tls_version": version,

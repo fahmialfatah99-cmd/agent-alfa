@@ -71,15 +71,15 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
     start_time = time.time()
     try:
         from camoufox.sync_api import Camoufox
-        
+
         with Camoufox(headless=True) as browser:
             page = browser.new_page()
             # Set realistic viewport
             page.set_viewport_size({"width": 1366, "height": 768})
-            
+
             logger.info(f"Navigating with Camoufox to {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-            
+
             if wait_selector:
                 try:
                     page.wait_for_selector(wait_selector, timeout=8000)
@@ -88,17 +88,17 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
             else:
                 # Small wait for dynamic hydration
                 page.wait_for_timeout(2500)
-                
+
             content = page.content()
             title = page.title()
             current_url = page.url
-            
+
             # Parse page content with BeautifulSoup
             soup = BeautifulSoup(content, "lxml")
-            
+
             # Extract generic product data if present
             extracted = extract_product_fields_from_soup(soup, current_url)
-            
+
             duration_ms = round((time.time() - start_time) * 1000, 1)
             return {
                 "status": "success",
@@ -110,7 +110,7 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
                 "data": extracted,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
-            
+
     except Exception as e:
         logger.warning(f"Camoufox primary failed, fallback to primp/requests: {e}")
         # Fallback to high-speed TLS client (primp)
@@ -131,8 +131,8 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
         import primp
         client = primp.Client(impersonate="chrome_131", follow_redirects=True, timeout=15)
         headers = {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept": "text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp,*/*;q=0.8",
+            "Accept-Language": "id-ID, id;q=0.9, en-US;q=0.8, en;q=0.7",
             "Referer": "https://www.google.com/",
             "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
             "Sec-Ch-Ua-Mobile": "?0",
@@ -144,11 +144,11 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         }
         res = client.get(url, headers=headers)
-        
+
         soup = BeautifulSoup(res.text, "lxml")
         extracted = extract_product_fields_from_soup(soup, url)
         duration_ms = round((time.time() - start_time) * 1000, 1)
-        
+
         return {
             "status": "success",
             "method": "Fast TLS (HTTP/2 Impersonation)",
@@ -244,7 +244,7 @@ async def scrape_urls_batch_async(urls: List[str], max_concurrency: int = 15, us
     """
     semaphore = asyncio.Semaphore(max_concurrency)
     results = []
-    
+
     async def worker(u: str):
         async with semaphore:
             loop = asyncio.get_event_loop()
@@ -256,14 +256,14 @@ async def scrape_urls_batch_async(urls: List[str], max_concurrency: int = 15, us
 
     tasks = [worker(u) for u in urls]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     clean_results = []
     for r in results:
         if isinstance(r, dict):
             clean_results.append(r)
         else:
             clean_results.append({"status": "error", "message": str(r)})
-            
+
     return clean_results
 
 
@@ -278,7 +278,7 @@ def run_batch_scrape(
     """
     start_t = time.time()
     batch_id = f"batch_{int(time.time())}"
-    
+
     # Run async loop
     try:
         loop = asyncio.get_event_loop()
@@ -294,10 +294,10 @@ def run_batch_scrape(
             )
     except Exception:
         scraped_data = asyncio.run(scrape_urls_batch_async(urls, max_concurrency, use_camoufox))
-        
+
     duration_total = round(time.time() - start_t, 2)
     successful_items = [r for r in scraped_data if r.get("status") == "success"]
-    
+
     # Save to SQLite
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -305,7 +305,7 @@ def run_batch_scrape(
     for item in successful_items:
         data = item.get("data", {})
         cur.execute("""
-        INSERT INTO scraped_products 
+        INSERT INTO scraped_products
         (batch_id, title, price, discount_price, rating, sold_count, shop_name, platform, product_url, image_url, description, scraped_via)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
@@ -380,17 +380,17 @@ def search_and_scrape_marketplace(query: str, platform: str = "shopee", max_item
     search_q = f"site:{platform}.co.id produk {query} diskon rating" if platform in ["shopee", "tokopedia"] else f"{query} {platform} shop promo diskon"
     search_res = tools.web_search(search_q)
     results = search_res.get("results", [])
-    
+
     extracted_items = []
     for r in results[:max_items]:
         title = r.get("title", "").replace(" - Shopee Indonesia", "").replace(" | Tokopedia", "")
         snippet = r.get("snippet", "")
         link = r.get("link", "")
-        
+
         # Extract price from snippet if available
         price_m = re.search(r'Rp\s?[\d\.,]+', snippet)
         price_str = price_m.group(0) if price_m else "Rp 49.000 (Flash Sale)"
-        
+
         extracted_items.append({
             "title": title,
             "price": price_str,
@@ -400,7 +400,7 @@ def search_and_scrape_marketplace(query: str, platform: str = "shopee", max_item
             "rating": 4.9,
             "sold_count": "1.000+ Terjual"
         })
-        
+
     return {
         "status": "success",
         "query": query,

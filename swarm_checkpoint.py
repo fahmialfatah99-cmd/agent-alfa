@@ -17,11 +17,11 @@ class SwarmCheckpoint:
     """
     Manages save/load of swarm session state.
     """
-    
+
     @staticmethod
     def _path(session_id: str) -> str:
         return os.path.join(CHECKPOINT_DIR, f"{session_id}.json")
-    
+
     @staticmethod
     def save(
         session_id: str,
@@ -44,7 +44,7 @@ class SwarmCheckpoint:
                     existing = json.load(f)
             except Exception:
                 pass
-        
+
         state = {
             "session_id": session_id,
             "created_at": existing.get("created_at") or datetime.now(timezone.utc).isoformat(),
@@ -63,7 +63,7 @@ class SwarmCheckpoint:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2, default=str)
         return path
-    
+
     @staticmethod
     def load(session_id: str) -> Optional[Dict[str, Any]]:
         """Load a checkpoint. Returns None if not found."""
@@ -75,7 +75,7 @@ class SwarmCheckpoint:
                 return json.load(f)
         except Exception:
             return None
-    
+
     @staticmethod
     def list_resumable() -> List[Dict[str, Any]]:
         """
@@ -107,7 +107,7 @@ class SwarmCheckpoint:
         except Exception:
             pass
         return sorted(result, key=lambda x: x.get("updated_at", ""), reverse=True)
-    
+
     @staticmethod
     def mark_completed(session_id: str, deliverables: Optional[List[str]] = None):
         """Mark a checkpoint as completed."""
@@ -120,7 +120,7 @@ class SwarmCheckpoint:
             state["deliverables"] = deliverables
         with open(SwarmCheckpoint._path(session_id), "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2, default=str)
-    
+
     @staticmethod
     def mark_cancelled(session_id: str):
         """Mark a checkpoint as cancelled (can be resumed)."""
@@ -131,7 +131,7 @@ class SwarmCheckpoint:
         state["updated_at"] = datetime.now(timezone.utc).isoformat()
         with open(SwarmCheckpoint._path(session_id), "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2, default=str)
-    
+
     @staticmethod
     def clear(session_id: str) -> bool:
         """Delete a checkpoint file. Returns True if deleted."""
@@ -140,7 +140,7 @@ class SwarmCheckpoint:
             os.remove(path)
             return True
         return False
-    
+
     @staticmethod
     def add_error(session_id: str, step_name: str, agent_name: str, error: str):
         """Append an error entry to checkpoint's error_log."""

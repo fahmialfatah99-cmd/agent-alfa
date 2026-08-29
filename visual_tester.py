@@ -17,7 +17,7 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
 def browser_visual_test_page(
     url: str,
-    viewports: str = "desktop,mobile",
+    viewports: str = "desktop, mobile",
     wait_seconds: int = 2,
     output_prefix: str = "visual_test"
 ) -> Dict[str, Any]:

@@ -37,7 +37,7 @@ class TestNormalizePath:
 
 
 class TestBashBlockedReason:
-    @pytest.mark.parametrize("cmd,expected_substr", [
+    @pytest.mark.parametrize("cmd, expected_substr", [
         (":(){ :|:& };:", "fork bomb"),
         ("rm -rf /", "penghapusan"),
         ("mkfs.ext4 /dev/sda", "format filesystem"),

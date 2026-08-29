@@ -115,4 +115,3 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
         except OSError:
             pass
     raise RuntimeError("Semua engine TTS (Edge-TTS & gTTS) gagal memproduksi audio.")
-

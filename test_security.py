@@ -225,7 +225,7 @@ class TestPreciseEditing:
         from tools import apply_unified_diff
         f = tmp_path / "f.txt"
         f.write_text("a\nb\nc\n")
-        diff = "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n"
+        diff = "@@ -1, 3 +1, 3 @@\n a\n-b\n+B\n c\n"
         r = apply_unified_diff(str(f), diff)
         assert r["status"] == "success"
         assert f.read_text() == "a\nB\nc\n"
@@ -235,7 +235,7 @@ class TestPreciseEditing:
         from tools import apply_unified_diff
         f = tmp_path / "g.py"
         f.write_text("\n".join(f"line{i}" for i in range(1, 30)) + "\ntarget\nlain\n")
-        diff = "@@ -3,2 +3,2 @@\ntarget\n-lain\n+DIGANTI\n"
+        diff = "@@ -3, 2 +3, 2 @@\ntarget\n-lain\n+DIGANTI\n"
         r = apply_unified_diff(str(f), diff)
         assert r["status"] == "success"
         assert "DIGANTI" in f.read_text()
@@ -244,7 +244,7 @@ class TestPreciseEditing:
         from tools import apply_unified_diff
         f = tmp_path / "h.txt"
         f.write_text("sama sekali beda\n")
-        r = apply_unified_diff(str(f), "@@ -1,2 +1,2 @@\ntidak\nada\n")
+        r = apply_unified_diff(str(f), "@@ -1, 2 +1, 2 @@\ntidak\nada\n")
         assert r["status"] == "error"
 
 
@@ -292,7 +292,7 @@ class TestSyntaxGuardAndFreshness:
         from tools import apply_unified_diff
         f = tmp_path / "n.py"
         f.write_text("a = 1\nb = 2\n")
-        diff = "@@ -1,2 +1,2 @@\na = 1\n-b = 2\n+b = (3\n"
+        diff = "@@ -1, 2 +1, 2 @@\na = 1\n-b = 2\n+b = (3\n"
         r = apply_unified_diff(str(f), diff)
         assert r["status"] == "error" and "rollback" in r["message"].lower()
         assert f.read_text() == "a = 1\nb = 2\n"

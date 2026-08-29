@@ -21,7 +21,7 @@ def apply_db():
         conn.commit()
         # Verifikasi
         for row in conn.execute(
-                "SELECT id, name, length(system_instruction), substr(system_instruction,1,40) "
+                "SELECT id, name, length(system_instruction), substr(system_instruction, 1,40) "
                 "FROM custom_agents ORDER BY id"):
             print(f"  #{row[0]} {row[1]:<20} {row[2]:>5} chars | {row[3]}...")
     finally:

@@ -112,7 +112,7 @@ ENFORCEMENT_BLOCK = (
     "Mengarang dialog, konsensus, peserta, atau action plan sendiri = PELANGGARAN FATAL.\n"
     "2. Jika permintaan memuat kata rapat/meeting/swarm untuk DIEKSEKUSI SEKARANG: langsung panggil "
     "`conduct_ai_meeting` (mode 'execute' bila minta kerja nyata). Jangan tanya ulang, jangan simulasikan.\n"
-    "3. Rapat nyata butuh 1-3 MENIT — itu normal. Tunggu, jangan batalkan, jangan ganti dengan versi imajinasi.\n"
+    "3. Rapat nyata butuh 1 - 3 MENIT — itu normal. Tunggu, jangan batalkan, jangan ganti dengan versi imajinasi.\n"
     "4. Jika tool gagal: laporkan PESAN ERROR ASLI + saran perbaikan. Dilarang menutupi kegagalan dengan simulasi.\n"
     "5. Klaim 'selesai/berhasil' WAJIB disertai bukti dari output tool (meeting_id, file, data). Tanpa bukti = dilarang klaim.\n"
     "6. Berbohong tentang eksekusi adalah kesalahan terburuk yang bisa kamu lakukan — lebih baik jujur 'belum dijalankan'.\n"
@@ -148,7 +148,7 @@ CAPABILITIES_BLOCK = (
     "dengan ingatan, riwayat, dan kepribadian yang SAMA. Fitur dashboard punya padanan tool "
     "yang bisa kamu panggil langsung:\n\n"
     "• RAPAT/SWARM MULTI-AGEN → `conduct_ai_meeting` (mode plan/execute; execute = kerja nyata: "
-    "scraping CSV, eksekusi Python Docker, audit keamanan). Rapat butuh 1-3 menit = normal.\n"
+    "scraping CSV, eksekusi Python Docker, audit keamanan). Rapat butuh 1 - 3 menit = normal.\n"
     "• GITHUB → `github_assistant` (repos/info/issues/create_issue/search/prs/notifikasi).\n"
     "• SKILL DARI GITHUB → `skill_installer`: install_repo (repo dokumen→Second Brain), "
     "install_tool (file .py→tools AI), list, remove.\n"
@@ -187,7 +187,7 @@ CAPABILITIES_BLOCK = (
 # ── ALUR KERJA OPENCODE & ANTIGRAVITY AGENTIC SYSTEM ─────────────────────────
 ANTIGRAVITY_WORKFLOW_BLOCK = (
     "\n\n### ⚡ ALUR KERJA OTONOM OPENCODE & ANTIGRAVITY (BERFIKIR, RENCANA, EKSEKUSI, VERIFIKASI)\n"
-    "1. PLANNING & THINKING: Untuk tugas kompleks atau modifikasi sistem, susun rencana singkat (3-4 langkah) di benakmu.\n"
+    "1. PLANNING & THINKING: Untuk tugas kompleks atau modifikasi sistem, susun rencana singkat (3 - 4 langkah) di benakmu.\n"
     "2. MULTI-STEP TOOL CHAINING: Jalankan rantai tool secara otonom tanpa berhenti di tengah jalan. Contoh: Search -> Read -> Edit/Write -> Verify/Compile.\n"
     "3. SURGICAL CODE EDITING: Saat mengedit kode, prioritaskan modifikasi baris yang presisi (`edit_file_precise` / `apply_unified_diff`) agar struktur file tetap utuh.\n"
     "4. VERIFIKASI NYATA (ZERO HALLUCINATION): Sebelum menyatakan selesai, selalu jalankan tes atau verifikasi sintaks via `execute_bash_command` (misal: `py_compile`, pytest, atau status check).\n"
@@ -232,7 +232,7 @@ COMPLETION_VERBS = ('sudah', 'selesai', 'berhasil', 'telah dibuat', 'sudah dibua
 
 
 def _artifact_signature() -> list:
-    """Snapshot (path,size,mtime) berkas output - ground truth klaim artefak."""
+    """Snapshot (path, size, mtime) berkas output - ground truth klaim artefak."""
     sig = []
     for d in ARTIFACT_DIRS:
         try:
@@ -260,7 +260,7 @@ AUDIT_CORRECTION_TEXT = (
     "hasil rapat. Itu berarti kamu mengarang, dan itu dilarang keras.\n\n"
     "Perbaiki SEKARANG dengan SALAH SATU:\n"
     f"(a) Jika {OWNER_NAME} meminta rapat NYATA sekarang → panggil tool `conduct_ai_meeting` "
-    "untuk topik ini, tunggu sampai selesai (1-3 menit itu normal), lalu jawab HANYA "
+    "untuk topik ini, tunggu sampai selesai (1 - 3 menit itu normal), lalu jawab HANYA "
     "dari data nyata yang dikembalikan (meeting_id, dialog, konsensus, action_plan).\n"
     "(b) Jika permintaannya belum jelas untuk dieksekusi sekarang → jawab singkat dan "
     "JUJUR bahwa rapat belum dijalankan, lalu tanyakan konfirmasi topik & mode.\n\n"
@@ -500,11 +500,11 @@ async def run_agent_turn(
 
     # 1. Fetch recent chat history from SQLite
     history_rows = await database.get_recent_chat_history(user_id, limit=12)
-    
+
     # 2. Build contents payload
     from google.genai import types
     contents = []
-    
+
     for row in history_rows:
         role = "user" if row["role"] == "user" else "model"
         contents.append(
@@ -530,13 +530,13 @@ async def run_agent_turn(
     # 5. Fetch all long-term memories & knowledge graph for instant recall
     user_memories = await database.get_all_memories(user_id)
     kg_triples = database.get_all_knowledge_graph_sync(user_id)
-    
+
     memory_context_parts = []
     if user_memories:
         memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
         for m in user_memories:
             memory_context_parts.append(f"- [{m['category']}] {m['key_topic']}: {m['content']}")
-            
+
     if kg_triples:
         memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
         for k in kg_triples:
@@ -560,7 +560,7 @@ async def run_agent_turn(
                 )
     except Exception as rag_err:
         logger.debug(f"Auto-RAG skipped: {rag_err}")
-            
+
     memory_block = ""
     if memory_context_parts:
         memory_block = (
@@ -574,7 +574,7 @@ async def run_agent_turn(
 
     # 6. Fetch user settings for prompt override / preferred model
     user_settings = await database.get_user_settings(user_id)
-    
+
     # Reload latest prompt from file if available
     active_base_prompt = BASE_SYSTEM_PROMPT
     if os.path.exists(ALFA_PROMPT_PATH):
@@ -608,7 +608,7 @@ async def run_agent_turn(
     # 7. Call Gemini with Agent Tools and fast fallback chain
     fallback_chain = [m.strip() for m in os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
+        "gemini-3.6-flash, gemini-3.7-flash, gemini-flash-latest"
     ).split(",") if m.strip()]
 
     # Model otak utama (dari System Settings) menang atas preferensi per-user jika tidak ada override
@@ -945,7 +945,7 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bk = int(brain_key[0]) if brain_key else None
         bm = (brain_model[0] or "").strip() if brain_model else ""
         krow = conn.execute(
-            "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
+            "SELECT name, provider, default_model, is_active FROM api_keys WHERE id=?",
             (bk,)).fetchone() if bk else None
 
         lines = ["🩺 **AUDIT KONFIGURASI AGENT**\n"]
@@ -960,10 +960,10 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         lines.append("\n*Agen Swarm:*")
         problems = 0
-        for a in conn.execute("SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"):
+        for a in conn.execute("SELECT name, provider, model, api_key_id, is_enabled FROM custom_agents ORDER BY id"):
             kid = a["api_key_id"]
             k2 = conn.execute(
-                "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
+                "SELECT provider, default_model, is_active FROM api_keys WHERE id=?",
                 (kid,)).fetchone() if kid else None
             issues = []
             if not k2:
@@ -1119,7 +1119,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             "📈 **Python Sandbox & Data Plotter:**\n\n"
             "Anda dapat meminta bot untuk:\n"
             "• Menghitung data kompleks, rumus matematika, atau simulasi.\n"
-            "• Membuat grafik statistik / visualisasi (misal: *'Buatkan grafik perbandingan penjualan 2024-2026'*).\n"
+            "• Membuat grafik statistik / visualisasi (misal: *'Buatkan grafik perbandingan penjualan 2024 - 2026'*).\n"
             "• Menjalankan snippet kode Python secara langsung.\n"
             "Grafik yang dihasilkan akan otomatis dikirimkan sebagai gambar langsung ke chat Telegram!"
         )
@@ -1258,21 +1258,21 @@ def should_reply_with_text_instead_of_voice(text: str) -> bool:
     # 1. Code blocks or raw command snippets
     if "```" in text:
         return True
-    
+
     # 2. Markdown tables
     if "\n|" in text and ("|---" in text or "|:---" in text or "---|" in text):
         return True
-        
+
     # 3. Multiple URLs/links
     import re
     urls = re.findall(r"https?://\S+", text)
     if len(urls) >= 2:
         return True
-        
+
     # 4. Long structured technical lists (>900 chars with multiple bullet points)
     if len(text) > 900 and (text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3):
         return True
-        
+
     return False
 
 
@@ -1504,7 +1504,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         import universal_file_extractor as ufe
 
         txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
-        
+
         multimodal_parts = [part] if part is not None else None
         if txt_ctx:
             prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}"
@@ -1625,50 +1625,50 @@ async def proactive_cron_watchdog_loop(application: Application):
 
 # --- GOD MODE: Proactive System Guardian Daemon ---
 async def proactive_system_guardian_loop(application: Application):
-    """Background daemon that monitors system health 24/7 and takes autonomous protective actions."""
+    """Background daemon that monitors system health 24 / 7 and takes autonomous protective actions."""
     logger.info("🛡️ God Mode: System Guardian daemon started.")
     import json as _json
     config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
-    
+
     while True:
         try:
             if not os.path.exists(config_path):
                 await asyncio.sleep(30)
                 continue
-            
+
             with open(config_path, "r") as f:
                 config = _json.load(f)
-            
+
             if not config.get("enabled", False):
                 await asyncio.sleep(30)
                 continue
-            
+
             alerts = []
-            
+
             # Check CPU
             cpu_pct = psutil.cpu_percent(interval=1)
             cpu_thresh = config.get("cpu_threshold", 90)
             if cpu_pct > cpu_thresh:
                 alerts.append(f"🔴 **CPU** sangat tinggi: {cpu_pct}% (threshold: {cpu_thresh}%)")
-            
+
             # Check RAM
             ram = psutil.virtual_memory()
             ram_thresh = config.get("ram_threshold", 85)
             if ram.percent > ram_thresh:
                 alert_msg = f"🔴 **RAM** kritis: {ram.percent}% ({round(ram.used / (1024**3), 1)}/{round(ram.total / (1024**3), 1)} GB)"
                 alerts.append(alert_msg)
-                
+
                 # Auto-kill RAM hogs if enabled
                 if config.get("auto_kill_ram_hogs", False):
                     protected = {"python3", "systemd", "gnome-shell", "Xwayland", "pipewire", "dbus-daemon", "telegram-ai"}
                     killed = []
-                    procs = sorted(psutil.process_iter(['pid', 'name', 'memory_info']), 
+                    procs = sorted(psutil.process_iter(['pid', 'name', 'memory_info']),
                                    key=lambda p: (p.info.get('memory_info') or type('', (), {'rss': 0})).rss, reverse=True)
                     for p in procs[:5]:
                         try:
                             pname = p.info.get('name', '')
                             if not any(prot in pname.lower() for prot in protected):
-                                mem_mb = round(p.info['memory_info'].rss / (1024*1024), 1)
+                                mem_mb = round(p.info['memory_info'].rss / (1024 * 1024), 1)
                                 if mem_mb > 500:  # Only kill if using >500MB
                                     p.terminate()
                                     killed.append(f"{pname} ({mem_mb}MB)")
@@ -1676,19 +1676,19 @@ async def proactive_system_guardian_loop(application: Application):
                             continue
                     if killed:
                         alerts.append(f"⚡ **Auto-Kill:** {', '.join(killed)}")
-            
+
             # Check Disk
             disk = psutil.disk_usage("/")
             disk_thresh = config.get("disk_threshold", 90)
             if disk.percent > disk_thresh:
                 alerts.append(f"🔴 **Disk** hampir penuh: {disk.percent}% ({round(disk.free / (1024**3), 1)} GB tersisa)")
-            
+
             # Check Battery
             battery = psutil.sensors_battery()
             batt_thresh = config.get("battery_critical", 10)
             if battery and not battery.power_plugged and battery.percent <= batt_thresh:
                 alerts.append(f"🔴 **Baterai KRITIS:** {battery.percent}% — Tidak sedang mengisi!")
-            
+
             # Send alerts to all authorized users
             if alerts:
                 alert_text = "🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
@@ -1699,7 +1699,7 @@ async def proactive_system_guardian_loop(application: Application):
                         pass
         except Exception as e:
             logger.error(f"Guardian daemon error: {e}")
-        
+
         await asyncio.sleep(30)
 
 
@@ -1716,12 +1716,12 @@ async def proactive_focus_session_loop(application: Application):
                 title = s["title"]
                 duration = s["duration_minutes"]
                 notes = s.get("notes", "")
-                
+
                 alert_text = (
                     f"🎉 **[SESI FOKUS SELESAI!]**\n\n"
                     f"🎯 **Target:** {title}\n"
                     f"⏱️ **Durasi:** {duration} menit\n"
-                    f"📝 **Catatan:** {notes if notes else 'Kerja bagus! Istirahatlah sejenak (5-10 menit) sebelum melanjutkan.'}"
+                    f"📝 **Catatan:** {notes if notes else 'Kerja bagus! Istirahatlah sejenak (5 - 10 menit) sebelum melanjutkan.'}"
                 )
                 try:
                     await safe_send_message(application, chat_id, alert_text)
@@ -1732,7 +1732,7 @@ async def proactive_focus_session_loop(application: Application):
                     await database.mark_focus_session_completed(s_id)
         except Exception as e:
             logger.error(f"Error in focus session loop: {e}")
-            
+
         await asyncio.sleep(15)
 
 
@@ -1746,10 +1746,10 @@ async def proactive_ambient_agent_loop(application: Application):
     logger.info("🤖 Ambient Proactive Agent loop started.")
     import json as _json
     config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
-    
+
     # Initial wait after startup before evaluation
     await asyncio.sleep(60)
-    
+
     while True:
         cycle_backoff = 600  # default: evaluasi tiap 10 menit
         try:
@@ -1793,21 +1793,21 @@ async def proactive_ambient_agent_loop(application: Application):
                                 should_evaluate = False
                         except Exception:
                             pass
-                            
+
                     if should_evaluate and gemini_client and ALLOWED_USER_IDS:
                         target_user = ALLOWED_USER_IDS[0]
                         day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
                         now_formatted = f"{day_names[now_dt.weekday()]}, {now_dt.strftime('%d %B %Y pukul %H:%M WIB')}"
-                        
+
                         batt = psutil.sensors_battery()
                         batt_status = f"{batt.percent}% ({'Mengisi daya ⚡' if batt.power_plugged else 'Menggunakan baterai 🔋'})" if batt else "Desktop / AC Power"
                         ram = psutil.virtual_memory()
                         ram_str = f"RAM terpakai {ram.percent}%"
-                        
+
                         user_memories = await database.get_all_memories(target_user)
                         mem_samples = [f"{m['key_topic']}: {m['content']}" for m in user_memories[:4]]
                         memories_summary = "; ".join(mem_samples) if mem_samples else "Belum ada catatan proyek spesifik."
-                        
+
                         proactive_eval_prompt = (
                             f"Kamu adalah ALFA, asisten AI otonom pribadi {OWNER_NAME} yang cerdas, proaktif, dan memiliki inisiatif sendiri.\n"
                             f"Kondisi real-time saat ini:\n"
@@ -1818,11 +1818,11 @@ async def proactive_ambient_agent_loop(application: Application):
                             f"INSTRUKSI:\n"
                             f"Tentukan apakah kamu perlu secara mandiri menyapa, menanyakan progres proyek, atau mengingatkan sesuatu kepada {OWNER_NAME}.\n"
                             f"Pedoman:\n"
-                            f"1. Jika waktu saat ini cocok untuk sapaan / check-in produktivitas / saran rehat / follow-up, buatlah pesan pendek yang natural, hangat, dan mengajukan 1 pertanyaan atau tawaran bantuan relevan (maks 2-3 kalimat).\n"
+                            f"1. Jika waktu saat ini cocok untuk sapaan / check-in produktivitas / saran rehat / follow-up, buatlah pesan pendek yang natural, hangat, dan mengajukan 1 pertanyaan atau tawaran bantuan relevan (maks 2 - 3 kalimat).\n"
                             f"2. Jika saat ini tidak ada hal yang bernilai tinggi untuk disampaikan, balas hanya satu kata: NO_ACTION.\n"
                             f"3. DILARANG menggunakan format robotik kaku. Bersikaplah seperti partner asisten pribadi profesional."
                         )
-                        
+
                         from google.genai import types
                         p_client, p_key_id, p_key_label = resolve_main_gemini()
                         if not p_client:
@@ -1836,7 +1836,7 @@ async def proactive_ambient_agent_loop(application: Application):
                                                          key_id=p_key_id,
                                                          key_label=p_key_label or "gemini-env",
                                                          context="proactive")
-                        
+
                         reply_text = (resp.text or "").strip()
                         # Setiap evaluasi memakai kuota API (termasuk yang
                         # berujung NO_ACTION) — catat pemakaian harian di sini.
@@ -1870,14 +1870,14 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
     """
     logger.info("📱 WhatsApp Sheets Bot Ecosystem Watchdog started.")
     import socket
-    
+
     def is_internet_connected():
         try:
             socket.create_connection(("1.1.1.1", 53), timeout=3)
             return True
         except OSError:
             return False
-            
+
     last_known_auth_status = "UNKNOWN"
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
@@ -1907,7 +1907,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                             wa_data = json.load(f)
                         current_status = wa_data.get("status", "UNKNOWN")
                         qr_str = wa_data.get("qr", "")
-                        
+
                         # Detect transition: was READY/AUTHENTICATED, now QR_READY or LOGGED_OUT
                         if last_known_auth_status in ["READY", "AUTHENTICATED"] and current_status in ["QR_READY", "LOGGED_OUT", "DISCONNECTED"]:
                             logger.warning(f"🚨 WhatsApp logged out! Sending instant alarm to Telegram user {primary_uid}...")
@@ -1938,25 +1938,25 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                     text=alarm_text,
                                     parse_mode="Markdown"
                                 )
-                                
+
                         last_known_auth_status = current_status
                     except Exception as e:
                         logger.error(f"Error checking WA status in watchdog: {e}")
-                        
+
         except Exception as e:
             logger.error(f"Ecosystem watchdog error: {e}")
-            
+
         await asyncio.sleep(15)
 
 
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
-    
+
     # Connect Subagent swarm to Telegram app instance
     import subagents
     subagents.set_telegram_app(application)
-    
+
     # Start background dispatchers
     asyncio.create_task(proactive_reminder_loop(application))
     asyncio.create_task(proactive_cron_watchdog_loop(application))
@@ -1997,11 +1997,11 @@ async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
-        
+
     config = tools.proactive_ambient_agent_config("status")
     p_cfg = config.get("proactive_config", {})
     status_str = "🟢 AKTIF" if p_cfg.get("enabled", True) else "🔴 NONAKTIF"
-    
+
     text = (
         f"🤖 **Status Inisiatif Proaktif Otonom:**\n\n"
         f"• **Status:** {status_str}\n"
@@ -2059,7 +2059,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Status Akun WA:** `{auth_desc}`\n"
         f"• **Auto-Start Saat Boot/Internet:** `{'Aktif 🟢' if res.get('enabled_on_boot') else 'Nonaktif 🔴'}`\n"
         f"• **Service Name:** `wa-sheets-bot.service`\n\n"
-        f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
+        f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24 / 7 oleh Ecosystem Watchdog._"
     )
 
     if wa_auth_status == "QR_READY" and qr_str:
@@ -2089,7 +2089,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
-        
+
     res = tools.open_web_dashboard(port=8080)
     text = (
         f"🛸 **ALFA SOVEREIGN COMMAND CENTER (Web Dashboard):**\n\n"
@@ -2100,7 +2100,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"2. ⚡ 75+ Tools Arsenal Explorer & Interactive Runner\n"
         f"3. 📱 Ecosystem Hub (Telegram & WA Sheets Bot Controller)\n"
         f"4. 🧠 Second Brain & Semantic Knowledge Graph Visualizer\n"
-        f"5. 🛡️ 24/7 System Guardian & Proactive Watchdogs Config\n"
+        f"5. 🛡️ 24 / 7 System Guardian & Proactive Watchdogs Config\n"
         f"6. 💬 Live Web AI Interactive Console\n"
         f"7. 🤖 AI Agent Workforce & Ruang Rapat (Multi-Agent Swarm)\n"
         f"8. 🔑 Multi-Provider API Key Vault"
@@ -2171,7 +2171,7 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id, 
+        context, chat_id,
         f"🏛️ **Membuka Rapat Perencanaan AI...**\n\n"
         f"📋 **Agenda:** _{topic}_\n"
         f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu..."
@@ -2180,7 +2180,7 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import swarm_engine
         result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2, mode="plan")
-        
+
         # Send summary of transcript
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
@@ -2227,7 +2227,7 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id, 
+        context, chat_id,
         f"⚡ **Membangunkan AI Swarm & Mengeksekusi Tugas Nyata...**\n\n"
         f"📌 **Tugas:** _{topic}_\n"
         f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu..."
@@ -2236,7 +2236,7 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         import swarm_engine
         result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=1, mode="execute")
-        
+
         # Send execution steps breakdown
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Laporan Eksekusi Tiap Agen:**\n\n"
@@ -2394,5 +2394,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
