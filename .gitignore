@@ -1,57 +1,31 @@
-# Environment variables and credentials
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.cert
-*.crt
-
-# Python virtual environment & cache
-venv/
-env/
-ENV/
+```
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.egg-info/
-dist/
-build/
 
-# Local databases & state
-*.db
-*.db-wal
-*.db-shm
-*.sqlite
-*.sqlite3
-
-# Logs & temp files
+# Logs and temp files
 *.log
-logs/
-temp/
-tmp/
-storage/traces/
-.tempmediaStorage/
-.user_uploaded/
+*.tmp
+*.swp
 
-# OS and IDE
-.DS_Store
-Thumbs.db
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Node / WhatsApp Bot Session data
+# Dependencies
+.venv/
+venv/
 node_modules/
-.wwebjs_auth/
-.wwebjs_cache/
-*.session
-gdrive_credentials.json
-gdrive_oauth_token.json
-gdrive_oauth_client_secret.json
-client_secret.json
 
-# Ruff
-.ruff_cache/
+# Build artifacts
+dist/
+build/
+target/
+```
