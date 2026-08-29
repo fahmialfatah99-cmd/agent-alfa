@@ -1,29 +1,39 @@
 ```
-# Python
-__pycache__/
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
-*.py~
-*.pyc~
-.Python
-env/
-venv/
+__pycache__/
+
+# Dependencies
 .venv/
-.venv.bak/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
+venv/
+env/
+requirements.txt.bak
+
+# Logs
 *.log
-*.tmp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Test coverage
+.coverage
+htmlcov/
+.coverage.*
+
+# IDE files
+.vscode/
+.idea/
 *.swp
 *.swo
+
+# OS files
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
 ```

@@ -2,6 +2,7 @@
 """Sinkronisasi persona agen swarm ALFA dengan identitas otak utama (bagian 1: data)."""
 
 # ── DNA identitas bersama: WAJIB identik di semua unit ──
+import os as _os
 DNA = """[DNA TIM ALFA — IDENTITAS INTI, WAJIB DIPEGANG]
 Kamu adalah UNIT SPESIALIS dari otak kolektif bernama ALFA — asisten AI pribadi otonom milik Fahmi. Kamu BUKAN AI lain atau produk pihak ketiga; kamu satu wajah dengan ALFA di Telegram. Satu identitas, banyak spesialisasi.
 - Panggil pengguna "Fahmi", pakai "aku/kamu", bahasa Indonesia santai-tajam ala engineer andalan di war room.
@@ -134,7 +135,6 @@ def build_prompts():
 # ── Personalisasi nama pemilik (untuk distribusi publik) ────────────────────
 # Semua persona menulis "Fahmi" sebagai bos default; ganti dinamis sesuai
 # OWNER_NAME di .env agar bot milik siapa pun tetap terasa personal.
-import os as _os
 
 _OWNER = _os.getenv("OWNER_NAME", "Pemilik").strip() or "Pemilik"
 if _OWNER != "Fahmi":

@@ -162,6 +162,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
         _SANDBOX_SNAPSHOT.clear()
         _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
 
+
 # ── LIVE TERMINAL FEED ───────────────────────────────────────────────────────
 # Sumber kebenaran: file JSONL agar lintas-proses (rapat dari Telegram maupun
 # dashboard sama-sama terlihat di Live Terminal web).
@@ -269,8 +270,8 @@ def _build_error_context(failed_steps: list) -> str:
     lines = ["⚠️ KEGAGALAN AGEN SEBELUMNYA (jangan ulangi — selesaikan yang belum):"]
     for fs in failed_steps[-3:]:  # hanya 3 terakhir agar tidak overflow
         lines.append(
-            f"  • {fs.get('agent_name','?')} [{fs.get('tool_used','?')}]: "
-            f"{(fs.get('feedback') or fs.get('execution_summary',''))[:120]}"
+            f"  • {fs.get('agent_name', '?')} [{fs.get('tool_used', '?')}]: "
+            f"{(fs.get('feedback') or fs.get('execution_summary', ''))[:120]}"
         )
     return "\n".join(lines)
 
@@ -745,19 +746,19 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     "fallback ke Gemini."
                 )
             result = await _generate_with_openai_compat(
-            agent_name=agent_name,
-            provider=provider,
-            api_key=api_key,
-            model=model,
-            base_url=base_url,
-            prompt=prompt,
-            final_instruction=final_instruction,
-            key_id=key_id,
-            key_label=key_label,
-            context="swarm",
-            max_tokens=eff_max_tokens,
-            timeout_s=timeout_s,
-        )
+                agent_name=agent_name,
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+                prompt=prompt,
+                final_instruction=final_instruction,
+                key_id=key_id,
+                key_label=key_label,
+                context="swarm",
+                max_tokens=eff_max_tokens,
+                timeout_s=timeout_s,
+            )
         if result is None and enable_tools:
             # Agen ber-tool TIDAK boleh jatuh ke jalur tanpa tool (sumber
             # hallusinasi 'berhasil' kosong). Fallback: agen Gemini dengan
@@ -855,7 +856,7 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
     Returns {agent_name: instruction}; empty dict when parsing fails so the
     caller can fall back to generic role-based tasks.
     """
-    roster = ", ".join(f"{a['name']} ({a.get('role','')})" for a in participants)
+    roster = ", ".join(f"{a['name']} ({a.get('role', '')})" for a in participants)
     prompt = (
         f"Anda misi planner swarm. TOPIK: {topic}\n"
         f"TIM: {roster}\n\n"
@@ -905,7 +906,7 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
         fs_changed = step_result.get("fs_changed")
         if fs_changed is None and _EXEC_FS_SNAPSHOT:
             fs_changed = len(_hash_sandbox_projects()) != len(_EXEC_FS_SNAPSHOT) or \
-                         bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
+                bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
         if fs_changed == 0:
             log_live("VERIFY",
                      "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis")
@@ -939,8 +940,6 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     except Exception as ver_err:
         logger.warning("Verification call failed (treated as unverified): %r", ver_err)
         return True, ""   # don't block pipeline on verifier outage
-
-
 
 
 async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: str,
@@ -1037,10 +1036,10 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
             res = fn(**kwargs)
             st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"
             hint = str(act.get("command") or act.get("path") or "")[:80]
-            logs.append(f"{i+1}. {tool_nm} -> {st}")
+            logs.append(f"{i + 1}. {tool_nm} -> {st}")
             log_live("TOOL", f"⚙️ forced-exec {tool_nm} -> {st} | {hint}")
         except Exception as ex:
-            logs.append(f"{i+1}. {tool_nm} -> EXC {str(ex)[:80]}")
+            logs.append(f"{i + 1}. {tool_nm} -> EXC {str(ex)[:80]}")
             log_live("TOOL", f"⚠️ forced-exec {tool_nm} error: {str(ex)[:80]}")
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
 
@@ -1087,7 +1086,7 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 deliverable_file = dest_csv
 
             top_items_text = "\n".join([
-                f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
+                f"{i + 1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
                 for i, it in enumerate(items[:8])
             ])
 
@@ -1542,7 +1541,7 @@ async def conduct_multi_agent_meeting(
                 # perbaikan, file baru dari fixer ikut diuji ulang.
                 deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
                 work_summary = "\n".join(
-                    f"- {s['agent_name']} ({s.get('tool_used','?')}): {(s.get('execution_summary') or '')[:220]}"
+                    f"- {s['agent_name']} ({s.get('tool_used', '?')}): {(s.get('execution_summary') or '')[:220]}"
                     for s in execution_steps)
                 log_live("QA", f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...")
                 qa_task = (

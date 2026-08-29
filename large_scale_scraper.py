@@ -79,5 +79,6 @@ def main():
     print(f"🗄️ Database Saved: {res['db_saved_count']} baris di agent_data.db")
     print("=" * 75)
 
+
 if __name__ == "__main__":
     main()

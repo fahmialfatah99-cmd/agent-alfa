@@ -240,8 +240,8 @@ def start_login(name: str) -> Dict[str, Any]:
 
             code = res.get("code")
             if not code:
-                raise RuntimeError(res.get("error") or
-                                   "timeout menunggu konfirmasi browser")
+                raise RuntimeError(res.get("error")
+                                   or "timeout menunggu konfirmasi browser")
             if res.get("state") != state:
                 raise RuntimeError("state tidak cocok")
 

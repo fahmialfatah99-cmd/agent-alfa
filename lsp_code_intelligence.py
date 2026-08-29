@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 
 logger = logging.getLogger("LSPCodeIntelligence")
 
+
 def _get_project_root(repo_path: str = "") -> str:
     if repo_path and os.path.isdir(os.path.expanduser(repo_path)):
         return os.path.realpath(os.path.expanduser(repo_path))
