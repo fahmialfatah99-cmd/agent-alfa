@@ -1,1 +1,34 @@
-Nothing should be ignored based on the provided file changes, as they only include Python source files (.py) which are legitimate code files that should be tracked in version control. The current .gitignore is also empty, so there are no existing rules to preserve.
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Editors
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+```
