@@ -198,9 +198,16 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         )
     except Exception as e:
         logger.warning(
-            f"Gagal kirim keyboard izin ({e}) -> auto-approve fail-open.")
+            f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed).")
         _PENDING.pop(req_id, None)
-        return None  # fail-open: jangan matikan bot karena UI gagal
+        fail_mode = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
+        if fail_mode == "allow":
+            return None
+        return (
+            f"[IZIN DITOLAK] Tool '{tool_name}' tergolong sensitif dan membutuhkan "
+            f"konfirmasi izin langsung dari pemilik, tetapi notifikasi Telegram tidak dapat dikirim ({e}). "
+            f"Eksekusi dibatalkan demi keamanan."
+        )
 
     # Tunggu keputusan pengguna
     decision = "timeout"

@@ -17,7 +17,11 @@ logger = logging.getLogger("AgentTools")
 
 # Identik dengan tools.SANDBOX_DIR; didefinisikan lokal agar modul ini
 # tidak pernah mengimpor balik tools.py (bebas siklus impor).
-SANDBOX_DIR = "/dev/shm/alfa_sandbox"
+if os.name == "nt":
+    _drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
+    SANDBOX_DIR = os.path.join(_drive + os.sep, "dev", "shm", "alfa_sandbox")
+else:
+    SANDBOX_DIR = "/dev/shm/alfa_sandbox"
 os.makedirs(SANDBOX_DIR, exist_ok=True)
 
 # ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ====================

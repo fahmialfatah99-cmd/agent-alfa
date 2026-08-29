@@ -384,5 +384,31 @@ class TestStructuralUpgrades:
         assert "edit_file_precise" not in names_safe
 
 
+class TestHardeningAndRobustness:
+    def test_permission_gate_fail_closed(self, monkeypatch):
+        import asyncio
+
+        import permission_gate
+        monkeypatch.setenv("PERMISSION_GATE_FAIL_MODE", "deny")
+        # request_approval on gated tool with non-existent telegram app should fail-close
+        res = asyncio.run(permission_gate.request_approval("execute_bash_command", "{}", chat_id=999999999))
+        assert res is not None
+        assert "[IZIN DITOLAK]" in res
+
+    def test_vector_similarity_dimension_alignment(self):
+        from vector_memory import cosine_similarity
+        vec_384 = [0.1] * 384
+        vec_768 = [0.1] * 768
+        # Should not raise ValueError (shape mismatch) and return valid score
+        sim = cosine_similarity(vec_384, vec_768)
+        assert isinstance(sim, float)
+        assert sim > 0.0
+
+    def test_gdrive_sandbox_dir_consistency(self):
+        import gdrive_suite
+        import tools
+        assert os.path.normpath(gdrive_suite.SANDBOX_DIR) == os.path.normpath(tools.SANDBOX_DIR)
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

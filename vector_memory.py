@@ -48,10 +48,10 @@ def init_vector_db():
 init_vector_db()
 
 
-def _local_subword_embedding(text: str, dim: int = 384) -> List[float]:
+def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     """
     High-quality deterministic subword & character n-gram hashing dense vectorizer.
-    Produces a normalized dense vector of dimension `dim` (default 384) for offline fallback.
+    Produces a normalized dense vector of dimension `dim` (default 768) for offline fallback.
     """
     vec = np.zeros(dim, dtype=np.float32)
     clean_text = text.lower().strip()
@@ -82,7 +82,7 @@ def _local_subword_embedding(text: str, dim: int = 384) -> List[float]:
 
 def get_text_embedding(text: str) -> List[float]:
     """
-    Generate vector embedding using Gemini API (text-embedding-004) if available,
+    Generate vector embedding using Gemini API (text-embedding-004 / gemini-embedding-001) if available,
     otherwise fallback seamlessly to local dense subword vectorizer.
     """
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -109,13 +109,21 @@ def get_text_embedding(text: str) -> List[float]:
         except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
             
-    return _local_subword_embedding(text)
+    return _local_subword_embedding(text, dim=768)
 
 
 def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
-    """Compute cosine similarity between two float vectors."""
+    """Compute cosine similarity between two float vectors with safe dimension alignment."""
+    if not vec_a or not vec_b:
+        return 0.0
     a = np.array(vec_a, dtype=np.float32)
     b = np.array(vec_b, dtype=np.float32)
+    if a.shape[0] != b.shape[0]:
+        target_dim = max(a.shape[0], b.shape[0])
+        if a.shape[0] < target_dim:
+            a = np.pad(a, (0, target_dim - a.shape[0]), "constant")
+        if b.shape[0] < target_dim:
+            b = np.pad(b, (0, target_dim - b.shape[0]), "constant")
     dot = np.dot(a, b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)

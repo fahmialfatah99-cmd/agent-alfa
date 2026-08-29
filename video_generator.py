@@ -61,9 +61,26 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     safe_stem = f"voice_{int(time.time() * 1000)}"
     audio_path = os.path.join(VIDEO_OUT_DIR, "Audio", f"{safe_stem}.mp3")
     
-    edge_tts_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts")
-    if not os.path.exists(edge_tts_bin):
-        edge_tts_bin = shutil.which("edge-tts") or "edge-tts"
+    edge_tts_bin = None
+    if os.name == "nt":
+        candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "edge-tts.exe"),
+            shutil.which("edge-tts.exe"),
+            shutil.which("edge-tts"),
+            "edge-tts",
+        ]
+    else:
+        candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts"),
+            shutil.which("edge-tts"),
+            "edge-tts",
+        ]
+    for cand in candidates:
+        if cand and (os.path.exists(cand) or shutil.which(cand)):
+            edge_tts_bin = cand
+            break
+    if not edge_tts_bin:
+        edge_tts_bin = "edge-tts"
         
     cmd = [edge_tts_bin, "--voice", voice, "-f", "-", "--write-media", audio_path]
     # Teks dikirim via stdin ("-f -") agar tidak muncul di process list (ps aux)
@@ -105,11 +122,19 @@ def draw_lightning_icon(draw: ImageDraw.ImageDraw, start_x: float, start_y: floa
 
 
 def get_system_font(size: int, bold: bool = True):
-    """Load robust TrueType font with fallback."""
+    """Load robust TrueType font with cross-platform OS fallback (Linux, Windows, macOS)."""
     font_candidates = [
+        # Linux fonts
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        # Windows fonts
+        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\tahoma.ttf",
+        # macOS fonts
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial.ttf",
     ]
     for path in font_candidates:
         if os.path.exists(path):

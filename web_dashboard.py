@@ -87,10 +87,21 @@ if not DASHBOARD_AUTH_TOKEN:
         "Semua endpoint /api/* dapat diakses siapa pun yang bisa mencapai port ini."
     )
 
+_cors_env = os.getenv("ALLOWED_CORS_ORIGINS", "").strip()
+if _cors_env:
+    allowed_cors_origins = [orig.strip() for orig in _cors_env.split(",") if orig.strip()]
+else:
+    allowed_cors_origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=allowed_cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -114,14 +125,18 @@ async def _pipeline_trigger_scheduler():
     asyncio.create_task(_loop())
 
 
-def get_primary_user_id() -> int:
-    """Safely get primary telegram user id from ALLOWED_USER_IDS env var."""
+def get_primary_user_id(request: Optional[Request] = None) -> int:
+    """Safely get target telegram user id from request headers/params or ALLOWED_USER_IDS env var."""
+    if request is not None:
+        req_uid = request.headers.get("X-User-Id") or request.query_params.get("user_id")
+        if req_uid and str(req_uid).strip().isdigit():
+            return int(str(req_uid).strip())
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
     if allowed_env:
-        try:
-            return int(allowed_env.split(",")[0].strip())
-        except (ValueError, IndexError):
-            pass
+        for uid_str in allowed_env.split(","):
+            uid_clean = uid_str.strip()
+            if uid_clean.isdigit():
+                return int(uid_clean)
     return 0
 
 
@@ -2471,9 +2486,12 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         except Exception:
             selected_key_id = None
 
+    expert_mode = (payload.get("expert_mode") or "general").strip()
     full_prompt = message
     if text_contexts:
         full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+    if expert_mode and expert_mode != "general":
+        full_prompt = f"[Mode Spesialis: {expert_mode}]\n{full_prompt}"
 
     async def event_generator():
         start_t = time.time()
@@ -2675,9 +2693,9 @@ async def execute_chat_code_block(payload: Dict[str, Any]):
     Supports Python, Bash/Shell, and JavaScript/Node.
     """
     language = (payload.get("language") or "python").lower().strip()
-    code = (payload.get("code") or "").strip()
-
-    if not code:
+    raw_code = (payload.get("code") or "").strip()
+    clean_code = tools._clean_code_snippet(raw_code)
+    if not clean_code:
         raise HTTPException(status_code=400, detail="code is required")
 
     uid = get_primary_user_id()
@@ -2687,19 +2705,19 @@ async def execute_chat_code_block(payload: Dict[str, Any]):
     t0 = time.perf_counter()
 
     if language in ("python", "py", "python3"):
-        result = tools.execute_python_sandbox(code=code)
+        result = tools.execute_python_sandbox(code=clean_code)
     elif language in ("bash", "sh", "shell", "zsh"):
-        result = tools.execute_bash_command(command=code)
+        result = tools.execute_bash_command(command=clean_code)
     elif language in ("js", "javascript", "node"):
         # Run node in sandbox
-        tmp_js = f"/dev/shm/alfa_sandbox/script_{int(time.time()*1000)}.js"
-        os.makedirs("/dev/shm/alfa_sandbox", exist_ok=True)
+        tmp_js = os.path.join(tools.SANDBOX_DIR, f"script_{int(time.time()*1000)}.js")
+        os.makedirs(tools.SANDBOX_DIR, exist_ok=True)
         with open(tmp_js, "w", encoding="utf-8") as f:
-            f.write(code)
+            f.write(clean_code)
         result = tools.execute_bash_command(command=f"node {tmp_js}")
     else:
         # Fallback to python
-        result = tools.execute_python_sandbox(code=code)
+        result = tools.execute_python_sandbox(code=clean_code)
 
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
 
@@ -2763,6 +2781,13 @@ async def get_chat_expert_modes():
                 "icon": "bot",
                 "color": "cyan",
                 "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory."
+            },
+            {
+                "id": "swarm",
+                "name": "Autonomous Multi-Agent Swarm",
+                "icon": "users",
+                "color": "amber",
+                "description": "Orkestrasi eksekusi tim AI multi-agent untuk proyek besar dan tugas multi-tahap secara tuntas."
             },
             {
                 "id": "coder",

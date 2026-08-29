@@ -114,7 +114,8 @@ def audit_local_host_security() -> Dict[str, Any]:
         add_check("sensitive_permissions", True, "Izin file POSIX dilewati pada Windows (ACL digunakan)")
 
     # 3. Failed systemd user services
-    if shutil.which("systemctl") is not None:
+    import shutil as _shutil
+    if os.name != "nt" and _shutil.which("systemctl"):
         try:
             res = subprocess.run(
                 ["systemctl", "--user", "--failed", "--no-legend", "--plain"],
@@ -130,11 +131,11 @@ def audit_local_host_security() -> Dict[str, Any]:
         except Exception as svc_err:
             add_check("failed_services", True, f"Tidak dapat memeriksa ({svc_err})")
     else:
-        add_check("failed_services", True, "systemctl tidak tersedia di OS ini")
+        add_check("failed_services", True, "Pemeriksaan systemd dilewati (non-systemd OS/environment)")
 
     # 4. Root / Primary filesystem usage
     try:
-        root_path = os.path.abspath(os.sep)
+        root_path = (os.path.splitdrive(os.path.abspath("."))[0] + os.sep) if os.name == "nt" else "/"
         du = psutil.disk_usage(root_path)
         pct = du.percent
         add_check(

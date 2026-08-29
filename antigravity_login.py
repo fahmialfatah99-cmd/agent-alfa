@@ -22,9 +22,13 @@ from typing import Any, Dict, List
 logger = logging.getLogger("AntigravityLogin")
 
 BASE = os.path.expanduser("~/antigravity-gateway")
-CLIENT_ID = ("1071006060591-tmhssin2h21lcre2"
-             "35vtolojh4g403ep.apps.googleusercontent.com")
-CLIENT_SECRET = "GOCSPX-K58FWR486LdL" "J1mLB8sXC4z6qDAf"
+CLIENT_ID = os.getenv("ANTIGRAVITY_CLIENT_ID", "").strip() or (
+    "1071006060591-tmhssin2h21lcre2"
+    "35vtolojh4g403ep.apps.googleusercontent.com"
+)
+CLIENT_SECRET = os.getenv("ANTIGRAVITY_CLIENT_SECRET", "").strip() or (
+    "GOCSPX-K58FWR486LdL" "J1mLB8sXC4z6qDAf"
+)
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 USERINFO_EP = "https://openidconnect.googleapis.com/v1/userinfo"
@@ -114,6 +118,9 @@ def _fetch_email(access_token: str) -> str:
 
 # ── Instans proxy per akun ───────────────────────────────────────────────────
 def _register_instance(name: str, home_dir: str, port: int):
+    if os.name == "nt" or not shutil.which("systemctl"):
+        logger.info(f"Systemd tidak tersedia - instans '{name}' dilewati.")
+        return
     unit_dir = os.path.expanduser("~/.config/systemd/user")
     os.makedirs(unit_dir, exist_ok=True)
     proxy_py = os.path.expanduser("~/antigravity-proxy/antigravity_proxy.py")
@@ -137,6 +144,8 @@ def _register_instance(name: str, home_dir: str, port: int):
 
 
 def _unregister_instance(name: str):
+    if os.name == "nt" or not shutil.which("systemctl"):
+        return
     subprocess.run(["systemctl", "--user", "stop",
                     f"antigravity-proxy-{name}.service"],
                    timeout=20, capture_output=True)

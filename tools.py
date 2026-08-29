@@ -211,6 +211,21 @@ def _bash_blocked_reason(command: str) -> Optional[str]:
     return None
 
 
+def _clean_code_snippet(code: str) -> str:
+    """Safely unwrap markdown code fences (```python ... ```, ```bash ... ```) and trim whitespace."""
+    if not code or not isinstance(code, str):
+        return ""
+    cleaned = code.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    return cleaned
+
+
 def execute_bash_command(command: str, working_dir: str = "", backend: str = "") -> Dict[str, Any]:
     """
     Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
@@ -223,9 +238,19 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
         working_dir: Directory to run in (mounted read-write into sandbox).
         backend: 'auto' (default), 'docker', or 'host'.
     """
-    blocked = _bash_blocked_reason(command)
+    clean_cmd = _clean_code_snippet(command)
+    if not clean_cmd:
+        return {
+            "status": "error",
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": "Perintah bash kosong untuk dieksekusi.",
+            "isolation": "none",
+        }
+
+    blocked = _bash_blocked_reason(clean_cmd)
     if blocked:
-        logger.warning(f"Bash command BLOCKED ({blocked}): {command[:200]}")
+        logger.warning(f"Bash command BLOCKED ({blocked}): {clean_cmd[:200]}")
         return {
             "status": "error",
             "exit_code": -1,
@@ -280,6 +305,22 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             tf = os.getenv("ALFA_TARGET_FOLDER", "").strip()
             if tf and os.path.isdir(tf) and tf != wd_abs:
                 cmd += ["-v", f"{tf}:{tf}"]
+
+            # Mirror standard user project & workspace directories so scripts in ~/alfa_projects can run
+            user_home = os.path.expanduser("~")
+            project_dirs = [
+                os.path.join(user_home, "alfa_projects"),
+                os.path.join(user_home, "ALFA_WORKSPACE"),
+                os.path.join(user_home, "Dokumen", "ALFA_SWARM_OUTPUTS"),
+                os.path.join(user_home, "output"),
+            ]
+            for pdir in project_dirs:
+                if os.path.isdir(pdir) and pdir != wd_abs and pdir != tf:
+                    cmd += [
+                        "-v", f"{pdir}:{pdir}",
+                        "-v", f"{pdir}:{home_in_box}/{os.path.basename(pdir)}"
+                    ]
+
             cmd += [_SANDBOX_IMAGE, "bash", f"/sandbox/{script_name}"]
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
             isolation = "docker"
@@ -320,10 +361,18 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             # Popen + kill pohon proses: mencegah HANG permanen ketika agent
             # menjalankan server background (mis. `node serve.mjs &`) yang
             # menahan pipe stdout/stderr walau bash induk sudah dibunuh.
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, cwd=target_dir if isolation == "none" else None,
-            )
+            popen_kwargs: Dict[str, Any] = {
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "text": True,
+                "cwd": target_dir if isolation == "none" else None,
+            }
+            if os.name == "nt":
+                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                popen_kwargs["start_new_session"] = True
+
+            proc = subprocess.Popen(cmd, **popen_kwargs)
             try:
                 out, errout = proc.communicate(timeout=timeout_secs)
                 result = subprocess.CompletedProcess(cmd, proc.returncode or 0, out, errout)
@@ -334,7 +383,14 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                                        capture_output=True, timeout=10)
                     else:
                         import signal as _sig
-                        os.killpg(os.getpgid(proc.pid), _sig.SIGKILL)
+                        try:
+                            pgid = os.getpgid(proc.pid)
+                            if pgid != os.getpgrp():
+                                os.killpg(pgid, _sig.SIGKILL)
+                            else:
+                                proc.kill()
+                        except Exception:
+                            proc.kill()
                 except Exception:
                     pass
                 try:
@@ -474,9 +530,9 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
         code: Complete Python code string to execute.
     """
     # Reject empty/trivial/unparseable code before spawning anything
-    cleaned = (code or "").strip()
-    if len(cleaned) < 10:
-        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong atau terlalu pendek untuk dieksekusi.", "has_plot": False, "isolation": "none"}
+    cleaned = _clean_code_snippet(code)
+    if not cleaned:
+        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong untuk dieksekusi.", "has_plot": False, "isolation": "none"}
     try:
         compile(cleaned, "<sandbox>", "exec")
     except SyntaxError as syn_err:
@@ -543,8 +599,23 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
                 "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
                 "--cpus", os.getenv("SANDBOX_CPUS", "1.0"),
                 "--pids-limit", "128",
-                _SANDBOX_IMAGE, "python", f"/sandbox/{script_name}",
             ]
+            # Mirror standard user project & workspace directories
+            user_home = os.path.expanduser("~")
+            project_dirs = [
+                os.path.join(user_home, "alfa_projects"),
+                os.path.join(user_home, "ALFA_WORKSPACE"),
+                os.path.join(user_home, "Dokumen", "ALFA_SWARM_OUTPUTS"),
+                os.path.join(user_home, "output"),
+            ]
+            for pdir in project_dirs:
+                if os.path.isdir(pdir):
+                    cmd += [
+                        "-v", f"{pdir}:{pdir}",
+                        "-v", f"{pdir}:/sandbox/{os.path.basename(pdir)}"
+                    ]
+
+            cmd += [_SANDBOX_IMAGE, "python", f"/sandbox/{script_name}"]
             timeout_secs = 45
             isolation = "docker"
         else:

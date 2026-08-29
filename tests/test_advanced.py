@@ -230,3 +230,17 @@ def test_index_one_file_chunking():
         assert all(r[0].endswith(".py") for r in rows)
     finally:
         os.remove(path)
+
+
+def test_chat_execute_code_sandbox():
+    from fastapi.testclient import TestClient
+
+    import web_dashboard
+
+    client = TestClient(web_dashboard.app)
+    # Test Python with markdown code fences
+    r = client.post("/api/chat/execute-code", json={"language": "python", "code": "```python\nprint(12 + 34)\n```"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "success"
+    assert "46" in (data["result"].get("stdout") or "")
