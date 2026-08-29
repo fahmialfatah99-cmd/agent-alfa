@@ -2,11 +2,12 @@
 Unit test untuk database, enkripsi AES-256-GCM, dan pengaturan user.
 Menggunakan database SQLite temporer agar database produksi tidak tersentuh.
 """
-import database
 import sys
 from pathlib import Path
 
 import pytest
+
+import database
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
