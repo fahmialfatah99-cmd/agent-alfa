@@ -258,7 +258,7 @@ def create_ui_overlay_layer(
         cta_bg = (16, 185, 129, 255)
         cta_fg = (15, 23, 42, 255)
         drop_color = (52, 211, 153, 255)
-    else: # viral_tiktok default
+    else:  # viral_tiktok default
         badge_bg = (225, 29, 72, 245)
         badge_border = (254, 205, 211, 240)
         box_border = (16, 185, 129, 240)
@@ -847,7 +847,7 @@ def generate_video_from_images(
         zoom_expr = f"zoompan=z='max(1.05 - 0.00004*on, 1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
     elif motion_style == "pan_left_right":
         zoom_expr = f"zoompan=z='1.03':x='(iw-iw/zoom)*(sin(it*0.5)+1)/2':y='ih/2-(ih/zoom/2)':d={total_frames}:s=1080x1920:fps=30"
-    else: # zoom_in
+    else:  # zoom_in
         zoom_expr = f"zoompan=z='min(1.0 + 0.00004*on, 1.05)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
 
     per_img_dur = max(3.0, duration_sec / len(stage_layers))

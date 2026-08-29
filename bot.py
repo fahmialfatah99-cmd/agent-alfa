@@ -556,7 +556,7 @@ async def run_agent_turn(
             memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
             for h in relevant:
                 memory_context_parts.append(
-                    f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
+                    f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
                 )
     except Exception as rag_err:
         logger.debug(f"Auto-RAG skipped: {rag_err}")
@@ -568,8 +568,8 @@ async def run_agent_turn(
             "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
             f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
             "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
-            + "\n".join(memory_context_parts) +
-            "\n======================================================\n"
+            + "\n".join(memory_context_parts)
+            + "\n======================================================\n"
         )
 
     # 6. Fetch user settings for prompt override / preferred model
@@ -601,8 +601,8 @@ async def run_agent_turn(
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
     full_system_instruction = (
-        base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
-        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
+        base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK
+        + CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
@@ -2083,6 +2083,8 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Failed to generate QR photo: {e}")
 
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
+
+
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard or /web command."""
     user_id = update.effective_user.id

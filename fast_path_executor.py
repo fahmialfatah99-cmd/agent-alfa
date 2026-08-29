@@ -39,8 +39,8 @@ def try_execute_fast_path(
 
     # 1. FAST-PATH: IMAGES TO PDF (< 50ms)
     is_image_to_pdf = image_paths and (
-        ('pdf' in p_low and any(k in p_low for k in ['jadikan', 'ubah', 'convert', 'buat', 'bikin', 'ganti', 'save', 'simpan', 'ekspor', 'export', 'satukan'])) or
-        any(k in p_low for k in ['to pdf', 'ke pdf', 'image to pdf', 'foto ke pdf', 'gambar ke pdf'])
+        ('pdf' in p_low and any(k in p_low for k in ['jadikan', 'ubah', 'convert', 'buat', 'bikin', 'ganti', 'save', 'simpan', 'ekspor', 'export', 'satukan']))
+        or any(k in p_low for k in ['to pdf', 'ke pdf', 'image to pdf', 'foto ke pdf', 'gambar ke pdf'])
     )
     if is_image_to_pdf:
         m = re.search(r'bernama\s+([a-zA-Z0 - 9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)

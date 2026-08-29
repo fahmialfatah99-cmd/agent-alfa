@@ -29,7 +29,7 @@ def _get_or_create_master_key() -> bytes:
     """
     env_key = os.getenv("VAULT_MASTER_KEY", "").strip()
     if env_key:
-        if len(env_key) == 64: # 64 hex chars = 32 bytes
+        if len(env_key) == 64:  # 64 hex chars = 32 bytes
             return bytes.fromhex(env_key)
         # Derive 32 bytes via SHA-256
         return hashlib.sha256(env_key.encode("utf-8")).digest()

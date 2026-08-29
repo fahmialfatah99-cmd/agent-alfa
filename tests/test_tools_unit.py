@@ -1,6 +1,9 @@
 """
 Unit test murni untuk tools dan fungsi utilitas ALFA (tanpa koneksi jaringan/I/O eksternal).
 """
+import tools_registry
+import tools
+import swarm_engine
 import os
 import sys
 from pathlib import Path
@@ -8,10 +11,6 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import swarm_engine
-import tools
-import tools_registry
 
 
 class TestNormalizePath:

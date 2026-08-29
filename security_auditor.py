@@ -346,22 +346,22 @@ def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:
     score = max(0, min(100, score))
     if score >= 95:
         grade = "A+"
-        grade_color = "#10b981" # Emerald
+        grade_color = "#10b981"  # Emerald
     elif score >= 85:
         grade = "A"
         grade_color = "#10b981"
     elif score >= 70:
         grade = "B"
-        grade_color = "#06b6d4" # Cyan
+        grade_color = "#06b6d4"  # Cyan
     elif score >= 55:
         grade = "C"
-        grade_color = "#f59e0b" # Amber
+        grade_color = "#f59e0b"  # Amber
     elif score >= 40:
         grade = "D"
-        grade_color = "#f97316" # Orange
+        grade_color = "#f97316"  # Orange
     else:
         grade = "F"
-        grade_color = "#ef4444" # Rose/Red
+        grade_color = "#ef4444"  # Rose/Red
 
     return {
         "status": "success",
