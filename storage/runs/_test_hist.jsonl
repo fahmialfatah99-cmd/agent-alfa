@@ -28,3 +28,9 @@
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788006077.5361278}
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788006101.75592}
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788006101.7564409}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026668.4554963}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026668.4558487}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026749.6907156}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026749.6913226}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026777.1075716}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788026777.1079168}
