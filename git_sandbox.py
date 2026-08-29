@@ -40,10 +40,10 @@ def git_worktree_sandbox_create(task_name: str, base_branch: str = "master") -> 
         base_branch: Base branch to fork from (default 'master' or 'main').
     """
     try:
-        clean_task = re.sub(r"[^a-zA-Z0-9_\-]", "_", task_name.strip()).lower()
+        clean_task = re.sub(r"[^a-zA-Z0 - 9_\-]", "_", task_name.strip()).lower()
         if not clean_task:
             clean_task = "sandbox_task"
-            
+
         branch_name = f"sandbox_{clean_task}"
         worktree_path = os.path.join(WORKTREES_BASE_DIR, clean_task)
 
@@ -90,7 +90,7 @@ def git_worktree_sandbox_verify_and_merge(
         target_branch: Branch to merge into (default 'master').
     """
     try:
-        clean_task = re.sub(r"[^a-zA-Z0-9_\-]", "_", task_name.strip()).lower()
+        clean_task = re.sub(r"[^a-zA-Z0 - 9_\-]", "_", task_name.strip()).lower()
         worktree_path = os.path.join(WORKTREES_BASE_DIR, clean_task)
         branch_name = f"sandbox_{clean_task}"
 
@@ -149,7 +149,7 @@ def git_worktree_sandbox_rollback(task_name: str) -> Dict[str, Any]:
         task_name: Unique task identifier to rollback.
     """
     try:
-        clean_task = re.sub(r"[^a-zA-Z0-9_\-]", "_", task_name.strip()).lower()
+        clean_task = re.sub(r"[^a-zA-Z0 - 9_\-]", "_", task_name.strip()).lower()
         worktree_path = os.path.join(WORKTREES_BASE_DIR, clean_task)
         branch_name = f"sandbox_{clean_task}"
         root = _get_project_root()

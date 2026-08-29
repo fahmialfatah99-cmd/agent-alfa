@@ -33,7 +33,7 @@ def _get_or_create_master_key() -> bytes:
             return bytes.fromhex(env_key)
         # Derive 32 bytes via SHA-256
         return hashlib.sha256(env_key.encode("utf-8")).digest()
-        
+
     if os.path.exists(KEY_FILE):
         try:
             with open(KEY_FILE, "rb") as f:
@@ -74,7 +74,7 @@ def _get_or_create_master_key() -> bytes:
         os.chmod(KEY_FILE, 0o600)
     except Exception as e:
         logger.error(f"Could not persist vault master key: {e}")
-        
+
     return new_key
 
 
@@ -107,7 +107,7 @@ class AlfaSecureVault:
     High-Performance AES-256-GCM Secret Store.
     Encrypts sensitive data with 96-bit unique nonces per entry and authenticated tags.
     """
-    
+
     def __init__(self):
         self.master_key = _get_or_create_master_key()
         self.aesgcm = AESGCM(self.master_key)
@@ -134,13 +134,13 @@ class AlfaSecureVault:
         clean_name = name.strip()
         if not clean_name:
             raise ValueError("Secret name cannot be empty")
-            
+
         enc = self.encrypt_val(value)
         now = datetime.now().isoformat()
-        
+
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
+
         # Upsert secret
         cursor.execute("""
             INSERT INTO vault_secrets (name, category, ciphertext, nonce, created_at, updated_at, notes)
@@ -152,10 +152,10 @@ class AlfaSecureVault:
                 updated_at = excluded.updated_at,
                 notes = excluded.notes
         """, (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes))
-        
+
         conn.commit()
         conn.close()
-        
+
         logger.info(f"Secret '{clean_name}' successfully encrypted with AES-256-GCM into vault.")
         return {
             "status": "success",
@@ -170,7 +170,7 @@ class AlfaSecureVault:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         name_str = str(name_or_id).strip()
         if name_str.isdigit():
             # Try by id first, then fall back to literal numeric names
@@ -182,14 +182,14 @@ class AlfaSecureVault:
         else:
             cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (name_str,))
             row = cursor.fetchone()
-            
+
         if not row:
             conn.close()
             return None
-        
+
         row_data = dict(row)
         conn.close()
-            
+
         try:
             decrypted_val = self.decrypt_val(row_data["ciphertext"], row_data["nonce"])
         except Exception as decrypt_err:
@@ -213,15 +213,15 @@ class AlfaSecureVault:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         if category and category != "all":
             cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets WHERE category = ? ORDER BY updated_at DESC", (category,))
         else:
             cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets ORDER BY updated_at DESC")
-            
+
         rows = cursor.fetchall()
         conn.close()
-        
+
         items = []
         for r in rows:
             items.append({

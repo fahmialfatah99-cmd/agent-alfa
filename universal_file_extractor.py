@@ -44,8 +44,8 @@ def process_uploaded_attachment(
     """
     ext = os.path.splitext(filename)[1].lower()
     fname_clean = os.path.basename(filename)
-    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', fname_clean)
-    
+    safe_name = re.sub(r'[^a-zA-Z0 - 9_.-]', '_', fname_clean)
+
     file_disk_path = ""
     if save_disk:
         try:
@@ -318,7 +318,7 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
                 for info in info_list[:60]:
                     size_kb = f"{info.file_size / 1024:.1f} KB" if not info.is_dir() else "DIR"
                     out.append(f"- `/{info.filename}` ({size_kb})")
-                
+
                 for info in info_list[:10]:
                     if not info.is_dir() and info.file_size < 30000 and any(info.filename.endswith(e) for e in (".txt", ".md", ".json", ".py", ".csv")):
                         try:

@@ -140,10 +140,10 @@ def scrape_universal_keyword(
             "message": "Paket pencarian web (ddgs) belum terpasang. Jalankan: pip install ddgs",
         }
     batch_id = f"batch_{int(time.time())}_{uuid.uuid4().hex[:6]}"
-    batch_name = f"Scrape_{category}_{re.sub(r'[^a-zA-Z0-9]', '_', query)[:20]}"
+    batch_name = f"Scrape_{category}_{re.sub(r'[^a-zA-Z0 - 9]', '_', query)[:20]}"
 
     templates = PLATFORM_SEARCH_TEMPLATES.get(category, PLATFORM_SEARCH_TEMPLATES["google_general"])
-    
+
     # Calculate queries needed to fulfill limit
     queries_to_run = [t.format(query=query) for t in templates]
 
@@ -198,7 +198,7 @@ def scrape_universal_keyword(
             "status": "error",
             "message": (
                 f"Semua {failed_queries} query pencarian gagal (kemungkinan "
-                "koneksi SSL/rate-limit DuckDuckGo). Tunggu 1-2 menit lalu coba lagi."),
+                "koneksi SSL/rate-limit DuckDuckGo). Tunggu 1 - 2 menit lalu coba lagi."),
             "batch_id": batch_id,
             "failed_queries": failed_queries,
             "total_scraped": 0,
@@ -225,13 +225,13 @@ def scrape_universal_keyword(
 
         # Smart Phone / WhatsApp Extractor
         phone = "N/A"
-        phone_match = re.search(r'(?:08|\+628|628)\d{8,12}', snippet)
+        phone_match = re.search(r'(?:08|\+628|628)\d{8, 12}', snippet)
         if phone_match:
             phone = phone_match.group(0)
 
         # Smart Email Extractor
         email = "N/A"
-        email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', snippet)
+        email_match = re.search(r'[a-zA-Z0 - 9_.+-]+@[a-zA-Z0 - 9-]+\.[a-zA-Z0 - 9-.]+', snippet)
         if email_match:
             email = email_match.group(0)
 

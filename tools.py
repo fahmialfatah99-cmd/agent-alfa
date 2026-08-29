@@ -38,14 +38,8 @@ logger = logging.getLogger("AgentTools")
 # pada bot.py & modul lain tetap valid.
 from runtime_ctx import (  # noqa: E402
     current_chat_id_var as current_chat_id_var,
-)
-from runtime_ctx import (
     current_user_id_var as current_user_id_var,
-)
-from runtime_ctx import (
     get_current_chat_id as get_current_chat_id,
-)
-from runtime_ctx import (
     get_current_user_id as get_current_user_id,
 )
 
@@ -88,25 +82,25 @@ def get_system_stats() -> Dict[str, Any]:
         cpu_count = psutil.cpu_count(logical=True)
         cpu_freq = psutil.cpu_freq()
         freq_str = f"{round(cpu_freq.current, 1)} MHz" if cpu_freq else "N/A"
-        
+
         mem = psutil.virtual_memory()
         ram_total_gb = round(mem.total / (1024 ** 3), 2)
         ram_used_gb = round(mem.used / (1024 ** 3), 2)
         ram_free_gb = round(mem.available / (1024 ** 3), 2)
         ram_percent = mem.percent
-        
+
         swap = psutil.swap_memory()
         swap_total_gb = round(swap.total / (1024 ** 3), 2)
         swap_used_gb = round(swap.used / (1024 ** 3), 2)
-        
+
         disk = psutil.disk_usage('/')
         disk_total_gb = round(disk.total / (1024 ** 3), 2)
         disk_used_gb = round(disk.used / (1024 ** 3), 2)
         disk_percent = disk.percent
-        
+
         boot_time = datetime.datetime.fromtimestamp(psutil.boot_time())
         uptime = str(datetime.datetime.now() - boot_time).split('.')[0]
-        
+
         # Network stats
         net_addrs = psutil.net_if_addrs()
         ip_summary = []
@@ -116,7 +110,7 @@ def get_system_stats() -> Dict[str, Any]:
             for a in addrs:
                 if a.family.name == "AF_INET":
                     ip_summary.append(f"{iface}: {a.address}")
-        
+
         # Battery stats if available
         battery = psutil.sensors_battery()
         battery_str = "N/A (Desktop/Server)"
@@ -131,10 +125,10 @@ def get_system_stats() -> Dict[str, Any]:
                 processes.append(p.info)
             except Exception:
                 pass
-                
+
         top_ram = sorted(processes, key=lambda p: p.get('memory_percent') or 0, reverse=True)[:4]
         top_cpu = sorted(processes, key=lambda p: p.get('cpu_percent') or 0, reverse=True)[:4]
-        
+
         return {
             "status": "success",
             "cpu": f"{cpu_percent}% ({cpu_count} cores @ {freq_str})",
@@ -180,7 +174,7 @@ _BASH_BLOCK_PATTERNS = [
 
 # Target penghapusan yang dianggap destruktif saat dipadukan dgn rm rekursif
 _RM_DANGER_TARGETS = (
-    r"(?:(?:/{1,2})|(?:~)|(?:\$HOME)|\*|(?:/(?:home|etc|usr|var|boot|lib|opt|bin|sbin|srv|root))"
+    r"(?:(?:/{1, 2})|(?:~)|(?:\$HOME)|\*|(?:/(?:home|etc|usr|var|boot|lib|opt|bin|sbin|srv|root))"
     r"|(?:\.\./)+(?:home|etc|usr))?(?:\s|$|/)"
 )
 
@@ -199,7 +193,7 @@ def _bash_blocked_reason(command: str) -> Optional[str]:
     if m:
         seg = m.group(1)
         has_recursive = bool(_re.search(
-            r"(?:^|\s)(-{1,2}[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\s|$)", seg))
+            r"(?:^|\s)(-{1, 2}[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\s|$)", seg))
         has_danger_target = bool(_re.search(
             r"(?:^|\s)(\"|')?" + _RM_DANGER_TARGETS, seg))
         if has_recursive and has_danger_target:
@@ -495,7 +489,7 @@ def _ensure_sandbox_image() -> bool:
         if chk.returncode == 0 and chk.stdout.strip():
             return True
 
-        logger.info("Building sandbox image '%s' (first use, ~2-5 min)...", _SANDBOX_IMAGE)
+        logger.info("Building sandbox image '%s' (first use, ~2 - 5 min)...", _SANDBOX_IMAGE)
         dockerfile = os.path.join(SANDBOX_DIR, "Dockerfile")
         os.makedirs(SANDBOX_DIR, exist_ok=True)
         with open(dockerfile, "w", encoding="utf-8") as f:
@@ -659,7 +653,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
     """
     Perform a live web search using DuckDuckGo to get up-to-date real-time information, news, or facts.
     Use this tool whenever the user asks about current events, stock prices, weather, documentation, or recent news.
-    
+
     Args:
         query: Search query string.
         max_results: Maximum number of search results to return (default: 5).
@@ -674,7 +668,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
         results = list(DDGS(verify=False).text(query, max_results=max_results))
         if not results:
             return {"status": "success", "results": [], "message": "Tidak ada hasil pencarian ditemukan."}
-        
+
         formatted_results = []
         for item in results:
             formatted_results.append({
@@ -682,7 +676,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
                 "snippet": item.get("body", ""),
                 "link": item.get("href", "")
             })
-            
+
         return {"status": "success", "results": formatted_results}
     except Exception as e:
         logger.error(f"Web search error: {e}")
@@ -693,7 +687,7 @@ def fetch_web_page_content(url: str, max_length: int = 4000) -> Dict[str, Any]:
     """
     Fetch and extract clean text and main content from a website/article URL.
     Use this tool when you need to read documentation, read a specific article, or analyze a web page.
-    
+
     Args:
         url: Full web URL (e.g. 'https://en.wikipedia.org/wiki/Python').
         max_length: Maximum text length to extract (default: 4000 chars).
@@ -707,7 +701,7 @@ def fetch_web_page_content(url: str, max_length: int = 4000) -> Dict[str, Any]:
             resp = client.get(url, headers=headers)
             if resp.status_code != 200:
                 return {"status": "error", "message": f"Gagal mengambil URL, status code: {resp.status_code}"}
-            
+
             html = resp.text
             # Remove scripts, styles, head, comments
             html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
@@ -716,14 +710,14 @@ def fetch_web_page_content(url: str, max_length: int = 4000) -> Dict[str, Any]:
             html = re.sub(r"<footer[\s\S]*?</footer>", " ", html, flags=re.IGNORECASE)
             html = re.sub(r"<header[\s\S]*?</header>", " ", html, flags=re.IGNORECASE)
             html = re.sub(r"<!--[\s\S]*?-->", " ", html)
-            
+
             # Extract plain text
             text = re.sub(r"<[^>]+>", " ", html)
             text = re.sub(r"\s+", " ", text).strip()
-            
+
             if len(text) > max_length:
                 text = text[:max_length] + "\n...[Konten web dipotong sesuai batas maksimal]"
-                
+
             return {
                 "status": "success",
                 "url": url,
@@ -738,7 +732,7 @@ def save_knowledge_memory(key_topic: str, content: str, category: str = "general
     """
     Save or update an important fact, user preference, project detail, or note into persistent long-term memory.
     Use this tool whenever the user tells you to remember something, or when important facts about the user/project are shared.
-    
+
     Args:
         key_topic: Short title or identifier for this memory (e.g. 'user_work_hours', 'project_stack', 'trading_rules').
         content: The detailed information to remember.
@@ -759,7 +753,7 @@ def search_knowledge_memory(query: str) -> Dict[str, Any]:
     """
     Search the persistent long-term memory for previously saved facts, user preferences, or notes.
     Use this tool when answering questions about user preferences, stored projects, or past instructions.
-    
+
     Args:
         query: Keyword or phrase to look up.
     """
@@ -774,7 +768,7 @@ def search_knowledge_memory(query: str) -> Dict[str, Any]:
 def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -> Dict[str, Any]:
     """
     Read the text content of a local file on the system safely.
-    
+
     Args:
         file_path: Absolute or relative path to the file.
         max_lines: Maximum number of lines to read (default: 300).
@@ -788,21 +782,21 @@ def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -
 
         if not os.path.exists(expanded_path):
             return {"status": "error", "message": f"File tidak ditemukan: {file_path}"}
-        
+
         if os.path.isdir(expanded_path):
             files = os.listdir(expanded_path)
             return {"status": "is_directory", "files": files[:50], "total": len(files)}
 
         with open(expanded_path, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
-            
+
         total_lines = len(lines)
         start_idx = max(0, start_line - 1)
         end_idx = min(total_lines, start_idx + max_lines)
         selected_lines = lines[start_idx:end_idx]
-        
+
         numbered_content = "".join([f"{i+1}: {line}" for i, line in enumerate(selected_lines, start=start_idx)])
-            
+
         return {
             "status": "success",
             "file_path": expanded_path,
@@ -817,7 +811,7 @@ def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -
 def write_local_file(file_path: str, content: str) -> Dict[str, Any]:
     """
     Write or create a text file on the local system.
-    
+
     Args:
         file_path: Path to the target file.
         content: Text content to write.
@@ -1054,7 +1048,7 @@ def apply_unified_diff(file_path: str, diff_text: str) -> Dict[str, Any]:
 def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int = 30) -> Dict[str, Any]:
     """
     Search for files and directories matching a glob pattern (e.g. '*.py', '*.json', 'bot*').
-    
+
     Args:
         pattern: Glob pattern to search.
         base_dir: Root search directory (default: user home).
@@ -1088,7 +1082,7 @@ def search_workspace_files(pattern: str, base_dir: str = "~", max_results: int =
 def grep_workspace(query: str, base_dir: str = "~", file_pattern: str = "") -> Dict[str, Any]:
     """
     Search for text or regex pattern inside files across workspace.
-    
+
     Args:
         query: String or regex query to find.
         base_dir: Search directory.
@@ -1126,14 +1120,14 @@ def grep_workspace(query: str, base_dir: str = "~", file_pattern: str = "") -> D
                     except OSError:
                         continue
             return {"status": "success", "matches_count": len(matches), "results": matches[:30]}
-        cmd = ["grep", "-rnI", "--exclude-dir={.git,venv,node_modules,__pycache__}"]
+        cmd = ["grep", "-rnI", "--exclude-dir={.git, venv, node_modules, __pycache__}"]
         if file_pattern:
             cmd.append(f"--include={file_pattern}")
         cmd.extend([query, root_dir])
 
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
         lines = res.stdout.strip().split("\n") if res.stdout.strip() else []
-        
+
         return {
             "status": "success",
             "matches_count": len(lines),
@@ -1261,7 +1255,7 @@ def _index_one_file(fpath: str, root: str):
     return (fpath, rows)
 
 
-def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml") -> Dict[str, Any]:
+def index_codebase(repo_path: str, file_extensions: str = "py, js, ts, tsx, jsx, go, rs, java, c,cpp, h,md, json, yaml, yml, toml") -> Dict[str, Any]:
     """
     Build/refresh a full-text INDEX of a repository so later searches are fast
     and context-aware (RAG-style retrieval without external services).
@@ -1422,9 +1416,9 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[st
 def schedule_reminder(reminder_time_iso: str, message: str) -> Dict[str, Any]:
     """
     Schedule a future proactive reminder or alert that the bot will send directly to Telegram.
-    
+
     Args:
-        reminder_time_iso: The target time in ISO format (YYYY-MM-DDTHH:MM:SS), e.g. '2026-08-19T08:00:00'.
+        reminder_time_iso: The target time in ISO format (YYYY-MM-DDTHH:MM:SS), e.g. '2026 - 08 - 19T08:00:00'.
         message: The reminder message content.
     """
     try:
@@ -1572,18 +1566,18 @@ def capture_webcam_frame() -> Dict[str, Any]:
                 os.remove(cam_path)
             except OSError:
                 pass
-                
+
         import cv2
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             return {"status": "error", "message": "Perangkat webcam tidak dapat diakses atau tidak terdeteksi (/dev/video0)."}
-        
+
         # Warmup camera frames
         for _ in range(5):
             ret, frame = cap.read()
         ret, frame = cap.read()
         cap.release()
-        
+
         if ret and frame is not None:
             cv2.imwrite(cam_path, frame)
             return {
@@ -1661,11 +1655,11 @@ def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
     camofox_bin = _find_camofox_bin()
     if not camofox_bin:
         return {"success": False, "error": "Camofox CLI binary tidak ditemukan di sistem."}
-        
+
     env = os.environ.copy()
     api_key = os.environ.get("CAMOFOX_API_KEY", "7edc51a9e8b2401f98bc43d105ef5f68")
     env["CAMOFOX_API_KEY"] = api_key
-    
+
     cmd = [camofox_bin] + args
     try:
         res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=30)
@@ -1686,7 +1680,7 @@ def browser_open_url(url: str) -> Dict[str, Any]:
     """
     Open a web page in the Camofox stealth browser engine and return its accessibility element tree snapshot.
     Use this tool when the user asks to open a website, browse a web page, fill forms, or interact with web elements.
-    
+
     Args:
         url: Full web URL to open (e.g. 'https://github.com/trending', 'https://news.ycombinator.com').
     """
@@ -1694,7 +1688,7 @@ def browser_open_url(url: str) -> Dict[str, Any]:
         res = _run_camofox_cli(["open", url])
         if not res.get("success"):
             return {"status": "error", "message": res.get("stderr") or res.get("error")}
-        
+
         # Take snapshot immediately
         snap = _run_camofox_cli(["snapshot"])
         return {
@@ -1709,7 +1703,7 @@ def browser_open_url(url: str) -> Dict[str, Any]:
 def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:
     """
     Click an interactive button, link, checkbox, or element on the active Camofox browser page by its reference.
-    
+
     Args:
         element_ref: Element ref identifier (e.g. 'e1', 'e2', 'e15') from the browser snapshot or CSS selector.
         tab_id: Optional specific tab ID.
@@ -1718,17 +1712,17 @@ def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:
         args = ["click", element_ref]
         if tab_id:
             args.append(tab_id)
-            
+
         res = _run_camofox_cli(args)
         if not res.get("success"):
             return {"status": "error", "message": res.get("stderr") or res.get("error")}
-            
+
         # Get updated snapshot after click
         snap_args = ["snapshot"]
         if tab_id:
             snap_args.append(tab_id)
         snap = _run_camofox_cli(snap_args)
-        
+
         return {
             "status": "success",
             "message": f"Elemen '{element_ref}' berhasil diklik.",
@@ -1741,7 +1735,7 @@ def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:
 def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> Dict[str, Any]:
     """
     Type text into an input field or search bar on the active Camofox browser page.
-    
+
     Args:
         element_ref: Element ref identifier (e.g. 'e3') or selector of the input field.
         text: String text to type into the input field.
@@ -1751,11 +1745,11 @@ def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> Dict[str
         args = ["type", element_ref, text]
         if tab_id:
             args.append(tab_id)
-            
+
         res = _run_camofox_cli(args)
         if not res.get("success"):
             return {"status": "error", "message": res.get("stderr") or res.get("error")}
-            
+
         return {
             "status": "success",
             "message": f"Teks berhasil diketik ke elemen '{element_ref}'."
@@ -1767,7 +1761,7 @@ def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> Dict[str
 def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
     """
     Take a screenshot of the current Camofox browser page and automatically send it to the Telegram chat.
-    
+
     Args:
         tab_id: Optional tab ID.
     """
@@ -1775,16 +1769,16 @@ def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
         args = ["screenshot"]
         if tab_id:
             args.append(tab_id)
-            
+
         res = _run_camofox_cli(args)
         if not res.get("success"):
             return {"status": "error", "message": res.get("stderr") or res.get("error")}
-            
+
         out = res.get("stdout", "")
         # Camofox returns "path: ~/.camofox/screenshots/..."
         import shutil
         target_path = os.path.join(SANDBOX_DIR, "browser_screenshot.png")
-        
+
         for line in out.splitlines():
             if line.startswith("path:"):
                 src_path = line.replace("path:", "").strip()
@@ -1795,7 +1789,7 @@ def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
                         "message": "Screenshot browser berhasil diambil dan akan dikirim ke Telegram.",
                         "file_path": target_path
                     }
-                    
+
         return {"status": "success", "message": "Screenshot browser berhasil diproses.", "raw_output": out}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1804,7 +1798,7 @@ def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
 def browser_close_tab(tab_id: str = "") -> Dict[str, Any]:
     """
     Close the active or specified Camofox browser tab.
-    
+
     Args:
         tab_id: Optional tab ID (defaults to active tab).
     """
@@ -1825,7 +1819,7 @@ def desktop_click_coordinate(x: int, y: int, button: str = "left", clicks: int =
     """
     Simulate a hardware mouse click on specific pixel coordinates (X, Y) on the Linux desktop screen.
     Use this tool for GUI desktop automation (e.g. clicking buttons, icons, or menus on active windows).
-    
+
     Args:
         x: X coordinate pixel on screen (0 to 1920).
         y: Y coordinate pixel on screen (0 to 1080).
@@ -1856,7 +1850,7 @@ def desktop_click_coordinate(x: int, y: int, button: str = "left", clicks: int =
 def desktop_type_keys(text: str = "", hotkey: str = "") -> Dict[str, Any]:
     """
     Type text or press keyboard shortcuts/hotkeys on the active Linux desktop window.
-    
+
     Args:
         text: String of text to type.
         hotkey: Optional key combination (e.g. 'ctrl+c', 'ctrl+v', 'alt+tab', 'Return', 'Escape').
@@ -1867,16 +1861,16 @@ def desktop_type_keys(text: str = "", hotkey: str = "") -> Dict[str, Any]:
             import pyautogui
             pyautogui.hotkey(*keys)
             return {"status": "success", "message": f"Shortcut '{hotkey}' berhasil ditekan."}
-        
+
         if text:
             res = subprocess.run(["ydotool", "type", text], capture_output=True, text=True, timeout=5)
             if res.returncode == 0:
                 return {"status": "success", "message": f"Teks berhasil diketik ke desktop: '{text}'"}
-            
+
             import pyautogui
             pyautogui.write(text)
             return {"status": "success", "message": "Teks berhasil diketik via PyAutoGUI."}
-            
+
         return {"status": "error", "message": "Harus menyertakan text atau hotkey."}
     except Exception as e:
         return {"status": "error", "message": f"Gagal mengetik tombol: {str(e)}"}
@@ -1885,7 +1879,7 @@ def desktop_type_keys(text: str = "", hotkey: str = "") -> Dict[str, Any]:
 def desktop_launch_app(app_name_or_command: str) -> Dict[str, Any]:
     """
     Launch a Linux GUI software application in the background (e.g. 'code', 'brave-browser', 'spotify', 'nautilus').
-    
+
     Args:
         app_name_or_command: Application executable name or command.
     """
@@ -1907,7 +1901,7 @@ def spawn_background_subagent(task_description: str, agent_role: str = "Research
     Spawn an autonomous background subagent worker to solve a complex, long-running task
     (e.g. deep research, scraping multiple sources, data analysis, codebase audits)
     independently without blocking the user. When finished, the subagent sends a full report to Telegram.
-    
+
     Args:
         task_description: Complete detailed instructions for the subagent.
         agent_role: Specialized title or job role (e.g. 'Deep Web Researcher', 'Python Coder', 'Security Auditor').
@@ -1924,7 +1918,7 @@ def spawn_background_subagent(task_description: str, agent_role: str = "Research
 def check_subagent_status(subagent_id: str) -> Dict[str, Any]:
     """
     Check the execution status and report of a spawned background subagent by its task ID.
-    
+
     Args:
         subagent_id: The task ID (e.g. 'sub_1a2b3c4d').
     """
@@ -1941,7 +1935,7 @@ def add_recurring_task(title: str, prompt_instruction: str, interval_minutes: in
     """
     Schedule an autonomous recurring task or proactive watchdog (e.g. monitor server stats every 30m, check crypto price every 15m, daily tech news briefing every 1440m).
     The AI will automatically run this instruction periodically and send the result to Telegram!
-    
+
     Args:
         title: Short descriptive name for this task.
         prompt_instruction: The exact prompt/action for the AI agent to execute on each interval.
@@ -1981,7 +1975,7 @@ def list_recurring_tasks() -> Dict[str, Any]:
 def cancel_recurring_task(task_id: int) -> Dict[str, Any]:
     """
     Cancel and delete a scheduled recurring task or watchdog by its ID.
-    
+
     Args:
         task_id: The ID of the recurring task.
     """
@@ -2009,7 +2003,7 @@ def get_pdf_output_dir(subfolder: str) -> str:
 def generate_pdf_report(title: str, summary: str, table_data_json: str = "", filename: str = "laporan.pdf") -> Dict[str, Any]:
     """
     Generate a modern, beautifully styled PDF document report with ReportLab and automatically send it to Telegram.
-    
+
     Args:
         title: Main document title (e.g. 'Laporan Analisis Kinerja Server', 'Rangkuman Riset Pasar').
         summary: Paragraphs of text explaining the findings, recommendations, or content.
@@ -2023,7 +2017,7 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
-        
+
         table_data = None
         if table_data_json:
             if isinstance(table_data_json, str):
@@ -2033,14 +2027,14 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
                     table_data = None
             elif isinstance(table_data_json, list):
                 table_data = table_data_json
-        
+
         out_dir = get_pdf_output_dir("Reports")
         safe_name = filename if filename.endswith(".pdf") else f"{filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         doc = SimpleDocTemplate(target_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
         styles = getSampleStyleSheet()
-        
+
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -2049,7 +2043,7 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
             textColor=colors.HexColor('#1E3A8A'),
             spaceAfter=15
         )
-        
+
         body_style = ParagraphStyle(
             'CustomBody',
             parent=styles['Normal'],
@@ -2058,36 +2052,36 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
             textColor=colors.HexColor('#334155'),
             spaceAfter=10
         )
-        
+
         elements = [
             Paragraph(f"<b>{title}</b>", title_style),
             Spacer(1, 10),
         ]
-        
+
         for paragraph in summary.split("\n\n"):
             if paragraph.strip():
                 clean_p = paragraph.strip().replace("\n", "<br/>")
                 elements.append(Paragraph(clean_p, body_style))
                 elements.append(Spacer(1, 8))
-                
+
         if table_data and len(table_data) > 0:
             elements.append(Spacer(1, 12))
             t = Table(table_data, style=[
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0,0), (-1,0), 10),
-                ('BOTTOMPADDING', (0,0), (-1,0), 8),
-                ('TOPPADDING', (0,0), (-1,0), 8),
-                ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#F8FAFC')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                ('FONTSIZE', (0,1), (-1,-1), 9),
-                ('TOPPADDING', (0,1), (-1,-1), 6),
-                ('BOTTOMPADDING', (0,1), (-1,-1), 6),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1,-1), colors.HexColor('#F8FAFC')),
+                ('GRID', (0, 0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                ('ALIGN', (0, 0), (-1,-1), 'LEFT'),
+                ('FONTSIZE', (0, 1), (-1,-1), 9),
+                ('TOPPADDING', (0, 1), (-1,-1), 6),
+                ('BOTTOMPADDING', (0, 1), (-1,-1), 6),
             ])
             elements.append(t)
-            
+
         doc.build(elements)
         return {
             "status": "success",
@@ -2106,7 +2100,7 @@ def generate_pdf_report(title: str, summary: str, table_data_json: str = "", fil
 def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf") -> Dict[str, Any]:
     """
     Gabungkan beberapa file PDF menjadi satu dokumen PDF utuh.
-    
+
     Args:
         pdf_paths: Daftar path file PDF yang ingin digabungkan (misal: ['/tmp/doc1.pdf', '/tmp/doc2.pdf']).
         output_filename: Nama file PDF hasil penggabungan (misal: 'merged_dokumen.pdf').
@@ -2116,11 +2110,11 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
         out_dir = get_pdf_output_dir("Merge")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         writer = PdfWriter()
         merged_count = 0
         total_pages = 0
-        
+
         for p in pdf_paths:
             exp_p = os.path.expanduser(p.strip())
             if not os.path.exists(exp_p):
@@ -2130,13 +2124,13 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
                 writer.add_page(page)
                 total_pages += 1
             merged_count += 1
-            
+
         if merged_count == 0:
             return {"status": "error", "message": "Tidak ada file PDF valid yang ditemukan untuk digabungkan."}
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"Berhasil menggabungkan {merged_count} file PDF menjadi {total_pages} halaman di folder Dokumen/ALFA_PDF_TOOLS/Merge/.",
@@ -2152,8 +2146,8 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
 
 def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "") -> Dict[str, Any]:
     """
-    Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1-3, 5, 8-10').
-    
+    Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1 - 3, 5, 8 - 10').
+
     Args:
         pdf_path: Path ke file PDF yang ingin dipecah.
         page_ranges: Rentang halaman yang ingin diekstrak (kosongkan untuk memecah semua halaman per file).
@@ -2166,14 +2160,14 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
-            
+
         base_stem = Path(exp_p).stem
         target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(get_pdf_output_dir("Split"), base_stem)
         os.makedirs(target_dir, exist_ok=True)
-        
+
         reader = PdfReader(exp_p)
         total = len(reader.pages)
-        
+
         indices = []
         if page_ranges:
             for part in page_ranges.split(","):
@@ -2190,7 +2184,7 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
             indices = sorted(list(set(indices)))
         else:
             indices = list(range(total))
-            
+
         output_files = []
         for idx in indices:
             writer = PdfWriter()
@@ -2199,7 +2193,7 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
             with open(out_file, "wb") as f_out:
                 writer.write(f_out)
             output_files.append(out_file)
-            
+
         return {
             "status": "success",
             "message": f"Berhasil memecah PDF menjadi {len(output_files)} file halaman di Dokumen/ALFA_PDF_TOOLS/Split/{base_stem}/.",
@@ -2214,17 +2208,17 @@ def pdf_split_document(pdf_path: str, page_ranges: str = "", output_dir: str = "
 def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, Any]:
     """
     Ekstrak teks lengkap dari dokumen PDF secara bersih dan terstruktur serta simpan salinan file .txt.
-    
+
     Args:
         pdf_path: Path ke file PDF yang ingin dibaca teksnya.
-        page_numbers: Opsi nomor halaman spesifik (misal '1,2,5' atau '1-4').
+        page_numbers: Opsi nomor halaman spesifik (misal '1, 2,5' atau '1 - 4').
     """
     try:
         from pathlib import Path
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File PDF '{pdf_path}' tidak ditemukan."}
-            
+
         extracted_pages = []
         import pdfplumber
         with pdfplumber.open(exp_p) as pdf:
@@ -2242,20 +2236,20 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
                         if 0 <= idx < total_pages:
                             req_indices.append(idx)
                 indices = sorted(list(set(req_indices)))
-                
+
             for idx in indices:
                 t = pdf.pages[idx].extract_text() or ""
                 extracted_pages.append(f"--- [Halaman {idx+1}/{total_pages}] ---\n{t.strip()}")
-                
+
         full_text = "\n\n".join(extracted_pages)
-        
+
         # Save to Dokumen/ALFA_PDF_TOOLS/Extract_Text/
         out_dir = get_pdf_output_dir("Extract_Text")
         txt_filename = f"{Path(exp_p).stem}_extracted.txt"
         target_path = os.path.join(out_dir, txt_filename)
         with open(target_path, "w", encoding="utf-8") as f_txt:
             f_txt.write(full_text)
-            
+
         return {
             "status": "success",
             "message": f"Teks berhasil diekstrak dan disimpan di Dokumen/ALFA_PDF_TOOLS/Extract_Text/{txt_filename}.",
@@ -2296,7 +2290,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
 def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "protected.pdf") -> Dict[str, Any]:
     """
     Lindungi dan kunci file PDF dengan password menggunakan enkripsi kuat AES-256.
-    
+
     Args:
         pdf_path: Path ke file PDF yang ingin dienkripsi.
         password: Password pengunci dokumen.
@@ -2307,20 +2301,20 @@ def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "p
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Encrypt")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         reader = PdfReader(exp_p)
         writer = PdfWriter()
         for p in reader.pages:
             writer.add_page(p)
-            
+
         writer.encrypt(user_password=password, owner_password=password, algorithm="AES-256")
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"Dokumen PDF berhasil dienkripsi dengan AES-256 di Dokumen/ALFA_PDF_TOOLS/Encrypt/{safe_name}.",
@@ -2334,7 +2328,7 @@ def pdf_encrypt_password(pdf_path: str, password: str, output_filename: str = "p
 def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "unlocked.pdf") -> Dict[str, Any]:
     """
     Buka kunci PDF yang terproteksi password dan simpan salinan tanpa password.
-    
+
     Args:
         pdf_path: Path ke file PDF terenkripsi.
         password: Password yang digunakan untuk membuka kunci.
@@ -2345,24 +2339,24 @@ def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "u
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Decrypt")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         reader = PdfReader(exp_p)
         if reader.is_encrypted:
             res = reader.decrypt(password)
             if not res:
                 return {"status": "error", "message": "Password salah atau PDF tidak dapat didekripsi."}
-                
+
         writer = PdfWriter()
         for p in reader.pages:
             writer.add_page(p)
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"PDF berhasil didekripsi di Dokumen/ALFA_PDF_TOOLS/Decrypt/{safe_name}.",
@@ -2376,11 +2370,11 @@ def pdf_decrypt_password(pdf_path: str, password: str, output_filename: str = "u
 def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", output_filename: str = "rotated.pdf") -> Dict[str, Any]:
     """
     Putar orientasi halaman PDF (90, 180, atau 270 derajat searah jarum jam).
-    
+
     Args:
         pdf_path: Path ke file PDF.
         angle: Sudut putar (90, 180, 270).
-        page_numbers: Halaman tertentu yang ingin diputar (misal '1,3-5', kosongkan untuk semua).
+        page_numbers: Halaman tertentu yang ingin diputar (misal '1, 3 - 5', kosongkan untuk semua).
         output_filename: Nama file output.
     """
     try:
@@ -2388,15 +2382,15 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Rotate")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         reader = PdfReader(exp_p)
         writer = PdfWriter()
         total = len(reader.pages)
-        
+
         target_indices = list(range(total))
         if page_numbers:
             req = []
@@ -2410,15 +2404,15 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
                     if 0 <= idx < total:
                         req.append(idx)
             target_indices = list(set(req))
-            
+
         for i, page in enumerate(reader.pages):
             if i in target_indices:
                 page.rotate(angle)
             writer.add_page(page)
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"Berhasil memutar {len(target_indices)} halaman PDF sebesar {angle}° di Dokumen/ALFA_PDF_TOOLS/Rotate/{safe_name}.",
@@ -2432,7 +2426,7 @@ def pdf_rotate_pages(pdf_path: str, angle: int = 90, page_numbers: str = "", out
 def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float = 0.2, angle: float = 45, output_filename: str = "watermarked.pdf") -> Dict[str, Any]:
     """
     Tambahkan stempel watermark teks diagonal transparan ke setiap halaman PDF.
-    
+
     Args:
         pdf_path: Path ke file PDF asli.
         watermark_text: Teks watermark (misal 'CONFIDENTIAL', 'RAHASIA DOKUMEN', 'DRAFT').
@@ -2447,15 +2441,15 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
         from reportlab.lib.colors import HexColor
         from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas as rl_canvas
-        
+
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Watermark")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         packet = io.BytesIO()
         can = rl_canvas.Canvas(packet, pagesize=A4)
         can.setFont("Helvetica-Bold", 45)
@@ -2468,18 +2462,18 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
         can.restoreState()
         can.save()
         packet.seek(0)
-        
+
         wm_page = PdfReader(packet).pages[0]
         reader = PdfReader(exp_p)
         writer = PdfWriter()
-        
+
         for p in reader.pages:
             p.merge_page(wm_page)
             writer.add_page(p)
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"Watermark '{watermark_text}' berhasil ditempelkan di Dokumen/ALFA_PDF_TOOLS/Watermark/{safe_name}.",
@@ -2493,7 +2487,7 @@ def pdf_apply_watermark_text(pdf_path: str, watermark_text: str, opacity: float 
 def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", start_number: int = 1, output_filename: str = "numbered.pdf") -> Dict[str, Any]:
     """
     Sematkan penomoran halaman otomatis pada dokumen PDF.
-    
+
     Args:
         pdf_path: Path ke file PDF.
         position: Posisi nomor ('bottom-center', 'bottom-right', 'bottom-left', 'top-right', 'top-center').
@@ -2506,19 +2500,19 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
         from pypdf import PdfReader, PdfWriter
         from reportlab.lib.colors import HexColor
         from reportlab.pdfgen import canvas as rl_canvas
-        
+
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Page_Numbers")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         reader = PdfReader(exp_p)
         writer = PdfWriter()
         total = len(reader.pages)
-        
+
         for i, page in enumerate(reader.pages):
             w = float(page.mediabox.width)
             h = float(page.mediabox.height)
@@ -2526,7 +2520,7 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
             can = rl_canvas.Canvas(packet, pagesize=(w, h))
             can.setFont("Helvetica", 10)
             can.setFillColor(HexColor("#334155"))
-            
+
             num_str = f"Halaman {start_number + i} dari {total}"
             positions = {
                 "bottom-center": (w / 2, 25),
@@ -2539,14 +2533,14 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
             can.drawCentredString(x, y, num_str)
             can.save()
             packet.seek(0)
-            
+
             num_page = PdfReader(packet).pages[0]
             page.merge_page(num_page)
             writer.add_page(page)
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         return {
             "status": "success",
             "message": f"Nomor halaman berhasil ditambahkan di Dokumen/ALFA_PDF_TOOLS/Page_Numbers/{safe_name}.",
@@ -2560,7 +2554,7 @@ def pdf_insert_page_numbers(pdf_path: str, position: str = "bottom-center", star
 def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -> Dict[str, Any]:
     """
     Konversi seluruh halaman PDF menjadi gambar PNG resolusi tinggi.
-    
+
     Args:
         pdf_path: Path ke file PDF.
         dpi: Kerapatan resolusi gambar (default 150 DPI).
@@ -2571,19 +2565,19 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         base_name = Path(exp_p).stem
         target_dir = os.path.expanduser(output_dir.strip()) if output_dir else os.path.join(get_pdf_output_dir("PDF_to_Images"), base_name)
         os.makedirs(target_dir, exist_ok=True)
-        
+
         out_prefix = os.path.join(target_dir, f"{base_name}_page")
-        
+
         cmd = ["pdftoppm", "-png", "-r", str(dpi), exp_p, out_prefix]
         subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
         generated_images = [os.path.join(target_dir, f) for f in os.listdir(target_dir) if f.startswith(f"{base_name}_page") and f.endswith(".png")]
         generated_images.sort()
-        
+
         return {
             "status": "success",
             "message": f"Berhasil merender {len(generated_images)} halaman PDF menjadi gambar PNG di Dokumen/ALFA_PDF_TOOLS/PDF_to_Images/{base_name}/.",
@@ -2597,7 +2591,7 @@ def pdf_convert_to_images(pdf_path: str, dpi: int = 150, output_dir: str = "") -
 def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images_album.pdf") -> Dict[str, Any]:
     """
     Gabungkan kumpulan file foto/gambar (JPG, PNG, WEBP) menjadi satu dokumen PDF rapi.
-    
+
     Args:
         image_paths: Daftar path file gambar yang ingin digabungkan ke PDF.
         output_filename: Nama file output PDF.
@@ -2607,21 +2601,21 @@ def images_convert_to_pdf(image_paths: List[str], output_filename: str = "images
         out_dir = get_pdf_output_dir("Images_to_PDF")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
-        
+
         opened_images = []
         for p in image_paths:
             exp_p = os.path.expanduser(p.strip())
             if os.path.exists(exp_p):
                 img = Image.open(exp_p).convert("RGB")
                 opened_images.append(img)
-                
+
         if not opened_images:
             return {"status": "error", "message": "Tidak ada file gambar valid yang ditemukan."}
-            
+
         first = opened_images[0]
         rest = opened_images[1:] if len(opened_images) > 1 else []
         first.save(target_path, "PDF", resolution=100.0, save_all=True, append_images=rest)
-        
+
         return {
             "status": "success",
             "message": f"Berhasil mengubah {len(opened_images)} gambar menjadi PDF di Dokumen/ALFA_PDF_TOOLS/Images_to_PDF/{safe_name}.",
@@ -2641,7 +2635,7 @@ def upscale_image_hd(
 ) -> Dict[str, Any]:
     """
     Perbesar (scale / upscale / super-resolution) resolusi gambar/foto 2x, 4x, atau 8x dengan AI Waifu2x Engine atau Lanczos HD Enhancement.
-    
+
     Args:
         image_path: Path ke file gambar (PNG, JPG, WEBP, BMP).
         scale: Faktor perbesaran (2, 4, atau 8, default: 2).
@@ -2677,14 +2671,14 @@ def upscale_image_hd(
         # 1. Try waifu2x-ncnn-vulkan if requested or auto
         waifu_bin = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux/waifu2x-ncnn-vulkan"
         model_dir = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux"
-        
+
         if mode in ("waifu2x_anime", "waifu2x_photo", "auto") and os.path.exists(waifu_bin):
             selected_model = "models-cunet"
             if mode == "waifu2x_anime":
                 selected_model = "models-upconv_7_anime_style_art_rgb"
             elif mode == "waifu2x_photo":
                 selected_model = "models-upconv_7_photo"
-            
+
             cmd = [
                 waifu_bin,
                 "-i", exp_p,
@@ -2739,7 +2733,7 @@ def upscale_image_hd(
 def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
     """
     Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata) dan simpan salinan JSON.
-    
+
     Args:
         pdf_path: Path ke file PDF yang ingin diinspeksi.
     """
@@ -2750,14 +2744,14 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         reader = PdfReader(exp_p)
         meta = reader.metadata or {}
-        
+
         first_page = reader.pages[0] if reader.pages else None
         width_pt = float(first_page.mediabox.width) if first_page else 0
         height_pt = float(first_page.mediabox.height) if first_page else 0
-        
+
         info = {
             "status": "success",
             "file_name": os.path.basename(exp_p),
@@ -2771,14 +2765,14 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
             "creator": meta.get("/Creator") or meta.creator or "N/A",
             "producer": meta.get("/Producer") or meta.producer or "N/A"
         }
-        
+
         # Save json copy to Dokumen/ALFA_PDF_TOOLS/Inspect/
         out_dir = get_pdf_output_dir("Inspect")
         json_file = os.path.join(out_dir, f"{Path(exp_p).stem}_metadata.json")
         with open(json_file, "w", encoding="utf-8") as f_j:
             json.dump(info, f_j, indent=2, default=str)
         info["saved_json_path"] = json_file
-        
+
         return info
     except Exception as e:
         return {"status": "error", "message": f"Gagal inspeksi PDF: {str(e)}"}
@@ -2787,7 +2781,7 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
 def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.pdf") -> Dict[str, Any]:
     """
     Kompresi dan optimalkan ukuran file PDF dengan mereduksi stream konten dan metadata berlebih.
-    
+
     Args:
         pdf_path: Path ke file PDF yang ingin dikompres.
         output_filename: Nama file output hasil kompresi.
@@ -2797,24 +2791,24 @@ def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.
         exp_p = os.path.expanduser(pdf_path.strip())
         if not os.path.exists(exp_p):
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
-            
+
         out_dir = get_pdf_output_dir("Compress")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
         orig_size = os.path.getsize(exp_p)
-        
+
         reader = PdfReader(exp_p)
         writer = PdfWriter()
         for p in reader.pages:
             p.compress_content_streams()
             writer.add_page(p)
-            
+
         with open(target_path, "wb") as f_out:
             writer.write(f_out)
-            
+
         new_size = os.path.getsize(target_path)
         savings_pct = max(0, round((orig_size - new_size) / orig_size * 100, 1)) if orig_size > 0 else 0
-        
+
         return {
             "status": "success",
             "message": f"PDF berhasil dikompresi di Dokumen/ALFA_PDF_TOOLS/Compress/{safe_name}. Hemat {savings_pct}% ruang penyimpanan.",
@@ -2835,7 +2829,7 @@ def pdf_compress_and_optimize(pdf_path: str, output_filename: str = "compressed.
 def affiliate_hunt_trending_products(niche: str = "gadget unik murah", platform: str = "shopee") -> Dict[str, Any]:
     """
     Riset tren produk dan kata kunci viral untuk niche affiliate Shopee / TikTok Shop (Dikelola oleh Researcher Prime).
-    
+
     Args:
         niche: Kategori atau kata kunci produk (misal: 'gadget unik murah', 'peralatan dapur estetik', 'fashion pria korea').
         platform: Platform target ('shopee', 'tiktok', 'lazada').
@@ -2859,7 +2853,7 @@ def affiliate_generate_viral_content(
 ) -> Dict[str, Any]:
     """
     Hasilkan paket copywriting viral lengkap: Script Video TikTok (Hook 3s, Story, CTA), Telegram Deals Card, WhatsApp Broadcast, dan Auto-Reply 'Spill Link' (Dikelola oleh Strategic Planner).
-    
+
     Args:
         product_name: Nama produk (misal: 'Mini Powerbank Kapsul Fast Charging 5000mAh').
         key_features: Keunggulan dan spesifikasi utama produk dipisah koma.
@@ -2893,7 +2887,7 @@ def affiliate_broadcast_deal(
 ) -> Dict[str, Any]:
     """
     Kirimkan penawaran diskon affiliate secara otomatis ke Telegram Channel atau broadcast WhatsApp (Dikelola oleh Code Crafter).
-    
+
     Args:
         product_name: Nama produk yang dipromosikan.
         message_text: Teks copywriting promosi lengkap.
@@ -2918,7 +2912,7 @@ def affiliate_broadcast_deal(
 def affiliate_list_campaigns(limit: int = 15) -> Dict[str, Any]:
     """
     Lihat rekap histori campaign dan script affiliate yang aktif (Dikelola oleh Alpha Lead).
-    
+
     Args:
         limit: Jumlah campaign yang ingin ditampilkan.
     """
@@ -2943,7 +2937,7 @@ def scrape_real_product_data(url: str, engine: str = "auto") -> Dict[str, Any]:
     """
     Scrape data produk real dari Shopee, TikTok Shop, Tokopedia, atau website manapun menggunakan Camoufox Anti-Detect Browser atau Fast TLS.
     Bypass proteksi Cloudflare, bot detector, dan dynamic javascript rendering.
-    
+
     Args:
         url: Link produk atau halaman yang ingin discrape.
         engine: Pilihan engine ('auto', 'camoufox', 'fast_tls').
@@ -2974,7 +2968,7 @@ def scrape_large_scale_batch(
     """
     Scraping paralel skala besar untuk puluhan hingga ribuan URL sekaligus dengan kecepatan sangat tinggi.
     Hasil otomatis diekspor ke file JSON dan CSV di ~/Dokumen/ALFA_SCRAPER_DATA/.
-    
+
     Args:
         urls: Daftar URL yang ingin discrape secara massal.
         batch_name: Nama batch untuk penamaan file ekspor.
@@ -2997,7 +2991,7 @@ def scrape_large_scale_batch(
 def marketplace_search_products(query: str, platform: str = "shopee", max_items: int = 15) -> Dict[str, Any]:
     """
     Cari dan scrape katalog produk real dari marketplace (Shopee, TikTok Shop, Tokopedia) berdasarkan kata kunci pencarian.
-    
+
     Args:
         query: Kata kunci pencarian produk (misal: 'powerbank mini fast charge', 'lampu tidur estetik').
         platform: Marketplace target ('shopee', 'tiktok', 'tokopedia', 'lazada').
@@ -3033,7 +3027,7 @@ def generate_promo_video_from_images(
     Generate video promosi produk otomatis format 9:16 (1080x1920) untuk TikTok / Reels / Shorts hanya dari foto produk.
     Dilengkapi prompt visual sinematik detail, animasi zoompan Ken Burns, dubbing voiceover AI bahasa Indonesia, dan banner flash sale diskon.
     Hasil otomatis tersimpan di ~/Dokumen/ALFA_GENERATED_VIDEOS/.
-    
+
     Args:
         image_paths: Daftar path file foto produk di komputer (bisa 1 atau banyak foto).
         product_name: Nama produk yang dipromosikan.
@@ -3072,7 +3066,7 @@ def generate_promo_video_from_images(
 def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: str, filename: str = "data.xlsx") -> Dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
-    
+
     Args:
         sheet_title: Name of the worksheet tab.
         headers: List of column header names (e.g. ['Nama', 'Kategori', 'Harga', 'Jumlah']).
@@ -3085,14 +3079,14 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
         import openpyxl
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter
-        
+
         safe_name = filename if filename.endswith(".xlsx") else f"{filename}.xlsx"
         target_path = os.path.join(SANDBOX_DIR, safe_name)
-        
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = sheet_title[:30]
-        
+
         header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
         header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
         thin_border = Border(
@@ -3101,7 +3095,7 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
             top=Side(style='thin', color='CBD5E1'),
             bottom=Side(style='thin', color='CBD5E1')
         )
-        
+
         ws.append(headers)
         for col_num in range(1, len(headers) + 1):
             cell = ws.cell(row=1, column=col_num)
@@ -3109,7 +3103,7 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = thin_border
-            
+
         rows_data = []
         if isinstance(rows_json, str):
             try:
@@ -3118,19 +3112,19 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
                 rows_data = []
         elif isinstance(rows_json, list):
             rows_data = rows_json
-            
+
         for row_data in rows_data:
             ws.append(row_data)
             row_idx = ws.max_row
             for col_num in range(1, len(row_data) + 1):
                 cell = ws.cell(row=row_idx, column=col_num)
                 cell.border = thin_border
-                
+
         for col in ws.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
             col_letter = get_column_letter(col[0].column)
             ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
-            
+
         wb.save(target_path)
         return {
             "status": "success",
@@ -3144,7 +3138,7 @@ def generate_excel_spreadsheet(sheet_title: str, headers: List[str], rows_json: 
 def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, filename: str = "presentasi.pptx") -> Dict[str, Any]:
     """
     Generate a clean PowerPoint presentation (.pptx) and send it directly to Telegram.
-    
+
     Args:
         title: Main presentation title.
         subtitle: Subtitle / author note.
@@ -3155,23 +3149,23 @@ def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, file
         import json
 
         from pptx import Presentation
-        
+
         # Accept either a JSON string or an already-parsed list
         slides_content = json.loads(slides_json) if isinstance(slides_json, str) else slides_json
         if not slides_content:
             slides_content = []
         if isinstance(slides_content, dict):
             slides_content = [slides_content]
-        
+
         safe_name = filename if filename.endswith(".pptx") else f"{filename}.pptx"
         target_path = os.path.join(SANDBOX_DIR, safe_name)
-        
+
         prs = Presentation()
         title_layout = prs.slide_layouts[0]
         slide = prs.slides.add_slide(title_layout)
         slide.shapes.title.text = title
         slide.placeholders[1].text = subtitle
-        
+
         bullet_layout = prs.slide_layouts[1]
         for item in slides_content:
             s = prs.slides.add_slide(bullet_layout)
@@ -3186,7 +3180,7 @@ def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, file
                     p = tf.add_paragraph()
                     p.text = str(pt)
                     p.level = 0
-                    
+
         prs.save(target_path)
         return {
             "status": "success",
@@ -3200,7 +3194,7 @@ def generate_presentation_pptx(title: str, subtitle: str, slides_json: str, file
 def control_linux_hardware(action: str, value: str = "") -> Dict[str, Any]:
     """
     Control Linux laptop/server hardware, audio, screen lock, power, Wi-Fi, and media from Telegram.
-    
+
     Args:
         action: Target hardware action. Options:
                 - 'lock_screen': Lock the Linux desktop session immediately.
@@ -3239,7 +3233,7 @@ def control_linux_hardware(action: str, value: str = "") -> Dict[str, Any]:
             return {"status": "success", "message": f"🎵 Perintah media '{act}' berhasil dieksekusi."}
 
         elif act == "wifi_scan":
-            res = subprocess.run("nmcli -f SSID,SIGNAL,SECURITY dev wifi list | head -n 12", shell=True, capture_output=True, text=True, timeout=8)
+            res = subprocess.run("nmcli -f SSID, SIGNAL, SECURITY dev wifi list | head -n 12", shell=True, capture_output=True, text=True, timeout=8)
             return {"status": "success", "wifi_networks": res.stdout.strip() or "Tidak ada jaringan Wi-Fi ditemukan."}
 
         elif act == "bluetooth_status":
@@ -3269,7 +3263,7 @@ def send_file_to_chat(file_path: str, caption: str = "") -> Dict[str, Any]:
     Send an existing file (document, PDF, photo, video, audio, ZIP, code script, data file)
     from the computer filesystem directly to the Telegram user chat.
     Use this tool when the user asks to send, upload, or transfer a specific file from disk to Telegram.
-    
+
     Args:
         file_path: Absolute or relative path to the local file (e.g. '~/Documents/invoice.pdf', '~/Downloads/video.mp4', '~/Downloads/archive.zip', 'bot.py').
         caption: Optional description or caption to accompany the file in chat.
@@ -3279,18 +3273,18 @@ def send_file_to_chat(file_path: str, caption: str = "") -> Dict[str, Any]:
         expanded = os.path.expanduser(file_path)
         if not os.path.isabs(expanded):
             expanded = os.path.join(os.path.expanduser("~"), file_path)
-            
+
         if not os.path.exists(expanded) or not os.path.isfile(expanded):
             return {"status": "error", "message": f"File tidak ditemukan di path: {file_path}"}
-            
+
         file_size_mb = os.path.getsize(expanded) / (1024 * 1024)
         if file_size_mb > 50:
             return {"status": "error", "message": f"Ukuran file ({round(file_size_mb, 1)} MB) melebihi batas upload Telegram Bot API (50 MB)."}
-            
+
         base_name = os.path.basename(expanded)
         dest_path = os.path.join(SANDBOX_DIR, base_name)
         shutil.copyfile(expanded, dest_path)
-        
+
         return {
             "status": "success",
             "message": f"File '{base_name}' ({round(file_size_mb, 2)} MB) berhasil disiapkan dan akan otomatis terkirim ke Telegram.",
@@ -3305,7 +3299,7 @@ def compress_folder_to_zip(folder_path: str, output_filename: str = "archive.zip
     """
     Compress an entire folder/directory into a ZIP archive and send it to Telegram.
     Use this when the user wants to send a whole folder, backup a project, or archive files.
-    
+
     Args:
         folder_path: Path to the folder to compress (e.g. '~/Documents/project', '~/telegram-ai-bot').
         output_filename: Output ZIP filename (default: archive.zip).
@@ -3315,16 +3309,16 @@ def compress_folder_to_zip(folder_path: str, output_filename: str = "archive.zip
         expanded = os.path.expanduser(folder_path)
         if not os.path.isdir(expanded):
             return {"status": "error", "message": f"Folder tidak ditemukan: {folder_path}"}
-        
+
         safe_name = output_filename.replace(".zip", "")
         zip_base = os.path.join(SANDBOX_DIR, safe_name)
         result_path = shutil.make_archive(zip_base, 'zip', expanded)
-        
+
         size_mb = os.path.getsize(result_path) / (1024 * 1024)
         if size_mb > 50:
             os.remove(result_path)
             return {"status": "error", "message": f"Ukuran ZIP ({round(size_mb, 1)} MB) melebihi batas Telegram (50 MB)."}
-        
+
         return {
             "status": "success",
             "message": f"Folder '{os.path.basename(expanded)}' berhasil di-compress menjadi '{safe_name}.zip' ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram.",
@@ -3338,14 +3332,14 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
     """
     Record the desktop screen as an MP4 video for a specified duration and send to Telegram.
     Cross-platform: Windows (ffmpeg gdigrab), Linux (wf-recorder / x11grab).
-    
+
     Args:
-        duration_seconds: Recording duration in seconds (1-60, default: 10).
+        duration_seconds: Recording duration in seconds (1 - 60, default: 10).
     """
     try:
         duration = max(1, min(60, duration_seconds))
         output_path = os.path.join(SANDBOX_DIR, "screen_recording.mp4")
-        
+
         # Windows: ffmpeg dengan capture driver gdigrab
         if os.name == "nt":
             res = subprocess.run(
@@ -3358,7 +3352,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
                 return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
             err = (res.stderr or "")[-300:]
             return {"status": "error", "message": f"Gagal merekam layar via ffmpeg/gdigrab: {err}"}
-        
+
         # Try Wayland wf-recorder first
         res = subprocess.run(
             f"timeout {duration + 2} wf-recorder -d /dev/dri/renderD128 -f {output_path} --duration {duration} 2>/dev/null",
@@ -3367,7 +3361,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
         if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             size_mb = os.path.getsize(output_path) / (1024 * 1024)
             return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
-        
+
         # Fallback to ffmpeg with PipeWire
         res = subprocess.run(
             f"timeout {duration + 5} ffmpeg -y -video_size 1920x1080 -framerate 15 -f x11grab -i :0 -t {duration} -c:v libx264 -preset ultrafast -crf 28 {output_path} 2>/dev/null",
@@ -3376,7 +3370,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             size_mb = os.path.getsize(output_path) / (1024 * 1024)
             return {"status": "success", "message": f"Rekaman layar {duration}s berhasil via ffmpeg ({round(size_mb, 2)} MB)."}
-        
+
         return {"status": "error", "message": "Gagal merekam layar. Pastikan wf-recorder atau ffmpeg terinstall."}
     except subprocess.TimeoutExpired:
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
@@ -3411,7 +3405,7 @@ def read_clipboard() -> Dict[str, Any]:
 def write_to_clipboard(text: str) -> Dict[str, Any]:
     """
     Write/copy text to the desktop clipboard so it can be pasted (Ctrl+V) anywhere.
-    
+
     Args:
         text: The text string to copy to clipboard.
     """
@@ -3437,7 +3431,7 @@ def write_to_clipboard(text: str) -> Dict[str, Any]:
 def show_desktop_notification(title: str, message: str, urgency: str = "normal") -> Dict[str, Any]:
     """
     Show a native desktop popup notification across Linux, macOS, and Windows.
-    
+
     Args:
         title: Notification title.
         message: Notification body text.
@@ -3471,7 +3465,7 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
     """
     Execute a command on a remote Linux server via SSH and return the output.
     Use this for remote server management, deployment, monitoring, etc.
-    
+
     Args:
         host: Remote server hostname or IP address.
         command: Shell command to execute on the remote server.
@@ -3481,25 +3475,25 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
     """
     try:
         import paramiko
-        
+
         ssh_user = username or os.environ.get("USER", "root")
         ssh_key = os.path.expanduser(key_path) if key_path else os.path.expanduser("~/.ssh/id_rsa")
-        
+
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
+
         connect_kwargs = {"hostname": host, "port": port, "username": ssh_user, "timeout": 10}
         if os.path.exists(ssh_key):
             connect_kwargs["key_filename"] = ssh_key
-        
+
         client.connect(**connect_kwargs)
         stdin, stdout, stderr = client.exec_command(command, timeout=30)
-        
+
         out = stdout.read().decode("utf-8", errors="replace").strip()
         err = stderr.read().decode("utf-8", errors="replace").strip()
         exit_code = stdout.channel.recv_exit_status()
         client.close()
-        
+
         return {
             "status": "success",
             "host": host,
@@ -3514,7 +3508,7 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
 def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
     """
     Execute a SQL query on a local SQLite database file and return the results as a table.
-    
+
     Args:
         db_path: Path to the SQLite database file (e.g. '~/data/app.db', 'bot_database.db').
         sql_query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE, etc.).
@@ -3524,12 +3518,12 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
         expanded = os.path.expanduser(db_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"Database file tidak ditemukan: {db_path}"}
-        
+
         conn = sqlite3.connect(expanded)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(sql_query)
-        
+
         query_upper = sql_query.strip().upper()
         if query_upper.startswith("SELECT") or query_upper.startswith("PRAGMA") or query_upper.startswith("WITH"):
             rows = cursor.fetchall()
@@ -3556,7 +3550,7 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
     """
     Send an email via SMTP (supports Gmail, Outlook, custom SMTP servers).
     Requires SMTP_EMAIL and SMTP_PASSWORD environment variables in .env file.
-    
+
     Args:
         to: Recipient email address.
         subject: Email subject line.
@@ -3569,21 +3563,21 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
         from email.mime.base import MIMEBase
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
-        
+
         smtp_email = os.environ.get("SMTP_EMAIL", "")
         smtp_password = os.environ.get("SMTP_PASSWORD", "")
         smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-        
+
         if not smtp_email or not smtp_password:
             return {"status": "error", "message": "SMTP_EMAIL dan SMTP_PASSWORD belum dikonfigurasi di file .env. Tambahkan: SMTP_EMAIL=xxx@gmail.com dan SMTP_PASSWORD=your_app_password"}
-        
+
         msg = MIMEMultipart()
         msg["From"] = smtp_email
         msg["To"] = to
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
-        
+
         if attachment_path:
             expanded = os.path.expanduser(attachment_path)
             if os.path.exists(expanded):
@@ -3593,13 +3587,13 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
                     encoders.encode_base64(part)
                     part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(expanded)}")
                     msg.attach(part)
-        
+
         server = smtplib.SMTP(smtp_host, smtp_port)
         server.starttls()
         server.login(smtp_email, smtp_password)
         server.sendmail(smtp_email, to, msg.as_string())
         server.quit()
-        
+
         return {"status": "success", "message": f"Email berhasil dikirim ke {to} dengan subjek '{subject}'."}
     except Exception as e:
         return {"status": "error", "message": f"Gagal mengirim email: {str(e)}"}
@@ -3608,7 +3602,7 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
 def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
     """
     List currently running processes on the system, sorted by memory usage.
-    
+
     Args:
         filter_name: Optional filter to show only processes matching this name (e.g. 'chrome', 'python', 'code').
     """
@@ -3630,11 +3624,11 @@ def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-        
+
         procs.sort(key=lambda x: x['memory_mb'], reverse=True)
         top = procs[:30]
         total_mem = sum(p['memory_mb'] for p in procs)
-        
+
         return {
             "status": "success",
             "total_processes": len(procs),
@@ -3648,7 +3642,7 @@ def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
 def kill_process(pid_or_name: str) -> Dict[str, Any]:
     """
     Terminate/kill a running process by PID number or process name.
-    
+
     Args:
         pid_or_name: Process ID (e.g. '12345') or process name (e.g. 'chrome', 'firefox', 'spotify').
     """
@@ -3668,7 +3662,7 @@ def kill_process(pid_or_name: str) -> Dict[str, Any]:
                         killed.append(f"PID {p.info['pid']} ({p.info['name']})")
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
-        
+
         if killed:
             return {"status": "success", "message": f"Proses berhasil dihentikan: {', '.join(killed)}"}
         return {"status": "error", "message": f"Proses '{pid_or_name}' tidak ditemukan."}
@@ -3683,12 +3677,12 @@ def kill_process(pid_or_name: str) -> Dict[str, Any]:
 def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
     """
     Edit, convert, or transform an image file using Pillow and send the result to Telegram.
-    
+
     Args:
         file_path: Path to the source image file.
         action: Edit action to perform. Options:
                 - 'resize': Resize image (params: 'WIDTHxHEIGHT', e.g. '800x600')
-                - 'crop': Crop image (params: 'LEFT,TOP,RIGHT,BOTTOM', e.g. '100,100,500,400')
+                - 'crop': Crop image (params: 'LEFT, TOP, RIGHT, BOTTOM', e.g. '100, 100, 500, 400')
                 - 'rotate': Rotate image (params: degrees, e.g. '90', '180', '270')
                 - 'grayscale': Convert to black & white
                 - 'flip_horizontal': Flip horizontally
@@ -3703,15 +3697,15 @@ def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
     """
     try:
         from PIL import Image, ImageDraw, ImageFilter, ImageFont
-        
+
         expanded = os.path.expanduser(file_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File gambar tidak ditemukan: {file_path}"}
-        
+
         img = Image.open(expanded)
         base_name = os.path.splitext(os.path.basename(expanded))[0]
         act = action.strip().lower()
-        
+
         if act == "info":
             return {
                 "status": "success",
@@ -3758,7 +3752,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
             img = img.filter(ImageFilter.SHARPEN)
         else:
             return {"status": "error", "message": f"Aksi '{action}' tidak dikenal."}
-        
+
         if act == "convert":
             fmt = params.strip().upper()
             ext = fmt.lower()
@@ -3770,14 +3764,14 @@ def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
             ext = fmt.lower()
             if ext == "jpeg":
                 ext = "jpg"
-        
+
         if act != "convert" and img.mode == "RGBA" and fmt == "JPEG":
             img = img.convert("RGB")
-            
+
         out_name = f"{base_name}_edited.{ext}"
         out_path = os.path.join(SANDBOX_DIR, out_name)
         img.save(out_path, format=fmt if act == "convert" else None)
-        
+
         return {
             "status": "success",
             "message": f"Gambar berhasil di-{act} dan disimpan sebagai '{out_name}'. Akan dikirim ke Telegram.",
@@ -3790,7 +3784,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
 def git_operations(action: str, repo_path: str = ".", message: str = "", remote: str = "origin", branch: str = "") -> Dict[str, Any]:
     """
     Perform Git operations on a local repository directly from Telegram.
-    
+
     Args:
         action: Git action to perform. Options:
                 - 'status': Show git status (modified, staged, untracked files)
@@ -3810,7 +3804,7 @@ def git_operations(action: str, repo_path: str = ".", message: str = "", remote:
     """
     try:
         expanded = os.path.expanduser(repo_path)
-        
+
         cmd_map = {
             "status": "git status --porcelain -b",
             "log": "git log --oneline --graph -n 15",
@@ -3823,15 +3817,15 @@ def git_operations(action: str, repo_path: str = ".", message: str = "", remote:
             "stash": "git stash",
             "stash_pop": "git stash pop",
         }
-        
+
         act = action.strip().lower()
         cmd = cmd_map.get(act)
         if not cmd:
             return {"status": "error", "message": f"Git action '{action}' tidak dikenal. Pilihan: {', '.join(cmd_map.keys())}"}
-        
+
         res = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30)
         output = res.stdout.strip() or res.stderr.strip()
-        
+
         return {
             "status": "success" if res.returncode == 0 else "error",
             "action": act,
@@ -3845,7 +3839,7 @@ def git_operations(action: str, repo_path: str = ".", message: str = "", remote:
 def translate_text(text: str, target_lang: str = "en", source_lang: str = "auto") -> Dict[str, Any]:
     """
     Translate text between languages using Google Translate.
-    
+
     Args:
         text: Text to translate.
         target_lang: Target language code (e.g. 'en' English, 'id' Indonesian, 'ja' Japanese, 'ko' Korean, 'zh-CN' Chinese, 'ar' Arabic, 'fr' French, 'de' German, 'es' Spanish).
@@ -3853,7 +3847,7 @@ def translate_text(text: str, target_lang: str = "en", source_lang: str = "auto"
     """
     try:
         from deep_translator import GoogleTranslator
-        
+
         translated = GoogleTranslator(source=source_lang, target=target_lang).translate(text[:4500])
         return {
             "status": "success",
@@ -3870,29 +3864,29 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
     """
     Download a file from a URL on the internet to the local computer and optionally send it to Telegram.
     Supports direct file links (images, PDFs, ZIPs, videos, audio, executables, etc.).
-    
+
     Args:
         url: Direct download URL.
         filename: Optional filename to save as (auto-detected from URL if empty).
     """
     try:
         import httpx
-        
+
         if not filename:
             from urllib.parse import urlparse
             parsed = urlparse(url)
             filename = os.path.basename(parsed.path) or "downloaded_file"
-        
+
         dest_path = os.path.join(SANDBOX_DIR, filename)
-        
+
         with httpx.Client(follow_redirects=True, timeout=60) as client:
             resp = client.get(url)
             resp.raise_for_status()
             with open(dest_path, "wb") as f:
                 f.write(resp.content)
-        
+
         size_mb = os.path.getsize(dest_path) / (1024 * 1024)
-        
+
         if size_mb > 50:
             return {
                 "status": "success",
@@ -3900,7 +3894,7 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
                 "file_path": dest_path,
                 "sent_to_telegram": False
             }
-        
+
         return {
             "status": "success",
             "message": f"File '{filename}' ({round(size_mb, 2)} MB) berhasil diunduh dan akan dikirim ke Telegram.",
@@ -3914,21 +3908,21 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
 def generate_secure_password(length: int = 20, include_uppercase: bool = True, include_digits: bool = True, include_special: bool = True, count: int = 1) -> Dict[str, Any]:
     """
     Generate one or more cryptographically secure random passwords.
-    
+
     Args:
-        length: Password length (8-128 characters, default: 20).
+        length: Password length (8 - 128 characters, default: 20).
         include_uppercase: Include uppercase letters (default: True).
         include_digits: Include digits (default: True).
         include_special: Include special characters !@#$%^&* (default: True).
-        count: Number of passwords to generate (1-10, default: 1).
+        count: Number of passwords to generate (1 - 10, default: 1).
     """
     try:
         import secrets
         import string
-        
+
         length = max(8, min(128, length))
         count = max(1, min(10, count))
-        
+
         chars = string.ascii_lowercase
         if include_uppercase:
             chars += string.ascii_uppercase
@@ -3936,17 +3930,17 @@ def generate_secure_password(length: int = 20, include_uppercase: bool = True, i
             chars += string.digits
         if include_special:
             chars += "!@#$%^&*_+-=?."
-        
+
         passwords = []
         for _ in range(count):
             pw = ''.join(secrets.choice(chars) for _ in range(length))
             passwords.append(pw)
-        
+
         # Calculate entropy
         import math
         entropy = round(math.log2(len(chars)) * length, 1)
         strength = "Sangat Kuat 🟢" if entropy > 80 else "Kuat 🔵" if entropy > 60 else "Cukup 🟡" if entropy > 40 else "Lemah 🔴"
-        
+
         return {
             "status": "success",
             "passwords": passwords,
@@ -3965,16 +3959,16 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
     Takes a screenshot of the desktop, sends it to Gemini Vision AI to locate a target
     UI element (button, icon, text, link, menu), clicks on it, then takes another
     screenshot to verify the action succeeded. Repeats if needed.
-    
+
     This allows the bot to operate ANY desktop application (browsers, editors, file managers,
     settings, terminals) purely through visual understanding — like a human looking at a screen.
-    
+
     Args:
-        target_description: Natural language description of what to find and click 
-                           (e.g. 'the red Close button', 'Firefox icon on taskbar', 
+        target_description: Natural language description of what to find and click
+                           (e.g. 'the red Close button', 'Firefox icon on taskbar',
                             'File menu in top left', 'Play button on Spotify',
                             'the search bar', 'Settings gear icon').
-        max_attempts: Maximum number of screenshot-analyze-click attempts (1-5, default: 3).
+        max_attempts: Maximum number of screenshot-analyze-click attempts (1 - 5, default: 3).
         action: What to do with the found element: 'click' (default), 'double_click', 'right_click', 'identify_only'.
     """
     try:
@@ -3982,30 +3976,30 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
 
         from google import genai
         from google.genai import types
-        
+
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             from dotenv import load_dotenv
             load_dotenv()
             api_key = os.environ.get("GEMINI_API_KEY")
-            
+
         client = genai.Client(api_key=api_key)
         attempts = min(max(1, max_attempts), 5)
-        
+
         for attempt in range(1, attempts + 1):
             # Step 1: Capture desktop screenshot
             capture_desktop_screenshot()
             screenshot_path = os.path.join(SANDBOX_DIR, "desktop_screen.png")
-            
+
             if not os.path.exists(screenshot_path) or os.path.getsize(screenshot_path) == 0:
                 return {"status": "error", "message": "Gagal mengambil screenshot desktop untuk vision loop."}
-            
+
             # Step 2: Send to Gemini Vision for coordinate analysis
             with open(screenshot_path, "rb") as f:
                 img_bytes = f.read()
-            
+
             image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/png")
-            
+
             vision_prompt = (
                 f"Kamu adalah sistem Vision AI untuk GUI automation pada layar Linux desktop 1920x1080.\n"
                 f"Analisis screenshot ini dan temukan elemen UI berikut: \"{target_description}\"\n\n"
@@ -4016,21 +4010,21 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
                 f"JAWAB DALAM FORMAT JSON SAJA, tanpa teks lain:\n"
                 f'{{"found": true/false, "x": <int>, "y": <int>, "element_description": "<apa yang kamu lihat>", "confidence": "<high/medium/low>"}}'
             )
-            
+
             response = client.models.generate_content(
                 model=os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
                 contents=[image_part, vision_prompt]
             )
-            
+
             response_text = response.text.strip()
-            
+
             # Parse JSON from response
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             if not json_match:
                 continue
-            
+
             result = _json.loads(json_match.group())
-            
+
             if not result.get("found", False):
                 if attempt < attempts:
                     import time
@@ -4041,12 +4035,12 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
                     "message": f"Elemen '{target_description}' tidak ditemukan di layar setelah {attempts} percobaan.",
                     "vision_response": result.get("element_description", "")
                 }
-            
+
             x = int(result["x"])
             y = int(result["y"])
             confidence = result.get("confidence", "unknown")
             desc = result.get("element_description", "")
-            
+
             if action == "identify_only":
                 # Remove the screenshot from sandbox so it doesn't get auto-sent
                 try:
@@ -4061,23 +4055,23 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
                     "confidence": confidence,
                     "attempt": attempt
                 }
-            
+
             # Remove pre-click screenshot
             try:
                 os.remove(screenshot_path)
             except OSError:
                 pass
-            
+
             # Step 3: Click the target
             clicks = 2 if action == "double_click" else 1
             button = "right" if action == "right_click" else "left"
             desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
-            
+
             # Step 4: Wait briefly then take verification screenshot
             import time
             time.sleep(0.8)
             capture_desktop_screenshot()
-            
+
             return {
                 "status": "success",
                 "message": f"Vision Loop berhasil! Elemen '{target_description}' ditemukan dan di-{action} pada koordinat ({x}, {y}). Screenshot verifikasi akan dikirim ke Telegram.",
@@ -4087,7 +4081,7 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
                 "attempt": attempt,
                 "action_performed": action
             }
-        
+
         return {"status": "error", "message": f"Gagal menemukan '{target_description}' setelah {attempts} percobaan vision loop."}
     except Exception as e:
         return {"status": "error", "message": f"Vision loop error: {str(e)}"}
@@ -4097,28 +4091,28 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
     """
     GOD MODE: Autonomous Deep Multi-Source Research Engine.
     Executes multiple recursive web search queries on a topic, crawls and scrapes the top
-    3-5 authoritative domain pages, synthesizes cross-source evidence, resolves contradictions,
+    3 - 5 authoritative domain pages, synthesizes cross-source evidence, resolves contradictions,
     and returns a structured, factual briefing with citations.
-    
+
     Args:
         topic: Topic or research question to investigate deeply.
-        max_depth: Maximum number of search iteration queries (1-5, default: 3).
+        max_depth: Maximum number of search iteration queries (1 - 5, default: 3).
     """
     try:
         from urllib.parse import urlparse
 
         import httpx
         from ddgs import DDGS
-        
+
         queries = [
             topic,
             f"{topic} overview facts analysis",
             f"{topic} latest updates details"
         ][:max_depth]
-        
+
         seen_urls = set()
         sources_data = []
-        
+
         with DDGS(verify=False) as ddgs:
             for q in queries:
                 try:
@@ -4138,10 +4132,10 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
                     pass
                 if len(sources_data) >= 5:
                     break
-        
+
         if not sources_data:
             return {"status": "error", "message": f"Tidak ditemukan sumber riset untuk topik: '{topic}'"}
-            
+
         crawled_articles = []
         with httpx.Client(follow_redirects=True, timeout=12, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}) as client:
             for src in sources_data[:4]:
@@ -4179,23 +4173,23 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
     Inspects system journal error logs, failed systemd units, memory pressure,
     broken packages, and zombie processes. Produces a root-cause diagnosis
     and optionally executes safe autonomous healing actions.
-    
+
     Args:
         fix_issues: If True, executes safe autonomous healing (restarting failed units, vacuuming logs, clearing zombies).
     """
     try:
         diagnosis = {}
         healing_actions = []
-        
+
         # 1. Check failed systemd units
         res_failed = subprocess.run("systemctl --user list-units --failed --no-legend 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
         failed_user_units = [line.strip().split()[0] for line in res_failed.stdout.strip().splitlines() if line.strip()]
         diagnosis["failed_user_services"] = failed_user_units
-        
+
         # 2. Check system error logs in journalctl
         res_journal = subprocess.run("journalctl --user -p 3 -n 15 --no-pager 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
         diagnosis["recent_critical_logs"] = res_journal.stdout.strip()[:1500] if res_journal.stdout.strip() else "Tidak ada critical error log terbaru."
-        
+
         # 3. Check zombie / hung processes
         zombies = []
         for p in psutil.process_iter(['pid', 'name', 'status']):
@@ -4205,13 +4199,13 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         diagnosis["zombie_processes"] = zombies
-        
+
         # 4. Check disk and swap pressure
         disk = psutil.disk_usage('/')
         swap = psutil.swap_memory()
         diagnosis["disk_health"] = f"Root: {disk.percent}% used ({round(disk.free / (1024**3), 1)} GB free)"
         diagnosis["swap_health"] = f"Swap: {swap.percent}% used"
-        
+
         # Self-healing execution if requested
         if fix_issues:
             # Restart failed user services (excluding disabled ones)
@@ -4219,14 +4213,14 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
                 if "telegram-ai-bot" not in unit:  # avoid recursive restart in diagnostic turn
                     subprocess.run(f"systemctl --user reset-failed {unit} && systemctl --user restart {unit}", shell=True, timeout=10)
                     healing_actions.append(f"Restarted failed unit: {unit}")
-            
+
             # Vacuum journal logs if disk > 85%
             if disk.percent > 85:
                 subprocess.run("journalctl --user --vacuum-time=2d", shell=True, timeout=10)
                 healing_actions.append("Cleaned old user journal logs")
-                
+
             diagnosis["healing_executed"] = healing_actions if healing_actions else "Tidak ada tindakan perbaikan yang diperlukan saat ini."
-            
+
         return {
             "status": "success",
             "diagnosis": diagnosis,
@@ -4240,7 +4234,7 @@ def text_to_audio_file(text: str, filename: str = "audio_speech.mp3", voice: str
     """
     Generate a high-fidelity natural speech audio file (.mp3) from any long text or script
     using Microsoft Edge Neural TTS and send it as an audio file directly to Telegram.
-    
+
     Args:
         text: Full text or script to synthesize into audio.
         filename: Target filename (default: audio_speech.mp3).
@@ -4250,16 +4244,16 @@ def text_to_audio_file(text: str, filename: str = "audio_speech.mp3", voice: str
         import asyncio
 
         import edge_tts
-        
+
         if not filename.endswith(".mp3"):
             filename += ".mp3"
-            
+
         out_path = os.path.join(SANDBOX_DIR, filename)
-        
+
         async def _synth():
             communicate = edge_tts.Communicate(text[:5000], voice)
             await communicate.save(out_path)
-            
+
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
@@ -4270,7 +4264,7 @@ def text_to_audio_file(text: str, filename: str = "audio_speech.mp3", voice: str
                 loop.run_until_complete(_synth())
         except Exception:
             asyncio.run(_synth())
-            
+
         if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
             size_kb = round(os.path.getsize(out_path) / 1024, 1)
             return {
@@ -4288,7 +4282,7 @@ def convert_media_format(source_file: str, output_format: str = "mp3", extra_par
     """
     Convert any video or audio file to another format using ffmpeg (e.g. mp4 -> mp3, mkv -> mp4, wav -> ogg, flac -> mp3).
     The converted file will be automatically sent to Telegram.
-    
+
     Args:
         source_file: Path to source audio/video file.
         output_format: Target format extension (e.g. 'mp3', 'mp4', 'wav', 'ogg', 'flac', 'aac').
@@ -4298,17 +4292,17 @@ def convert_media_format(source_file: str, output_format: str = "mp3", extra_par
         expanded = os.path.expanduser(source_file)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File sumber tidak ditemukan: {source_file}"}
-            
+
         base_name = os.path.splitext(os.path.basename(expanded))[0]
         out_format = output_format.lower().replace(".", "")
         out_name = f"{base_name}_converted.{out_format}"
         dest_path = os.path.join(SANDBOX_DIR, out_name)
-        
+
         cmd = f'ffmpeg -y -i "{expanded}" {extra_params} "{dest_path}"'
         res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-        
+
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
-            size_mb = round(os.path.getsize(dest_path) / (1024*1024), 2)
+            size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
             return {
                 "status": "success",
                 "message": f"Konversi media ke '{out_name}' ({size_mb} MB) berhasil dan akan dikirim ke Telegram.",
@@ -4322,7 +4316,7 @@ def convert_media_format(source_file: str, output_format: str = "mp3", extra_par
 def extract_audio_from_video(video_path: str, output_filename: str = "extracted_audio.mp3") -> Dict[str, Any]:
     """
     Extract the audio track from a video file (.mp4, .mkv, .webm, .avi) into an MP3 file and send to Telegram.
-    
+
     Args:
         video_path: Path to the local video file.
         output_filename: Output MP3 filename (default: extracted_audio.mp3).
@@ -4331,16 +4325,16 @@ def extract_audio_from_video(video_path: str, output_filename: str = "extracted_
         expanded = os.path.expanduser(video_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File video tidak ditemukan: {video_path}"}
-            
+
         if not output_filename.endswith(".mp3"):
             output_filename += ".mp3"
-            
+
         dest_path = os.path.join(SANDBOX_DIR, output_filename)
         cmd = f'ffmpeg -y -i "{expanded}" -vn -acodec libmp3lame -q:a 2 "{dest_path}"'
         res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-        
+
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
-            size_mb = round(os.path.getsize(dest_path) / (1024*1024), 2)
+            size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
             return {
                 "status": "success",
                 "message": f"Audio berhasil diekstraksi menjadi '{output_filename}' ({size_mb} MB) dan akan dikirim ke Telegram.",
@@ -4357,7 +4351,7 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
     Reads and parses a CSV, JSON, or Excel dataset, computes statistical metrics
     (summary stats, row counts, missing values, column data types), and generates
     a professional visualization chart automatically sent to Telegram.
-    
+
     Args:
         file_path: Path to dataset file (.csv or .json).
         chart_type: 'bar', 'line', 'scatter', 'pie', 'hist'.
@@ -4372,14 +4366,14 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        
+
         expanded = os.path.expanduser(file_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File dataset tidak ditemukan: {file_path}"}
-            
+
         data_rows = []
         headers = []
-        
+
         ext = os.path.splitext(expanded)[1].lower()
         if ext == ".csv":
             with open(expanded, "r", encoding="utf-8", errors="replace") as f:
@@ -4397,22 +4391,22 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
                     headers = list(raw_json.keys())
         else:
             return {"status": "error", "message": "Format dataset harus .csv atau .json"}
-            
+
         if not data_rows:
             return {"status": "error", "message": "Dataset kosong atau tidak memiliki baris data."}
-            
+
         # Statistical summary
         total_rows = len(data_rows)
         sample_data = data_rows[:5]
-        
+
         # Plotting
         chart_path = os.path.join(SANDBOX_DIR, "dataset_analysis_chart.png")
         plt.figure(figsize=(10, 6), dpi=120)
         plt.style.use('seaborn-v0_8-darkgrid' if 'seaborn-v0_8-darkgrid' in plt.style.available else 'default')
-        
+
         x_col = x_column or (headers[0] if headers else "")
         y_col = y_column or (headers[1] if len(headers) > 1 else headers[0] if headers else "")
-        
+
         x_vals = [str(r.get(x_col, "")) for r in data_rows[:20]]
         y_vals = []
         for r in data_rows[:20]:
@@ -4420,7 +4414,7 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
                 y_vals.append(float(r.get(y_col, 0)))
             except (ValueError, TypeError):
                 y_vals.append(0.0)
-                
+
         if chart_type == "line":
             plt.plot(x_vals, y_vals, marker='o', color='#2563EB', linewidth=2.5)
         elif chart_type == "scatter":
@@ -4429,7 +4423,7 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
             plt.pie(y_vals, labels=x_vals, autopct='%1.1f%%', colors=plt.cm.Paired.colors)
         else:  # default bar
             plt.bar(x_vals, y_vals, color='#3B82F6', edgecolor='#1D4ED8')
-            
+
         plt.title(title, fontsize=14, fontweight='bold', pad=15)
         if chart_type != "pie":
             plt.xlabel(x_col, fontsize=11)
@@ -4438,7 +4432,7 @@ def analyze_dataset_csv_json(file_path: str, chart_type: str = "bar", x_column: 
         plt.tight_layout()
         plt.savefig(chart_path, dpi=150)
         plt.close()
-        
+
         return {
             "status": "success",
             "total_rows": total_rows,
@@ -4456,7 +4450,7 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
     GOD MODE: Network Security & Port Sentinel.
     Audits listening network ports, socket services, firewall status (UFW),
     and remote SSL/TLS certificate validity & security ciphers.
-    
+
     Args:
         target_host: Target IP or domain to audit (e.g. '127.0.0.1', 'example.com').
         scan_type: 'quick_ports' or 'full_audit'.
@@ -4464,15 +4458,15 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
     try:
         import socket
         import ssl
-        
+
         result = {"target": target_host, "scan_type": scan_type}
-        
+
         # Local socket listening check
         if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:
             res_ss = subprocess.run("ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
             listening_lines = [ln for ln in res_ss.stdout.strip().splitlines() if "LISTEN" in ln or "State" in ln][:20]
             result["local_listening_sockets"] = "\n".join(listening_lines)
-            
+
             # Firewall check
             res_ufw = subprocess.run("sudo -n ufw status 2>/dev/null || ufw status 2>/dev/null", shell=True, capture_output=True, text=True, timeout=3)
             result["firewall_status"] = res_ufw.stdout.strip() if res_ufw.stdout.strip() else "UFW status tidak memerlukan sudo / tidak aktif."
@@ -4488,7 +4482,7 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
                     open_ports.append(p)
                 s.close()
             result["open_ports_detected"] = open_ports
-            
+
             # SSL Certificate inspection if port 443 open
             if 443 in open_ports or target_host.startswith("http") or "." in target_host:
                 try:
@@ -4506,7 +4500,7 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
                         }
                 except Exception as ssl_err:
                     result["ssl_error"] = str(ssl_err)
-                    
+
         return {"status": "success", "audit_report": result}
     except Exception as e:
         return {"status": "error", "message": f"Security audit error: {str(e)}"}
@@ -4517,7 +4511,7 @@ def clean_system_storage(dry_run: bool = True) -> Dict[str, Any]:
     GOD MODE: Smart Linux Storage Cleaner & Optimizer.
     Inspects and frees disk waste by safely cleaning thumbnail caches, user journal logs,
     temporary files, and apt cache.
-    
+
     Args:
         dry_run: If True, only analyzes space to be freed without deleting anything. Set to False to perform actual cleanup.
     """
@@ -4527,24 +4521,24 @@ def clean_system_storage(dry_run: bool = True) -> Dict[str, Any]:
             ("Sandbox Temp Files", SANDBOX_DIR),
             ("Python Cache", os.path.expanduser("~/.cache/pip"))
         ]
-        
+
         report = []
         total_freed_mb = 0.0
-        
+
         for name, path in cleanup_targets:
             if os.path.exists(path):
                 size_b = sum(os.path.getsize(os.path.join(dirpath, f)) for dirpath, _, filenames in os.walk(path) for f in filenames if not os.path.islink(os.path.join(dirpath, f)))
-                size_mb = round(size_b / (1024*1024), 2)
+                size_mb = round(size_b / (1024 * 1024), 2)
                 report.append({"target": name, "path": path, "size_mb": size_mb})
                 total_freed_mb += size_mb
-                
+
                 if not dry_run and size_mb > 0:
                     subprocess.run(f'rm -rf "{path}"/*', shell=True, timeout=10)
-                    
+
         if not dry_run:
             # Vacuum journalctl logs older than 2 days
             subprocess.run("journalctl --user --vacuum-time=2d 2>/dev/null", shell=True, timeout=10)
-            
+
         action_msg = "ANALISIS (Dry Run)" if dry_run else "PEMBERSIHAN SELESAI"
         return {
             "status": "success",
@@ -4561,7 +4555,7 @@ def manage_system_services(service_name: str, action: str = "status", scope: str
     """
     GOD MODE: Linux Systemd Services Controller.
     Manage, start, stop, restart, enable, disable, and inspect status of systemd units.
-    
+
     Args:
         service_name: Name of the service unit (e.g. 'telegram-ai-bot.service', 'pipewire', 'docker', 'nginx').
         action: 'status', 'restart', 'start', 'stop', 'enable', 'disable', 'is-active'.
@@ -4599,11 +4593,11 @@ def manage_system_services(service_name: str, action: str = "status", scope: str
         valid_actions = ["status", "restart", "start", "stop", "enable", "disable", "is-active"]
         if act not in valid_actions:
             return {"status": "error", "message": f"Aksi '{action}' tidak valid. Pilihan: {', '.join(valid_actions)}"}
-            
+
         cmd = f"systemctl {flag} {act} {service_name}"
         res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
         output = (res.stdout.strip() or res.stderr.strip())[:2500]
-        
+
         return {
             "status": "success" if res.returncode == 0 or act == "status" else "error",
             "service": service_name,
@@ -4699,7 +4693,7 @@ def manage_crontab_jobs(action: str = "list", cron_line: str = "", search_patter
     """
     GOD MODE: Real Linux OS Crontab Manager.
     Reads, adds, or removes native Linux user crontab schedule entries.
-    
+
     Args:
         action: 'list' (show all crontab entries), 'add' (add new cron_line), 'remove' (remove entries matching search_pattern).
         cron_line: The crontab entry string (e.g. '0 8 * * * /home/user/script.sh').
@@ -4743,7 +4737,7 @@ def extract_and_link_knowledge(entity: str, relation: str, target_value: str, ca
     GOD MODE: Semantic Knowledge Graph & Second Brain Linker.
     Stores structured knowledge facts as subject-predicate-object triples
     (e.g. entity: 'Proyek Alfa', relation: 'deadline', target_value: '25 Agustus 2026', tags: 'work, urgent').
-    
+
     Args:
         entity: The subject entity (e.g. 'Fahmi', 'Server Production', 'Project X').
         relation: The relationship / predicate (e.g. 'role', 'ip_address', 'framework').
@@ -4762,7 +4756,7 @@ def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
     GOD MODE: Export Second Brain Knowledge Base.
     Exports all persistent user memories and semantic knowledge graph relations
     into a structured Markdown or JSON file sent to Telegram as an attachment.
-    
+
     Args:
         format: 'markdown' (default) or 'json'.
     """
@@ -4771,10 +4765,10 @@ def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
         uid = get_current_user_id()
         if not uid:
             return {"status": "error", "message": "User context tidak ditemukan."}
-            
+
         data = database.export_full_second_brain_sync(uid)
         fmt = format.lower()
-        
+
         if fmt == "json":
             out_name = f"second_brain_export_{uid}.json"
             out_path = os.path.join(SANDBOX_DIR, out_name)
@@ -4790,15 +4784,15 @@ def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
             ]
             for f in data.get("facts", []):
                 md_lines.append(f"• **[{f['category'].upper()}] {f['key_topic']}**: {f['content']}")
-                
+
             md_lines.append(f"\n## 🕸️ Knowledge Graph Relations ({data['total_relations']} relasi)")
             for r in data.get("knowledge_graph", []):
                 tag_str = f" `[{r['tags']}]`" if r['tags'] else ""
                 md_lines.append(f"• **{r['entity']}** ──({r['relation']})──> **{r['target_value']}** ({r['category']}){tag_str}")
-                
+
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(md_lines))
-                
+
         size_kb = round(os.path.getsize(out_path) / 1024, 1)
         return {
             "status": "success",
@@ -4816,7 +4810,7 @@ def start_focus_session(title: str, duration_minutes: int = 25, notes: str = "")
     GOD MODE: Focus & Pomodoro Productivity Session.
     Starts a deep work focus session with automatic timer, records target end time,
     and schedules an automatic Telegram completion alert.
-    
+
     Args:
         title: Title/objective of the focus session (e.g. 'Code Review Backend', 'Menulis Laporan').
         duration_minutes: Duration in minutes (default: 25).
@@ -4841,7 +4835,7 @@ def libreoffice_convert_document(source_file: str, output_format: str = "pdf") -
     Supported inputs: ODT, DOCX, DOC, RTF, TXT, HTML, EPUB, ODS, XLSX, XLS, CSV, ODP, PPTX, PPT, ODG, SVG, PDF.
     Supported outputs: pdf, docx, odt, xlsx, ods, pptx, odp, html, txt, csv, png.
     The converted document is automatically sent to Telegram as a file attachment.
-    
+
     Args:
         source_file: Path to source document (e.g. '~/Documents/report.docx' or 'data.xlsx').
         output_format: Target format (e.g. 'pdf', 'docx', 'odt', 'xlsx', 'ods', 'html', 'txt').
@@ -4850,14 +4844,14 @@ def libreoffice_convert_document(source_file: str, output_format: str = "pdf") -
         expanded = os.path.expanduser(source_file)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File sumber tidak ditemukan: {source_file}"}
-            
+
         out_fmt = output_format.lower().replace(".", "").strip()
         base_name = os.path.splitext(os.path.basename(expanded))[0]
-        
+
         # Run libreoffice conversion with output dir as SANDBOX_DIR
         cmd = ["libreoffice", "--headless", "--convert-to", out_fmt, expanded, "--outdir", SANDBOX_DIR]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
         expected_file = os.path.join(SANDBOX_DIR, f"{base_name}.{out_fmt}")
         if os.path.exists(expected_file) and os.path.getsize(expected_file) > 0:
             size_kb = round(os.path.getsize(expected_file) / 1024, 1)
@@ -4867,7 +4861,7 @@ def libreoffice_convert_document(source_file: str, output_format: str = "pdf") -
                 "file_path": expected_file,
                 "output_format": out_fmt
             }
-            
+
         # Check for matching files in sandbox if name changed
         matches = glob.glob(os.path.join(SANDBOX_DIR, f"*.{out_fmt}"))
         if matches:
@@ -4879,7 +4873,7 @@ def libreoffice_convert_document(source_file: str, output_format: str = "pdf") -
                 "file_path": latest,
                 "output_format": out_fmt
             }
-            
+
         return {"status": "error", "message": f"Konversi LibreOffice gagal: {res.stderr or res.stdout}"}
     except Exception as e:
         return {"status": "error", "message": f"LibreOffice conversion error: {str(e)}"}
@@ -4891,20 +4885,20 @@ def libreoffice_render_page_previews(document_path: str, max_pages: int = 3, dpi
     Converts any office document (DOCX, ODT, XLSX, ODS, PPTX, ODP, PDF, RTF) into
     high-resolution PNG page images using LibreOffice Headless + pdftoppm, allowing visual
     inspection directly in Telegram as photos without opening the desktop app.
-    
+
     Args:
         document_path: Path to the office document or PDF.
-        max_pages: Number of pages to render as images (1-10, default: 3).
+        max_pages: Number of pages to render as images (1 - 10, default: 3).
         dpi: Image resolution DPI (default: 150).
     """
     try:
         expanded = os.path.expanduser(document_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File dokumen tidak ditemukan: {document_path}"}
-            
+
         base_name = os.path.splitext(os.path.basename(expanded))[0]
         ext = os.path.splitext(expanded)[1].lower()
-        
+
         # Step 1: Ensure we have a PDF version
         if ext == ".pdf":
             pdf_path = expanded
@@ -4917,20 +4911,20 @@ def libreoffice_render_page_previews(document_path: str, max_pages: int = 3, dpi
             if not os.path.exists(temp_pdf):
                 return {"status": "error", "message": "Gagal mengonversi dokumen ke PDF untuk rendering preview."}
             pdf_path = temp_pdf
-            
+
         # Step 2: Render PDF pages to PNG via pdftoppm into SANDBOX_DIR
         out_prefix = os.path.join(SANDBOX_DIR, f"preview_{base_name}")
         pages_to_render = min(max(1, max_pages), 10)
         cmd_ppm = ["pdftoppm", "-png", "-r", str(dpi), "-f", "1", "-l", str(pages_to_render), pdf_path, out_prefix]
         res_ppm = subprocess.run(cmd_ppm, capture_output=True, text=True, timeout=30)
-        
+
         # Clean up temp pdf if created
         if temp_pdf and os.path.exists(temp_pdf):
             try:
                 os.remove(temp_pdf)
             except OSError:
                 pass
-                
+
         rendered_images = sorted(glob.glob(f"{out_prefix}-*.png"))
         if rendered_images:
             return {
@@ -4949,7 +4943,7 @@ def libreoffice_create_document(doc_type: str, title: str, content_html_or_text:
     LIBREOFFICE SUITE: Create Professional Office Documents (Writer, Calc, Impress).
     Generates rich formatted LibreOffice documents (.odt, .ods, .odp) or Microsoft Office (.docx, .xlsx, .pptx)
     with headings, tables, styled sections, and exports directly to Telegram.
-    
+
     Args:
         doc_type: 'writer' (Text document), 'calc' (Spreadsheet), 'impress' (Presentation).
         title: Title of the document.
@@ -4960,15 +4954,15 @@ def libreoffice_create_document(doc_type: str, title: str, content_html_or_text:
     try:
         dtype = doc_type.lower().strip()
         exp_fmt = export_format.lower().replace(".", "").strip()
-        
+
         if not filename:
-            clean_title = re.sub(r'[^a-zA-Z0-9_-]', '_', title.lower())[:30]
+            clean_title = re.sub(r'[^a-zA-Z0 - 9_-]', '_', title.lower())[:30]
             filename = f"{clean_title}.{exp_fmt}"
         elif not filename.endswith(f".{exp_fmt}"):
             filename = f"{os.path.splitext(filename)[0]}.{exp_fmt}"
-            
+
         dest_path = os.path.join(SANDBOX_DIR, filename)
-        
+
         # Build clean styled HTML template
         html_doc = f"""<!DOCTYPE html>
 <html>
@@ -5000,21 +4994,21 @@ li {{ margin-bottom: 6px; }}
         temp_html = os.path.join("/tmp", f"temp_lo_{os.getpid()}.html")
         with open(temp_html, "w", encoding="utf-8") as f:
             f.write(html_doc)
-            
+
         # Convert via LibreOffice to target format
         cmd = ["libreoffice", "--headless", "--convert-to", exp_fmt, temp_html, "--outdir", SANDBOX_DIR]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
-        
+
         if os.path.exists(temp_html):
             try:
                 os.remove(temp_html)
             except OSError:
                 pass
-                
+
         expected_out = os.path.join(SANDBOX_DIR, f"temp_lo_{os.getpid()}.{exp_fmt}")
         if os.path.exists(expected_out):
             os.rename(expected_out, dest_path)
-            
+
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
             size_kb = round(os.path.getsize(dest_path) / 1024, 1)
             return {
@@ -5024,7 +5018,7 @@ li {{ margin-bottom: 6px; }}
                 "doc_type": dtype,
                 "format": exp_fmt
             }
-            
+
         return {"status": "error", "message": f"Gagal membuat dokumen LibreOffice: {res.stderr or res.stdout}"}
     except Exception as e:
         return {"status": "error", "message": f"Create LibreOffice document error: {str(e)}"}
@@ -5035,7 +5029,7 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
     LIBREOFFICE SUITE: Extract Text & Structure from Any Document.
     Extracts complete clean text from complex binary files (ODT, DOCX, DOC, RTF, ODS, ODP, EPUB, PDF)
     using LibreOffice Headless text filter.
-    
+
     Args:
         document_path: Path to the document file.
     """
@@ -5043,22 +5037,22 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
         expanded = os.path.expanduser(document_path)
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"File tidak ditemukan: {document_path}"}
-        
+
         temp_dir = f"/tmp/lo_txt_{os.getpid()}"
         os.makedirs(temp_dir, exist_ok=True)
-        
+
         cmd = ["libreoffice", "--headless", "--convert-to", "txt:Text", expanded, "--outdir", temp_dir]
         subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        
+
         txt_files = glob.glob(os.path.join(temp_dir, "*.txt"))
         if txt_files:
             with open(txt_files[0], "r", encoding="utf-8", errors="replace") as f:
                 extracted_text = f.read().strip()
-                
+
             # Cleanup temp dir
             import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
-            
+
             return {
                 "status": "success",
                 "document": os.path.basename(expanded),
@@ -5066,7 +5060,7 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
                 "word_count": len(extracted_text.split()),
                 "text_content": extracted_text[:8000]
             }
-            
+
         import shutil
         shutil.rmtree(temp_dir, ignore_errors=True)
         return {"status": "error", "message": "Tidak dapat mengekstrak teks dari dokumen via LibreOffice."}
@@ -5078,7 +5072,7 @@ def self_add_new_tool(tool_name: str, tool_description: str, tool_code: str, tes
     """
     GOD MODE: Self-Evolution Engine — dynamically writes, compiles, sandbox-tests, and hot-loads
     a brand new Python tool into the plugins/ directory for immediate runtime execution.
-    
+
     Args:
         tool_name: Python function name for the new tool (e.g. 'check_crypto_price', 'calculate_loan_emi').
         tool_description: Detailed description of what the tool does and its parameters.
@@ -5117,7 +5111,7 @@ def list_dynamic_plugins() -> Dict[str, Any]:
 def delete_dynamic_plugin(tool_name: str) -> Dict[str, Any]:
     """
     Permanently delete a dynamic plugin tool from disk and unregister from memory.
-    
+
     Args:
         tool_name: Name of the plugin tool to delete.
     """
@@ -5132,7 +5126,7 @@ def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "")
     """
     NEURAL VECTOR BRAIN: Performs semantic similarity search (Hybrid RAG) across all permanent
     knowledge embeddings, documents, research reports, and notes based on meaning/context.
-    
+
     Args:
         query: Search query, question, or conceptual topic.
         top_k: Number of most relevant document chunks to return (default: 5).
@@ -5154,9 +5148,9 @@ def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "")
 
 def ingest_document_to_vector_brain(title: str, content_or_file_path: str, category: str = "general") -> Dict[str, Any]:
     """
-    NEURAL VECTOR BRAIN: Ingests, chunks, embeds, and indexes a document or local file 
+    NEURAL VECTOR BRAIN: Ingests, chunks, embeds, and indexes a document or local file
     (.txt, .md, .pdf, .py, .csv, .json, or raw text) into the permanent Vector Brain database.
-    
+
     Args:
         title: Title / Label for the document.
         content_or_file_path: Raw text string OR absolute/relative file path to ingest.
@@ -5191,7 +5185,7 @@ def markitdown_convert_document(source_path_or_url: str, output_filename: str = 
     """
     MARKITDOWN SUITE: Convert any document (Office Word/PowerPoint/Excel, PDF, HTML, CSV, JSON, Audio)
     or public URL into clean, structured LLM-ready Markdown text.
-    
+
     Args:
         source_path_or_url: Local file path or web URL to convert to Markdown.
         output_filename: Optional filename to save the resulting .md in ~/Dokumen/ALFA_SWARM_OUTPUTS/.
@@ -5199,11 +5193,11 @@ def markitdown_convert_document(source_path_or_url: str, output_filename: str = 
     try:
         from markitdown import MarkItDown
         md = MarkItDown()
-        
+
         target = os.path.expanduser(source_path_or_url.strip())
         result = md.convert(target)
         markdown_content = result.text_content
-        
+
         saved_path = None
         if output_filename:
             out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
@@ -5213,7 +5207,7 @@ def markitdown_convert_document(source_path_or_url: str, output_filename: str = 
             saved_path = os.path.join(out_dir, output_filename)
             with open(saved_path, "w", encoding="utf-8") as f:
                 f.write(markdown_content)
-                
+
         return {
             "status": "success",
             "source": source_path_or_url,
@@ -5229,9 +5223,9 @@ def markitdown_convert_document(source_path_or_url: str, output_filename: str = 
 
 def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str = "text", bypass_anti_bot: bool = True) -> Dict[str, Any]:
     """
-    SCRAPLING STEALTH SUITE: Ultra-fast stealth web scraper engineered to bypass Cloudflare, 
+    SCRAPLING STEALTH SUITE: Ultra-fast stealth web scraper engineered to bypass Cloudflare,
     Akamai, and anti-bot systems to extract structured web elements.
-    
+
     Args:
         url: The web URL to scrape.
         css_selector: Optional CSS selector to extract specific elements (e.g. 'h1', '.product-title', 'table tr').
@@ -5240,7 +5234,7 @@ def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str 
     """
     try:
         from scrapling import Fetcher, StealthyFetcher
-        
+
         if bypass_anti_bot:
             try:
                 page = StealthyFetcher.fetch(url)
@@ -5248,7 +5242,7 @@ def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str 
                 page = Fetcher.get(url, timeout=15)
         else:
             page = Fetcher.get(url, timeout=15)
-        
+
         if css_selector:
             elements = page.css(css_selector)
             if extract_type == "html":
@@ -5265,7 +5259,7 @@ def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str 
             else:
                 p_texts = [p.text.strip() for p in page.css("p, h1, h2, h3, li, article") if p.text and p.text.strip()]
                 extracted = "\n".join(p_texts)[:4000] if p_texts else getattr(page, "text", "")[:4000]
-                
+
         return {
             "status": "success",
             "url": url,
@@ -5280,10 +5274,10 @@ def scrapling_stealth_fetch(url: str, css_selector: str = "", extract_type: str 
 def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_items: int = 20) -> Dict[str, Any]:
     """
     SCRAPY FAST ENGINE: High-throughput web crawler and structured item extractor.
-    
+
     Args:
         url: The entrypoint URL.
-        item_selectors_json: JSON string mapping fields to CSS/XPath selectors. 
+        item_selectors_json: JSON string mapping fields to CSS/XPath selectors.
                              Example: '{"title": "h1::text", "prices": ".price::text", "links": "a::attr(href)"}'
         max_items: Maximum items to extract per selector.
     """
@@ -5292,15 +5286,15 @@ def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_it
         import urllib.request
 
         from parsel import Selector
-        
+
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ScrapyCrawler/2.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             html_content = resp.read().decode("utf-8", errors="ignore")
             status_code = resp.status
-            
+
         sel = Selector(text=html_content)
         selectors = json.loads(item_selectors_json) if item_selectors_json.strip() else {}
-        
+
         extracted_data = {}
         if selectors:
             for field, query in selectors.items():
@@ -5316,7 +5310,7 @@ def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_it
                 "sample_paragraphs": [p.strip() for p in sel.css("p::text").getall()[:10] if p.strip()],
                 "links": sel.css("a::attr(href)").getall()[:25]
             }
-            
+
         return {
             "status": "success",
             "url": url,
@@ -5329,9 +5323,9 @@ def scrapy_spider_quick_scrape(url: str, item_selectors_json: str = "{}", max_it
 
 def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any]:
     """
-    CRAWLEE SUITE: Industrial-grade web crawler pipeline with automatic request queueing, 
+    CRAWLEE SUITE: Industrial-grade web crawler pipeline with automatic request queueing,
     retry handling, and content aggregation.
-    
+
     Args:
         start_urls: Single URL or comma-separated URLs to start crawling.
         max_requests: Maximum number of pages to request/crawl (default 5, max 20).
@@ -5340,13 +5334,13 @@ def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any
         import asyncio
 
         from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
-        
+
         urls = [u.strip() for u in start_urls.split(",") if u.strip()]
         max_req = min(20, max(1, max_requests))
         results = []
-        
+
         crawler = BeautifulSoupCrawler(max_requests_per_crawl=max_req)
-        
+
         @crawler.router.default_handler
         async def request_handler(context: BeautifulSoupCrawlingContext) -> None:
             title = context.soup.title.string if context.soup.title else ""
@@ -5358,14 +5352,14 @@ def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any
             })
             if len(results) < max_req:
                 await context.enqueue_links()
-                
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(crawler.run(urls))
         finally:
             loop.close()
-            
+
         return {
             "status": "success",
             "start_urls": urls,
@@ -5380,7 +5374,7 @@ def crawl4ai_web_crawler(url: str, extract_markdown: bool = True, wait_for_selec
     """
     CRAWL4AI ENGINE: Asynchronous LLM-first web crawler that converts complex web pages
     into clean Markdown, fit-markdown, internal/external links, and media metadata.
-    
+
     Args:
         url: The web URL to crawl.
         extract_markdown: Extract clean LLM-ready markdown (default True).
@@ -5391,22 +5385,22 @@ def crawl4ai_web_crawler(url: str, extract_markdown: bool = True, wait_for_selec
 
         import markdownify
         from bs4 import BeautifulSoup
-        
+
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawl4AI/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             html = resp.read().decode("utf-8", errors="ignore")
             status_code = resp.status
-            
+
         soup = BeautifulSoup(html, "html.parser")
         title = soup.title.string if soup.title else ""
-        
+
         for tag in soup(["script", "style", "noscript", "svg"]):
             tag.decompose()
-            
+
         md_content = markdownify.markdownify(str(soup), heading_style="ATX").strip()
         links = [a.get("href") for a in soup.find_all("a", href=True)][:50]
         images = [img.get("src") for img in soup.find_all("img", src=True)][:20]
-        
+
         return {
             "status": "success",
             "url": url,
@@ -5424,9 +5418,9 @@ def crawl4ai_web_crawler(url: str, extract_markdown: bool = True, wait_for_selec
 
 def browser_use_autonomous_task(task_instruction: str, start_url: str = "https://www.google.com", max_steps: int = 5) -> Dict[str, Any]:
     """
-    BROWSER-USE AGENT: Autonomous AI browser agent that visually controls the browser, 
+    BROWSER-USE AGENT: Autonomous AI browser agent that visually controls the browser,
     clicks buttons, types into forms, and navigates complex multi-step web workflows.
-    
+
     Args:
         task_instruction: Detailed goal description (e.g. 'Search for latest AI news on Google and summarize top 3 headlines').
         start_url: Entrypoint URL to navigate to (default 'https://www.google.com').
@@ -5434,10 +5428,10 @@ def browser_use_autonomous_task(task_instruction: str, start_url: str = "https:/
     """
     try:
         from tools import fetch_web_page_content, web_search
-        
+
         search_query = task_instruction.replace("Search for", "").replace("Cari", "").strip()
         search_res = web_search(query=search_query, max_results=max_steps)
-        
+
         scraped_insights = []
         if search_res.get("status") == "success":
             for item in search_res.get("results", [])[:3]:
@@ -5449,7 +5443,7 @@ def browser_use_autonomous_task(task_instruction: str, start_url: str = "https:/
                         "link": link,
                         "content_snippet": page_data.get("content", "")[:500]
                     })
-                    
+
         return {
             "status": "success",
             "task": task_instruction,
@@ -5466,7 +5460,7 @@ def firecrawl_scrape_and_crawl(url: str, mode: str = "scrape", extract_markdown:
     """
     FIRECRAWL SUITE: Intelligent web scraper and crawler optimized for LLM RAG pipelines.
     Supports Firecrawl API with automatic local fallback to MarkItDown / Crawl4AI engine.
-    
+
     Args:
         url: The web URL to scrape or crawl.
         mode: 'scrape' (single page) or 'crawl' (multi-page sublinks).
@@ -5503,9 +5497,9 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
     """
     SCRCPY & ADB ANDROID ENGINE: Control Android smartphones/tablets via USB or Wi-Fi.
     Allows screen capture, sending keyevents, touch taps, app launches, and desktop screen mirroring.
-    
+
     Args:
-        action: 'status' (list devices), 'screenshot' (save screen PNG), 'key' (send HOME/BACK/ENTER), 
+        action: 'status' (list devices), 'screenshot' (save screen PNG), 'key' (send HOME/BACK/ENTER),
                 'tap' (tap X Y coordinates), 'swipe' (swipe X1 Y1 X2 Y2), 'launch_app' (open app package), 'mirror' (open scrcpy window).
         device_id: Optional specific Android device serial (from adb devices).
         command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
@@ -5514,18 +5508,18 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
     import shutil
     import subprocess
     import time
-    
+
     adb_bin = shutil.which("adb")
     scrcpy_bin = shutil.which("scrcpy")
-    
+
     if not adb_bin and not scrcpy_bin:
         return {
             "status": "error",
             "message": "ADB / Scrcpy belum terpasang di sistem. Untuk mengaktifkan kontrol Android, jalankan: 'sudo apt install -y scrcpy adb' (Linux), 'brew install scrcpy' (macOS), atau 'winget install scrcpy' (Windows)."
         }
-        
+
     dev_flag = ["-s", device_id] if device_id else []
-    
+
     try:
         if action == "status":
             res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=5)
@@ -5535,7 +5529,7 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
                 "adb_path": adb_bin,
                 "scrcpy_path": scrcpy_bin
             }
-            
+
         elif action == "screenshot":
             out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
             os.makedirs(out_dir, exist_ok=True)
@@ -5547,7 +5541,7 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
                 "screenshot_file": shot_file,
                 "file_size": os.path.getsize(shot_file) if os.path.exists(shot_file) else 0
             }
-            
+
         elif action == "key":
             key_map = {
                 "HOME": "3", "BACK": "4", "CALL": "5", "ENDCALL": "6",
@@ -5557,24 +5551,24 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
             keycode = key_map.get(command_or_key.upper(), command_or_key)
             subprocess.run([adb_bin] + dev_flag + ["shell", "input", "keyevent", keycode], capture_output=True, timeout=5)
             return {"status": "success", "action": "key", "sent_key": command_or_key}
-            
+
         elif action == "tap":
             coords = command_or_key.split()
             if len(coords) < 2:
                 return {"status": "error", "message": "Koordinat tap harus berupa 'X Y' (contoh: '500 800')"}
             subprocess.run([adb_bin] + dev_flag + ["shell", "input", "tap", coords[0], coords[1]], capture_output=True, timeout=5)
             return {"status": "success", "action": "tap", "coords": coords[:2]}
-            
+
         elif action == "launch_app":
             subprocess.run([adb_bin] + dev_flag + ["shell", "monkey", "-p", command_or_key, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True, timeout=5)
             return {"status": "success", "action": "launch_app", "package": command_or_key}
-            
+
         elif action == "mirror":
             if not scrcpy_bin:
                 return {"status": "error", "message": "Binary scrcpy tidak ditemukan. Install dengan 'sudo apt install -y scrcpy'"}
             subprocess.Popen([scrcpy_bin] + (["-s", device_id] if device_id else []))
             return {"status": "success", "message": "Window screen mirroring Scrcpy berhasil dibuka di desktop."}
-            
+
         else:
             return {"status": "error", "message": f"Action '{action}' tidak dikenal."}
     except Exception as e:
@@ -5668,7 +5662,7 @@ def self_restart_service() -> Dict[str, Any]:
         )
         if compile_check.returncode != 0:
             return {"status": "error", "message": f"Tidak bisa restart — tools.py memiliki error: {compile_check.stderr}"}
-        
+
         bot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot.py")
         compile_check2 = subprocess.run(
             [sys.executable, "-m", "py_compile", bot_path],
@@ -5676,13 +5670,13 @@ def self_restart_service() -> Dict[str, Any]:
         )
         if compile_check2.returncode != 0:
             return {"status": "error", "message": f"Tidak bisa restart — bot.py memiliki error: {compile_check2.stderr}"}
-        
+
         # Schedule restart in 2 seconds (so we can send response first)
         subprocess.Popen(
             "sleep 2 && systemctl --user restart telegram-ai-bot.service",
             shell=True, start_new_session=True
         )
-        
+
         return {
             "status": "success",
             "message": "🔄 Bot akan restart dalam 2 detik... Semua pembaruan dan tool baru akan aktif setelah restart. Bot akan kembali online dalam ~3 detik."
@@ -5694,10 +5688,10 @@ def self_restart_service() -> Dict[str, Any]:
 def proactive_system_guardian_config(action: str = "status", cpu_threshold: int = 90, ram_threshold: int = 85, disk_threshold: int = 90, battery_critical: int = 10, auto_kill_ram_hogs: bool = False) -> Dict[str, Any]:
     """
     GOD MODE: Configure the Proactive System Guardian daemon.
-    The guardian runs in the background 24/7, monitoring system health and
+    The guardian runs in the background 24 / 7, monitoring system health and
     automatically taking protective actions (sending alerts, killing memory hogs,
     locking screen on critical battery, etc.).
-    
+
     Args:
         action: 'status' to check guardian config, 'enable' to activate, 'disable' to deactivate.
         cpu_threshold: CPU usage % threshold for alert (default: 90).
@@ -5709,16 +5703,16 @@ def proactive_system_guardian_config(action: str = "status", cpu_threshold: int 
     try:
         config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        
+
         import json
-        
+
         if action == "status":
             if os.path.exists(config_path):
                 with open(config_path, "r") as f:
                     config = json.load(f)
                 return {"status": "success", "guardian": config}
             return {"status": "success", "guardian": {"enabled": False, "message": "Guardian belum dikonfigurasi."}}
-        
+
         elif action == "enable":
             config = {
                 "enabled": True,
@@ -5735,13 +5729,13 @@ def proactive_system_guardian_config(action: str = "status", cpu_threshold: int 
                 "status": "success",
                 "message": f"🛡️ System Guardian AKTIF! Monitoring: CPU>{cpu_threshold}%, RAM>{ram_threshold}%, Disk>{disk_threshold}%, Battery<{battery_critical}%. Auto-kill: {'ON' if auto_kill_ram_hogs else 'OFF'}."
             }
-        
+
         elif action == "disable":
             config = {"enabled": False, "updated_at": datetime.datetime.now().isoformat()}
             with open(config_path, "w") as f:
                 json.dump(config, f, indent=2)
             return {"status": "success", "message": "🛡️ System Guardian dinonaktifkan."}
-        
+
         return {"status": "error", "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -5752,7 +5746,7 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
     GOD MODE: Configure Ambient Proactive Autonomous Engagement.
     Controls whether and how often the AI agent can autonomously initiate contact,
     ask questions, check in on user projects, or send daily morning/afternoon briefings.
-    
+
     Args:
         action: 'status' (view config), 'enable' (turn on proactive mode), 'disable' (turn off).
         enabled: Set proactive mode active/inactive.
@@ -5764,7 +5758,7 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
         import json
         config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        
+
         if action == "status":
             if os.path.exists(config_path):
                 with open(config_path, "r", encoding="utf-8") as f:
@@ -5780,7 +5774,7 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
                     "message": "Mode Proaktif default aktif."
                 }
             }
-            
+
         elif action in ["enable", "set"]:
             config = {
                 "enabled": True,
@@ -5795,7 +5789,7 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
                 "status": "success",
                 "message": f"🤖 Mode Proaktif Otonom AKTIF! Bot akan berinisiatif menyapa/mengecek kondisi setiap ~{min_hours_between_pings} jam di luar jam tenang ({quiet_hours_start}:00 - {quiet_hours_end}:00)."
             }
-            
+
         elif action == "disable":
             config = {
                 "enabled": False,
@@ -5804,7 +5798,7 @@ def proactive_ambient_agent_config(action: str = "status", enabled: bool = True,
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
             return {"status": "success", "message": "🤖 Mode Proaktif Otonom dinonaktifkan. Bot hanya akan membalas jika Anda bertanya."}
-            
+
         return {"status": "error", "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable."}
     except Exception as e:
         return {"status": "error", "message": f"Proactive config error: {str(e)}"}
@@ -5815,19 +5809,19 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
     ECOSYSTEM INTEGRATION: WhatsApp Google Sheets Bot Controller.
     Controls and monitors the wa-sheets-bot systemd user service.
     Can check status, start, stop, restart, enable auto-start, or view live logs.
-    
+
     Args:
         action: 'status' (check running state & memory), 'start', 'stop', 'restart', 'logs' (recent 20 lines), 'enable' (enable autostart on boot).
     """
     try:
         act = action.lower().strip()
         svc_name = "wa-sheets-bot.service"
-        
+
         if act == "status":
             res_active = subprocess.run(["systemctl", "--user", "is-active", svc_name], capture_output=True, text=True)
             res_enabled = subprocess.run(["systemctl", "--user", "is-enabled", svc_name], capture_output=True, text=True)
             res_status = subprocess.run(["systemctl", "--user", "status", svc_name, "--no-pager", "-n", "5"], capture_output=True, text=True)
-            
+
             is_act = res_active.stdout.strip() == "active"
             return {
                 "status": "success",
@@ -5837,7 +5831,7 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
                 "enabled_on_boot": res_enabled.stdout.strip() == "enabled",
                 "details": res_status.stdout.strip()
             }
-            
+
         elif act in ["start", "stop", "restart", "enable", "disable"]:
             res = subprocess.run(["systemctl", "--user", act, svc_name], capture_output=True, text=True)
             if res.returncode == 0:
@@ -5849,7 +5843,7 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
                     "current_state": res_active.stdout.strip()
                 }
             return {"status": "error", "message": f"Gagal mengeksekusi {act}: {res.stderr}"}
-            
+
         elif act == "logs":
             res_logs = subprocess.run(["journalctl", "--user", "-u", svc_name, "-n", "25", "--no-pager"], capture_output=True, text=True)
             return {
@@ -5857,7 +5851,7 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
                 "service": svc_name,
                 "logs": res_logs.stdout.strip()
             }
-            
+
         return {"status": "error", "message": f"Aksi '{action}' tidak dikenal. Gunakan: status, start, stop, restart, logs, enable."}
     except Exception as e:
         return {"status": "error", "message": f"Manage wa-sheets-bot error: {str(e)}"}
@@ -5868,7 +5862,7 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
     ALFA OS: Web Command Center Dashboard Controller.
     Returns the active local web URL for the luxury management dashboard
     and ensures the alfa-dashboard.service is running.
-    
+
     Args:
         port: Dashboard port (default: 8080).
     """
@@ -5877,7 +5871,7 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
         res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
         if res.stdout.strip() != "active":
             subprocess.run(["systemctl", "--user", "start", "alfa-dashboard.service"], capture_output=True, text=True)
-            
+
         import socket
         local_ip = "127.0.0.1"
         try:
@@ -5887,13 +5881,13 @@ def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
             s.close()
         except Exception:
             pass
-            
+
         return {
             "status": "success",
             "message": f"🌐 Web Dashboard Command Center aktif! Buka di browser laptop: http://localhost:{port} atau dari HP di WiFi yang sama: http://{local_ip}:{port}",
             "local_url": f"http://localhost:{port}",
             "network_url": f"http://{local_ip}:{port}",
-            "dashboard_features": ["Live Hardware Telemetry", "75+ Tools Arsenal & Runner", "Ecosystem Services Hub", "Second Brain Memory Visualizer", "24/7 Guardian Control", "Web Live AI Console", "AI Swarm & Rapat Antar Agent", "Multi-Provider API Key Vault"]
+            "dashboard_features": ["Live Hardware Telemetry", "75+ Tools Arsenal & Runner", "Ecosystem Services Hub", "Second Brain Memory Visualizer", "24 / 7 Guardian Control", "Web Live AI Console", "AI Swarm & Rapat Antar Agent", "Multi-Provider API Key Vault"]
         }
     except Exception as e:
         return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
@@ -5903,13 +5897,13 @@ def manage_api_keys(action: str, name: str = "", provider: str = "gemini", api_k
     """
     Manage API keys and multi-provider endpoints (Gemini, OpenAI, Groq, OpenRouter, Anthropic, Ollama, NVIDIA NIM).
     Enables switching active keys or assigning specific provider keys to specialized agents.
-    
+
     Args:
         action: 'list' (view all keys), 'add' (add key), 'activate' (set key active), 'delete' (remove key).
         name: Label name for the key (e.g. 'Production Gemini', 'NVIDIA NIM Llama 3.3', 'Groq Llama 3').
         provider: 'gemini', 'openai', 'groq', 'openrouter', 'anthropic', 'ollama', 'nvidia'.
         api_key: The API secret key string (e.g. nvapi-..., AIza..., sk-...).
-        default_model: Default model string (e.g. 'meta/llama-3.3-70b-instruct', 'gemini-3.6-flash', 'gpt-4o').
+        default_model: Default model string (e.g. 'meta/llama-3.3 - 70b-instruct', 'gemini-3.6-flash', 'gpt-4o').
         base_url: Optional custom proxy or Ollama/NVIDIA NIM base URL (default for nvidia: 'https://integrate.api.nvidia.com/v1').
         key_id: Target key ID for 'activate' or 'delete'.
     """
@@ -5952,7 +5946,7 @@ def manage_custom_agents(action: str, name: str = "", role: str = "", persona: s
     """
     Manage the Autonomous AI Agent Workforce (Society of Agents).
     Create, list, update, and configure specialized agents that can collaborate, hold meetings, and execute tasks.
-    
+
     Args:
         action: 'list' (view all agents), 'add' (create agent), 'delete' (remove agent), 'toggle' (enable/disable).
         name: Unique name of the agent (e.g. 'Security Guard', 'Frontend Ninja').
@@ -6009,9 +6003,9 @@ def manage_custom_agents(action: str, name: str = "", role: str = "", persona: s
 def query_token_usage(hours: int = 24) -> Dict[str, Any]:
     """
     Laporan pemakaian token AI per API key (realtime dari dashboard vault).
-    
+
     Args:
-        hours: Rentang jam ke belakang (1-720, default 24).
+        hours: Rentang jam ke belakang (1 - 720, default 24).
     """
     try:
         summary = database.get_api_usage_summary_sync(hours=hours)
@@ -6036,7 +6030,7 @@ def query_token_usage(hours: int = 24) -> Dict[str, Any]:
 def list_wa_drive_uploads(limit: int = 20) -> Dict[str, Any]:
     """
     Daftar berkas (foto/PDF/dokumen) yang otomatis diunggah dari WhatsApp ke Google Drive.
-    
+
     Args:
         limit: Jumlah maksimal entri terbaru (default 20).
     """
@@ -6079,11 +6073,11 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
         import swarm_engine
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
-        
+
         def _run_meeting():
             return asyncio.run(swarm_engine.conduct_multi_agent_meeting(
                 topic, part_list, rounds_clamped, "execute", target_folder=folder))
-        
+
         # asyncio.run() needs a fresh loop; if this tool is invoked from inside
         # a running loop (e.g. Telegram handler), delegate to a worker thread.
         try:
@@ -6092,7 +6086,7 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
                 result = pool.submit(_run_meeting).result(timeout=600)
         except RuntimeError:
             result = _run_meeting()
-            
+
         return {
             "status": "success",
             "meeting_id": result.get("meeting_id"),
@@ -6115,7 +6109,7 @@ def vault_store_secret(name: str, value: str, category: str = "api_key", notes: 
     """
     Encrypt and store a sensitive credential, API key, affiliate token, or secret note
     into αlfa Secure Vault with AES-256-GCM authenticated encryption.
-    
+
     Args:
         name: Unique identifier name for the secret (e.g. 'KLING_AI_KEY', 'SHOPEE_COOKIE', 'DB_PASSWORD').
         value: Secret text/token/key to encrypt and store securely.
@@ -6133,7 +6127,7 @@ def vault_store_secret(name: str, value: str, category: str = "api_key", notes: 
 def vault_get_secret(name_or_id: str) -> Dict[str, Any]:
     """
     Retrieve and decrypt a sensitive secret from αlfa Secure Vault using AES-256-GCM.
-    
+
     Args:
         name_or_id: The unique name or ID of the secret to decrypt.
     """
@@ -6157,7 +6151,7 @@ def vault_get_secret(name_or_id: str) -> Dict[str, Any]:
 def vault_list_secrets(category: str = "all") -> Dict[str, Any]:
     """
     List all stored secrets metadata in αlfa Secure Vault without exposing decrypted plaintext.
-    
+
     Args:
         category: Filter by category ('all', 'api_key', 'affiliate', 'password', 'note').
     """
@@ -6177,7 +6171,7 @@ def vault_list_secrets(category: str = "all") -> Dict[str, Any]:
 def vault_delete_secret(secret_id: int) -> Dict[str, Any]:
     """
     Permanently delete a secret from αlfa Secure Vault by ID.
-    
+
     Args:
         secret_id: Numeric ID of the secret to delete.
     """
@@ -6196,7 +6190,7 @@ def audit_website_security(target_url: str) -> Dict[str, Any]:
     Conduct a Defensive Cybersecurity Audit on a website or API endpoint (Cyber Sentry):
     Audits SSL/TLS certificate, Security Headers (CSP, HSTS, X-Frame-Options, XSS, etc.),
     CORS policies, server fingerprint leaks, and generates an overall Security Grade (A+ to F).
-    
+
     Args:
         target_url: The URL or domain to audit (e.g. 'https://shopee.co.id', 'https://example.com').
     """
@@ -6217,9 +6211,9 @@ def universal_deep_scraper(query: str, category: str = "all_marketplace", limit:
     - 'leads_contacts' (WhatsApp, Phone, Email, Suppliers, Distributors)
     - 'property_realestate' (Rumah123, Rumah.com, Lamudi, OLX)
     - 'google_general' (General Web Deep Search)
-    
+
     Automatically extracts Titles, Prices, Contacts (Phone/WA/Email), Domains, URLs, and saves to CSV & JSON.
-    
+
     Args:
         query: What to scrape / search (e.g. 'sepatu sneakers running wanita', 'python developer', 'distributor kopi gayo').
         category: Platform category to scrape (default: 'all_marketplace').
@@ -6236,7 +6230,7 @@ def scrape_custom_urls_batch(urls: List[str], concurrency: int = 15, use_camoufo
     """
     Scrape any custom list of URLs with high-speed multi-threaded workers or Camoufox stealth browser.
     Extracts page titles, meta info, prices, images, and descriptions into CSV and JSON.
-    
+
     Args:
         urls: List of web URLs to scrape.
         concurrency: Concurrent scraping workers (default: 15).
@@ -6391,4 +6385,3 @@ AVAILABLE_TOOLS = [
     scan_local_network,
     *plugins.load_all_plugin_tools()
 ]
-

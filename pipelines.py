@@ -52,7 +52,7 @@ try:
 except ValueError:
     MAX_STEPS = 30
 
-_VAR_RE = re.compile(r"\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}")
+_VAR_RE = re.compile(r"\{\{\s*([a-zA-Z0 - 9_.]+)\s*\}\}")
 
 
 def _get_path(obj: Any, dotted: str) -> Any:
@@ -136,14 +136,14 @@ def list_pipelines() -> List[Dict[str, Any]]:
 
 
 def load_pipeline(pid: str) -> Dict[str, Any]:
-    safe = re.sub(r"[^a-zA-Z0-9_\-]", "", pid)
+    safe = re.sub(r"[^a-zA-Z0 - 9_\-]", "", pid)
     path = os.path.join(PIPELINE_DIR, f"{safe}.json")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_pipeline(data: Dict[str, Any]) -> str:
-    pid = re.sub(r"[^a-zA-Z0-9_\-]", "", str(data.get("id") or ""))
+    pid = re.sub(r"[^a-zA-Z0 - 9_\-]", "", str(data.get("id") or ""))
     if not pid:
         raise ValueError("Pipeline wajib punya 'id'.")
     data["id"] = pid
@@ -323,7 +323,7 @@ async def run_pipeline(pid: str, overrides: Dict[str, Any] | None = None) -> Dic
 
 # ── Riwayat eksekusi (execution history ala n8n) ─────────────────────────
 def _runs_file(pid: str) -> str:
-    safe = re.sub(r"[^a-zA-Z0-9_\-]", "", pid)
+    safe = re.sub(r"[^a-zA-Z0 - 9_\-]", "", pid)
     return os.path.join(RUNS_DIR, f"{safe}.jsonl")
 
 
