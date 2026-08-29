@@ -4135,9 +4135,13 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
                 pass
 
             # Step 3: Click the target
-            clicks = 2 if action == "double_click" else 1
-            button = "right" if action == "right_click" else "left"
             time.sleep(0.8)
+            if action == "double_click":
+                pyautogui.click(x=x, y=y, clicks=2, interval=0.3)
+            elif action == "right_click":
+                pyautogui.rightClick(x=x, y=y)
+            else:
+                pyautogui.click(x=x, y=y)
             capture_desktop_screenshot()
 
             return {
