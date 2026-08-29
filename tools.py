@@ -23,10 +23,17 @@ import json
 import logging
 import os
 import re
+import shutil
+import socket
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 import psutil
 from dotenv import load_dotenv
@@ -39,6 +46,51 @@ try:
     from ddgs import DDGS
 except ImportError:  # opsional: bot tetap bisa start tanpa paket pencarian
     DDGS = None
+
+# Lazy imports for optional/heavy dependencies (performance optimization)
+# These are imported at module level to avoid repeated import overhead in functions
+try:
+    from pypdf import PdfReader, PdfWriter
+except ImportError:
+    PdfReader = PdfWriter = None
+
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+try:
+    from reportlab.lib.colors import Color, HexColor
+    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.pdfgen import canvas
+except ImportError:
+    Color = HexColor = canvas = None
+    A4 = letter = None
+
+try:
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
+except ImportError:
+    Image = ImageDraw = ImageFont = ImageFilter = ImageEnhance = ImageOps = None
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
+try:
+    import pyautogui
+except ImportError:
+    pyautogui = None
+
+try:
+    import markitdown
+except ImportError:
+    markitdown = None
 
 logger = logging.getLogger("AgentTools")
 
@@ -2114,8 +2166,10 @@ def pdf_merge_documents(pdf_paths: List[str], output_filename: str = "merged.pdf
         pdf_paths: Daftar path file PDF yang ingin digabungkan (misal: ['/tmp/doc1.pdf', '/tmp/doc2.pdf']).
         output_filename: Nama file PDF hasil penggabungan (misal: 'merged_dokumen.pdf').
     """
+    if PdfReader is None or PdfWriter is None:
+        return {"status": "error", "message": "Library pypdf tidak terinstal. Install dengan: pip install pypdf"}
+    
     try:
-        from pypdf import PdfReader, PdfWriter
         out_dir = get_pdf_output_dir("Merge")
         safe_name = output_filename if output_filename.endswith(".pdf") else f"{output_filename}.pdf"
         target_path = os.path.join(out_dir, safe_name)
