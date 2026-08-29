@@ -18,15 +18,14 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from google import genai
 from google.genai import types
 
 import database
 import token_usage
 import tools
+
+load_dotenv()
 
 # Checkpoint & tracing: opsional — bot tetap berjalan tanpa keduanya
 try:
@@ -126,7 +125,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
             new_dirs.add(os.path.basename(_TARGET_FOLDER.rstrip("/")))
         if not new_dirs:
             return harvested
-        slug = re.sub(r"[^a-z0-9]+", "_", (topic or "rapat").lower())[:30].strip("_") or "rapat"
+        slug = re.sub(r"[^a-z0 - 9]+", "_", (topic or "rapat").lower())[:30].strip("_") or "rapat"
         dst_root = os.path.join(SWARM_OUTPUT_DIR, "projects",
                                 f"{slug}_{int(time.time())}")
         for d in sorted(new_dirs):
@@ -303,9 +302,9 @@ def qa_verdict_passed(text: str) -> bool:
 def detect_task_intent(topic: str) -> Dict[str, Any]:
     """Analyze the user's topic/command to determine tool strategy, categories, and limits."""
     low = topic.lower()
-    
+
     # Detect target count (e.g. 20 mouse, 10 jobs)
-    count_match = re.search(r'\b(\d{1,3})\b', low)
+    count_match = re.search(r'\b(\d{1, 3})\b', low)
     limit = int(count_match.group(1)) if count_match else 20
     limit = min(50, max(5, limit))
 
@@ -422,7 +421,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
+        "gemini-3.6-flash, gemini-3.7-flash, gemini-flash-latest"
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -652,7 +651,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     tone_directive = (
         "\n\n[PANDUAN OUTPUT & GAYA BICARA]:"
         "\n1. BICARA SANTAI & GAUL: Gunakan gaya bahasa santai, luwes, natural ala software engineer/tech specialist di war room (jangan kaku, hindari basa-basi robot seperti 'Sebagai AI...', 'Tentu saja...')."
-        "\n2. ON-POINT & REALISTIS: Langsung sebutkan fakta teknis nyata dan aksi nyata yang dilakukan tanpa bertele-tele. Maksimal 2-4 kalimat."
+        "\n2. ON-POINT & REALISTIS: Langsung sebutkan fakta teknis nyata dan aksi nyata yang dilakukan tanpa bertele-tele. Maksimal 2 - 4 kalimat."
     )
     if enable_tools:
         # Agen ber-tool: disiplin kerja ketat. Tone santai membuat model
@@ -958,7 +957,7 @@ async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: st
     cands = sorted(set(cands), key=lambda p: os.path.getmtime(p), reverse=True)
     main_file = cands[0] if cands else os.path.join(
         target_folder,
-        re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-") + ".html")
+        re.sub(r"[^a-z0 - 9]+", "-", task_instruction.lower())[:30].strip("-") + ".html")
     ext = os.path.splitext(main_file)[1].lower()
     fmt_hint = ("Dokumen HTML5 utuh mulai <!DOCTYPE html>." if ext.startswith(".h")
                 else "Kode sumber lengkap tanpa penjelasan.")
@@ -1055,7 +1054,7 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
     agent_name = agent.get("name", "Agent")
     role = agent.get("role", "Specialist")
     agent_id = agent.get("id", 1)
-    
+
     # Snapshot hash utk bukti perubahan file tingkat-langkah
     pre_hash = _hash_sandbox_projects()
     step_fs_changed = None
@@ -1212,8 +1211,8 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
 
 
 async def conduct_multi_agent_meeting(
-    topic: str, 
-    participant_names: Optional[List[str]] = None, 
+    topic: str,
+    participant_names: Optional[List[str]] = None,
     rounds: int = 2,
     mode: str = "execute",
     target_folder: str = "",
@@ -1249,7 +1248,7 @@ async def conduct_multi_agent_meeting(
                     "aplikasi", "landing", "dashboard", "desain", "design",
                     "script", "skrip", "program", "refactor", "perbaiki tampilan")
         if any(k in topic.lower() for k in build_kw):
-            slug = re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-") or "proyek-baru"
+            slug = re.sub(r"[^a-z0 - 9]+", "-", topic.lower())[:42].strip("-") or "proyek-baru"
             nf = os.path.join(tools.SANDBOX_DIR, f"{slug}_{int(time.time()) % 100000}")
             try:
                 os.makedirs(nf, exist_ok=True)
@@ -1320,7 +1319,7 @@ async def conduct_multi_agent_meeting(
     for r in range(1, actual_rounds + 1):
         for agent in participants:
             context_text = "\n".join(history_summary) if history_summary else "(Sesi baru saja dibuka oleh Alpha Lead)"
-            
+
             if mode in ["execute", "plan_and_execute"]:
                 prompt = (
                     f"=== PERINTAH EKSEKUSI LANGSUNG SWARM ===\n"
@@ -1330,7 +1329,7 @@ async def conduct_multi_agent_meeting(
                     f"=== IDENTITAS KAMU ===\n"
                     f"Nama: {agent['name']} ({agent['role']})\n\n"
                     f"TUGAS KAMU (PERSIAPAN EKSEKUSI LANGSUNG):\n"
-                    f"1. Jelaskan dalam 1-2 kalimat santai peran nyata apa yang LANGSUNG KAMU EKSEKUSI SEKARANG untuk menyelesaikan misi ini.\n"
+                    f"1. Jelaskan dalam 1 - 2 kalimat santai peran nyata apa yang LANGSUNG KAMU EKSEKUSI SEKARANG untuk menyelesaikan misi ini.\n"
                     f"2. Bicara santai, tegas, siap aksi!"
                 )
             else:
@@ -1663,7 +1662,7 @@ async def conduct_multi_agent_meeting(
             f"=== TOPIK RAPAT ===\n{topic}\n\n"
             f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n" + "\n".join(history_summary) + "\n\n"
             f"Sebagai kapten rapat ({lead_agent['name']}), buatlah rangkuman KONSENSUS & ACTION PLAN yang ON-POINT:\n"
-            f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2-3 poin ringkas).\n"
+            f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2 - 3 poin ringkas).\n"
             f"2. ACTION PLAN (Tabel tugas terstruktur: No, Modul/Tugas, Penanggung Jawab, Target).\n"
             f"Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
         )
@@ -1739,4 +1738,3 @@ async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
         mode=mode,
         session_id=session_id,
     )
-

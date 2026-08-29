@@ -137,7 +137,7 @@ def academic_deep_research_paper(
     saved_file_path = ""
 
     if save_to_file:
-        clean_q = re.sub(r"[^a-zA-Z0-9_\-]", "_", query.lower())[:30]
+        clean_q = re.sub(r"[^a-zA-Z0 - 9_\-]", "_", query.lower())[:30]
         fname = f"academic_review_{clean_q}_{int(time.time())}.md"
         saved_file_path = os.path.join(SWARM_OUTPUT_DIR, fname)
         try:

@@ -60,7 +60,7 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     """Generate natural Indonesian voiceover from text."""
     safe_stem = f"voice_{int(time.time() * 1000)}"
     audio_path = os.path.join(VIDEO_OUT_DIR, "Audio", f"{safe_stem}.mp3")
-    
+
     edge_tts_bin = None
     if os.name == "nt":
         candidates = [
@@ -81,7 +81,7 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
             break
     if not edge_tts_bin:
         edge_tts_bin = "edge-tts"
-        
+
     cmd = [edge_tts_bin, "--voice", voice, "-f", "-", "--write-media", audio_path]
     # Teks dikirim via stdin ("-f -") agar tidak muncul di process list (ps aux)
     # dan tidak kena batas ARG_MAX pada voiceover panjang.
@@ -152,7 +152,7 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
     """
     WIDTH, HEIGHT = 1080, 1920
     bg = Image.new("RGBA", (WIDTH, HEIGHT), (10, 15, 29, 255))
-    
+
     # Load product image or create high-end mock placeholder
     has_real_image = False
     if image_path and os.path.exists(image_path):
@@ -161,7 +161,7 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
             has_real_image = True
         except Exception:
             has_real_image = False
-            
+
     if not has_real_image:
         prod_img = Image.new("RGBA", (880, 880), (20, 30, 50, 255))
         d = ImageDraw.Draw(prod_img)
@@ -182,24 +182,24 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
     STAGE_TOP = 420
     STAGE_HEIGHT = 980
     STAGE_WIDTH = 900
-    
+
     aspect = prod_img.height / prod_img.width
     pw = STAGE_WIDTH
     ph = int(pw * aspect)
     if ph > STAGE_HEIGHT:
         ph = STAGE_HEIGHT
         pw = int(ph / aspect)
-        
+
     prod_resized = prod_img.resize((pw, ph), Image.Resampling.LANCZOS)
-    
+
     px = (WIDTH - pw) // 2
     py = STAGE_TOP + (STAGE_HEIGHT - ph) // 2
-    
+
     draw = ImageDraw.Draw(bg)
     # Stage Card backdrop
     card_rect = [px - 14, py - 14, px + pw + 14, py + ph + 14]
     draw.rounded_rectangle(card_rect, radius=24, fill=(15, 23, 42, 220), outline=(255, 255, 255, 30), width=2)
-    
+
     bg.paste(prod_resized, (px, py), prod_resized)
     bg.save(output_path, "PNG")
     return output_path
@@ -269,7 +269,7 @@ def create_ui_overlay_layer(
     # 1. TOP FLASH SALE BADGE (Safe Y: 120 - 195)
     badge_rect = [80, 120, WIDTH - 80, 195]
     draw.rounded_rectangle(badge_rect, radius=20, fill=badge_bg, outline=badge_border, width=3)
-    
+
     # Draw vector lightning bolt on left of badge
     draw_lightning_icon(draw, 110, 138, size=24, fill=(255, 255, 255, 255))
     draw_lightning_icon(draw, WIDTH - 134, 138, size=24, fill=(255, 255, 255, 255))
@@ -280,7 +280,7 @@ def create_ui_overlay_layer(
     if len(lines) > 2:
         lines = lines[:2]
         lines[1] = lines[1] + "..."
-        
+
     cur_y = 240
     for line in lines:
         draw.text((WIDTH // 2 + 2, cur_y + 2), line, fill=(0, 0, 0, 200), font=font_title, anchor="mm")
@@ -291,7 +291,7 @@ def create_ui_overlay_layer(
     star_start_x = WIDTH // 2 - 120
     for i in range(5):
         draw_star(draw, star_start_x + (i * 26), 350, radius=11, fill=(251, 191, 36, 255))
-        
+
     draw.text((WIDTH // 2 + 65, 350), f"Rating {rating} • Terlaris", fill=(251, 191, 36, 255), font=font_sub, anchor="lm")
 
     # 4. BOTTOM PRICE COMPARISON CONTAINER (Safe Y: 1450 - 1590)
@@ -303,7 +303,7 @@ def create_ui_overlay_layer(
     if not clean_orig.startswith("Rp"):
         clean_orig = f"Rp {clean_orig}"
     draw.text((220, 1520), clean_orig, fill=(148, 163, 184, 255), font=font_strike, anchor="mm")
-    
+
     # Red Strike-through bar
     strike_len = int(len(clean_orig) * 9.5)
     draw.line([(220 - strike_len, 1520), (220 + strike_len, 1520)], fill=(239, 68, 68, 255), width=4)
@@ -475,7 +475,7 @@ def _generate_google_veo_video(
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r'[^a-zA-Z0 - 9_-]', '_', product_name)[:25]
         output_filename = f"{safe_stem}_veo_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -614,7 +614,7 @@ def _generate_gemini_omni_video(
     if not op_name:
         raise RuntimeError(f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}")
 
-    # 3. Polling status (maks ±10 menit; umumnya selesai ~45-90 detik)
+    # 3. Polling status (maks ±10 menit; umumnya selesai ~45 - 90 detik)
     poll_url = f"{GEMINI_API_BASE}/{op_name}"
     payload_found = None
     for _ in range(60):
@@ -656,7 +656,7 @@ def _generate_gemini_omni_video(
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r'[^a-zA-Z0 - 9_-]', '_', product_name)[:25]
         output_filename = f"{safe_stem}_omni_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -794,14 +794,14 @@ def generate_video_from_images(
             voice=voice,
             output_filename=output_filename
         )
-    
+
     # 1. Validate images
     valid_images = []
     for p in image_paths:
         exp = os.path.expanduser(p.strip())
         if os.path.exists(exp):
             valid_images.append(exp)
-            
+
     if not valid_images:
         placeholder = os.path.join(VIDEO_OUT_DIR, "Frames", "temp_stage.png")
         create_product_stage_layer("", placeholder)
@@ -832,23 +832,23 @@ def generate_video_from_images(
 
     # 4. Output Path
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r'[^a-zA-Z0 - 9_-]', '_', product_name)[:25]
         output_filename = f"{safe_stem}_{int(time.time())}.mp4"
     else:
         # Prevent path traversal via user-supplied filenames
         output_filename = os.path.basename(output_filename.strip())
         if not output_filename.endswith(".mp4"):
             output_filename = f"{output_filename}.mp4"
-        
+
     final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
 
     # 5. Dual-Layer FFmpeg Motion Compositing (Gentle 1.00 -> 1.05 push-in on background only)
     if motion_style == "zoom_out":
-        zoom_expr = f"zoompan=z='max(1.05-0.00004*on,1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
+        zoom_expr = f"zoompan=z='max(1.05 - 0.00004*on, 1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
     elif motion_style == "pan_left_right":
         zoom_expr = f"zoompan=z='1.03':x='(iw-iw/zoom)*(sin(it*0.5)+1)/2':y='ih/2-(ih/zoom/2)':d={total_frames}:s=1080x1920:fps=30"
     else: # zoom_in
-        zoom_expr = f"zoompan=z='min(1.0+0.00004*on,1.05)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
+        zoom_expr = f"zoompan=z='min(1.0 + 0.00004*on, 1.05)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
 
     per_img_dur = max(3.0, duration_sec / len(stage_layers))
 
@@ -878,28 +878,28 @@ def generate_video_from_images(
             # multiplies durations (~25x) so later images were never reached.
             inputs.extend(["-i", sl])
             if motion_style == "zoom_out":
-                z_expr = f"max(1.05-{zoom_rate}*on,1.0)"
+                z_expr = f"max(1.05-{zoom_rate}*on, 1.0)"
                 pos_expr = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
             elif motion_style == "pan_left_right":
                 z_expr = "1.03"
                 pos_expr = f"x='(iw-iw/zoom)*(sin((on/{per_frames})*PI)+1)/2':y='ih/2-(ih/zoom/2)'"
             else:  # zoom_in
-                z_expr = f"min(1.0+{zoom_rate}*on,1.05)"
+                z_expr = f"min(1.0+{zoom_rate}*on, 1.05)"
                 pos_expr = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
             filter_parts.append(
                 f"[{i}:v]zoompan=z='{z_expr}':d={per_frames}:{pos_expr}:s=1080x1920:fps=30[v{i}];"
             )
-            
+
         concat_inputs = "".join([f"[v{i}]" for i in range(len(stage_layers))])
         filter_parts.append(f"{concat_inputs}concat=n={len(stage_layers)}:v=1:a=0[bg];")
-        
+
         overlay_idx = len(stage_layers)
         audio_idx = overlay_idx + 1
         inputs.extend(["-loop", "1", "-i", overlay_out])
-        
+
         filter_parts.append(f"[bg][{overlay_idx}:v]overlay=0:0[outv]")
         filter_str = "".join(filter_parts)
-        
+
         cmd = [
             "ffmpeg", "-y",
             *inputs,

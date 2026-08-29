@@ -37,7 +37,7 @@ SCOPES = ("https://www.googleapis.com/auth/cloud-platform "
           "https://www.googleapis.com/auth/userinfo.email "
           "https://www.googleapis.com/auth/userinfo.profile")
 LOGIN_TIMEOUT_S = 300
-NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
+NAME_RE = re.compile(r"^[a-z0 - 9][a-z0 - 9_-]{0, 23}$")
 
 _pending: Dict[str, Dict[str, Any]] = {}
 _pending_lock = threading.Lock()

@@ -89,7 +89,7 @@ TOOL_DESCRIPTIONS = {
     "pdf_inspect_metadata": "Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata) dan simpan salinan JSON.",
     "pdf_merge_documents": "Gabungkan beberapa file PDF menjadi satu dokumen PDF utuh.",
     "pdf_rotate_pages": "Putar orientasi halaman PDF (90, 180, atau 270 derajat searah jarum jam).",
-    "pdf_split_document": "Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1-3, 5, 8-10').",
+    "pdf_split_document": "Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1 - 3, 5, 8 - 10').",
     "proactive_ambient_agent_config": "GOD MODE: Configure Ambient Proactive Autonomous Engagement.",
     "proactive_system_guardian_config": "GOD MODE: Configure the Proactive System Guardian daemon.",
     "query_database": "Execute a SQL query on a local SQLite database file and return the results as a table.",
