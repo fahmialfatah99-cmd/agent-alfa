@@ -157,30 +157,63 @@ def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> i
 
 
 def categorize_tool(name: str) -> str:
-    """Categorize tool by its functional domain."""
+    """Categorize tool by its functional domain with clear and consistent categories."""
     name_lower = name.lower()
-    if "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
-        return "Affiliate Sales & Product Scraper (Camoufox)"
+    
+    # Development & Git - Tools untuk version control dan development workflow
+    if "git" in name_lower or "github" in name_lower or "repo" in name_lower:
+        return "Development & Git"
+    
+    # Plugins & Extensions - Plugin khusus yang dapat diinstal/dihapus dinamis
+    elif name_lower in ["crypto_forex_live_rates", "whois_dns_domain_lookup", "qr_barcode_generator", 
+                        "speedtest_network_benchmark", "skill_installer"]:
+        return "Plugins & Extensions"
+    
+    # Affiliate Sales & Product Scraper - Tools untuk affiliate marketing dan scraping
+    elif "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
+        return "Affiliate Sales & Product Scraper"
+    
+    # PDF Tools Suite - Tools khusus untuk manipulasi PDF
     elif name_lower.startswith("pdf_") or "pdf" in name_lower:
-        return "PDF Tools Suite (Offline & Online)"
+        return "PDF Tools Suite"
+    
+    # Browser Automation - Otomasi browser dengan Camoufox/Playwright
     elif name_lower.startswith("browser_"):
         return "Browser Automation"
+    
+    # OS & Vision Control - Kontrol sistem operasi, screenshot, webcam, desktop
     elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or "screenshot" in name_lower or "webcam" in name_lower:
         return "OS & Vision Control"
+    
+    # LibreOffice Suite - Tools untuk dokumen LibreOffice
     elif name_lower.startswith("libreoffice_"):
         return "LibreOffice Suite"
+    
+    # Media & Documents - Pengolahan media, audio, image, excel, presentasi
     elif "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower or "image" in name_lower:
         return "Media & Documents"
+    
+    # Security & Network - Keamanan jaringan, SSH, password, firewall
     elif "security" in name_lower or "network" in name_lower or "ssh" in name_lower or "password" in name_lower:
         return "Security & Network"
+    
+    # Memory & Second Brain - Sistem memori, knowledge base, brain
     elif "knowledge" in name_lower or "memory" in name_lower or "brain" in name_lower:
         return "Memory & Second Brain"
+    
+    # System & Healing - Monitoring sistem, cleanup, guardian, service management
     elif "guardian" in name_lower or "heal" in name_lower or "service" in name_lower or "cron" in name_lower or "clean" in name_lower or "storage" in name_lower:
         return "System & Healing"
+    
+    # AI & Intelligence - Subagent, research, search, translate, dataset
     elif "subagent" in name_lower or "research" in name_lower or "search" in name_lower or "translate" in name_lower or "dataset" in name_lower:
         return "AI & Intelligence"
+    
+    # Ecosystem & Bots - Integrasi WhatsApp, Google Sheets, bots
     elif "wa_" in name_lower or "sheets" in name_lower:
         return "Ecosystem & Bots"
+    
+    # Core Utilities - Tools utilitas inti lainnya
     else:
         return "Core Utilities"
 
