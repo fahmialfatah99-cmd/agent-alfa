@@ -5,8 +5,6 @@ live telemetry timeline, 72+ tools explorer, service orchestrator,
 artifact gallery, and second brain visualizer.
 """
 
-import tools
-import database
 import asyncio
 import base64
 import inspect
@@ -26,6 +24,9 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+import database
+import tools
 
 load_dotenv()
 

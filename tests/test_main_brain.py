@@ -1,9 +1,10 @@
 """
 Unit test untuk main_brain router, skema tools OpenAI, dan kompaksi konteks.
 """
-import main_brain
 import sys
 from pathlib import Path
+
+import main_brain
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
