@@ -5,16 +5,6 @@ live web search, web page content extraction, file & workspace intelligence,
 persistent isolated long-term memory, proactive reminders, and desktop/webcam vision.
 """
 
-from visual_tester import browser_visual_test_page as browser_visual_test_page
-from lsp_code_intelligence import (
-    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
-    lsp_find_symbol_definition as lsp_find_symbol_definition,
-    lsp_find_symbol_references as lsp_find_symbol_references,
-)
-from git_sandbox import (
-    git_worktree_sandbox_create as git_worktree_sandbox_create,
-)
-from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
 import asyncio
 import datetime
 import difflib
@@ -23,23 +13,39 @@ import json
 import logging
 import os
 import re
-import shutil
-import socket
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
-from io import BytesIO
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
-from urllib.request import urlopen
 
 import psutil
 from dotenv import load_dotenv
 
 import database
 import plugins
+from academic_researcher import academic_deep_research_paper as academic_deep_research_paper
+from git_sandbox import (
+    git_worktree_sandbox_create as git_worktree_sandbox_create,
+)
+from git_sandbox import (
+    git_worktree_sandbox_list as git_worktree_sandbox_list,
+)
+from git_sandbox import (
+    git_worktree_sandbox_rollback as git_worktree_sandbox_rollback,
+)
+from git_sandbox import (
+    git_worktree_sandbox_verify_and_merge as git_worktree_sandbox_verify_and_merge,
+)
+from lsp_code_intelligence import (
+    lsp_analyze_module_hierarchy as lsp_analyze_module_hierarchy,
+)
+from lsp_code_intelligence import (
+    lsp_find_symbol_definition as lsp_find_symbol_definition,
+)
+from lsp_code_intelligence import (
+    lsp_find_symbol_references as lsp_find_symbol_references,
+)
+from visual_tester import browser_visual_test_page as browser_visual_test_page
 
 load_dotenv()
 try:
@@ -68,7 +74,7 @@ except ImportError:
     A4 = letter = None
 
 try:
-    from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
+    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 except ImportError:
     Image = ImageDraw = ImageFont = ImageFilter = ImageEnhance = ImageOps = None
 
@@ -100,7 +106,11 @@ logger = logging.getLogger("AgentTools")
 # pada bot.py & modul lain tetap valid.
 from runtime_ctx import (  # noqa: E402
     current_user_id_var as current_user_id_var,
+)
+from runtime_ctx import (
     get_current_chat_id as get_current_chat_id,
+)
+from runtime_ctx import (
     get_current_user_id as get_current_user_id,
 )
 
@@ -1701,7 +1711,6 @@ def _ensure_camofox_server() -> bool:
         camofox_bin = _find_camofox_bin()
         if camofox_bin:
             subprocess.run([camofox_bin, "server", "start", "--background"], env=env, capture_output=True, timeout=10)
-            import time
             time.sleep(1.5)
             return True
         return False
@@ -4127,7 +4136,6 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             # Step 3: Click the target
             clicks = 2 if action == "double_click" else 1
             button = "right" if action == "right_click" else "left"
-            import time
             time.sleep(0.8)
             capture_desktop_screenshot()
 
@@ -5564,10 +5572,6 @@ def scrcpy_android_control(action: str = "status", device_id: str = "", command_
         command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
         capture_screenshot: If True, takes a fresh screenshot after performing the action.
     """
-    import shutil
-    import subprocess
-    import time
-
     adb_bin = shutil.which("adb")
     scrcpy_bin = shutil.which("scrcpy")
 
