@@ -1,26 +1,9 @@
 ```
-# Dependencies
-.venv/
-venv/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# Distribution / packaging
+*.py[cod]
+*$py.class
+*.so
 .Python
 build/
 develop-eggs/
@@ -37,25 +20,40 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Environment
-.env
-.env.local
-.env.*
-.venv
-env/
+# Virtual environments
 venv/
 ENV/
+env.bak/
+.venv/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS
-.DS_Store
-Thumbs.db
+# Environment
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+.coverage.*
+.cache
+
+# Temporary files
+*.tmp
+*~
+```
+
+Wait, let me reconsider. Looking at the file changes, there are only Python source files being added and modified, no build artifacts, compiled files, or temporary files that need to be ignored. The changes are all `.py` files which are source code.
+
+```
+
 ```

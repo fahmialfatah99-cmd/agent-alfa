@@ -1,178 +1,112 @@
-"""
-System Monitoring & Information Tools Module
-Provides system stats, process monitoring, and system information.
-"""
-
-import datetime
-import os
-import platform
-import socket
-import subprocess
-from typing import Any, Dict, List, Optional, TypedDict
-
-import psutil
-
-
-# =============================================================================
-# TYPE DEFINITIONS
-# =============================================================================
-
-class SystemStats(TypedDict):
-    """Type definition for system statistics."""
-    cpu_percent: float
-    cpu_freq_mhz: float
-    cpu_cores_logical: int
-    cpu_cores_physical: int
-    ram_total_mb: float
-    ram_used_mb: float
-    ram_free_mb: float
-    ram_percent: float
-    disk_total_gb: float
-    disk_used_gb: float
-    disk_free_gb: float
-    disk_percent: float
-    boot_time: str
-    uptime_seconds: int
-    uptime_human: str
-    hostname: str
-    platform_system: str
-    platform_release: str
-    platform_version: str
-    platform_machine: str
-    processor: str
-    python_version: str
-    working_directory: str
-    username: str
-    processes: List[Dict[str, Any]]
-
-
 def get_system_stats() -> Dict[str, Any]:
     """
-    Get comprehensive system statistics including CPU, RAM, disk, and process information.
-    
-    Returns:
-        Dict containing system statistics with keys:
-        - cpu_percent: CPU usage percentage
-        - cpu_freq_mhz: CPU frequency in MHz
-        - cpu_cores_logical: Number of logical CPU cores
-        - cpu_cores_physical: Number of physical CPU cores
-        - ram_total_mb: Total RAM in MB
-        - ram_used_mb: Used RAM in MB
-        - ram_free_mb: Free RAM in MB
-        - ram_percent: RAM usage percentage
-        - disk_total_gb: Total disk space in GB
-        - disk_used_gb: Used disk space in GB
-        - disk_free_gb: Free disk space in GB
-        - disk_percent: Disk usage percentage
-        - boot_time: System boot time as ISO format string
-        - uptime_seconds: System uptime in seconds
-        - uptime_human: Human-readable uptime string
-        - hostname: System hostname
-        - platform_system: Operating system name
-        - platform_release: OS release version
-        - platform_version: OS version
-        - platform_machine: Machine architecture
-        - processor: Processor information
-        - python_version: Python version string
-        - working_directory: Current working directory
-        - username: Current username
-        - processes: List of top 10 processes by CPU usage
+    Get real-time Linux system health metrics including CPU cores/frequencies, RAM, Swap,
+    Disk usage, Network interfaces, Battery/Thermal status, Uptime, and Top Processes.
+    Use this tool when the user asks about laptop/server specs, resource usage, or performance.
     """
     try:
-        # CPU Information
-        cpu_percent = psutil.cpu_percent(interval=0.5)
+        cpu_percent = psutil.cpu_percent(interval=None)
+        cpu_count = psutil.cpu_count(logical=True)
         cpu_freq = psutil.cpu_freq()
-        cpu_freq_mhz = cpu_freq.current if cpu_freq else 0.0
-        cpu_cores_logical = psutil.cpu_count(logical=True) or 0
-        cpu_cores_physical = psutil.cpu_count(logical=False) or 0
-        
-        # RAM/Memory Information
-        ram = psutil.virtual_memory()
-        ram_total_mb = round(ram.total / (1024 * 1024), 2)
-        ram_used_mb = round(ram.used / (1024 * 1024), 2)
-        ram_free_mb = round(ram.available / (1024 * 1024), 2)
-        ram_percent = ram.percent
-        
-        # Disk Information
+        freq_str = f"{round(cpu_freq.current, 1)} MHz" if cpu_freq else "N/A"
+
+        mem = psutil.virtual_memory()
+        ram_total_gb = round(mem.total / (1024 ** 3), 2)
+        ram_used_gb = round(mem.used / (1024 ** 3), 2)
+        ram_free_gb = round(mem.available / (1024 ** 3), 2)
+        ram_percent = mem.percent
+
+        swap = psutil.swap_memory()
+        swap_total_gb = round(swap.total / (1024 ** 3), 2)
+        swap_used_gb = round(swap.used / (1024 ** 3), 2)
+
         disk = psutil.disk_usage('/')
-        disk_total_gb = round(disk.total / (1024 * 1024 * 1024), 2)
-        disk_used_gb = round(disk.used / (1024 * 1024 * 1024), 2)
-        disk_free_gb = round(disk.free / (1024 * 1024 * 1024), 2)
+        disk_total_gb = round(disk.total / (1024 ** 3), 2)
+        disk_used_gb = round(disk.used / (1024 ** 3), 2)
         disk_percent = disk.percent
-        
-        # Boot time and uptime
-        boot_time_obj = datetime.datetime.fromtimestamp(psutil.boot_time())
-        boot_time_str = boot_time_obj.isoformat()
-        uptime_seconds = int((datetime.datetime.now() - boot_time_obj).total_seconds())
-        
-        # Format uptime in human-readable form
-        days = uptime_seconds // 86400
-        hours = (uptime_seconds % 86400) // 3600
-        minutes = (uptime_seconds % 3600) // 60
-        uptime_human = f"{days}d {hours}h {minutes}m" if days > 0 else f"{hours}h {minutes}m"
-        
-        # System information
-        hostname = socket.gethostname()
-        platform_system = platform.system()
-        platform_release = platform.release()
-        platform_version = platform.version()
-        platform_machine = platform.machine()
-        processor = platform.processor() or "Unknown"
-        python_version = platform.python_version()
-        working_directory = os.getcwd()
-        username = os.getenv('USERNAME') if platform.system() == 'Windows' else os.getenv('USER') or 'Unknown'
-        
-        # Top processes by CPU usage
+
+        boot_time = datetime.datetime.fromtimestamp(psutil.boot_time())
+        uptime = str(datetime.datetime.now() - boot_time).split('.')[0]
+
+        # Network stats
+        net_addrs = psutil.net_if_addrs()
+        ip_summary = []
+        for iface, addrs in net_addrs.items():
+            if iface.startswith("lo"):
+                continue
+            for a in addrs:
+                if a.family.name == "AF_INET":
+                    ip_summary.append(f"{iface}: {a.address}")
+
+        # Battery stats if available
+        battery = psutil.sensors_battery()
+        battery_str = "N/A (Desktop/Server)"
+        if battery:
+            plugged = "🔌 Mengisi daya" if battery.power_plugged else "🔋 Baterai"
+            battery_str = f"{battery.percent}% ({plugged})"
+
+        # Top processes by RAM and CPU
         processes = []
-        try:
-            for proc in sorted(psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']), 
-                             key=lambda p: p.info['cpu_percent'] or 0, 
-                             reverse=True)[:10]:
-                try:
-                    processes.append({
-                        'pid': proc.info['pid'],
-                        'name': proc.info['name'] or 'Unknown',
-                        'cpu_percent': round(proc.info['cpu_percent'] or 0, 2),
-                        'memory_percent': round(proc.info['memory_percent'] or 0, 2)
-                    })
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-        except Exception:
-            pass
-        
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                processes.append(p.info)
+            except Exception:
+                pass
+
+        top_ram = sorted(processes, key=lambda p: p.get('memory_percent') or 0, reverse=True)[:4]
+        top_cpu = sorted(processes, key=lambda p: p.get('cpu_percent') or 0, reverse=True)[:4]
+
         return {
-            'status': 'success',
-            'data': {
-                'cpu_percent': cpu_percent,
-                'cpu_freq_mhz': round(cpu_freq_mhz, 2),
-                'cpu_cores_logical': cpu_cores_logical,
-                'cpu_cores_physical': cpu_cores_physical,
-                'ram_total_mb': ram_total_mb,
-                'ram_used_mb': ram_used_mb,
-                'ram_free_mb': ram_free_mb,
-                'ram_percent': ram_percent,
-                'disk_total_gb': disk_total_gb,
-                'disk_used_gb': disk_used_gb,
-                'disk_free_gb': disk_free_gb,
-                'disk_percent': disk_percent,
-                'boot_time': boot_time_str,
-                'uptime_seconds': uptime_seconds,
-                'uptime_human': uptime_human,
-                'hostname': hostname,
-                'platform_system': platform_system,
-                'platform_release': platform_release,
-                'platform_version': platform_version,
-                'platform_machine': platform_machine,
-                'processor': processor,
-                'python_version': python_version,
-                'working_directory': working_directory,
-                'username': username,
-                'processes': processes
-            }
+            "status": "success",
+            "cpu": f"{cpu_percent}% ({cpu_count} cores @ {freq_str})",
+            "ram": f"{ram_used_gb} GB / {ram_total_gb} GB ({ram_percent}%, free: {ram_free_gb} GB)",
+            "swap": f"{swap_used_gb} GB / {swap_total_gb} GB",
+            "disk": f"{disk_used_gb} GB / {disk_total_gb} GB ({disk_percent}%)",
+            "battery": battery_str,
+            "ip_addresses": ", ".join(ip_summary) or "127.0.0.1",
+            "uptime": uptime,
+            "top_ram_processes": [
+                f"{p['name']} (PID {p['pid']}: {round(p['memory_percent'] or 0, 1)}% RAM)"
+                for p in top_ram
+            ],
+            "top_cpu_processes": [
+                f"{p['name']} (PID {p['pid']}: {round(p['cpu_percent'] or 0, 1)}% CPU)"
+                for p in top_cpu if (p.get('cpu_percent') or 0) > 0
+            ]
         }
-        
     except Exception as e:
-        return {
-            'status': 'error',
-            'message': f'Failed to get system stats: {str(e)}'
-        }
+        logger.error(f"Error in get_system_stats: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+_BASH_BLOCK_PATTERNS = [
+    # (regex, alasan) — dicocokkan terhadap perintah mentah
+    (r":\s*\(\s*\)\s*\{.*\}\s*;", "fork bomb"),
+    (r"\bdd\s+[^\n]*of=/dev/(sd|hd|vd|nvme|mmcblk)", "tulis mentah ke disk fisik"),
+    (r"\bmkfs(\.\w+)?\b", "format filesystem"),
+    (r"chmod\s+-R\s+777\s+/", "chmod 777 rekursif pada root"),
+    (r"chown\s+-R\b[^\n]*(\s/|\s~|\s\$HOME)(\s|$)", "chown rekursif pada root/home"),
+    (r"\b(shutdown|reboot|halt|poweroff)\b", "mematikan/menyalakan ulang sistem"),
+    (r"(history\s+-c\b|>\s*~/\.bash_history|shred\s+[^;\n]*history|unset\s+HISTFILE)",
+     "menghapus jejak riwayat shell"),
+    (r"(curl|wget|fetch)[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b", "pipe skrip internet langsung ke shell"),
+    (r"base64\s+[^;\n|&]*(?:-d\b|--decode)[^;\n|&]*\|\s*(sudo\s+)?(ba|z|da)?sh\b",
+     "pipe payload base64 ke shell"),
+    (r"/(dev/tcp/|proc/sysrq-trigger)", "teknik reverse-shell/kernel trigger"),
+    (r"\.(ssh/id_(rsa|ed25519|ecdsa)|aws/credentials|gnupg)", "akses berkas kredensial privat"),
+    (r"\b(useradd|userdel|usermod|visudo)\b", "manipulasi akun pengguna sistem"),
+    (r"(iptables|nft)\s+(-F|--flush)", "flush firewall"),
+    (r">\s*/dev/(sd|hd|vd|nvme)", "overwrite perangkat blok"),
+]
+
+# Target penghapusan yang dianggap destruktif saat dipadukan dgn rm rekursif
+_RM_DANGER_TARGETS = (
+    r"(?:(?:/{1, 2})|(?:~)|(?:\$HOME)|\*|(?:/(?:home|etc|usr|var|boot|lib|opt|bin|sbin|srv|root))"
+    r"|(?:\.\./)+(?:home|etc|usr))?(?:\s|$|/)"
+)
+
+
+def _bash_blocked_reason(command: str) -> Optional[str]:
+    """Kembalikan alasan pemblokiran bila perintah cocok pola berbahaya."""
+
+# Additional system tools can be extracted from tools.py
