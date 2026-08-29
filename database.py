@@ -19,22 +19,17 @@ logger = logging.getLogger("DB")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
-# Connection pool for better performance
-_db_pool: Optional[aiosqlite.Pool] = None
+# Connection pool for better performance (stubbed for compatibility)
+_db_pool: Optional[aiosqlite.Connection] = None
 _POOL_SIZE = 10
 _POOL_TIMEOUT = 30.0
 
 
-async def get_db_pool() -> aiosqlite.Pool:
-    """Get or create the database connection pool."""
+async def get_db_pool() -> aiosqlite.Connection:
+    """Get or create the database connection (simplified for compatibility)."""
     global _db_pool
     if _db_pool is None:
-        _db_pool = await aiosqlite.create_pool(
-            DB_PATH,
-            minsize=5,
-            maxsize=_POOL_SIZE,
-            timeout=_POOL_TIMEOUT
-        )
+        _db_pool = await aiosqlite.connect(DB_PATH)
     return _db_pool
 
 
