@@ -5,6 +5,8 @@ live telemetry timeline, 72+ tools explorer, service orchestrator,
 artifact gallery, and second brain visualizer.
 """
 
+import tools
+import database
 import asyncio
 import base64
 import inspect
@@ -32,8 +34,6 @@ try:
     import bot
 except Exception as _e:
     bot = None
-import database
-import tools
 
 
 def _get_bot():
@@ -151,7 +151,6 @@ def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> i
     if maximum is not None:
         result = min(maximum, result)
     return result
-
 
 
 def categorize_tool(name: str) -> str:
@@ -941,6 +940,7 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
     return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
                            "key_id": brain["key_id"], "label": brain["label"]}}
 
+
 @app.post("/api/main-brain/test")
 async def test_main_brain_combo(payload: Dict[str, Any]):
     """Tes koneksi kombinasi kunci + model sebelum diterapkan."""
@@ -979,24 +979,25 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
             base = (row["base_url"] or "").rstrip("/")
             async with _hx.AsyncClient(timeout=_hx.Timeout(60.0, connect=10.0)) as cli:
                 r2 = await cli.post(f"{base}/chat/completions",
-                    headers={"Authorization": f"Bearer {row['api_key']}",
-                             "Content-Type": "application/json"},
-                    json={"model": model, "messages":
-                          [{"role":"user","content":"Balas satu kata: SIAP"}],
-                          "max_tokens": 50})
+                                    headers={"Authorization": f"Bearer {row['api_key']}",
+                                             "Content-Type": "application/json"},
+                                    json={"model": model, "messages":
+                                          [{"role": "user", "content": "Balas satu kata: SIAP"}],
+                                          "max_tokens": 50})
             ok = r2.status_code == 200
             if ok:
-                snippet = (r2.json().get("choices",[{}])[0].get("message",{})
-                           .get("content","") or "")[:80]
+                snippet = (r2.json().get("choices", [{}])[0].get("message", {})
+                           .get("content", "") or "")[:80]
             else:
                 snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
-        ms = round((time.time()-t0)*1000)
+        ms = round((time.time() - t0) * 1000)
         return {"status": "success" if ok else "error", "latency_ms": ms,
                 "snippet": snippet,
                 "message": ("Koneksi OK" if ok else f"Gagal: {snippet}")}
     except Exception as e:
         return {"status": "error",
                 "message": f"Error: {str(e)[:200]}"}
+
 
 @app.post("/api/settings/main-brain")
 async def set_main_brain_endpoint(payload: Dict[str, Any]):
@@ -1307,7 +1308,6 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
         }
     except Exception as e:
         return {"status": "error", "message": f"Scraper Lab error: {str(e)}"}
-
 
 
 @app.get("/api/services")
@@ -1625,7 +1625,7 @@ async def wa_media_upload(
         upload_dir = os.path.join("/dev/shm", "alfa_wa_media")
         os.makedirs(upload_dir, exist_ok=True)
         safe_name = os.path.basename(file.filename or "media.bin") or "media.bin"
-        tmp_path = os.path.join(upload_dir, f"{int(time.time()*1000)}_{safe_name}")
+        tmp_path = os.path.join(upload_dir, f"{int(time.time() * 1000)}_{safe_name}")
         with open(tmp_path, "wb") as out:
             out.write(await file.read())
 
@@ -1855,8 +1855,8 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
         raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
     secret = ((data.get("trigger") or {}).get("secret") or "").strip()
     if secret:
-        provided = (request.headers.get("X-Webhook-Key") or
-                    request.query_params.get("key") or "")
+        provided = (request.headers.get("X-Webhook-Key")
+                    or request.query_params.get("key") or "")
         if provided != secret:
             raise HTTPException(status_code=401, detail="Webhook key salah.")
     try:
@@ -2042,7 +2042,6 @@ async def api_vector_ingest(payload: Dict[str, Any]):
 
     res = vector_memory.ingest_document(user_id=uid, title=title, content_or_path=content, category=category)
     return res
-
 
 
 @app.get("/api/meeting/history")
@@ -2710,7 +2709,7 @@ async def execute_chat_code_block(payload: Dict[str, Any]):
         result = tools.execute_bash_command(command=clean_code)
     elif language in ("js", "javascript", "node"):
         # Run node in sandbox
-        tmp_js = os.path.join(tools.SANDBOX_DIR, f"script_{int(time.time()*1000)}.js")
+        tmp_js = os.path.join(tools.SANDBOX_DIR, f"script_{int(time.time() * 1000)}.js")
         os.makedirs(tools.SANDBOX_DIR, exist_ok=True)
         with open(tmp_js, "w", encoding="utf-8") as f:
             f.write(clean_code)

@@ -31,6 +31,7 @@ def _get_edge_tts():
             _edge_tts_module = None
     return _edge_tts_module
 
+
 # Available high-quality neural voices
 VOICE_MAP = {
     "id_female": "id-ID-GadisNeural",

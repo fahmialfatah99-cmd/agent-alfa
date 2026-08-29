@@ -1164,9 +1164,9 @@ def list_custom_agents_sync() -> List[Dict[str, Any]]:
 
 
 def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction: str,
-                           provider: str = "gemini", model: str = "gemini-3.6-flash",
-                           api_key_id: Optional[int] = None, avatar_emoji: str = "🤖",
-                           color_theme: str = "cyan") -> Dict[str, Any]:
+                          provider: str = "gemini", model: str = "gemini-3.6-flash",
+                          api_key_id: Optional[int] = None, avatar_emoji: str = "🤖",
+                          color_theme: str = "cyan") -> Dict[str, Any]:
     """Create a new specialized AI agent in the workforce."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -1316,9 +1316,6 @@ def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
                     pass
             return d
     return None
-
-
-
 
 
 # --- API Token Usage Tracking (Realtime Dashboard) ---

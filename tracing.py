@@ -21,6 +21,7 @@ class TraceSpan:
     Represents a single span (unit of work) in a trace.
     Thread-safe. Auto-closes on context manager exit.
     """
+
     def __init__(self, name: str, trace_id: Optional[str] = None, parent_span_id: Optional[str] = None, tags: Optional[Dict[str, Any]] = None):
         self.span_id = str(uuid.uuid4())[:8]
         self.trace_id = trace_id or str(uuid.uuid4())[:12]
