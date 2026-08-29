@@ -1,30 +1,120 @@
-[tool.ruff]
-line-length = 200
-target-version = "py310"
-extend-exclude = ["venv", "__pycache__", ".pytest_cache"]
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.ruff.lint]
-# Gerbang kualitas fokus bug nyata (bukan restyling):
-# E4/E7/E9 = error sintaks & logika dasar; F = pyflakes (nama undefined,
-# import/variabel tak terpakai); W605 = escape tidak valid;
-# I = urutan import (autofix aman); B006 = default argumen mutable.
-select = ["E4", "E7", "E9", "F", "W605", "I", "B006"]
-
-[tool.ruff.lint.isort]
-known-first-party = [
-    "database", "tools", "main_brain", "swarm_engine", "vector_memory",
-    "vault_engine", "tts_engine", "token_usage", "permission_gate",
-    "security_auditor", "affiliate_engine", "universal_scraper",
-    "fast_scraper", "subagents", "swarm_personas", "plugins", "web_dashboard",
+[project]
+name = "alfa-ai-agent"
+version = "1.0.0"
+description = "ALFA AI Agent - Advanced Telegram AI Bot with multi-provider LLM support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "ALFA Team"}
+]
+keywords = ["ai", "telegram", "bot", "llm", "agent", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# Impor di tengah file disengaja: .env harus dimuat dulu sebelum modul
-# yang membaca env saat impor (pola lazy-init proyek ini).
-"tools.py" = ["E402"]
-"swarm_engine.py" = ["E402"]
-"web_dashboard.py" = ["E402"]
-"swarm_personas.py" = ["E402"]
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.9.0",
+    "black>=24.0.0",
+    "pre-commit>=4.0.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.ruff]
+# Target Python version
+target-version = "py310"
+
+# Line length
+line-length = 200
+
+# Select rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "B904",  # raise without from inside except
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+# Exclude directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+]
+
+# Per-file-ignores
+[tool.ruff.per-file-ignores]
+"tests/*" = ["S101"]  # Allow assert in tests
+"*_test.py" = ["S101"]
+
+[tool.black]
+line-length = 200
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | __pycache__
+  | build
+  | dist
+)/
+'''
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "test_security.py", "test_agent.py"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "*/__pycache__/*",
+    "venv/*",
+    ".venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
