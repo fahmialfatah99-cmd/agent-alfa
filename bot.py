@@ -212,6 +212,34 @@ TOOL_FIRST_EXECUTION_BLOCK = (
     "Tool akan memproses berkas secara native dalam hitungan milidetik dan menghasilkan file fisik yang bisa langsung diunduh/dibuka user!\n"
 )
 
+# ── SUPERPOWERS AGENTIC SKILLS PROTOCOL (INTEGRASI PENUH SEMUA UNIT ALFA) ────
+SUPERPOWERS_SKILLS_BLOCK = (
+    "\n\n### 🦸 SUPERPOWERS AGENTIC SKILLS PROTOCOL (WAJIB DITERAPKAN DI SEMUA TUGAS & UNIT)\n"
+    "Sebagai ALFA Sovereign Agent yang dilengkapi suite Superpowers, kamu wajib menerapkan metodologi berikut:\n"
+    "1. `systematic-debugging` (HUKUM BESI): DILARANG MENEBAK FIX. Setiap error/bug wajib melalui 4 Fase: "
+    "(1) Investigasi akar masalah (baca error lengkap, lacak data flow ke hulu), (2) Analisis pola & pembanding, "
+    "(3) Hipotesis tunggal yang teruji, (4) Perbaikan minimal terverifikasi.\n"
+    "2. `brainstorming` & `writing-plans`: Untuk pembuatan fitur baru atau refactor, selalu eksplorasi intent pengguna, "
+    "kebutuhan arsitektur, dan susun rencana berurutan sebelum menyentuh kode.\n"
+    "3. `test-driven-development` (TDD): Buat failing test case terlebih dahulu sebelum menulis implementasi.\n"
+    "4. `verification-before-completion`: DILARANG mengklaim tugas selesai tanpa bukti nyata dari eksekusi terminal "
+    "(`execute_bash_command` / test runner / status check).\n"
+    "5. `subagent-driven-development` & `dispatching-parallel-agents`: Pecah misi kompleks menjadi tugas-tugas terisolasi "
+    "yang dieksekusi secara mandiri.\n"
+    "6. `using-git-worktrees`: Lindungi branch utama; gunakan sandbox worktree saat eksperimen fitur besar.\n"
+)
+
+# ── UI/UX PRO MAX DESIGN INTELLIGENCE PROTOCOL ──────────────────────────────
+UI_UX_PRO_MAX_BLOCK = (
+    "\n\n### 🎨 UI/UX PRO MAX DESIGN INTELLIGENCE & DESIGN SYSTEM STANDARD\n"
+    "Jika diminta merancang, mempercantik, mereview, atau membangun antarmuka web, aplikasi, landing page, atau CSS:\n"
+    "1. Panggil tool `ui_ux_pro_max_search` untuk mencari style UI yang tepat (dari 67 style), palet warna berkarakter, dan pasangan tipografi font Google.\n"
+    "2. Terapkan 8-Point Pre-delivery Checklist: (a) Jangan gunakan emoji mentah sebagai icon UI (gunakan SVG/Lucide), "
+    "(b) `cursor-pointer` pada elemen yang dapat diklik, (c) Layout responsif (375px mobile, 768px tablet, 1024px desktop, 1440px), "
+    "(d) Kontras warna teks minimal 4.5:1, (e) Visible focus state untuk aksesibilitas, (f) Transisi mikro halus (150-250ms), "
+    "(g) Spacing teratur (4px, 8px, 12px, 16px, 24px, 32px), (h) Hindari anti-pattern (neon mencolok atau gradasi AI ungu generik tanpa konsep).\n"
+)
+
 
 def _meetings_count() -> int:
     """Ground truth: jumlah rapat NYATA di database."""
@@ -608,7 +636,7 @@ async def run_agent_turn(
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
     full_system_instruction = (
         base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
-        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
+        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK + SUPERPOWERS_SKILLS_BLOCK + UI_UX_PRO_MAX_BLOCK
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain

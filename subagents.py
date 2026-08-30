@@ -49,6 +49,9 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
         f"[SUBAGENT TASK: {role.upper()}]\n"
         f"Anda adalah Subagent Mandiri ({role}) yang ditugaskan untuk menyelesaikan tugas berikut secara tuntas.\n"
         f"Gunakan semua tools yang relevan (web search, browser, terminal, file, python, analisis data) secara mandiri.\n\n"
+        f"[SUPERPOWERS PROTOCOL]\n"
+        f"1. Systematic Debugging: Cari akar masalah dulu, dilarang menebak.\n"
+        f"2. Verification: Buktikan keberhasilan eksekusi secara nyata sebelum menyatakan selesai.\n\n"
         f"TUGAS:\n{task_description}\n\n"
         f"Sajikan hasil akhir secara lengkap, terstruktur, mendalam, dan siap digunakan oleh pengguna."
     )
