@@ -1,22 +1,27 @@
-```
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Database
+# Database & SQLite locks
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 
-# Logs
+# Logs & Traces
 *.log
+storage/
+*.jsonl
 
-# Environment
+# Environment & Credentials
 .env
 .env.local
 *.env.*
+gdrive_oauth_*.json
 
 # Dependencies
 .venv/
@@ -24,8 +29,8 @@ venv/
 pip-log.txt
 pipenv.lock
 
-# Coverage
+# Test & Coverage
 .coverage
 htmlcov/
 .coverage.*
-```
+.pytest_cache/
