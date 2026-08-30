@@ -1,135 +1,52 @@
-```
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 env/
 venv/
 .venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.DS_Store
-Thumbs.db
-
-# Environment
-.env
-.env.local
-*.env.*
-
-# Storage and data files
-storage/runs/
-storage/traces/
-
-# Dependencies
-requirements.txt.bak
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# Coverage
-coverage/
-htmlcov/
-.coverage*
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Testing
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# Sage
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
 ENV/
 env.bak/
 venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+agent_data.db*
 
-# Rope project settings
-.ropeproject
+# Environment & Secrets
+.env
+.env.local
+.env.*
+*.pem
+*.key
+gdrive_oauth_*.json
 
-# mkdocs documentation
-/site
+# Runtime Storage, Traces & Logs
+storage/traces/
+storage/runs/
+storage/audio/
+storage/checkpoints/
+storage/bot_stdout.log
+*.log
 
-# mypy
+# Testing & Coverage
+.pytest_cache/
 .mypy_cache/
-.dmypy.json
-dmypy.json
+.coverage
+.coverage.*
+htmlcov/
 
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-# Cursive
-*.iml
+# IDE & OS
 .idea/
-
-# VS Code
 .vscode/
-
-# Temporary files
-*.tmp
-*.temp
+*.swp
+*.swo
 *~
-```
+.DS_Store
+Thumbs.db
