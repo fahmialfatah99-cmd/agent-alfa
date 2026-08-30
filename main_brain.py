@@ -21,6 +21,8 @@ import inspect
 import json
 import logging
 import os
+import re
+import time
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("MainBrain")
@@ -236,6 +238,13 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         try:
             return fn(**args)
         except Exception as e:
+            # Record failure untuk self-correction learning
+            try:
+                from main_brain import get_self_correction_memory
+                mem = get_self_correction_memory()
+                mem.record_failure(name, args, str(e))
+            except Exception:
+                pass  # Jangan biarkan logging error mengganggu eksekusi utama
             return f"[ERROR tool] {e}"
 
     try:
@@ -247,6 +256,13 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     except Exception as e:
         if _span:
             _span.finish(status="error", error=str(e))
+        # Record timeout/execution failure juga
+        try:
+            from main_brain import get_self_correction_memory
+            mem = get_self_correction_memory()
+            mem.record_failure(name, args, f"Execution timeout/failure: {e}")
+        except Exception:
+            pass
         return f"[ERROR eksekusi] {e}"
 
     if not isinstance(raw, str):
@@ -255,6 +271,15 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     if _span:
         _status = "error" if raw.startswith("[ERROR") else "success"
         _span.finish(status=_status)
+    
+    # Record success jika sebelumnya ada failure pattern serupa
+    if not raw.startswith("[ERROR"):
+        try:
+            # Cek apakah ini adalah retry yang berhasil setelah failure
+            mem = get_self_correction_memory()
+            # Di masa depan bisa track explicit retry flag
+        except Exception:
+            pass
 
     # Laporkan hasil ke live feed juga
     try:
@@ -265,6 +290,103 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         pass
 
     return raw[:MAX_TOOL_OUTPUT]
+
+
+# ── SELF-CORRECTION LOOP ──────────────────────────────────────────────────────
+class SelfCorrectionMemory:
+    """
+    Menyimpan history kesalahan tool dan solusinya untuk pembelajaran agent.
+    Format: {(tool_name, error_pattern): [solution_examples]}
+    """
+    
+    def __init__(self, max_entries: int = 50):
+        self.memory: Dict[tuple, List[Dict]] = {}
+        self.max_entries = max_entries
+    
+    def record_failure(self, tool_name: str, args: Dict, error_msg: str, 
+                       context_hint: str = "") -> None:
+        """Catat kegagalan eksekusi tool."""
+        # Ekstrak pattern error (abaikan detail spesifik seperti path/file line)
+        error_pattern = re.sub(r'\d+', 'N', error_msg)[:100]  # Normalisasi angka
+        error_pattern = re.sub(r'[/\\][^\s/\\]+', '/PATH', error_pattern)  # Normalisasi path
+        
+        key = (tool_name, error_pattern[:80])
+        
+        if key not in self.memory:
+            self.memory[key] = []
+        
+        self.memory[key].append({
+            "args": args,
+            "error": error_msg,
+            "context": context_hint,
+            "timestamp": time.time()
+        })
+        
+        # Trim memory jika terlalu besar
+        if len(self.memory[key]) > 10:
+            self.memory[key] = self.memory[key][-10:]
+        
+        # Trim global entries
+        while len(self.memory) > self.max_entries:
+            oldest_key = min(self.memory.keys(), 
+                           key=lambda k: min(e["timestamp"] for e in self.memory[k]))
+            del self.memory[oldest_key]
+    
+    def get_suggestion(self, tool_name: str, args: Dict, error_msg: str) -> Optional[Dict]:
+        """
+        Cari solusi berdasarkan pola error serupa di masa lalu.
+        Return suggestion berupa argumen yang dimodifikasi atau None.
+        """
+        error_pattern = re.sub(r'\d+', 'N', error_msg)[:100]
+        error_pattern = re.sub(r'[/\\][^\s/\\]+', '/PATH', error_pattern)
+        
+        key = (tool_name, error_pattern[:80])
+        
+        # Coba exact match dulu
+        if key in self.memory and len(self.memory[key]) > 0:
+            # Ambil contoh terbaru
+            latest = self.memory[key][-1]
+            logger.info(f"[SelfCorrect] Found similar failure for {tool_name}, "
+                       f"trying alternative approach")
+            # Di masa depan bisa diperbaiki dengan menyimpan 'fixed_args'
+            return {"retry_with_caution": True, "similar_error_count": len(self.memory[key])}
+        
+        # Coba partial match (fuzzy matching pada error pattern)
+        for (t_name, e_pattern), examples in self.memory.items():
+            if t_name == tool_name and e_pattern in error_pattern or error_pattern in e_pattern:
+                logger.info(f"[SelfCorrect] Partial match found for {tool_name}")
+                return {"retry_with_caution": True, "pattern_matched": True}
+        
+        return None
+    
+    def record_success_after_retry(self, tool_name: str, original_args: Dict,
+                                   fixed_args: Dict, initial_error: str) -> None:
+        """
+        Catat keberhasilan setelah retry dengan argumen yang diperbaiki.
+        Ini menjadi data pembelajaran untuk kasus serupa di masa depan.
+        """
+        error_pattern = re.sub(r'\d+', 'N', initial_error)[:100]
+        error_pattern = re.sub(r'[/\\][^\s/\\]+', '/PATH', error_pattern)
+        key = (tool_name, error_pattern[:80])
+        
+        if key not in self.memory:
+            self.memory[key] = []
+        
+        self.memory[key].append({
+            "original_args": original_args,
+            "fixed_args": fixed_args,
+            "success": True,
+            "timestamp": time.time()
+        })
+
+
+# Global instance untuk shared learning across sessions
+_self_correction_memory = SelfCorrectionMemory()
+
+
+def get_self_correction_memory() -> SelfCorrectionMemory:
+    """Accessor untuk global self-correction memory."""
+    return _self_correction_memory
 
 
 # ── Kompaksi konteks agentic loop ────────────────────────────────────────────

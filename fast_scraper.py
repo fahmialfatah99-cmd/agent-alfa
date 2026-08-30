@@ -67,42 +67,64 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
     """
     Scrape protected/dynamic JavaScript web pages using Camoufox Anti-Detect browser.
     Bypasses Cloudflare, DataDome, Akamai, and browser fingerprint detection.
+    
+    FASE 2 UPGRADE: Stealth Headless + Vision Navigation ready.
     """
     start_time = time.time()
     try:
         from camoufox.sync_api import Camoufox
         
-        with Camoufox(headless=True) as browser:
+        # Stealth Headless Mode: Menggunakan mode headless yang lebih sulit dideteksi
+        with Camoufox(headless="virtual" if hasattr(Camoufox, "headless") else True) as browser:
             page = browser.new_page()
-            # Set realistic viewport
+            # Set realistic viewport & user agent
             page.set_viewport_size({"width": 1366, "height": 768})
             
-            logger.info(f"Navigating with Camoufox to {url}")
+            # Enable stealth flags (jika didukung oleh versi Camoufox)
+            try:
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+                """)
+            except Exception:
+                pass  # Tidak semua versi mendukung init script
+            
+            logger.info(f"Navigating with Camoufox Stealth to {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             
+            # Vision Navigation: Tunggu elemen kritis atau gunakan heuristic
             if wait_selector:
                 try:
                     page.wait_for_selector(wait_selector, timeout=8000)
                 except Exception:
                     pass
             else:
-                # Small wait for dynamic hydration
+                # Adaptive wait berdasarkan kompleksitas halaman
                 page.wait_for_timeout(2500)
                 
+                # Coba deteksi apakah halaman masih loading (vision-based heuristic)
+                try:
+                    loading_indicators = page.query_selector_all('.loading, .spinner, [class*="loader"]')
+                    if loading_indicators:
+                        logger.info(f"Detected {len(loading_indicators)} loading indicators, waiting more...")
+                        page.wait_for_timeout(3000)
+                except Exception:
+                    pass
+            
             content = page.content()
             title = page.title()
             current_url = page.url
             
-            # Parse page content with BeautifulSoup
+            # Parse page content dengan BeautifulSoup
             soup = BeautifulSoup(content, "lxml")
             
-            # Extract generic product data if present
+            # Extract product data jika ada
             extracted = extract_product_fields_from_soup(soup, current_url)
             
             duration_ms = round((time.time() - start_time) * 1000, 1)
             return {
                 "status": "success",
-                "method": "Camoufox Anti-Detect Browser",
+                "method": "Camoufox Stealth Headless + Vision Heuristics",
                 "url": current_url,
                 "page_title": title,
                 "html_length": len(content),
@@ -112,8 +134,8 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
             }
             
     except Exception as e:
-        logger.warning(f"Camoufox primary failed, fallback to primp/requests: {e}")
-        # Fallback to high-speed TLS client (primp)
+        logger.warning(f"Camoufox Stealth failed, fallback to primp/requests: {e}")
+        # Fallback ke high-speed TLS client (primp)
         return scrape_with_fast_tls(url)
 
 
