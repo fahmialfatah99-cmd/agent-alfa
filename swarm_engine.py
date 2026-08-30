@@ -401,6 +401,28 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
             api_key = os.getenv("GROQ_API_KEY", "")
         elif provider in ["nvidia", "nim"]:
             api_key = os.getenv("NVIDIA_API_KEY", "")
+        elif provider == "9router":
+            api_key = os.getenv("NINEROUTER_API_KEY", os.getenv("ROUTER_API_KEY", ""))
+
+    if provider == "9router":
+        if not base_url:
+            base_url = "http://127.0.0.1:20128/v1"
+        if not model:
+            model = "all"
+        if not api_key:
+            try:
+                import glob as _glob, sqlite3 as _sq
+                db_paths = _glob.glob(os.path.expanduser("~/.9router/db/data.sqlite")) + \
+                           _glob.glob(os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite"))
+                for dbp in db_paths:
+                    if os.path.exists(dbp):
+                        with _sq.connect(dbp) as _c:
+                            rk = _c.execute("SELECT key FROM apiKeys WHERE isActive=1 LIMIT 1").fetchone()
+                            if rk and rk[0]:
+                                api_key = rk[0]
+                                break
+            except Exception:
+                pass
 
     return provider, api_key, model, base_url, key_id
 
@@ -510,7 +532,7 @@ async def _generate_with_openai_compat(
             elif provider == "openrouter":
                 url = "https://openrouter.ai/api/v1"
             elif provider == "9router":
-                url = "http://localhost:20128/v1"
+                url = "http://127.0.0.1:20128/v1"
             elif provider == "ollama":
                 url = "http://localhost:11434/v1"
 

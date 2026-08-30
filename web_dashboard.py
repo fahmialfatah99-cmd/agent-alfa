@@ -4160,7 +4160,7 @@ async def get_available_models():
     # 3. Attempt dynamic refresh from 9Router (Local Gateway)
     try:
         async with httpx.AsyncClient(timeout=1.5) as client:
-            r = await client.get("http://localhost:20128/v1/models")
+            r = await client.get("http://127.0.0.1:20128/v1/models")
             if r.status_code == 200:
                 live_9r = r.json().get("data", [])
                 existing_9r_ids = {m["id"] for m in PROVIDER_MODELS.get("9router", [])}
@@ -4214,7 +4214,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 elif provider == "openrouter":
                     url = "https://openrouter.ai/api/v1"
                 elif provider == "9router":
-                    url = "http://localhost:20128/v1"
+                    url = "http://127.0.0.1:20128/v1"
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
             
