@@ -207,14 +207,51 @@ def _find_tool(name: str):
     return None
 
 
+def _clean_json_args(raw_json: str) -> Dict[str, Any]:
+    """Parsing argumen JSON dari model dengan auto-sanitasi agresif bila ada karakter escape/markdown."""
+    if not raw_json or not str(raw_json).strip():
+        return {}
+    if isinstance(raw_json, dict):
+        return raw_json
+    raw_str = str(raw_json).strip()
+    try:
+        return json.loads(raw_str)
+    except Exception:
+        pass
+    # Strip markdown codeblocks
+    if raw_str.startswith("```"):
+        lines = raw_str.splitlines()
+        if len(lines) >= 2:
+            raw_str = "\n".join(lines[1:-1] if lines[-1].strip().startswith("```") else lines[1:]).strip()
+    try:
+        return json.loads(raw_str)
+    except Exception:
+        pass
+    # Hapus trailing comma
+    import re
+    cleaned = re.sub(r",\s*([\]}])", r"\1", raw_str)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        pass
+    try:
+        import ast
+        val = ast.literal_eval(raw_str)
+        if isinstance(val, dict):
+            return val
+    except Exception:
+        pass
+    raise ValueError("Argumen tool bukan JSON valid.")
+
+
 def _execute_tool(name: str, arguments_json: str) -> str:
     fn = _find_tool(name)
     if fn is None:
-        return f"[ERROR] Tool '{name}' tidak ditemukan."
+        return f"[ERROR] Tool '{name}' tidak ditemukan. Silakan periksa daftar tool yang tersedia."
     try:
-        args = json.loads(arguments_json or "{}")
-    except Exception:
-        return "[ERROR] Argumen tool bukan JSON valid."
+        args = _clean_json_args(arguments_json)
+    except Exception as err:
+        return f"[ERROR format JSON] {err}. Pastikan argumen dalam format JSON valid."
 
     # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)
     try:

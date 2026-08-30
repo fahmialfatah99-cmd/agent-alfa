@@ -226,6 +226,31 @@ def _clean_code_snippet(code: str) -> str:
     return cleaned
 
 
+def generate_self_heal_hint(tool_name: str, error_msg: str, stdout: str = "", stderr: str = "") -> Optional[str]:
+    """Analisis kegagalan eksekusi tool & hasilkan petunjuk pemulihan otomatis cerdas (Self-Heal Hint) bagi agen LLM."""
+    combined = f"{error_msg} {stderr} {stdout}".lower()
+    
+    if "command not found" in combined or "perintah tidak ditemukan" in combined:
+        return "[SELF_HEAL_HINT] Biner/perintah tidak ditemukan. Periksa ejaan atau periksa lokasi dengan `which <perintah>` atau gunakan tool alternatif."
+    if "permission denied" in combined or "akses ditolak" in combined:
+        return "[SELF_HEAL_HINT] Izin akses ditolak. Coba jalankan di direktori kerja ~/ atau periksa izin file menggunakan `ls -la`."
+    if "modulenotfounderror" in combined or "no module named" in combined:
+        m = re.search(r"no module named ['\"]([^'\"]+)['\"]", combined)
+        pkg = m.group(1) if m else "paket"
+        return f"[SELF_HEAL_HINT] Modul Python '{pkg}' belum terpasang. Pasang modul dengan `execute_bash_command` (mis. `pip install {pkg}`) atau gunakan modul standar alternatif."
+    if "syntaxerror" in combined or "indentationerror" in combined:
+        return "[SELF_HEAL_HINT] Kesalahan sintaks/indentasi kode. Tinjau kembali baris kode, tanda kurung, titik dua, atau indentasi spasi."
+    if "file tidak ditemukan" in combined or "no such file or directory" in combined:
+        return "[SELF_HEAL_HINT] File atau direktori tidak ditemukan. Gunakan `search_workspace_files` untuk mencari nama file di workspace terlebih dahulu."
+    if "address already in use" in combined or "port is already allocated" in combined:
+        return "[SELF_HEAL_HINT] Port jaringan sudah digunakan proses lain. Periksa proses dengan `list_running_processes` atau hentikan dengan `kill_process`."
+    if "database is locked" in combined or "sqlite3.busyerror" in combined:
+        return "[SELF_HEAL_HINT] Database SQLite sedang terkunci/sibuk. Ulangi permintaan setelah jeda singkat."
+    if "jsondecodeerror" in combined or "invalid json" in combined:
+        return "[SELF_HEAL_HINT] Format JSON tidak valid. Pastikan semua string dikutip ganda dan tidak ada trailing comma."
+    return None
+
+
 def execute_bash_command(command: str, working_dir: str = "", backend: str = "") -> Dict[str, Any]:
     """
     Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
@@ -421,6 +446,7 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             stderr = stderr[:1200] + "\n...[Stderr terpotong]"
 
         warn = "" if isolation == "docker" else " [PERINGATAN: dieksekusi di HOST tanpa isolasi]"
+        hint = generate_self_heal_hint("execute_bash_command", "", stdout, stderr) if result.returncode != 0 else None
         return {
             "status": "success" if result.returncode == 0 else "failed",
             "exit_code": result.returncode,
@@ -428,6 +454,7 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             "stderr": (stderr or None),
             "isolation": isolation,
             "message": "Perintah selesai." + warn,
+            "self_heal_hint": hint,
         }
     except subprocess.TimeoutExpired:
         return {"status": "error", "message": f"Command execution timed out ({timeout_secs}s).", "isolation": isolation}
@@ -638,6 +665,7 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
         stdout = res.stdout.strip()
         stderr = res.stderr.strip()
         has_plot = os.path.exists(plot_path) and os.path.getsize(plot_path) > 0
+        hint = generate_self_heal_hint("execute_python_sandbox", "", stdout, stderr) if res.returncode != 0 else None
 
         return {
             "status": "success" if res.returncode == 0 else "error",
@@ -648,6 +676,7 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             "isolation": isolation,
             "message": ("Grafik visual berhasil dibuat dan akan dikirim ke Telegram!" if has_plot else "Eksekusi kode selesai.")
                         + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
+            "self_heal_hint": hint,
         }
     except subprocess.TimeoutExpired:
         return {"status": "error", "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).", "isolation": isolation}
@@ -787,7 +816,9 @@ def read_local_file(file_path: str, max_lines: int = 300, start_line: int = 1) -
             expanded_path = os.path.join(os.path.expanduser("~"), file_path)
 
         if not os.path.exists(expanded_path):
-            return {"status": "error", "message": f"File tidak ditemukan: {file_path}"}
+            base = os.path.basename(file_path) or "*"
+            hint = f"[SELF_HEAL_HINT] File '{file_path}' tidak ditemukan. Gunakan `search_workspace_files` dengan pattern='*{base}*' atau `grep_workspace` untuk mencari lokasi berkas."
+            return {"status": "error", "message": f"File tidak ditemukan: {file_path}", "self_heal_hint": hint}
         
         if os.path.isdir(expanded_path):
             files = os.listdir(expanded_path)
