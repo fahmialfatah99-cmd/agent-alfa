@@ -283,6 +283,19 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     def _call():
         try:
             return fn(**args)
+        except TypeError as te:
+            # Model OpenAI-compatible sering mengirim keyword ekstra (misal: 'reason', 'delay', 'dummy')
+            # Saring otomatis agar hanya parameter yang valid yang diteruskan ke fungsi tool.
+            try:
+                import inspect
+                sig = inspect.signature(fn)
+                has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+                if has_var_kw:
+                    return fn(**args)
+                valid_args = {k: v for k, v in args.items() if k in sig.parameters}
+                return fn(**valid_args)
+            except Exception:
+                return f"[ERROR tool] {te}"
         except Exception as e:
             return f"[ERROR tool] {e}"
 
@@ -391,7 +404,8 @@ async def run_openai_agentic_turn(
                 "buat", "bikin", "tulis", "cari", "search", "googling", "browse", "web", "scrape",
                 "jalankan", "run", "eksekusi", "hitung", "baca", "cek", "analisis", "pdf", "excel",
                 "gambar", "foto", "drive", "email", "rapat", "meeting", "jadwal", "ingat", "catat",
-                "simpan", "hapus", "file", "folder", "kode", "code", "python", "bash", "curl", "swarm"
+                "simpan", "hapus", "file", "folder", "kode", "code", "python", "bash", "curl", "swarm",
+                "screenshot", "screnshoot", "ss", "layar", "desktop", "tangkap", "capture", "kamera", "webcam"
             ])
             
             if is_simple_chat and not has_action_trigger:
