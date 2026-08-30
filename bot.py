@@ -48,6 +48,7 @@ from telegram.ext import (
 import database
 import main_brain
 import permission_gate
+import plugins
 import token_usage
 import tools
 import tts_engine
@@ -689,11 +690,20 @@ async def run_agent_turn(
         try:
             gate_on = approval_gate is not None
             # TOOL-RAG: filter fungsi relevan saja (hemat token & cegah confusion)
-            gemini_tools = AVAILABLE_TOOLS
+            # Include dynamic plugins from plugins/ directory
+            all_tools = list(AVAILABLE_TOOLS)
+            try:
+                plugin_tools = plugins.load_all_plugin_tools()
+                if plugin_tools:
+                    all_tools = list(AVAILABLE_TOOLS) + plugin_tools
+            except Exception as e:
+                logger.warning(f"Failed to load dynamic plugins: {e}")
+            
+            gemini_tools = all_tools
             try:
                 from tool_rag import select_relevant_functions
                 gemini_tools = select_relevant_functions(
-                    AVAILABLE_TOOLS, user_prompt or "", history=history_msgs)
+                    all_tools, user_prompt or "", history=history_msgs)
             except Exception:
                 pass
             config = types.GenerateContentConfig(
