@@ -36,12 +36,17 @@ ollama pull llama3.1
 export AI_PROVIDER=ollama
 ```
 
-4. Jalankan:
+4. Link CLI agar bisa dipanggil dari mana saja:
+```bash
+npm link
+```
+
+5. Jalankan:
 ```bash
 # Mode interaktif
 devcli chat
 
-# Atau jalankan langsung
+# Atau jalankan langsung tanpa link
 node index.js chat
 ```
 
