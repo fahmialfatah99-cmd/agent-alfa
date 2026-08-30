@@ -1,1 +1,43 @@
-Nothing should be ignored since only a Python source file (`database.py`) was modified and there are no build artifacts, dependencies, or temporary files in the changes.
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.db
+
+# Logs
+*.log
+
+# Test and coverage
+.pytest_cache/
+.coverage
+coverage/
+
+# Traces and storage
+storage/traces/
+storage/runs/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Dependencies
+.venv/
+venv/
+.mypy_cache/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+```
