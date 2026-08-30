@@ -47,19 +47,95 @@ _STOPWORDS = {
     "saya", "kamu", "dia", "mereka", "bagaimana", "apa", "kenapa", "gimana",
 }
 
-# Sinonim ID->EN untuk menjembatani prompt bahasa Indonesia dengan
-# deskripsi tool berbahasa Inggris (BM25 murni leksikal).
+# Sinonim ID->EN dan istilah teknis operasional untuk menjembatani prompt
+# pengguna bahasa Indonesia & Inggris dengan deskripsi tool teknis.
 _SYNONYMS = {
-    "rekam": "record", "perekam": "record", "layar": "screen", "tangkap": "capture",
-    "cari": "search", "telusuri": "search", "riset": "research",
-    "ingat": "memory remember save", "simpan": "save store write",
-    "tulis": "write", "baca": "read", "kirim": "send deliver",
-    "gambar": "image photo picture", "video": "video recording",
-    "suara": "voice audio tts speech", "terjemah": "translate translation",
-    "berkas": "file", "folder": "directory workspace", "proses": "process execute run",
-    "bunuh": "kill terminate", "matikan": "stop kill shutdown",
-    "jaringan": "network scan", "keamanan": "security audit",
-    "git": "git commit push repository", "jadwal": "cron schedule reminder",
+    # System, Hardware & OS
+    "rekam": "record screen video capture", "perekam": "record screen video",
+    "layar": "screen desktop display monitor", "tangkap": "capture screenshot snapshot",
+    "layanan": "service systemd daemon manage status restart", "servis": "service systemctl",
+    "restart": "restart reboot service reload", "matikan": "stop kill shutdown terminate",
+    "bunuh": "kill terminate process", "proses": "process running pid htop ps",
+    "penjaga": "guardian proactive threshold health monitor heal",
+    "terminal": "bash shell command cli execute exec", "perintah": "command bash execute cli",
+    "jadwal": "cron crontab schedule reminder recurring timer",
+    "pengingat": "reminder schedule notify alarm",
+    "suhu": "hardware battery wifi bluetooth volume system",
+    "bersih": "clean storage disk free space", "kapasitas": "storage disk df du usage",
+    "jaringan": "network scan wifi ip port devices ping benchmark speedtest",
+    "keamanan": "security audit password ssl vulnerability hash",
+    "sandi": "password secure generate token credential",
+
+    # Web, Scraper, & Browser
+    "cari": "search web query duckduckgo find google",
+    "telusuri": "search research explore web",
+    "riset": "research academic paper deep search study",
+    "unduh": "download fetch get file url",
+    "ambil": "fetch scrape extract crawl download get",
+    "ekstrak": "extract parse scrape convert text content",
+    "ramping": "scrapling stealth scrape anti-bot bypass",
+    "rayap": "crawler crawlee crawl4ai spider scrape",
+    "jelajah": "browser open click type navigate visual",
+    "otomatisasi": "browser_use autonomous robot task web",
+
+    # Files, Documents & Code
+    "berkas": "file local read write edit modify document",
+    "baca": "read local file view cat head",
+    "tulis": "write create save local file edit",
+    "ubah": "edit replace precise modify patch diff",
+    "folder": "directory workspace folder search list tree",
+    "kode": "code index python script lsp symbol function",
+    "koding": "code python execute sandbox program script",
+    "git": "git commit push pull branch worktree diff status repository repo",
+    "pustaka": "codebase search index grep symbol lsp",
+
+    # Media, Audio, Video & PDF
+    "gambar": "image photo picture edit upscale crop rotate watermark",
+    "foto": "image photo picture vision camera frame webcam",
+    "video": "video promo tiktok generate extract audio mp4 ffmpeg",
+    "suara": "voice audio speech tts edge mp3 synthesize speech",
+    "dokumen": "document pdf docx odt writer libreoffice markitdown text",
+    "presentasi": "presentation pptx powerpoint slides impress",
+    "tabel": "excel spreadsheet xlsx csv dataset analyze chart data",
+
+    # PDF Specific Operations
+    "pdf": "pdf merge split extract encrypt decrypt rotate watermark report compress",
+    "gabung": "merge combine pdf documents",
+    "pisah": "split divide extract page range",
+    "kunci": "encrypt password protect secure pdf vault",
+    "buka": "decrypt unlock password open",
+    "putar": "rotate angle pdf page",
+
+    # Memory, Brain & Agents
+    "ingat": "memory remember save knowledge fact store",
+    "simpan": "save store write memory ingest vector vault secret",
+    "vektor": "vector brain semantic embedding ingest search similarity rag",
+    "rapat": "meeting swarm conduct agents discussion debate consensus",
+    "agen": "agent custom swarm subagent background workforce",
+    "rahasia": "vault secret encrypt reveal token api key passkey",
+    "kunci_api": "api_keys manage provider activate validate gemini groq",
+    "afiliasi": "affiliate trending viral copywriting broadcast shopee tokped",
+    "kirim": "send deliver broadcast telegram chat email message",
+    "terjemah": "translate translation language convert text",
+    "fokus": "focus session pomodoro timer work",
+}
+
+# Domain Category Keywords untuk Intent Boosting
+_CATEGORY_BOOSTS = {
+    "pdf": ["generate_pdf_report", "pdf_merge_documents", "pdf_split_document", "pdf_extract_full_text",
+            "pdf_encrypt_password", "pdf_decrypt_password", "pdf_rotate_pages", "images_convert_to_pdf",
+            "pdf_apply_watermark_text", "pdf_compress_and_optimize"],
+    "system": ["get_system_stats", "execute_bash_command", "manage_system_services", "list_running_processes",
+               "kill_process", "clean_system_storage", "auto_diagnose_and_heal_system", "manage_crontab_jobs"],
+    "code": ["execute_python_sandbox", "read_local_file", "write_local_file", "edit_file_precise",
+             "search_codebase", "index_codebase", "git_operations", "grep_workspace"],
+    "web": ["web_search", "fetch_web_page_content", "deep_research_topic", "browser_open_url",
+            "scrapling_stealth_fetch", "crawl4ai_web_crawler", "universal_deep_scraper"],
+    "media": ["edit_image", "text_to_audio_file", "extract_audio_from_video", "convert_media_format",
+              "generate_promo_video_from_images", "analyze_dataset_csv_json"],
+    "memory": ["save_knowledge_memory", "search_knowledge_memory", "semantic_search_vector_brain",
+               "ingest_document_to_vector_brain", "list_vector_brain_documents", "export_knowledge_base"],
+    "agent": ["spawn_background_subagent", "check_subagent_status", "conduct_ai_meeting", "manage_custom_agents"]
 }
 
 
@@ -146,7 +222,14 @@ def _rank_names(
         pass
     q_tokens = _expand_synonyms(_tokenize(" ".join(query_parts)))
 
-    scores = index.scores(q_tokens)
+    scores = list(index.scores(q_tokens))
+    q_set = set(q_tokens)
+    for cat_name, cat_tools in _CATEGORY_BOOSTS.items():
+        if cat_name in q_set or any(cat_name in t for t in q_tokens):
+            for i, nm in enumerate(names):
+                if nm in cat_tools:
+                    scores[i] += 2.5
+
     ranked = sorted(zip(names, scores), key=lambda x: x[1], reverse=True)
 
     selected: List[str] = []
@@ -235,7 +318,14 @@ def select_relevant_tools(
             name_to_schema[nm] = s
             doc_names.append(nm)
 
-        scores = index.scores(q_tokens)
+        scores = list(index.scores(q_tokens))
+        q_set = set(q_tokens)
+        for cat_name, cat_tools in _CATEGORY_BOOSTS.items():
+            if cat_name in q_set or any(cat_name in t for t in q_tokens):
+                for i, nm in enumerate(doc_names):
+                    if nm in cat_tools:
+                        scores[i] += 2.5
+
         ranked = sorted(zip(doc_names, scores), key=lambda x: x[1], reverse=True)
 
         selected: List[str] = []
