@@ -2780,6 +2780,23 @@ async def get_chat_available_models():
                 "is_active_key": True
             })
 
+    # Model Lokal Ollama (Hermes 3 / Qwen / DeepSeek)
+    is_offline = os.getenv("ALFA_OFFLINE_MODE", "").lower() in ("true", "1", "on")
+    ollama_models = [
+        {"id": "hermes3:latest", "name": "🦙 Hermes 3 Llama-3.1 8B (Offline Brain)"},
+        {"id": "qwen2.5:latest", "name": "⚡ Qwen 2.5 7B Coder (Offline Brain)"},
+        {"id": "deepseek-r1:8b", "name": "🧠 DeepSeek R1 8B Reasoning (Offline Brain)"},
+    ]
+    for om in ollama_models:
+        model_list.append({
+            "id": om["id"],
+            "name": om["name"],
+            "provider": "Ollama Local Engine",
+            "key_id": "ollama",
+            "key_name": "Ollama (localhost:11434)",
+            "is_active_key": is_offline
+        })
+
     return {
         "status": "success",
         "active_model": active_brain_model or "gemini-3.6-flash",
@@ -2793,11 +2810,17 @@ async def set_chat_active_model(payload: Dict[str, Any]):
     """Set and persist default active model."""
     model = (payload.get("model") or "").strip()
     key_id = payload.get("key_id")
-    if key_id:
+    if key_id == "ollama":
+        os.environ["ALFA_OFFLINE_MODE"] = "true"
+        os.environ["OLLAMA_MODEL"] = model
+    elif key_id:
+        os.environ["ALFA_OFFLINE_MODE"] = "false"
         try:
             database.activate_api_key_sync(int(key_id), custom_model=model if model else None)
         except Exception as e:
             logger.warning(f"Failed activating key #{key_id}: {e}")
+    else:
+        os.environ["ALFA_OFFLINE_MODE"] = "false"
     if model:
         database.set_main_brain_model(model)
     return {"status": "success", "message": f"Model aktif berhasil dialihkan ke: {model}"}
