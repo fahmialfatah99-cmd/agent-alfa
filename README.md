@@ -224,3 +224,19 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManage
 | **Utilities** | `git`, `curl`, `wget`, `unzip` |
 
 **Siap memulai?** Ketik perintah pertama Anda sekarang!
+
+---
+
+## 🚀 Script Instalasi Cepat (Sekali Copas)
+
+Untuk memastikan semua tools terinstal dengan benar di sistem Anda, gunakan script berikut:
+
+### 🐧 Linux (Ubuntu/Debian/Mint)
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install -y build-essential cmake gdb valgrind git curl wget unzip pkg-config libssl-dev libffi-dev python3-pip python3-venv software-properties-common && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo pip3 install --break-system-packages pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab && sudo npm install -g typescript ts-node nodemon eslint prettier && echo "=== VERIFIKASI ===" && python3 --version && node --version && g++ --version | head -n 1 && tsc --version && python3 -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')" && echo "🚀 Setup Selesai! Siap untuk Coding Berat."
+```
+
+### 🪟 Windows (PowerShell - Run as Administrator)
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); choco install -y git python nodejs-lts visualstudio2022buildtools cmake --params "--includeRecommended"; refreshenv; pip install pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab; npm install -g typescript ts-node nodemon eslint prettier; Write-Host "=== VERIFIKASI ===" -ForegroundColor Green; python --version; node --version; g++ --version | Select-Object -First 1; tsc --version; python -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')"; Write-Host "🚀 Setup Selesai! Siap untuk Coding Berat." -ForegroundColor Green
+```
