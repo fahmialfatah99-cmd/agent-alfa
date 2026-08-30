@@ -15,10 +15,9 @@ import secrets
 import shutil
 import subprocess
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
-from contextlib import asynccontextmanager
 
 import psutil
 from dotenv import load_dotenv
@@ -39,7 +38,7 @@ async def _pipeline_trigger_scheduler():
             await pl.scheduler_tick()
         except Exception as e:
             logger.debug(f"pipeline scheduler: {e}")
-        await asyncio.sleep(60)
+        await asyncio.sleep(WEBSOCKET_HEARTBEAT_SECONDS)  # Configurable heartbeat (default: 60s)
 
 
 @asynccontextmanager
@@ -1795,7 +1794,7 @@ async def service_action(payload: Dict[str, Any]):
         raise HTTPException(status_code=403, detail="Unauthorized service management")
         
     res = subprocess.run(["systemctl", "--user", action, service_name], capture_output=True, text=True)
-    time.sleep(1)
+    time.sleep(int(os.getenv("ALFA_TOOL_RETRY_DELAY", "1")))  # Configurable retry delay
     res_act = subprocess.run(["systemctl", "--user", "is-active", service_name], capture_output=True, text=True)
     
     return {

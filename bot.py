@@ -44,6 +44,14 @@ from telegram.ext import (
     filters,
 )
 
+# Configurable delays from environment variables (with safe defaults)
+RETRY_DELAY_SECONDS = int(os.getenv("ALFA_RETRY_DELAY", "30"))
+POLLING_INTERVAL_SECONDS = int(os.getenv("ALFA_POLLING_INTERVAL", "15"))
+SCREENSHOT_DELAY_SECONDS = float(os.getenv("ALFA_SCREENSHOT_DELAY", "0.015"))
+WEBSOCKET_HEARTBEAT_SECONDS = int(os.getenv("ALFA_WEBSOCKET_HEARTBEAT", "60"))
+BACKOFF_CYCLE_SECONDS = int(os.getenv("ALFA_BACKOFF_CYCLE", "15"))
+LONG_WAIT_SECONDS = int(os.getenv("ALFA_LONG_WAIT", "60"))
+
 # Local modules
 import database
 import main_brain
@@ -454,7 +462,7 @@ async def send_typing_loop(
             await context.bot.send_chat_action(chat_id=chat_id, action=action)
         except Exception:
             pass
-        await asyncio.sleep(4)
+        await asyncio.sleep(4)  # Fixed short interval for typing indicator, no need to configure
 
 
 # --- Core AI Generation Engine ---
@@ -1561,7 +1569,7 @@ async def proactive_reminder_loop(application: Application):
         except Exception as e:
             logger.error(f"Error in reminder loop: {e}")
 
-        await asyncio.sleep(20)
+        await asyncio.sleep(POLLING_INTERVAL_SECONDS)  # Configurable polling interval (default: 15s)
 
 
 # --- Background Proactive Recurring Cron & Watchdog Dispatcher ---
@@ -1620,7 +1628,7 @@ async def proactive_cron_watchdog_loop(application: Application):
         except Exception as e:
             logger.error(f"Error in cron watchdog loop: {e}")
 
-        await asyncio.sleep(25)
+        await asyncio.sleep(RETRY_DELAY_SECONDS)  # Configurable retry delay (default: 30s)
 
 
 # --- GOD MODE: Proactive System Guardian Daemon ---
@@ -1633,14 +1641,14 @@ async def proactive_system_guardian_loop(application: Application):
     while True:
         try:
             if not os.path.exists(config_path):
-                await asyncio.sleep(30)
+                await asyncio.sleep(RETRY_DELAY_SECONDS)  # Configurable retry delay (default: 30s)
                 continue
             
             with open(config_path, "r") as f:
                 config = _json.load(f)
             
             if not config.get("enabled", False):
-                await asyncio.sleep(30)
+                await asyncio.sleep(RETRY_DELAY_SECONDS)  # Configurable retry delay (default: 30s)
                 continue
             
             alerts = []
@@ -1700,7 +1708,7 @@ async def proactive_system_guardian_loop(application: Application):
         except Exception as e:
             logger.error(f"Guardian daemon error: {e}")
         
-        await asyncio.sleep(30)
+        await asyncio.sleep(RETRY_DELAY_SECONDS)  # Configurable retry delay (default: 30s)
 
 
 # --- Background Focus & Pomodoro Watchdog ---
@@ -1733,7 +1741,7 @@ async def proactive_focus_session_loop(application: Application):
         except Exception as e:
             logger.error(f"Error in focus session loop: {e}")
             
-        await asyncio.sleep(15)
+        await asyncio.sleep(POLLING_INTERVAL_SECONDS)  # Configurable polling interval (default: 15s)
 
 
 # --- Background Ambient Proactive Engagement Loop ---
@@ -1748,10 +1756,10 @@ async def proactive_ambient_agent_loop(application: Application):
     config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
     
     # Initial wait after startup before evaluation
-    await asyncio.sleep(60)
+    await asyncio.sleep(LONG_WAIT_SECONDS)  # Configurable long wait (default: 60s)
     
     while True:
-        cycle_backoff = 600  # default: evaluasi tiap 10 menit
+        cycle_backoff = int(os.getenv("ALFA_AMBIENT_CYCLE", "600"))  # Configurable ambient cycle (default: 600s)  # default: evaluasi tiap 10 menit
         try:
             config = {"enabled": True, "min_hours_between_pings": 3, "quiet_hours_start": 23, "quiet_hours_end": 7}
             if os.path.exists(config_path):
@@ -1856,7 +1864,7 @@ async def proactive_ambient_agent_loop(application: Application):
         except Exception as e:
             logger.error(f"Error in proactive ambient loop: {e}")
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                cycle_backoff = 3600
+                cycle_backoff = int(os.getenv("ALFA_AMBIENT_BACKOFF", "3600"))  # Configurable backoff (default: 3600s)
                 logger.warning("Kuota model habis (429) -> loop proaktif tidur 1 jam agar chat utama tetap punya jatah.")
 
         await asyncio.sleep(cycle_backoff)
@@ -1946,7 +1954,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
         except Exception as e:
             logger.error(f"Ecosystem watchdog error: {e}")
             
-        await asyncio.sleep(15)
+        await asyncio.sleep(POLLING_INTERVAL_SECONDS)  # Configurable polling interval (default: 15s)
 
 
 async def post_init(application: Application):
