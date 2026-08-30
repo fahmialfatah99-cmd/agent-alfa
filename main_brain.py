@@ -392,7 +392,7 @@ async def run_openai_agentic_turn(
 
         url = f"{(base_url or '').rstrip('/')}/chat/completions"
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-        payload_base = {"model": model, "messages": messages, "temperature": 0.75}
+        payload_base = {"model": model, "messages": messages, "temperature": 0.75, "stream": False}
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0)) as client:
             convo = list(messages)
