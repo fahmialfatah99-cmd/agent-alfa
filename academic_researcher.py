@@ -20,9 +20,7 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
 
 def academic_deep_research_paper(
-    query: str,
-    max_results: int = 5,
-    save_to_file: bool = True
+    query: str, max_results: int = 5, save_to_file: bool = True
 ) -> Dict[str, Any]:
     """
     ACADEMIC DEEP RESEARCH: Search peer-reviewed scientific papers and preprints on arXiv and open repositories.
@@ -44,22 +42,39 @@ def academic_deep_research_paper(
 
     papers = []
     try:
-        req = urllib.request.Request(arxiv_url, headers={"User-Agent": "ALFA-AcademicResearcher/2.0"})
+        req = urllib.request.Request(
+            arxiv_url, headers={"User-Agent": "ALFA-AcademicResearcher/2.0"}
+        )
         with urllib.request.urlopen(req, timeout=20) as resp:
             xml_data = resp.read()
 
         root = ET.fromstring(xml_data)
-        ns = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
+        ns = {
+            "atom": "http://www.w3.org/2005/Atom",
+            "arxiv": "http://arxiv.org/schemas/atom",
+        }
 
         for entry in root.findall("atom:entry", ns):
             title_elem = entry.find("atom:title", ns)
-            title = " ".join(title_elem.text.split()) if title_elem is not None and title_elem.text else "Untitled"
+            title = (
+                " ".join(title_elem.text.split())
+                if title_elem is not None and title_elem.text
+                else "Untitled"
+            )
 
             summary_elem = entry.find("atom:summary", ns)
-            summary = " ".join(summary_elem.text.split()) if summary_elem is not None and summary_elem.text else ""
+            summary = (
+                " ".join(summary_elem.text.split())
+                if summary_elem is not None and summary_elem.text
+                else ""
+            )
 
             published_elem = entry.find("atom:published", ns)
-            published = published_elem.text[:10] if published_elem is not None and published_elem.text else "Unknown"
+            published = (
+                published_elem.text[:10]
+                if published_elem is not None and published_elem.text
+                else "Unknown"
+            )
 
             authors = []
             for author in entry.findall("atom:author", ns):
@@ -69,7 +84,10 @@ def academic_deep_research_paper(
 
             pdf_url = ""
             for link in entry.findall("atom:link", ns):
-                if link.attrib.get("title") == "pdf" or link.attrib.get("type") == "application/pdf":
+                if (
+                    link.attrib.get("title") == "pdf"
+                    or link.attrib.get("type") == "application/pdf"
+                ):
                     pdf_url = link.attrib.get("href", "")
                     break
 
@@ -77,23 +95,36 @@ def academic_deep_research_paper(
             paper_id = id_elem.text if id_elem is not None and id_elem.text else ""
 
             primary_cat = entry.find("arxiv:primary_category", ns)
-            category = primary_cat.attrib.get("term", "General") if primary_cat is not None else "General"
+            category = (
+                primary_cat.attrib.get("term", "General")
+                if primary_cat is not None
+                else "General"
+            )
 
-            papers.append({
-                "title": title,
-                "authors": authors,
-                "author_citation": f"{authors[0]} et al." if len(authors) > 1 else (authors[0] if authors else "Anon"),
-                "year": published[:4] if len(published) >= 4 else "2026",
-                "published": published,
-                "category": category,
-                "abstract": summary,
-                "pdf_url": pdf_url,
-                "arxiv_url": paper_id
-            })
+            papers.append(
+                {
+                    "title": title,
+                    "authors": authors,
+                    "author_citation": (
+                        f"{authors[0]} et al."
+                        if len(authors) > 1
+                        else (authors[0] if authors else "Anon")
+                    ),
+                    "year": published[:4] if len(published) >= 4 else "2026",
+                    "published": published,
+                    "category": category,
+                    "abstract": summary,
+                    "pdf_url": pdf_url,
+                    "arxiv_url": paper_id,
+                }
+            )
 
     except Exception as e:
         logger.error(f"arXiv query error: {e}")
-        return {"status": "error", "message": f"Gagal mengambil data dari arXiv API: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal mengambil data dari arXiv API: {str(e)}",
+        }
 
     if not papers:
         return {
@@ -101,7 +132,7 @@ def academic_deep_research_paper(
             "query": query,
             "total_papers": 0,
             "papers": [],
-            "message": f"Tidak ditemukan paper ilmiah untuk topik '{query}'. Coba gunakan kata kunci bahasa Inggris yang lebih umum."
+            "message": f"Tidak ditemukan paper ilmiah untuk topik '{query}'. Coba gunakan kata kunci bahasa Inggris yang lebih umum.",
         }
 
     # Generate Structured Literature Review Markdown
@@ -114,12 +145,14 @@ def academic_deep_research_paper(
         "",
         "## 📊 2. Matriks Komparasi Paper Ilmiah",
         "| No | Judul Paper | Penulis & Tahun | Bidang | Link PDF |",
-        "|---|---|---|---|---|"
+        "|---|---|---|---|---|",
     ]
 
     for i, p in enumerate(papers, 1):
-        pdf_link = f"[PDF Link]({p['pdf_url']})" if p['pdf_url'] else "-"
-        report_lines.append(f"| {i} | **{p['title']}** | {p['author_citation']} ({p['year']}) | `{p['category']}` | {pdf_link} |")
+        pdf_link = f"[PDF Link]({p['pdf_url']})" if p["pdf_url"] else "-"
+        report_lines.append(
+            f"| {i} | **{p['title']}** | {p['author_citation']} ({p['year']}) | `{p['category']}` | {pdf_link} |"
+        )
 
     report_lines.append("")
     report_lines.append("## 🔬 3. Tinjauan Abstrak & Temuan Kunci Tiap Paper")
@@ -127,7 +160,9 @@ def academic_deep_research_paper(
     for i, p in enumerate(papers, 1):
         report_lines.append(f"### {i}. {p['title']}")
         report_lines.append(f"- **Penulis:** {', '.join(p['authors'])}")
-        report_lines.append(f"- **Tanggal Publikasi:** {p['published']} | **Kategori:** `{p['category']}`")
+        report_lines.append(
+            f"- **Tanggal Publikasi:** {p['published']} | **Kategori:** `{p['category']}`"
+        )
         report_lines.append(f"- **ArXiv URL:** {p['arxiv_url']}")
         report_lines.append("- **Abstrak Ilmiah:**")
         report_lines.append(f"> {p['abstract']}")
@@ -152,6 +187,7 @@ def academic_deep_research_paper(
         "total_papers": len(papers),
         "papers": papers,
         "saved_file": saved_file_path,
-        "synthesis_preview": report_content[:1500] + ("..." if len(report_content) > 1500 else ""),
-        "message": f"Berhasil menganalisis {len(papers)} paper akademik untuk topik '{query}'. Laporan tersimpan di {saved_file_path or 'memori'}."
+        "synthesis_preview": report_content[:1500]
+        + ("..." if len(report_content) > 1500 else ""),
+        "message": f"Berhasil menganalisis {len(papers)} paper akademik untuk topik '{query}'. Laporan tersimpan di {saved_file_path or 'memori'}.",
     }

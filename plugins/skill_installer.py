@@ -19,13 +19,24 @@ PLUGINS_DIR = os.path.join(PROJECT_DIR, "plugins")
 # Muat .env proyek agar ALLOWED_USER_IDS tersedia walau dijalankan standalone
 try:
     from dotenv import load_dotenv
+
     load_dotenv(os.path.join(PROJECT_DIR, ".env"))
 except Exception:
     pass
 
-MAX_FILE_BYTES = 80_000          # batas ukuran per file utk indeks
-MAX_FILES_PER_SKILL = 60         # batas jumlah file yang diindeks
-INDEXABLE_EXT = {".md", ".txt", ".rst", ".py", ".json", ".yaml", ".yml", ".html", ".css"}
+MAX_FILE_BYTES = 80_000  # batas ukuran per file utk indeks
+MAX_FILES_PER_SKILL = 60  # batas jumlah file yang diindeks
+INDEXABLE_EXT = {
+    ".md",
+    ".txt",
+    ".rst",
+    ".py",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".html",
+    ".css",
+}
 
 
 def _run(cmd: List[str], timeout: int = 120, cwd: str = None) -> str:
@@ -38,16 +49,29 @@ def _run(cmd: List[str], timeout: int = 120, cwd: str = None) -> str:
 def _gh_fetch_file(repo: str, path: str, ref: str = "") -> str:
     """Ambil isi file dari GitHub (mendukung repo privat via gh auth)."""
     ref_arg = ["--ref", ref] if ref else []
-    out = _run(["gh", "api", f"repos/{repo}/contents/{path.lstrip('/')}", *ref_arg,
-                "--jq", ".content"], timeout=30)
+    out = _run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/contents/{path.lstrip('/')}",
+            *ref_arg,
+            "--jq",
+            ".content",
+        ],
+        timeout=30,
+    )
     import base64
-    return base64.b64decode(out.strip().replace("\n", "")).decode("utf-8", errors="replace")
+
+    return base64.b64decode(out.strip().replace("\n", "")).decode(
+        "utf-8", errors="replace"
+    )
 
 
 def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> Dict[str, Any]:
     """Indeks semua file teks skill ke Vector Brain milik primary user."""
     try:
         import vector_memory
+
         allowed = os.getenv("ALLOWED_USER_IDS", "").split(",")[0].strip()
         uid = int(allowed) if allowed.isdigit() else 0
         total_chunks = 0
@@ -70,7 +94,7 @@ def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> Dict[str, Any]:
                         user_id=uid,
                         title=f"Skill[{skill_name}] {rel}",
                         content_or_path=content,
-                        category=f"Skill:{skill_name}"
+                        category=f"Skill:{skill_name}",
                     )
                     if r.get("status") == "success":
                         total_chunks += r.get("total_chunks", 0)
@@ -101,6 +125,7 @@ def _validate_python_tool(code: str, expected_name: str) -> str:
 def _hot_register(name: str, path: str):
     """Muat plugin baru tanpa restart proses."""
     import importlib.util
+
     module_name = f"plugins.{name}"
     spec = importlib.util.spec_from_file_location(module_name, path)
     module = importlib.util.module_from_spec(spec)
@@ -108,13 +133,17 @@ def _hot_register(name: str, path: str):
     spec.loader.exec_module(module)
     try:
         import plugins
+
         target_fn = getattr(module, name, None)
         if callable(target_fn):
             plugins._RUNTIME_PLUGIN_REGISTRY[name] = target_fn
         # Tambahkan juga ke AVAILABLE_TOOLS proses yang sedang berjalan
         try:
             import tools
-            if target_fn and all(getattr(t, "__name__", None) != name for t in tools.AVAILABLE_TOOLS):
+
+            if target_fn and all(
+                getattr(t, "__name__", None) != name for t in tools.AVAILABLE_TOOLS
+            ):
                 tools.AVAILABLE_TOOLS.append(target_fn)
         except Exception:
             pass
@@ -122,93 +151,137 @@ def _hot_register(name: str, path: str):
         pass
 
 
-def skill_installer(action: str = 'list', source: str = '', name: str = '') -> dict:
+def skill_installer(action: str = "list", source: str = "", name: str = "") -> dict:
     """
     Pasang / lihat / hapus skill ALFA dari GitHub.
-    
+
     Args:
         action: 'install_repo' (repo pengetahuan -> Second Brain), 'install_tool' (file .py dari GitHub -> tools AI), 'list' (daftar skill), 'remove' (hapus skill pengetahuan).
         source: Untuk install_repo: URL repo GitHub. Untuk install_tool: 'pemilik/repo/path/file.py' atau URL raw file.
         name: Nama skill (opsional; default diambil dari nama repo/file).
     """
-    action = (action or 'list').strip().lower()
+    action = (action or "list").strip().lower()
 
-    if action == 'list':
+    if action == "list":
         skills = []
         if os.path.isdir(SKILLS_DIR):
-            skills = [d for d in sorted(os.listdir(SKILLS_DIR))
-                      if os.path.isdir(os.path.join(SKILLS_DIR, d)) and not d.startswith('.')]
-        core_plugins = sorted(f[:-3] for f in os.listdir(PLUGINS_DIR)
-                              if f.endswith('.py') and f != '__init__.py')
+            skills = [
+                d
+                for d in sorted(os.listdir(SKILLS_DIR))
+                if os.path.isdir(os.path.join(SKILLS_DIR, d)) and not d.startswith(".")
+            ]
+        core_plugins = sorted(
+            f[:-3]
+            for f in os.listdir(PLUGINS_DIR)
+            if f.endswith(".py") and f != "__init__.py"
+        )
         return {
             "status": "success",
             "knowledge_skills": skills,
             "tool_plugins": core_plugins,
-            "message": (f"{len(skills)} skill pengetahuan + {len(core_plugins)} tool plugin terpasang."
-                        if (skills or core_plugins) else "Belum ada skill terpasang.")
+            "message": (
+                f"{len(skills)} skill pengetahuan + {len(core_plugins)} tool plugin terpasang."
+                if (skills or core_plugins)
+                else "Belum ada skill terpasang."
+            ),
         }
 
-    if action == 'remove':
+    if action == "remove":
         if not name.strip():
-            return {"status": "error", "message": "Sebutkan nama skill yang akan dihapus."}
+            return {
+                "status": "error",
+                "message": "Sebutkan nama skill yang akan dihapus.",
+            }
         target = os.path.join(SKILLS_DIR, name.strip())
         if not os.path.isdir(target):
-            return {"status": "error", "message": f"Skill '{name}' tidak ditemukan di {SKILLS_DIR}."}
+            return {
+                "status": "error",
+                "message": f"Skill '{name}' tidak ditemukan di {SKILLS_DIR}.",
+            }
         shutil.rmtree(target)
         # Bersihkan vektornya agar tak jadi sampah ingatan
         removed_chunks = 0
         try:
             import sqlite3
+
             db = os.path.join(PROJECT_DIR, "agent_data.db")
             conn = sqlite3.connect(db)
             cur = conn.execute(
                 "DELETE FROM vector_knowledge_embeddings WHERE doc_title LIKE ?",
-                (f"Skill[{name.strip()}]%",))
+                (f"Skill[{name.strip()}]%",),
+            )
             removed_chunks = cur.rowcount
             conn.commit()
             conn.close()
         except Exception:
             pass
-        return {"status": "success",
-                "message": f"Skill '{name}' dihapus ({removed_chunks} potongan ingatan dibersihkan)."}
+        return {
+            "status": "success",
+            "message": f"Skill '{name}' dihapus ({removed_chunks} potongan ingatan dibersihkan).",
+        }
 
-    if action == 'install_repo':
-        src = (source or '').strip().rstrip('/')
+    if action == "install_repo":
+        src = (source or "").strip().rstrip("/")
         if not src:
-            return {"status": "error", "message": "URL repo wajib diisi. Contoh: https://github.com/user/repo"}
-        repo_name = name.strip() or src.rstrip('/').split('/')[-1].replace('.git', '') or f"skill-{int(time.time())}"
+            return {
+                "status": "error",
+                "message": "URL repo wajib diisi. Contoh: https://github.com/user/repo",
+            }
+        repo_name = (
+            name.strip()
+            or src.rstrip("/").split("/")[-1].replace(".git", "")
+            or f"skill-{int(time.time())}"
+        )
         target = os.path.join(SKILLS_DIR, repo_name)
         if os.path.exists(target):
             shutil.rmtree(target)
         os.makedirs(SKILLS_DIR, exist_ok=True)
         # Clone privat/publik via gh credential helper
         clone_url = src
-        if 'github.com' in src and src.startswith('http'):
-            clone_url = src.replace('https://github.com/', 'https://user:token@github.com/') \
-                if False else src  # gh helper menangani auth otomatis
+        if "github.com" in src and src.startswith("http"):
+            clone_url = (
+                src.replace("https://github.com/", "https://user:token@github.com/")
+                if False
+                else src
+            )  # gh helper menangani auth otomatis
         _run(["git", "clone", "--depth", "1", clone_url, target], timeout=180)
         stats = _ingest_skill_to_brain(repo_name, target)
         if stats.get("indexed_files", 0) == 0:
-            return {"status": "error",
-                    "message": "Repo terpasang tapi tidak ada file teks yang bisa diindeks (.md/.txt/.py/dll)."}
-        msg = (f"🧠 Skill '{repo_name}' terpasang: {stats['indexed_files']} file "
-               f"({stats['chunks']} potongan) masuk Second Brain. "
-               "ALFA langsung memahami isinya di percakapan berikutnya.")
-        return {"status": "success", "skill": repo_name, "path": target,
-                "indexed_files": stats['indexed_files'], "chunks": stats['chunks'],
-                "message": msg}
+            return {
+                "status": "error",
+                "message": "Repo terpasang tapi tidak ada file teks yang bisa diindeks (.md/.txt/.py/dll).",
+            }
+        msg = (
+            f"🧠 Skill '{repo_name}' terpasang: {stats['indexed_files']} file "
+            f"({stats['chunks']} potongan) masuk Second Brain. "
+            "ALFA langsung memahami isinya di percakapan berikutnya."
+        )
+        return {
+            "status": "success",
+            "skill": repo_name,
+            "path": target,
+            "indexed_files": stats["indexed_files"],
+            "chunks": stats["chunks"],
+            "message": msg,
+        }
 
-    if action == 'install_tool':
-        src = (source or '').strip()
+    if action == "install_tool":
+        src = (source or "").strip()
         if not src:
-            return {"status": "error",
-                    "message": "Sumber wajib. Format: 'pemilik/repo/path/nama_file.py' atau URL raw GitHub."}
+            return {
+                "status": "error",
+                "message": "Sumber wajib. Format: 'pemilik/repo/path/nama_file.py' atau URL raw GitHub.",
+            }
         # Tentukan repo, path, ref dari input
         ref = ""
         if "@" in src.split("/repos/")[-1] and src.startswith(("http", "gh:")):
             src, ref = src.rsplit("@", 1)
         if src.startswith("http"):
-            parts = src.replace("https://raw.githubusercontent.com/", "").replace("https://github.com/", "").split("/")
+            parts = (
+                src.replace("https://raw.githubusercontent.com/", "")
+                .replace("https://github.com/", "")
+                .split("/")
+            )
             if src.startswith("https://raw.githubusercontent.com"):
                 owner, repo, ref = parts[0], parts[1], parts[2]
                 fpath = "/".join(parts[3:])
@@ -216,7 +289,9 @@ def skill_installer(action: str = 'list', source: str = '', name: str = '') -> d
                 owner, repo = parts[0], parts[1]
                 branch_idx = 4 if parts[2] == "blob" else 2
                 ref = parts[branch_idx] if parts[2] == "blob" else ""
-                fpath = "/".join(parts[(branch_idx + 1):] if parts[2] == "blob" else parts[2:])
+                fpath = "/".join(
+                    parts[(branch_idx + 1) :] if parts[2] == "blob" else parts[2:]
+                )
         elif "/" in src:
             seg = src.split("/")
             owner, repo = seg[0], seg[1]
@@ -226,21 +301,32 @@ def skill_installer(action: str = 'list', source: str = '', name: str = '') -> d
 
         fname = os.path.basename(fpath)
         if not fname.endswith(".py"):
-            return {"status": "error", "message": "Hanya file .py yang bisa dipasang sebagai tool."}
+            return {
+                "status": "error",
+                "message": "Hanya file .py yang bisa dipasang sebagai tool.",
+            }
         tool_name = fname[:-3]
 
         code = _gh_fetch_file(f"{owner}/{repo}", fpath, ref)
         err = _validate_python_tool(code, tool_name)
         if err:
-            return {"status": "error",
-                    "message": f"Tool ditolak validasi: {err}. Pastikan nama file = nama fungsi utama."}
+            return {
+                "status": "error",
+                "message": f"Tool ditolak validasi: {err}. Pastikan nama file = nama fungsi utama.",
+            }
 
         dest = os.path.join(PLUGINS_DIR, fname)
         with open(dest, "w", encoding="utf-8") as f:
             f.write(code)
         _hot_register(tool_name, dest)
-        return {"status": "success", "tool": tool_name, "path": dest,
-                "message": f"🔧 Tool '{tool_name}' dari {owner}/{repo} terpasang & LANGSUNG AKTIF tanpa restart."}
+        return {
+            "status": "success",
+            "tool": tool_name,
+            "path": dest,
+            "message": f"🔧 Tool '{tool_name}' dari {owner}/{repo} terpasang & LANGSUNG AKTIF tanpa restart.",
+        }
 
-    return {"status": "error",
-            "message": "Aksi tidak dikenal. Pilihan: install_repo, install_tool, list, remove."}
+    return {
+        "status": "error",
+        "message": "Aksi tidak dikenal. Pilihan: install_repo, install_tool, list, remove.",
+    }

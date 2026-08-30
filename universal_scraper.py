@@ -68,17 +68,29 @@ PLATFORM_SEARCH_TEMPLATES = {
         "site:tiktok.com {query} produk",
         "site:lazada.co.id {query}",
         "site:blibli.com {query}",
-        "jual {query} diskon promo shopee tokopedia"
+        "jual {query} diskon promo shopee tokopedia",
     ],
-    "shopee": ["site:shopee.co.id {query} diskon", "site:shopee.co.id {query} promo", "site:shopee.co.id produk {query}"],
-    "tokopedia": ["site:tokopedia.com {query} diskon", "site:tokopedia.com {query} promo", "site:tokopedia.com find {query}"],
-    "tiktok": ["site:tiktok.com {query} shop", "site:tiktok.com {query} produk viral", "site:tiktok.com {query} affiliate"],
+    "shopee": [
+        "site:shopee.co.id {query} diskon",
+        "site:shopee.co.id {query} promo",
+        "site:shopee.co.id produk {query}",
+    ],
+    "tokopedia": [
+        "site:tokopedia.com {query} diskon",
+        "site:tokopedia.com {query} promo",
+        "site:tokopedia.com find {query}",
+    ],
+    "tiktok": [
+        "site:tiktok.com {query} shop",
+        "site:tiktok.com {query} produk viral",
+        "site:tiktok.com {query} affiliate",
+    ],
     "jobs_career": [
         "site:jobstreet.co.id lowongan {query}",
         "site:id.linkedin.com/jobs {query}",
         "site:glints.com/id/opportunities/jobs {query}",
         "site:karir.com {query}",
-        "site:kalibrr.com {query}"
+        "site:kalibrr.com {query}",
     ],
     "news_media": [
         "site:detik.com {query}",
@@ -86,25 +98,25 @@ PLATFORM_SEARCH_TEMPLATES = {
         "site:cnnindonesia.com {query}",
         "site:liputan6.com {query}",
         "site:tribunnews.com {query}",
-        "site:cnbcindonesia.com {query}"
+        "site:cnbcindonesia.com {query}",
     ],
     "property_realestate": [
         "site:rumah123.com {query}",
         "site:rumah.com {query}",
         "site:lamudi.co.id {query}",
-        "site:olx.co.id properti {query}"
+        "site:olx.co.id properti {query}",
     ],
     "leads_contacts": [
-        "\"{query}\" \"whatsapp\" OR \"wa.me\" OR \"08\" email",
-        "\"{query}\" \"hubungi kami\" \"08\" OR \"email\"",
-        "\"{query}\" supplier distributor \"08\" OR \"kontak\""
+        '"{query}" "whatsapp" OR "wa.me" OR "08" email',
+        '"{query}" "hubungi kami" "08" OR "email"',
+        '"{query}" supplier distributor "08" OR "kontak"',
     ],
     "google_general": [
         "{query}",
         "{query} terbaru",
         "{query} rekomendasi terbaik",
-        "{query} review lengkap"
-    ]
+        "{query} review lengkap",
+    ],
 }
 
 
@@ -127,7 +139,7 @@ def scrape_universal_keyword(
     query: str,
     category: str = "all_marketplace",
     limit: int = 50,
-    extract_contacts: bool = True
+    extract_contacts: bool = True,
 ) -> Dict[str, Any]:
     """
     Executes high-yield multi-query deep search across specialized platforms.
@@ -142,8 +154,10 @@ def scrape_universal_keyword(
     batch_id = f"batch_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     batch_name = f"Scrape_{category}_{re.sub(r'[^a-zA-Z0-9]', '_', query)[:20]}"
 
-    templates = PLATFORM_SEARCH_TEMPLATES.get(category, PLATFORM_SEARCH_TEMPLATES["google_general"])
-    
+    templates = PLATFORM_SEARCH_TEMPLATES.get(
+        category, PLATFORM_SEARCH_TEMPLATES["google_general"]
+    )
+
     # Calculate queries needed to fulfill limit
     queries_to_run = [t.format(query=query) for t in templates]
 
@@ -155,16 +169,19 @@ def scrape_universal_keyword(
         for q in queries_to_run:
             try:
                 sub_results = _ddgs_text_with_retry(
-                    ddgs, q, max_results=max(10, limit // len(queries_to_run) + 5))
+                    ddgs, q, max_results=max(10, limit // len(queries_to_run) + 5)
+                )
                 for r in sub_results:
                     url = r.get("href", "").strip()
                     if url and url not in seen_urls:
                         seen_urls.add(url)
-                        all_raw_results.append({
-                            "title": r.get("title", "No Title"),
-                            "snippet": r.get("body", ""),
-                            "link": url
-                        })
+                        all_raw_results.append(
+                            {
+                                "title": r.get("title", "No Title"),
+                                "snippet": r.get("body", ""),
+                                "link": url,
+                            }
+                        )
                     if len(all_raw_results) >= limit:
                         break
             except Exception as e:
@@ -182,11 +199,13 @@ def scrape_universal_keyword(
                     url = r.get("href", "").strip()
                     if url and url not in seen_urls:
                         seen_urls.add(url)
-                        all_raw_results.append({
-                            "title": r.get("title", "No Title"),
-                            "snippet": r.get("body", ""),
-                            "link": url
-                        })
+                        all_raw_results.append(
+                            {
+                                "title": r.get("title", "No Title"),
+                                "snippet": r.get("body", ""),
+                                "link": url,
+                            }
+                        )
         except Exception as e:
             failed_queries += 1
             logger.warning(f"Fallback query '{query}' gagal (setelah retry): {e}")
@@ -198,11 +217,12 @@ def scrape_universal_keyword(
             "status": "error",
             "message": (
                 f"Semua {failed_queries} query pencarian gagal (kemungkinan "
-                "koneksi SSL/rate-limit DuckDuckGo). Tunggu 1-2 menit lalu coba lagi."),
+                "koneksi SSL/rate-limit DuckDuckGo). Tunggu 1-2 menit lalu coba lagi."
+            ),
             "batch_id": batch_id,
             "failed_queries": failed_queries,
             "total_scraped": 0,
-            "items": []
+            "items": [],
         }
 
     # Process and enrich each item
@@ -213,11 +233,18 @@ def scrape_universal_keyword(
         link = item.get("link", "").strip()
 
         # Clean title from common site suffixes
-        clean_title = re.sub(r'\s*[-|]\s*(Shopee Indonesia|Tokopedia|Lazada|Blibli|Jobstreet|Kompas.com|Detikcom|LinkedIn).*$', '', title, flags=re.IGNORECASE)
+        clean_title = re.sub(
+            r"\s*[-|]\s*(Shopee Indonesia|Tokopedia|Lazada|Blibli|Jobstreet|Kompas.com|Detikcom|LinkedIn).*$",
+            "",
+            title,
+            flags=re.IGNORECASE,
+        )
 
         # Smart Price Extractor
         price = "N/A"
-        price_match = re.search(r'Rp\s?[\d\.,]+(?:rb|jt|ribu|juta)?', snippet, re.IGNORECASE)
+        price_match = re.search(
+            r"Rp\s?[\d\.,]+(?:rb|jt|ribu|juta)?", snippet, re.IGNORECASE
+        )
         if price_match:
             price = price_match.group(0)
         elif category in ["all_marketplace", "shopee", "tokopedia", "tiktok"]:
@@ -225,31 +252,35 @@ def scrape_universal_keyword(
 
         # Smart Phone / WhatsApp Extractor
         phone = "N/A"
-        phone_match = re.search(r'(?:08|\+628|628)\d{8,12}', snippet)
+        phone_match = re.search(r"(?:08|\+628|628)\d{8,12}", snippet)
         if phone_match:
             phone = phone_match.group(0)
 
         # Smart Email Extractor
         email = "N/A"
-        email_match = re.search(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', snippet)
+        email_match = re.search(
+            r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", snippet
+        )
         if email_match:
             email = email_match.group(0)
 
         # Platform / Domain inference
         domain = urllib.parse.urlparse(link).netloc.replace("www.", "")
 
-        processed_items.append({
-            "no": idx,
-            "title": clean_title or title,
-            "snippet": snippet,
-            "url": link,
-            "domain": domain,
-            "price": price,
-            "phone_wa": phone,
-            "email": email,
-            "category": category,
-            "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        processed_items.append(
+            {
+                "no": idx,
+                "title": clean_title or title,
+                "snippet": snippet,
+                "url": link,
+                "domain": domain,
+                "price": price,
+                "phone_wa": phone,
+                "email": email,
+                "category": category,
+                "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
 
     duration_sec = round(time.time() - start_time, 2)
 
@@ -257,49 +288,70 @@ def scrape_universal_keyword(
     json_filename = f"{batch_name}.json"
     json_path = os.path.join(MASTER_EXPORT_DIR, "JSON", json_filename)
     with open(json_path, "w", encoding="utf-8") as f_j:
-        json.dump({
-            "batch_id": batch_id,
-            "query": query,
-            "category": category,
-            "total_items": len(processed_items),
-            "duration_seconds": duration_sec,
-            "items": processed_items
-        }, f_j, indent=2, ensure_ascii=False)
+        json.dump(
+            {
+                "batch_id": batch_id,
+                "query": query,
+                "category": category,
+                "total_items": len(processed_items),
+                "duration_seconds": duration_sec,
+                "items": processed_items,
+            },
+            f_j,
+            indent=2,
+            ensure_ascii=False,
+        )
 
     # 2. Save to CSV
     csv_filename = f"{batch_name}.csv"
     csv_path = os.path.join(MASTER_EXPORT_DIR, "CSV", csv_filename)
     with open(csv_path, "w", newline="", encoding="utf-8") as f_c:
         writer = csv.writer(f_c)
-        writer.writerow(["No", "Title / Name", "Price / Info", "Domain / Source", "Phone / WA", "Email", "URL", "Snippet"])
+        writer.writerow(
+            [
+                "No",
+                "Title / Name",
+                "Price / Info",
+                "Domain / Source",
+                "Phone / WA",
+                "Email",
+                "URL",
+                "Snippet",
+            ]
+        )
         for it in processed_items:
-            writer.writerow([
-                it["no"],
-                it["title"],
-                it["price"],
-                it["domain"],
-                it["phone_wa"],
-                it["email"],
-                it["url"],
-                it["snippet"]
-            ])
+            writer.writerow(
+                [
+                    it["no"],
+                    it["title"],
+                    it["price"],
+                    it["domain"],
+                    it["phone_wa"],
+                    it["email"],
+                    it["url"],
+                    it["snippet"],
+                ]
+            )
 
     # 3. Save Batch Summary to SQLite
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
     INSERT INTO master_scrapes (batch_id, name, mode, target, total_items, data_json, csv_file, json_file)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        batch_id,
-        batch_name,
-        f"keyword_{category}",
-        query,
-        len(processed_items),
-        json.dumps(processed_items[:100]),
-        csv_path,
-        json_path
-    ))
+    """,
+        (
+            batch_id,
+            batch_name,
+            f"keyword_{category}",
+            query,
+            len(processed_items),
+            json.dumps(processed_items[:100]),
+            csv_path,
+            json_path,
+        ),
+    )
     conn.commit()
     conn.close()
 
@@ -315,24 +367,27 @@ def scrape_universal_keyword(
         "csv_download_url": f"/api/artifacts/download?path={csv_path}",
         "json_download_url": f"/api/artifacts/download?path={json_path}",
         "csv_path": csv_path,
-        "json_path": json_path
+        "json_path": json_path,
     }
 
 
 def scrape_custom_urls_or_selectors(
-    urls: List[str],
-    concurrency: int = 15,
-    use_camoufox: bool = False
+    urls: List[str], concurrency: int = 15, use_camoufox: bool = False
 ) -> Dict[str, Any]:
     """
     Scrapes a custom list of URLs with auto-extraction and concurrency.
     """
     import fast_scraper
+
     start_time = time.time()
     batch_id = f"custom_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     batch_name = f"Custom_Batch_{len(urls)}_URLs"
 
-    clean_urls = [u.strip() for u in urls if u.strip().startswith("http://") or u.strip().startswith("https://")]
+    clean_urls = [
+        u.strip()
+        for u in urls
+        if u.strip().startswith("http://") or u.strip().startswith("https://")
+    ]
     if not clean_urls:
         return {"status": "error", "message": "Tidak ada URL valid yang diberikan."}
 
@@ -353,25 +408,29 @@ def scrape_custom_urls_or_selectors(
     for idx, out in enumerate(raw_outputs, 1):
         if out.get("status") == "success":
             data = out.get("data", {})
-            items.append({
-                "no": idx,
-                "url": out.get("url"),
-                "title": data.get("title") or out.get("title") or "Halaman Web",
-                "price": data.get("price") or "N/A",
-                "image_url": data.get("image_url") or "",
-                "description": data.get("description") or "",
-                "method": out.get("method") or "Fast Scraper"
-            })
+            items.append(
+                {
+                    "no": idx,
+                    "url": out.get("url"),
+                    "title": data.get("title") or out.get("title") or "Halaman Web",
+                    "price": data.get("price") or "N/A",
+                    "image_url": data.get("image_url") or "",
+                    "description": data.get("description") or "",
+                    "method": out.get("method") or "Fast Scraper",
+                }
+            )
         else:
-            items.append({
-                "no": idx,
-                "url": out.get("url"),
-                "title": "Gagal Mengambil Data",
-                "price": "N/A",
-                "image_url": "",
-                "description": out.get("error", "Unknown error"),
-                "method": "Failed"
-            })
+            items.append(
+                {
+                    "no": idx,
+                    "url": out.get("url"),
+                    "title": "Gagal Mengambil Data",
+                    "price": "N/A",
+                    "image_url": "",
+                    "description": out.get("error", "Unknown error"),
+                    "method": "Failed",
+                }
+            )
 
     duration_sec = round(time.time() - start_time, 2)
 
@@ -381,12 +440,29 @@ def scrape_custom_urls_or_selectors(
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f_c:
         writer = csv.writer(f_c)
-        writer.writerow(["No", "Title", "Price", "URL", "Image URL", "Description", "Engine"])
+        writer.writerow(
+            ["No", "Title", "Price", "URL", "Image URL", "Description", "Engine"]
+        )
         for it in items:
-            writer.writerow([it["no"], it["title"], it["price"], it["url"], it["image_url"], it["description"][:120], it["method"]])
+            writer.writerow(
+                [
+                    it["no"],
+                    it["title"],
+                    it["price"],
+                    it["url"],
+                    it["image_url"],
+                    it["description"][:120],
+                    it["method"],
+                ]
+            )
 
     with open(json_path, "w", encoding="utf-8") as f_j:
-        json.dump({"batch_id": batch_id, "total_urls": len(clean_urls), "items": items}, f_j, indent=2, ensure_ascii=False)
+        json.dump(
+            {"batch_id": batch_id, "total_urls": len(clean_urls), "items": items},
+            f_j,
+            indent=2,
+            ensure_ascii=False,
+        )
 
     return {
         "status": "success",
@@ -397,7 +473,7 @@ def scrape_custom_urls_or_selectors(
         "items": items,
         "csv_download_url": f"/api/artifacts/download?path={csv_path}",
         "json_download_url": f"/api/artifacts/download?path={json_path}",
-        "csv_path": csv_path
+        "csv_path": csv_path,
     }
 
 
@@ -406,21 +482,26 @@ def list_all_scrape_batches(limit: int = 20) -> List[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("SELECT id, batch_id, name, mode, target, total_items, csv_file, json_file, created_at FROM master_scrapes ORDER BY created_at DESC LIMIT ?", (limit,))
+    cur.execute(
+        "SELECT id, batch_id, name, mode, target, total_items, csv_file, json_file, created_at FROM master_scrapes ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
     rows = cur.fetchall()
     conn.close()
 
     items = []
     for r in rows:
-        items.append({
-            "id": r["id"],
-            "batch_id": r["batch_id"],
-            "name": r["name"],
-            "mode": r["mode"],
-            "target": r["target"],
-            "total_items": r["total_items"],
-            "csv_download_url": f"/api/artifacts/download?path={r['csv_file']}",
-            "json_download_url": f"/api/artifacts/download?path={r['json_file']}",
-            "created_at": r["created_at"]
-        })
+        items.append(
+            {
+                "id": r["id"],
+                "batch_id": r["batch_id"],
+                "name": r["name"],
+                "mode": r["mode"],
+                "target": r["target"],
+                "total_items": r["total_items"],
+                "csv_download_url": f"/api/artifacts/download?path={r['csv_file']}",
+                "json_download_url": f"/api/artifacts/download?path={r['json_file']}",
+                "created_at": r["created_at"],
+            }
+        )
     return items

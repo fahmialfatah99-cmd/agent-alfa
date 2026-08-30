@@ -41,25 +41,75 @@ CORE_ALWAYS: Set[str] = {
 }
 
 _STOPWORDS = {
-    "yang", "dan", "atau", "di", "ke", "dari", "untuk", "dengan", "pada", "adalah",
-    "itu", "ini", "the", "a", "an", "of", "to", "in", "on", "for", "with", "and",
-    "or", "is", "are", "be", "please", "coba", "tolong", "buatkan", "bikin",
-    "saya", "kamu", "dia", "mereka", "bagaimana", "apa", "kenapa", "gimana",
+    "yang",
+    "dan",
+    "atau",
+    "di",
+    "ke",
+    "dari",
+    "untuk",
+    "dengan",
+    "pada",
+    "adalah",
+    "itu",
+    "ini",
+    "the",
+    "a",
+    "an",
+    "of",
+    "to",
+    "in",
+    "on",
+    "for",
+    "with",
+    "and",
+    "or",
+    "is",
+    "are",
+    "be",
+    "please",
+    "coba",
+    "tolong",
+    "buatkan",
+    "bikin",
+    "saya",
+    "kamu",
+    "dia",
+    "mereka",
+    "bagaimana",
+    "apa",
+    "kenapa",
+    "gimana",
 }
 
 # Sinonim ID->EN untuk menjembatani prompt bahasa Indonesia dengan
 # deskripsi tool berbahasa Inggris (BM25 murni leksikal).
 _SYNONYMS = {
-    "rekam": "record", "perekam": "record", "layar": "screen", "tangkap": "capture",
-    "cari": "search", "telusuri": "search", "riset": "research",
-    "ingat": "memory remember save", "simpan": "save store write",
-    "tulis": "write", "baca": "read", "kirim": "send deliver",
-    "gambar": "image photo picture", "video": "video recording",
-    "suara": "voice audio tts speech", "terjemah": "translate translation",
-    "berkas": "file", "folder": "directory workspace", "proses": "process execute run",
-    "bunuh": "kill terminate", "matikan": "stop kill shutdown",
-    "jaringan": "network scan", "keamanan": "security audit",
-    "git": "git commit push repository", "jadwal": "cron schedule reminder",
+    "rekam": "record",
+    "perekam": "record",
+    "layar": "screen",
+    "tangkap": "capture",
+    "cari": "search",
+    "telusuri": "search",
+    "riset": "research",
+    "ingat": "memory remember save",
+    "simpan": "save store write",
+    "tulis": "write",
+    "baca": "read",
+    "kirim": "send deliver",
+    "gambar": "image photo picture",
+    "video": "video recording",
+    "suara": "voice audio tts speech",
+    "terjemah": "translate translation",
+    "berkas": "file",
+    "folder": "directory workspace",
+    "proses": "process execute run",
+    "bunuh": "kill terminate",
+    "matikan": "stop kill shutdown",
+    "jaringan": "network scan",
+    "keamanan": "security audit",
+    "git": "git commit push repository",
+    "jadwal": "cron schedule reminder",
 }
 
 
@@ -90,7 +140,7 @@ def _schema_to_text(schema: Dict[str, Any]) -> str:
         parts = [fn.get("name", "")]
         desc = fn.get("description", "") or ""
         parts.append(desc[:600])
-        params = ((fn.get("parameters") or {}).get("properties") or {})
+        params = (fn.get("parameters") or {}).get("properties") or {}
         parts.extend(params.keys())
         return " ".join(str(p) for p in parts)
     except Exception:
@@ -188,8 +238,10 @@ def select_relevant_functions(
         filtered = [f for f in functions if getattr(f, "__name__", "") in keep]
         if not filtered:
             return functions
-        logger.info(f"[ToolRAG] {len(functions)} -> {len(filtered)} fungsi "
-                    f"(hemat ~{(len(functions) - len(filtered)) * 90} token/turn)")
+        logger.info(
+            f"[ToolRAG] {len(functions)} -> {len(filtered)} fungsi "
+            f"(hemat ~{(len(functions) - len(filtered)) * 90} token/turn)"
+        )
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
@@ -248,12 +300,16 @@ def select_relevant_tools(
             if core in name_to_schema:
                 selected.append(core)
 
-        filtered = [name_to_schema[nm] for nm in dict.fromkeys(selected) if nm in name_to_schema]
+        filtered = [
+            name_to_schema[nm] for nm in dict.fromkeys(selected) if nm in name_to_schema
+        ]
         if not filtered:  # safety net: jangan pernah kosongkan tools
             return tools_schema
         dropped = len(tools_schema) - len(filtered)
-        logger.info(f"[ToolRAG] {len(tools_schema)} -> {len(filtered)} tool "
-                    f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)")
+        logger.info(
+            f"[ToolRAG] {len(tools_schema)} -> {len(filtered)} tool "
+            f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)"
+        )
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")

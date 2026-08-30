@@ -1,4 +1,5 @@
 """Unit test parser seksi output AI (web_dashboard._parse_ai_sections)."""
+
 import sys
 from pathlib import Path
 
@@ -20,7 +21,8 @@ class TestParseAiSections:
 
     def test_teks_sebelum_seksi_pertama_diabaikan(self):
         out = web_dashboard._parse_ai_sections(
-            "catatan pembuka acak\n===A===\nkonten a")
+            "catatan pembuka acak\n===A===\nkonten a"
+        )
         assert out["a"] == "konten a"
         assert "catatan" not in out
 

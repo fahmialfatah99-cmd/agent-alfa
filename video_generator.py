@@ -34,11 +34,11 @@ def sanitize_display_text(text: str) -> str:
     if not text:
         return ""
     # Strip high-plane emojis & dingbats that trigger missing glyph boxes
-    cleaned = re.sub(r'[\U00010000-\U0010ffff]', '', text)
-    cleaned = re.sub(r'[\u2600-\u27ff]', '', cleaned)
-    cleaned = re.sub(r'[\u2300-\u23ff]', '', cleaned)
-    cleaned = re.sub(r'[\u200d\ufe0f\ufe0e]', '', cleaned)
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    cleaned = re.sub(r"[\U00010000-\U0010ffff]", "", text)
+    cleaned = re.sub(r"[\u2600-\u27ff]", "", cleaned)
+    cleaned = re.sub(r"[\u2300-\u23ff]", "", cleaned)
+    cleaned = re.sub(r"[\u200d\ufe0f\ufe0e]", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
 
 
@@ -46,8 +46,14 @@ def get_audio_duration(audio_path: str) -> float:
     """Get exact duration of audio file in seconds using ffprobe."""
     try:
         cmd = [
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1", audio_path
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            audio_path,
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
         return max(3.0, float(res.stdout.strip()))
@@ -60,18 +66,25 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     """Generate natural Indonesian voiceover from text."""
     safe_stem = f"voice_{int(time.time() * 1000)}"
     audio_path = os.path.join(VIDEO_OUT_DIR, "Audio", f"{safe_stem}.mp3")
-    
+
     edge_tts_bin = None
     if os.name == "nt":
         candidates = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "edge-tts.exe"),
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "venv",
+                "Scripts",
+                "edge-tts.exe",
+            ),
             shutil.which("edge-tts.exe"),
             shutil.which("edge-tts"),
             "edge-tts",
         ]
     else:
         candidates = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts"),
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts"
+            ),
             shutil.which("edge-tts"),
             "edge-tts",
         ]
@@ -81,7 +94,7 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
             break
     if not edge_tts_bin:
         edge_tts_bin = "edge-tts"
-        
+
     cmd = [edge_tts_bin, "--voice", voice, "-f", "-", "--write-media", audio_path]
     # Teks dikirim via stdin ("-f -") agar tidak muncul di process list (ps aux)
     # dan tidak kena batas ARG_MAX pada voiceover panjang.
@@ -96,7 +109,14 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     return audio_path
 
 
-def draw_star(draw: ImageDraw.ImageDraw, center_x: float, center_y: float, radius: float, fill=(251, 191, 36, 255), outline=None):
+def draw_star(
+    draw: ImageDraw.ImageDraw,
+    center_x: float,
+    center_y: float,
+    radius: float,
+    fill=(251, 191, 36, 255),
+    outline=None,
+):
     """Draw a crisp 5-pointed vector star without relying on emoji fonts."""
     points = []
     for i in range(10):
@@ -108,7 +128,13 @@ def draw_star(draw: ImageDraw.ImageDraw, center_x: float, center_y: float, radiu
     draw.polygon(points, fill=fill, outline=outline)
 
 
-def draw_lightning_icon(draw: ImageDraw.ImageDraw, start_x: float, start_y: float, size: float = 24, fill=(255, 255, 255, 255)):
+def draw_lightning_icon(
+    draw: ImageDraw.ImageDraw,
+    start_x: float,
+    start_y: float,
+    size: float = 24,
+    fill=(255, 255, 255, 255),
+):
     """Draw a crisp vector lightning bolt icon."""
     pts = [
         (start_x + size * 0.55, start_y),
@@ -125,15 +151,27 @@ def get_system_font(size: int, bold: bool = True):
     """Load robust TrueType font with cross-platform OS fallback (Linux, Windows, macOS)."""
     font_candidates = [
         # Linux fonts
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        (
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+        ),
+        (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if bold
+            else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        ),
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
         # Windows fonts
         r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
         r"C:\Windows\Fonts\tahoma.ttf",
         # macOS fonts
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
+        (
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+            if bold
+            else "/System/Library/Fonts/Supplemental/Arial.ttf"
+        ),
         "/Library/Fonts/Arial.ttf",
     ]
     for path in font_candidates:
@@ -152,7 +190,7 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
     """
     WIDTH, HEIGHT = 1080, 1920
     bg = Image.new("RGBA", (WIDTH, HEIGHT), (10, 15, 29, 255))
-    
+
     # Load product image or create high-end mock placeholder
     has_real_image = False
     if image_path and os.path.exists(image_path):
@@ -161,15 +199,33 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
             has_real_image = True
         except Exception:
             has_real_image = False
-            
+
     if not has_real_image:
         prod_img = Image.new("RGBA", (880, 880), (20, 30, 50, 255))
         d = ImageDraw.Draw(prod_img)
-        d.rounded_rectangle([20, 20, 860, 860], radius=32, fill=(30, 41, 59, 255), outline=(6, 182, 212, 120), width=4)
+        d.rounded_rectangle(
+            [20, 20, 860, 860],
+            radius=32,
+            fill=(30, 41, 59, 255),
+            outline=(6, 182, 212, 120),
+            width=4,
+        )
         font_mock = get_system_font(42, bold=True)
         font_subm = get_system_font(28, bold=False)
-        d.text((440, 410), "FOTO PRODUK UTAMA", fill=(255, 255, 255, 255), font=font_mock, anchor="mm")
-        d.text((440, 470), "Upload foto produk untuk hasil maksimal", fill=(148, 163, 184, 255), font=font_subm, anchor="mm")
+        d.text(
+            (440, 410),
+            "FOTO PRODUK UTAMA",
+            fill=(255, 255, 255, 255),
+            font=font_mock,
+            anchor="mm",
+        )
+        d.text(
+            (440, 470),
+            "Upload foto produk untuk hasil maksimal",
+            fill=(148, 163, 184, 255),
+            font=font_subm,
+            anchor="mm",
+        )
 
     # 1. Ambient Blurred Backdrop
     blur_bg = prod_img.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
@@ -182,24 +238,30 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
     STAGE_TOP = 420
     STAGE_HEIGHT = 980
     STAGE_WIDTH = 900
-    
+
     aspect = prod_img.height / prod_img.width
     pw = STAGE_WIDTH
     ph = int(pw * aspect)
     if ph > STAGE_HEIGHT:
         ph = STAGE_HEIGHT
         pw = int(ph / aspect)
-        
+
     prod_resized = prod_img.resize((pw, ph), Image.Resampling.LANCZOS)
-    
+
     px = (WIDTH - pw) // 2
     py = STAGE_TOP + (STAGE_HEIGHT - ph) // 2
-    
+
     draw = ImageDraw.Draw(bg)
     # Stage Card backdrop
     card_rect = [px - 14, py - 14, px + pw + 14, py + ph + 14]
-    draw.rounded_rectangle(card_rect, radius=24, fill=(15, 23, 42, 220), outline=(255, 255, 255, 30), width=2)
-    
+    draw.rounded_rectangle(
+        card_rect,
+        radius=24,
+        fill=(15, 23, 42, 220),
+        outline=(255, 255, 255, 30),
+        width=2,
+    )
+
     bg.paste(prod_resized, (px, py), prod_resized)
     bg.save(output_path, "PNG")
     return output_path
@@ -213,7 +275,7 @@ def create_ui_overlay_layer(
     call_to_action: str = "KLIK KERANJANG KUNING / BIO SEBELUM HABIS",
     theme: str = "viral_tiktok",
     rating: str = "4.9",
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
 ) -> str:
     """
     Creates Layer 1: Transparent PNG with Pin-Sharp Typography, Vector Gold Stars,
@@ -225,7 +287,9 @@ def create_ui_overlay_layer(
 
     # Sanitize text to remove emoji glyphs that cause square [?] boxes
     clean_badge = sanitize_display_text(badge_text) or "FLASH SALE DISKON SPESIAL"
-    clean_cta = sanitize_display_text(call_to_action) or "KLIK KERANJANG KUNING / LINK BIO"
+    clean_cta = (
+        sanitize_display_text(call_to_action) or "KLIK KERANJANG KUNING / LINK BIO"
+    )
     clean_title = sanitize_display_text(product_name) or "PRODUK PILIHAN TERLARIS"
 
     # Fonts
@@ -258,7 +322,7 @@ def create_ui_overlay_layer(
         cta_bg = (16, 185, 129, 255)
         cta_fg = (15, 23, 42, 255)
         drop_color = (52, 211, 153, 255)
-    else: # viral_tiktok default
+    else:  # viral_tiktok default
         badge_bg = (225, 29, 72, 245)
         badge_border = (254, 205, 211, 240)
         box_border = (16, 185, 129, 240)
@@ -268,45 +332,85 @@ def create_ui_overlay_layer(
 
     # 1. TOP FLASH SALE BADGE (Safe Y: 120 - 195)
     badge_rect = [80, 120, WIDTH - 80, 195]
-    draw.rounded_rectangle(badge_rect, radius=20, fill=badge_bg, outline=badge_border, width=3)
-    
+    draw.rounded_rectangle(
+        badge_rect, radius=20, fill=badge_bg, outline=badge_border, width=3
+    )
+
     # Draw vector lightning bolt on left of badge
     draw_lightning_icon(draw, 110, 138, size=24, fill=(255, 255, 255, 255))
     draw_lightning_icon(draw, WIDTH - 134, 138, size=24, fill=(255, 255, 255, 255))
-    draw.text((WIDTH // 2, 157), clean_badge, fill=(255, 255, 255, 255), font=font_badge, anchor="mm")
+    draw.text(
+        (WIDTH // 2, 157),
+        clean_badge,
+        fill=(255, 255, 255, 255),
+        font=font_badge,
+        anchor="mm",
+    )
 
     # 2. PRODUCT TITLE (Auto-Wrapped, Safe Y: 220 - 320)
     lines = textwrap.wrap(clean_title, width=34)
     if len(lines) > 2:
         lines = lines[:2]
         lines[1] = lines[1] + "..."
-        
+
     cur_y = 240
     for line in lines:
-        draw.text((WIDTH // 2 + 2, cur_y + 2), line, fill=(0, 0, 0, 200), font=font_title, anchor="mm")
-        draw.text((WIDTH // 2, cur_y), line, fill=(255, 255, 255, 255), font=font_title, anchor="mm")
+        draw.text(
+            (WIDTH // 2 + 2, cur_y + 2),
+            line,
+            fill=(0, 0, 0, 200),
+            font=font_title,
+            anchor="mm",
+        )
+        draw.text(
+            (WIDTH // 2, cur_y),
+            line,
+            fill=(255, 255, 255, 255),
+            font=font_title,
+            anchor="mm",
+        )
         cur_y += 44
 
     # 3. 5 VECTOR GOLD STARS & TRUST BADGE (Safe Y: 350)
     star_start_x = WIDTH // 2 - 120
     for i in range(5):
-        draw_star(draw, star_start_x + (i * 26), 350, radius=11, fill=(251, 191, 36, 255))
-        
-    draw.text((WIDTH // 2 + 65, 350), f"Rating {rating} • Terlaris", fill=(251, 191, 36, 255), font=font_sub, anchor="lm")
+        draw_star(
+            draw, star_start_x + (i * 26), 350, radius=11, fill=(251, 191, 36, 255)
+        )
+
+    draw.text(
+        (WIDTH // 2 + 65, 350),
+        f"Rating {rating} • Terlaris",
+        fill=(251, 191, 36, 255),
+        font=font_sub,
+        anchor="lm",
+    )
 
     # 4. BOTTOM PRICE COMPARISON CONTAINER (Safe Y: 1450 - 1590)
     price_rect = [60, 1450, WIDTH - 60, 1590]
-    draw.rounded_rectangle(price_rect, radius=24, fill=(15, 23, 42, 245), outline=box_border, width=4)
+    draw.rounded_rectangle(
+        price_rect, radius=24, fill=(15, 23, 42, 245), outline=box_border, width=4
+    )
 
     # Left Pill: Strike Price
     clean_orig = sanitize_display_text(orig_price)
     if not clean_orig.startswith("Rp"):
         clean_orig = f"Rp {clean_orig}"
-    draw.text((220, 1520), clean_orig, fill=(148, 163, 184, 255), font=font_strike, anchor="mm")
-    
+    draw.text(
+        (220, 1520),
+        clean_orig,
+        fill=(148, 163, 184, 255),
+        font=font_strike,
+        anchor="mm",
+    )
+
     # Red Strike-through bar
     strike_len = int(len(clean_orig) * 9.5)
-    draw.line([(220 - strike_len, 1520), (220 + strike_len, 1520)], fill=(239, 68, 68, 255), width=4)
+    draw.line(
+        [(220 - strike_len, 1520), (220 + strike_len, 1520)],
+        fill=(239, 68, 68, 255),
+        width=4,
+    )
 
     # Right Pill: Flash Drop Price
     clean_disc = sanitize_display_text(disc_price)
@@ -318,11 +422,15 @@ def create_ui_overlay_layer(
 
     # 5. BOTTOM STICKY CALL TO ACTION (Safe Y: 1640 - 1750)
     cta_rect = [50, 1640, WIDTH - 50, 1750]
-    draw.rounded_rectangle(cta_rect, radius=20, fill=cta_bg, outline=(254, 240, 138, 255), width=3)
+    draw.rounded_rectangle(
+        cta_rect, radius=20, fill=cta_bg, outline=(254, 240, 138, 255), width=3
+    )
     draw.text((WIDTH // 2, 1695), clean_cta, fill=cta_fg, font=font_cta, anchor="mm")
 
     if not output_path:
-        output_path = os.path.join(VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png")
+        output_path = os.path.join(
+            VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png"
+        )
     overlay.save(output_path, "PNG")
     return output_path
 
@@ -348,8 +456,12 @@ OMNI_MODEL_MAP = {
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
-def _veo_api_request(url: str, payload: Optional[Dict[str, Any]] = None,
-                     api_key: str = "", method: str = "GET") -> Dict[str, Any]:
+def _veo_api_request(
+    url: str,
+    payload: Optional[Dict[str, Any]] = None,
+    api_key: str = "",
+    method: str = "GET",
+) -> Dict[str, Any]:
     """Helper request JSON ke Gemini API dgn auth header x-goog-api-key."""
     req = urllib.request.Request(
         url,
@@ -367,8 +479,10 @@ def _veo_api_request(url: str, payload: Optional[Dict[str, Any]] = None,
         except Exception:
             msg = str(e)
         if "RESOURCE_EXHAUSTED" in body or e.code == 429:
-            msg = ("Kuota Veo habis utk periode ini. Cek limit di https://ai.dev/rate-limit "
-                   "dan coba lagi setelah reset kuota.")
+            msg = (
+                "Kuota Veo habis utk periode ini. Cek limit di https://ai.dev/rate-limit "
+                "dan coba lagi setelah reset kuota."
+            )
         elif not api_key or e.code == 403:
             msg = f"Akses ditolak ({e.code}). Pastikan Gemini API Key valid & Veo aktif di akun Anda."
         raise RuntimeError(msg)
@@ -387,7 +501,7 @@ def _generate_google_veo_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate video AI dgn Google Veo 3.1 (Gemini API predictLongRunning),
@@ -417,7 +531,8 @@ def _generate_google_veo_video(
     prompt = (visual_prompt or "").strip() or (
         f"Cinematic 8K commercial studio video showcasing '{product_name}'. "
         f"Dramatic studio lighting, slow elegant camera push-in, premium product "
-        f"photography style, shallow depth of field, vertical 9:16 composition.")
+        f"photography style, shallow depth of field, vertical 9:16 composition."
+    )
     instance["prompt"] = prompt
 
     body = {
@@ -445,10 +560,15 @@ def _generate_google_veo_video(
         if not status.get("done"):
             continue
         resp = status.get("response", {})
-        samples = (resp.get("generateVideoResponse", {}).get("generatedSamples")
-                   or resp.get("videos") or [])
+        samples = (
+            resp.get("generateVideoResponse", {}).get("generatedSamples")
+            or resp.get("videos")
+            or []
+        )
         if samples:
-            video_uri = (samples[0].get("video", {}) or {}).get("uri") or samples[0].get("uri")
+            video_uri = (samples[0].get("video", {}) or {}).get("uri") or samples[
+                0
+            ].get("uri")
         if not video_uri:
             raise RuntimeError(f"Veo selesai tanpa video: {json.dumps(resp)[:400]}")
         break
@@ -471,11 +591,11 @@ def _generate_google_veo_video(
         badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
         call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_veo_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -485,16 +605,37 @@ def _generate_google_veo_video(
 
     veo_dur = get_audio_duration(raw_path)  # ffprobe; bekerja utk mp4 juga
     cmd = [
-        "ffmpeg", "-y",
-        "-i", raw_path,
-        "-loop", "1", "-i", overlay_out,
-        "-i", audio_path,
-        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
-        "-map", "[outv]", "-map", "2:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-        "-c:a", "aac", "-b:a", "192k",
-        "-t", str(round(veo_dur, 2)),
-        final_video_path
+        "ffmpeg",
+        "-y",
+        "-i",
+        raw_path,
+        "-loop",
+        "1",
+        "-i",
+        overlay_out,
+        "-i",
+        audio_path,
+        "-filter_complex",
+        "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map",
+        "[outv]",
+        "-map",
+        "2:a",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "medium",
+        "-crf",
+        "19",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        str(round(veo_dur, 2)),
+        final_video_path,
     ]
     subprocess.run(cmd, check=True, timeout=600)
     try:
@@ -519,7 +660,7 @@ def _generate_google_veo_video(
         "download_url": f"/api/artifacts/download?path={final_video_path}",
         "audio_voice": voice,
         "theme": theme,
-        "visual_prompt": prompt
+        "visual_prompt": prompt,
     }
 
 
@@ -534,9 +675,15 @@ def _find_video_payload(obj: Any, hint: str = "") -> Optional[Dict[str, Any]]:
         if "video" in mime and isinstance(data, str) and len(data) > 128:
             return {"inline": True, "data": data}
         uri = obj.get("uri") or obj.get("videoUri") or obj.get("file_uri")
-        if isinstance(uri, str) and uri.startswith("http") and (
-            "video" in mime or "video" in uri.lower()
-            or "video" in hint.lower() or obj.get("role") == "model"
+        if (
+            isinstance(uri, str)
+            and uri.startswith("http")
+            and (
+                "video" in mime
+                or "video" in uri.lower()
+                or "video" in hint.lower()
+                or obj.get("role") == "model"
+            )
         ):
             return {"inline": False, "uri": uri}
         for k, v in obj.items():
@@ -564,7 +711,7 @@ def _generate_gemini_omni_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate video AI dengan Gemini Omni Flash (Interactions API).
@@ -596,7 +743,8 @@ def _generate_gemini_omni_video(
     prompt = (visual_prompt or "").strip() or (
         f"Cinematic commercial studio video showcasing '{product_name}'. "
         f"Dramatic lighting, slow elegant camera push-in, premium product "
-        f"photography style, vertical 9:16 composition.")
+        f"photography style, vertical 9:16 composition."
+    )
     parts.append({"type": "text", "text": prompt})
 
     body = {
@@ -612,7 +760,9 @@ def _generate_gemini_omni_video(
     op = _veo_api_request(submit_url, payload=body, api_key=api_key, method="POST")
     op_name = op.get("name") or op.get("id")
     if not op_name:
-        raise RuntimeError(f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}")
+        raise RuntimeError(
+            f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}"
+        )
 
     # 3. Polling status (maks ±10 menit; umumnya selesai ~45-90 detik)
     poll_url = f"{GEMINI_API_BASE}/{op_name}"
@@ -621,13 +771,19 @@ def _generate_gemini_omni_video(
         time.sleep(10)
         status = _veo_api_request(poll_url, api_key=api_key)
         if status.get("error"):
-            raise RuntimeError(f"Omni Flash error: {json.dumps(status.get('error'))[:400]}")
+            raise RuntimeError(
+                f"Omni Flash error: {json.dumps(status.get('error'))[:400]}"
+            )
         state = str(status.get("status") or "").lower()
         done = status.get("done")
         if done is False or state in ("pending", "running", "in_progress", "queued"):
             continue
         payload_found = _find_video_payload(status)
-        if payload_found or done is True or state in ("completed", "succeeded", "active", "finished"):
+        if (
+            payload_found
+            or done is True
+            or state in ("completed", "succeeded", "active", "finished")
+        ):
             break
     if not payload_found:
         raise RuntimeError("Omni Flash timeout: video tidak selesai dalam 10 menit.")
@@ -638,8 +794,12 @@ def _generate_gemini_omni_video(
         with open(raw_path, "wb") as f:
             f.write(base64.b64decode(payload_found["data"]))
     else:
-        req = urllib.request.Request(payload_found["uri"], headers={"x-goog-api-key": api_key})
-        with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:
+        req = urllib.request.Request(
+            payload_found["uri"], headers={"x-goog-api-key": api_key}
+        )
+        with urllib.request.urlopen(req, timeout=300) as resp, open(
+            raw_path, "wb"
+        ) as f:
             shutil.copyfileobj(resp, f)
 
     # 5. Dubbing voiceover + overlay UI promo (komposit lokal, sama dgn jalur Veo)
@@ -652,11 +812,11 @@ def _generate_gemini_omni_video(
         badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
         call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_omni_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -666,16 +826,37 @@ def _generate_gemini_omni_video(
 
     omni_dur = get_audio_duration(raw_path)
     cmd = [
-        "ffmpeg", "-y",
-        "-i", raw_path,
-        "-loop", "1", "-i", overlay_out,
-        "-i", audio_path,
-        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
-        "-map", "[outv]", "-map", "2:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-        "-c:a", "aac", "-b:a", "192k",
-        "-t", str(round(omni_dur, 2)),
-        final_video_path
+        "ffmpeg",
+        "-y",
+        "-i",
+        raw_path,
+        "-loop",
+        "1",
+        "-i",
+        overlay_out,
+        "-i",
+        audio_path,
+        "-filter_complex",
+        "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map",
+        "[outv]",
+        "-map",
+        "2:a",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "medium",
+        "-crf",
+        "19",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        str(round(omni_dur, 2)),
+        final_video_path,
     ]
     subprocess.run(cmd, check=True, timeout=600)
     try:
@@ -701,7 +882,7 @@ def _generate_gemini_omni_video(
         "download_url": f"/api/artifacts/download?path={final_video_path}",
         "audio_voice": voice,
         "theme": theme,
-        "visual_prompt": prompt
+        "visual_prompt": prompt,
     }
 
 
@@ -719,7 +900,7 @@ def generate_video_from_images(
     visual_prompt: Optional[str] = None,
     engine: str = "local_pro",
     api_key: Optional[str] = None,
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Renders ultra-sharp 9:16 (1080x1920) promotional video with Two-Layer Compositor:
@@ -746,7 +927,7 @@ def generate_video_from_images(
                 theme=theme,
                 badge_text=badge_text,
                 call_to_action=call_to_action,
-                output_filename=output_filename
+                output_filename=output_filename,
             )
         except Exception as e:
             logger.error(f"Omni Flash render gagal: {e}")
@@ -754,7 +935,7 @@ def generate_video_from_images(
                 "status": "error",
                 "engine": engine,
                 "model": OMNI_MODEL_MAP.get(engine),
-                "message": str(e)
+                "message": str(e),
             }
     if engine in VEO_MODEL_MAP:
         try:
@@ -771,7 +952,7 @@ def generate_video_from_images(
                 theme=theme,
                 badge_text=badge_text,
                 call_to_action=call_to_action,
-                output_filename=output_filename
+                output_filename=output_filename,
             )
         except Exception as e:
             logger.error(f"Veo render gagal: {e}")
@@ -779,7 +960,7 @@ def generate_video_from_images(
                 "status": "error",
                 "engine": engine,
                 "model": VEO_MODEL_MAP.get(engine),
-                "message": str(e)
+                "message": str(e),
             }
     if engine in ("kling", "luma", "runway", "fal_ai", "replicate") and api_key:
         return _generate_cloud_ai_video(
@@ -792,16 +973,16 @@ def generate_video_from_images(
             orig_price=orig_price,
             disc_price=disc_price,
             voice=voice,
-            output_filename=output_filename
+            output_filename=output_filename,
         )
-    
+
     # 1. Validate images
     valid_images = []
     for p in image_paths:
         exp = os.path.expanduser(p.strip())
         if os.path.exists(exp):
             valid_images.append(exp)
-            
+
     if not valid_images:
         placeholder = os.path.join(VIDEO_OUT_DIR, "Frames", "temp_stage.png")
         create_product_stage_layer("", placeholder)
@@ -815,11 +996,15 @@ def generate_video_from_images(
     # 3. Create Layer 0 (Product Stage) & Layer 1 (Transparent UI Overlay)
     stage_layers = []
     for idx, img_p in enumerate(valid_images):
-        stage_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"stage_{int(time.time() * 1000)}_{idx}.png")
+        stage_out = os.path.join(
+            VIDEO_OUT_DIR, "Frames", f"stage_{int(time.time() * 1000)}_{idx}.png"
+        )
         create_product_stage_layer(img_p, stage_out)
         stage_layers.append(stage_out)
 
-    overlay_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png")
+    overlay_out = os.path.join(
+        VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png"
+    )
     create_ui_overlay_layer(
         product_name=product_name,
         orig_price=orig_price,
@@ -827,19 +1012,19 @@ def generate_video_from_images(
         badge_text=badge_text,
         call_to_action=call_to_action,
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     # 4. Output Path
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_{int(time.time())}.mp4"
     else:
         # Prevent path traversal via user-supplied filenames
         output_filename = os.path.basename(output_filename.strip())
         if not output_filename.endswith(".mp4"):
             output_filename = f"{output_filename}.mp4"
-        
+
     final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
 
     # 5. Dual-Layer FFmpeg Motion Compositing (Gentle 1.00 -> 1.05 push-in on background only)
@@ -847,7 +1032,7 @@ def generate_video_from_images(
         zoom_expr = f"zoompan=z='max(1.05-0.00004*on,1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
     elif motion_style == "pan_left_right":
         zoom_expr = f"zoompan=z='1.03':x='(iw-iw/zoom)*(sin(it*0.5)+1)/2':y='ih/2-(ih/zoom/2)':d={total_frames}:s=1080x1920:fps=30"
-    else: # zoom_in
+    else:  # zoom_in
         zoom_expr = f"zoompan=z='min(1.0+0.00004*on,1.05)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
 
     per_img_dur = max(3.0, duration_sec / len(stage_layers))
@@ -855,17 +1040,39 @@ def generate_video_from_images(
     if len(stage_layers) == 1:
         filter_complex = f"[0:v]{zoom_expr}[bg];[bg][1:v]overlay=0:0[outv]"
         cmd = [
-            "ffmpeg", "-y",
-            "-loop", "1", "-i", stage_layers[0],
-            "-loop", "1", "-i", overlay_out,
-            "-i", audio_path,
-            "-filter_complex", filter_complex,
-            "-map", "[outv]",
-            "-map", "2:a",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-            "-c:a", "aac", "-b:a", "192k",
-            "-t", str(duration_sec + 0.3),
-            final_video_path
+            "ffmpeg",
+            "-y",
+            "-loop",
+            "1",
+            "-i",
+            stage_layers[0],
+            "-loop",
+            "1",
+            "-i",
+            overlay_out,
+            "-i",
+            audio_path,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[outv]",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-preset",
+            "medium",
+            "-crf",
+            "19",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-t",
+            str(duration_sec + 0.3),
+            final_video_path,
         ]
     else:
         inputs = []
@@ -889,28 +1096,44 @@ def generate_video_from_images(
             filter_parts.append(
                 f"[{i}:v]zoompan=z='{z_expr}':d={per_frames}:{pos_expr}:s=1080x1920:fps=30[v{i}];"
             )
-            
+
         concat_inputs = "".join([f"[v{i}]" for i in range(len(stage_layers))])
         filter_parts.append(f"{concat_inputs}concat=n={len(stage_layers)}:v=1:a=0[bg];")
-        
+
         overlay_idx = len(stage_layers)
         audio_idx = overlay_idx + 1
         inputs.extend(["-loop", "1", "-i", overlay_out])
-        
+
         filter_parts.append(f"[bg][{overlay_idx}:v]overlay=0:0[outv]")
         filter_str = "".join(filter_parts)
-        
+
         cmd = [
-            "ffmpeg", "-y",
+            "ffmpeg",
+            "-y",
             *inputs,
-            "-i", audio_path,
-            "-filter_complex", filter_str,
-            "-map", "[outv]",
-            "-map", f"{audio_idx}:a",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-            "-c:a", "aac", "-b:a", "192k",
-            "-t", str(duration_sec + 0.3),
-            final_video_path
+            "-i",
+            audio_path,
+            "-filter_complex",
+            filter_str,
+            "-map",
+            "[outv]",
+            "-map",
+            f"{audio_idx}:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-preset",
+            "medium",
+            "-crf",
+            "19",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-t",
+            str(duration_sec + 0.3),
+            final_video_path,
         ]
 
     logger.info(f"Executing FFmpeg render: {' '.join(cmd)}")
@@ -933,7 +1156,8 @@ def generate_video_from_images(
         "audio_voice": voice,
         "theme": theme,
         "motion_style": motion_style,
-        "visual_prompt": visual_prompt or f"8K Commercial Studio video of {product_name}"
+        "visual_prompt": visual_prompt
+        or f"8K Commercial Studio video of {product_name}",
     }
 
 
@@ -947,7 +1171,7 @@ def _generate_cloud_ai_video(
     orig_price: str,
     disc_price: str,
     voice: str,
-    output_filename: Optional[str]
+    output_filename: Optional[str],
 ) -> Dict[str, Any]:
     """
     Dispatcher for Cloud AI Video Generation APIs (Kling, Luma, Runway, Fal.ai, Replicate).
@@ -959,5 +1183,5 @@ def _generate_cloud_ai_video(
         "engine": engine,
         "product_name": product_name,
         "visual_prompt": visual_prompt,
-        "message": f"Konektor Cloud AI Video ({engine.upper()}) siap menerima API Key dan menghasilkan video generatif."
+        "message": f"Konektor Cloud AI Video ({engine.upper()}) siap menerima API Key dan menghasilkan video generatif.",
     }
