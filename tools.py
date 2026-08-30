@@ -718,49 +718,98 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
         return {"status": "error", "message": f"Gagal melakukan pencarian web: {str(e)}"}
 
 
-def fetch_web_page_content(url: str, max_length: int = 4000) -> Dict[str, Any]:
+def fetch_web_page_content(url: str, max_length: int = 5000) -> Dict[str, Any]:
     """
-    Fetch and extract clean text and main content from a website/article URL.
-    Use this tool when you need to read documentation, read a specific article, or analyze a web page.
+    Fetch and extract clean text and structured content from any website or article URL.
+    Uses multi-tier stealth engine (Fast TLS -> Stealthy Scrapling -> MarkItDown) to bypass anti-bot protections.
     
     Args:
         url: Full web URL (e.g. 'https://en.wikipedia.org/wiki/Python').
-        max_length: Maximum text length to extract (default: 4000 chars).
+        max_length: Maximum text length to extract (default: 5000 chars).
     """
+    text = ""
+    status_code = 200
+    engine_used = "httpx"
+    
+    # Tier 1: Fast HTTPX with Chrome/Linux Headers
     try:
         import httpx
         headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Sec-Ch-Ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Linux"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Upgrade-Insecure-Requests": "1"
         }
-        with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+        with httpx.Client(timeout=12.0, follow_redirects=True, verify=False) as client:
             resp = client.get(url, headers=headers)
-            if resp.status_code != 200:
-                return {"status": "error", "message": f"Gagal mengambil URL, status code: {resp.status_code}"}
-            
-            html = resp.text
-            # Remove scripts, styles, head, comments
-            html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
-            html = re.sub(r"<style[\s\S]*?</style>", " ", html, flags=re.IGNORECASE)
-            html = re.sub(r"<nav[\s\S]*?</nav>", " ", html, flags=re.IGNORECASE)
-            html = re.sub(r"<footer[\s\S]*?</footer>", " ", html, flags=re.IGNORECASE)
-            html = re.sub(r"<header[\s\S]*?</header>", " ", html, flags=re.IGNORECASE)
-            html = re.sub(r"<!--[\s\S]*?-->", " ", html)
-            
-            # Extract plain text
-            text = re.sub(r"<[^>]+>", " ", html)
-            text = re.sub(r"\s+", " ", text).strip()
-            
-            if len(text) > max_length:
-                text = text[:max_length] + "\n...[Konten web dipotong sesuai batas maksimal]"
-                
-            return {
-                "status": "success",
-                "url": url,
-                "content": text or "Halaman web tidak memuat konten teks yang dapat dibaca."
-            }
+            status_code = resp.status_code
+            if resp.status_code == 200:
+                html = resp.text
+                # Clean html
+                html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
+                html = re.sub(r"<style[\s\S]*?</style>", " ", html, flags=re.IGNORECASE)
+                html = re.sub(r"<nav[\s\S]*?</nav>", " ", html, flags=re.IGNORECASE)
+                html = re.sub(r"<footer[\s\S]*?</footer>", " ", html, flags=re.IGNORECASE)
+                html = re.sub(r"<!--[\s\S]*?-->", " ", html)
+                cleaned = re.sub(r"<[^>]+>", " ", html)
+                text = re.sub(r"\s+", " ", cleaned).strip()
     except Exception as e:
-        logger.error(f"Fetch web page error: {e}")
-        return {"status": "error", "message": f"Gagal membaca URL: {str(e)}"}
+        logger.debug(f"HTTPX fetch error, falling back to stealth: {e}")
+
+    # Tier 2: Stealth Scrapling Fallback if Tier 1 got blocked (403/429/503/empty)
+    if not text or len(text) < 100 or status_code in (403, 429, 503):
+        try:
+            from scrapling import StealthyFetcher, Fetcher
+            engine_used = "scrapling_stealth"
+            try:
+                page = StealthyFetcher.fetch(url)
+            except Exception:
+                page = Fetcher.get(url, timeout=15)
+            
+            status_code = getattr(page, "status", 200)
+            p_texts = [p.text.strip() for p in page.css("article, main, p, h1, h2, h3, li, table") if p.text and p.text.strip()]
+            if p_texts:
+                text = "\n\n".join(p_texts)
+            else:
+                raw = getattr(page, "text", "") or ""
+                text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw)).strip()
+        except Exception as err:
+            logger.debug(f"Scrapling fallback failed: {err}")
+
+    # Tier 3: MarkItDown Markdown Conversion if available
+    if not text or len(text) < 80:
+        try:
+            from markitdown import MarkItDown
+            mid = MarkItDown()
+            res = mid.convert(url)
+            if res and res.text_content:
+                text = res.text_content.strip()
+                engine_used = "markitdown"
+        except Exception:
+            pass
+
+    if not text:
+        return {
+            "status": "error",
+            "message": f"Gagal mengekstrak konten teks dari '{url}' (status code: {status_code}). Web mungkin memblokir akses atau memerlukan login."
+        }
+
+    if len(text) > max_length:
+        text = text[:max_length] + "\n\n...[Konten web dipotong sesuai batas panjang maksimal]"
+
+    return {
+        "status": "success",
+        "url": url,
+        "engine": engine_used,
+        "length": len(text),
+        "content": text
+    }
 
 
 def save_knowledge_memory(key_topic: str, content: str, category: str = "general") -> Dict[str, Any]:
@@ -1715,26 +1764,55 @@ def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
 
 def browser_open_url(url: str) -> Dict[str, Any]:
     """
-    Open a web page in the Camofox stealth browser engine and return its accessibility element tree snapshot.
-    Use this tool when the user asks to open a website, browse a web page, fill forms, or interact with web elements.
+    Open a web page in the Camofox stealth browser engine (with automatic Stealth Scrapling fallback) and return its interactive accessibility snapshot.
+    Use this tool when the user asks to open a website, browse a web page, fill forms, or inspect web elements.
     
     Args:
         url: Full web URL to open (e.g. 'https://github.com/trending', 'https://news.ycombinator.com').
     """
     try:
         res = _run_camofox_cli(["open", url])
-        if not res.get("success"):
-            return {"status": "error", "message": res.get("stderr") or res.get("error")}
+        if res.get("success"):
+            snap = _run_camofox_cli(["snapshot"])
+            return {
+                "status": "success",
+                "engine": "camofox_stealth",
+                "message": f"Halaman web '{url}' berhasil dibuka.",
+                "interactive_elements": snap.get("stdout") or res.get("stdout")
+            }
         
-        # Take snapshot immediately
-        snap = _run_camofox_cli(["snapshot"])
+        # Fallback Stealth Scrapling DOM Parser
+        logger.info(f"Camofox CLI inactive, using Stealth DOM parser fallback for {url}")
+        from scrapling import StealthyFetcher, Fetcher
+        try:
+            page = StealthyFetcher.fetch(url)
+        except Exception:
+            page = Fetcher.get(url, timeout=15)
+        
+        interactive = []
+        for i, a in enumerate(page.css("a[href]")[:25]):
+            href = a.get_attribute("href") or ""
+            txt = a.text.strip() if hasattr(a, 'text') else "[Link]"
+            interactive.append(f"[{i+1}] (Link) \"{txt[:40]}\" -> {href[:80]}")
+        for i, btn in enumerate(page.css("button, input[type=submit], input[type=button]")[:15]):
+            txt = (btn.text.strip() if hasattr(btn, 'text') else "") or btn.get_attribute("value") or "[Button]"
+            interactive.append(f"[b{i+1}] (Button) \"{txt[:40]}\"")
+        for i, inp in enumerate(page.css("input[type=text], input[type=search], textarea")[:10]):
+            name = inp.get_attribute("name") or inp.get_attribute("placeholder") or "input"
+            interactive.append(f"[inp{i+1}] (Input) \"{name}\"")
+            
+        summary_text = "\n".join(interactive) if interactive else "Tidak ada elemen interaktif terdeteksi."
+        body_text = "\n".join([p.text.strip() for p in page.css("h1, h2, h3, p, article") if hasattr(p, 'text') and p.text and p.text.strip()][:10])
+        
         return {
             "status": "success",
-            "message": f"Halaman web '{url}' berhasil dibuka.",
-            "interactive_elements": snap.get("stdout") or res.get("stdout")
+            "engine": "scrapling_stealth_fallback",
+            "message": f"Halaman web '{url}' berhasil dibuka dan dianalisis.",
+            "interactive_elements": summary_text,
+            "page_content_preview": body_text[:2000]
         }
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Browser open error: {str(e)}"}
 
 
 def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:

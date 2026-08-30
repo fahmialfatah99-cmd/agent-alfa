@@ -33,6 +33,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Update,
+    WebAppInfo,
     constants,
 )
 from telegram.ext import (
@@ -2094,28 +2095,37 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /dashboard or /web command."""
+    """Handle /dashboard, /web, or /app command."""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
         
     res = tools.open_web_dashboard(port=8080)
+    tma_url = os.getenv("ALFA_WEBAPP_URL", res.get("network_url") or "http://127.0.0.1:8080")
+    
+    keyboard = []
+    if tma_url and tma_url.startswith("https://"):
+        keyboard.append([InlineKeyboardButton("📱 Buka ALFA Mini App", web_app=WebAppInfo(url=tma_url))])
+    else:
+        keyboard.append([InlineKeyboardButton("🌐 Buka Web Dashboard", url=res.get("local_url") or "http://127.0.0.1:8080")])
+        
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    
     text = (
-        f"🛸 **ALFA SOVEREIGN COMMAND CENTER (Web Dashboard):**\n\n"
+        f"🛸 **ALFA SOVEREIGN COMMAND CENTER:**\n\n"
         f"• **Akses Lokal (Laptop):** `{res.get('local_url')}`\n"
         f"• **Akses Jaringan (HP / WiFi):** `{res.get('network_url')}`\n\n"
-        f"⚡ **Fitur Dashboard:**\n"
-        f"1. 📊 Live Telemetry Hardware & Gauges Real-time\n"
-        f"2. ⚡ 75+ Tools Arsenal Explorer & Interactive Runner\n"
-        f"3. 📱 Ecosystem Hub (Telegram & WA Sheets Bot Controller)\n"
-        f"4. 🧠 Second Brain & Semantic Knowledge Graph Visualizer\n"
-        f"5. 🛡️ 24/7 System Guardian & Proactive Watchdogs Config\n"
-        f"6. 💬 Live Web AI Interactive Console\n"
-        f"7. 🤖 AI Agent Workforce & Ruang Rapat (Multi-Agent Swarm)\n"
-        f"8. 🔑 Multi-Provider API Key Vault"
+        f"⚡ **Pusat Kontrol Terintegrasi:**\n"
+        f"1. 📊 Telemetri Hardware & CPU/RAM Real-time\n"
+        f"2. ⚡ 130+ Tools Interaktif & Browser Otomatis\n"
+        f"3. 🧠 Second Brain & Vector Memory\n"
+        f"4. 🛡️ 24/7 System Guardian & Background Watchdogs\n"
+        f"5. 💬 Web AI Interactive Console\n"
+        f"6. 🤖 Ruang Rapat AI (Swarm Multi-Agent Engine)\n"
+        f"7. 🔑 Multi-Provider Vault & API Keys Manager"
     )
-    await safe_send_message(context, chat_id, text)
+    await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
 
 
 async def keys_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2363,6 +2373,7 @@ def main():
     application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("dashboard", dashboard_command))
     application.add_handler(CommandHandler("web", dashboard_command))
+    application.add_handler(CommandHandler("app", dashboard_command))
     application.add_handler(CommandHandler("wa", wa_command))
     application.add_handler(CommandHandler("washeets", wa_command))
     application.add_handler(CommandHandler("stats", stats_command))

@@ -40,8 +40,19 @@ _TOOL_KEEP_RECENT = 6       # jumlah pesan tool terakhir yang dijaga utuh
 def get_main_brain(override_key_id: Optional[int] = None, override_model: Optional[str] = None) -> Dict[str, Any]:
     """
     Return dict: {provider, api_key, model, base_url, key_id, label}
-    Prioritas: override_key_id -> pointer main_brain_key_id -> kunci aktif di vault -> .env
+    Prioritas: ALFA_OFFLINE_MODE -> override_key_id -> pointer main_brain_key_id -> kunci aktif di vault -> .env
     """
+    # Cek mode offline / Ollama lokal otonom
+    if os.getenv("ALFA_OFFLINE_MODE", "").lower() in ("true", "1", "on"):
+        return {
+            "provider": "ollama",
+            "api_key": "ollama",
+            "model": override_model or os.getenv("OLLAMA_MODEL", "hermes3:latest"),
+            "base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+            "key_id": None,
+            "label": "ollama-local",
+        }
+
     import database
     kid = override_key_id or database.get_main_brain_key_id()
     if kid:
