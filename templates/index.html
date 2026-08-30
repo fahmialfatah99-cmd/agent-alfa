@@ -2055,13 +2055,14 @@
 
                 <!-- ADVANCED INPUT FORM WITH AUTO-GROWING TEXTAREA, VOICE MIC, FILE DROP & SEND -->
                 <form id="chat-form" onsubmit="sendWebChat(event)" class="relative pt-1">
-                    <!-- Hidden File & Photo Inputs -->
+                    <!-- Hidden File, Photo & Folder Inputs -->
                     <input type="file" id="chat-file-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*,application/pdf,text/*,.csv,.docx,.xlsx,.json,.py,.md,.js,.ts,.html,.css,.log,.txt">
                     <input type="file" id="chat-photo-input" multiple onchange="handleChatFilesSelected(event)" class="hidden" accept="image/*">
+                    <input type="file" id="chat-folder-input" webkitdirectory directory multiple onchange="handleChatFilesSelected(event)" class="hidden">
 
                     <div class="p-2.5 rounded-xl bg-dark-950 border border-white/15 focus-within:border-cyan-500/70 transition-all flex flex-col space-y-2">
                         <!-- Auto-growing Textarea -->
-                        <textarea id="chat-input-text" rows="1" oninput="autoGrowChatInput(this); handleSlashCommandInput(this);" onkeydown="handleChatKeyDown(event)" placeholder="Ketik pesan, ketik '/' untuk tools cepat, tempel (Ctrl+V) gambar, atau seret file..." class="w-full px-3 py-1.5 bg-transparent border-none text-xs sm:text-[13px] text-white focus:outline-none resize-none font-sans max-h-36 overflow-y-auto custom-scrollbar leading-relaxed"></textarea>
+                        <textarea id="chat-input-text" rows="1" oninput="autoGrowChatInput(this); handleSlashCommandInput(this);" onkeydown="handleChatKeyDown(event)" placeholder="Ketik pesan, ketik '/' untuk tools cepat, tempel (Ctrl+V) gambar, atau seret file/folder..." class="w-full px-3 py-1.5 bg-transparent border-none text-xs sm:text-[13px] text-white focus:outline-none resize-none font-sans max-h-36 overflow-y-auto custom-scrollbar leading-relaxed"></textarea>
 
                         <!-- Bottom Control Toolbar inside Input -->
                         <div class="flex items-center justify-between pt-1 border-t border-white/5 text-xs font-mono">
@@ -2071,6 +2072,12 @@
                                 <button type="button" onclick="document.getElementById('chat-file-input').click()" class="px-2.5 py-1.5 rounded-xl hover:bg-white/10 hover:text-cyan-400 transition-all flex items-center gap-1.5 text-[11px]" title="Lampirkan Dokumen (PDF, DOCX, CSV, Kode, Teks)">
                                     <i data-lucide="paperclip" class="w-4 h-4"></i>
                                     <span class="hidden sm:inline">Dokumen</span>
+                                </button>
+
+                                <!-- Folder Upload Mode -->
+                                <button type="button" onclick="document.getElementById('chat-folder-input').click()" class="px-2.5 py-1.5 rounded-xl hover:bg-white/10 hover:text-amber-400 transition-all flex items-center gap-1.5 text-[11px]" title="Lampirkan Folder / Direktori Proyek Lengkap (Batch Traversal)">
+                                    <i data-lucide="folder-up" class="w-4 h-4 text-amber-400"></i>
+                                    <span class="hidden sm:inline text-amber-300">Folder</span>
                                 </button>
                                 
                                 <!-- Photo (Vision) -->
@@ -5527,19 +5534,23 @@
 
         function processIncomingChatFiles(files) {
             files.forEach(file => {
-                if (file.size > 25 * 1024 * 1024) {
-                    showToast(`File ${file.name} terlalu besar (>25MB).`, 'warning');
+                if (file.size > 50 * 1024 * 1024) {
+                    showToast(`File ${file.name} terlalu besar (>50MB).`, 'warning');
                     return;
                 }
+                const relPath = file.webkitRelativePath || file.name;
+                const isFolderItem = relPath && relPath.includes('/');
                 const reader = new FileReader();
                 const isImage = file.type.startsWith('image/');
                 reader.onload = (event) => {
                     attachedChatFiles.push({
-                        name: file.name,
+                        name: relPath,
+                        fileName: file.name,
                         type: file.type || 'application/octet-stream',
                         size: file.size,
                         base64: event.target.result,
-                        isImage: isImage
+                        isImage: isImage,
+                        isFolderItem: isFolderItem
                     });
                     renderChatAttachmentsPreview();
                 };
@@ -5562,8 +5573,8 @@
                     return `
                         <div class="relative group flex items-center gap-2 p-1.5 bg-dark-950/80 border border-cyan-500/30 rounded-lg">
                             <img src="${f.base64}" class="w-10 h-10 object-cover rounded border border-white/10" alt="${f.name}">
-                            <div class="max-w-[120px] truncate text-[11px] text-slate-300">
-                                <p class="truncate font-mono">${f.name}</p>
+                            <div class="max-w-[140px] truncate text-[11px] text-slate-300">
+                                <p class="truncate font-mono" title="${f.name}">${f.name}</p>
                                 <span class="text-[10px] text-slate-500">${sizeKB} KB</span>
                             </div>
                             <button type="button" onclick="removeChatAttachment(${idx})" class="p-1 text-slate-400 hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all" title="Hapus lampiran">
@@ -5571,14 +5582,29 @@
                             </button>
                         </div>
                     `;
+                } else if (f.isFolderItem) {
+                    return `
+                        <div class="flex items-center gap-2 p-2 bg-dark-950/80 border border-amber-500/40 rounded-lg text-[11px] text-slate-300">
+                            <div class="w-8 h-8 rounded bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
+                                <i data-lucide="folder" class="w-4 h-4"></i>
+                            </div>
+                            <div class="max-w-[160px] truncate">
+                                <p class="truncate font-mono font-medium text-amber-200" title="${f.name}">${f.name}</p>
+                                <span class="text-[10px] text-slate-400">${sizeKB} KB</span>
+                            </div>
+                            <button type="button" onclick="removeChatAttachment(${idx})" class="p-1 text-slate-400 hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all" title="Hapus berkas folder">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
                 } else {
                     return `
                         <div class="flex items-center gap-2 p-2 bg-dark-950/80 border border-cyan-500/30 rounded-lg text-[11px] text-slate-300">
-                            <div class="w-8 h-8 rounded bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                            <div class="w-8 h-8 rounded bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0">
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
                             </div>
-                            <div class="max-w-[140px] truncate">
-                                <p class="truncate font-mono font-medium">${f.name}</p>
+                            <div class="max-w-[150px] truncate">
+                                <p class="truncate font-mono font-medium" title="${f.name}">${f.name}</p>
                                 <span class="text-[10px] text-slate-500">${sizeKB} KB</span>
                             </div>
                             <button type="button" onclick="removeChatAttachment(${idx})" class="p-1 text-slate-400 hover:text-rose-400 rounded-full hover:bg-rose-500/10 transition-all" title="Hapus lampiran">
@@ -10900,12 +10926,66 @@
                     }, false);
                 });
 
-                dropzone.addEventListener('drop', (e) => {
+                dropzone.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-cyan-500', 'shadow-glow-cyan');
                     const dt = e.dataTransfer;
-                    const files = dt ? Array.from(dt.files) : [];
-                    if (files.length) {
-                        processIncomingChatFiles(files);
-                        showToast(`${files.length} berkas berhasil dilampirkan ke chat!`, 'success');
+                    if (!dt) return;
+
+                    const allFiles = [];
+                    if (dt.items && dt.items.length) {
+                        const entries = [];
+                        for (let i = 0; i < dt.items.length; i++) {
+                            const item = dt.items[i];
+                            if (item.webkitGetAsEntry) {
+                                const entry = item.webkitGetAsEntry();
+                                if (entry) entries.push(entry);
+                            }
+                        }
+
+                        async function readEntry(entry, path = '') {
+                            if (entry.isFile) {
+                                return new Promise((resolve) => {
+                                    entry.file((file) => {
+                                        Object.defineProperty(file, 'webkitRelativePath', {
+                                            value: path ? `${path}/${file.name}` : file.name,
+                                            writable: true
+                                        });
+                                        allFiles.push(file);
+                                        resolve();
+                                    }, () => resolve());
+                                });
+                            } else if (entry.isDirectory) {
+                                const dirReader = entry.createReader();
+                                return new Promise((resolve) => {
+                                    dirReader.readEntries(async (subEntries) => {
+                                        const subPath = path ? `${path}/${entry.name}` : entry.name;
+                                        for (const sub of subEntries) {
+                                            await readEntry(sub, subPath);
+                                        }
+                                        resolve();
+                                    }, () => resolve());
+                                });
+                            }
+                        }
+
+                        if (entries.length) {
+                            for (const ent of entries) {
+                                await readEntry(ent);
+                            }
+                        }
+                    }
+
+                    if (!allFiles.length && dt.files && dt.files.length) {
+                        for (let i = 0; i < dt.files.length; i++) {
+                            allFiles.push(dt.files[i]);
+                        }
+                    }
+
+                    if (allFiles.length) {
+                        processIncomingChatFiles(allFiles);
+                        showToast(`${allFiles.length} berkas/folder berhasil dilampirkan ke chat!`, 'success');
                     }
                 }, false);
             }
