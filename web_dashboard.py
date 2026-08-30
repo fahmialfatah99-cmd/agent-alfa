@@ -157,33 +157,82 @@ def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> i
 
 
 def categorize_tool(name: str) -> str:
-    """Categorize tool by its functional domain."""
+    """Categorize tool by its functional domain with clear and consistent categories."""
     name_lower = name.lower()
-    if "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
-        return "Affiliate Sales & Product Scraper (Camoufox)"
-    elif name_lower.startswith("pdf_") or "pdf" in name_lower:
-        return "PDF Tools Suite (Offline & Online)"
+
+    # Development & Git - Tools untuk version control dan development workflow
+    if name_lower in ["git_operations", "git_repo_health_analyzer", "git_worktree_sandbox_create", 
+                      "git_worktree_sandbox_list", "git_worktree_sandbox_rollback", 
+                      "git_worktree_sandbox_verify_and_merge", "github_assistant"]:
+        return "Development & Git"
+
+    # Plugins & Extensions - Plugin khusus yang dapat diinstal/dihapus dinamis
+    elif name_lower in ["crypto_forex_live_rates", "whois_dns_domain_lookup", "qr_barcode_generator",
+                        "speedtest_network_benchmark", "skill_installer"]:
+        return "Plugins & Extensions"
+
+    # Affiliate Sales & Product Scraper - Tools untuk affiliate marketing dan scraping
+    elif name_lower.startswith("affiliate_") or name_lower in [
+        "marketplace_search_products", "crawlee_web_scraper", "firecrawl_scrape_and_crawl",
+        "scrape_custom_urls_batch", "scrape_large_scale_batch", "scrape_real_product_data",
+        "scrapy_spider_quick_scrape", "universal_deep_scraper"
+    ]:
+        return "Affiliate Sales & Product Scraper"
+
+    # PDF Tools Suite - Tools khusus untuk manipulasi PDF
+    elif name_lower.startswith("pdf_") or name_lower == "images_convert_to_pdf":
+        return "PDF Tools Suite"
+
+    # Browser Automation - Otomasi browser dengan Camoufox/Playwright
     elif name_lower.startswith("browser_"):
         return "Browser Automation"
-    elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or "screenshot" in name_lower or "webcam" in name_lower:
+
+    # OS & Vision Control - Kontrol sistem operasi, screenshot, webcam, desktop
+    elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or \
+         name_lower in ["capture_desktop_screenshot", "capture_webcam_frame"]:
         return "OS & Vision Control"
+
+    # LibreOffice Suite - Tools untuk dokumen LibreOffice
     elif name_lower.startswith("libreoffice_"):
         return "LibreOffice Suite"
-    elif "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower or "image" in name_lower:
+
+    # Media & Documents - Pengolahan media, audio, image, excel, presentasi
+    elif name_lower in ["convert_media_format", "edit_image", "extract_audio_from_video",
+                        "generate_excel_spreadsheet", "generate_presentation_pptx",
+                        "generate_promo_video_from_images", "text_to_audio_file", "upscale_image_hd"]:
         return "Media & Documents"
-    elif "security" in name_lower or "network" in name_lower or "ssh" in name_lower or "password" in name_lower:
+
+    # Security & Network - Keamanan jaringan, SSH, password, firewall
+    elif name_lower in ["audit_network_security", "audit_website_security", "generate_secure_password",
+                        "scan_local_network", "ssh_execute_command"]:
         return "Security & Network"
-    elif "knowledge" in name_lower or "memory" in name_lower or "brain" in name_lower:
+
+    # Memory & Second Brain - Sistem memori, knowledge base, brain
+    elif name_lower in ["export_knowledge_base", "extract_and_link_knowledge", "ingest_document_to_vector_brain",
+                        "list_vector_brain_documents", "save_knowledge_memory", "search_knowledge_memory",
+                        "semantic_search_vector_brain"]:
         return "Memory & Second Brain"
-    elif "guardian" in name_lower or "heal" in name_lower or "service" in name_lower or "cron" in name_lower or "clean" in name_lower or "storage" in name_lower:
+
+    # System & Healing - Monitoring sistem, cleanup, guardian, service management
+    elif name_lower in ["auto_diagnose_and_heal_system", "clean_system_storage", "manage_crontab_jobs",
+                        "manage_system_services", "proactive_system_guardian_config", "self_restart_service"]:
         return "System & Healing"
-    elif "subagent" in name_lower or "research" in name_lower or "search" in name_lower or "translate" in name_lower or "dataset" in name_lower:
+
+    # AI & Intelligence - Subagent, research, search, translate, dataset
+    elif name_lower in ["academic_deep_research_paper", "analyze_dataset_csv_json", "check_subagent_status",
+                        "deep_research_topic", "spawn_background_subagent", "translate_text", "web_search"]:
         return "AI & Intelligence"
-    elif "wa_" in name_lower or "sheets" in name_lower:
+
+    # Ecosystem & Bots - Integrasi WhatsApp, Google Sheets, bots
+    elif name_lower in ["list_wa_drive_uploads", "manage_wa_sheets_bot"]:
         return "Ecosystem & Bots"
+
+    # Core Utilities - Tools utilitas inti lainnya
     else:
         return "Core Utilities"
 
+
+# --- API Routes ---
 
 # --- API Routes ---
 
