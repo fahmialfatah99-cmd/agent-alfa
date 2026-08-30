@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Terapkan persona tersinkron ke custom_agents + sinkronkan otak utama."""
+
 import os
 import sqlite3
 import sys
@@ -17,12 +18,14 @@ def apply_db():
         for aid, instruction in prompts.items():
             conn.execute(
                 "UPDATE custom_agents SET system_instruction = ?, persona = ? WHERE id = ?",
-                (instruction, AGENTS[aid]["persona"], aid))
+                (instruction, AGENTS[aid]["persona"], aid),
+            )
         conn.commit()
         # Verifikasi
         for row in conn.execute(
-                "SELECT id, name, length(system_instruction), substr(system_instruction,1,40) "
-                "FROM custom_agents ORDER BY id"):
+            "SELECT id, name, length(system_instruction), substr(system_instruction,1,40) "
+            "FROM custom_agents ORDER BY id"
+        ):
             print(f"  #{row[0]} {row[1]:<20} {row[2]:>5} chars | {row[3]}...")
     finally:
         conn.close()

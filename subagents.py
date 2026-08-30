@@ -36,15 +36,17 @@ def get_telegram_loop():
     return _global_telegram_loop
 
 
-async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: str, task_description: str):
+async def _run_subagent_worker(
+    task_id: str, user_id: int, chat_id: int, role: str, task_description: str
+):
     """
     Background worker loop for an autonomous subagent.
     Runs an independent ReAct agent turn with specialized role instructions.
     """
     logger.info(f"Subagent worker [{task_id}] started for user {user_id}. Role: {role}")
-    
+
     from bot import run_agent_turn, safe_send_message
-    
+
     subagent_prompt = (
         f"[SUBAGENT TASK: {role.upper()}]\n"
         f"Anda adalah Subagent Mandiri ({role}) yang ditugaskan untuk menyelesaikan tugas berikut secara tuntas.\n"
@@ -52,12 +54,16 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
         f"TUGAS:\n{task_description}\n\n"
         f"Sajikan hasil akhir secara lengkap, terstruktur, mendalam, dan siap digunakan oleh pengguna."
     )
-    
+
     try:
-        result = await run_agent_turn(user_id=user_id, user_prompt=subagent_prompt, chat_id=chat_id)
-        database.update_subagent_task_sync(task_id=task_id, status="completed", result=result)
+        result = await run_agent_turn(
+            user_id=user_id, user_prompt=subagent_prompt, chat_id=chat_id
+        )
+        database.update_subagent_task_sync(
+            task_id=task_id, status="completed", result=result
+        )
         logger.info(f"Subagent [{task_id}] completed successfully.")
-        
+
         app = get_telegram_app()
         if app and chat_id:
             completion_msg = (
@@ -66,8 +72,13 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
                 f"{result}"
             )
             await safe_send_message(app, chat_id, completion_msg)
-            
-            from tools import SANDBOX_DIR, is_internal_sandbox_artifact, is_source_code_file
+
+            from tools import (
+                SANDBOX_DIR,
+                is_internal_sandbox_artifact,
+                is_source_code_file,
+            )
+
             if os.path.exists(SANDBOX_DIR):
                 for fname in os.listdir(SANDBOX_DIR):
                     fpath = os.path.join(SANDBOX_DIR, fname)
@@ -78,26 +89,50 @@ async def _run_subagent_worker(task_id: str, user_id: int, chat_id: int, role: s
                     if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                         try:
                             ext = os.path.splitext(fname)[1].lower()
-                            if ext in ['.png', '.jpg', '.jpeg']:
+                            if ext in [".png", ".jpg", ".jpeg"]:
                                 with open(fpath, "rb") as pf:
-                                    await app.bot.send_photo(chat_id=chat_id, photo=pf, caption=f"📸 Lampiran Subagent: {fname}")
-                            elif ext in ['.pdf', '.xlsx', '.pptx', '.zip', '.csv', '.json', '.txt']:
+                                    await app.bot.send_photo(
+                                        chat_id=chat_id,
+                                        photo=pf,
+                                        caption=f"📸 Lampiran Subagent: {fname}",
+                                    )
+                            elif ext in [
+                                ".pdf",
+                                ".xlsx",
+                                ".pptx",
+                                ".zip",
+                                ".csv",
+                                ".json",
+                                ".txt",
+                            ]:
                                 with open(fpath, "rb") as df:
-                                    await app.bot.send_document(chat_id=chat_id, document=df, caption=f"📄 Dokumen Subagent: {fname}")
+                                    await app.bot.send_document(
+                                        chat_id=chat_id,
+                                        document=df,
+                                        caption=f"📄 Dokumen Subagent: {fname}",
+                                    )
                             os.remove(fpath)
                         except Exception as err:
-                            logger.error(f"Error dispatching subagent media {fname}: {err}")
+                            logger.error(
+                                f"Error dispatching subagent media {fname}: {err}"
+                            )
     except Exception as e:
         logger.error(f"Subagent [{task_id}] encountered error: {e}", exc_info=True)
-        database.update_subagent_task_sync(task_id=task_id, status="failed", result=str(e))
-        
+        database.update_subagent_task_sync(
+            task_id=task_id, status="failed", result=str(e)
+        )
+
         app = get_telegram_app()
         if app and chat_id:
-            error_msg = f"⚠️ **Subagent [{role}] Gagal Menyelesaikan Tugas:**\n`{str(e)}`"
+            error_msg = (
+                f"⚠️ **Subagent [{role}] Gagal Menyelesaikan Tugas:**\n`{str(e)}`"
+            )
             await safe_send_message(app, chat_id, error_msg)
 
 
-def spawn_subagent(user_id: int, chat_id: int, role: str, task_description: str) -> Dict[str, Any]:
+def spawn_subagent(
+    user_id: int, chat_id: int, role: str, task_description: str
+) -> Dict[str, Any]:
     """Spawn a new background autonomous subagent."""
     task_id = f"sub_{uuid.uuid4().hex[:8]}"
     database.save_subagent_task_sync(
@@ -105,18 +140,20 @@ def spawn_subagent(user_id: int, chat_id: int, role: str, task_description: str)
         user_id=user_id,
         chat_id=chat_id,
         role=role,
-        description=task_description
+        description=task_description,
     )
-    
+
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(_run_subagent_worker(task_id, user_id, chat_id, role, task_description))
+        loop.create_task(
+            _run_subagent_worker(task_id, user_id, chat_id, role, task_description)
+        )
     except RuntimeError:
         pass
-        
+
     return {
         "status": "success",
         "task_id": task_id,
         "role": role,
-        "message": f"Subagent [{role}] dengan ID '{task_id}' telah diluncurkan di latar belakang. Anda akan menerima notifikasi laporan begitu selesai."
+        "message": f"Subagent [{role}] dengan ID '{task_id}' telah diluncurkan di latar belakang. Anda akan menerima notifikasi laporan begitu selesai.",
     }

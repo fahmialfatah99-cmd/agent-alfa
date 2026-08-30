@@ -75,9 +75,17 @@ def _render(template: str, variables: Dict[str, Any], max_depth: int = 4) -> str
     """Interpolasi {{var}} & {{var.path.sub}} berulang."""
     text = str(template)
     for _ in range(max_depth):
+
         def _sub(m):
             val = _get_path(variables, m.group(1))
-            return "" if val is None else (val if isinstance(val, str) else json.dumps(val, ensure_ascii=False))
+            return (
+                ""
+                if val is None
+                else (
+                    val if isinstance(val, str) else json.dumps(val, ensure_ascii=False)
+                )
+            )
+
         new = _VAR_RE.sub(_sub, text)
         if new == text:
             break
@@ -124,12 +132,14 @@ def list_pipelines() -> List[Dict[str, Any]]:
         try:
             with open(os.path.join(PIPELINE_DIR, fn), "r", encoding="utf-8") as f:
                 data = json.load(f)
-            out.append({
-                "id": data.get("id") or fn[:-5],
-                "name": data.get("name", fn[:-5]),
-                "description": data.get("description", ""),
-                "steps": len(data.get("steps", [])),
-            })
+            out.append(
+                {
+                    "id": data.get("id") or fn[:-5],
+                    "name": data.get("name", fn[:-5]),
+                    "description": data.get("description", ""),
+                    "steps": len(data.get("steps", [])),
+                }
+            )
         except Exception as e:
             logger.warning(f"Pipeline rusak dilewati {fn}: {e}")
     return out
@@ -177,7 +187,9 @@ def _topological_waves(steps: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]
     return waves
 
 
-async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = "") -> Any:
+async def _run_step(
+    step: Dict[str, Any], variables: Dict[str, Any], sid: str = ""
+) -> Any:
     stype = (step.get("type") or "prompt").lower()
 
     if stype == "set":
@@ -188,6 +200,7 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
 
     if stype == "prompt":
         import main_brain as mb
+
         brain = mb.get_main_brain()
         text = _render(step.get("text", ""), variables)
         system = _render(step.get("system", ""), variables) or None
@@ -196,7 +209,8 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
             base_url=brain["base_url"],
             api_key=brain["api_key"],
             model=brain["model"],
-            system_instruction=system or "Kamu adalah agent eksekutor langkah pipeline. Jawab padat dan langsung.",
+            system_instruction=system
+            or "Kamu adalah agent eksekutor langkah pipeline. Jawab padat dan langsung.",
             user_text=text,
             tools_schema=[],  # chat polos: tanpa tools supaya deterministik
             context=f"pipeline:{sid or step.get('id', '')}",
@@ -205,14 +219,21 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
 
     if stype == "http":
         import httpx
+
         method = (step.get("method") or "GET").upper()
         url = _render(step.get("url", ""), variables)
-        headers = {k: _render(v, variables) for k, v in (step.get("headers") or {}).items()}
+        headers = {
+            k: _render(v, variables) for k, v in (step.get("headers") or {}).items()
+        }
         body = step.get("body")
         timeout = min(60, max(3, int(step.get("timeout", 20))))
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=10.0), follow_redirects=True) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout, connect=10.0), follow_redirects=True
+        ) as client:
             res = await client.request(
-                method, url, headers=headers,
+                method,
+                url,
+                headers=headers,
                 content=_render(str(body), variables) if body is not None else None,
             )
         text_out = res.text[:20000]
@@ -239,10 +260,16 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
         collected = []
         for it in items[:50]:  # pengaman 50 iterasi
             sub_vars = dict(variables)
-            sub_vars[item_var] = it if isinstance(it, str) else json.dumps(it, ensure_ascii=False)
-            sub_vars["item_json"] = json.dumps(it, ensure_ascii=False) if not isinstance(it, str) else it
-            out = await _run_step({"type": step.get("inner_type", "prompt"),
-                                   "text": inner_text_tmpl}, sub_vars)
+            sub_vars[item_var] = (
+                it if isinstance(it, str) else json.dumps(it, ensure_ascii=False)
+            )
+            sub_vars["item_json"] = (
+                json.dumps(it, ensure_ascii=False) if not isinstance(it, str) else it
+            )
+            out = await _run_step(
+                {"type": step.get("inner_type", "prompt"), "text": inner_text_tmpl},
+                sub_vars,
+            )
             collected.append(f"[{sub_vars[item_var][:80]}] {out}")
             if len(collected) >= 50:
                 break
@@ -250,6 +277,7 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
 
     if stype == "tool":
         import main_brain as mb
+
         name = step.get("tool", "")
         args_json = json.dumps(
             {k: _render(v, variables) for k, v in (step.get("args") or {}).items()}
@@ -259,7 +287,9 @@ async def _run_step(step: Dict[str, Any], variables: Dict[str, Any], sid: str = 
     raise ValueError(f"Tipe step '{stype}' tidak dikenal.")
 
 
-async def run_pipeline(pid: str, overrides: Dict[str, Any] | None = None) -> Dict[str, Any]:
+async def run_pipeline(
+    pid: str, overrides: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Eksekusi pipeline penuh; return ringkasan run utk UI/API."""
     data = load_pipeline(pid)
     started = time.time()
@@ -290,14 +320,20 @@ async def run_pipeline(pid: str, overrides: Dict[str, Any] | None = None) -> Dic
                 elif cond and isinstance(cond, dict):
                     try:
                         if not _eval_condition(cond, variables):
-                            step_outputs[s["id"]] = "(dilewati: kondisi tidak terpenuhi)"
+                            step_outputs[s["id"]] = (
+                                "(dilewati: kondisi tidak terpenuhi)"
+                            )
                             trace.append({"step": s["id"], "status": "skipped"})
                             continue
                     except Exception as ce:
-                        logger.warning(f"[Pipeline] kondisi '{s['id']}' gagal dievaluasi: {ce}")
+                        logger.warning(
+                            f"[Pipeline] kondisi '{s['id']}' gagal dievaluasi: {ce}"
+                        )
                 if isinstance(res, Exception):
                     step_outputs[s["id"]] = f"[ERROR] {res}"
-                    trace.append({"step": s["id"], "status": "error", "detail": str(res)[:300]})
+                    trace.append(
+                        {"step": s["id"], "status": "error", "detail": str(res)[:300]}
+                    )
                     status = "failed"
                     error = f"Step '{s['id']}': {res}"
                     break
@@ -330,7 +366,9 @@ def _runs_file(pid: str) -> str:
 def _record_run(pid: str, summary: Dict[str, Any]) -> None:
     try:
         with open(_runs_file(pid), "a", encoding="utf-8") as f:
-            f.write(json.dumps({**summary, "ts": time.time()}, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps({**summary, "ts": time.time()}, ensure_ascii=False) + "\n"
+            )
         # cap 100 baris terakhir
         path = _runs_file(pid)
         with open(path, "r", encoding="utf-8") as f:
@@ -349,16 +387,18 @@ def list_runs(pid: str, limit: int = 10) -> List[Dict[str, Any]]:
     except FileNotFoundError:
         return []
     out = []
-    for ln in lines[-max(1, limit):]:
+    for ln in lines[-max(1, limit) :]:
         try:
             d = json.loads(ln)
-            out.append({
-                "ts": d.get("ts"),
-                "status": d.get("status"),
-                "duration_ms": d.get("duration_ms"),
-                "error": d.get("error"),
-                "steps": len(d.get("trace", [])),
-            })
+            out.append(
+                {
+                    "ts": d.get("ts"),
+                    "status": d.get("status"),
+                    "duration_ms": d.get("duration_ms"),
+                    "error": d.get("error"),
+                    "steps": len(d.get("trace", [])),
+                }
+            )
         except Exception:
             continue
     return list(reversed(out))
@@ -420,17 +460,33 @@ _DEFAULT_PIPELINES = [
         "id": "riset_dan_ringkas",
         "name": "Riset lalu Ringkas",
         "description": "Cari topik di web -> rangkum 3 poin -> simpan ke sandbox.",
-        "vars": {"topik": "AI Indonesia", "out_dir": "/dev/shm/alfa_sandbox/pipeline_out"},
+        "vars": {
+            "topik": "AI Indonesia",
+            "out_dir": "/dev/shm/alfa_sandbox/pipeline_out",
+        },
         "steps": [
-            {"id": "cari", "type": "tool", "tool": "web_search",
-             "args": {"query": "berita {{topik}} terbaru"}},
-            {"id": "rangkum", "type": "prompt",
-             "text": "Ringkas hasil pencarian ini menjadi 3 poin utama:\n{{cari}}",
-             "depends_on": ["cari"]},
-            {"id": "simpan", "type": "tool", "tool": "write_local_file",
-             "args": {"file_path": "{{out_dir}}/ringkasan_{{topik}}.md",
-                      "content": "# Ringkasan {{topik}}\n\n{{rangkum}}"},
-             "depends_on": ["rangkum"]},
+            {
+                "id": "cari",
+                "type": "tool",
+                "tool": "web_search",
+                "args": {"query": "berita {{topik}} terbaru"},
+            },
+            {
+                "id": "rangkum",
+                "type": "prompt",
+                "text": "Ringkas hasil pencarian ini menjadi 3 poin utama:\n{{cari}}",
+                "depends_on": ["cari"],
+            },
+            {
+                "id": "simpan",
+                "type": "tool",
+                "tool": "write_local_file",
+                "args": {
+                    "file_path": "{{out_dir}}/ringkasan_{{topik}}.md",
+                    "content": "# Ringkasan {{topik}}\n\n{{rangkum}}",
+                },
+                "depends_on": ["rangkum"],
+            },
         ],
     },
 ]

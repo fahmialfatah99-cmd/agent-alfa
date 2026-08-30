@@ -63,7 +63,10 @@ init_scraper_tables()
 #  1. CAMOUFOX ANTI-DETECT BROWSER SCRAPER (STEALTH ENGINE)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout: int = 30000) -> Dict[str, Any]:
+
+def scrape_with_camoufox(
+    url: str, wait_selector: Optional[str] = None, timeout: int = 30000
+) -> Dict[str, Any]:
     """
     Scrape protected/dynamic JavaScript web pages using Camoufox Anti-Detect browser.
     Bypasses Cloudflare, DataDome, Akamai, and browser fingerprint detection.
@@ -71,15 +74,15 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
     start_time = time.time()
     try:
         from camoufox.sync_api import Camoufox
-        
+
         with Camoufox(headless=True) as browser:
             page = browser.new_page()
             # Set realistic viewport
             page.set_viewport_size({"width": 1366, "height": 768})
-            
+
             logger.info(f"Navigating with Camoufox to {url}")
             page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-            
+
             if wait_selector:
                 try:
                     page.wait_for_selector(wait_selector, timeout=8000)
@@ -88,17 +91,17 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
             else:
                 # Small wait for dynamic hydration
                 page.wait_for_timeout(2500)
-                
+
             content = page.content()
             title = page.title()
             current_url = page.url
-            
+
             # Parse page content with BeautifulSoup
             soup = BeautifulSoup(content, "lxml")
-            
+
             # Extract generic product data if present
             extracted = extract_product_fields_from_soup(soup, current_url)
-            
+
             duration_ms = round((time.time() - start_time) * 1000, 1)
             return {
                 "status": "success",
@@ -108,9 +111,9 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
                 "html_length": len(content),
                 "duration_ms": duration_ms,
                 "data": extracted,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
-            
+
     except Exception as e:
         logger.warning(f"Camoufox primary failed, fallback to primp/requests: {e}")
         # Fallback to high-speed TLS client (primp)
@@ -121,6 +124,7 @@ def scrape_with_camoufox(url: str, wait_selector: Optional[str] = None, timeout:
 #  2. HIGH-SPEED TLS & FINGERPRINT EMULATOR (PRIMP / HTTP/2)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
     """
     Ultra-fast scraping using primp HTTP/2 with real Chrome/Firefox client fingerprint.
@@ -129,7 +133,10 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
     start_time = time.time()
     try:
         import primp
-        client = primp.Client(impersonate="chrome_131", follow_redirects=True, timeout=15)
+
+        client = primp.Client(
+            impersonate="chrome_131", follow_redirects=True, timeout=15
+        )
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -141,14 +148,14 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-Site": "cross-site",
             "Upgrade-Insecure-Requests": "1",
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         }
         res = client.get(url, headers=headers)
-        
+
         soup = BeautifulSoup(res.text, "lxml")
         extracted = extract_product_fields_from_soup(soup, url)
         duration_ms = round((time.time() - start_time) * 1000, 1)
-        
+
         return {
             "status": "success",
             "method": "Fast TLS (HTTP/2 Impersonation)",
@@ -157,7 +164,7 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
             "html_length": len(res.text),
             "duration_ms": duration_ms,
             "data": extracted,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
     except Exception as e:
         logger.error(f"Fast TLS scraping failed for {url}: {e}")
@@ -167,6 +174,7 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════════════
 #  3. PRODUCT PARSER ENGINE (HEURISTIC & MULTI-PLATFORM)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str, Any]:
     """Ekstraksi field produk secara otomatis dari HTML (Shopee, Tokopedia, TikTok, generic e-commerce)."""
@@ -188,15 +196,17 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str,
 
     # Price heuristics
     price = ""
-    og_price = soup.find("meta", property="product:price:amount") or soup.find("meta", property="og:price:amount")
+    og_price = soup.find("meta", property="product:price:amount") or soup.find(
+        "meta", property="og:price:amount"
+    )
     if og_price and og_price.get("content"):
         price = f"Rp {og_price['content']}"
     else:
         # Search price patterns
-        price_tags = soup.find_all(text=re.compile(r'Rp\s?[\d\.,]+', re.IGNORECASE))
+        price_tags = soup.find_all(text=re.compile(r"Rp\s?[\d\.,]+", re.IGNORECASE))
         if price_tags:
             for pt in price_tags:
-                match = re.search(r'Rp\s?[\d\.,]+', pt)
+                match = re.search(r"Rp\s?[\d\.,]+", pt)
                 if match and len(match.group(0)) > 4:
                     price = match.group(0).strip()
                     break
@@ -229,7 +239,7 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str,
         "image_url": image_url or "",
         "platform": platform,
         "product_url": url,
-        "description": desc[:300] if desc else "N/A"
+        "description": desc[:300] if desc else "N/A",
     }
 
 
@@ -237,14 +247,17 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str,
 #  4. LARGE-SCALE BATCH CONCURRENT SCRAPER (ASYNC WORKERS)
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def scrape_urls_batch_async(urls: List[str], max_concurrency: int = 15, use_camoufox: bool = False) -> List[Dict[str, Any]]:
+
+async def scrape_urls_batch_async(
+    urls: List[str], max_concurrency: int = 15, use_camoufox: bool = False
+) -> List[Dict[str, Any]]:
     """
     Scrape ratusan hingga ribuan URL sekaligus secara paralel dengan batasan concurrency.
     Sangat cepat, efisien, dan tidak membebani memori server.
     """
     semaphore = asyncio.Semaphore(max_concurrency)
     results = []
-    
+
     async def worker(u: str):
         async with semaphore:
             loop = asyncio.get_event_loop()
@@ -256,14 +269,14 @@ async def scrape_urls_batch_async(urls: List[str], max_concurrency: int = 15, us
 
     tasks = [worker(u) for u in urls]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     clean_results = []
     for r in results:
         if isinstance(r, dict):
             clean_results.append(r)
         else:
             clean_results.append({"status": "error", "message": str(r)})
-            
+
     return clean_results
 
 
@@ -271,57 +284,64 @@ def run_batch_scrape(
     urls: List[str],
     batch_name: str = "batch_products",
     max_concurrency: int = 10,
-    use_camoufox: bool = False
+    use_camoufox: bool = False,
 ) -> Dict[str, Any]:
     """
     Fungsi utama untuk scraping skala besar dengan ekspor otomatis ke JSON, CSV, dan Database.
     """
     start_t = time.time()
     batch_id = f"batch_{int(time.time())}"
-    
+
     # Run async loop
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 scraped_data = pool.submit(
-                    asyncio.run, scrape_urls_batch_async(urls, max_concurrency, use_camoufox)
+                    asyncio.run,
+                    scrape_urls_batch_async(urls, max_concurrency, use_camoufox),
                 ).result()
         else:
             scraped_data = loop.run_until_complete(
                 scrape_urls_batch_async(urls, max_concurrency, use_camoufox)
             )
     except Exception:
-        scraped_data = asyncio.run(scrape_urls_batch_async(urls, max_concurrency, use_camoufox))
-        
+        scraped_data = asyncio.run(
+            scrape_urls_batch_async(urls, max_concurrency, use_camoufox)
+        )
+
     duration_total = round(time.time() - start_t, 2)
     successful_items = [r for r in scraped_data if r.get("status") == "success"]
-    
+
     # Save to SQLite
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     saved_count = 0
     for item in successful_items:
         data = item.get("data", {})
-        cur.execute("""
+        cur.execute(
+            """
         INSERT INTO scraped_products 
         (batch_id, title, price, discount_price, rating, sold_count, shop_name, platform, product_url, image_url, description, scraped_via)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            batch_id,
-            data.get("title", "N/A"),
-            data.get("price", "N/A"),
-            data.get("discount_price", "N/A"),
-            data.get("rating", 4.9),
-            data.get("sold_count", "1000+"),
-            data.get("shop_name", "Official Store"),
-            data.get("platform", "General"),
-            data.get("product_url", item.get("url", "")),
-            data.get("image_url", ""),
-            data.get("description", ""),
-            item.get("method", "Fast Scraper")
-        ))
+        """,
+            (
+                batch_id,
+                data.get("title", "N/A"),
+                data.get("price", "N/A"),
+                data.get("discount_price", "N/A"),
+                data.get("rating", 4.9),
+                data.get("sold_count", "1000+"),
+                data.get("shop_name", "Official Store"),
+                data.get("platform", "General"),
+                data.get("product_url", item.get("url", "")),
+                data.get("image_url", ""),
+                data.get("description", ""),
+                item.get("method", "Fast Scraper"),
+            ),
+        )
         saved_count += 1
     conn.commit()
     conn.close()
@@ -329,29 +349,38 @@ def run_batch_scrape(
     # Save to JSON
     json_path = os.path.join(SCRAPER_DATA_DIR, "JSON", f"{batch_name}_{batch_id}.json")
     with open(json_path, "w", encoding="utf-8") as f_j:
-        json.dump({
-            "batch_id": batch_id,
-            "total_urls": len(urls),
-            "successful_count": len(successful_items),
-            "duration_seconds": duration_total,
-            "items": scraped_data
-        }, f_j, indent=2, ensure_ascii=False)
+        json.dump(
+            {
+                "batch_id": batch_id,
+                "total_urls": len(urls),
+                "successful_count": len(successful_items),
+                "duration_seconds": duration_total,
+                "items": scraped_data,
+            },
+            f_j,
+            indent=2,
+            ensure_ascii=False,
+        )
 
     # Save to CSV
     csv_path = os.path.join(SCRAPER_DATA_DIR, "CSV", f"{batch_name}_{batch_id}.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as f_c:
         writer = csv.writer(f_c)
-        writer.writerow(["Title", "Price", "Platform", "Product URL", "Image URL", "Description"])
+        writer.writerow(
+            ["Title", "Price", "Platform", "Product URL", "Image URL", "Description"]
+        )
         for item in successful_items:
             d = item.get("data", {})
-            writer.writerow([
-                d.get("title", ""),
-                d.get("price", ""),
-                d.get("platform", ""),
-                d.get("product_url", ""),
-                d.get("image_url", ""),
-                d.get("description", "")
-            ])
+            writer.writerow(
+                [
+                    d.get("title", ""),
+                    d.get("price", ""),
+                    d.get("platform", ""),
+                    d.get("product_url", ""),
+                    d.get("image_url", ""),
+                    d.get("description", ""),
+                ]
+            )
 
     return {
         "status": "success",
@@ -360,10 +389,12 @@ def run_batch_scrape(
         "total_successful": len(successful_items),
         "total_failed": len(urls) - len(successful_items),
         "duration_seconds": duration_total,
-        "speed_urls_per_sec": round(len(urls) / duration_total, 2) if duration_total > 0 else 0,
+        "speed_urls_per_sec": (
+            round(len(urls) / duration_total, 2) if duration_total > 0 else 0
+        ),
         "json_export_path": json_path,
         "csv_export_path": csv_path,
-        "db_saved_count": saved_count
+        "db_saved_count": saved_count,
     }
 
 
@@ -371,41 +402,55 @@ def run_batch_scrape(
 #  5. MARKETPLACE SEARCH SCRAPER (SHOPEE, TIKTOK, TOKOPEDIA)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def search_and_scrape_marketplace(query: str, platform: str = "shopee", max_items: int = 15) -> Dict[str, Any]:
+
+def search_and_scrape_marketplace(
+    query: str, platform: str = "shopee", max_items: int = 15
+) -> Dict[str, Any]:
     """
     Cari dan scrape katalog produk real dari marketplace berdasarkan kata kunci.
     Mengambil produk viral, harga, rating, dan link langsung.
     """
     import tools
-    search_q = f"site:{platform}.co.id produk {query} diskon rating" if platform in ["shopee", "tokopedia"] else f"{query} {platform} shop promo diskon"
+
+    search_q = (
+        f"site:{platform}.co.id produk {query} diskon rating"
+        if platform in ["shopee", "tokopedia"]
+        else f"{query} {platform} shop promo diskon"
+    )
     search_res = tools.web_search(search_q)
     results = search_res.get("results", [])
-    
+
     extracted_items = []
     for r in results[:max_items]:
-        title = r.get("title", "").replace(" - Shopee Indonesia", "").replace(" | Tokopedia", "")
+        title = (
+            r.get("title", "")
+            .replace(" - Shopee Indonesia", "")
+            .replace(" | Tokopedia", "")
+        )
         snippet = r.get("snippet", "")
         link = r.get("link", "")
-        
+
         # Extract price from snippet if available
-        price_m = re.search(r'Rp\s?[\d\.,]+', snippet)
+        price_m = re.search(r"Rp\s?[\d\.,]+", snippet)
         price_str = price_m.group(0) if price_m else "Rp 49.000 (Flash Sale)"
-        
-        extracted_items.append({
-            "title": title,
-            "price": price_str,
-            "snippet": snippet,
-            "platform": platform,
-            "url": link,
-            "rating": 4.9,
-            "sold_count": "1.000+ Terjual"
-        })
-        
+
+        extracted_items.append(
+            {
+                "title": title,
+                "price": price_str,
+                "snippet": snippet,
+                "platform": platform,
+                "url": link,
+                "rating": 4.9,
+                "sold_count": "1.000+ Terjual",
+            }
+        )
+
     return {
         "status": "success",
         "query": query,
         "platform": platform,
         "total_scraped": len(extracted_items),
         "products": extracted_items,
-        "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }

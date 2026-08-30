@@ -41,6 +41,7 @@ def _get_bot():
     global bot
     if bot is None:
         import bot as _bot_mod
+
         bot = _bot_mod
     return bot
 
@@ -89,7 +90,9 @@ if not DASHBOARD_AUTH_TOKEN:
 
 _cors_env = os.getenv("ALLOWED_CORS_ORIGINS", "").strip()
 if _cors_env:
-    allowed_cors_origins = [orig.strip() for orig in _cors_env.split(",") if orig.strip()]
+    allowed_cors_origins = [
+        orig.strip() for orig in _cors_env.split(",") if orig.strip()
+    ]
 else:
     allowed_cors_origins = [
         "http://localhost:8080",
@@ -128,7 +131,9 @@ async def _pipeline_trigger_scheduler():
 def get_primary_user_id(request: Optional[Request] = None) -> int:
     """Safely get target telegram user id from request headers/params or ALLOWED_USER_IDS env var."""
     if request is not None:
-        req_uid = request.headers.get("X-User-Id") or request.query_params.get("user_id")
+        req_uid = request.headers.get("X-User-Id") or request.query_params.get(
+            "user_id"
+        )
         if req_uid and str(req_uid).strip().isdigit():
             return int(str(req_uid).strip())
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
@@ -153,29 +158,61 @@ def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> i
     return result
 
 
-
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
-    if "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
+    if (
+        "affiliate" in name_lower
+        or "scrape" in name_lower
+        or "marketplace" in name_lower
+    ):
         return "Affiliate Sales & Product Scraper (Camoufox)"
     elif name_lower.startswith("pdf_") or "pdf" in name_lower:
         return "PDF Tools Suite (Offline & Online)"
     elif name_lower.startswith("browser_"):
         return "Browser Automation"
-    elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or "screenshot" in name_lower or "webcam" in name_lower:
+    elif (
+        name_lower.startswith("desktop_")
+        or name_lower.startswith("vision_")
+        or "screenshot" in name_lower
+        or "webcam" in name_lower
+    ):
         return "OS & Vision Control"
     elif name_lower.startswith("libreoffice_"):
         return "LibreOffice Suite"
-    elif "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower or "image" in name_lower:
+    elif (
+        "excel" in name_lower
+        or "presentation" in name_lower
+        or "media" in name_lower
+        or "audio" in name_lower
+        or "image" in name_lower
+    ):
         return "Media & Documents"
-    elif "security" in name_lower or "network" in name_lower or "ssh" in name_lower or "password" in name_lower:
+    elif (
+        "security" in name_lower
+        or "network" in name_lower
+        or "ssh" in name_lower
+        or "password" in name_lower
+    ):
         return "Security & Network"
     elif "knowledge" in name_lower or "memory" in name_lower or "brain" in name_lower:
         return "Memory & Second Brain"
-    elif "guardian" in name_lower or "heal" in name_lower or "service" in name_lower or "cron" in name_lower or "clean" in name_lower or "storage" in name_lower:
+    elif (
+        "guardian" in name_lower
+        or "heal" in name_lower
+        or "service" in name_lower
+        or "cron" in name_lower
+        or "clean" in name_lower
+        or "storage" in name_lower
+    ):
         return "System & Healing"
-    elif "subagent" in name_lower or "research" in name_lower or "search" in name_lower or "translate" in name_lower or "dataset" in name_lower:
+    elif (
+        "subagent" in name_lower
+        or "research" in name_lower
+        or "search" in name_lower
+        or "translate" in name_lower
+        or "dataset" in name_lower
+    ):
         return "AI & Intelligence"
     elif "wa_" in name_lower or "sheets" in name_lower:
         return "Ecosystem & Bots"
@@ -184,6 +221,7 @@ def categorize_tool(name: str) -> str:
 
 
 # --- API Routes ---
+
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
@@ -195,13 +233,18 @@ async def serve_index():
                 content=f.read(),
                 headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
             )
-    return HTMLResponse("<h2>Dashboard template not found. Please create templates/index.html</h2>")
+    return HTMLResponse(
+        "<h2>Dashboard template not found. Please create templates/index.html</h2>"
+    )
 
 
 @app.get("/api/system/home-dir")
 async def get_home_dir():
     """Return server-side home directory so frontend path regex works for any Linux username."""
-    return {"home_dir": os.path.expanduser("~"), "username": os.environ.get("USER", "unknown")}
+    return {
+        "home_dir": os.path.expanduser("~"),
+        "username": os.environ.get("USER", "unknown"),
+    }
 
 
 @app.get("/api/stats")
@@ -215,29 +258,43 @@ async def get_stats():
         swap = psutil.swap_memory()
         disk = psutil.disk_usage(os.path.abspath(os.sep))
         battery = psutil.sensors_battery()
-        
+
         uptime_secs = int(time.time() - psutil.boot_time())
         hours, remainder = divmod(uptime_secs, 3600)
         minutes, seconds = divmod(remainder, 60)
-        
+
         # Check active background services (cross-platform: systemctl on Linux, psutil elsewhere)
         if os.name == "nt":
+
             def _svc_active(script_hint):
-                for p in psutil.process_iter(['cmdline']):
+                for p in psutil.process_iter(["cmdline"]):
                     try:
-                        cl = p.info.get('cmdline') or []
+                        cl = p.info.get("cmdline") or []
                         if any(script_hint in str(c) for c in cl):
                             return True
                     except Exception:
                         continue
                 return False
+
             tb_active = _svc_active("bot.py")
             wa_active = _svc_active("wa_sheets")
             dash_active = _svc_active("web_dashboard.py")
         else:
-            tb_res = subprocess.run(["systemctl", "--user", "is-active", "telegram-ai-bot.service"], capture_output=True, text=True)
-            wa_res = subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
-            dash_res = subprocess.run(["systemctl", "--user", "is-active", "alfa-dashboard.service"], capture_output=True, text=True)
+            tb_res = subprocess.run(
+                ["systemctl", "--user", "is-active", "telegram-ai-bot.service"],
+                capture_output=True,
+                text=True,
+            )
+            wa_res = subprocess.run(
+                ["systemctl", "--user", "is-active", "wa-sheets-bot.service"],
+                capture_output=True,
+                text=True,
+            )
+            dash_res = subprocess.run(
+                ["systemctl", "--user", "is-active", "alfa-dashboard.service"],
+                capture_output=True,
+                text=True,
+            )
             tb_active = tb_res.stdout.strip() == "active"
             wa_active = wa_res.stdout.strip() == "active"
             dash_active = dash_res.stdout.strip() == "active"
@@ -250,36 +307,42 @@ async def get_stats():
             "cpu": {
                 "percent": cpu_pct,
                 "cores": cpu_count,
-                "freq_mhz": round(psutil.cpu_freq().current if psutil.cpu_freq() else 0, 1)
+                "freq_mhz": round(
+                    psutil.cpu_freq().current if psutil.cpu_freq() else 0, 1
+                ),
             },
             "ram": {
                 "percent": ram.percent,
                 "used_gb": round(ram.used / (1024**3), 2),
                 "total_gb": round(ram.total / (1024**3), 2),
-                "free_gb": round(ram.available / (1024**3), 2)
+                "free_gb": round(ram.available / (1024**3), 2),
             },
             "swap": {
                 "percent": swap.percent,
                 "used_mb": round(swap.used / (1024**2), 1),
-                "total_mb": round(swap.total / (1024**2), 1)
+                "total_mb": round(swap.total / (1024**2), 1),
             },
             "disk": {
                 "percent": disk.percent,
                 "used_gb": round(disk.used / (1024**3), 1),
                 "total_gb": round(disk.total / (1024**3), 1),
-                "free_gb": round(disk.free / (1024**3), 1)
+                "free_gb": round(disk.free / (1024**3), 1),
             },
             "battery": {
                 "percent": battery.percent if battery else 100,
                 "plugged": battery.power_plugged if battery else True,
-                "status": "Charging ⚡" if (battery and battery.power_plugged) else "Discharging 🔋"
+                "status": (
+                    "Charging ⚡"
+                    if (battery and battery.power_plugged)
+                    else "Discharging 🔋"
+                ),
             },
             "services": {
                 "telegram_bot": tb_active,
                 "wa_sheets_bot": wa_active,
-                "dashboard": dash_active
+                "dashboard": dash_active,
             },
-            "top_ram_processes": raw_stats.get("top_ram_processes", [])[:8]
+            "top_ram_processes": raw_stats.get("top_ram_processes", [])[:8],
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -295,29 +358,41 @@ async def get_tools_list():
         doc = (t.__doc__ or "No documentation provided.").strip()
         doc_lines = doc.split("\n")
         short_desc = doc_lines[0].strip() if doc_lines else "No description."
-        
+
         params = []
         for p_name, param in sig.parameters.items():
-            params.append({
-                "name": p_name,
-                "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                "required": param.default == inspect.Parameter.empty,
-                "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
-            })
-            
-        tools_list.append({
-            "name": name,
-            "short_description": short_desc,
-            "full_docstring": doc,
-            "category": categorize_tool(name),
-            "signature": f"{name}{str(sig)}",
-            "parameters": params
-        })
-        
+            params.append(
+                {
+                    "name": p_name,
+                    "default": (
+                        str(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    ),
+                    "required": param.default == inspect.Parameter.empty,
+                    "type": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else "Any"
+                    ),
+                }
+            )
+
+        tools_list.append(
+            {
+                "name": name,
+                "short_description": short_desc,
+                "full_docstring": doc,
+                "category": categorize_tool(name),
+                "signature": f"{name}{str(sig)}",
+                "parameters": params,
+            }
+        )
+
     return {
         "status": "success",
         "total_tools": len(tools_list),
-        "tools": sorted(tools_list, key=lambda x: (x["category"], x["name"]))
+        "tools": sorted(tools_list, key=lambda x: (x["category"], x["name"])),
     }
 
 
@@ -326,40 +401,37 @@ async def execute_tool(payload: Dict[str, Any]):
     """Execute any tool directly with supplied arguments."""
     tool_name = payload.get("tool_name")
     args = payload.get("args", {})
-    
+
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
-        
+
     target_fn = getattr(tools, tool_name, None)
     if not target_fn or not callable(target_fn):
         import plugins
+
         target_fn = plugins._RUNTIME_PLUGIN_REGISTRY.get(tool_name)
-        
+
     if not target_fn or not callable(target_fn):
         raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
-        
+
     try:
         # Set primary user context
         uid = get_primary_user_id()
         tools.current_user_id_var.set(uid)
         tools.current_chat_id_var.set(uid)
-        
+
         start_t = time.time()
         result = target_fn(**args)
         duration_ms = round((time.time() - start_t) * 1000, 1)
-        
+
         return {
             "status": "success",
             "tool": tool_name,
             "duration_ms": duration_ms,
-            "result": result
+            "result": result,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "tool": tool_name,
-            "message": str(e)
-        }
+        return {"status": "error", "tool": tool_name, "message": str(e)}
 
 
 @app.post("/api/tools/upload")
@@ -367,57 +439,58 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
     """Upload one or more files from user computer for tool processing."""
     upload_dir = tools.get_pdf_output_dir("Uploads")
     saved_files = []
-    
+
     for f in files:
         safe_name = os.path.basename(f.filename or "upload_file")
         target_path = os.path.join(upload_dir, safe_name)
-        
+
         # If already exists, create a unique timestamped name
         if os.path.exists(target_path):
             stem, ext = os.path.splitext(safe_name)
             safe_name = f"{stem}_{int(time.time())}{ext}"
             target_path = os.path.join(upload_dir, safe_name)
-            
+
         content = await f.read()
         with open(target_path, "wb") as out_f:
             out_f.write(content)
-            
-        saved_files.append({
-            "filename": safe_name,
-            "original_name": f.filename,
-            "file_path": target_path,
-            "size_bytes": len(content),
-            "size_kb": round(len(content) / 1024, 2)
-        })
-        
+
+        saved_files.append(
+            {
+                "filename": safe_name,
+                "original_name": f.filename,
+                "file_path": target_path,
+                "size_bytes": len(content),
+                "size_kb": round(len(content) / 1024, 2),
+            }
+        )
+
     return {
         "status": "success",
         "message": f"Berhasil mengunggah {len(saved_files)} file ke {upload_dir}",
         "upload_dir": upload_dir,
         "files": saved_files,
         "primary_file_path": saved_files[0]["file_path"] if saved_files else None,
-        "all_file_paths": [sf["file_path"] for sf in saved_files]
+        "all_file_paths": [sf["file_path"] for sf in saved_files],
     }
 
 
 # --- Affiliate Sales Swarm API Endpoints ---
 
+
 @app.get("/api/affiliate/campaigns")
 async def get_affiliate_campaigns(limit: int = 20):
     """Get list of active affiliate campaigns and scripts."""
     import affiliate_engine
+
     campaigns = affiliate_engine.list_affiliate_campaigns(limit=limit)
-    return {
-        "status": "success",
-        "total": len(campaigns),
-        "campaigns": campaigns
-    }
+    return {"status": "success", "total": len(campaigns), "campaigns": campaigns}
 
 
 @app.get("/api/affiliate/campaigns/{campaign_id}")
 async def get_affiliate_campaign_detail(campaign_id: int):
     """Get full details of a specific affiliate campaign."""
     import affiliate_engine
+
     data = affiliate_engine.get_affiliate_campaign_detail(campaign_id)
     if not data:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -427,6 +500,7 @@ async def get_affiliate_campaign_detail(campaign_id: int):
 def _parse_ai_sections(text: str) -> Dict[str, str]:
     """Pecah output AI bertanda ===NAMA_SEKSI=== menjadi dict."""
     import re as _re
+
     out: Dict[str, str] = {}
     parts = _re.split(r"={3,}\s*([A-Za-z_]+)\s*={3,}", text or "")
     for i in range(1, len(parts) - 1, 2):
@@ -440,6 +514,7 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
     oleh agen Content Alchemist (fail-safe: bila AI gagal/timeout, hasil
     template murni tetap dikembalikan)."""
     import affiliate_engine
+
     product_name = payload.get("product_name", "").strip()
     key_features = payload.get("key_features", "").strip()
     original_price = payload.get("original_price", "Rp 100.000").strip()
@@ -447,10 +522,12 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
     affiliate_link = payload.get("affiliate_link", "https://shopee.co.id").strip()
     target_audience = payload.get("target_audience", "Pemburu Diskon & Gadget").strip()
     platform = payload.get("platform", "shopee_tiktok").strip()
-    
+
     if not product_name or not affiliate_link:
-        raise HTTPException(status_code=400, detail="product_name and affiliate_link are required")
-        
+        raise HTTPException(
+            status_code=400, detail="product_name and affiliate_link are required"
+        )
+
     res = affiliate_engine.generate_affiliate_campaign_content(
         product_name=product_name,
         key_features=key_features,
@@ -458,7 +535,7 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
         discount_price=discount_price,
         affiliate_link=affiliate_link,
         target_audience=target_audience,
-        platform=platform
+        platform=platform,
     )
 
     # ── ENRICHMENT AI: Content Alchemist mempersonalisasi konten template ──
@@ -467,10 +544,15 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
         import asyncio as _asyncio
 
         import swarm_engine
+
         alchemist = next(
-            (a for a in database.list_custom_agents_sync()
-             if a.get("name") == "Content Alchemist" and a.get("is_enabled", 1)),
-            None)
+            (
+                a
+                for a in database.list_custom_agents_sync()
+                if a.get("name") == "Content Alchemist" and a.get("is_enabled", 1)
+            ),
+            None,
+        )
         if alchemist:
             prompt = (
                 f"Personalisasi konten jualan affiliate berikut agar UNIK dan berbasis data.\n\n"
@@ -492,16 +574,21 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
             )
             enriched = await _asyncio.wait_for(
                 swarm_engine.generate_agent_response(
-                    agent=alchemist, prompt=prompt,
+                    agent=alchemist,
+                    prompt=prompt,
                     system_instruction=alchemist.get("system_instruction")
                     or "Kamu adalah copywriter viral Indonesia.",
-                    timeout_s=110.0),
-                timeout=120.0)
+                    timeout_s=110.0,
+                ),
+                timeout=120.0,
+            )
             sections = _parse_ai_sections(enriched)
             replaced = 0
-            for key_src, key_out in (("tiktok_script", "tiktok_script"),
-                                     ("telegram_card", "telegram_card"),
-                                     ("wa_broadcast", "wa_broadcast")):
+            for key_src, key_out in (
+                ("tiktok_script", "tiktok_script"),
+                ("telegram_card", "telegram_card"),
+                ("wa_broadcast", "wa_broadcast"),
+            ):
                 val = sections.get(key_src)
                 if val and len(val) > 80:
                     res[f"{key_out}_template"] = res[key_out]
@@ -511,9 +598,11 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
                 res["ai_enriched"] = True
     except Exception as aff_ai_err:
         import traceback as _tb
+
         logging.getLogger("Dashboard").warning(
             f"Enrichment affiliate AI gagal — pakai template: "
-            f"{type(aff_ai_err).__name__}: {aff_ai_err}\n{_tb.format_exc()[-600:]}")
+            f"{type(aff_ai_err).__name__}: {aff_ai_err}\n{_tb.format_exc()[-600:]}"
+        )
 
     return {"status": "success", "result": res}
 
@@ -522,16 +611,17 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
 async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
     """Broadcast an affiliate deal to Telegram / WhatsApp."""
     import affiliate_engine
+
     product_name = payload.get("product_name", "")
     message_text = payload.get("message_text", "")
     affiliate_link = payload.get("affiliate_link", "")
     channels = payload.get("channels", ["telegram", "whatsapp"])
-    
+
     res = affiliate_engine.broadcast_affiliate_deal(
         product_name=product_name,
         message_text=message_text,
         affiliate_link=affiliate_link,
-        channels=channels
+        channels=channels,
     )
     return res
 
@@ -542,6 +632,7 @@ async def generate_promo_video(payload: Dict[str, Any]):
     import asyncio
 
     import video_generator
+
     image_paths = payload.get("image_paths", [])
     product_name = payload.get("product_name", "Produk Pilihan").strip()
     voiceover_text = payload.get("voiceover_text", "").strip()
@@ -550,7 +641,9 @@ async def generate_promo_video(payload: Dict[str, Any]):
     voice = payload.get("voice", "id-ID-GadisNeural")
     theme = payload.get("theme", "viral_tiktok")
     motion_style = payload.get("motion_style", "zoom_in")
-    call_to_action = payload.get("call_to_action", "KLIK KERANJANG KUNING / BIO SEBELUM HABIS")
+    call_to_action = payload.get(
+        "call_to_action", "KLIK KERANJANG KUNING / BIO SEBELUM HABIS"
+    )
     visual_prompt = payload.get("visual_prompt", "")
     engine = payload.get("engine", "local_pro")
     api_key = payload.get("api_key", None)
@@ -562,23 +655,29 @@ async def generate_promo_video(payload: Dict[str, Any]):
 
     # Google Veo: auto-pakai kunci Gemini dari vault bila API key kosong
     if engine in ("kling", "luma", "runway", "fal_ai", "replicate"):
-        return {"status": "error",
-                "message": f"Engine '{engine}' belum terimplementasi. Gunakan 'local_pro' atau 'google_veo*'."}
-    if (engine in video_generator.VEO_MODEL_MAP
-            or engine in getattr(video_generator, "OMNI_MODEL_MAP", {})) \
-            and not (api_key or "").strip():
+        return {
+            "status": "error",
+            "message": f"Engine '{engine}' belum terimplementasi. Gunakan 'local_pro' atau 'google_veo*'.",
+        }
+    if (
+        engine in video_generator.VEO_MODEL_MAP
+        or engine in getattr(video_generator, "OMNI_MODEL_MAP", {})
+    ) and not (api_key or "").strip():
         try:
             with database.get_sync_db() as conn:
                 r = conn.execute(
-                    "SELECT api_key FROM api_keys WHERE provider = 'gemini' ORDER BY id LIMIT 1")
+                    "SELECT api_key FROM api_keys WHERE provider = 'gemini' ORDER BY id LIMIT 1"
+                )
                 row = r.fetchone()
             if row and row["api_key"]:
                 api_key = database.decrypt_key(row["api_key"])
         except Exception:
             pass
         if not (api_key or "").strip():
-            return {"status": "error",
-                    "message": "Google Veo butuh Gemini API Key. Isi manual atau tambahkan kunci 'gemini' di Vault."}
+            return {
+                "status": "error",
+                "message": "Google Veo butuh Gemini API Key. Isi manual atau tambahkan kunci 'gemini' di Vault.",
+            }
 
     def _render():
         return video_generator.generate_video_from_images(
@@ -595,7 +694,7 @@ async def generate_promo_video(payload: Dict[str, Any]):
             visual_prompt=visual_prompt,
             engine=engine,
             api_key=api_key,
-            output_filename=output_filename
+            output_filename=output_filename,
         )
 
     # Render berat di worker thread supaya event loop tidak terblokir
@@ -607,13 +706,15 @@ async def generate_promo_video(payload: Dict[str, Any]):
 #  ALFA SECURE VAULT & CYBER SENTRY API ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @app.get("/api/vault/list")
 async def list_vault_secrets(category: str = "all"):
     """List metadata for secrets stored in the AES-256-GCM vault."""
     import vault_engine
+
     return {
         "status": "success",
-        "items": vault_engine.vault.list_secrets(category=category)
+        "items": vault_engine.vault.list_secrets(category=category),
     }
 
 
@@ -621,15 +722,18 @@ async def list_vault_secrets(category: str = "all"):
 async def store_vault_secret(payload: Dict[str, Any]):
     """Encrypt and store secret into AES-256-GCM vault."""
     import vault_engine
+
     name = payload.get("name", "").strip()
     value = payload.get("value", "").strip()
     category = payload.get("category", "api_key").strip()
     notes = payload.get("notes", "").strip()
-    
+
     if not name or not value:
         return {"status": "error", "message": "Nama dan nilai secret wajib diisi."}
-        
-    res = vault_engine.vault.store_secret(name=name, value=value, category=category, notes=notes)
+
+    res = vault_engine.vault.store_secret(
+        name=name, value=value, category=category, notes=notes
+    )
     return res
 
 
@@ -637,19 +741,20 @@ async def store_vault_secret(payload: Dict[str, Any]):
 async def reveal_vault_secret(payload: Dict[str, Any]):
     """Decrypt and reveal a secret value for authorized viewing."""
     import vault_engine
+
     secret_id = payload.get("id") or payload.get("name")
     if not secret_id:
         return {"status": "error", "message": "Secret ID atau nama diperlukan."}
-        
+
     sec = vault_engine.vault.get_secret(str(secret_id))
     if not sec:
         return {"status": "error", "message": "Secret tidak ditemukan di dalam vault."}
-        
+
     return {
         "status": "success",
         "name": sec["name"],
         "category": sec["category"],
-        "value": sec["value"]
+        "value": sec["value"],
     }
 
 
@@ -657,9 +762,13 @@ async def reveal_vault_secret(payload: Dict[str, Any]):
 async def delete_vault_secret(secret_id: int):
     """Delete a secret permanently from the vault."""
     import vault_engine
+
     deleted = vault_engine.vault.delete_secret(int(secret_id))
     if deleted:
-        return {"status": "success", "message": f"Secret ID {secret_id} berhasil dihapus dari vault."}
+        return {
+            "status": "success",
+            "message": f"Secret ID {secret_id} berhasil dihapus dari vault.",
+        }
     return {"status": "error", "message": f"Secret ID {secret_id} tidak ditemukan."}
 
 
@@ -667,10 +776,11 @@ async def delete_vault_secret(secret_id: int):
 async def audit_target_security(payload: Dict[str, Any]):
     """Perform comprehensive defensive cybersecurity audit on a target URL."""
     import security_auditor
+
     target_url = payload.get("url", "").strip()
     if not target_url:
         return {"status": "error", "message": "URL target wajib dimasukkan."}
-        
+
     res = security_auditor.audit_website_security(target_url)
     return res
 
@@ -680,8 +790,12 @@ async def get_passkey_status():
     """Get status of biometric/passkey lock."""
     with database.get_sync_db() as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
-        c.execute("SELECT value FROM system_settings WHERE key = 'passkey_lock_enabled'")
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+        )
+        c.execute(
+            "SELECT value FROM system_settings WHERE key = 'passkey_lock_enabled'"
+        )
         row = c.fetchone()
         enabled = row[0] == "true" if row else False
         return {"enabled": enabled}
@@ -693,13 +807,23 @@ async def toggle_passkey_lock(payload: Dict[str, Any]):
     enabled = bool(payload.get("enabled", False))
     with database.get_sync_db() as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
-        c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('passkey_lock_enabled', ?)", ("true" if enabled else "false",))
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+        )
+        c.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('passkey_lock_enabled', ?)",
+            ("true" if enabled else "false",),
+        )
         conn.commit()
-        return {"status": "success", "enabled": enabled, "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}."}
+        return {
+            "status": "success",
+            "enabled": enabled,
+            "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}.",
+        }
 
 
 # ==================== SYSTEM SETTINGS ENDPOINTS ====================
+
 
 @app.get("/api/settings")
 async def get_system_settings():
@@ -707,21 +831,29 @@ async def get_system_settings():
     import os
 
     from dotenv import dotenv_values
-    
+
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
-    
+
     bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", "")
-    masked_bot_token = (bot_token[:6] + "..." + bot_token[-4:]) if len(bot_token) > 10 else ("***" if bot_token else "")
-    
+    masked_bot_token = (
+        (bot_token[:6] + "..." + bot_token[-4:])
+        if len(bot_token) > 10
+        else ("***" if bot_token else "")
+    )
+
     gemini_key = env_vals.get("GEMINI_API_KEY", "")
-    masked_gemini_key = (gemini_key[:6] + "..." + gemini_key[-4:]) if len(gemini_key) > 10 else ("***" if gemini_key else "")
-    
+    masked_gemini_key = (
+        (gemini_key[:6] + "..." + gemini_key[-4:])
+        if len(gemini_key) > 10
+        else ("***" if gemini_key else "")
+    )
+
     with database.get_sync_db() as conn:
         c = conn.cursor()
         c.execute("SELECT key, value FROM system_settings")
         db_settings = {row[0]: row[1] for row in c.fetchall()}
-        
+
     # The active personality source is ~/.alfa/system_prompt.txt (it overrides
     # .env SYSTEM_INSTRUCTION inside run_agent_turn). Show the user what is
     # actually governing the agent, not the silently-ignored env value.
@@ -735,10 +867,11 @@ async def get_system_settings():
             prompt_source = "file"
         except Exception:
             pass
-        
+
     # Main brain info + pilihan kunci dari vault utk pengaturan System Settings
     try:
         import main_brain as _mb
+
         brain = _mb.get_main_brain()
         main_brain_info = {
             "provider": brain["provider"],
@@ -756,15 +889,23 @@ async def get_system_settings():
         "main_brain": main_brain_info,
         "vault_keys": [
             {
-                "id": k["id"], "name": k["name"], "provider": k["provider"],
-                "model": k["default_model"], "masked_key": k["masked_key"],
+                "id": k["id"],
+                "name": k["name"],
+                "provider": k["provider"],
+                "model": k["default_model"],
+                "masked_key": k["masked_key"],
                 "is_active": bool(k.get("is_active")),
-            } for k in vault_keys
+            }
+            for k in vault_keys
         ],
         "env": {
-            "has_bot_token": bool(bot_token and bot_token != "your_telegram_bot_token_here"),
+            "has_bot_token": bool(
+                bot_token and bot_token != "your_telegram_bot_token_here"
+            ),
             "masked_bot_token": masked_bot_token,
-            "has_gemini_key": bool(gemini_key and gemini_key != "your_gemini_api_key_here"),
+            "has_gemini_key": bool(
+                gemini_key and gemini_key != "your_gemini_api_key_here"
+            ),
             "masked_gemini_key": masked_gemini_key,
             "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-3.6-flash"),
             "allowed_user_ids": env_vals.get("ALLOWED_USER_IDS", ""),
@@ -772,7 +913,7 @@ async def get_system_settings():
             "system_instruction_source": prompt_source,
             "system_instruction_path": alfa_prompt_path,
         },
-        "db_settings": db_settings
+        "db_settings": db_settings,
     }
 
 
@@ -786,6 +927,7 @@ async def models_for_key(key_id: int):
     import time as _t
 
     import httpx
+
     key_id = safe_int(key_id, 0)
     cached = _models_cache.get(key_id)
     if cached and (_t.time() - cached[0]) < 60:
@@ -794,8 +936,8 @@ async def models_for_key(key_id: int):
     row = None
     with database.get_sync_db() as conn:
         r = conn.execute(
-            "SELECT provider, api_key, base_url FROM api_keys WHERE id = ?",
-            (key_id,))
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id = ?", (key_id,)
+        )
         row = r.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Key tidak ditemukan")
@@ -812,7 +954,8 @@ async def models_for_key(key_id: int):
                 async with httpx.AsyncClient(timeout=15) as cli:
                     res = await cli.get(
                         "https://generativelanguage.googleapis.com/v1beta/models",
-                        params={"key": api_key, "pageSize": 1000})
+                        params={"key": api_key, "pageSize": 1000},
+                    )
                 if res.status_code == 200:
                     for m in res.json().get("models", []):
                         methods = m.get("supportedGenerationMethods") or []
@@ -845,8 +988,10 @@ async def models_for_key(key_id: int):
             }.get(provider, "")
             if base:
                 async with httpx.AsyncClient(timeout=30) as cli:
-                    res = await cli.get(f"{base.rstrip('/')}/models",
-                                        headers={"Authorization": f"Bearer {api_key}"})
+                    res = await cli.get(
+                        f"{base.rstrip('/')}/models",
+                        headers={"Authorization": f"Bearer {api_key}"},
+                    )
                 if res.status_code == 200:
                     for m in res.json().get("data", []):
                         mid = m.get("id")
@@ -857,8 +1002,12 @@ async def models_for_key(key_id: int):
         _models_cache[key_id] = (_t.time(), provider, models)
         return {"status": "success", "provider": provider, "models": models}
     except Exception as e:
-        return {"status": "error", "message": str(e), "provider": provider,
-                "models": []}
+        return {
+            "status": "error",
+            "message": str(e),
+            "provider": provider,
+            "models": [],
+        }
 
 
 @app.post("/api/antigravity/apply")
@@ -866,9 +1015,10 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
     """Terapkan model Antigravity sebagai KUNCI CADANGAN (+ opsional semua agen).
     TIDAK mengubah otak utama — itu tetap dikendalikan lewat kartu Otak Utama."""
     import database as _db
+
     model = str(payload.get("model", "")).strip()
     apply_all = bool(payload.get("apply_all_agents", True))
-    as_main_brain = bool(payload.get("as_main_brain", False))   # default: cadangan saja
+    as_main_brain = bool(payload.get("as_main_brain", False))  # default: cadangan saja
 
     # 1. Cari kunci vault Antigravity (base_url 8890) — buat bila belum ada
     target_key = None
@@ -877,11 +1027,14 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
             target_key = k
             break
     if not target_key:
-        r = _db.add_api_key_sync(name="Antigravity Multi-Account", provider="custom",
-                                 api_key="antigravity",
-                                 default_model=model or "gemini-3.6-flash",
-                                 base_url="http://127.0.0.1:8890/v1",
-                                 set_active=False)
+        r = _db.add_api_key_sync(
+            name="Antigravity Multi-Account",
+            provider="custom",
+            api_key="antigravity",
+            default_model=model or "gemini-3.6-flash",
+            base_url="http://127.0.0.1:8890/v1",
+            set_active=False,
+        )
         key_id = r.get("id")
     else:
         key_id = target_key["id"]
@@ -893,11 +1046,14 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
     if apply_all:
         for a in _db.list_custom_agents_sync():
             if a.get("is_enabled", 1):
-                _db.update_custom_agent_sync(a["id"], {
-                    "provider": "custom",
-                    "model": model or "gemini-3.6-flash",
-                    "api_key_id": key_id,
-                })
+                _db.update_custom_agent_sync(
+                    a["id"],
+                    {
+                        "provider": "custom",
+                        "model": model or "gemini-3.6-flash",
+                        "api_key_id": key_id,
+                    },
+                )
                 updated.append(a["name"])
 
     brain_note = ""
@@ -905,12 +1061,16 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
 
     # 3. Hanya jadi otak utama jika user EXPLISIT memintanya
     if as_main_brain:
-        brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.6-flash")
+        brain_res = await antigravity_set_main_brain_impl(
+            key_id, model or "gemini-3.6-flash"
+        )
         main_brain_info = brain_res.get("main_brain")
         brain_note = " Otak utama dialihkan ke Antigravity."
     else:
-        brain_note = (" Mode cadangan: otak utama tidak berubah "
-                      "(aktifkan via kartu Otak Utama bila diperlukan).")
+        brain_note = (
+            " Mode cadangan: otak utama tidak berubah "
+            "(aktifkan via kartu Otak Utama bila diperlukan)."
+        )
 
     return {
         "status": "success",
@@ -920,26 +1080,39 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
         "agents_count": len(updated),
         "as_main_brain": as_main_brain,
         "main_brain": main_brain_info,
-        "message": (f"Kunci cadangan '{model}' siap ({len(updated)} agen swarm ikut memakai)."
-                    f"{brain_note}")
+        "message": (
+            f"Kunci cadangan '{model}' siap ({len(updated)} agen swarm ikut memakai)."
+            f"{brain_note}"
+        ),
     }
 
 
 async def antigravity_set_main_brain_impl(key_id: int, model: str):
 
     import database as _db
+
     with _db.get_sync_db() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
-            (str(key_id),))
+            (str(key_id),),
+        )
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
-            (model,))
+            (model,),
+        )
         conn.commit()
     import main_brain as _mb
+
     brain = _mb.get_main_brain()
-    return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
-                           "key_id": brain["key_id"], "label": brain["label"]}}
+    return {
+        "main_brain": {
+            "provider": brain["provider"],
+            "model": brain["model"],
+            "key_id": brain["key_id"],
+            "label": brain["label"],
+        }
+    }
+
 
 @app.post("/api/main-brain/test")
 async def test_main_brain_combo(payload: Dict[str, Any]):
@@ -954,8 +1127,8 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
     row = None
     with database.get_sync_db() as conn:
         r = conn.execute(
-            "SELECT provider, api_key, base_url FROM api_keys WHERE id=?",
-            (key_id,)).fetchone()
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id=?", (key_id,)
+        ).fetchone()
         row = dict(r) if r else None
     if not row:
         return {"status": "error", "message": "Key tidak ditemukan"}
@@ -967,36 +1140,54 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
         if provider == "gemini":
             from google import genai as _genai
             from google.genai import types as _types
+
             client = _genai.Client(api_key=row["api_key"])
             resp = await client.aio.models.generate_content(
                 model=model or "gemini-3.6-flash",
                 contents="Balas satu kata: SIAP",
-                config=_types.GenerateContentConfig(max_output_tokens=100))
+                config=_types.GenerateContentConfig(max_output_tokens=100),
+            )
             text = (resp.text or "").strip()
             ok = bool(text)
             snippet = text[:80]
         else:
             base = (row["base_url"] or "").rstrip("/")
             async with _hx.AsyncClient(timeout=_hx.Timeout(60.0, connect=10.0)) as cli:
-                r2 = await cli.post(f"{base}/chat/completions",
-                    headers={"Authorization": f"Bearer {row['api_key']}",
-                             "Content-Type": "application/json"},
-                    json={"model": model, "messages":
-                          [{"role":"user","content":"Balas satu kata: SIAP"}],
-                          "max_tokens": 50})
+                r2 = await cli.post(
+                    f"{base}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {row['api_key']}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "user", "content": "Balas satu kata: SIAP"}
+                        ],
+                        "max_tokens": 50,
+                    },
+                )
             ok = r2.status_code == 200
             if ok:
-                snippet = (r2.json().get("choices",[{}])[0].get("message",{})
-                           .get("content","") or "")[:80]
+                snippet = (
+                    r2.json()
+                    .get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                    or ""
+                )[:80]
             else:
                 snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
-        ms = round((time.time()-t0)*1000)
-        return {"status": "success" if ok else "error", "latency_ms": ms,
-                "snippet": snippet,
-                "message": ("Koneksi OK" if ok else f"Gagal: {snippet}")}
+        ms = round((time.time() - t0) * 1000)
+        return {
+            "status": "success" if ok else "error",
+            "latency_ms": ms,
+            "snippet": snippet,
+            "message": ("Koneksi OK" if ok else f"Gagal: {snippet}"),
+        }
     except Exception as e:
-        return {"status": "error",
-                "message": f"Error: {str(e)[:200]}"}
+        return {"status": "error", "message": f"Error: {str(e)[:200]}"}
+
 
 @app.post("/api/settings/main-brain")
 async def set_main_brain_endpoint(payload: Dict[str, Any]):
@@ -1010,30 +1201,34 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="key_id wajib berupa angka.")
     res = database.activate_api_key_sync(key_id)
-    database.set_main_brain_model(model_override)   # '' = ikuti default kunci
+    database.set_main_brain_model(model_override)  # '' = ikuti default kunci
     if res.get("status") == "success":
         # ── SINKRON: semua agen swarm mengikuti otak utama ──
         key_row = None
         with database.get_sync_db() as conn:
             kr = conn.execute(
-                "SELECT provider, default_model FROM api_keys WHERE id = ?",
-                (key_id,)).fetchone()
+                "SELECT provider, default_model FROM api_keys WHERE id = ?", (key_id,)
+            ).fetchone()
             key_row = dict(kr) if kr else None
         # Sinkron HANYA Alpha Lead (kembaran persona agent Telegram).
         # Agen lain punya jalur spesialis masing-masing & tidak disentuh.
         if key_row:
             for a in database.list_custom_agents_sync():
                 if a["name"] == "Alpha Lead":
-                    database.update_custom_agent_sync(a["id"], {
-                        "provider": key_row["provider"],
-                        "model": model_override or key_row["default_model"],
-                        "api_key_id": key_id,
-                    })
+                    database.update_custom_agent_sync(
+                        a["id"],
+                        {
+                            "provider": key_row["provider"],
+                            "model": model_override or key_row["default_model"],
+                            "api_key_id": key_id,
+                        },
+                    )
                     res["synced_agents"] = ["Alpha Lead"]
                     res["message"] += " Alpha Lead ikut tersinkron."
                     break
 
         import main_brain as _mb
+
         brain = _mb.get_main_brain()
         res["main_brain"] = {
             "provider": brain["provider"],
@@ -1053,6 +1248,7 @@ async def update_system_settings(payload: Dict[str, Any]):
     fields keep their existing .env values untouched.
     """
     import os
+
     env_path = os.path.join(os.path.dirname(__file__), ".env")
 
     def _get(field: str) -> Optional[str]:
@@ -1066,26 +1262,36 @@ async def update_system_settings(payload: Dict[str, Any]):
     gemini_model = _get("gemini_model")
     allowed_ids = _get("allowed_user_ids")
     system_instruction = _get("system_instruction")
-    
+
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
     else:
         lines = []
-        
+
     new_lines = []
     keys_seen = set()
-    
+
     for line in lines:
         if line.startswith("TELEGRAM_BOT_TOKEN="):
             keys_seen.add("TELEGRAM_BOT_TOKEN")
-            if bot_token is not None and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+            if (
+                bot_token is not None
+                and bot_token
+                and not bot_token.startswith("***")
+                and "..." not in bot_token
+            ):
                 new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
             else:
                 new_lines.append(line)
         elif line.startswith("GEMINI_API_KEY="):
             keys_seen.add("GEMINI_API_KEY")
-            if gemini_key is not None and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+            if (
+                gemini_key is not None
+                and gemini_key
+                and not gemini_key.startswith("***")
+                and "..." not in gemini_key
+            ):
                 new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
             else:
                 new_lines.append(line)
@@ -1104,32 +1310,50 @@ async def update_system_settings(payload: Dict[str, Any]):
         elif line.startswith("SYSTEM_INSTRUCTION="):
             keys_seen.add("SYSTEM_INSTRUCTION")
             if system_instruction is not None and system_instruction:
-                escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+                escaped_instr = (
+                    system_instruction.replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                    .replace("\n", "\\n")
+                )
                 new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
             else:
                 new_lines.append(line)
         else:
             new_lines.append(line)
-            
+
     # Append any settings whose key was not present in the file yet
     # (only for fields the client explicitly sent).
     pending = []
-    if "TELEGRAM_BOT_TOKEN" not in keys_seen and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+    if (
+        "TELEGRAM_BOT_TOKEN" not in keys_seen
+        and bot_token
+        and not bot_token.startswith("***")
+        and "..." not in bot_token
+    ):
         pending.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
-    if "GEMINI_API_KEY" not in keys_seen and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+    if (
+        "GEMINI_API_KEY" not in keys_seen
+        and gemini_key
+        and not gemini_key.startswith("***")
+        and "..." not in gemini_key
+    ):
         pending.append(f"GEMINI_API_KEY={gemini_key}\n")
     if "GEMINI_MODEL" not in keys_seen and gemini_model:
         pending.append(f"GEMINI_MODEL={gemini_model}\n")
     if "ALLOWED_USER_IDS" not in keys_seen and allowed_ids is not None:
         pending.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
     if "SYSTEM_INSTRUCTION" not in keys_seen and system_instruction:
-        escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        escaped_instr = (
+            system_instruction.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+        )
         pending.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
-    
+
     if pending or new_lines != lines:
         with open(env_path, "w", encoding="utf-8") as f:
             f.writelines(new_lines + pending)
-            
+
     # Write the personality to its authoritative location. run_agent_turn
     # re-reads this file on EVERY message, so changes take effect immediately
     # for both Telegram and the web chat - no restart needed.
@@ -1145,33 +1369,48 @@ async def update_system_settings(payload: Dict[str, Any]):
             with open(alfa_prompt_path, "w", encoding="utf-8") as f:
                 f.write(system_instruction + "\n")
         except Exception as prompt_err:
-            return {"status": "error", "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}"}
-            
+            return {
+                "status": "error",
+                "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}",
+            }
+
     db_updates = payload.get("db_settings", {})
     if db_updates:
         with database.get_sync_db() as conn:
             c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+            )
             for k, v in db_updates.items():
-                c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (str(k), str(v)))
+                c.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)",
+                    (str(k), str(v)),
+                )
             conn.commit()
-            
-    return {"status": "success", "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart."}
+
+    return {
+        "status": "success",
+        "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart.",
+    }
 
 
 # ==================== UNIVERSAL PRO SCRAPER ENDPOINTS ====================
+
 
 @app.post("/api/scraper/universal")
 async def api_universal_scrape(payload: Dict[str, Any]):
     """Execute high-yield universal keyword scraper across specialized platforms."""
     import universal_scraper
+
     query = payload.get("query", "").strip()
     category = payload.get("category", "all_marketplace")
     limit = safe_int(payload.get("limit", 50), 50, minimum=1, maximum=200)
     if not query:
         return {"status": "error", "message": "Query pencarian wajib diisi."}
-    
-    res = universal_scraper.scrape_universal_keyword(query=query, category=category, limit=limit)
+
+    res = universal_scraper.scrape_universal_keyword(
+        query=query, category=category, limit=limit
+    )
     return res
 
 
@@ -1179,13 +1418,16 @@ async def api_universal_scrape(payload: Dict[str, Any]):
 async def api_custom_batch_scrape(payload: Dict[str, Any]):
     """Execute custom multi-URL batch scraper."""
     import universal_scraper
+
     urls = payload.get("urls", [])
     concurrency = safe_int(payload.get("concurrency", 15), 15, minimum=1, maximum=50)
     use_camoufox = bool(payload.get("use_camoufox", False))
     if not urls:
         return {"status": "error", "message": "Daftar URL wajib diisi."}
-    
-    res = universal_scraper.scrape_custom_urls_or_selectors(urls=urls, concurrency=concurrency, use_camoufox=use_camoufox)
+
+    res = universal_scraper.scrape_custom_urls_or_selectors(
+        urls=urls, concurrency=concurrency, use_camoufox=use_camoufox
+    )
     return res
 
 
@@ -1193,6 +1435,7 @@ async def api_custom_batch_scrape(payload: Dict[str, Any]):
 async def api_list_scraper_batches(limit: int = 15):
     """List recent master scraper batches."""
     import universal_scraper
+
     batches = universal_scraper.list_all_scrape_batches(limit=limit)
     return {"status": "success", "batches": batches}
 
@@ -1209,64 +1452,81 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
     extract_type = payload.get("extract_type", "markdown")
     max_pages = safe_int(payload.get("max_pages", 3), 3, minimum=1, maximum=50)
     auto_ingest = bool(payload.get("auto_ingest_vector", False))
-    
+
     if not url:
         return {"status": "error", "message": "URL target wajib diisi."}
-        
+
     start_t = time.time()
     extracted_text = ""
     markdown_output = ""
     raw_data = None
     engine_used = engine
-    
+
     try:
         if engine == "crawl4ai":
             res = tools.crawl4ai_web_crawler(url=url)
             markdown_output = res.get("markdown", "")
             extracted_text = markdown_output
             raw_data = res
-            
+
         elif engine == "scrapling":
-            res = tools.scrapling_stealth_fetch(url=url, css_selector=css_selector, extract_type=extract_type)
+            res = tools.scrapling_stealth_fetch(
+                url=url, css_selector=css_selector, extract_type=extract_type
+            )
             raw_data = res
             if isinstance(res.get("data"), list):
                 extracted_text = "\n".join(str(x) for x in res["data"])
             else:
                 extracted_text = str(res.get("data", ""))
             markdown_output = f"# Scraped from {url}\n\n" + extracted_text
-            
+
         elif engine == "markitdown":
             res = tools.markitdown_convert_document(source_path_or_url=url)
             markdown_output = res.get("markdown_snippet", "")
             extracted_text = markdown_output
             raw_data = res
-            
+
         elif engine == "scrapy":
             item_json = json.dumps({"selected": css_selector}) if css_selector else "{}"
-            res = tools.scrapy_spider_quick_scrape(url=url, item_selectors_json=item_json)
+            res = tools.scrapy_spider_quick_scrape(
+                url=url, item_selectors_json=item_json
+            )
             raw_data = res
             extracted_text = json.dumps(res.get("extracted_fields", {}), indent=2)
-            markdown_output = f"# Scrapy Parsel Result for {url}\n\n```json\n{extracted_text}\n```"
-            
+            markdown_output = (
+                f"# Scrapy Parsel Result for {url}\n\n```json\n{extracted_text}\n```"
+            )
+
         elif engine == "crawlee":
             res = tools.crawlee_web_scraper(start_urls=url, max_requests=max_pages)
             raw_data = res
             pages = res.get("pages", [])
-            extracted_text = "\n\n".join([f"### {p.get('title')}\nURL: {p.get('url')}\n{p.get('text_summary')}" for p in pages])
-            markdown_output = f"# Crawlee Multi-Page Result ({len(pages)} pages)\n\n" + extracted_text
-            
+            extracted_text = "\n\n".join(
+                [
+                    f"### {p.get('title')}\nURL: {p.get('url')}\n{p.get('text_summary')}"
+                    for p in pages
+                ]
+            )
+            markdown_output = (
+                f"# Crawlee Multi-Page Result ({len(pages)} pages)\n\n" + extracted_text
+            )
+
         elif engine == "firecrawl":
             res = tools.firecrawl_scrape_and_crawl(url=url)
             raw_data = res
             markdown_output = res.get("markdown", "")
             extracted_text = markdown_output
-            
+
         else:  # auto_hybrid
             engine_used = "auto_hybrid (Scrapling -> Crawl4AI -> MarkItDown)"
-            res = tools.scrapling_stealth_fetch(url=url, css_selector=css_selector, extract_type="text")
+            res = tools.scrapling_stealth_fetch(
+                url=url, css_selector=css_selector, extract_type="text"
+            )
             if res.get("status") == "success" and res.get("data"):
                 data_val = res.get("data")
-                extracted_text = "\n".join(data_val) if isinstance(data_val, list) else str(data_val)
+                extracted_text = (
+                    "\n".join(data_val) if isinstance(data_val, list) else str(data_val)
+                )
                 markdown_output = f"# Extracted Content: {url}\n\n" + extracted_text
                 raw_data = res
             else:
@@ -1282,19 +1542,20 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
                     raw_data = res3
 
         duration_ms = round((time.time() - start_t) * 1000, 1)
-        
+
         vector_status = None
         if auto_ingest and extracted_text.strip():
             import vector_memory
+
             uid = get_primary_user_id()
             v_res = vector_memory.ingest_document(
                 user_id=uid,
                 title=f"Web Scrape: {url[:50]}",
                 content_or_path=extracted_text,
-                category="Scraped Web Lab"
+                category="Scraped Web Lab",
             )
             vector_status = v_res
-            
+
         return {
             "status": "success",
             "url": url,
@@ -1303,61 +1564,80 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
             "markdown": markdown_output,
             "extracted_text": extracted_text[:5000],
             "raw_data": raw_data,
-            "vector_ingest": vector_status
+            "vector_ingest": vector_status,
         }
     except Exception as e:
         return {"status": "error", "message": f"Scraper Lab error: {str(e)}"}
-
 
 
 @app.get("/api/services")
 async def get_services_status():
     """Get detailed status of all ecosystem services."""
     services = [
-        {"name": "telegram-ai-bot.service", "title": "ALFA Telegram AI Agent (God Mode)"},
+        {
+            "name": "telegram-ai-bot.service",
+            "title": "ALFA Telegram AI Agent (God Mode)",
+        },
         {"name": "wa-sheets-bot.service", "title": "WhatsApp Google Sheets Bot"},
-        {"name": "alfa-dashboard.service", "title": "ALFA Web Command Center (Port 8080)"}
+        {
+            "name": "alfa-dashboard.service",
+            "title": "ALFA Web Command Center (Port 8080)",
+        },
     ]
     results = []
     for s in services:
         svc = s["name"]
         if os.name == "nt":
+
             def _svc_active(hint):
-                for p in psutil.process_iter(['cmdline']):
+                for p in psutil.process_iter(["cmdline"]):
                     try:
-                        cl = p.info.get('cmdline') or []
+                        cl = p.info.get("cmdline") or []
                         if any(hint in str(c) for c in cl):
                             return True
                     except Exception:
                         continue
                 return False
+
             hint_map = {
                 "telegram-ai-bot.service": "bot.py",
                 "wa-sheets-bot.service": "wa_sheets",
-                "alfa-dashboard.service": "web_dashboard.py"
+                "alfa-dashboard.service": "web_dashboard.py",
             }
             active = _svc_active(hint_map.get(svc, ""))
-            results.append({
+            results.append(
+                {
+                    "name": svc,
+                    "title": s["title"],
+                    "is_active": active,
+                    "state": "active (process)" if active else "inactive",
+                    "is_enabled": active,
+                    "details": "systemd tidak tersedia di Windows; status dideteksi dari proses berjalan.",
+                }
+            )
+            continue
+        res_act = subprocess.run(
+            ["systemctl", "--user", "is-active", svc], capture_output=True, text=True
+        )
+        res_enb = subprocess.run(
+            ["systemctl", "--user", "is-enabled", svc], capture_output=True, text=True
+        )
+        res_stat = subprocess.run(
+            ["systemctl", "--user", "status", svc, "--no-pager", "-n", "8"],
+            capture_output=True,
+            text=True,
+        )
+
+        results.append(
+            {
                 "name": svc,
                 "title": s["title"],
-                "is_active": active,
-                "state": "active (process)" if active else "inactive",
-                "is_enabled": active,
-                "details": "systemd tidak tersedia di Windows; status dideteksi dari proses berjalan."
-            })
-            continue
-        res_act = subprocess.run(["systemctl", "--user", "is-active", svc], capture_output=True, text=True)
-        res_enb = subprocess.run(["systemctl", "--user", "is-enabled", svc], capture_output=True, text=True)
-        res_stat = subprocess.run(["systemctl", "--user", "status", svc, "--no-pager", "-n", "8"], capture_output=True, text=True)
-        
-        results.append({
-            "name": svc,
-            "title": s["title"],
-            "is_active": res_act.stdout.strip() == "active",
-            "state": res_act.stdout.strip(),
-            "is_enabled": res_enb.stdout.strip() == "enabled",
-            "details": res_stat.stdout.strip()
-        })
+                "is_active": res_act.stdout.strip() == "active",
+                "state": res_act.stdout.strip(),
+                "is_enabled": res_enb.stdout.strip() == "enabled",
+                "details": res_stat.stdout.strip(),
+            }
+        )
     return {"status": "success", "services": results}
 
 
@@ -1366,13 +1646,14 @@ async def get_wa_qr():
     """Fetch live WhatsApp QR code and authentication status."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/qr")
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
         pass
-        
+
     # Fallback to local sync file
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     if os.path.exists(status_file):
@@ -1386,6 +1667,7 @@ async def get_wa_qr():
                 import io
 
                 import qrcode
+
                 img = qrcode.make(qr_str)
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
@@ -1397,18 +1679,18 @@ async def get_wa_qr():
                 "qr_available": bool(qr_str),
                 "qr_string": qr_str,
                 "qr_data_url": qr_data_url,
-                "timestamp": data.get("updated_at", "")
+                "timestamp": data.get("updated_at", ""),
             }
         except Exception:
             pass
-            
+
     return {
         "status": "DISCONNECTED",
         "is_ready": False,
         "qr_available": False,
         "qr_string": "",
         "qr_data_url": None,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -1417,13 +1699,17 @@ async def logout_wa():
     """Trigger WhatsApp logout to force new QR generation."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post("http://localhost:3000/api/logout")
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
         pass
-    return {"status": "error", "message": "Failed to connect to WhatsApp bot server on port 3000"}
+    return {
+        "status": "error",
+        "message": "Failed to connect to WhatsApp bot server on port 3000",
+    }
 
 
 @app.get("/api/wa/reports")
@@ -1431,6 +1717,7 @@ async def get_wa_reports():
     """Fetch recorded WhatsApp Google Sheets reports and format definitions."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/reports")
             if resp.status_code == 200:
@@ -1461,7 +1748,7 @@ async def get_wa_reports():
         "formats": formats_data,
         "total_recorded": len(reports_data),
         "pending_queue_count": 0,
-        "reports": reports_data
+        "reports": reports_data,
     }
 
 
@@ -1490,8 +1777,14 @@ def _validate_media_rules(rules: Any) -> List[str]:
             errs.append(f"{tag}: nama '{name}' duplikat.")
         seen.add(name.lower())
         types = r.get("types")
-        if not isinstance(types, list) or not types or not all(t in _WA_MEDIA_TYPES for t in types):
-            errs.append(f"{tag} '{name}': pilih minimal satu jenis file ({', '.join(sorted(_WA_MEDIA_TYPES))}).")
+        if (
+            not isinstance(types, list)
+            or not types
+            or not all(t in _WA_MEDIA_TYPES for t in types)
+        ):
+            errs.append(
+                f"{tag} '{name}': pilih minimal satu jenis file ({', '.join(sorted(_WA_MEDIA_TYPES))})."
+            )
         pattern = str(r.get("naming", "")).strip()
         if not pattern:
             errs.append(f"{tag} '{name}': pola nama file kosong.")
@@ -1501,7 +1794,12 @@ def _validate_media_rules(rules: Any) -> List[str]:
 @app.get("/api/wa/media-rules")
 async def get_wa_media_rules():
     """Read automatic media-saving rules for the Drive side of wa-sheets-bot."""
-    result = {"status": "success", "exists": False, "rules": [], "path": WA_BOT_MEDIA_RULES_FILE}
+    result = {
+        "status": "success",
+        "exists": False,
+        "rules": [],
+        "path": WA_BOT_MEDIA_RULES_FILE,
+    }
     try:
         if os.path.exists(WA_BOT_MEDIA_RULES_FILE):
             with open(WA_BOT_MEDIA_RULES_FILE, "r", encoding="utf-8") as f:
@@ -1520,19 +1818,24 @@ async def save_wa_media_rules(payload: Dict[str, Any]):
     rules = payload.get("rules")
     errors = _validate_media_rules(rules)
     if errors:
-        return {"status": "error", "validation_errors": errors,
-                "message": "; ".join(errors[:4])}
+        return {
+            "status": "error",
+            "validation_errors": errors,
+            "message": "; ".join(errors[:4]),
+        }
 
     clean = []
     for r in rules:
-        clean.append({
-            "name": str(r["name"]).strip(),
-            "enabled": bool(r.get("enabled", True)),
-            "types": [str(t).strip() for t in r["types"]],
-            "keyword": str(r.get("keyword", "")).strip(),
-            "folder": str(r.get("folder", "")).strip() or "Umum",
-            "naming": str(r["naming"]).strip(),
-        })
+        clean.append(
+            {
+                "name": str(r["name"]).strip(),
+                "enabled": bool(r.get("enabled", True)),
+                "types": [str(t).strip() for t in r["types"]],
+                "keyword": str(r.get("keyword", "")).strip(),
+                "folder": str(r.get("folder", "")).strip() or "Umum",
+                "naming": str(r["naming"]).strip(),
+            }
+        )
 
     try:
         os.makedirs(os.path.dirname(WA_BOT_MEDIA_RULES_FILE), exist_ok=True)
@@ -1543,29 +1846,47 @@ async def save_wa_media_rules(payload: Dict[str, Any]):
             json.dump({"rules": clean}, f, ensure_ascii=False, indent=2)
             f.write("\n")
         os.replace(tmp_path, WA_BOT_MEDIA_RULES_FILE)
-        return {"status": "success", "saved": len(clean),
-                "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya."}
+        return {
+            "status": "success",
+            "saved": len(clean),
+            "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya.",
+        }
     except Exception as e:
-        return {"status": "error", "message": f"Gagal menyimpan media_rules.json: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal menyimpan media_rules.json: {str(e)}",
+        }
 
 
 def _gdrive_ensure_subfolder(folder_name: str) -> str:
     """Find or create a subfolder inside the default Drive folder; return its id."""
     import tools as _t
+
     parent = _t._get_default_gdrive_folder_id()
     service = _t._get_gdrive_service()
     q = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     if parent:
         q += f" and '{parent}' in parents"
-    found = service.files().list(q=q, fields="files(id, name)", spaces="drive",
-                                 supportsAllDrives=True, pageSize=5).execute()
+    found = (
+        service.files()
+        .list(
+            q=q,
+            fields="files(id, name)",
+            spaces="drive",
+            supportsAllDrives=True,
+            pageSize=5,
+        )
+        .execute()
+    )
     files = found.get("files", [])
     if files:
         return files[0]["id"]
     meta = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
     if parent:
         meta["parents"] = [parent]
-    created = service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+    created = (
+        service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+    )
     return created["id"]
 
 
@@ -1629,27 +1950,34 @@ async def wa_media_upload(
         with open(tmp_path, "wb") as out:
             out.write(await file.read())
 
-        target_sub = (subfolder.strip() or f"{(format_name or 'Lainnya').strip()[:40]}")
+        target_sub = subfolder.strip() or f"{(format_name or 'Lainnya').strip()[:40]}"
         subfolder_id = _gdrive_ensure_subfolder(f"WA Media / {target_sub}")
-        res = tools.gdrive_upload_file(filepath=tmp_path, folder_id=subfolder_id,
-                                       custom_filename=safe_name)
+        res = tools.gdrive_upload_file(
+            filepath=tmp_path, folder_id=subfolder_id, custom_filename=safe_name
+        )
         try:
             os.remove(tmp_path)
         except OSError:
             pass
         if res.get("status") == "success":
-            _log_wa_drive_upload({
-                "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "file_name": res.get("file_name"),
+            _log_wa_drive_upload(
+                {
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "file_name": res.get("file_name"),
+                    "web_link": res.get("web_link"),
+                    "folder": f"WA Media / {target_sub}",
+                    "format_name": format_name or "",
+                    "sender": sender or "",
+                    "group": group or "",
+                    "caption": (caption or "")[:300],
+                }
+            )
+            return {
+                "status": "success",
                 "web_link": res.get("web_link"),
+                "file_name": res.get("file_name"),
                 "folder": f"WA Media / {target_sub}",
-                "format_name": format_name or "",
-                "sender": sender or "",
-                "group": group or "",
-                "caption": (caption or "")[:300],
-            })
-            return {"status": "success", "web_link": res.get("web_link"),
-                    "file_name": res.get("file_name"), "folder": f"WA Media / {target_sub}"}
+            }
         return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1682,8 +2010,10 @@ def _validate_wa_formats(formats: Any) -> List[str]:
         if tab in seen_tabs:
             errs.append(f"{tag}: tab '{tab}' dipakai lebih dari satu format.")
         seen_tabs.add(tab)
-        if not isinstance(keywords, list) or not keywords or not all(
-            isinstance(k, str) and k.strip() for k in keywords
+        if (
+            not isinstance(keywords, list)
+            or not keywords
+            or not all(isinstance(k, str) and k.strip() for k in keywords)
         ):
             errs.append(f"{tag} '{name}': keywords wajib minimal 1 kata pemicu.")
         if not isinstance(columns, list) or not columns:
@@ -1704,13 +2034,20 @@ def _validate_wa_formats(formats: Any) -> List[str]:
 @app.get("/api/wa/formats")
 async def get_wa_formats():
     """Read the WhatsApp report format definitions consumed by wa-sheets-bot."""
-    result = {"status": "success", "exists": False, "formats": [], "path": WA_BOT_FORMATS_FILE}
+    result = {
+        "status": "success",
+        "exists": False,
+        "formats": [],
+        "path": WA_BOT_FORMATS_FILE,
+    }
     try:
         if os.path.exists(WA_BOT_FORMATS_FILE):
             with open(WA_BOT_FORMATS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             result["exists"] = True
-            result["formats"] = data.get("formats", []) if isinstance(data, dict) else []
+            result["formats"] = (
+                data.get("formats", []) if isinstance(data, dict) else []
+            )
     except Exception as e:
         result["status"] = "error"
         result["message"] = f"Gagal membaca formats.json: {e}"
@@ -1727,20 +2064,27 @@ async def save_wa_formats(payload: Dict[str, Any]):
     formats = payload.get("formats")
     errors = _validate_wa_formats(formats)
     if errors:
-        return {"status": "error", "validation_errors": errors,
-                "message": "; ".join(errors[:4])}
+        return {
+            "status": "error",
+            "validation_errors": errors,
+            "message": "; ".join(errors[:4]),
+        }
 
     # Normalise: strip whitespace everywhere, keep only needed keys
     clean = []
     for f in formats:
-        cols = [{"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
-                for c in f["columns"]]
-        clean.append({
-            "name": str(f["name"]).strip(),
-            "keywords": [str(k).strip() for k in f["keywords"]],
-            "tab": str(f["tab"]).strip(),
-            "columns": cols,
-        })
+        cols = [
+            {"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
+            for c in f["columns"]
+        ]
+        clean.append(
+            {
+                "name": str(f["name"]).strip(),
+                "keywords": [str(k).strip() for k in f["keywords"]],
+                "tab": str(f["tab"]).strip(),
+                "columns": cols,
+            }
+        )
 
     try:
         os.makedirs(os.path.dirname(WA_BOT_FORMATS_FILE), exist_ok=True)
@@ -1757,7 +2101,7 @@ async def save_wa_formats(payload: Dict[str, Any]):
             "status": "success",
             "saved": len(clean),
             "backup": WA_BOT_FORMATS_FILE + ".bak",
-            "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart)."
+            "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart).",
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal menyimpan formats.json: {str(e)}"}
@@ -1768,24 +2112,34 @@ async def service_action(payload: Dict[str, Any]):
     """Start, stop, or restart a systemd user service."""
     service_name = payload.get("service")
     action = payload.get("action", "status")
-    
+
     if action not in ["start", "stop", "restart", "enable", "disable"]:
         raise HTTPException(status_code=400, detail="Invalid action")
-        
-    allowed_services = ["telegram-ai-bot.service", "wa-sheets-bot.service", "alfa-dashboard.service"]
+
+    allowed_services = [
+        "telegram-ai-bot.service",
+        "wa-sheets-bot.service",
+        "alfa-dashboard.service",
+    ]
     if service_name not in allowed_services:
         raise HTTPException(status_code=403, detail="Unauthorized service management")
-        
-    res = subprocess.run(["systemctl", "--user", action, service_name], capture_output=True, text=True)
+
+    res = subprocess.run(
+        ["systemctl", "--user", action, service_name], capture_output=True, text=True
+    )
     time.sleep(1)
-    res_act = subprocess.run(["systemctl", "--user", "is-active", service_name], capture_output=True, text=True)
-    
+    res_act = subprocess.run(
+        ["systemctl", "--user", "is-active", service_name],
+        capture_output=True,
+        text=True,
+    )
+
     return {
         "status": "success" if res.returncode == 0 else "error",
         "service": service_name,
         "action": action,
         "current_state": res_act.stdout.strip(),
-        "output": res.stderr or res.stdout
+        "output": res.stderr or res.stdout,
     }
 
 
@@ -1793,12 +2147,14 @@ async def service_action(payload: Dict[str, Any]):
 async def list_pipelines_endpoint():
     """Daftar pipeline workflow yang tersedia."""
     import pipelines as pl
+
     return {"status": "success", "pipelines": pl.list_pipelines()}
 
 
 @app.get("/api/pipelines/{pid}")
 async def get_pipeline_endpoint(pid: str):
     import pipelines as pl
+
     try:
         return {"status": "success", "pipeline": pl.load_pipeline(pid)}
     except FileNotFoundError:
@@ -1809,6 +2165,7 @@ async def get_pipeline_endpoint(pid: str):
 async def run_pipeline_endpoint(pid: str, request: Request):
     """Jalankan pipeline; body JSON opsional: overrides variabel {\"vars\": {...}}."""
     import pipelines as pl
+
     try:
         overrides = {}
         try:
@@ -1829,6 +2186,7 @@ async def run_pipeline_endpoint(pid: str, request: Request):
 async def save_pipeline_endpoint(pid: str, request: Request):
     """Simpan/overwrite definisi pipeline dari Canvas Studio."""
     import pipelines as pl
+
     try:
         data = await request.json()
     except Exception:
@@ -1849,14 +2207,18 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
     Body JSON dikirim sebagai variabel 'payload'. Bila pipeline punya
     trigger.secret, wajib kirim header X-Webhook-Key yang cocok."""
     import pipelines as pl
+
     try:
         data = pl.load_pipeline(pid)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.")
     secret = ((data.get("trigger") or {}).get("secret") or "").strip()
     if secret:
-        provided = (request.headers.get("X-Webhook-Key") or
-                    request.query_params.get("key") or "")
+        provided = (
+            request.headers.get("X-Webhook-Key")
+            or request.query_params.get("key")
+            or ""
+        )
         if provided != secret:
             raise HTTPException(status_code=401, detail="Webhook key salah.")
     try:
@@ -1865,13 +2227,18 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
         payload = {}
     overrides = {"payload": payload if isinstance(payload, dict) else {"raw": payload}}
     result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)
-    return {k: result[k] for k in ("pipeline", "status", "duration_ms", "outputs") if k in result}
+    return {
+        k: result[k]
+        for k in ("pipeline", "status", "duration_ms", "outputs")
+        if k in result
+    }
 
 
 @app.get("/api/pipelines/{pid}/runs")
 async def pipeline_runs_endpoint(pid: str, limit: int = 10):
     """Riwayat eksekusi pipeline terakhir."""
     import pipelines as pl
+
     return {"status": "success", "pid": pid, "runs": pl.list_runs(pid, limit)}
 
 
@@ -1879,6 +2246,7 @@ async def pipeline_runs_endpoint(pid: str, limit: int = 10):
 async def pipeline_trigger_toggle_endpoint(pid: str, request: Request):
     """Aktif/matikan trigger jadwal: body {\"enabled\": true/false}."""
     import pipelines as pl
+
     try:
         data = pl.load_pipeline(pid)
         body = await request.json()
@@ -1900,22 +2268,32 @@ async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int 
     """Fetch live service logs (journalctl di Linux, file log lokal di Windows)."""
     lines = max(10, min(int(lines), 500))
     if os.name == "nt":
-        log_file = "bot_err.log" if "telegram" in service else (
-            "dash_err.log" if "dashboard" in service else "wa_bot.log")
+        log_file = (
+            "bot_err.log"
+            if "telegram" in service
+            else ("dash_err.log" if "dashboard" in service else "wa_bot.log")
+        )
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), log_file)
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 tail = f.readlines()[-lines:]
-            return {"status": "success", "service": service, "logs": "".join(tail).strip()}
+            return {
+                "status": "success",
+                "service": service,
+                "logs": "".join(tail).strip(),
+            }
         except FileNotFoundError:
-            return {"status": "success", "service": service,
-                    "logs": f"(file log '{log_file}' belum ada)"}
-    res = subprocess.run(["journalctl", "--user", "-u", service, "-n", str(lines), "--no-pager"], capture_output=True, text=True)
-    return {
-        "status": "success",
-        "service": service,
-        "logs": res.stdout.strip()
-    }
+            return {
+                "status": "success",
+                "service": service,
+                "logs": f"(file log '{log_file}' belum ada)",
+            }
+    res = subprocess.run(
+        ["journalctl", "--user", "-u", service, "-n", str(lines), "--no-pager"],
+        capture_output=True,
+        text=True,
+    )
+    return {"status": "success", "service": service, "logs": res.stdout.strip()}
 
 
 @app.get("/api/memory")
@@ -1924,14 +2302,14 @@ async def get_memory_data():
     uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
-    
+
     return {
         "status": "success",
         "user_id": uid,
         "total_memories": len(memories),
         "total_kg_relations": len(kg),
         "memories": memories,
-        "knowledge_graph": kg
+        "knowledge_graph": kg,
     }
 
 
@@ -1940,13 +2318,15 @@ async def add_memory(payload: Dict[str, Any]):
     """Add a new memory fact or knowledge graph relation."""
     uid = get_primary_user_id()
     m_type = payload.get("type", "fact")
-    
+
     if m_type == "fact":
         key = payload.get("key_topic")
         content = payload.get("content")
         cat = payload.get("category", "general")
         if not key or not content:
-            raise HTTPException(status_code=400, detail="key_topic and content required")
+            raise HTTPException(
+                status_code=400, detail="key_topic and content required"
+            )
         res = database.save_memory_fact_sync(uid, key, content, cat)
         return {"status": "success", "result": res}
     else:
@@ -1956,8 +2336,12 @@ async def add_memory(payload: Dict[str, Any]):
         cat = payload.get("category", "general")
         tags = payload.get("tags", "")
         if not entity or not relation or not target:
-            raise HTTPException(status_code=400, detail="entity, relation, and target_value required")
-        res = database.add_knowledge_relation_sync(uid, entity, relation, target, cat, tags)
+            raise HTTPException(
+                status_code=400, detail="entity, relation, and target_value required"
+            )
+        res = database.add_knowledge_relation_sync(
+            uid, entity, relation, target, cat, tags
+        )
         return {"status": "success", "result": res}
 
 
@@ -1968,13 +2352,17 @@ async def delete_memory(payload: Dict[str, Any]):
     key_topic = payload.get("key_topic")
     if not key_topic:
         raise HTTPException(status_code=400, detail="key_topic is required")
-        
+
     import aiosqlite
+
     db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
     async with aiosqlite.connect(db_path) as db:
-        await db.execute("DELETE FROM knowledge_memory WHERE user_id = ? AND key_topic = ?", (uid, key_topic))
+        await db.execute(
+            "DELETE FROM knowledge_memory WHERE user_id = ? AND key_topic = ?",
+            (uid, key_topic),
+        )
         await db.commit()
-        
+
     return {"status": "success", "message": f"Fakta '{key_topic}' berhasil dihapus."}
 
 
@@ -1984,15 +2372,22 @@ async def export_brain():
     uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
-    
-    md_lines = ["# 🧠 ALFA SECOND BRAIN KNOWLEDGE EXPORT\n", f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n## 📝 Permanent Facts & Memories\n"]
+
+    md_lines = [
+        "# 🧠 ALFA SECOND BRAIN KNOWLEDGE EXPORT\n",
+        f"Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n## 📝 Permanent Facts & Memories\n",
+    ]
     for m in memories:
-        md_lines.append(f"- **[{m['category'].upper()}] {m['key_topic']}**: {m['content']}")
-        
+        md_lines.append(
+            f"- **[{m['category'].upper()}] {m['key_topic']}**: {m['content']}"
+        )
+
     md_lines.append("\n## 🕸️ Semantic Knowledge Graph\n")
     for k in kg:
-        md_lines.append(f"- `{k['entity']}` ──*({k['relation']})*──> `{k['target_value']}` [{k['category']}]")
-        
+        md_lines.append(
+            f"- `{k['entity']}` ──*({k['relation']})*──> `{k['target_value']}` [{k['category']}]"
+        )
+
     return {
         "status": "success",
         "markdown": "\n".join(md_lines),
@@ -2000,31 +2395,35 @@ async def export_brain():
             "user_id": uid,
             "exported_at": datetime.now().isoformat(),
             "memories": memories,
-            "knowledge_graph": kg
-        }
+            "knowledge_graph": kg,
+        },
     }
 
 
 # ==================== NEURAL VECTOR BRAIN & SEMANTIC RAG ENDPOINTS ====================
 
+
 @app.post("/api/brain/vector/search")
 async def api_vector_search(payload: Dict[str, Any]):
     """Execute cosine semantic similarity search on permanent Vector Brain embeddings."""
     import vector_memory
+
     query = payload.get("query", "").strip()
     top_k = safe_int(payload.get("top_k", 5), 5, minimum=1, maximum=50)
     category = payload.get("category", "")
     uid = get_primary_user_id()
-    
+
     if not query:
         return {"status": "error", "message": "Search query is required"}
-        
-    matches = vector_memory.semantic_search(user_id=uid, query=query, top_k=top_k, category=category or None)
+
+    matches = vector_memory.semantic_search(
+        user_id=uid, query=query, top_k=top_k, category=category or None
+    )
     return {
         "status": "success",
         "query": query,
         "total_matches": len(matches),
-        "matches": matches
+        "matches": matches,
     }
 
 
@@ -2032,17 +2431,19 @@ async def api_vector_search(payload: Dict[str, Any]):
 async def api_vector_ingest(payload: Dict[str, Any]):
     """Ingest, chunk, and embed a document or file into permanent Vector Brain."""
     import vector_memory
+
     title = payload.get("title", "").strip()
     content = payload.get("content", "").strip()
     category = payload.get("category", "general").strip()
     uid = get_primary_user_id()
-    
+
     if not title or not content:
         raise HTTPException(status_code=400, detail="title and content are required")
-        
-    res = vector_memory.ingest_document(user_id=uid, title=title, content_or_path=content, category=category)
-    return res
 
+    res = vector_memory.ingest_document(
+        user_id=uid, title=title, content_or_path=content, category=category
+    )
+    return res
 
 
 @app.get("/api/meeting/history")
@@ -2054,7 +2455,7 @@ async def get_meeting_history(limit: int = 50):
                 """SELECT id, title, topic, mode, status, participants,
                           consensus, action_plan, created_at
                    FROM agent_meetings ORDER BY id DESC LIMIT ?""",
-                (limit,)
+                (limit,),
             ).fetchall()
         meetings = []
         for r in rows:
@@ -2073,38 +2474,38 @@ async def get_meeting_history(limit: int = 50):
 async def api_vector_list():
     """List all ingested documents currently in Vector Brain."""
     import vector_memory
+
     uid = get_primary_user_id()
     docs = vector_memory.list_ingested_documents(user_id=uid)
-    return {
-        "status": "success",
-        "total_documents": len(docs),
-        "documents": docs
-    }
+    return {"status": "success", "total_documents": len(docs), "documents": docs}
 
 
 @app.post("/api/brain/vector/delete")
 async def api_vector_delete(payload: Dict[str, Any]):
     """Delete a document and its embedding chunks from Vector Brain."""
     import vector_memory
+
     doc_title = payload.get("doc_title", "").strip()
     uid = get_primary_user_id()
     if not doc_title:
         raise HTTPException(status_code=400, detail="doc_title is required")
-        
+
     return vector_memory.delete_document(user_id=uid, doc_title=doc_title)
 
 
 # ==================== DYNAMIC SELF-EVOLUTION PLUGINS ENDPOINTS ====================
 
+
 @app.get("/api/plugins/list")
 async def api_plugins_list():
     """List all active self-evolved dynamic plugin tools."""
     import plugins
+
     plugins_list = plugins.list_all_plugins()
     return {
         "status": "success",
         "total_plugins": len(plugins_list),
-        "plugins": plugins_list
+        "plugins": plugins_list,
     }
 
 
@@ -2112,15 +2513,20 @@ async def api_plugins_list():
 async def api_plugins_create(payload: Dict[str, Any]):
     """Compile, sandbox-test, and hot-load a new dynamic plugin tool."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     tool_description = payload.get("tool_description", "").strip()
     tool_code = payload.get("tool_code", "").strip()
     test_kwargs = payload.get("test_kwargs", {})
-    
+
     if not tool_name or not tool_code:
-        raise HTTPException(status_code=400, detail="tool_name and tool_code are required")
-        
-    res = plugins.create_and_register_plugin(tool_name, tool_description, tool_code, test_kwargs=test_kwargs)
+        raise HTTPException(
+            status_code=400, detail="tool_name and tool_code are required"
+        )
+
+    res = plugins.create_and_register_plugin(
+        tool_name, tool_description, tool_code, test_kwargs=test_kwargs
+    )
     return res
 
 
@@ -2128,6 +2534,7 @@ async def api_plugins_create(payload: Dict[str, Any]):
 async def api_plugins_delete(payload: Dict[str, Any]):
     """Permanently remove a dynamic plugin tool."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
@@ -2138,11 +2545,12 @@ async def api_plugins_delete(payload: Dict[str, Any]):
 async def api_plugins_execute(payload: Dict[str, Any]):
     """Execute a dynamic plugin tool directly."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     kwargs = payload.get("kwargs", {})
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
-        
+
     try:
         start_t = time.time()
         result = plugins.execute_plugin_direct(tool_name, **kwargs)
@@ -2151,7 +2559,7 @@ async def api_plugins_execute(payload: Dict[str, Any]):
             "status": "success",
             "tool_name": tool_name,
             "duration_ms": duration_ms,
-            "result": result
+            "result": result,
         }
     except Exception as e:
         return {"status": "error", "message": f"Plugin execution error: {str(e)}"}
@@ -2163,11 +2571,27 @@ async def list_artifacts():
     search_dirs = [
         "/dev/shm/alfa_sandbox",
         os.path.expanduser("~/output"),
-        os.path.expanduser("~/.alfa")
+        os.path.expanduser("~/.alfa"),
     ]
     artifacts = []
-    valid_exts = {".png", ".jpg", ".jpeg", ".pdf", ".odt", ".ods", ".odp", ".docx", ".xlsx", ".pptx", ".mp3", ".mp4", ".csv", ".json", ".zip"}
-    
+    valid_exts = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".pdf",
+        ".odt",
+        ".ods",
+        ".odp",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".mp3",
+        ".mp4",
+        ".csv",
+        ".json",
+        ".zip",
+    }
+
     for s_dir in search_dirs:
         if os.path.exists(s_dir):
             for root, _, files in os.walk(s_dir):
@@ -2176,15 +2600,19 @@ async def list_artifacts():
                     if ext in valid_exts:
                         full_p = os.path.join(root, f)
                         st = os.stat(full_p)
-                        artifacts.append({
-                            "name": f,
-                            "path": full_p,
-                            "size_kb": round(st.st_size / 1024, 1),
-                            "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                            "extension": ext[1:].upper(),
-                            "is_image": ext in [".png", ".jpg", ".jpeg"]
-                        })
-                        
+                        artifacts.append(
+                            {
+                                "name": f,
+                                "path": full_p,
+                                "size_kb": round(st.st_size / 1024, 1),
+                                "modified": datetime.fromtimestamp(
+                                    st.st_mtime
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                "extension": ext[1:].upper(),
+                                "is_image": ext in [".png", ".jpg", ".jpeg"],
+                            }
+                        )
+
     artifacts = sorted(artifacts, key=lambda x: x["modified"], reverse=True)[:30]
     return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
 
@@ -2194,15 +2622,42 @@ async def list_artifacts():
 # ══════════════════════════════════════════════════════════════════════════════
 
 WORKSPACE_ROOTS = [
-    {"id": "workspace", "label": "🏠 ALFA Workspace (proyek agen)", "path": "~/ALFA_WORKSPACE"},
-    {"id": "swarm", "label": "🤖 Output Swarm", "path": os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")},
-    {"id": "videos", "label": "🎬 Video Generator", "path": os.path.expanduser("~/Dokumen/ALFA_GENERATED_VIDEOS")},
-    {"id": "output", "label": "📦 Folder Output", "path": os.path.expanduser("~/output")},
+    {
+        "id": "workspace",
+        "label": "🏠 ALFA Workspace (proyek agen)",
+        "path": "~/ALFA_WORKSPACE",
+    },
+    {
+        "id": "swarm",
+        "label": "🤖 Output Swarm",
+        "path": os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
+    },
+    {
+        "id": "videos",
+        "label": "🎬 Video Generator",
+        "path": os.path.expanduser("~/Dokumen/ALFA_GENERATED_VIDEOS"),
+    },
+    {
+        "id": "output",
+        "label": "📦 Folder Output",
+        "path": os.path.expanduser("~/output"),
+    },
     {"id": "sandbox", "label": "⚡ Sandbox", "path": "/dev/shm/alfa_sandbox"},
 ]
 
-_WS_SKIP_DIRS = {".git", "venv", ".venv", "node_modules", "__pycache__",
-                 ".mypy_cache", ".pytest_cache", "dist", "build", ".next", "target"}
+_WS_SKIP_DIRS = {
+    ".git",
+    "venv",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    ".next",
+    "target",
+}
 _WS_MAX_FILE_BYTES = 300_000  # batas baca isi file (teks)
 
 
@@ -2222,9 +2677,12 @@ def _safe_workspace_path(path: str) -> str:
         allowed = ", ".join(os.path.expanduser(r["path"]) for r in WORKSPACE_ROOTS)
         raise HTTPException(
             status_code=403,
-            detail=(f"Akses ditolak: '{path or '(kosong)'}' di luar workspace yang diizinkan. "
-                    f"Root tersedia: {allowed}. "
-                    "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."))
+            detail=(
+                f"Akses ditolak: '{path or '(kosong)'}' di luar workspace yang diizinkan. "
+                f"Root tersedia: {allowed}. "
+                "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."
+            ),
+        )
     return real
 
 
@@ -2246,8 +2704,9 @@ async def workspace_tree(path: str):
         raise HTTPException(status_code=404, detail="Bukan direktori")
     items = []
     try:
-        entries = sorted(os.scandir(real),
-                         key=lambda e: (not e.is_dir(), e.name.lower()))
+        entries = sorted(
+            os.scandir(real), key=lambda e: (not e.is_dir(), e.name.lower())
+        )
     except PermissionError:
         raise HTTPException(status_code=403, detail="Izin dibatalkan")
     for e in entries[:400]:
@@ -2255,12 +2714,16 @@ async def workspace_tree(path: str):
             continue
         try:
             st = e.stat()
-            items.append({
-                "name": e.name,
-                "type": "dir" if e.is_dir() else "file",
-                "size": st.st_size if e.is_file() else None,
-                "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"),
-            })
+            items.append(
+                {
+                    "name": e.name,
+                    "type": "dir" if e.is_dir() else "file",
+                    "size": st.st_size if e.is_file() else None,
+                    "modified": datetime.fromtimestamp(st.st_mtime).strftime(
+                        "%Y-%m-%d %H:%M"
+                    ),
+                }
+            )
         except OSError:
             continue
     return {"status": "success", "path": real, "items": items}
@@ -2277,9 +2740,13 @@ async def workspace_read_file(path: str):
         head = f.read(4096)
     is_binary = b"\x00" in head
     if is_binary:
-        return {"status": "binary", "name": os.path.basename(real), "size": size,
-                "message": "File biner — gunakan tombol Download.",
-                "download_url": f"/api/artifacts/download?path={real}"}
+        return {
+            "status": "binary",
+            "name": os.path.basename(real),
+            "size": size,
+            "message": "File biner — gunakan tombol Download.",
+            "download_url": f"/api/artifacts/download?path={real}",
+        }
     truncated = size > _WS_MAX_FILE_BYTES
     with open(real, "rb") as f:
         data = f.read(_WS_MAX_FILE_BYTES)
@@ -2298,6 +2765,7 @@ async def download_artifact(path: str):
     """Safely download an artifact file (restricted to known artifact directories)."""
     import swarm_engine
     import video_generator
+
     allowed_dirs = [
         os.path.realpath("/dev/shm/alfa_sandbox"),
         os.path.realpath(os.path.expanduser("~/output")),
@@ -2309,8 +2777,13 @@ async def download_artifact(path: str):
         os.path.realpath(swarm_engine.SWARM_OUTPUT_DIR),
     ]
     real_path = os.path.realpath(path)
-    if not any(real_path == d or real_path.startswith(d + os.sep) for d in allowed_dirs):
-        raise HTTPException(status_code=403, detail="Akses ditolak: path di luar direktori artefak yang diizinkan.")
+    if not any(
+        real_path == d or real_path.startswith(d + os.sep) for d in allowed_dirs
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak: path di luar direktori artefak yang diizinkan.",
+        )
     if not os.path.exists(real_path) or not os.path.isfile(real_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(real_path, filename=os.path.basename(real_path))
@@ -2321,11 +2794,7 @@ async def get_guardian_config():
     """Get configuration for System Guardian & Ambient Proactive Agent."""
     g_cfg = tools.proactive_system_guardian_config("status").get("guardian", {})
     p_cfg = tools.proactive_ambient_agent_config("status").get("proactive_config", {})
-    return {
-        "status": "success",
-        "guardian": g_cfg,
-        "proactive": p_cfg
-    }
+    return {"status": "success", "guardian": g_cfg, "proactive": p_cfg}
 
 
 @app.post("/api/guardian/config")
@@ -2339,7 +2808,7 @@ async def update_guardian_config(payload: Dict[str, Any]):
             ram_threshold=g.get("ram_threshold", 85),
             disk_threshold=g.get("disk_threshold", 90),
             battery_critical=g.get("battery_critical", 10),
-            auto_kill_ram_hogs=g.get("auto_kill_ram_hogs", False)
+            auto_kill_ram_hogs=g.get("auto_kill_ram_hogs", False),
         )
     if "proactive" in payload:
         p = payload["proactive"]
@@ -2347,9 +2816,12 @@ async def update_guardian_config(payload: Dict[str, Any]):
             action="enable" if p.get("enabled", True) else "disable",
             min_hours_between_pings=p.get("min_hours_between_pings", 3),
             quiet_hours_start=p.get("quiet_hours_start", 23),
-            quiet_hours_end=p.get("quiet_hours_end", 7)
+            quiet_hours_end=p.get("quiet_hours_end", 7),
         )
-    return {"status": "success", "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!"}
+    return {
+        "status": "success",
+        "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!",
+    }
 
 
 @app.post("/api/chat")
@@ -2364,10 +2836,12 @@ async def chat_with_agent(payload: Dict[str, Any]):
     attachments = payload.get("attachments") or []
 
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
 
     uid = get_primary_user_id()
-    
+
     multimodal_parts = []
     text_contexts = []
     saved_disk_paths = []
@@ -2385,25 +2859,29 @@ async def chat_with_agent(payload: Dict[str, Any]):
         except Exception:
             continue
 
-        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
+        txt_ctx, part = ufe.process_uploaded_attachment(
+            fname, mime, raw_bytes, save_disk=True
+        )
         if part is not None:
             multimodal_parts.append(part)
         if txt_ctx:
             text_contexts.append(txt_ctx)
             # Find disk path
-            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            m = re.search(r"\[FILE TERSIMPAN DI DISK:\s*(.+?)\]", txt_ctx)
             if m:
                 saved_disk_paths.append(m.group(1).strip())
 
     # 1. Check Sub-second Fast-Path Engine first (0.05s response)
-    fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+    fast_result = fpe.try_execute_fast_path(
+        user_prompt=message, saved_file_paths=saved_disk_paths
+    )
     if fast_result is not None:
         return {
             "status": "success",
             "reply": fast_result.get("reply"),
             "tool_used": fast_result.get("tool_name"),
             "execution_time_ms": fast_result.get("execution_time_ms"),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     # 2. Extract active model override from payload
@@ -2418,7 +2896,11 @@ async def chat_with_agent(payload: Dict[str, Any]):
     # 3. Autonomous Multi-step LLM Turn
     full_prompt = message
     if text_contexts:
-        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+        full_prompt = "\n\n".join(text_contexts) + (
+            "\n\n" + message
+            if message
+            else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+        )
 
     reply = await _get_bot().run_agent_turn(
         user_id=uid,
@@ -2426,13 +2908,13 @@ async def chat_with_agent(payload: Dict[str, Any]):
         multimodal_parts=multimodal_parts if multimodal_parts else None,
         chat_id=uid,
         override_model=selected_model,
-        override_key_id=selected_key_id
+        override_key_id=selected_key_id,
     )
     return {
         "status": "success",
         "reply": reply,
         "model_used": selected_model or "default",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -2448,10 +2930,12 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
     attachments = payload.get("attachments") or payload.get("files") or []
 
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
 
     uid = get_primary_user_id()
-    
+
     multimodal_parts = []
     text_contexts = []
     saved_disk_paths = []
@@ -2469,12 +2953,14 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         except Exception:
             continue
 
-        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
+        txt_ctx, part = ufe.process_uploaded_attachment(
+            fname, mime, raw_bytes, save_disk=True
+        )
         if part is not None:
             multimodal_parts.append(part)
         if txt_ctx:
             text_contexts.append(txt_ctx)
-            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            m = re.search(r"\[FILE TERSIMPAN DI DISK:\s*(.+?)\]", txt_ctx)
             if m:
                 saved_disk_paths.append(m.group(1).strip())
 
@@ -2489,15 +2975,21 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
     expert_mode = (payload.get("expert_mode") or "general").strip()
     full_prompt = message
     if text_contexts:
-        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+        full_prompt = "\n\n".join(text_contexts) + (
+            "\n\n" + message
+            if message
+            else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+        )
     if expert_mode and expert_mode != "general":
         full_prompt = f"[Mode Spesialis: {expert_mode}]\n{full_prompt}"
 
     async def event_generator():
         start_t = time.time()
-        
+
         # 1. Check Fast Path
-        fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+        fast_result = fpe.try_execute_fast_path(
+            user_prompt=message, saved_file_paths=saved_disk_paths
+        )
         if fast_result is not None:
             reply = fast_result.get("reply", "")
             yield f"data: {json.dumps({'type': 'start', 'model': 'fast_path'})}\n\n"
@@ -2513,9 +3005,9 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         # 2. Yield reasoning progress
         yield f"data: {json.dumps({'type': 'progress', 'step': '1. Memvalidasi berkas & menyiapkan memori...'})}\n\n"
         await asyncio.sleep(0.05)
-        engine_label = selected_model or 'Otak Utama'
+        engine_label = selected_model or "Otak Utama"
         yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
-        
+
         try:
             reply = await _get_bot().run_agent_turn(
                 user_id=uid,
@@ -2523,7 +3015,7 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
                 multimodal_parts=multimodal_parts if multimodal_parts else None,
                 chat_id=uid,
                 override_model=selected_model,
-                override_key_id=selected_key_id
+                override_key_id=selected_key_id,
             )
         except Exception as e:
             logger.error(f"Error in chat stream: {e}", exc_info=True)
@@ -2554,8 +3046,8 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -2565,16 +3057,16 @@ async def execute_cli_terminal_command(payload: Dict[str, Any]):
     command = (payload.get("command") or "").strip()
     if not command:
         raise HTTPException(status_code=400, detail="command is required")
-    
+
     start_t = time.time()
     res = tools.execute_bash_command(command=command)
     elapsed_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     return {
         "status": "success",
         "result": res,
         "execution_time_ms": elapsed_ms,
-        "current_dir": os.getcwd()
+        "current_dir": os.getcwd(),
     }
 
 
@@ -2584,15 +3076,35 @@ async def get_chat_available_models():
     keys = database.list_api_keys_sync()
     active_brain_model = database.get_main_brain_model()
     active_key_id = database.get_main_brain_key_id()
-    
+
     model_list = []
-    
+
     gemini_models = [
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Default Agentic)", "provider": "gemini"},
-        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking (Deep Logic)", "provider": "gemini"},
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Stabil & Cepat)", "provider": "gemini"},
-        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite (Ultra Ringan)", "provider": "gemini"},
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite", "provider": "gemini"},
+        {
+            "id": "gemini-3.6-flash",
+            "name": "Gemini 3.6 Flash (Default Agentic)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.7-flash",
+            "name": "Gemini 3.7 Flash Thinking (Deep Logic)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.5-flash",
+            "name": "Gemini 3.5 Flash (Stabil & Cepat)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.1-flash-lite",
+            "name": "Gemini 3.1 Flash Lite (Ultra Ringan)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.5-flash-lite",
+            "name": "Gemini 3.5 Flash Lite",
+            "provider": "gemini",
+        },
     ]
 
     has_gemini = False
@@ -2606,60 +3118,77 @@ async def get_chat_available_models():
         if prov == "gemini":
             has_gemini = True
             for gm in gemini_models:
-                model_list.append({
-                    "id": gm["id"],
-                    "name": f"✨ {gm['name']}",
-                    "provider": f"Gemini ({kname})",
-                    "key_id": kid,
-                    "key_name": kname,
-                    "is_active_key": is_act
-                })
+                model_list.append(
+                    {
+                        "id": gm["id"],
+                        "name": f"✨ {gm['name']}",
+                        "provider": f"Gemini ({kname})",
+                        "key_id": kid,
+                        "key_name": kname,
+                        "is_active_key": is_act,
+                    }
+                )
         elif prov == "openrouter":
             or_models = [
-                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nvidia Nemotron 120B (Free)"},
-                {"id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (Paid)"},
+                {
+                    "id": "nvidia/nemotron-3-super-120b-a12b:free",
+                    "name": "Nvidia Nemotron 120B (Free)",
+                },
+                {
+                    "id": "anthropic/claude-sonnet-4.6",
+                    "name": "Claude Sonnet 4.6 (Paid)",
+                },
                 {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Reasoning (Paid)"},
                 {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 (Paid)"},
-                {"id": def_m if def_m else "google/gemini-2.5-flash", "name": f"Kunci Default ({def_m or 'gemini-2.5-flash'})"},
+                {
+                    "id": def_m if def_m else "google/gemini-2.5-flash",
+                    "name": f"Kunci Default ({def_m or 'gemini-2.5-flash'})",
+                },
             ]
             seen_ids = set()
             for om in or_models:
                 if om["id"] not in seen_ids:
                     seen_ids.add(om["id"])
-                    model_list.append({
-                        "id": om["id"],
-                        "name": f"🌐 {om['name']}",
-                        "provider": f"OpenRouter ({kname})",
-                        "key_id": kid,
-                        "key_name": kname,
-                        "is_active_key": is_act
-                    })
+                    model_list.append(
+                        {
+                            "id": om["id"],
+                            "name": f"🌐 {om['name']}",
+                            "provider": f"OpenRouter ({kname})",
+                            "key_id": kid,
+                            "key_name": kname,
+                            "is_active_key": is_act,
+                        }
+                    )
         elif prov in ("groq", "openai", "custom", "nvidia"):
-            model_list.append({
-                "id": def_m or f"{prov}-model",
-                "name": f"⚡ {kname} ({def_m or prov})",
-                "provider": prov.upper(),
-                "key_id": kid,
-                "key_name": kname,
-                "is_active_key": is_act
-            })
+            model_list.append(
+                {
+                    "id": def_m or f"{prov}-model",
+                    "name": f"⚡ {kname} ({def_m or prov})",
+                    "provider": prov.upper(),
+                    "key_id": kid,
+                    "key_name": kname,
+                    "is_active_key": is_act,
+                }
+            )
 
     if not has_gemini:
         for gm in gemini_models:
-            model_list.append({
-                "id": gm["id"],
-                "name": f"✨ {gm['name']}",
-                "provider": "Gemini (Env)",
-                "key_id": None,
-                "key_name": "GEMINI_API_KEY",
-                "is_active_key": True
-            })
+            model_list.append(
+                {
+                    "id": gm["id"],
+                    "name": f"✨ {gm['name']}",
+                    "provider": "Gemini (Env)",
+                    "key_id": None,
+                    "key_name": "GEMINI_API_KEY",
+                    "is_active_key": True,
+                }
+            )
 
     return {
         "status": "success",
         "active_model": active_brain_model or "gemini-3.6-flash",
         "active_key_id": active_key_id,
-        "models": model_list
+        "models": model_list,
     }
 
 
@@ -2670,12 +3199,17 @@ async def set_chat_active_model(payload: Dict[str, Any]):
     key_id = payload.get("key_id")
     if key_id:
         try:
-            database.activate_api_key_sync(int(key_id), custom_model=model if model else None)
+            database.activate_api_key_sync(
+                int(key_id), custom_model=model if model else None
+            )
         except Exception as e:
             logger.warning(f"Failed activating key #{key_id}: {e}")
     if model:
         database.set_main_brain_model(model)
-    return {"status": "success", "message": f"Model aktif berhasil dialihkan ke: {model}"}
+    return {
+        "status": "success",
+        "message": f"Model aktif berhasil dialihkan ke: {model}",
+    }
 
 
 @app.delete("/api/chat/history")
@@ -2683,7 +3217,10 @@ async def clear_chat_history_api():
     """Wipe chat conversation history from database."""
     uid = get_primary_user_id()
     await database.clear_user_chat_history(uid)
-    return {"status": "success", "message": "Riwayat percakapan berhasil dibersihkan dari memori!"}
+    return {
+        "status": "success",
+        "message": "Riwayat percakapan berhasil dibersihkan dari memori!",
+    }
 
 
 @app.post("/api/chat/execute-code")
@@ -2725,7 +3262,7 @@ async def execute_chat_code_block(payload: Dict[str, Any]):
         "status": "success",
         "language": language,
         "execution_time_ms": elapsed_ms,
-        "result": result
+        "result": result,
     }
 
 
@@ -2740,7 +3277,7 @@ async def export_chat_history(format: str = "markdown"):
             "status": "success",
             "exported_at": datetime.now().isoformat(),
             "total_messages": len(rows),
-            "messages": [dict(r) for r in rows]
+            "messages": [dict(r) for r in rows],
         }
 
     # Markdown format
@@ -2749,10 +3286,12 @@ async def export_chat_history(format: str = "markdown"):
         f"*Diekspor pada: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} WIB*",
         "",
         "---",
-        ""
+        "",
     ]
     for r in rows:
-        role_label = "👤 **Fahmi (User)**" if r["role"] == "user" else "🤖 **Agent ALFA**"
+        role_label = (
+            "👤 **Fahmi (User)**" if r["role"] == "user" else "🤖 **Agent ALFA**"
+        )
         ts = r.get("timestamp") or ""
         lines.append(f"### {role_label}  `{ts}`")
         lines.append("")
@@ -2765,7 +3304,9 @@ async def export_chat_history(format: str = "markdown"):
     return Response(
         content=md_content,
         media_type="text/markdown",
-        headers={"Content-Disposition": f"attachment; filename=alfa_chat_export_{int(time.time())}.md"}
+        headers={
+            "Content-Disposition": f"attachment; filename=alfa_chat_export_{int(time.time())}.md"
+        },
     )
 
 
@@ -2780,44 +3321,44 @@ async def get_chat_expert_modes():
                 "name": "Super Agent (130+ Tools)",
                 "icon": "bot",
                 "color": "cyan",
-                "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory."
+                "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory.",
             },
             {
                 "id": "swarm",
                 "name": "Autonomous Multi-Agent Swarm",
                 "icon": "users",
                 "color": "amber",
-                "description": "Orkestrasi eksekusi tim AI multi-agent untuk proyek besar dan tugas multi-tahap secara tuntas."
+                "description": "Orkestrasi eksekusi tim AI multi-agent untuk proyek besar dan tugas multi-tahap secara tuntas.",
             },
             {
                 "id": "coder",
                 "name": "Senior Software Architect",
                 "icon": "code-2",
                 "color": "emerald",
-                "description": "Fokus pada pembuatan kode berkualitas tinggi, refactoring, debug, dan testing di sandbox."
+                "description": "Fokus pada pembuatan kode berkualitas tinggi, refactoring, debug, dan testing di sandbox.",
             },
             {
                 "id": "researcher",
                 "name": "Deep Web & Academic Researcher",
                 "icon": "search",
                 "color": "violet",
-                "description": "Riset mendalam menggunakan internet live, arXiv, PubMed, Wikipedia, dan perbandingan referensi."
+                "description": "Riset mendalam menggunakan internet live, arXiv, PubMed, Wikipedia, dan perbandingan referensi.",
             },
             {
                 "id": "data",
                 "name": "Data Analyst & PDF Maestro",
                 "icon": "file-spreadsheet",
                 "color": "amber",
-                "description": "Analisis Excel/CSV, visualisasi data, manipulasi PDF, OCR, dan konversi dokumen."
+                "description": "Analisis Excel/CSV, visualisasi data, manipulasi PDF, OCR, dan konversi dokumen.",
             },
             {
                 "id": "fast",
                 "name": "Sub-Second Fast Native",
                 "icon": "zap",
                 "color": "rose",
-                "description": "Eksekusi instan deterministik (< 50ms) untuk konversi gambar ke PDF, waifu2x, dll."
-            }
-        ]
+                "description": "Eksekusi instan deterministik (< 50ms) untuk konversi gambar ke PDF, waifu2x, dll.",
+            },
+        ],
     }
 
 
@@ -2832,7 +3373,9 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
     uid = get_primary_user_id()
     task_tag = f"[tugas-latar {datetime.now().strftime('%H:%M:%S')}]"
 
@@ -2861,41 +3404,52 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
 
             full_prompt = message
             if text_contexts:
-                full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+                full_prompt = "\n\n".join(text_contexts) + (
+                    "\n\n" + message
+                    if message
+                    else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+                )
 
             reply = await _get_bot().run_agent_turn(
                 user_id=uid,
                 user_prompt=full_prompt,
                 multimodal_parts=multimodal_parts if multimodal_parts else None,
-                chat_id=uid
+                chat_id=uid,
             )
             await database.save_chat_message(
-                uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}")
+                uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}"
+            )
             logger.info(f"chat_async selesai: {task_tag}")
         except Exception as e:
             logger.error(f"chat_async gagal ({task_tag}): {e}")
             try:
                 await database.save_chat_message(
-                    uid, "model", f"{task_tag} GAGAL ❌: {e}")
+                    uid, "model", f"{task_tag} GAGAL ❌: {e}"
+                )
             except Exception:
                 pass
 
     _asyncio.get_running_loop().create_task(_runner())
-    return {"status": "accepted",
-            "message": "Tugas dijalankan di latar belakang. Hasil muncul di riwayat chat saat selesai.",
-            "tag": task_tag}
+    return {
+        "status": "accepted",
+        "message": "Tugas dijalankan di latar belakang. Hasil muncul di riwayat chat saat selesai.",
+        "tag": task_tag,
+    }
 
 
 # ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE ENDPOINTS ====================
+
 
 @app.get("/api/gdrive/status")
 async def gdrive_status_endpoint():
     """Check status of Google Drive integration."""
     try:
         res = tools.gdrive_status()
-        cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+        cred_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json"
+        )
         has_file = os.path.exists(cred_file)
-        
+
         account_email = ""
         project_id = ""
         if has_file:
@@ -2906,7 +3460,7 @@ async def gdrive_status_endpoint():
                     project_id = cdata.get("project_id", "")
             except Exception:
                 pass
-                
+
         # Prefer the ACTIVE credential's identity (OAuth account if logged in)
         active_email = (res.get("user") or {}).get("emailAddress", "")
         return {
@@ -2916,10 +3470,15 @@ async def gdrive_status_endpoint():
             "client_email": active_email or account_email,
             "project_id": project_id,
             "storage_quota": res.get("storage_quota", {}),
-            "default_folder_id": res.get("default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
+            "default_folder_id": res.get(
+                "default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"
+            ),
             "default_folder_name": res.get("default_folder_name", "alfa agent"),
-            "default_folder_url": res.get("default_folder_url", "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
-            "error": res.get("message", "") if not res.get("connected") else ""
+            "default_folder_url": res.get(
+                "default_folder_url",
+                "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE",
+            ),
+            "error": res.get("message", "") if not res.get("connected") else "",
         }
     except Exception as e:
         return {"status": "error", "connected": False, "message": str(e)}
@@ -2930,64 +3489,71 @@ async def gdrive_set_default_folder(payload: Dict[str, Any]):
     """Set default Google Drive folder ID and name."""
     folder_id = payload.get("folder_id", "").strip()
     folder_name = payload.get("folder_name", "alfa agent").strip()
-    
+
     if not folder_id:
         raise HTTPException(status_code=400, detail="folder_id wajib diisi.")
-        
+
     with database.get_sync_db() as conn:
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (folder_id,)
+            (folder_id,),
         )
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (folder_name,)
+            (folder_name,),
         )
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (f"https://drive.google.com/drive/folders/{folder_id}",)
+            (f"https://drive.google.com/drive/folders/{folder_id}",),
         )
-        
+
     return {
         "status": "success",
         "message": f"Folder default Google Drive berhasil disetel ke '{folder_name}' ({folder_id})",
         "folder_id": folder_id,
-        "folder_name": folder_name
+        "folder_name": folder_name,
     }
 
 
 @app.post("/api/gdrive/credentials")
 async def gdrive_save_credentials(
-    file: Optional[UploadFile] = File(None),
-    raw_json: Optional[str] = Form(None)
+    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
 ):
     """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
-    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    cred_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json"
+    )
     content = ""
-    
+
     if file:
         content_bytes = await file.read()
         content = content_bytes.decode("utf-8")
     elif raw_json:
         content = raw_json.strip()
     else:
-        raise HTTPException(status_code=400, detail="File JSON atau teks JSON Service Account wajib disediakan.")
-        
+        raise HTTPException(
+            status_code=400,
+            detail="File JSON atau teks JSON Service Account wajib disediakan.",
+        )
+
     try:
         data = json.loads(content)
         if "type" not in data or data.get("type") != "service_account":
             if "client_email" not in data:
-                return {"status": "error", "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console."}
-                
+                return {
+                    "status": "error",
+                    "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console.",
+                }
+
         with open(cred_file, "w", encoding="utf-8") as f:
             f.write(content)
-            
+
         with database.get_sync_db() as conn:
             conn.execute(
                 "INSERT INTO system_settings (key, value) VALUES ('gdrive_credentials_json', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (content,)
+                (content,),
             )
-            
+
         # Test connection immediately
         test_res = tools.gdrive_status()
         return {
@@ -2995,20 +3561,27 @@ async def gdrive_save_credentials(
             "message": "Kredensial Service Account Google Cloud berhasil disimpan dan diverifikasi!",
             "client_email": data.get("client_email", ""),
             "project_id": data.get("project_id", ""),
-            "connected": test_res.get("connected", False)
+            "connected": test_res.get("connected", False),
         }
     except Exception as e:
-        return {"status": "error", "message": f"Gagal memproses kredensial Google Cloud: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal memproses kredensial Google Cloud: {str(e)}",
+        }
 
 
 @app.delete("/api/gdrive/credentials")
 async def gdrive_delete_credentials():
     """Remove stored Google Drive credentials."""
-    cred_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json")
+    cred_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "gdrive_credentials.json"
+    )
     if os.path.exists(cred_file):
         os.remove(cred_file)
     with database.get_sync_db() as conn:
-        conn.execute("DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'")
+        conn.execute(
+            "DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'"
+        )
     return {"status": "success", "message": "Kredensial Google Drive berhasil dihapus."}
 
 
@@ -3016,7 +3589,10 @@ async def gdrive_delete_credentials():
 async def gdrive_oauth_secret_check():
     """Check whether the OAuth client secret exists AND is the right kind."""
     import json as _json
-    secret_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_client_secret.json")
+
+    secret_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "gdrive_oauth_client_secret.json"
+    )
     result = {
         "status": "success",
         "exists": os.path.exists(secret_path),
@@ -3041,8 +3617,7 @@ async def gdrive_oauth_secret_check():
 
 @app.post("/api/gdrive/oauth/upload-secret")
 async def gdrive_oauth_upload_secret(
-    file: Optional[UploadFile] = File(None),
-    raw_json: Optional[str] = Form(None)
+    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
 ):
     """Upload OAuth Client Secret JSON (Desktop or Web App) or paste raw JSON."""
     content = ""
@@ -3052,8 +3627,11 @@ async def gdrive_oauth_upload_secret(
     elif raw_json:
         content = raw_json.strip()
     else:
-        raise HTTPException(status_code=400, detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.")
-        
+        raise HTTPException(
+            status_code=400,
+            detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.",
+        )
+
     return tools.gdrive_save_oauth_client_secret(content)
 
 
@@ -3066,7 +3644,9 @@ async def gdrive_oauth_auth_url(request: Request):
 
 
 @app.get("/api/gdrive/oauth/callback")
-async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str] = None, request: Request = None):
+async def gdrive_oauth_callback(
+    code: Optional[str] = None, error: Optional[str] = None, request: Request = None
+):
     """Handle OAuth redirect callback from Google."""
     if error:
         return HTMLResponse(f"""
@@ -3080,14 +3660,17 @@ async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str]
         </body>
         </html>
         """)
-        
+
     if not code:
-        raise HTTPException(status_code=400, detail="Authorization code tidak ditemukan dalam URL callback.")
-        
+        raise HTTPException(
+            status_code=400,
+            detail="Authorization code tidak ditemukan dalam URL callback.",
+        )
+
     base_url = str(request.base_url).rstrip("/") if request else "http://localhost:8080"
     redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
     res = tools.gdrive_oauth_exchange_code(auth_code=code, redirect_uri=redirect_uri)
-    
+
     if res.get("status") == "success":
         return HTMLResponse("""
         <!DOCTYPE html>
@@ -3119,7 +3702,9 @@ async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str]
 
 
 @app.post("/api/gdrive/oauth/exchange-code")
-async def gdrive_oauth_exchange_code_endpoint(payload: Dict[str, Any], request: Request):
+async def gdrive_oauth_exchange_code_endpoint(
+    payload: Dict[str, Any], request: Request
+):
     """Exchange manually pasted authorization code for OAuth token."""
     code = payload.get("code", "").strip()
     if not code:
@@ -3135,6 +3720,7 @@ async def gdrive_oauth_start():
     the user's consent, then stores a refreshable token (uploads then use the
     user's own Drive quota instead of the quota-less service account)."""
     import asyncio
+
     try:
         res = await asyncio.wait_for(
             asyncio.to_thread(tools.gdrive_oauth_login),
@@ -3142,7 +3728,10 @@ async def gdrive_oauth_start():
         )
         return res
     except asyncio.TimeoutError:
-        return {"status": "error", "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser."}
+        return {
+            "status": "error",
+            "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser.",
+        }
     except Exception as oauth_err:
         return {"status": "error", "message": f"OAuth error: {str(oauth_err)}"}
 
@@ -3154,7 +3743,9 @@ async def gdrive_oauth_logout_endpoint():
 
 
 @app.get("/api/gdrive/files")
-async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit: int = 30):
+async def gdrive_list_files_endpoint(
+    folder_id: str = "", query: str = "", limit: int = 30
+):
     """List and search files in Google Drive."""
     return tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
 
@@ -3163,7 +3754,7 @@ async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit
 async def gdrive_upload_endpoint(
     file: Optional[UploadFile] = File(None),
     filepath: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form("")
+    folder_id: Optional[str] = Form(""),
 ):
     """Upload a file to Google Drive (either from direct browser upload or existing server path)."""
     if file:
@@ -3176,7 +3767,9 @@ async def gdrive_upload_endpoint(
     elif filepath:
         return tools.gdrive_upload_file(filepath=filepath, folder_id=folder_id or "")
     else:
-        raise HTTPException(status_code=400, detail="File atau path file wajib ditentukan.")
+        raise HTTPException(
+            status_code=400, detail="File atau path file wajib ditentukan."
+        )
 
 
 @app.post("/api/gdrive/create-folder")
@@ -3186,7 +3779,9 @@ async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
     parent_id = payload.get("parent_id", "")
     if not folder_name:
         raise HTTPException(status_code=400, detail="Nama folder wajib diisi.")
-    return tools.gdrive_create_folder(folder_name=folder_name, parent_folder_id=parent_id)
+    return tools.gdrive_create_folder(
+        folder_name=folder_name, parent_folder_id=parent_id
+    )
 
 
 @app.post("/api/gdrive/sync-brain")
@@ -3214,7 +3809,9 @@ async def get_api_keys_usage(hours: int = 24):
     summary = database.get_api_usage_summary_sync(hours=hours)
     # Attach human-readable vault key names where ids match
     for row in summary.get("per_key", []):
-        row["key_name"] = key_names.get(row.get("key_id")) or row.get("key_label") or "(env)"
+        row["key_name"] = (
+            key_names.get(row.get("key_id")) or row.get("key_label") or "(env)"
+        )
     return {"status": "success", **summary}
 
 
@@ -3227,17 +3824,17 @@ async def add_api_key_endpoint(payload: Dict[str, Any]):
     default_model = payload.get("default_model", "gemini-3.6-flash")
     base_url = payload.get("base_url", "")
     set_active = payload.get("set_active", True)
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="api_key is required")
-        
+
     res = database.add_api_key_sync(
         name=name or f"{provider.capitalize()} Key",
         provider=provider,
         api_key=api_key,
         default_model=default_model,
         base_url=base_url,
-        set_active=set_active
+        set_active=set_active,
     )
     return res
 
@@ -3266,17 +3863,18 @@ async def test_api_key_endpoint(key_id: int):
         key_data = dict(row)
 
     import swarm_engine
+
     dummy_agent = {
         "name": f"Tester-{key_data['provider']}",
         "provider": key_data["provider"],
         "model": key_data["default_model"],
-        "api_key_id": key_id
+        "api_key_id": key_id,
     }
     start_t = time.time()
     resp = await swarm_engine.generate_agent_response(
         agent=dummy_agent,
         prompt="Katakan 'Koneksi Berhasil' dalam 3 kata.",
-        system_instruction="Kamu adalah modul health checker. Jawab dengan sangat singkat."
+        system_instruction="Kamu adalah modul health checker. Jawab dengan sangat singkat.",
     )
     duration_ms = round((time.time() - start_t) * 1000, 1)
     is_error = "[Error:" in resp or "Gagal memanggil" in resp
@@ -3287,173 +3885,869 @@ async def test_api_key_endpoint(key_id: int):
         "provider": key_data["provider"],
         "model": key_data["default_model"],
         "duration_ms": duration_ms,
-        "response": resp
+        "response": resp,
     }
 
 
 PROVIDER_MODELS = {
     "antigravity": [
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Terbaru - Medium Thinking)", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Cepat - Default Antigravity)", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
-        {"id": "gemini-3-flash", "name": "Gemini 3 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
-        {"id": "gemini-3.1-pro", "name": "Gemini 3.1 Pro (Penalaran Kompleks)", "category": "Antigravity Pro Models", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "category": "Antigravity Pro Models", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "category": "Antigravity OAuth", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
-        {"id": "claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
-        {"id": "claude-opus-4.6", "name": "Claude Opus 4.6 Thinking (via Antigravity)", "category": "Claude via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS"},
-        {"id": "gpt-oss-120b", "name": "GPT-OSS 120B Medium (OpenAI via Antigravity)", "category": "GPT-OSS via Antigravity", "pricing": "free_oauth", "pricing_label": "🟢 GRATIS (Kuota Antigravity)"},
+        {
+            "id": "gemini-3.6-flash",
+            "name": "Gemini 3.6 Flash (Terbaru - Medium Thinking)",
+            "category": "Antigravity OAuth",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS (Kuota Antigravity)",
+        },
+        {
+            "id": "gemini-3.5-flash",
+            "name": "Gemini 3.5 Flash (Cepat - Default Antigravity)",
+            "category": "Antigravity OAuth",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS (Kuota Antigravity)",
+        },
+        {
+            "id": "gemini-3-flash",
+            "name": "Gemini 3 Flash",
+            "category": "Antigravity OAuth",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS (Kuota Antigravity)",
+        },
+        {
+            "id": "gemini-3.1-pro",
+            "name": "Gemini 3.1 Pro (Penalaran Kompleks)",
+            "category": "Antigravity Pro Models",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS (Kuota Antigravity)",
+        },
+        {
+            "id": "gemini-2.5-pro",
+            "name": "Gemini 2.5 Pro",
+            "category": "Antigravity Pro Models",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS",
+        },
+        {
+            "id": "gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash",
+            "category": "Antigravity OAuth",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS",
+        },
+        {
+            "id": "claude-sonnet-4.6",
+            "name": "Claude Sonnet 4.6 (via Antigravity)",
+            "category": "Claude via Antigravity",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS",
+        },
+        {
+            "id": "claude-opus-4.6",
+            "name": "Claude Opus 4.6 Thinking (via Antigravity)",
+            "category": "Claude via Antigravity",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS",
+        },
+        {
+            "id": "gpt-oss-120b",
+            "name": "GPT-OSS 120B Medium (OpenAI via Antigravity)",
+            "category": "GPT-OSS via Antigravity",
+            "pricing": "free_oauth",
+            "pricing_label": "🟢 GRATIS (Kuota Antigravity)",
+        },
     ],
     "nvidia": [
         # --- NVIDIA Nemotron Suite ---
-        {"id": "nvidia/llama-3.1-nemotron-70b-instruct", "name": "NVIDIA Nemotron 70B Ultra Instruct (Model Unggulan NVIDIA)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/nemotron-4-340b-instruct", "name": "NVIDIA Nemotron-4 340B Instruct (Model Raksasa 340B)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.1-nemotron-51b-instruct", "name": "NVIDIA Nemotron 51B Instruct (Efisiensi Tinggi)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/nemotron-mini-4b-instruct", "name": "NVIDIA Nemotron Mini 4B Instruct (Ringan & Cepat)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/mistral-nemo-minitron-8b-8k-instruct", "name": "NVIDIA Minitron 8B 8k Instruct (Kompak & Cerdas)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-11b-vision-instruct", "name": "NVIDIA Llama 3.2 11B Vision Instruct (Multimodal)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-90b-vision-instruct", "name": "NVIDIA Llama 3.2 90B Vision Instruct (Vision Pro)", "category": "NVIDIA Vision", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-1b-instruct", "name": "NVIDIA Llama 3.2 1B Instruct (Ultra Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "nvidia/llama-3.2-3b-instruct", "name": "NVIDIA Llama 3.2 3B Instruct (Ringan)", "category": "NVIDIA Nemotron Ultra", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-
+        {
+            "id": "nvidia/llama-3.1-nemotron-70b-instruct",
+            "name": "NVIDIA Nemotron 70B Ultra Instruct (Model Unggulan NVIDIA)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/nemotron-4-340b-instruct",
+            "name": "NVIDIA Nemotron-4 340B Instruct (Model Raksasa 340B)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/llama-3.1-nemotron-51b-instruct",
+            "name": "NVIDIA Nemotron 51B Instruct (Efisiensi Tinggi)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/nemotron-mini-4b-instruct",
+            "name": "NVIDIA Nemotron Mini 4B Instruct (Ringan & Cepat)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/mistral-nemo-minitron-8b-8k-instruct",
+            "name": "NVIDIA Minitron 8B 8k Instruct (Kompak & Cerdas)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/llama-3.2-11b-vision-instruct",
+            "name": "NVIDIA Llama 3.2 11B Vision Instruct (Multimodal)",
+            "category": "NVIDIA Vision",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/llama-3.2-90b-vision-instruct",
+            "name": "NVIDIA Llama 3.2 90B Vision Instruct (Vision Pro)",
+            "category": "NVIDIA Vision",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/llama-3.2-1b-instruct",
+            "name": "NVIDIA Llama 3.2 1B Instruct (Ultra Ringan)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "nvidia/llama-3.2-3b-instruct",
+            "name": "NVIDIA Llama 3.2 3B Instruct (Ringan)",
+            "category": "NVIDIA Nemotron Ultra",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
         # --- DeepSeek on NVIDIA ---
-        {"id": "deepseek-ai/deepseek-r1", "name": "DeepSeek R1 671B (Penalaran & Logic Terkuat Dunia)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "deepseek-ai/deepseek-v3", "name": "DeepSeek V3 671B (MoE Cerdas & Sangat Cepat)", "category": "DeepSeek General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "deepseek-ai/deepseek-r1-distill-qwen-32b", "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "deepseek-ai/deepseek-r1-distill-qwen-14b", "name": "DeepSeek R1 Distill Qwen 14B (Reasoning Ringan)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "deepseek-ai/deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Kuat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "deepseek-ai/deepseek-r1-distill-llama-8b", "name": "DeepSeek R1 Distill Llama 8B (Kilat)", "category": "DeepSeek Reasoning", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-
+        {
+            "id": "deepseek-ai/deepseek-r1",
+            "name": "DeepSeek R1 671B (Penalaran & Logic Terkuat Dunia)",
+            "category": "DeepSeek Reasoning",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "deepseek-ai/deepseek-v3",
+            "name": "DeepSeek V3 671B (MoE Cerdas & Sangat Cepat)",
+            "category": "DeepSeek General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "deepseek-ai/deepseek-r1-distill-qwen-32b",
+            "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)",
+            "category": "DeepSeek Reasoning",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "deepseek-ai/deepseek-r1-distill-qwen-14b",
+            "name": "DeepSeek R1 Distill Qwen 14B (Reasoning Ringan)",
+            "category": "DeepSeek Reasoning",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "deepseek-ai/deepseek-r1-distill-llama-70b",
+            "name": "DeepSeek R1 Distill Llama 70B (Reasoning Kuat)",
+            "category": "DeepSeek Reasoning",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "deepseek-ai/deepseek-r1-distill-llama-8b",
+            "name": "DeepSeek R1 Distill Llama 8B (Kilat)",
+            "category": "DeepSeek Reasoning",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
         # --- Meta Llama on NVIDIA ---
-        {"id": "meta/llama-3.3-70b-instruct", "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-405b-instruct", "name": "Meta Llama 3.1 405B Instruct (Model Flagship Raksasa)", "category": "Meta Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-70b-instruct", "name": "Meta Llama 3.1 70B Instruct", "category": "Meta General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "meta/llama-3.1-8b-instruct", "name": "Meta Llama 3.1 8B Instruct (Super Cepat)", "category": "Meta Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-
+        {
+            "id": "meta/llama-3.3-70b-instruct",
+            "name": "Meta Llama 3.3 70B Instruct (Rekomendasi Utama)",
+            "category": "Meta Flagship",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "meta/llama-3.1-405b-instruct",
+            "name": "Meta Llama 3.1 405B Instruct (Model Flagship Raksasa)",
+            "category": "Meta Flagship",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "meta/llama-3.1-70b-instruct",
+            "name": "Meta Llama 3.1 70B Instruct",
+            "category": "Meta General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "meta/llama-3.1-8b-instruct",
+            "name": "Meta Llama 3.1 8B Instruct (Super Cepat)",
+            "category": "Meta Fast",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
         # --- Qwen on NVIDIA ---
-        {"id": "qwen/qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Programming)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-coder-7b-instruct", "name": "Qwen 2.5 Coder 7B (Coding Cepat)", "category": "Qwen Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-72b-instruct", "name": "Qwen 2.5 72B Instruct (General Terkuat)", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-32b-instruct", "name": "Qwen 2.5 32B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-14b-instruct", "name": "Qwen 2.5 14B Instruct", "category": "Qwen General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "qwen/qwen2.5-7b-instruct", "name": "Qwen 2.5 7B Instruct", "category": "Qwen Fast", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-
+        {
+            "id": "qwen/qwen2.5-coder-32b-instruct",
+            "name": "Qwen 2.5 Coder 32B (Spesialis Kode & Programming)",
+            "category": "Qwen Coding",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "qwen/qwen2.5-coder-7b-instruct",
+            "name": "Qwen 2.5 Coder 7B (Coding Cepat)",
+            "category": "Qwen Coding",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "qwen/qwen2.5-72b-instruct",
+            "name": "Qwen 2.5 72B Instruct (General Terkuat)",
+            "category": "Qwen General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "qwen/qwen2.5-32b-instruct",
+            "name": "Qwen 2.5 32B Instruct",
+            "category": "Qwen General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "qwen/qwen2.5-14b-instruct",
+            "name": "Qwen 2.5 14B Instruct",
+            "category": "Qwen General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "qwen/qwen2.5-7b-instruct",
+            "name": "Qwen 2.5 7B Instruct",
+            "category": "Qwen Fast",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
         # --- Mistral on NVIDIA ---
-        {"id": "mistralai/mixtral-8x22b-instruct-v0.1", "name": "Mistral Mixtral 8x22B Instruct (MoE Kuat)", "category": "Mistral MoE", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "mistralai/mixtral-8x7b-instruct-v0.1", "name": "Mistral Mixtral 8x7B Instruct", "category": "Mistral MoE", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "mistralai/mistral-large-2-instruct", "name": "Mistral Large 2 Instruct (Flagship)", "category": "Mistral Flagship", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "mistralai/mistral-nemo-12b-instruct", "name": "Mistral NeMo 12B Instruct", "category": "Mistral General", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "mistralai/codestral-22b-instruct-v0.1", "name": "Mistral Codestral 22B (Coding)", "category": "Mistral Coding", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-
+        {
+            "id": "mistralai/mixtral-8x22b-instruct-v0.1",
+            "name": "Mistral Mixtral 8x22B Instruct (MoE Kuat)",
+            "category": "Mistral MoE",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "mistralai/mixtral-8x7b-instruct-v0.1",
+            "name": "Mistral Mixtral 8x7B Instruct",
+            "category": "Mistral MoE",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "mistralai/mistral-large-2-instruct",
+            "name": "Mistral Large 2 Instruct (Flagship)",
+            "category": "Mistral Flagship",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "mistralai/mistral-nemo-12b-instruct",
+            "name": "Mistral NeMo 12B Instruct",
+            "category": "Mistral General",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "mistralai/codestral-22b-instruct-v0.1",
+            "name": "Mistral Codestral 22B (Coding)",
+            "category": "Mistral Coding",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
         # --- Microsoft & Google on NVIDIA ---
-        {"id": "microsoft/phi-4", "name": "Microsoft Phi 4 (14B Penalaran Akurat)", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "microsoft/phi-3.5-moe-instruct", "name": "Microsoft Phi 3.5 MoE Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "microsoft/phi-3.5-mini-instruct", "name": "Microsoft Phi 3.5 Mini Instruct", "category": "Microsoft Phi", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "google/gemma-2-27b-it", "name": "Google Gemma 2 27B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"},
-        {"id": "google/gemma-2-9b-it", "name": "Google Gemma 2 9B IT", "category": "Google Gemma", "pricing": "free_credits", "pricing_label": "🟢 GRATIS (1000 NIM Credits)"}
+        {
+            "id": "microsoft/phi-4",
+            "name": "Microsoft Phi 4 (14B Penalaran Akurat)",
+            "category": "Microsoft Phi",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "microsoft/phi-3.5-moe-instruct",
+            "name": "Microsoft Phi 3.5 MoE Instruct",
+            "category": "Microsoft Phi",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "microsoft/phi-3.5-mini-instruct",
+            "name": "Microsoft Phi 3.5 Mini Instruct",
+            "category": "Microsoft Phi",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "google/gemma-2-27b-it",
+            "name": "Google Gemma 2 27B IT",
+            "category": "Google Gemma",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
+        {
+            "id": "google/gemma-2-9b-it",
+            "name": "Google Gemma 2 9B IT",
+            "category": "Google Gemma",
+            "pricing": "free_credits",
+            "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+        },
     ],
     "deepseek": [
-        {"id": "deepseek-chat", "name": "DeepSeek-V3 671B MoE (Sangat Cerdas & Cepat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"},
-        {"id": "deepseek-reasoner", "name": "DeepSeek-R1 671B (Penalaran & Logic Terkuat)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.55/1M)"},
-        {"id": "deepseek-coder", "name": "DeepSeek Coder 33B (Spesialis Kode)", "category": "DeepSeek Official", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)"}
+        {
+            "id": "deepseek-chat",
+            "name": "DeepSeek-V3 671B MoE (Sangat Cerdas & Cepat)",
+            "category": "DeepSeek Official",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)",
+        },
+        {
+            "id": "deepseek-reasoner",
+            "name": "DeepSeek-R1 671B (Penalaran & Logic Terkuat)",
+            "category": "DeepSeek Official",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 SANGAT MURAH ($0.55/1M)",
+        },
+        {
+            "id": "deepseek-coder",
+            "name": "DeepSeek Coder 33B (Spesialis Kode)",
+            "category": "DeepSeek Official",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 SANGAT MURAH ($0.14/1M)",
+        },
     ],
     "minimax": [
-        {"id": "MiniMax-Text-01", "name": "MiniMax-01 Flagship (Konteks Raksasa 4 Juta Token)", "category": "MiniMax AI", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Murah"},
-        {"id": "abab6.5s-chat", "name": "MiniMax abab6.5s (Ultra-Fast MoE)", "category": "MiniMax AI", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Murah"},
-        {"id": "abab6.5g-chat", "name": "MiniMax abab6.5g (General Knowledge)", "category": "MiniMax AI", "pricing": "paid", "pricing_label": "💎 BERBAYAR"},
-        {"id": "abab6.5t-chat", "name": "MiniMax abab6.5t (Long Context)", "category": "MiniMax AI", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
+        {
+            "id": "MiniMax-Text-01",
+            "name": "MiniMax-01 Flagship (Konteks Raksasa 4 Juta Token)",
+            "category": "MiniMax AI",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL / Murah",
+        },
+        {
+            "id": "abab6.5s-chat",
+            "name": "MiniMax abab6.5s (Ultra-Fast MoE)",
+            "category": "MiniMax AI",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL / Murah",
+        },
+        {
+            "id": "abab6.5g-chat",
+            "name": "MiniMax abab6.5g (General Knowledge)",
+            "category": "MiniMax AI",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR",
+        },
+        {
+            "id": "abab6.5t-chat",
+            "name": "MiniMax abab6.5t (Long Context)",
+            "category": "MiniMax AI",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR",
+        },
     ],
     "moonshot": [
-        {"id": "moonshot-v1-8k", "name": "Moonshot Kimi v1 8K (Cerdas & Cepat)", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL (15 RMB Bonus)"},
-        {"id": "moonshot-v1-32k", "name": "Moonshot Kimi v1 32K", "category": "Moonshot Kimi", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"},
-        {"id": "moonshot-v1-128k", "name": "Moonshot Kimi v1 128K (Konteks Panjang)", "category": "Moonshot Kimi", "pricing": "paid", "pricing_label": "💎 BERBAYAR"}
+        {
+            "id": "moonshot-v1-8k",
+            "name": "Moonshot Kimi v1 8K (Cerdas & Cepat)",
+            "category": "Moonshot Kimi",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL (15 RMB Bonus)",
+        },
+        {
+            "id": "moonshot-v1-32k",
+            "name": "Moonshot Kimi v1 32K",
+            "category": "Moonshot Kimi",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL",
+        },
+        {
+            "id": "moonshot-v1-128k",
+            "name": "Moonshot Kimi v1 128K (Konteks Panjang)",
+            "category": "Moonshot Kimi",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR",
+        },
     ],
     "qwen": [
-        {"id": "qwen-max", "name": "Qwen 2.5 Max (Flagship Alibaba Cloud Terkuat)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL / Token"},
-        {"id": "qwen-plus", "name": "Qwen 2.5 Plus (Keseimbangan Sempurna)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH"},
-        {"id": "qwen-turbo", "name": "Qwen 2.5 Turbo (Kilat & Ringan)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 SANGAT MURAH"},
-        {"id": "qwen2.5-coder-32b-instruct", "name": "Qwen 2.5 Coder 32B (Spesialis Kode)", "category": "Alibaba Qwen", "pricing": "free_tier", "pricing_label": "🟢 FREE TRIAL"}
+        {
+            "id": "qwen-max",
+            "name": "Qwen 2.5 Max (Flagship Alibaba Cloud Terkuat)",
+            "category": "Alibaba Qwen",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL / Token",
+        },
+        {
+            "id": "qwen-plus",
+            "name": "Qwen 2.5 Plus (Keseimbangan Sempurna)",
+            "category": "Alibaba Qwen",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 SANGAT MURAH",
+        },
+        {
+            "id": "qwen-turbo",
+            "name": "Qwen 2.5 Turbo (Kilat & Ringan)",
+            "category": "Alibaba Qwen",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 SANGAT MURAH",
+        },
+        {
+            "id": "qwen2.5-coder-32b-instruct",
+            "name": "Qwen 2.5 Coder 32B (Spesialis Kode)",
+            "category": "Alibaba Qwen",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 FREE TRIAL",
+        },
     ],
     "gemini": [
         # --- Gemini 3.7 / 3.6 (Terbaru) ---
-        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash (Generasi Termbaru)", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {
+            "id": "gemini-3.7-flash",
+            "name": "Gemini 3.7 Flash (Generasi Termbaru)",
+            "category": "Gemini Terbaru",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-3.6-flash",
+            "name": "Gemini 3.6 Flash",
+            "category": "Gemini Terbaru",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
         # --- Gemini 3.5 (DEPRECATED — pakai 3.6+) ---
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
+        {
+            "id": "gemini-3.5-flash",
+            "name": "Gemini 3.5 Flash [DEPRECATED]",
+            "category": "Legacy (Jangan Pakai)",
+            "pricing": "free_tier",
+            "pricing_label": "⚠️ Deprecated",
+        },
+        {
+            "id": "gemini-3.5-flash-lite",
+            "name": "Gemini 3.5 Flash Lite [DEPRECATED]",
+            "category": "Legacy (Jangan Pakai)",
+            "pricing": "free_tier",
+            "pricing_label": "⚠️ Deprecated",
+        },
         # --- Gemini 3.1 Pro & Flash ---
-        {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview (Penalaran Kompleks)", "category": "Gemini 3.1 Pro", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "category": "Gemini 3.1", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3-flash-preview", "name": "Gemini 3 Flash Preview", "category": "Gemini 3.1", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-omni-flash-preview", "name": "Gemini Omni Flash Preview (Multimodal)", "category": "Gemini Terbaru", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {
+            "id": "gemini-3.1-pro-preview",
+            "name": "Gemini 3.1 Pro Preview (Penalaran Kompleks)",
+            "category": "Gemini 3.1 Pro",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-3.1-flash-lite",
+            "name": "Gemini 3.1 Flash Lite",
+            "category": "Gemini 3.1",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-3-flash-preview",
+            "name": "Gemini 3 Flash Preview",
+            "category": "Gemini 3.1",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-omni-flash-preview",
+            "name": "Gemini Omni Flash Preview (Multimodal)",
+            "category": "Gemini Terbaru",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
         # --- Alias Selalu-Terbaru ---
-        {"id": "gemini-flash-latest", "name": "Gemini Flash Latest (Otomatis Versi Termbaru)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-flash-lite-latest", "name": "Gemini Flash Lite Latest", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-pro-latest", "name": "Gemini Pro Latest (Flagship)", "category": "Latest Alias", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {
+            "id": "gemini-flash-latest",
+            "name": "Gemini Flash Latest (Otomatis Versi Termbaru)",
+            "category": "Latest Alias",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-flash-lite-latest",
+            "name": "Gemini Flash Lite Latest",
+            "category": "Latest Alias",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-pro-latest",
+            "name": "Gemini Pro Latest (Flagship)",
+            "category": "Latest Alias",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
         # --- Gemini 2.5 (DEPRECATED — pakai 3.6+) ---
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
-        {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite [DEPRECATED]", "category": "Legacy (Jangan Pakai)", "pricing": "free_tier", "pricing_label": "⚠️ Deprecated"},
+        {
+            "id": "gemini-2.5-pro",
+            "name": "Gemini 2.5 Pro [DEPRECATED]",
+            "category": "Legacy (Jangan Pakai)",
+            "pricing": "free_tier",
+            "pricing_label": "⚠️ Deprecated",
+        },
+        {
+            "id": "gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash [DEPRECATED]",
+            "category": "Legacy (Jangan Pakai)",
+            "pricing": "free_tier",
+            "pricing_label": "⚠️ Deprecated",
+        },
+        {
+            "id": "gemini-2.5-flash-lite",
+            "name": "Gemini 2.5 Flash Lite [DEPRECATED]",
+            "category": "Legacy (Jangan Pakai)",
+            "pricing": "free_tier",
+            "pricing_label": "⚠️ Deprecated",
+        },
         # --- Image Generation ---
-        {"id": "nano-banana-pro-preview", "name": "Nano Banana Pro (Image Gen Flagship)", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3-pro-image", "name": "Gemini 3 Pro Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-3.1-flash-image", "name": "Gemini 3.1 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemini-2.5-flash-image", "name": "Gemini 2.5 Flash Image", "category": "Image Generation", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {
+            "id": "nano-banana-pro-preview",
+            "name": "Nano Banana Pro (Image Gen Flagship)",
+            "category": "Image Generation",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-3-pro-image",
+            "name": "Gemini 3 Pro Image",
+            "category": "Image Generation",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-3.1-flash-image",
+            "name": "Gemini 3.1 Flash Image",
+            "category": "Image Generation",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemini-2.5-flash-image",
+            "name": "Gemini 2.5 Flash Image",
+            "category": "Image Generation",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
         # --- Gemma Open Model ---
-        {"id": "gemma-4-31b-it", "name": "Gemma 4 31B IT (Open Model)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
-        {"id": "gemma-4-26b-a4b-it", "name": "Gemma 4 26B A4B IT (Open Model Efisien)", "category": "Gemma Open", "pricing": "free_tier", "pricing_label": "🟢 Aktif"},
+        {
+            "id": "gemma-4-31b-it",
+            "name": "Gemma 4 31B IT (Open Model)",
+            "category": "Gemma Open",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
+        {
+            "id": "gemma-4-26b-a4b-it",
+            "name": "Gemma 4 26B A4B IT (Open Model Efisien)",
+            "category": "Gemma Open",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 Aktif",
+        },
     ],
-
     "groq": [
-        {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)", "category": "Groq Ultra-Fast", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "deepseek-r1-distill-llama-70b", "name": "DeepSeek R1 Distill Llama 70B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "deepseek-r1-distill-qwen-32b", "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B 32k Konteks", "category": "Groq MoE", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "gemma2-9b-it", "name": "Google Gemma 2 9B IT (via Groq)", "category": "Groq Google", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"},
-        {"id": "qwen-qwq-32b-preview", "name": "Qwen QwQ 32B Reasoning Preview", "category": "Groq Reasoning", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Groq Cloud)"}
+        {
+            "id": "llama-3.3-70b-versatile",
+            "name": "Llama 3.3 70B Versatile (Kecepatan Kilat 300+ T/s)",
+            "category": "Groq Ultra-Fast",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "llama-3.1-8b-instant",
+            "name": "Llama 3.1 8B Instant (Super Kilat 600+ T/s)",
+            "category": "Groq Ultra-Fast",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "deepseek-r1-distill-llama-70b",
+            "name": "DeepSeek R1 Distill Llama 70B (Reasoning Cepat)",
+            "category": "Groq Reasoning",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "deepseek-r1-distill-qwen-32b",
+            "name": "DeepSeek R1 Distill Qwen 32B (Reasoning Cepat)",
+            "category": "Groq Reasoning",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "mixtral-8x7b-32768",
+            "name": "Mixtral 8x7B 32k Konteks",
+            "category": "Groq MoE",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "gemma2-9b-it",
+            "name": "Google Gemma 2 9B IT (via Groq)",
+            "category": "Groq Google",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
+        {
+            "id": "qwen-qwq-32b-preview",
+            "name": "Qwen QwQ 32B Reasoning Preview",
+            "category": "Groq Reasoning",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Groq Cloud)",
+        },
     ],
     "openrouter": [
-        {"id": "google/gemini-2.0-flash-exp:free", "name": "Gemini 2.0 Flash Exp (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
-        {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B Instruct (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
-        {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Endpoint Gratis)", "category": "OpenRouter Free", "pricing": "free", "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)"},
-        {"id": "minimax/minimax-01", "name": "MiniMax-01 4M Context (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.20/1M)"},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Full 671B (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.55/1M)"},
-        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 Full (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($0.14/1M)"},
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"},
-        {"id": "openai/gpt-4o", "name": "GPT-4o (via OpenRouter)", "category": "OpenRouter Paid", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Pay-per-token)"}
+        {
+            "id": "google/gemini-2.0-flash-exp:free",
+            "name": "Gemini 2.0 Flash Exp (Endpoint Gratis)",
+            "category": "OpenRouter Free",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)",
+        },
+        {
+            "id": "meta-llama/llama-3.3-70b-instruct:free",
+            "name": "Llama 3.3 70B Instruct (Endpoint Gratis)",
+            "category": "OpenRouter Free",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)",
+        },
+        {
+            "id": "deepseek/deepseek-r1:free",
+            "name": "DeepSeek R1 (Endpoint Gratis)",
+            "category": "OpenRouter Free",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS (Tanpa Saldo)",
+        },
+        {
+            "id": "minimax/minimax-01",
+            "name": "MiniMax-01 4M Context (via OpenRouter)",
+            "category": "OpenRouter Paid",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($0.20/1M)",
+        },
+        {
+            "id": "deepseek/deepseek-r1",
+            "name": "DeepSeek R1 Full 671B (via OpenRouter)",
+            "category": "OpenRouter Paid",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($0.55/1M)",
+        },
+        {
+            "id": "deepseek/deepseek-chat",
+            "name": "DeepSeek V3 Full (via OpenRouter)",
+            "category": "OpenRouter Paid",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($0.14/1M)",
+        },
+        {
+            "id": "anthropic/claude-3.5-sonnet",
+            "name": "Claude 3.5 Sonnet (via OpenRouter)",
+            "category": "OpenRouter Paid",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR (Pay-per-token)",
+        },
+        {
+            "id": "openai/gpt-4o",
+            "name": "GPT-4o (via OpenRouter)",
+            "category": "OpenRouter Paid",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR (Pay-per-token)",
+        },
     ],
     "openai": [
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Sangat Murah, Cepat & Cerdas)", "category": "OpenAI Fast", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.15/1M)"},
-        {"id": "gpt-4o", "name": "GPT-4o (Omni Flagship)", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($2.50/1M)"},
-        {"id": "o3-mini", "name": "OpenAI o3 Mini (Reasoning Model Terbaru)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
-        {"id": "o1-mini", "name": "OpenAI o1 Mini (Math & Code Reasoning)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($1.10/1M)"},
-        {"id": "o1", "name": "OpenAI o1 (Full Reasoning Flagship)", "category": "OpenAI Reasoning", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "category": "OpenAI Flagship", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($10/1M)"}
+        {
+            "id": "gpt-4o-mini",
+            "name": "GPT-4o Mini (Sangat Murah, Cepat & Cerdas)",
+            "category": "OpenAI Fast",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR (Murah ~$0.15/1M)",
+        },
+        {
+            "id": "gpt-4o",
+            "name": "GPT-4o (Omni Flagship)",
+            "category": "OpenAI Flagship",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($2.50/1M)",
+        },
+        {
+            "id": "o3-mini",
+            "name": "OpenAI o3 Mini (Reasoning Model Terbaru)",
+            "category": "OpenAI Reasoning",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($1.10/1M)",
+        },
+        {
+            "id": "o1-mini",
+            "name": "OpenAI o1 Mini (Math & Code Reasoning)",
+            "category": "OpenAI Reasoning",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($1.10/1M)",
+        },
+        {
+            "id": "o1",
+            "name": "OpenAI o1 (Full Reasoning Flagship)",
+            "category": "OpenAI Reasoning",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($15/1M)",
+        },
+        {
+            "id": "gpt-4-turbo",
+            "name": "GPT-4 Turbo",
+            "category": "OpenAI Flagship",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($10/1M)",
+        },
     ],
     "anthropic": [
-        {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku (Ringan, Murah & Kilat)", "category": "Anthropic Haiku", "pricing": "paid", "pricing_label": "💎 BERBAYAR (Murah ~$0.80/1M)"},
-        {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)", "category": "Anthropic Sonnet", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($3.00/1M)"},
-        {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
+        {
+            "id": "claude-3-5-haiku-20241022",
+            "name": "Claude 3.5 Haiku (Ringan, Murah & Kilat)",
+            "category": "Anthropic Haiku",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR (Murah ~$0.80/1M)",
+        },
+        {
+            "id": "claude-3-5-sonnet-20241022",
+            "name": "Claude 3.5 Sonnet v2 (Unggulan Coding & Writing)",
+            "category": "Anthropic Sonnet",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($3.00/1M)",
+        },
+        {
+            "id": "claude-3-opus-20240229",
+            "name": "Claude 3 Opus (Model Paling Kompleks)",
+            "category": "Anthropic Opus",
+            "pricing": "paid",
+            "pricing_label": "💎 BERBAYAR ($15/1M)",
+        },
     ],
     "9router": [
-        {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "gpt-4o", "name": "GPT-4o (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "deepseek-reasoner", "name": "DeepSeek R1 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "deepseek-chat", "name": "DeepSeek V3 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "llama-3.3-70b", "name": "Llama 3.3 70B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "qwen-2.5-coder-32b", "name": "Qwen 2.5 Coder 32B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "auto", "name": "Auto Intelligent Fallback (9Router Best Available)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 AUTO ROUTE"}
+        {
+            "id": "claude-3-5-sonnet",
+            "name": "Claude 3.5 Sonnet (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "gpt-4o",
+            "name": "GPT-4o (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "deepseek-reasoner",
+            "name": "DeepSeek R1 (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "deepseek-chat",
+            "name": "DeepSeek V3 (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "llama-3.3-70b",
+            "name": "Llama 3.3 70B (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "gemini-2.0-flash",
+            "name": "Gemini 2.0 Flash (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "qwen-2.5-coder-32b",
+            "name": "Qwen 2.5 Coder 32B (via 9Router Gateway)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 9ROUTER ROUTER",
+        },
+        {
+            "id": "auto",
+            "name": "Auto Intelligent Fallback (9Router Best Available)",
+            "category": "9Router Gateway",
+            "pricing": "free_tier",
+            "pricing_label": "🟢 AUTO ROUTE",
+        },
     ],
     "ollama": [
-        {"id": "deepseek-r1", "name": "DeepSeek R1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "llama3.3", "name": "Llama 3.3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "llama3.1", "name": "Llama 3.1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "qwen2.5-coder", "name": "Qwen 2.5 Coder (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "mistral", "name": "Mistral 7B (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "gemma2", "name": "Google Gemma 2 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
-        {"id": "phi3", "name": "Microsoft Phi 3 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"}
-    ]
+        {
+            "id": "deepseek-r1",
+            "name": "DeepSeek R1 (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "llama3.3",
+            "name": "Llama 3.3 (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "llama3.1",
+            "name": "Llama 3.1 (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "qwen2.5-coder",
+            "name": "Qwen 2.5 Coder (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "mistral",
+            "name": "Mistral 7B (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "gemma2",
+            "name": "Google Gemma 2 (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+        {
+            "id": "phi3",
+            "name": "Microsoft Phi 3 (Lokal PC/Laptop)",
+            "category": "Local Offline",
+            "pricing": "free",
+            "pricing_label": "🟢 100% GRATIS & OFFLINE",
+        },
+    ],
 }
 
 
@@ -3461,6 +4755,7 @@ PROVIDER_MODELS = {
 async def get_available_models():
     """Get verified models list per provider with live discovery from NVIDIA & OpenRouter."""
     import httpx
+
     # 1. Attempt dynamic refresh from NVIDIA NIM
     try:
         async with httpx.AsyncClient(timeout=2.5) as client:
@@ -3482,14 +4777,16 @@ async def get_available_models():
                             cat = "DeepSeek on NVIDIA"
                         elif "google" in mid or "gemma" in mid:
                             cat = "Google on NVIDIA"
-                        
-                        PROVIDER_MODELS["nvidia"].append({
-                            "id": mid,
-                            "name": f"{mid} (Live NVIDIA NIM)",
-                            "category": cat,
-                            "pricing": "free_credits",
-                            "pricing_label": "🟢 GRATIS (1000 NIM Credits)"
-                        })
+
+                        PROVIDER_MODELS["nvidia"].append(
+                            {
+                                "id": mid,
+                                "name": f"{mid} (Live NVIDIA NIM)",
+                                "category": cat,
+                                "pricing": "free_credits",
+                                "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
+                            }
+                        )
     except Exception:
         pass
 
@@ -3505,13 +4802,21 @@ async def get_available_models():
                     mname = item.get("name", mid)
                     if mid and mid not in existing_or_ids:
                         is_free = ":free" in mid
-                        PROVIDER_MODELS["openrouter"].append({
-                            "id": mid,
-                            "name": f"{mname} ({mid})",
-                            "category": "OpenRouter Free" if is_free else "OpenRouter Live Catalog",
-                            "pricing": "free" if is_free else "paid",
-                            "pricing_label": "🟢 100% GRATIS" if is_free else "💎 BERBAYAR"
-                        })
+                        PROVIDER_MODELS["openrouter"].append(
+                            {
+                                "id": mid,
+                                "name": f"{mname} ({mid})",
+                                "category": (
+                                    "OpenRouter Free"
+                                    if is_free
+                                    else "OpenRouter Live Catalog"
+                                ),
+                                "pricing": "free" if is_free else "paid",
+                                "pricing_label": (
+                                    "🟢 100% GRATIS" if is_free else "💎 BERBAYAR"
+                                ),
+                            }
+                        )
     except Exception:
         pass
 
@@ -3525,14 +4830,31 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
     api_key = payload.get("api_key", "").strip()
     model = payload.get("model", "").strip()
     base_url = payload.get("base_url", "").strip()
-    
+
     if not api_key:
-        raise HTTPException(status_code=400, detail="API Key wajib diisi untuk divalidasi")
-        
+        raise HTTPException(
+            status_code=400, detail="API Key wajib diisi untuk divalidasi"
+        )
+
     start_t = time.time()
-    if provider in ["nvidia", "nim", "openai", "groq", "openrouter", "9router", "ollama", "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope"]:
+    if provider in [
+        "nvidia",
+        "nim",
+        "openai",
+        "groq",
+        "openrouter",
+        "9router",
+        "ollama",
+        "deepseek",
+        "minimax",
+        "moonshot",
+        "kimi",
+        "qwen",
+        "dashscope",
+    ]:
         try:
             import httpx
+
             url = base_url
             if not url:
                 if provider in ["nvidia", "nim"]:
@@ -3555,7 +4877,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                     url = "http://localhost:20128/v1"
                 elif provider == "ollama":
                     url = "http://localhost:11434/v1"
-            
+
             target_model = model
             if not target_model:
                 if provider in ["nvidia", "nim"]:
@@ -3577,7 +4899,10 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 else:
                     target_model = "gpt-4o"
 
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
             if provider == "openrouter":
                 headers["HTTP-Referer"] = "https://alfa-agent.local"
                 headers["X-Title"] = "ALFA Swarm Validator"
@@ -3585,29 +4910,42 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
             test_payload = {
                 "model": target_model,
                 "messages": [{"role": "user", "content": "Tes koneksi. Jawab: OK"}],
-                "max_tokens": 10
+                "max_tokens": 10,
             }
             async with httpx.AsyncClient(timeout=12.0) as client:
-                res = await client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=test_payload)
+                res = await client.post(
+                    f"{url.rstrip('/')}/chat/completions",
+                    headers=headers,
+                    json=test_payload,
+                )
                 duration_ms = round((time.time() - start_t) * 1000, 1)
                 if res.status_code == 200:
-                    return {"status": "success", "duration_ms": duration_ms, "message": f"Koneksi {provider.upper()} ({target_model}) Berhasil ({duration_ms}ms)!"}
+                    return {
+                        "status": "success",
+                        "duration_ms": duration_ms,
+                        "message": f"Koneksi {provider.upper()} ({target_model}) Berhasil ({duration_ms}ms)!",
+                    }
                 elif res.status_code == 404 and provider in ["nvidia", "nim"]:
                     return {
                         "status": "error",
                         "status_code": 404,
                         "duration_ms": duration_ms,
-                        "message": f"Model '{target_model}' memerlukan izin khusus enterprise di NVIDIA NIM. Coba pilih model aktif 'nvidia/llama-3.1-nemotron-70b-instruct' atau 'meta/llama-3.3-70b-instruct' yang 100% aktif untuk akun Free NIM!"
+                        "message": f"Model '{target_model}' memerlukan izin khusus enterprise di NVIDIA NIM. Coba pilih model aktif 'nvidia/llama-3.1-nemotron-70b-instruct' atau 'meta/llama-3.3-70b-instruct' yang 100% aktif untuk akun Free NIM!",
                     }
                 elif res.status_code == 401:
                     return {
                         "status": "error",
                         "status_code": 401,
                         "duration_ms": duration_ms,
-                        "message": f"API Key {provider.upper()} tidak valid atau tidak memiliki izin akses (HTTP 401 Unauthorized)."
+                        "message": f"API Key {provider.upper()} tidak valid atau tidak memiliki izin akses (HTTP 401 Unauthorized).",
                     }
                 else:
-                    return {"status": "error", "status_code": res.status_code, "duration_ms": duration_ms, "message": f"HTTP {res.status_code}: {res.text[:200]}"}
+                    return {
+                        "status": "error",
+                        "status_code": res.status_code,
+                        "duration_ms": duration_ms,
+                        "message": f"HTTP {res.status_code}: {res.text[:200]}",
+                    }
         except Exception as e:
             return {"status": "error", "message": f"Error: {str(e)}"}
     else:
@@ -3615,15 +4953,20 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
         try:
             from google import genai
             from google.genai import types
+
             target_model = model or "gemini-3.6-flash"
             client = genai.Client(api_key=api_key)
             await client.aio.models.generate_content(
                 model=target_model,
                 contents="Tes koneksi",
-                config=types.GenerateContentConfig(max_output_tokens=10)
+                config=types.GenerateContentConfig(max_output_tokens=10),
             )
             duration_ms = round((time.time() - start_t) * 1000, 1)
-            return {"status": "success", "duration_ms": duration_ms, "message": f"Koneksi GEMINI ({target_model}) Berhasil ({duration_ms}ms)!"}
+            return {
+                "status": "success",
+                "duration_ms": duration_ms,
+                "message": f"Koneksi GEMINI ({target_model}) Berhasil ({duration_ms}ms)!",
+            }
         except Exception as e:
             return {"status": "error", "message": f"Error: {str(e)}"}
 
@@ -3648,10 +4991,10 @@ async def create_custom_agent(payload: Dict[str, Any]):
     api_key_id = payload.get("api_key_id")
     avatar_emoji = payload.get("avatar_emoji", "🤖")
     color_theme = payload.get("color_theme", "cyan")
-    
+
     if not name or not role:
         raise HTTPException(status_code=400, detail="name and role are required")
-        
+
     res = database.add_custom_agent_sync(
         name=name,
         role=role,
@@ -3661,7 +5004,7 @@ async def create_custom_agent(payload: Dict[str, Any]):
         model=model,
         api_key_id=api_key_id,
         avatar_emoji=avatar_emoji,
-        color_theme=color_theme
+        color_theme=color_theme,
     )
     return res
 
@@ -3686,29 +5029,33 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
     prompt = payload.get("message")
     if not prompt:
         raise HTTPException(status_code=400, detail="message is required")
-        
+
     with database.get_sync_db() as conn:
-        row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM custom_agents WHERE id = ?", (agent_id,)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
-        
+
     import swarm_engine
+
     start_t = time.time()
     resp = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=prompt,
-        system_instruction=agent_data.get("system_instruction") or f"Kamu adalah {agent_data['name']}, {agent_data['role']}."
+        system_instruction=agent_data.get("system_instruction")
+        or f"Kamu adalah {agent_data['name']}, {agent_data['role']}.",
     )
     duration_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     return {
         "status": "success",
         "agent_name": agent_data["name"],
         "model": agent_data["model"],
         "provider": agent_data["provider"],
         "duration_ms": duration_ms,
-        "reply": resp
+        "reply": resp,
     }
 
 
@@ -3719,12 +5066,13 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     topic = payload.get("topic")
     if not topic:
         raise HTTPException(status_code=400, detail="topic is required")
-        
+
     participants = payload.get("participants")
     rounds = payload.get("rounds", 2)
     folder = payload.get("folder", "")
 
     import swarm_engine
+
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
@@ -3739,9 +5087,13 @@ async def start_agent_meeting(payload: Dict[str, Any]):
 async def cancel_agent_meeting():
     """Minta pembatalan eksekusi swarm yang sedang berjalan (lintas proses)."""
     import swarm_engine
+
     ok = swarm_engine.request_cancel_swarm()
     if ok:
-        return {"status": "success", "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai."}
+        return {
+            "status": "success",
+            "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai.",
+        }
     return {"status": "error", "message": "Tidak ada sesi swarm yang sedang berjalan."}
 
 
@@ -3752,6 +5104,7 @@ async def swarm_live_feed(since: int = 0):
     import json as _json
 
     import swarm_engine as _se
+
     since = safe_int(since, 0, minimum=0)
     entries = []
     try:
@@ -3782,6 +5135,7 @@ async def swarm_live_feed(since: int = 0):
 async def antigravity_login_start(payload: Dict[str, Any]):
     """Mulai sesi login Google utk akun Antigravity baru."""
     import antigravity_login as agy_oauth
+
     name = payload.get("name", "").strip().lower()
     if not name:
         raise HTTPException(status_code=400, detail="nama wajib diisi")
@@ -3792,18 +5146,21 @@ async def antigravity_login_start(payload: Dict[str, Any]):
 @app.get("/api/antigravity/login/status")
 async def antigravity_login_status(name: str = ""):
     import antigravity_login as agy_oauth
+
     return agy_oauth.login_status(name)
 
 
 @app.get("/api/antigravity/accounts")
 async def antigravity_accounts():
     import antigravity_login as agy_oauth
+
     return {"status": "success", "accounts": agy_oauth.list_accounts()}
 
 
 @app.post("/api/antigravity/logout")
 async def antigravity_logout_endpoint(payload: Dict[str, Any]):
     import antigravity_login as agy_oauth
+
     return agy_oauth.remove_account(payload.get("name", ""))
 
 
@@ -3811,6 +5168,7 @@ async def antigravity_logout_endpoint(payload: Dict[str, Any]):
 async def swarm_list_folders():
     """Daftar folder proyek yang bisa dipilih sebagai target edit agen."""
     import os as _os
+
     candidates = []
 
     def _add(root: str, label_prefix: str):
@@ -3825,7 +5183,9 @@ async def swarm_list_folders():
             pass
 
     _add("/dev/shm/alfa_sandbox", "sandbox")
-    _add(_os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites")
+    _add(
+        _os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites"
+    )
     _add(_os.path.expanduser("~/alfa_projects"), "alfa_projects")
     return {"folders": candidates}
 
@@ -3853,31 +5213,50 @@ async def get_agent_activity():
     activities = database.list_agent_activities_sync(limit=30)
     subagent_tasks = database.list_subagent_tasks_sync(limit=10)
     agents = database.list_custom_agents_sync()
-    
+
     agent_states = []
     for a in agents:
-        last_act = next((act for act in activities if act.get("agent_id") == a["id"] or act.get("agent_name") == a["name"]), None)
-        agent_states.append({
-            "id": a["id"],
-            "name": a["name"],
-            "role": a["role"],
-            "avatar_emoji": a.get("avatar_emoji", "🤖"),
-            "color_theme": a.get("color_theme", "cyan"),
-            "provider": a["provider"],
-            "model": a["model"],
-            "status": "active" if a.get("is_enabled", 1) else "disabled",
-            "current_state": "🟢 STANDBY" if not last_act else f"⚙️ {last_act.get('action_type', 'ACTIVE').upper()}",
-            "last_action": last_act.get("description", "Menunggu instruksi tugas") if last_act else "Siap eksekusi tugas otonom",
-            "last_tool": last_act.get("tool_name") if last_act else None,
-            "last_updated": last_act.get("created_at") if last_act else a.get("created_at")
-        })
+        last_act = next(
+            (
+                act
+                for act in activities
+                if act.get("agent_id") == a["id"] or act.get("agent_name") == a["name"]
+            ),
+            None,
+        )
+        agent_states.append(
+            {
+                "id": a["id"],
+                "name": a["name"],
+                "role": a["role"],
+                "avatar_emoji": a.get("avatar_emoji", "🤖"),
+                "color_theme": a.get("color_theme", "cyan"),
+                "provider": a["provider"],
+                "model": a["model"],
+                "status": "active" if a.get("is_enabled", 1) else "disabled",
+                "current_state": (
+                    "🟢 STANDBY"
+                    if not last_act
+                    else f"⚙️ {last_act.get('action_type', 'ACTIVE').upper()}"
+                ),
+                "last_action": (
+                    last_act.get("description", "Menunggu instruksi tugas")
+                    if last_act
+                    else "Siap eksekusi tugas otonom"
+                ),
+                "last_tool": last_act.get("tool_name") if last_act else None,
+                "last_updated": (
+                    last_act.get("created_at") if last_act else a.get("created_at")
+                ),
+            }
+        )
 
     return {
         "status": "success",
         "total_activities": len(activities),
         "activities": activities,
         "subagent_tasks": subagent_tasks,
-        "agent_states": agent_states
+        "agent_states": agent_states,
     }
 
 
@@ -3890,17 +5269,20 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
     instruction = payload.get("instruction")
     if not instruction:
         raise HTTPException(status_code=400, detail="instruction is required")
-        
+
     with database.get_sync_db() as conn:
-        row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM custom_agents WHERE id = ?", (agent_id,)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
     import swarm_engine
     import tools
+
     start_t = time.time()
-    
+
     # 1. Ask agent to formulate action plan and tool command
     tool_router_prompt = (
         f"USER REQUEST:\n{instruction}\n\n"
@@ -3914,18 +5296,18 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         f"- DIRECT_ANSWER: Jika tidak butuh tool, jawab langsung.\n\n"
         f"Format jawaban baris pertama harus TOOL: <NAMA_TOOL> | <PARAM> jika memanggil tool!"
     )
-    
+
     decision = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=tool_router_prompt,
-        system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem."
+        system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem.",
     )
-    
+
     tool_called = None
     tool_input = None
     tool_output_str = ""
     action_type = "tool_call"
-    
+
     # Parse decision
     if "TOOL: BASH |" in decision:
         cmd = decision.split("TOOL: BASH |", 1)[1].strip().split("\n")[0]
@@ -3933,7 +5315,13 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         tool_input = cmd
         action_type = "bash_exec"
         res = tools.execute_bash_command(cmd)
-        tool_output_str = res.get("stdout") or res.get("output") or res.get("message") or res.get("stderr") or "Done (exit code 0)"
+        tool_output_str = (
+            res.get("stdout")
+            or res.get("output")
+            or res.get("message")
+            or res.get("stderr")
+            or "Done (exit code 0)"
+        )
     elif "TOOL: SYSTEM_STATS" in decision:
         tool_called = "get_system_stats"
         tool_input = "metrics"
@@ -3956,12 +5344,32 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         tool_output_str = json.dumps(res, indent=2, default=str)
     else:
         # Fallback to direct bash if instruction looks like a command
-        if any(kw in instruction.lower() for kw in ["git", "ps", "top", "ram", "cpu", "disk", "ls", "systemctl", "curl", "free"]):
+        if any(
+            kw in instruction.lower()
+            for kw in [
+                "git",
+                "ps",
+                "top",
+                "ram",
+                "cpu",
+                "disk",
+                "ls",
+                "systemctl",
+                "curl",
+                "free",
+            ]
+        ):
             tool_called = "execute_bash_command"
             tool_input = instruction
             action_type = "bash_exec"
             res = tools.execute_bash_command(instruction)
-            tool_output_str = res.get("stdout") or res.get("output") or res.get("message") or res.get("stderr") or "Done (exit code 0)"
+            tool_output_str = (
+                res.get("stdout")
+                or res.get("output")
+                or res.get("message")
+                or res.get("stderr")
+                or "Done (exit code 0)"
+            )
 
     # 2. Ask agent to synthesize final response based on tool execution
     synth_prompt = (
@@ -3971,15 +5379,16 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         f"Output:\n{tool_output_str[:3000]}\n\n"
         f"Berikan laporan ringkas, santai, gaul, dan to-the-point mengenai hasil eksekusi di atas!"
     )
-    
+
     final_report = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=synth_prompt,
-        system_instruction=agent_data.get("system_instruction") or "Kamu adalah engineer spesialis AI."
+        system_instruction=agent_data.get("system_instruction")
+        or "Kamu adalah engineer spesialis AI.",
     )
-    
+
     duration_ms = round((time.time() - start_t) * 1000, 1)
-    
+
     # Log to SQLite
     database.log_agent_activity_sync(
         agent_id=agent_data["id"],
@@ -3990,9 +5399,9 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         tool_input=tool_input,
         tool_output=tool_output_str[:1500] if tool_output_str else None,
         status="success",
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
     )
-    
+
     return {
         "status": "success",
         "agent_name": agent_data["name"],
@@ -4004,7 +5413,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         "tool_input": tool_input,
         "tool_output": tool_output_str,
         "agent_report": final_report,
-        "duration_ms": duration_ms
+        "duration_ms": duration_ms,
     }
 
 
@@ -4017,6 +5426,7 @@ _TRIM_INTERVAL_SEC = int(os.getenv("DASHBOARD_MALLOC_TRIM_SEC", "900"))
 
 async def _malloc_trim_loop():
     import ctypes
+
     try:
         libc = ctypes.CDLL("libc.so.6")
     except OSError:
@@ -4026,7 +5436,10 @@ async def _malloc_trim_loop():
         try:
             freed = libc.malloc_trim(0)
             if freed:
-                rss_mb = int(open("/proc/self/status").read().split("VmRSS:")[1].split()[0]) // 1024
+                rss_mb = (
+                    int(open("/proc/self/status").read().split("VmRSS:")[1].split()[0])
+                    // 1024
+                )
                 logger.debug(f"malloc_trim OK — RSS sekarang {rss_mb} MB")
         except Exception as e:
             logger.debug(f"malloc_trim gagal (abaikan): {e}")
@@ -4038,6 +5451,7 @@ async def get_traces_endpoint(limit: int = 50):
     """Ambil riwayat trace observability terbaru."""
     try:
         import tracing
+
         traces = tracing.get_recent_traces(n=min(200, max(1, limit)))
         return {"status": "success", "total": len(traces), "traces": traces}
     except Exception as e:
@@ -4049,6 +5463,7 @@ async def get_trace_detail_endpoint(trace_id: str):
     """Ambil detail span dari satu trace ID tertentu."""
     try:
         import tracing
+
         spans = tracing.get_trace_by_id(trace_id)
         return {"status": "success", "trace_id": trace_id, "spans": spans}
     except Exception as e:
@@ -4060,6 +5475,7 @@ async def get_checkpoints_endpoint():
     """Ambil daftar checkpoint swarm yang dapat di-resume."""
     try:
         from swarm_checkpoint import SwarmCheckpoint
+
         resumable = SwarmCheckpoint.list_resumable()
         return {"status": "success", "total": len(resumable), "checkpoints": resumable}
     except Exception as e:
@@ -4071,6 +5487,7 @@ async def resume_checkpoint_endpoint(session_id: str):
     """Lanjutkan sesi swarm dari checkpoint."""
     try:
         import swarm_engine
+
         res = await swarm_engine.resume_swarm_session(session_id)
         return res
     except Exception as e:
@@ -4079,6 +5496,7 @@ async def resume_checkpoint_endpoint(session_id: str):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("DASHBOARD_PORT", "8080"))
     # Default 127.0.0.1: dashboard only reachable from this machine.
     # Set DASHBOARD_HOST=0.0.0.0 in .env to expose it on the LAN (not

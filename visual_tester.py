@@ -19,7 +19,7 @@ def browser_visual_test_page(
     url: str,
     viewports: str = "desktop,mobile",
     wait_seconds: int = 2,
-    output_prefix: str = "visual_test"
+    output_prefix: str = "visual_test",
 ) -> Dict[str, Any]:
     """
     AUTOMATED VISUAL TESTER: Perform headless browser visual inspection and console log audit on a web page.
@@ -34,15 +34,22 @@ def browser_visual_test_page(
     try:
         from camoufox.sync_api import Camoufox
     except ImportError:
-        return {"status": "error", "message": "Camoufox / Playwright browser engine tidak terinstall."}
+        return {
+            "status": "error",
+            "message": "Camoufox / Playwright browser engine tidak terinstall.",
+        }
 
     viewport_map = {
         "desktop": {"width": 1920, "height": 1080},
         "tablet": {"width": 768, "height": 1024},
-        "mobile": {"width": 390, "height": 844}
+        "mobile": {"width": 390, "height": 844},
     }
 
-    requested_views = [v.strip().lower() for v in viewports.split(",") if v.strip().lower() in viewport_map]
+    requested_views = [
+        v.strip().lower()
+        for v in viewports.split(",")
+        if v.strip().lower() in viewport_map
+    ]
     if not requested_views:
         requested_views = ["desktop", "mobile"]
 
@@ -66,22 +73,31 @@ def browser_visual_test_page(
                 # Listen to console
                 def _handle_console(msg):
                     if msg.type == "error":
-                        console_errors.append(f"[{view_name}] [CONSOLE ERROR] {msg.text}")
+                        console_errors.append(
+                            f"[{view_name}] [CONSOLE ERROR] {msg.text}"
+                        )
                     elif msg.type in ("warn", "warning"):
                         console_logs.append(f"[{view_name}] [WARN] {msg.text}")
 
                 page.on("console", _handle_console)
-                page.on("pageerror", lambda err: console_errors.append(f"[{view_name}] [PAGE EXCEPTION] {str(err)}"))
+                page.on(
+                    "pageerror",
+                    lambda err: console_errors.append(
+                        f"[{view_name}] [PAGE EXCEPTION] {str(err)}"
+                    ),
+                )
 
                 # Listen to failed network requests
                 def _handle_response(resp):
                     if resp.status >= 400:
-                        failed_requests.append({
-                            "view": view_name,
-                            "url": resp.url[:120],
-                            "status": resp.status,
-                            "status_text": resp.status_text
-                        })
+                        failed_requests.append(
+                            {
+                                "view": view_name,
+                                "url": resp.url[:120],
+                                "status": resp.status,
+                                "status_text": resp.status_text,
+                            }
+                        )
 
                 page.on("response", _handle_response)
 
@@ -93,21 +109,27 @@ def browser_visual_test_page(
                 time.sleep(wait_seconds)
 
                 # Check horizontal overflow bug
-                has_overflow = page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth")
+                has_overflow = page.evaluate(
+                    "() => document.documentElement.scrollWidth > window.innerWidth"
+                )
                 if has_overflow:
-                    overflow_issues.append(f"{view_name.upper()} (scrollWidth > innerWidth: elemen meluap secara horizontal)")
+                    overflow_issues.append(
+                        f"{view_name.upper()} (scrollWidth > innerWidth: elemen meluap secara horizontal)"
+                    )
 
                 # Take screenshot
                 img_filename = f"{output_prefix}_{view_name}_{timestamp}.png"
                 img_path = os.path.join(SWARM_OUTPUT_DIR, img_filename)
                 page.screenshot(path=img_path, full_page=True)
 
-                screenshots_taken.append({
-                    "view": view_name,
-                    "resolution": f"{v_cfg['width']}x{v_cfg['height']}",
-                    "filename": img_filename,
-                    "path": img_path
-                })
+                screenshots_taken.append(
+                    {
+                        "view": view_name,
+                        "resolution": f"{v_cfg['width']}x{v_cfg['height']}",
+                        "filename": img_filename,
+                        "path": img_path,
+                    }
+                )
                 context.close()
 
         has_issues = bool(console_errors or failed_requests or overflow_issues)
@@ -125,7 +147,7 @@ def browser_visual_test_page(
             "message": (
                 f"Pengujian visual selesai! {len(screenshots_taken)} screenshot tersimpan di ~/Dokumen/ALFA_SWARM_OUTPUTS. "
                 f"Ditemukan {len(console_errors)} error console dan {len(overflow_issues)} isu overflow layout."
-            )
+            ),
         }
     except Exception as e:
         logger.error(f"Visual test error: {e}")

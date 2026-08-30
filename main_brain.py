@@ -29,27 +29,31 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Batas putaran tool-call per turn. Naik dari 8 -> 24 agar tugas kompleks
 # multi-langkah tidak kehabisan "napas". Bisa dioverride via env.
 MAX_ITERATIONS = int(os.getenv("ALFA_MAX_TOOL_ITERATIONS", "24"))
-MAX_TOOL_OUTPUT = 4000      # potong output tool agar konteks efisien
-TOOL_EXEC_TIMEOUT = 300     # rapat/swarm bisa berjalan beberapa menit
+MAX_TOOL_OUTPUT = 4000  # potong output tool agar konteks efisien
+TOOL_EXEC_TIMEOUT = 300  # rapat/swarm bisa berjalan beberapa menit
 # Budget total karakter konteks percakapan; dilewabi -> kompaksi otomatis.
 TOOL_CONTEXT_BUDGET = int(os.getenv("ALFA_TOOL_CONTEXT_BUDGET", "120000"))
-_TOOL_KEEP_RECENT = 6       # jumlah pesan tool terakhir yang dijaga utuh
+_TOOL_KEEP_RECENT = 6  # jumlah pesan tool terakhir yang dijaga utuh
 
 
 # ── Resolusi otak utama ──────────────────────────────────────────────────────
-def get_main_brain(override_key_id: Optional[int] = None, override_model: Optional[str] = None) -> Dict[str, Any]:
+def get_main_brain(
+    override_key_id: Optional[int] = None, override_model: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Return dict: {provider, api_key, model, base_url, key_id, label}
     Prioritas: override_key_id -> pointer main_brain_key_id -> kunci aktif di vault -> .env
     """
     import database
+
     kid = override_key_id or database.get_main_brain_key_id()
     if kid:
         try:
             with database.get_sync_db() as conn:
                 row = conn.execute(
                     "SELECT id, provider, api_key, default_model, base_url "
-                    "FROM api_keys WHERE id = ?", (kid,)
+                    "FROM api_keys WHERE id = ?",
+                    (kid,),
                 ).fetchone()
             if row:
                 model = override_model or row["default_model"]
@@ -84,6 +88,7 @@ def get_main_brain(override_key_id: Optional[int] = None, override_model: Option
         }
 
     from dotenv import load_dotenv
+
     load_dotenv(os.path.join(PROJECT_DIR, ".env"))
     env_key = os.getenv("GEMINI_API_KEY", "").strip()
     return {
@@ -113,7 +118,11 @@ def _parse_args_docstring(doc: str) -> Dict[str, str]:
             if not stripped:
                 continue
             if stripped.endswith(":") or stripped.split(":")[0].lower() in (
-                "returns", "raises", "yields", "example", "examples"
+                "returns",
+                "raises",
+                "yields",
+                "example",
+                "examples",
             ):
                 break
             if ":" in stripped:
@@ -134,8 +143,11 @@ def _fn_to_openai_tool(fn) -> Dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        jtype = _JSON_TYPES.get(ann, "string") if isinstance(ann, type) else \
-            _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
+        jtype = (
+            _JSON_TYPES.get(ann, "string")
+            if isinstance(ann, type)
+            else _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
+        )
         props[pname] = {"type": jtype, "description": argdocs.get(pname, pname)}
         if p.default is inspect.Parameter.empty:
             required.append(pname)
@@ -162,6 +174,7 @@ def build_openai_tools(safe_only: bool = False) -> List[Dict[str, Any]]:
     """
     try:
         import tools as t
+
         fns = [f for f in t.AVAILABLE_TOOLS if callable(f)]
     except Exception as e:
         logger.error(f"build_openai_tools gagal: {e}")
@@ -199,6 +212,7 @@ SAFE_TOOL_NAMES = {
 def _find_tool(name: str):
     try:
         import tools as t
+
         for f in t.AVAILABLE_TOOLS:
             if getattr(f, "__name__", "") == name:
                 return f
@@ -219,15 +233,19 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)
     try:
         import swarm_engine as _se
+
         if getattr(_se, "MEETING_RUNNING", False):
-            arg_hint = ", ".join(f"{k}={str(v)[:40]}" for k, v in
-                                 list(args.items())[:2]) or "-"
+            arg_hint = (
+                ", ".join(f"{k}={str(v)[:40]}" for k, v in list(args.items())[:2])
+                or "-"
+            )
             _se.log_tool_live(f"⚙️ menjalankan `{name}` ({arg_hint}) ...")
     except Exception:
         pass
 
     try:
         import tracing as _tr
+
         _span = _tr.new_span(f"tool:{name}", tool=name)
     except Exception:
         _span = None
@@ -241,6 +259,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     try:
         # Jalankan di thread terpisah agar event loop tetap hidup
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             fut = pool.submit(_call)
             raw = fut.result(timeout=TOOL_EXEC_TIMEOUT)
@@ -259,6 +278,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     # Laporkan hasil ke live feed juga
     try:
         import swarm_engine as _se
+
         if getattr(_se, "MEETING_RUNNING", False):
             _se.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
     except Exception:
@@ -270,8 +290,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 # ── Kompaksi konteks agentic loop ────────────────────────────────────────────
 def _convo_size(convo: List[Dict[str, Any]]) -> int:
     return sum(
-        len(m.get("content") or "") + len(str(m.get("tool_calls") or ""))
-        for m in convo
+        len(m.get("content") or "") + len(str(m.get("tool_calls") or "")) for m in convo
     )
 
 
@@ -292,8 +311,11 @@ def _compact_convo(convo: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             c = convo[i].get("content") or ""
             if len(c) > 220:
                 convo[i]["content"] = (
-                    "[output tool dipangkas utk hemat konteks] " + c[:180] + " ...")
-        logger.debug(f"[MainBrain] kompaksi konteks: ukuran sekarang {_convo_size(convo)}")
+                    "[output tool dipangkas utk hemat konteks] " + c[:180] + " ..."
+                )
+        logger.debug(
+            f"[MainBrain] kompaksi konteks: ukuran sekarang {_convo_size(convo)}"
+        )
     except Exception as e:
         logger.warning(f"[MainBrain] kompaksi gagal (abaikan): {e!r}")
     return convo
@@ -326,16 +348,22 @@ async def run_openai_agentic_turn(
         import httpx
 
         import token_usage
+
         if tools_schema is None:
             tools_schema = build_openai_tools()
             # TOOL-RAG: suntikkan hanya tool relevan (hemat token, cegah confusion)
             try:
                 from tool_rag import select_relevant_tools
-                tools_schema = select_relevant_tools(tools_schema, user_text, history=history)
+
+                tools_schema = select_relevant_tools(
+                    tools_schema, user_text, history=history
+                )
             except Exception:
                 pass  # fail-open: set lengkap
 
-        messages: List[Dict[str, Any]] = [{"role": "system", "content": system_instruction}]
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": system_instruction}
+        ]
         for h in (history or [])[-10:]:
             role = "assistant" if h.get("role") == "model" else "user"
             if h.get("content"):
@@ -343,10 +371,15 @@ async def run_openai_agentic_turn(
         messages.append({"role": "user", "content": user_text})
 
         url = f"{(base_url or '').rstrip('/')}/chat/completions"
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
         payload_base = {"model": model, "messages": messages, "temperature": 0.75}
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0)) as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(180.0, connect=15.0)
+        ) as client:
             convo = list(messages)
             for iteration in range(MAX_ITERATIONS):
                 _compact_convo(convo)
@@ -356,7 +389,9 @@ async def run_openai_agentic_turn(
                 res = await client.post(url, headers=headers, json=payload)
                 if res.status_code != 200:
                     err_text = res.text[:300]
-                    logger.error(f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}")
+                    logger.error(
+                        f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}"
+                    )
                     if res.status_code == 402:
                         return (
                             f"⚠️ **Gagal memanggil `{model}` via {provider.upper()} (HTTP 402: Saldo / Credit Habis).**\n\n"
@@ -375,9 +410,14 @@ async def run_openai_agentic_turn(
                         )
                     return None
                 data = res.json()
-                token_usage.from_openai_json(data, provider=provider, model=model,
-                                             key_id=key_id, key_label=key_label,
-                                             context=context)
+                token_usage.from_openai_json(
+                    data,
+                    provider=provider,
+                    model=model,
+                    key_id=key_id,
+                    key_label=key_label,
+                    context=context,
+                )
                 msg = data["choices"][0]["message"]
                 tool_calls = msg.get("tool_calls")
 
@@ -385,9 +425,13 @@ async def run_openai_agentic_turn(
                     content = (msg.get("content") or "").strip()
                     return content or "(provider tidak mengirim teks)"
 
-                convo.append({"role": "assistant",
-                              "content": msg.get("content") or "",
-                              "tool_calls": tool_calls})
+                convo.append(
+                    {
+                        "role": "assistant",
+                        "content": msg.get("content") or "",
+                        "tool_calls": tool_calls,
+                    }
+                )
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
@@ -403,34 +447,53 @@ async def run_openai_agentic_turn(
                     if out is None:
                         out = _execute_tool(name, raw_args)
                     logger.info(f"[MainBrain] tool {name} -> {out[:80]}")
-                    convo.append({
-                        "role": "tool",
-                        "tool_call_id": tc.get("id", ""),
-                        "content": out,
-                    })
+                    convo.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.get("id", ""),
+                            "content": out,
+                        }
+                    )
 
             # Batas iterasi tercapai: jangan buang seluruh progres.
             # Minta ringkasan akhir TANPA tools agar hasil tetap berguna.
-            logger.warning(f"[MainBrain] batas {MAX_ITERATIONS} iterasi tercapai -> minta wrap-up.")
-            convo.append({
-                "role": "user",
-                "content": ("[SISTEM] Batas putaran tool tercapai. STOP memanggil tool. "
-                            "Ringkas apa yang SUDAH berhasil dikerjakan, hasil/data penting "
-                            "yang sudah didapat, dan langkah tersisa yang perlu "
-                            "dilanjutkan di giliran berikutnya."),
-            })
+            logger.warning(
+                f"[MainBrain] batas {MAX_ITERATIONS} iterasi tercapai -> minta wrap-up."
+            )
+            convo.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "[SISTEM] Batas putaran tool tercapai. STOP memanggil tool. "
+                        "Ringkas apa yang SUDAH berhasil dikerjakan, hasil/data penting "
+                        "yang sudah didapat, dan langkah tersisa yang perlu "
+                        "dilanjutkan di giliran berikutnya."
+                    ),
+                }
+            )
             try:
                 wrap_payload = dict(payload_base, messages=_compact_convo(convo))
                 res2 = await client.post(url, headers=headers, json=wrap_payload)
                 if res2.status_code == 200:
-                    token_usage.from_openai_json(res2.json(), provider=provider,
-                                                 model=model, key_id=key_id,
-                                                 key_label=key_label,
-                                                 context=f"{context}:wrapup")
-                    wrap = (res2.json().get("choices", [{}])[0].get("message", {})
-                            .get("content") or "").strip()
+                    token_usage.from_openai_json(
+                        res2.json(),
+                        provider=provider,
+                        model=model,
+                        key_id=key_id,
+                        key_label=key_label,
+                        context=f"{context}:wrapup",
+                    )
+                    wrap = (
+                        res2.json()
+                        .get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content")
+                        or ""
+                    ).strip()
                     if wrap:
-                        return f"⏳ *Progres parsial (batas iterasi tercapai):*\n\n{wrap}"
+                        return (
+                            f"⏳ *Progres parsial (batas iterasi tercapai):*\n\n{wrap}"
+                        )
             except Exception as wrap_err:
                 logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return None

@@ -127,8 +127,10 @@ First responder yang ramah-tajam: cepat memahami apa yang SEBENARNYA diminta Fah
 
 
 def build_prompts():
-    return {aid: data["system_instruction"].replace("{DNA}", DNA)
-            for aid, data in AGENTS.items()}
+    return {
+        aid: data["system_instruction"].replace("{DNA}", DNA)
+        for aid, data in AGENTS.items()
+    }
 
 
 # ── Personalisasi nama pemilik (untuk distribusi publik) ────────────────────
@@ -147,4 +149,5 @@ if _OWNER != "Fahmi":
 
 if __name__ == "__main__":
     import json
+
     print(json.dumps(build_prompts(), ensure_ascii=False)[:300])
