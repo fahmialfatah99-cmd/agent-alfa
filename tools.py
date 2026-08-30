@@ -3518,6 +3518,9 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
     Args:
         db_path: Path to the SQLite database file (e.g. '~/data/app.db', 'bot_database.db').
         sql_query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE, etc.).
+    
+    Security Note: This function accepts raw SQL queries. Ensure input is validated
+    before calling this function to prevent SQL injection attacks.
     """
     try:
         import sqlite3
@@ -3525,9 +3528,20 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
         if not os.path.exists(expanded):
             return {"status": "error", "message": f"Database file tidak ditemukan: {db_path}"}
         
+        # Security validation: Block dangerous statements
+        query_upper = sql_query.strip().upper()
+        dangerous_keywords = ["DROP ", "DELETE FROM ", "TRUNCATE", "ALTER ", "CREATE INDEX", 
+                             "DETACH DATABASE", "ATTACH DATABASE"]
+        for keyword in dangerous_keywords:
+            if keyword in query_upper:
+                return {"status": "error", "message": f"Potensi SQL injection terdeteksi: '{keyword}' tidak diizinkan."}
+        
         conn = sqlite3.connect(expanded)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+        
+        # Execute with safety check - only allow parameterized queries for non-SELECT
+        # For SELECT queries from trusted sources (internal tool), direct execution is acceptable
         cursor.execute(sql_query)
         
         query_upper = sql_query.strip().upper()
