@@ -18,6 +18,8 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from contextlib import asynccontextmanager
+
 import psutil
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -26,6 +28,30 @@ from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingRes
 from starlette.middleware.base import BaseHTTPMiddleware
 
 load_dotenv()
+
+
+async def _pipeline_trigger_scheduler():
+    """Background loop: eksekusi pipeline ber-trigger interval tiap 60 detik cek."""
+    import pipelines as pl
+
+    while True:
+        try:
+            await pl.scheduler_tick()
+        except Exception as e:
+            logger.debug(f"pipeline scheduler: {e}")
+        await asyncio.sleep(60)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    import asyncio
+    asyncio.create_task(_pipeline_trigger_scheduler())
+    yield
+    # Shutdown (cleanup if needed)
+    logger.info("ALFA Sovereign Command Center shutting down...")
+
 
 # Import project modules safely
 try:
@@ -45,7 +71,7 @@ def _get_bot():
     return bot
 
 
-app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
+app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0", lifespan=lifespan)
 
 # Setup logging
 logger = logging.getLogger("Dashboard")
@@ -115,22 +141,6 @@ app.add_middleware(
 )
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
-
-
-@app.on_event("startup")
-async def _pipeline_trigger_scheduler():
-    """Background loop: eksekusi pipeline ber-trigger interval tiap 60 detik cek."""
-    import pipelines as pl
-
-    async def _loop():
-        while True:
-            try:
-                await pl.scheduler_tick()
-            except Exception as e:
-                logger.debug(f"pipeline scheduler: {e}")
-            await asyncio.sleep(60)
-
-    asyncio.create_task(_loop())
 
 
 def get_primary_user_id(request: Optional[Request] = None) -> int:
@@ -4092,9 +4102,9 @@ if __name__ == "__main__":
     # Set DASHBOARD_HOST=0.0.0.0 in .env to expose it on the LAN (not
     # recommended unless DASHBOARD_AUTH_TOKEN is also set).
     host = os.getenv("DASHBOARD_HOST", "127.0.0.1").strip() or "127.0.0.1"
-    print(f"🚀 Launching ALFA Sovereign Command Center Pro-Max on http://{host}:{port}")
+    logger.info(f"🚀 Launching ALFA Sovereign Command Center Pro-Max on http://{host}:{port}")
     if host in ("0.0.0.0", "::") and not os.getenv("DASHBOARD_AUTH_TOKEN"):
-        logging.getLogger("Dashboard").warning(
+        logger.warning(
             "DASHBOARD_HOST terbuka ke jaringan TANPA DASHBOARD_AUTH_TOKEN - "
             "siapa pun di jaringan bisa mengendalikan sistem ini!"
         )
