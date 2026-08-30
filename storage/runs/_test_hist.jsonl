@@ -34,3 +34,5 @@
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788057555.6430397}
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788057580.1796408}
 {"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788057580.180223}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788057923.7749002}
+{"pipeline": "_test_hist", "status": "success", "duration_ms": 0, "error": null, "trace": [{"step": "s1", "status": "ok"}], "outputs": {"s1": "ok"}, "ts": 1788057923.7754653}
