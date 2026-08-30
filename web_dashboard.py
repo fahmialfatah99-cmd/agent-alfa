@@ -306,6 +306,13 @@ async def get_stats():
 @app.get("/api/tools")
 async def get_tools_list():
     """Get list of all registered tools with descriptions, args, and categories."""
+    # Load dynamic plugins first to ensure they're in the registry
+    try:
+        import plugins
+        plugins.load_all_plugin_tools()
+    except Exception as e:
+        logger.warning(f"Failed to load dynamic plugins for API: {e}")
+    
     tools_list = []
     for t in tools.AVAILABLE_TOOLS:
         name = t.__name__
@@ -331,6 +338,36 @@ async def get_tools_list():
             "signature": f"{name}{str(sig)}",
             "parameters": params
         })
+    
+    # Add dynamic plugins from registry
+    try:
+        import plugins as pl_mod
+        for tool_name, tool_fn in pl_mod._RUNTIME_PLUGIN_REGISTRY.items():
+            if not any(t["name"] == tool_name for t in tools_list):
+                sig = inspect.signature(tool_fn)
+                doc = (tool_fn.__doc__ or "Dynamic plugin tool.").strip()
+                doc_lines = doc.split("\n")
+                short_desc = doc_lines[0].strip() if doc_lines else "Dynamic plugin."
+                
+                params = []
+                for p_name, param in sig.parameters.items():
+                    params.append({
+                        "name": p_name,
+                        "default": str(param.default) if param.default != inspect.Parameter.empty else None,
+                        "required": param.default == inspect.Parameter.empty,
+                        "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
+                    })
+                
+                tools_list.append({
+                    "name": tool_name,
+                    "short_description": short_desc,
+                    "full_docstring": doc,
+                    "category": "Dynamic Plugins",
+                    "signature": f"{tool_name}{str(sig)}",
+                    "parameters": params
+                })
+    except Exception as e:
+        logger.warning(f"Failed to add dynamic plugins to list: {e}")
         
     return {
         "status": "success",
