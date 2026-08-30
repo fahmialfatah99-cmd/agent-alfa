@@ -1,25 +1,49 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Logs and temporary files
+# Logs and temp files
 *.log
 *.tmp
+*.swp
 
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
 
-# Coverage reports
+# Dependencies
+.venv/
+venv/
+__pycache__/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+*.pyc
+*.class
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+
+# Editors
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Storage files (if they are temporary/generated)
-storage/runs/
-storage/traces/
+# Cache
+.mypy_cache/
+.pytest_cache/
+.gradle/
 ```

@@ -32,6 +32,10 @@ except ImportError:  # opsional: bot tetap bisa start tanpa paket pencarian
 
 logger = logging.getLogger("AgentTools")
 
+# Configurable delay constants for tool operations
+TOOL_RETRY_DELAY = float(os.getenv("ALFA_TOOL_RETRY_DELAY", "1.5"))
+TOOL_SHORT_DELAY = float(os.getenv("ALFA_TOOL_SHORT_DELAY", "0.8"))
+
 # Context Variables for Multi-user Dynamic Context Isolation
 # Definisi asli dipindah ke runtime_ctx (modul netral anti-siklus impor);
 # di sini cukup re-export agar `from tools import current_user_id_var`
@@ -1646,8 +1650,7 @@ def _ensure_camofox_server() -> bool:
         camofox_bin = _find_camofox_bin()
         if camofox_bin:
             subprocess.run([camofox_bin, "server", "start", "--background"], env=env, capture_output=True, timeout=10)
-            import time
-            time.sleep(1.5)
+            time.sleep(TOOL_RETRY_DELAY)  # Configurable delay (default: 1.5s)
             return True
         return False
     except Exception as e:
@@ -4046,8 +4049,7 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             
             if not result.get("found", False):
                 if attempt < attempts:
-                    import time
-                    time.sleep(1)
+                    time.sleep(TOOL_RETRY_DELAY)  # Configurable retry delay (default: 1.5s)
                     continue
                 return {
                     "status": "error",
@@ -4087,8 +4089,8 @@ def vision_click_target(target_description: str, max_attempts: int = 3, action: 
             desktop_click_coordinate(x=x, y=y, button=button, clicks=clicks)
             
             # Step 4: Wait briefly then take verification screenshot
-            import time
-            time.sleep(0.8)
+            # Delay already imported at module level
+            time.sleep(TOOL_SHORT_DELAY)  # Configurable short delay (default: 0.8s)
             capture_desktop_screenshot()
             
             return {
@@ -5854,7 +5856,7 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
         elif act in ["start", "stop", "restart", "enable", "disable"]:
             res = subprocess.run(["systemctl", "--user", act, svc_name], capture_output=True, text=True)
             if res.returncode == 0:
-                time.sleep(1)
+                time.sleep(TOOL_RETRY_DELAY)  # Configurable delay (default: 1.5s)
                 res_active = subprocess.run(["systemctl", "--user", "is-active", svc_name], capture_output=True, text=True)
                 return {
                     "status": "success",
