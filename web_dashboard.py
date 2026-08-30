@@ -1597,13 +1597,16 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
                 r2 = await cli.post(f"{base}/chat/completions",
                     headers={"Authorization": f"Bearer {row['api_key']}",
                              "Content-Type": "application/json"},
-                    json={"model": model, "messages":
+                    json={"model": model or "all", "messages":
                           [{"role":"user","content":"Balas satu kata: SIAP"}],
-                          "max_tokens": 50})
+                          "max_tokens": 50, "stream": False})
             ok = r2.status_code == 200
             if ok:
-                snippet = (r2.json().get("choices",[{}])[0].get("message",{})
-                           .get("content","") or "")[:80]
+                try:
+                    snippet = (r2.json().get("choices",[{}])[0].get("message",{})
+                               .get("content","") or "")[:80]
+                except Exception:
+                    snippet = r2.text[:80]
             else:
                 snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
         ms = round((time.time()-t0)*1000)
