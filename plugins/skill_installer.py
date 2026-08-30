@@ -138,13 +138,21 @@ def skill_installer(action: str = 'list', source: str = '', name: str = '') -> d
         if os.path.isdir(SKILLS_DIR):
             skills = [d for d in sorted(os.listdir(SKILLS_DIR))
                       if os.path.isdir(os.path.join(SKILLS_DIR, d)) and not d.startswith('.')]
+        
+        superpowers_list = []
+        sp_dir = os.path.join(SKILLS_DIR, "superpowers")
+        if os.path.isdir(sp_dir):
+            superpowers_list = [d for d in sorted(os.listdir(sp_dir))
+                                if os.path.isdir(os.path.join(sp_dir, d)) and not d.startswith('.')]
+
         core_plugins = sorted(f[:-3] for f in os.listdir(PLUGINS_DIR)
                               if f.endswith('.py') and f != '__init__.py')
         return {
             "status": "success",
             "knowledge_skills": skills,
+            "superpowers_skills": superpowers_list,
             "tool_plugins": core_plugins,
-            "message": (f"{len(skills)} skill pengetahuan + {len(core_plugins)} tool plugin terpasang."
+            "message": (f"{len(skills)} repositori skill ({len(superpowers_list)} Superpowers aktif) + {len(core_plugins)} tool plugin terpasang."
                         if (skills or core_plugins) else "Belum ada skill terpasang.")
         }
 

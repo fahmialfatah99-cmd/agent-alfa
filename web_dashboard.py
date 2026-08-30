@@ -2776,6 +2776,162 @@ async def api_plugins_execute(payload: Dict[str, Any]):
         return {"status": "error", "message": f"Plugin execution error: {str(e)}"}
 
 
+# ==================== SUPERPOWERS AGENTIC SKILLS ENDPOINTS ====================
+
+@app.get("/api/skills/superpowers")
+async def api_superpowers_list():
+    """List all integrated Superpowers Agentic Skills active across all ALFA units."""
+    import re
+    skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills", "superpowers")
+    if not os.path.isdir(skills_dir):
+        skills_dir = os.path.expanduser("~/.alfa/skills/superpowers")
+    if not os.path.isdir(skills_dir):
+        skills_dir = r"C:\Users\mj9\.gemini\config\skills"
+
+    icons_map = {
+        "brainstorming": ("🧠", "Explores user intent, requirements and design before implementation", "Planning & Design"),
+        "systematic-debugging": ("🔍", "Iron Law: 4-phase root-cause investigation before proposing any fix", "Debugging & Health"),
+        "writing-plans": ("📝", "Generates rigorous implementation plans with dependencies and verification steps", "Planning & Design"),
+        "executing-plans": ("⚡", "Step-by-step plan execution with human review checkpoints", "Execution & Swarm"),
+        "test-driven-development": ("🧪", "TDD: Write failing automated tests first before code implementation", "Quality & Testing"),
+        "verification-before-completion": ("✅", "Zero Hallucination: Verifies terminal output before claiming done", "Quality & Testing"),
+        "subagent-driven-development": ("🤖", "Dispatches independent task subagents in current session", "Execution & Swarm"),
+        "dispatching-parallel-agents": ("🔀", "Executes 2+ independent tasks concurrently without state collision", "Execution & Swarm"),
+        "using-git-worktrees": ("🌲", "Devin-style isolated git worktrees/sandboxes for safe coding", "Architecture & Sandbox"),
+        "requesting-code-review": ("🛡️", "Validates work against strict requirements before merge", "Quality & Testing"),
+        "receiving-code-review": ("🧐", "Rigorously verifies feedback without performative agreement", "Quality & Testing"),
+        "using-superpowers": ("🚀", "Master skill dispatcher and routing across all agents", "Core Framework"),
+        "finishing-a-development-branch": ("🏁", "Systematic merge, verification, and branch cleanup", "Architecture & Sandbox"),
+        "writing-skills": ("✍️", "Creates, tests, and validates new dynamic skills", "Core Framework"),
+    }
+
+    result = []
+    if os.path.isdir(skills_dir):
+        for item in sorted(os.listdir(skills_dir)):
+            skill_path = os.path.join(skills_dir, item)
+            if not os.path.isdir(skill_path) or item.startswith("."):
+                continue
+            skill_md = os.path.join(skill_path, "SKILL.md")
+            desc = ""
+            if os.path.isfile(skill_md):
+                try:
+                    with open(skill_md, "r", encoding="utf-8", errors="ignore") as f:
+                        text = f.read(1500)
+                    m = re.search(r"description:\s*([^\n]+)", text)
+                    if m:
+                        desc = m.group(1).strip()
+                except Exception:
+                    pass
+            
+            icon, default_desc, category = icons_map.get(item, ("🦸", desc or "Superpowers agentic skill", "Specialist Skill"))
+            file_count = sum(len(files) for _, _, files in os.walk(skill_path))
+            result.append({
+                "id": item,
+                "name": item.replace("-", " ").title(),
+                "icon": icon,
+                "category": category,
+                "description": desc or default_desc,
+                "file_count": file_count,
+                "is_active_all_agents": True,
+                "enforcement": "Main Agent, Swarm 6 Specialists, Background Subagents"
+            })
+
+    return {
+        "status": "success",
+        "total_skills": len(result),
+        "applied_units": ["Main Brain (bot.py)", "Swarm 6 Personas (swarm_personas.py)", "Background Subagents (subagents.py)", "Auto-RAG Vector Brain"],
+        "skills": result
+    }
+
+
+@app.get("/api/skills/superpowers/{skill_id}")
+async def api_superpowers_detail(skill_id: str):
+    """Get full SKILL.md documentation and reference guidelines for a specific Superpowers skill."""
+    skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills", "superpowers")
+    if not os.path.isdir(skills_dir):
+        skills_dir = os.path.expanduser("~/.alfa/skills/superpowers")
+    if not os.path.isdir(skills_dir):
+        skills_dir = r"C:\Users\mj9\.gemini\config\skills"
+
+    target_skill = os.path.join(skills_dir, skill_id.strip())
+    if not os.path.isdir(target_skill):
+        raise HTTPException(status_code=404, detail=f"Superpower skill '{skill_id}' not found")
+
+    skill_md = os.path.join(target_skill, "SKILL.md")
+    content = ""
+    if os.path.isfile(skill_md):
+        with open(skill_md, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+
+    ref_files = []
+    for root, _, files in os.walk(target_skill):
+        for fl in files:
+            rel = os.path.relpath(os.path.join(root, fl), target_skill)
+            if rel != "SKILL.md":
+                ref_files.append(rel)
+
+    return {
+        "status": "success",
+        "skill_id": skill_id,
+        "name": skill_id.replace("-", " ").title(),
+        "content": content,
+        "reference_files": ref_files,
+        "applied_to_all_agents": True
+    }
+
+
+# ==================== UI/UX PRO MAX DESIGN INTELLIGENCE ENDPOINTS ====================
+
+@app.get("/api/skills/ui-ux-pro-max/search")
+def api_ui_ux_search(q: str = "", domain: str = "auto"):
+    """Search UI/UX Pro Max intelligence engine."""
+    from plugins.ui_ux_pro_max import ui_ux_pro_max_search
+    if not q:
+        return {"status": "error", "message": "Parameter q (query) is required."}
+    return ui_ux_pro_max_search(query=q, domain=domain, action="search")
+
+
+@app.post("/api/skills/ui-ux-pro-max/design-system")
+def api_ui_ux_design_system(payload: Dict[str, Any]):
+    """Generate comprehensive Design System for any product or niche."""
+    from plugins.ui_ux_pro_max import ui_ux_pro_max_search
+    query = payload.get("query", "").strip()
+    project_name = payload.get("project_name", "My Project").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+    return ui_ux_pro_max_search(query=query, action="generate_design_system", project_name=project_name)
+
+
+@app.get("/api/skills/ui-ux-pro-max/catalog")
+def api_ui_ux_catalog():
+    """Get summarized catalog of UI/UX Pro Max styles, colors, and typography."""
+    summary = {
+        "status": "success",
+        "total_styles": 67,
+        "total_rules": 192,
+        "domains": ["product", "style", "color", "typography", "landing", "motion", "chart", "icon", "ux-guidelines"],
+        "popular_styles": [
+            {"name": "Glassmorphism", "desc": "Frosted glass depth with backdrop blur and subtle borders"},
+            {"name": "Bento Grid", "desc": "Asymmetric modular card containers popular in Apple & SaaS"},
+            {"name": "Dark Mode (OLED)", "desc": "High contrast true black backgrounds with vivid accents"},
+            {"name": "Minimalism & Swiss", "desc": "Grid-based typographic precision, generous whitespace"},
+            {"name": "Neubrutalism", "desc": "High contrast bold black borders, vibrant pop colors, sharp shadows"},
+            {"name": "Cyberpunk / Sci-Fi", "desc": "Neon glow accents, dark metallic grids, futuristic HUD"}
+        ],
+        "checklist": [
+            "No raw emojis as UI icons (Use Lucide / SVG)",
+            "cursor-pointer on interactive elements",
+            "Responsive breakpoints (375, 768, 1024, 1440)",
+            "Minimum 4.5:1 text color contrast ratio",
+            "Visible focus outline for accessibility",
+            "Smooth transition easing (150-250ms)"
+        ]
+    }
+    return summary
+
+
+
+
 @app.get("/api/artifacts")
 async def list_artifacts():
     """List recent artifacts (images, PDFs, documents, audio) generated by tools."""
@@ -3135,25 +3291,32 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         engine_label = selected_model or 'Otak Utama'
         yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
         
+        turn_task = asyncio.create_task(_get_bot().run_agent_turn(
+            user_id=uid,
+            user_prompt=full_prompt,
+            multimodal_parts=multimodal_parts if multimodal_parts else None,
+            chat_id=uid,
+            override_model=selected_model,
+            override_key_id=selected_key_id
+        ))
+
+        while not turn_task.done():
+            yield ": ping\n\n"
+            await asyncio.sleep(2.0)
+
         try:
-            reply = await _get_bot().run_agent_turn(
-                user_id=uid,
-                user_prompt=full_prompt,
-                multimodal_parts=multimodal_parts if multimodal_parts else None,
-                chat_id=uid,
-                override_model=selected_model,
-                override_key_id=selected_key_id
-            )
+            reply = await turn_task
         except Exception as e:
             logger.error(f"Error in chat stream: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
         yield f"data: {json.dumps({'type': 'progress', 'step': '3. Memformat respon Markdown & artefak...'})}\n\n"
-        yield f"data: {json.dumps({'type': 'start', 'model': selected_model or 'default'})}\n\n"
+        if not reply:
+            reply = "⚠️ Tidak ada respon yang dihasilkan oleh model AI. Pastikan AI Gateway (9Router di port 20128) aktif atau periksa kuota API Key di Vault."
 
         # Stream chunked tokens
-        lines = reply.split("\n")
+        lines = (reply or "").split("\n")
         for line_idx, line in enumerate(lines):
             words = line.split(" ")
             for w_idx, w in enumerate(words):
