@@ -1970,6 +1970,30 @@ async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int 
     }
 
 
+@app.get("/api/memory/list")
+async def get_memory_list():
+    """Fetch all permanent memory facts for the list view."""
+    uid = get_primary_user_id()
+    memories = await database.get_all_memories(uid)
+    
+    # Format for the list view
+    items = []
+    for mem in memories:
+        items.append({
+            "key": mem.get("key_topic", ""),
+            "title": mem.get("key_topic", ""),
+            "content": mem.get("content", ""),
+            "category": mem.get("category", "general"),
+            "created_at": mem.get("created_at", "")
+        })
+    
+    return {
+        "status": "success",
+        "total": len(items),
+        "items": items
+    }
+
+
 @app.get("/api/memory")
 async def get_memory_data():
     """Fetch all permanent memory facts and knowledge graph relations."""
@@ -2277,6 +2301,73 @@ def _safe_workspace_path(path: str) -> str:
                     f"Root tersedia: {allowed}. "
                     "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."))
     return real
+
+
+@app.get("/api/files")
+async def list_files(path: str = "/workspace"):
+    """List files and directories for the File Manager UI."""
+    # Normalize path
+    real_path = os.path.realpath(os.path.expanduser(path))
+    
+    # Security check: ensure path is within allowed roots
+    allowed_roots = [
+        os.path.realpath("/workspace"),
+        os.path.realpath(os.path.expanduser("~")),
+    ]
+    
+    is_allowed = False
+    for root in allowed_roots:
+        if real_path.startswith(root):
+            is_allowed = True
+            break
+    
+    if not is_allowed:
+        raise HTTPException(status_code=403, detail="Access denied: path outside allowed directories")
+    
+    if not os.path.exists(real_path):
+        raise HTTPException(status_code=404, detail="Path not found")
+    
+    if not os.path.isdir(real_path):
+        raise HTTPException(status_code=400, detail="Not a directory")
+    
+    files = []
+    try:
+        entries = sorted(os.scandir(real_path), key=lambda e: (not e.is_dir(), e.name.lower()))
+        for e in entries:
+            if e.name.startswith(".") and e.name not in [".alfa", ".config"]:
+                continue
+            try:
+                stat = e.stat()
+                file_type = "dir" if e.is_dir() else "file"
+                size = stat.st_size if e.is_file() else None
+                
+                # Format size
+                size_str = ""
+                if size:
+                    if size < 1024:
+                        size_str = f"{size} B"
+                    elif size < 1024 * 1024:
+                        size_str = f"{size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{size / (1024 * 1024):.1f} MB"
+                
+                files.append({
+                    "name": e.name,
+                    "type": file_type,
+                    "path": os.path.join(real_path, e.name),
+                    "size": size_str,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+                })
+            except (PermissionError, OSError):
+                continue
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    return {
+        "status": "success",
+        "path": real_path,
+        "files": files
+    }
 
 
 @app.get("/api/workspace/roots")
