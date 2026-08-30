@@ -251,32 +251,65 @@ def select_relevant_functions(
     """
     Versi untuk daftar callable Python mentah (jalur Gemini native AFC):
     indeks dari __name__ + __doc__, lalu filter seperti select_relevant_tools.
-    Fail-open ke daftar lengkap.
+    Menjamin tidak ada fungsi duplikat yang dikirim ke Gemini SDK.
     """
     try:
-        if not _ENABLED or not functions:
-            return functions
+        if not functions:
+            return []
+
+        # Deduplikasi awal berdasarkan __name__
+        unique_funcs = []
+        seen = set()
+        for f in functions:
+            nm = getattr(f, "__name__", "")
+            if nm and nm not in seen:
+                seen.add(nm)
+                unique_funcs.append(f)
+            elif not nm and f not in unique_funcs:
+                unique_funcs.append(f)
+
+        if not _ENABLED:
+            return unique_funcs
+
         k = top_k or TOP_K
-        if len(functions) <= k + len(CORE_ALWAYS):
-            return functions
+        if len(unique_funcs) <= k + len(CORE_ALWAYS):
+            return unique_funcs
 
         names: List[str] = []
         docs: List[str] = []
-        for f in functions:
+        for f in unique_funcs:
             nm = getattr(f, "__name__", "")
             names.append(nm)
             docs.append(f"{nm} {(getattr(f, '__doc__', '') or '')[:600]}")
 
         keep = set(_rank_names(docs, names, user_text, history, k))
-        filtered = [f for f in functions if getattr(f, "__name__", "") in keep]
+        filtered = []
+        seen_filtered = set()
+        for f in unique_funcs:
+            nm = getattr(f, "__name__", "")
+            if nm in keep and nm not in seen_filtered:
+                seen_filtered.add(nm)
+                filtered.append(f)
+
         if not filtered:
-            return functions
-        logger.info(f"[ToolRAG] {len(functions)} -> {len(filtered)} fungsi "
-                    f"(hemat ~{(len(functions) - len(filtered)) * 90} token/turn)")
+            return unique_funcs
+
+        logger.info(f"[ToolRAG] {len(unique_funcs)} -> {len(filtered)} fungsi unik "
+                    f"(hemat ~{(len(unique_funcs) - len(filtered)) * 90} token/turn)")
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
-        return functions
+        # Tetap deduplikasi saat fallback error
+        seen_fallback = set()
+        fallback_funcs = []
+        for f in (functions or []):
+            nm = getattr(f, "__name__", "")
+            if nm and nm not in seen_fallback:
+                seen_fallback.add(nm)
+                fallback_funcs.append(f)
+            elif not nm and f not in fallback_funcs:
+                fallback_funcs.append(f)
+        return fallback_funcs
 
 
 def select_relevant_tools(

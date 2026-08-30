@@ -700,6 +700,18 @@ async def run_agent_turn(
             except Exception as e:
                 logger.warning(f"Failed to load dynamic plugins: {e}")
             
+            # Deduplikasi ketat nama fungsi sebelum dikirim ke SDK
+            seen_fn_names = set()
+            deduped_tools = []
+            for f in all_tools:
+                nm = getattr(f, "__name__", "")
+                if nm and nm not in seen_fn_names:
+                    seen_fn_names.add(nm)
+                    deduped_tools.append(f)
+                elif not nm and f not in deduped_tools:
+                    deduped_tools.append(f)
+            all_tools = deduped_tools
+
             gemini_tools = all_tools
             try:
                 from tool_rag import select_relevant_functions
