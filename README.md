@@ -186,3 +186,41 @@ Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)
 
 ## 📄 Lisensi
 Didistribusikan di bawah lisensi **MIT License**. Silakan gunakan, modifikasi, dan kembangkan untuk kebutuhan pribadi maupun komersial.
+
+---
+
+## 💻 Mode CLI Interaktif: Panduan Cepat
+
+Mode ini adalah **Pair Programmer Otonom** yang dapat menulis kode, menjalankan terminal, dan debug otomatis langsung di chat.
+
+### ✨ Cara Menggunakan
+1. **Mulai Proyek:** Ketik permintaan dalam bahasa alami.
+   > *"Buatkan struktur folder untuk proyek React + Vite, lalu inisialisasinya."*
+2. **Coding Berat:** Minta analisis data atau backend kompleks.
+   > *"Buat script Python untuk analisis dataset CSV besar dengan pandas dan plot grafik."*
+3. **Debug Otomatis:** Jika error, minta AI memperbaikinya.
+   > *"Ada error di baris 15, perbaiki dan jalankan ulang."*
+
+### 🛠️ Setup Lingkungan (Sekali Copas)
+
+Jalankan script di bawah ini untuk menginstal semua tools yang dibutuhkan (Python, Node.js, C++, Data Science, dll).
+
+#### 🐧 Linux (Ubuntu/Debian/Mint)
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install -y build-essential cmake gdb valgrind git curl wget unzip pkg-config libssl-dev libffi-dev python3-pip python3-venv software-properties-common && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo pip3 install --break-system-packages pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab && sudo npm install -g typescript ts-node nodemon eslint prettier && echo "=== VERIFIKASI ===" && python3 --version && node --version && g++ --version | head -n 1 && python3 -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')" && npx tsc --version && echo "🚀 Setup Selesai! Siap untuk Coding Berat."
+```
+
+#### 🪟 Windows (PowerShell - Run as Administrator)
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); choco install -y git python nodejs-lts visualstudio2022buildtools cmake --params "--includeRecommended"; refreshenv; pip install pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab; npm install -g typescript ts-node nodemon eslint prettier; Write-Host "=== VERIFIKASI ===" -ForegroundColor Green; python --version; node --version; g++ --version | Select-Object -First 1; python -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')"; npx tsc --version; Write-Host "🚀 Setup Selesai! Siap untuk Coding Berat." -ForegroundColor Green
+```
+
+### 📋 Tools Tersedia Setelah Setup
+| Kategori | Tools & Libraries |
+| :--- | :--- |
+| **Python** | `pytest`, `black`, `flake8`, `mypy`, `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `jupyter` |
+| **Node.js** | `typescript`, `ts-node`, `nodemon`, `eslint`, `prettier` |
+| **C/C++** | `gcc`, `g++`, `cmake`, `gdb`, `valgrind`, `make` |
+| **Utilities** | `git`, `curl`, `wget`, `unzip` |
+
+**Siap memulai?** Ketik perintah pertama Anda sekarang!
