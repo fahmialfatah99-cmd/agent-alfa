@@ -1,17 +1,4 @@
 ```
-# Compiled Python files
-*.pyc
-__pycache__/
-
-# Database files
-*.db
-
-# Storage directories
-storage/traces/
-storage/runs/
-
-# Environment files
-.env
-.env.local
-*.env.*
+# Test run storage files
+storage/runs/_test_*.jsonl
 ```
