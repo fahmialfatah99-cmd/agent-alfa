@@ -47,6 +47,14 @@ def _get_bot():
 
 app = FastAPI(title="ALFA Sovereign Command Center Pro-Max", version="2.5.0")
 
+# Setup logging
+logger = logging.getLogger("Dashboard")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    logger.addHandler(handler)
+
 # Optional authentication: set DASHBOARD_AUTH_TOKEN in .env to require a password.
 # Browsers will show a native login prompt; API clients may use
 # "Authorization: Bearer <token>" as well.
@@ -82,7 +90,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(DashboardAuthMiddleware)
 
 if not DASHBOARD_AUTH_TOKEN:
-    logging.getLogger("Dashboard").warning(
+    logger.warning(
         "DASHBOARD_AUTH_TOKEN tidak diset di .env - dashboard TANPA autentikasi. "
         "Semua endpoint /api/* dapat diakses siapa pun yang bisa mencapai port ini."
     )
