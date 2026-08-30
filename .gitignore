@@ -1,4 +1,31 @@
 ```
-# Executable/binary files
-alfa-cli
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py~
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Database
+*.db
+agent_data.db
 ```
