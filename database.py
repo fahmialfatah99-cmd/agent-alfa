@@ -506,10 +506,15 @@ async def init_db():
 
 # --- Cron / Recurring Task Functions ---
 def add_cron_job_sync(user_id: int, chat_id: int, title: str, prompt_instruction: str, interval_minutes: int) -> int:
-    """Synchronously add a recurring cron job."""
+    """Synchronously add a recurring cron job, auto-registering user."""
     from datetime import datetime, timedelta
     next_run = (datetime.now() + timedelta(minutes=interval_minutes)).strftime("%Y-%m-%d %H:%M:%S")
     with get_sync_db() as conn:
+        # Ensure user exists in settings table
+        conn.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         cursor = conn.execute(
             """
             INSERT INTO scheduled_cron_jobs (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run)
@@ -659,8 +664,13 @@ def list_agent_activities_sync(limit: int = 30) -> List[Dict[str, Any]]:
 
 # --- Chat History Functions ---
 async def save_chat_message(user_id: int, role: str, content: str):
-    """Save a chat message to history."""
+    """Save a chat message to history, auto-registering user if needed."""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Ensure user exists in settings table
+        await db.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         await db.execute(
             "INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)",
             (user_id, role, content)
@@ -713,8 +723,13 @@ def save_memory_fact_sync(user_id: int, key_topic: str, content: str, category: 
 
 
 async def save_memory_fact(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
-    """Async save or update a persistent fact/memory."""
+    """Async save or update a persistent fact/memory, auto-registering user."""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Ensure user exists in settings table
+        await db.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         await db.execute(
             """
             INSERT INTO knowledge_memory (user_id, category, key_topic, content, updated_at)
@@ -788,8 +803,13 @@ async def delete_memory(user_id: int, key_topic: str) -> bool:
 
 # --- Reminders / Scheduled Tasks ---
 def add_reminder_sync(user_id: int, chat_id: int, reminder_time_iso: str, message: str) -> int:
-    """Synchronously add a scheduled reminder (for tools)."""
+    """Synchronously add a scheduled reminder (for tools), auto-registering user."""
     with get_sync_db() as conn:
+        # Ensure user exists in settings table
+        conn.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         cursor = conn.execute(
             """
             INSERT INTO reminders (user_id, chat_id, reminder_time, message)
@@ -802,8 +822,13 @@ def add_reminder_sync(user_id: int, chat_id: int, reminder_time_iso: str, messag
 
 
 async def add_reminder(user_id: int, chat_id: int, reminder_time_iso: str, message: str) -> int:
-    """Add a scheduled reminder."""
+    """Add a scheduled reminder, auto-registering user."""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Ensure user exists in settings table
+        await db.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         cursor = await db.execute(
             """
             INSERT INTO reminders (user_id, chat_id, reminder_time, message)
@@ -841,8 +866,15 @@ async def mark_reminder_executed(reminder_id: int):
 
 # --- User Settings ---
 async def get_user_settings(user_id: int) -> Dict[str, Any]:
-    """Get settings for a user."""
+    """Get settings for a user, auto-registering if not exists."""
     async with aiosqlite.connect(DB_PATH) as db:
+        # Auto-register user if not exists
+        await db.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
+        await db.commit()
+        
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT voice_reply, system_prompt_override, model_name FROM user_settings WHERE user_id = ?",
@@ -873,8 +905,13 @@ async def toggle_voice_setting(user_id: int) -> bool:
 
 # --- Knowledge Graph (Semantic Relations & Second Brain) ---
 def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target_value: str, category: str = "general", tags: str = "") -> Dict[str, Any]:
-    """Synchronously insert or update a semantic relation in the knowledge graph."""
+    """Synchronously insert or update a semantic relation in the knowledge graph, auto-registering user."""
     with get_sync_db() as conn:
+        # Ensure user exists in settings table
+        conn.execute(
+            "INSERT OR IGNORE INTO user_settings (user_id, voice_reply, model_name) VALUES (?, 0, 'gemini-3.6-flash')",
+            (user_id,)
+        )
         conn.execute(
             """
             INSERT INTO knowledge_graph (user_id, entity, relation, target_value, category, tags)
