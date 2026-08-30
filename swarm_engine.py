@@ -529,7 +529,8 @@ async def _generate_with_openai_compat(
                 {"role": "user", "content": prompt}
             ],
             "temperature": 0.7,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
+            "stream": False
         }
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=10.0)) as http_client:
@@ -548,19 +549,38 @@ async def _generate_with_openai_compat(
                 )
                 return None
             if res.status_code == 200:
-                data = res.json()
-                token_usage.from_openai_json(data, provider=provider, model=model,
-                                             key_id=key_id,
-                                             key_label=key_label or f"agent:{agent_name}",
-                                             context=context)
-                msg0 = (data.get("choices") or [{}])[0].get("message") or {}
-                content = (msg0.get("content") or "").strip()
-                if not content:
-                    content = (msg0.get("reasoning_content")
-                               or msg0.get("reasoning") or "").strip()
-                    logger.warning(f"[{provider}] content kosong, fallback reasoning ({len(content)} char)")
-                if content:
-                    return content
+                try:
+                    data = res.json()
+                    token_usage.from_openai_json(data, provider=provider, model=model,
+                                                 key_id=key_id,
+                                                 key_label=key_label or f"agent:{agent_name}",
+                                                 context=context)
+                    msg0 = (data.get("choices") or [{}])[0].get("message") or {}
+                    content = (msg0.get("content") or "").strip()
+                    if not content:
+                        content = (msg0.get("reasoning_content")
+                                   or msg0.get("reasoning") or "").strip()
+                        logger.warning(f"[{provider}] content kosong, fallback reasoning ({len(content)} char)")
+                    if content:
+                        return content
+                except Exception as parse_err:
+                    # Fallback untuk SSE streaming chunk jika respons berupa data: {...}
+                    logger.warning(f"[{provider}] JSON parse fallback ({parse_err!r}) -> mencoba parsing SSE chunks")
+                    content_parts = []
+                    for line in res.text.splitlines():
+                        line_str = line.strip()
+                        if line_str.startswith("data: ") and line_str != "data: [DONE]":
+                            try:
+                                import json as _json
+                                chunk = _json.loads(line_str[6:].strip())
+                                delta = (chunk.get("choices") or [{}])[0].get("delta", {})
+                                c = delta.get("content") or delta.get("reasoning_content") or ""
+                                if c:
+                                    content_parts.append(c)
+                            except Exception:
+                                pass
+                    if content_parts:
+                        return "".join(content_parts).strip()
                 return None
             # Kuota habis sebagian? OpenRouter memberi tahu angka maksimal yang
             # mampu dibayar - coba sekali lagi dengan budget itu (dikurangi margin).

@@ -3250,7 +3250,7 @@ async def get_chat_available_models():
                         "key_name": kname,
                         "is_active_key": is_act
                     })
-        elif prov in ("groq", "openai", "custom", "nvidia"):
+        elif prov in ("groq", "openai", "custom", "nvidia", "9router"):
             model_list.append({
                 "id": def_m or f"{prov}-model",
                 "name": f"⚡ {kname} ({def_m or prov})",
@@ -4075,14 +4075,14 @@ PROVIDER_MODELS = {
         {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus (Model Paling Kompleks)", "category": "Anthropic Opus", "pricing": "paid", "pricing_label": "💎 BERBAYAR ($15/1M)"}
     ],
     "9router": [
-        {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "gpt-4o", "name": "GPT-4o (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "deepseek-reasoner", "name": "DeepSeek R1 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "deepseek-chat", "name": "DeepSeek V3 (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "llama-3.3-70b", "name": "Llama 3.3 70B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "qwen-2.5-coder-32b", "name": "Qwen 2.5 Coder 32B (via 9Router Gateway)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER ROUTER"},
-        {"id": "auto", "name": "Auto Intelligent Fallback (9Router Best Available)", "category": "9Router Gateway", "pricing": "free_tier", "pricing_label": "🟢 AUTO ROUTE"}
+        {"id": "all", "name": "All Connected Providers Combo (Intelligent Round-Robin)", "category": "9Router Combo", "pricing": "free_tier", "pricing_label": "🟢 AUTO COMBO"},
+        {"id": "ag/gemini-3.7-flash-high", "name": "Gemini 3.7 Flash High (via 9Router)", "category": "Antigravity via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "ag/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (via 9Router)", "category": "Claude via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "ag/claude-opus-4-6-thinking", "name": "Claude Opus 4.6 Thinking (via 9Router)", "category": "Claude via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "gemini/gemini-3.7-flash", "name": "Gemini 3.7 Flash Direct (via 9Router)", "category": "Gemini via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "gemini/gemini-3.6-flash", "name": "Gemini 3.6 Flash Direct (via 9Router)", "category": "Gemini via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "nvidia/deepseek-ai/deepseek-v4-flash", "name": "DeepSeek V4 Flash (via 9Router NVIDIA)", "category": "NVIDIA via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
+        {"id": "nvidia/minimaxai/minimax-m2.7", "name": "MiniMax M2.7 (via 9Router NVIDIA)", "category": "NVIDIA via 9Router", "pricing": "free_tier", "pricing_label": "🟢 9ROUTER"},
     ],
     "ollama": [
         {"id": "deepseek-r1", "name": "DeepSeek R1 (Lokal PC/Laptop)", "category": "Local Offline", "pricing": "free", "pricing_label": "🟢 100% GRATIS & OFFLINE"},
@@ -4154,6 +4154,26 @@ async def get_available_models():
     except Exception:
         pass
 
+    # 3. Attempt dynamic refresh from 9Router (Local Gateway)
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            r = await client.get("http://localhost:20128/v1/models")
+            if r.status_code == 200:
+                live_9r = r.json().get("data", [])
+                existing_9r_ids = {m["id"] for m in PROVIDER_MODELS.get("9router", [])}
+                for item in live_9r:
+                    mid = item.get("id")
+                    if mid and mid not in existing_9r_ids:
+                        PROVIDER_MODELS["9router"].append({
+                            "id": mid,
+                            "name": f"{mid} (via 9Router)",
+                            "category": "9Router Live Catalog",
+                            "pricing": "free_tier",
+                            "pricing_label": "🟢 9ROUTER"
+                        })
+    except Exception:
+        pass
+
     return {"status": "success", "providers": PROVIDER_MODELS}
 
 
@@ -4212,7 +4232,7 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
                 elif provider == "openrouter":
                     target_model = "deepseek/deepseek-r1:free"
                 elif provider == "9router":
-                    target_model = "auto"
+                    target_model = "all"
                 else:
                     target_model = "gpt-4o"
 
@@ -4224,7 +4244,8 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
             test_payload = {
                 "model": target_model,
                 "messages": [{"role": "user", "content": "Tes koneksi. Jawab: OK"}],
-                "max_tokens": 10
+                "max_tokens": 10,
+                "stream": False
             }
             async with httpx.AsyncClient(timeout=12.0) as client:
                 res = await client.post(f"{url.rstrip('/')}/chat/completions", headers=headers, json=test_payload)
