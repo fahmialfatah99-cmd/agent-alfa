@@ -24,40 +24,52 @@ function Test-Proc($hint) {
         Where-Object { $_.CommandLine -match $hint } | Select-Object -First 1)
 }
 
+function Test-PortListening($port) {
+    return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
 $prevBot = $true
 $prevDash = $true
+$prevRouter = $true
 $lastCleanupDay = (Get-Date).Date
 
 while ($true) {
     try {
-        $botUp  = Test-Proc 'bot\.py'
-        $dashUp = Test-Proc 'web_dashboard\.py'
+        $botUp    = Test-Proc 'bot\.py'
+        $dashUp   = Test-Proc 'web_dashboard\.py'
+        $routerUp = Test-PortListening 20128
 
-        if (-not $botUp -or -not $dashUp) {
+        if (-not $botUp -or -not $dashUp -or -not $routerUp) {
             # Konfirmasi 5 detik (hindari false positive saat restart manual)
             Start-Sleep -Seconds 5
-            $botUp  = Test-Proc 'bot\.py'
-            $dashUp = Test-Proc 'web_dashboard\.py'
+            $botUp    = Test-Proc 'bot\.py'
+            $dashUp   = Test-Proc 'web_dashboard\.py'
+            $routerUp = Test-PortListening 20128
         }
 
-        if (-not $botUp -or -not $dashUp) {
+        if (-not $botUp -or -not $dashUp -or -not $routerUp) {
             & powershell -NoProfile -ExecutionPolicy Bypass -File "$dir\start_alfa.ps1"
-            Start-Sleep -Seconds 20
-            $botNew  = Test-Proc 'bot\.py'
-            $dashNew = Test-Proc 'web_dashboard\.py'
+            Start-Sleep -Seconds 15
+            $botNew    = Test-Proc 'bot\.py'
+            $dashNew   = Test-Proc 'web_dashboard\.py'
+            $routerNew = Test-PortListening 20128
 
-            if (($prevBot -and -not $botNew) -or ($prevDash -and -not $dashNew)) {
+            if (($prevBot -and -not $botNew) -or ($prevDash -and -not $dashNew) -or ($prevRouter -and -not $routerNew)) {
                 Send-Alert ("🛡️ ALFA GUARDIAN`n`nDeteksi layanan mati -> auto-restart dijalankan.`n🤖 Bot: " +
                     $(if ($botNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }) +
                     "`n🌐 Dashboard: " +
-                    $(if ($dashNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }))
+                    $(if ($dashNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }) +
+                    "`n🔀 9Router: " +
+                    $(if ($routerNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }))
             }
-            $prevBot  = $botNew
-            $prevDash = $dashNew
+            $prevBot    = $botNew
+            $prevDash   = $dashNew
+            $prevRouter = $routerNew
         }
         else {
-            $prevBot  = $true
-            $prevDash = $true
+            $prevBot    = $true
+            $prevDash   = $true
+            $prevRouter = $true
         }
 
         # ── Rotasi log >20MB (simpan 500 baris terakhir) ──
