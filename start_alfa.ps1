@@ -1,5 +1,5 @@
 # Auto-start ALFA Bot + Dashboard (aman dijalankan berulang)
-$dir = "C:\Users\mj9\telegram-ai-bot"
+$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 Set-Location $dir
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"

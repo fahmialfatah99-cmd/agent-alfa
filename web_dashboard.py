@@ -391,11 +391,17 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
         
         path = request.url.path
         public_paths = ["/", "/api/auth/login", "/api/auth/register", "/docs", "/redoc", "/openapi.json"]
-        if any(path.startswith(pp) for pp in public_paths):
+        if path == "/" or any(path.startswith(pp) for pp in public_paths if pp != "/"):
             return await call_next(request)
         
         # Cek session token dari cookie atau header
         session_token = request.cookies.get("session_token") or request.headers.get("X-Session-Token", "")
+        auth_header = request.headers.get("Authorization", "")
+        if not session_token and auth_header.startswith("Bearer "):
+            # Jika user menggunakan DASHBOARD_AUTH_TOKEN legacy, biarkan fallback di bawah yang menangani
+            candidate = auth_header[7:]
+            if candidate != DASHBOARD_AUTH_TOKEN:
+                session_token = candidate
         
         if session_token:
             user = validate_session(session_token)
@@ -423,7 +429,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
         
         # Block akses ke API endpoints tanpa auth
-        if path.startswith("/api/"):
+        if DASHBOARD_AUTH_TOKEN and path.startswith("/api/"):
             return Response(
                 content='{"detail":"Unauthorized: login required"}',
                 status_code=401,
@@ -622,6 +628,7 @@ async def login_user(payload: Dict[str, Any]):
         content=json.dumps({
             "status": "success",
             "message": "Login berhasil",
+            "token": session_token,
             "user": user
         }),
         media_type="application/json"
