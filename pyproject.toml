@@ -21,67 +21,139 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent"
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "requests>=2.31.0",
+    "python-telegram-bot>=20.0",
+    "google-genai",
+    "python-dotenv",
+    "aiosqlite",
+    "psutil",
+    "httpx",
+    "fastapi",
+    "uvicorn",
+    "pillow",
+    "pypdf",
+    "tabulate",
+    "numpy",
+    "scikit-learn",
+    "sentence-transformers",
+    "faiss-cpu",
+    "pydantic",
+    "click",
+    "rich",
+    "pyyaml",
+    "jinja2",
+    "aiofiles",
+    "websockets",
+    "passlib",
+    "cryptography",
+    "gitpython",
+    "pygments"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "ruff>=0.1.0",
-    "black>=23.0.0",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio",
+    "black",
+    "ruff",
+    "mypy",
+    "flake8",
+    "pre-commit"
 ]
-full = [
-    "google-generativeai>=0.3.0",
-    "fastapi>=0.104.0",
-    "uvicorn>=0.24.0",
-    "python-dotenv>=1.0.0",
-    "numpy>=1.24.0",
-    "pandas>=2.0.0",
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings"
 ]
 
 [project.scripts]
-alfa-cli = "alfa.cli:main"
-
-[project.urls]
-Homepage = "https://github.com/fahmialfatah99-cmd/agent-alfa"
-Repository = "https://github.com/fahmialfatah99-cmd/agent-alfa.git"
-Documentation = "https://github.com/fahmialfatah99-cmd/agent-alfa#readme"
+alfa = "cli:main"
+alfa-agent = "bot:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["alfa*"]
+include = ["alfa*", "plugins*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | build
+  | dist
+)/
+'''
 
 [tool.ruff]
-line-length = 200
+line-length = 88
 target-version = "py310"
-extend-exclude = ["venv", "__pycache__", ".pytest_cache"]
+select = ["E", "F", "B", "W", "I", "N", "UP", "YTT"]
+ignore = ["E501", "B006"]
+exclude = [".git", ".venv", "venv", "__pycache__", "build", "dist"]
 
-[tool.ruff.lint]
-# Gerbang kualitas fokus bug nyata (bukan restyling):
-# E4/E7/E9 = error sintaks & logika dasar; F = pyflakes (nama undefined,
-# import/variabel tak terpakai); W605 = escape tidak valid;
-# I = urutan import (autofix aman); B006 = default argumen mutable.
-select = ["E4", "E7", "E9", "F", "W605", "I", "B006"]
+[tool.ruff.per-file-ignores]
+"tests/*" = ["S101", "PLR2004"]
+"*_test.py" = ["S101"]
 
-[tool.ruff.lint.isort]
-known-first-party = [
-    "alfa",
-    "database", "tools", "main_brain", "swarm_engine", "vector_memory",
-    "vault_engine", "tts_engine", "token_usage", "permission_gate",
-    "security_auditor", "affiliate_engine", "universal_scraper",
-    "fast_scraper", "subagents", "swarm_personas", "plugins", "web_dashboard",
-]
-
-[tool.ruff.lint.per-file-ignores]
-# Impor di tengah file disengaja: .env harus dimuat dulu sebelum modul
-# yang membaca env saat impor (pola lazy-init proyek ini).
-"tools.py" = ["E402"]
-"swarm_engine.py" = ["E402"]
-"web_dashboard.py" = ["E402"]
-"swarm_personas.py" = ["E402"]
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+exclude = ["tests/", "venv/", ".venv/", "build/", "dist/"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "test_security.py", "test_agent.py"]
+minversion = "7.0"
+addopts = "-ra -q --cov=alfa --cov-report=term-missing"
+testpaths = ["tests", "."]
+python_files = ["test_*.py", "*_test.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["alfa", "."]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "test_*.py",
+    "*_test.py",
+    "conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "@overload"
+]
+show_missing = true
+precision = 2
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
