@@ -191,39 +191,67 @@ Didistribusikan di bawah lisensi **MIT License**. Silakan gunakan, modifikasi, d
 
 ## 💻 Mode CLI Interaktif: Panduan Cepat
 
-Mode ini adalah **Pair Programmer Otonom** yang dapat menulis kode, menjalankan terminal, dan debug otomatis langsung di chat.
+Mode ini adalah **Terminal Client** untuk berinteraksi dengan ALFA Agent melalui command line.
 
 ### ✨ Cara Menggunakan
-1. **Mulai Proyek:** Ketik permintaan dalam bahasa alami.
-   > *"Buatkan struktur folder untuk proyek React + Vite, lalu inisialisasinya."*
-2. **Coding Berat:** Minta analisis data atau backend kompleks.
-   > *"Buat script Python untuk analisis dataset CSV besar dengan pandas dan plot grafik."*
-3. **Debug Otomatis:** Jika error, minta AI memperbaikinya.
-   > *"Ada error di baris 15, perbaiki dan jalankan ulang."*
 
-### 🛠️ Setup Lingkungan (Sekali Copas)
+1. **Instalasi Paket ALFA:**
+   ```bash
+   cd /path/to/agent-alfa
+   pip install -e .
+   ```
 
-Jalankan script di bawah ini untuk menginstal semua tools yang dibutuhkan (Python, Node.js, C++, Data Science, dll).
+2. **Jalankan CLI:**
+   ```bash
+   # Menggunakan command yang terinstall
+   alfa-cli
+   
+   # Atau menggunakan module Python
+   python -m alfa.cli
+   
+   # Dengan server custom
+   alfa-cli --server http://192.168.1.100:8080
+   ```
 
-#### 🐧 Linux (Ubuntu/Debian/Mint)
-```bash
-sudo apt update && sudo apt upgrade -y && sudo apt install -y build-essential cmake gdb valgrind git curl wget unzip pkg-config libssl-dev libffi-dev python3-pip python3-venv software-properties-common && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo pip3 install --break-system-packages pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab && sudo npm install -g typescript ts-node nodemon eslint prettier && echo "=== VERIFIKASI ===" && python3 --version && node --version && g++ --version | head -n 1 && python3 -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')" && npx tsc --version && echo "🚀 Setup Selesai! Siap untuk Coding Berat."
+3. **Login dan Mulai Chat:**
+   ```bash
+   alfa> register  # Daftar akun baru
+   alfa> login     # Login ke akun
+   alfa> Halo, apa kabar?  # Chat dengan AI
+   alfa> stats     # Lihat statistik sistem
+   alfa> exit      # Keluar
+   ```
+
+### 📋 Perintah CLI Tersedia
+
+| Perintah | Deskripsi |
+|----------|-----------|
+| `register` | Daftar akun baru di server ALFA |
+| `login` | Login ke akun Anda |
+| `logout` | Logout dari akun saat ini |
+| `stats` | Tampilkan statistik sistem ALFA |
+| `tools` | Daftar tools yang tersedia |
+| `clear` | Bersihkan layar terminal |
+| `exit` / `q` | Keluar dari aplikasi CLI |
+| *chat biasa* | Kirim pesan teks ke AI untuk diproses |
+
+### 🔧 Environment Variables
+
+- `ALFA_SERVER`: URL server ALFA (default: `http://localhost:8080`)
+
+### 📦 Struktur Paket alfa
+
+```
+alfa/
+├── __init__.py       # Package metadata & exports
+├── __main__.py       # Entry point untuk python -m alfa
+├── cli.py            # Command-line interface implementation
+└── core/
+    ├── __init__.py   # Core module initialization
+    └── brain.py      # Main reasoning engine
 ```
 
-#### 🪟 Windows (PowerShell - Run as Administrator)
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); choco install -y git python nodejs-lts visualstudio2022buildtools cmake --params "--includeRecommended"; refreshenv; pip install pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab; npm install -g typescript ts-node nodemon eslint prettier; Write-Host "=== VERIFIKASI ===" -ForegroundColor Green; python --version; node --version; g++ --version | Select-Object -First 1; python -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')"; npx tsc --version; Write-Host "🚀 Setup Selesai! Siap untuk Coding Berat." -ForegroundColor Green
-```
-
-### 📋 Tools Tersedia Setelah Setup
-| Kategori | Tools & Libraries |
-| :--- | :--- |
-| **Python** | `pytest`, `black`, `flake8`, `mypy`, `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `jupyter` |
-| **Node.js** | `typescript`, `ts-node`, `nodemon`, `eslint`, `prettier` |
-| **C/C++** | `gcc`, `g++`, `cmake`, `gdb`, `valgrind`, `make` |
-| **Utilities** | `git`, `curl`, `wget`, `unzip` |
-
-**Siap memulai?** Ketik perintah pertama Anda sekarang!
+Untuk dokumentasi lengkap, lihat **[alfa-cli/README.md](alfa-cli/README.md)**
 
 ---
 

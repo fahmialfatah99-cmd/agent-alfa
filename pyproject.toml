@@ -1,3 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alfa-ai"
+version = "2.5.0"
+description = "ALFA Sovereign AI Agent - Unified, Modular AI Agent Architecture"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Fahmi Alfatah", email = "fahmialfatah99@example.com"}
+]
+keywords = ["ai", "agent", "llm", "automation", "cli", "swarm", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+]
+full = [
+    "google-generativeai>=0.3.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+]
+
+[project.scripts]
+alfa-cli = "alfa.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/fahmialfatah99-cmd/agent-alfa"
+Repository = "https://github.com/fahmialfatah99-cmd/agent-alfa.git"
+Documentation = "https://github.com/fahmialfatah99-cmd/agent-alfa#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["alfa*"]
+
 [tool.ruff]
 line-length = 200
 target-version = "py310"
@@ -12,6 +68,7 @@ select = ["E4", "E7", "E9", "F", "W605", "I", "B006"]
 
 [tool.ruff.lint.isort]
 known-first-party = [
+    "alfa",
     "database", "tools", "main_brain", "swarm_engine", "vector_memory",
     "vault_engine", "tts_engine", "token_usage", "permission_gate",
     "security_auditor", "affiliate_engine", "universal_scraper",
