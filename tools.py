@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -1788,7 +1789,7 @@ def capture_desktop_screenshot() -> Dict[str, Any]:
         # 2. Try grim (wlroots Wayland compositors like Sway/Hyprland)
         try:
             subprocess.run(
-                f"grim '{screenshot_path}'", shell=True, capture_output=True, timeout=2
+                ["grim", screenshot_path], capture_output=True, timeout=2
             )
             if (
                 os.path.exists(screenshot_path)
@@ -1805,8 +1806,7 @@ def capture_desktop_screenshot() -> Dict[str, Any]:
         # 3. Try import (ImageMagick)
         try:
             subprocess.run(
-                f"import -window root '{screenshot_path}'",
-                shell=True,
+                ["import", "-window", "root", screenshot_path],
                 capture_output=True,
                 timeout=2,
             )
@@ -1893,9 +1893,14 @@ def scan_local_network() -> Dict[str, Any]:
     Use this tool when the user asks to check network devices, Wi-Fi neighbors, or connected hardware.
     """
     try:
+        # Run ip neigh first, fallback to arp -a if it fails
         res = subprocess.run(
-            "ip neigh || arp -a", shell=True, capture_output=True, text=True, timeout=10
+            ["ip", "neigh"], capture_output=True, text=True, timeout=10
         )
+        if res.returncode != 0 or not res.stdout.strip():
+            res = subprocess.run(
+                ["arp", "-a"], capture_output=True, text=True, timeout=10
+            )
         return {
             "status": "success",
             "devices": res.stdout.strip()
