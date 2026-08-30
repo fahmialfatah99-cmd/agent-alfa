@@ -2333,13 +2333,13 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
 def main():
     """Main application launcher."""
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token_here":
-        print("❌ ERROR: TELEGRAM_BOT_TOKEN belum disetel di .env!")
+        logger.critical("TELEGRAM_BOT_TOKEN belum disetel di .env!")
         sys.exit(1)
 
     if not GEMINI_API_KEY or GEMINI_API_KEY == "your_gemini_api_key_here":
-        print("⚠️ PERINGATAN: GEMINI_API_KEY belum diisi di .env.")
+        logger.warning("GEMINI_API_KEY belum diisi di .env.")
 
-    print("🚀 Menginisialisasi Ultra-Advanced Telegram AI Agent Bot...")
+    logger.info("Menginisialisasi Ultra-Advanced Telegram AI Agent Bot...")
     application = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
@@ -2388,7 +2388,7 @@ def main():
     application.add_handler(MessageHandler(filters.Document.ALL, handle_document_message))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
-    print("✅ Bot Telegram Otonom siap melayani! Menunggu interaksi...")
+    logger.info("Bot Telegram Otonom siap melayani! Menunggu interaksi...")
     application.run_polling(drop_pending_updates=True)
 
 

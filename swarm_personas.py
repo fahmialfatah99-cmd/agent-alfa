@@ -147,4 +147,7 @@ if _OWNER != "Fahmi":
 
 if __name__ == "__main__":
     import json
-    print(json.dumps(build_prompts(), ensure_ascii=False)[:300])
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info(json.dumps(build_prompts(), ensure_ascii=False)[:300])

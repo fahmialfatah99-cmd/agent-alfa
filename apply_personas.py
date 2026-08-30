@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Terapkan persona tersinkron ke custom_agents + sinkronkan otak utama."""
+import logging
 import os
 import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from swarm_personas import AGENTS, build_prompts
+
+logger = logging.getLogger(__name__)
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
 
@@ -23,7 +26,7 @@ def apply_db():
         for row in conn.execute(
                 "SELECT id, name, length(system_instruction), substr(system_instruction,1,40) "
                 "FROM custom_agents ORDER BY id"):
-            print(f"  #{row[0]} {row[1]:<20} {row[2]:>5} chars | {row[3]}...")
+            logger.info(f"  #{row[0]} {row[1]:<20} {row[2]:>5} chars | {row[3]}...")
     finally:
         conn.close()
 
@@ -46,16 +49,17 @@ def sync_main_brain():
     with open(PROMPT_FILE, encoding="utf-8") as f:
         content = f.read()
     if "TIM SWARM (UNIT EKSEKUSI KOLEKTIF ALFA)" in content:
-        print("  Bagian tim sudah ada di system_prompt.txt — lewati.")
+        logger.info("  Bagian tim sudah ada di system_prompt.txt — lewati.")
         return
     with open(PROMPT_FILE, "a", encoding="utf-8") as f:
         f.write(TEAM_SECTION)
-    print("  Bagian tim ditambahkan ke system_prompt.txt")
+    logger.info("  Bagian tim ditambahkan ke system_prompt.txt")
 
 
 if __name__ == "__main__":
-    print("1) Memperbarui persona 6 agen swarm...")
+    logging.basicConfig(level=logging.INFO)
+    logger.info("1) Memperbarui persona 6 agen swarm...")
     apply_db()
-    print("2) Menyinkronkan otak utama (Telegram) dgn identitas tim...")
+    logger.info("2) Menyinkronkan otak utama (Telegram) dgn identitas tim...")
     sync_main_brain()
-    print("SELESAI.")
+    logger.info("SELESAI.")
