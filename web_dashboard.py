@@ -115,11 +115,29 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(DashboardAuthMiddleware)
 
+# PRODUCTION SECURITY CHECK: Require DASHBOARD_AUTH_TOKEN di production
 if not DASHBOARD_AUTH_TOKEN:
-    logger.warning(
-        "DASHBOARD_AUTH_TOKEN tidak diset di .env - dashboard TANPA autentikasi. "
-        "Semua endpoint /api/* dapat diakses siapa pun yang bisa mencapai port ini."
-    )
+    # Cek apakah binding ke network interface (bukan localhost)
+    dashboard_host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+    if dashboard_host in ("0.0.0.0", "::"):
+        logger.critical(
+            "⚠️ CRITICAL SECURITY WARNING ⚠️\\n"
+            "DASHBOARD_HOST terbuka ke jaringan (0.0.0.0/::) TANPA DASHBOARD_AUTH_TOKEN!\\n"
+            "Semua endpoint /api/* dapat diakses SIAPA PUN dari jaringan Anda.\\n"
+            "SOLUSI CEPAT: Set DASHBOARD_AUTH_TOKEN di .env atau ubah DASHBOARD_HOST=127.0.0.1"
+        )
+        raise RuntimeError(
+            "Dashboard tidak boleh berjalan tanpa autentikasi saat binding ke 0.0.0.0/::. "
+            "Set DASHBOARD_AUTH_TOKEN di environment atau gunakan DASHBOARD_HOST=127.0.0.1 untuk localhost-only."
+        )
+    else:
+        logger.warning(
+            "DASHBOARD_AUTH_TOKEN tidak diset - dashboard TANPA autentikasi. "
+            "Aman HANYA jika DASHBOARD_HOST=127.0.0.1 (localhost). "
+            "Untuk production, WAJIB set DASHBOARD_AUTH_TOKEN di .env!"
+        )
+else:
+    logger.info(f"Dashboard authentication enabled (Bearer token + Basic auth)")
 
 _cors_env = os.getenv("ALLOWED_CORS_ORIGINS", "").strip()
 if _cors_env:
