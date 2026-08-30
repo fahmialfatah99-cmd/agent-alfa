@@ -3520,7 +3520,8 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
         sql_query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE, etc.).
     
     Security Note: This function accepts raw SQL queries. Ensure input is validated
-    before calling this function to prevent SQL injection attacks.
+    before calling this function to prevent SQL injection attacks. Only SELECT, PRAGMA,
+    and WITH statements are allowed for safety.
     """
     try:
         import sqlite3
@@ -3531,17 +3532,16 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
         # Security validation: Block dangerous statements
         query_upper = sql_query.strip().upper()
         dangerous_keywords = ["DROP ", "DELETE FROM ", "TRUNCATE", "ALTER ", "CREATE INDEX", 
-                             "DETACH DATABASE", "ATTACH DATABASE"]
+                             "DETACH DATABASE", "ATTACH DATABASE", "INSERT INTO ", "UPDATE ", "REPLACE "]
         for keyword in dangerous_keywords:
             if keyword in query_upper:
-                return {"status": "error", "message": f"Potensi SQL injection terdeteksi: '{keyword}' tidak diizinkan."}
+                return {"status": "error", "message": f"Potensi SQL injection terdeteksi: '{keyword}' tidak diizinkan. Hanya SELECT, PRAGMA, dan WITH yang diperbolehkan."}
         
         conn = sqlite3.connect(expanded)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Execute with safety check - only allow parameterized queries for non-SELECT
-        # For SELECT queries from trusted sources (internal tool), direct execution is acceptable
+        # Execute with safety check - ONLY allow read-only queries (SELECT, PRAGMA, WITH)
         cursor.execute(sql_query)
         
         query_upper = sql_query.strip().upper()
@@ -3558,10 +3558,9 @@ def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
                 "data": data
             }
         else:
-            conn.commit()
-            affected = cursor.rowcount
+            # This branch should never be reached due to earlier validation, but kept as safety net
             conn.close()
-            return {"status": "success", "message": f"Query berhasil dieksekusi. {affected} baris terpengaruh."}
+            return {"status": "error", "message": "Hanya query SELECT, PRAGMA, dan WITH yang diizinkan untuk keamanan."}
     except Exception as e:
         return {"status": "error", "message": f"SQL error: {str(e)}"}
 

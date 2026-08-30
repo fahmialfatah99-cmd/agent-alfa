@@ -9,10 +9,10 @@ import json
 import logging
 import os
 import sqlite3
+import threading
+from collections import deque
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from collections import deque
-import threading
 
 import aiosqlite
 
