@@ -108,13 +108,13 @@ chmod +x setup.sh run.sh
 ---
 
 ### 🪟 3. Windows (Windows 10 / 11)
-1. **Clone repository via Command Prompt / PowerShell / Git Bash:**
+1. **Clone repository:**
    ```cmd
-   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
-   cd telegram-ai-bot
+   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+   cd agent-alfa
    ```
-2. **Klik 2x file `run.bat`** (atau jalankan `run.bat` di terminal).
-3. Script otomatis membuat virtual environment `venv`, menginstall dependensi, menyalin `.env`, dan meluncurkan Web Dashboard serta Telegram Bot secara bersamaan.
+2. **Double-Click (Klik 2x) file `setup.bat`** untuk panduan setup otomatis interaktif pertama kali.
+3. Setelah setup selesai, cukup **Double-Click `run.bat`** kapan saja untuk langsung meluncurkan Command Center & Bot!
 4. Notifikasi desktop otomatis menggunakan **PowerShell Windows Toast Notification**.
 
 ---

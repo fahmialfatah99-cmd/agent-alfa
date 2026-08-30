@@ -71,19 +71,30 @@ if [ ! -f ".env" ]; then
     cp .env.example .env
 fi
 
+# Auto-generate secure random keys if missing
+if ! grep -q "^SESSION_SECRET=[a-zA-Z0-9]" .env 2>/dev/null; then
+    SESS_SEC=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "alfa_session_secret_$(date +%s)")
+    if grep -q "^SESSION_SECRET=" .env; then
+        sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$SESS_SEC|" .env
+    else
+        echo "SESSION_SECRET=$SESS_SEC" >> .env
+    fi
+fi
+
+if ! grep -q "^ENCRYPTION_KEY=[a-zA-Z0-9]" .env 2>/dev/null; then
+    ENC_KEY=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16 2>/dev/null || echo "alfa_enc_key_$(date +%s)")
+    if grep -q "^ENCRYPTION_KEY=" .env; then
+        sed -i "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$ENC_KEY|" .env
+    else
+        echo "ENCRYPTION_KEY=$ENC_KEY" >> .env
+    fi
+fi
+
+# Ensure correct model format
+sed -i "s|^GEMINI_MODEL=.*|GEMINI_MODEL=gemini-3.6-flash|" .env 2>/dev/null || true
+
 # Read existing values if any
 source .env 2>/dev/null || true
-
-# Interactive Bot Token
-if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ "$TELEGRAM_BOT_TOKEN" == "your_telegram_bot_token_here" ]; then
-    echo -e "${YELLOW}👉 Masukkan Token Bot Telegram Anda dari @BotFather:${NC}"
-    read -rp "   TELEGRAM_BOT_TOKEN: " INPUT_BOT_TOKEN
-    if [ -n "$INPUT_BOT_TOKEN" ]; then
-        sed -i "s|TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=$INPUT_BOT_TOKEN|" .env
-    fi
-else
-    echo -e "   ${GREEN}✅ TELEGRAM_BOT_TOKEN sudah terkonfigurasi.${NC}"
-fi
 
 # Interactive Gemini Key
 if [ -z "$GEMINI_API_KEY" ] || [ "$GEMINI_API_KEY" == "your_gemini_api_key_here" ]; then
@@ -96,8 +107,19 @@ else
     echo -e "   ${GREEN}✅ GEMINI_API_KEY sudah terkonfigurasi.${NC}"
 fi
 
+# Interactive Bot Token
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ "$TELEGRAM_BOT_TOKEN" == "your_telegram_bot_token_here" ]; then
+    echo -e "${YELLOW}👉 Masukkan Token Bot Telegram Anda dari @BotFather (opsional, tekan ENTER jika hanya mode web/CLI):${NC}"
+    read -rp "   TELEGRAM_BOT_TOKEN: " INPUT_BOT_TOKEN
+    if [ -n "$INPUT_BOT_TOKEN" ]; then
+        sed -i "s|TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=$INPUT_BOT_TOKEN|" .env
+    fi
+else
+    echo -e "   ${GREEN}✅ TELEGRAM_BOT_TOKEN sudah terkonfigurasi.${NC}"
+fi
+
 # Interactive Allowed User IDs
-if [ -z "$ALLOWED_USER_IDS" ]; then
+if [ -z "$ALLOWED_USER_IDS" ] && [ -n "$INPUT_BOT_TOKEN" ]; then
     echo -e "${YELLOW}👉 Masukkan Telegram User ID Anda (opsional, dapatkan dari @userinfobot):${NC}"
     read -rp "   ALLOWED_USER_IDS (kosongkan jika publik): " INPUT_ALLOWED_IDS
     if [ -n "$INPUT_ALLOWED_IDS" ]; then
