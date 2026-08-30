@@ -1,6 +1,7 @@
 """
 Database module for Telegram AI Bot.
 Handles persistent chat history, long-term knowledge memory, reminders, and settings.
+Optimized with connection pooling and prepared statements for high performance.
 """
 
 import contextlib
@@ -10,12 +11,111 @@ import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from collections import deque
+import threading
 
 import aiosqlite
 
 logger = logging.getLogger("DB")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+
+# ── Connection Pool Configuration ─────────────────────────────────────────────
+_POOL_SIZE = int(os.getenv("ALFA_DB_POOL_SIZE", "10"))
+_POOL_TIMEOUT = float(os.getenv("ALFA_DB_POOL_TIMEOUT", "30.0"))
+
+class ConnectionPool:
+    """Thread-safe SQLite connection pool with lazy initialization."""
+    
+    def __init__(self, db_path: str, pool_size: int = 10, timeout: float = 30.0):
+        self.db_path = db_path
+        self.pool_size = pool_size
+        self.timeout = timeout
+        self._pool = deque(maxlen=pool_size)
+        self._lock = threading.Lock()
+        self._created = 0
+        self._in_use = 0
+        
+    def _create_connection(self) -> sqlite3.Connection:
+        """Create a new optimized SQLite connection."""
+        conn = sqlite3.connect(self.db_path, timeout=self.timeout, check_same_thread=False)
+        conn.execute("PRAGMA busy_timeout = 30000;")
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+        conn.execute("PRAGMA cache_size = -64000;")  # 64MB cache
+        conn.execute("PRAGMA temp_store = MEMORY;")
+        conn.row_factory = sqlite3.Row
+        return conn
+    
+    def acquire(self) -> sqlite3.Connection:
+        """Acquire a connection from the pool (blocking if necessary)."""
+        with self._lock:
+            if self._pool:
+                conn = self._pool.popleft()
+                self._in_use += 1
+                return conn
+            
+            if self._created < self.pool_size:
+                self._created += 1
+                self._in_use += 1
+                return self._create_connection()
+        
+        # Pool exhausted, wait for available connection
+        import time
+        start = time.time()
+        while time.time() - start < self.timeout:
+            with self._lock:
+                if self._pool:
+                    conn = self._pool.popleft()
+                    self._in_use += 1
+                    return conn
+            time.sleep(0.01)
+        
+        raise TimeoutError(f"Connection pool exhausted (timeout={self.timeout}s)")
+    
+    def release(self, conn: sqlite3.Connection) -> None:
+        """Return a connection to the pool."""
+        with self._lock:
+            self._in_use -= 1
+            if len(self._pool) < self.pool_size:
+                try:
+                    conn.execute("SELECT 1")  # Health check
+                    self._pool.append(conn)
+                    return
+                except Exception:
+                    pass
+            conn.close()
+    
+    def close_all(self) -> None:
+        """Close all connections in the pool."""
+        with self._lock:
+            while self._pool:
+                conn = self._pool.popleft()
+                conn.close()
+    
+    @property
+    def stats(self) -> Dict[str, int]:
+        """Return pool statistics."""
+        with self._lock:
+            return {
+                "created": self._created,
+                "in_use": self._in_use,
+                "available": len(self._pool),
+                "pool_size": self.pool_size
+            }
+
+# Global connection pool instance (lazy initialization)
+_db_pool: Optional[ConnectionPool] = None
+_pool_lock = threading.Lock()
+
+def get_connection_pool() -> ConnectionPool:
+    """Get or create the global connection pool."""
+    global _db_pool
+    if _db_pool is None:
+        with _pool_lock:
+            if _db_pool is None:
+                _db_pool = ConnectionPool(DB_PATH, _POOL_SIZE, _POOL_TIMEOUT)
+    return _db_pool
 
 
 # ── Enkripsi API key at-rest (AES-256-GCM, memakai master key vault) ─────────
