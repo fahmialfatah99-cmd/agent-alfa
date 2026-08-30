@@ -1,4 +1,31 @@
 ```
-# Test run storage files
-storage/runs/_test_*.jsonl
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Dependencies
+.venv/
+venv/
+pip-log.txt
+pipenv.lock
+
+# Coverage
+.coverage
+htmlcov/
+.coverage.*
 ```

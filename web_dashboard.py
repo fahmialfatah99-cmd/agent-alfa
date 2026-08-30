@@ -730,6 +730,76 @@ async def audit_target_security(payload: Dict[str, Any]):
     return res
 
 
+@app.get("/api/security/permission-audit")
+async def get_permission_audit_log(chat_id: Optional[int] = None, limit: int = 50):
+    """Get permission audit trail log."""
+    import sqlite3
+    db_path = os.path.join(os.path.dirname(__file__), "agent_data.db")
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        if chat_id:
+            rows = conn.execute(
+                """SELECT id, chat_id, tool_name, tier, decision, arguments_json, 
+                          datetime(created_at, 'unixepoch', 'localtime') as timestamp, 
+                          round(response_time_sec, 2) as response_time
+                   FROM permission_audit 
+                   WHERE chat_id=? 
+                   ORDER BY created_at DESC LIMIT ?""",
+                (int(chat_id), limit)).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT id, chat_id, tool_name, tier, decision, arguments_json, 
+                          datetime(created_at, 'unixepoch', 'localtime') as timestamp, 
+                          round(response_time_sec, 2) as response_time
+                   FROM permission_audit 
+                   ORDER BY created_at DESC LIMIT ?""",
+                (limit,)).fetchall()
+        
+        audit_logs = []
+        for row in rows:
+            audit_logs.append({
+                "id": row[0],
+                "chat_id": row[1],
+                "tool_name": row[2],
+                "tier": row[3],
+                "decision": row[4],
+                "arguments_json": json.loads(row[5]) if row[5] else {},
+                "timestamp": row[6],
+                "response_time_sec": row[7]
+            })
+        return {"status": "success", "logs": audit_logs, "total": len(audit_logs)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/security/trust-scores")
+async def get_all_trust_scores():
+    """Get trust scores for all users."""
+    import sqlite3
+    db_path = os.path.join(os.path.dirname(__file__), "agent_data.db")
+    conn = sqlite3.connect(db_path, timeout=30)
+    try:
+        rows = conn.execute(
+            """SELECT chat_id, trust_score, total_approvals, safe_approvals, risky_approvals,
+                      datetime(last_updated, 'unixepoch', 'localtime') as last_updated
+               FROM user_trust_scores 
+               ORDER BY trust_score DESC""").fetchall()
+        
+        scores = []
+        for row in rows:
+            scores.append({
+                "chat_id": row[0],
+                "trust_score": round(row[1], 3),
+                "total_approvals": row[2],
+                "safe_approvals": row[3],
+                "risky_approvals": row[4],
+                "last_updated": row[5]
+            })
+        return {"status": "success", "scores": scores, "total_users": len(scores)}
+    finally:
+        conn.close()
+
+
 @app.get("/api/vault/passkey/status")
 async def get_passkey_status():
     """Get status of biometric/passkey lock."""
