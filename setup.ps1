@@ -13,7 +13,14 @@ $env:PYTHONIOENCODING = "utf-8"
 
 Clear-Host
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "  ALFA SOVEREIGN AI AGENT (Windows Setup Wizard)" -ForegroundColor Yellow
+Write-Host "  █████╗ ██╗     ███████╗ █████╗     ███████╗██╗   ██╗██████╗ ███████╗" -ForegroundColor Yellow
+Write-Host " ██╔══██╗██║     ██╔════╝██╔══██╗    ██╔════╝██║   ██║██╔══██╗██╔════╝" -ForegroundColor Yellow
+Write-Host " ███████║██║     █████╗  ███████║    ███████╗██║   ██║██████╔╝█████╗  " -ForegroundColor Yellow
+Write-Host " ██╔══██║██║     ██╔══╝  ██╔══██║    ╚════██║██║   ██║██╔═══╝ ██╔══╝  " -ForegroundColor Yellow
+Write-Host " ██║  ██║███████╗██║     ██║  ██║    ███████║╚██████╔╝██║     ███████╗" -ForegroundColor Yellow
+Write-Host " ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝    ╚══════╝ ╚═════╝ ╚═╝     ╚══════╝" -ForegroundColor Yellow
+Write-Host "==============================================================================" -ForegroundColor Cyan
+Write-Host "  🚀 PANDUAN INSTALASI & SETUP 1-KLIK ALFA SOVEREIGN AI AGENT" -ForegroundColor Green
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -23,7 +30,8 @@ try {
     $pyVer = & python --version 2>&1
     Write-Host "   [OK] Ditemukan: $pyVer" -ForegroundColor Green
 } catch {
-    Write-Host "   [ERR] Python tidak terdeteksi di PATH! Silakan unduh Python 3.10+ dari python.org dan centang 'Add Python to PATH'." -ForegroundColor Red
+    Write-Host "   [ERR] Python tidak terdeteksi di PATH!" -ForegroundColor Red
+    Write-Host "   Silakan unduh Python 3.10+ dari https://www.python.org dan pastikan centang 'Add Python to PATH'." -ForegroundColor Yellow
     exit 1
 }
 
@@ -32,31 +40,33 @@ Write-Host ""
 Write-Host "[2/6] Memeriksa Node.js (Opsional)..." -ForegroundColor Cyan
 try {
     $nodeVer = & node --version 2>&1
-    Write-Host "   [OK] Ditemukan Node.js: $nodeVer" -ForegroundColor Green
+    Write-Host "   [OK] Ditemukan Node.js: $nodeVer (WhatsApp Bot Siap)" -ForegroundColor Green
 } catch {
-    Write-Host "   [INFO] Node.js belum terpasang (Opsional: dibutuhkan jika ingin menggunakan bot WhatsApp)." -ForegroundColor Yellow
+    Write-Host "   [INFO] Node.js belum terpasang (Opsional: dibutuhkan jika ingin menggunakan bot WhatsApp)." -ForegroundColor DarkGray
 }
 
 # 3. Create Virtual Environment
 Write-Host ""
 Write-Host "[3/6] Menyiapkan Virtual Environment Python (venv)..." -ForegroundColor Cyan
 if (-not (Test-Path "$dir\venv")) {
+    Write-Host "   [*] Membuat virtual environment..." -ForegroundColor DarkGray
     & python -m venv venv
     Write-Host "   [OK] Virtual environment 'venv' berhasil dibuat." -ForegroundColor Green
 } else {
-    Write-Host "   [OK] Virtual environment 'venv' sudah ada." -ForegroundColor Green
+    Write-Host "   [OK] Virtual environment 'venv' sudah siap." -ForegroundColor Green
 }
 
 # 4. Install Dependencies
 Write-Host ""
-Write-Host "[4/6] Menginstall & Memperbarui Dependensi Python..." -ForegroundColor Cyan
+Write-Host "[4/6] Memeriksa Dependensi Paket Python..." -ForegroundColor Cyan
+Write-Host "   [*] Memperbarui pip & memasang dependensi (FastAPI, Gemini SDK, Telegram)..." -ForegroundColor DarkGray
 & "$dir\venv\Scripts\python.exe" -m pip install --upgrade pip --quiet
 & "$dir\venv\Scripts\python.exe" -m pip install -r requirements.txt --quiet
-Write-Host "   [OK] Seluruh dependensi python (Telegram, FastAPI, Gemini SDK, Tools) berhasil terpasang!" -ForegroundColor Green
+Write-Host "   [OK] Seluruh dependensi berhasil terpasang!" -ForegroundColor Green
 
 # 5. Interactive Configuration Setup (.env)
 Write-Host ""
-Write-Host "[5/6] Konfigurasi Kredensial & Kunci API (.env)..." -ForegroundColor Cyan
+Write-Host "[5/6] Konfigurasi Pengaturan & Kunci API (.env)..." -ForegroundColor Cyan
 $envPath = "$dir\.env"
 if (-not (Test-Path $envPath)) {
     if (Test-Path "$dir\.env.example") {
@@ -68,7 +78,6 @@ if (-not (Test-Path $envPath)) {
 
 $envContent = Get-Content $envPath -Raw
 
-# Helper to update key in .env
 function Set-EnvVar([string]$Key, [string]$Value) {
     param($Key, $Value)
     $script:envContent = if ($script:envContent -match "(?m)^$Key=.*`$") {
@@ -78,71 +87,103 @@ function Set-EnvVar([string]$Key, [string]$Value) {
     }
 }
 
-# Interactive Bot Token
-if ($envContent -notmatch "(?m)^TELEGRAM_BOT_TOKEN=\s*\S+") {
-    Write-Host "👉 Masukkan Token Bot Telegram Anda dari @BotFather:" -ForegroundColor Yellow
-    $botToken = Read-Host "   TELEGRAM_BOT_TOKEN"
-    if ($botToken) { Set-EnvVar "TELEGRAM_BOT_TOKEN" $botToken.Trim() }
-} else {
-    Write-Host "   [OK] TELEGRAM_BOT_TOKEN sudah terkonfigurasi." -ForegroundColor Green
+# Generate Secure Random Secret Keys if missing
+function Get-SecureHex([int]$Length) {
+    $bytes = New-Object byte[] $Length
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $rng.GetBytes($bytes)
+    return ($bytes | ForEach-Object { "{0:x2}" -f $_ }) -join ""
 }
 
-# Interactive Gemini Key
-if ($envContent -notmatch "(?m)^GEMINI_API_KEY=\s*\S+") {
+if ($envContent -notmatch "(?m)^SESSION_SECRET=\s*\S+") {
+    $sessSecret = Get-SecureHex 32
+    Set-EnvVar "SESSION_SECRET" $sessSecret
+}
+if ($envContent -notmatch "(?m)^ENCRYPTION_KEY=\s*\S+") {
+    $encKey = Get-SecureHex 16
+    Set-EnvVar "ENCRYPTION_KEY" $encKey
+}
+Set-EnvVar "GEMINI_MODEL" "gemini-3.6-flash"
+Set-EnvVar "ALFA_ALLOW_HOST_EXEC" "true"
+Set-EnvVar "DASHBOARD_HOST" "127.0.0.1"
+Set-EnvVar "DASHBOARD_PORT" "8080"
+
+Write-Host "   [?] Pilih Mode Setup yang Anda inginkan:" -ForegroundColor Yellow
+Write-Host "       [1] Setup Lengkap (Bot Telegram + Web Dashboard + CLI) [Rekomendasi]" -ForegroundColor White
+Write-Host "       [2] Setup Cepat / Mode Lokal (Hanya butuh Google Gemini API Key)" -ForegroundColor White
+$modeChoice = Read-Host "   Pilihan Anda (1/2, default: 1)"
+if (-not $modeChoice) { $modeChoice = "1" }
+
+# Gemini Key
+if ($envContent -notmatch "(?m)^GEMINI_API_KEY=\s*[A-Za-z0-9_\-\.]{15,}") {
+    Write-Host ""
     Write-Host "👉 Masukkan Google Gemini API Key Anda (gratis di https://aistudio.google.com):" -ForegroundColor Yellow
     $geminiKey = Read-Host "   GEMINI_API_KEY"
     if ($geminiKey) { Set-EnvVar "GEMINI_API_KEY" $geminiKey.Trim() }
 } else {
-    Write-Host "   [OK] GEMINI_API_KEY sudah terkonfigurasi." -ForegroundColor Green
+    Write-Host "   [OK] GEMINI_API_KEY sudah terpasang." -ForegroundColor Green
 }
 
-# Interactive Allowed User IDs
-if ($envContent -notmatch "(?m)^ALLOWED_USER_IDS=\s*\S+") {
-    Write-Host "👉 Masukkan Telegram User ID Anda (opsional, dapatkan dari @userinfobot):" -ForegroundColor Yellow
-    $allowedIds = Read-Host "   ALLOWED_USER_IDS (kosongkan jika publik)"
-    if ($allowedIds) { Set-EnvVar "ALLOWED_USER_IDS" $allowedIds.Trim() }
-}
+if ($modeChoice -eq "1") {
+    # Telegram Bot Token
+    if ($envContent -notmatch "(?m)^TELEGRAM_BOT_TOKEN=\s*\d{6,}:[A-Za-z0-9_\-]{20,}") {
+        Write-Host ""
+        Write-Host "👉 Masukkan Token Bot Telegram Anda dari @BotFather (misal: 123456:ABC...):" -ForegroundColor Yellow
+        $botToken = Read-Host "   TELEGRAM_BOT_TOKEN"
+        if ($botToken) { Set-EnvVar "TELEGRAM_BOT_TOKEN" $botToken.Trim() }
+    } else {
+        Write-Host "   [OK] TELEGRAM_BOT_TOKEN sudah terpasang." -ForegroundColor Green
+    }
 
-# Set Default Model to gemini-3.6-flash if invalid/missing
-if ($envContent -match "(?m)^GEMINI_MODEL=.*(Gemini|gemini-2\.5).*`$") {
-    Set-EnvVar "GEMINI_MODEL" "gemini-3.6-flash"
+    # Telegram User ID
+    if ($envContent -notmatch "(?m)^ALLOWED_USER_IDS=\s*\d+") {
+        Write-Host ""
+        Write-Host "👉 Masukkan Telegram User ID Anda (dapatkan dari bot @userinfobot):" -ForegroundColor Yellow
+        $allowedIds = Read-Host "   ALLOWED_USER_IDS"
+        if ($allowedIds) { Set-EnvVar "ALLOWED_USER_IDS" $allowedIds.Trim() }
+    } else {
+        Write-Host "   [OK] ALLOWED_USER_IDS sudah terpasang." -ForegroundColor Green
+    }
+} else {
+    Write-Host "   [INFO] Mode Cepat Lokal dipilih. Bot Telegram dilewati (dapat diset nanti kapan saja)." -ForegroundColor DarkGray
 }
 
 # Save .env
 Set-Content -Path $envPath -Value $envContent.Trim() -Encoding UTF8
+Write-Host "   [OK] File konfigurasi .env berhasil disimpan." -ForegroundColor Green
 
-# Setup Vault Master Key if missing
+# Master Vault Key
 $vaultKeyPath = "$HOME\.alfa_vault_master.key"
 if (-not (Test-Path $vaultKeyPath)) {
-    $bytes = New-Object byte[] 32
-    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    $rng.GetBytes($bytes)
-    $hexKey = ($bytes | ForEach-Object { "{0:x2}" -f $_ }) -join ""
-    Set-Content -Path $vaultKeyPath -Value $hexKey -Encoding UTF8
+    $vaultKey = Get-SecureHex 32
+    Set-Content -Path $vaultKeyPath -Value $vaultKey -Encoding UTF8
     Write-Host "   [OK] Master encryption key digenerate di $vaultKeyPath" -ForegroundColor Green
 }
 
-# 6. Setup Output Deliverable Directory
+# 6. Deliverable Directory
 Write-Host ""
 Write-Host "[6/6] Menyiapkan Direktori Output Deliverable Swarm..." -ForegroundColor Cyan
 $swarmOutputDir = "$HOME\Documents\ALFA_SWARM_OUTPUTS"
 if (-not (Test-Path $swarmOutputDir)) {
     New-Item -ItemType Directory -Path $swarmOutputDir -Force | Out-Null
 }
-Write-Host "   [OK] Direktori siap: $swarmOutputDir" -ForegroundColor Green
+Write-Host "   [OK] Direktori output siap: $swarmOutputDir" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "==============================================================================" -ForegroundColor Cyan
-Write-Host "  SETUP BERHASIL SELESAI DENGAN SEMPURNA!" -ForegroundColor Green
+Write-Host "  🎉 SETUP SELESAI DENGAN SUKSES! ALFA SIAP DIGUNAKAN." -ForegroundColor Green
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Cara Menjalankan Sistem:" -ForegroundColor Yellow
-Write-Host "  1. Jalankan langsung via batch launcher (Bot + Web Dashboard):"
-Write-Host "     .\run.bat" -ForegroundColor White
+Write-Host "Cara Menjalankan:" -ForegroundColor Yellow
+Write-Host "  1. Buka File Explorer lalu Double-Click:"
+Write-Host "     run.bat" -ForegroundColor White
 Write-Host ""
-Write-Host "  2. ATAU jalankan di background via PowerShell:"
-Write-Host "     powershell -ExecutionPolicy Bypass -File .\start_alfa.ps1" -ForegroundColor White
-Write-Host ""
-Write-Host "  3. Akses Web Management Command Center:"
+Write-Host "  2. Dashboard Web dapat diakses di:"
 Write-Host "     http://localhost:8080" -ForegroundColor Green
 Write-Host ""
+
+$launchNow = Read-Host "👉 Ingin langsung menjalankan ALFA sekarang? (Y/n)"
+if ($launchNow -ne "n" -and $launchNow -ne "N") {
+    Write-Host "[*] Meluncurkan ALFA Sovereign AI..." -ForegroundColor Green
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$dir\run.bat`"" -WorkingDirectory $dir
+}

@@ -27,14 +27,21 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM EXIT
 
+# Read .env for token check
+source .env 2>/dev/null || true
+
 # Start Web Dashboard in background
 ./venv/bin/python3 web_dashboard.py &
 DASH_PID=$!
 
-# Start Telegram Bot in foreground
-./venv/bin/python3 bot.py &
-BOT_PID=$!
-
-# Wait for both processes
-wait $DASH_PID $BOT_PID
+if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ "$TELEGRAM_BOT_TOKEN" != "your_telegram_bot_token_here" ]; then
+    echo "  👉 Telegram AI Bot     : Aktif"
+    ./venv/bin/python3 bot.py &
+    BOT_PID=$!
+    wait $DASH_PID $BOT_PID
+else
+    echo "  👉 Telegram AI Bot     : Dinonaktifkan (Token belum disetel)"
+    echo "  👉 Masuk ke mode Web Dashboard & CLI Interaktif..."
+    ./venv/bin/python3 cli.py
+fi
 

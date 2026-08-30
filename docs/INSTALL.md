@@ -89,15 +89,16 @@ chmod +x setup.sh run.sh
 ```
 
 ### Windows
-```powershell
+```cmd
 git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
 cd agent-alfa
-powershell -ExecutionPolicy Bypass -File .\setup.ps1   # wizard interaktif Windows
 ```
-Atau langsung jalankan peluncur otomatis:
-```cmd
-run.bat
-```
+- **Metode Termudah**: Buka File Explorer dan **Klik 2x `setup.bat`** (Wizard Interaktif Otomatis).
+- Atau jalankan via terminal:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\setup.ps1
+  ```
+- Setelah setup selesai, cukup **Klik 2x `run.bat`** untuk meluncurkan sistem.
 
 ---
 
