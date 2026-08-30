@@ -3315,6 +3315,8 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         if not reply:
             reply = "⚠️ Tidak ada respon yang dihasilkan oleh model AI. Pastikan AI Gateway (9Router di port 20128) aktif atau periksa kuota API Key di Vault."
 
+        yield f"data: {json.dumps({'type': 'start', 'model': selected_model or 'default'})}\n\n"
+
         # Stream chunked tokens
         lines = (reply or "").split("\n")
         for line_idx, line in enumerate(lines):

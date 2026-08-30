@@ -3,6 +3,7 @@ $dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocat
 Set-Location $dir
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUNBUFFERED = "1"
 
 $pyExe = if (Test-Path "$dir\venv\Scripts\python.exe") { 
     "$dir\venv\Scripts\python.exe" 
@@ -38,14 +39,17 @@ if (-not (Test-PortListening 20128)) {
 
 # 2. Start Web Management Dashboard
 if (-not (Test-Running 'web_dashboard\.py')) {
-    Start-Process -FilePath $pyExe -ArgumentList "web_dashboard.py" `
-        -WorkingDirectory $dir -WindowStyle Hidden `
-        -RedirectStandardOutput "$dir\dash_out.log" -RedirectStandardError "$dir\dash_err.log"
+    Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = "`"$pyExe`" web_dashboard.py"
+        CurrentDirectory = $dir
+    } | Out-Null
 }
 
 # 3. Start Telegram Bot Core
 if (-not (Test-Running 'bot\.py')) {
-    Start-Process -FilePath $pyExe -ArgumentList "bot.py" `
-        -WorkingDirectory $dir -WindowStyle Hidden `
-        -RedirectStandardOutput "$dir\bot_out.log" -RedirectStandardError "$dir\bot_err.log"
+    Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = "`"$pyExe`" bot.py"
+        CurrentDirectory = $dir
+    } | Out-Null
 }
+
