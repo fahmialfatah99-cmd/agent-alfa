@@ -1,52 +1,42 @@
-# Python
+```gitignore
+# Compiled Python files
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
+
+# Virtual environments
 venv/
 .venv/
-ENV/
-env.bak/
-venv.bak/
+env/
 
-# Database files (SQLite)
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-agent_data.db*
-
-# Environment & Secrets
-.env
-.env.local
-.env.*
-*.pem
-*.key
-gdrive_oauth_*.json
-
-# Runtime Storage, Traces & Logs
-storage/traces/
-storage/runs/
-storage/audio/
-storage/checkpoints/
-storage/bot_stdout.log
+# Logs
 *.log
 
-# Testing & Coverage
-.pytest_cache/
-.mypy_cache/
+# Temporary files
+*.tmp
+*.swp
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Coverage reports
 .coverage
-.coverage.*
+coverage/
 htmlcov/
 
-# IDE & OS
-.idea/
+# IDE files
 .vscode/
+.idea/
 *.swp
 *.swo
-*~
-.DS_Store
-Thumbs.db
+
+# Distribution artifacts
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+```
