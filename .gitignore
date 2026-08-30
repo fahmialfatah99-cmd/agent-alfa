@@ -1,5 +1,4 @@
-```
-# Python
+# --- Python Artifacts & Cache ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,30 +19,75 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.mypy_cache/
 
-# Environment
-.env
-.env.local
-.env.*
+# --- Virtual Environments ---
 .venv/
 venv/
 ENV/
+env/
 
-# IDE
+# --- Dependencies (Python & Node) ---
+requirements.txt.lock
+Pipfile.lock
+node_modules/
+
+# --- Environment Variables & Secrets ---
+.env
+.env.local
+.env.*
+!.env.example
+.secrets
+*.key
+
+# --- IDE & Editors ---
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
+*~
+.project
+.pydevproject
+.settings/
 
-# Logs
+# --- Logs & Temp Files ---
 *.log
+*.tmp
+*.temp
+*.bak
+*.orig
+storage/runs/
 
-# Coverage
+# --- Testing & Coverage ---
 .coverage
 coverage/
 htmlcov/
+.tox/
+.nox/
+hypothesis/
 
-# Storage
-storage/runs/
-```
+# --- Database & Storage ---
+*.db
+*.sqlite3
+storage/files/
+uploads/
+
+# --- OS Generated Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Documentation Build ---
+docs/_build/
+site/
+
+# --- Misc ---
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
