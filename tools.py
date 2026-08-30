@@ -1672,7 +1672,19 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
             except Exception:
                 pass
 
-        # 5. Fallback PIL ImageGrab
+            # 5. Try scrot (Standard Linux X11 screen capture tool)
+            try:
+                subprocess.run(f"scrot '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
+                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                    return {
+                        "status": "success",
+                        "message": "Screenshot desktop berhasil diambil via scrot.",
+                        "file_path": screenshot_path
+                    }
+            except Exception:
+                pass
+
+        # 6. Fallback PIL ImageGrab (Universal / macOS / Linux / Windows)
         try:
             from PIL import ImageGrab
             img = ImageGrab.grab()
