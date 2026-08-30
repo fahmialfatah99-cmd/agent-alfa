@@ -51,6 +51,9 @@ _STOPWORDS = {
 # pengguna bahasa Indonesia & Inggris dengan deskripsi tool teknis.
 _SYNONYMS = {
     # System, Hardware & OS
+    "screenshot": "capture desktop screenshot display monitor screen",
+    "screnshoot": "capture desktop screenshot display monitor screen",
+    "ss": "capture desktop screenshot display monitor screen",
     "rekam": "record screen video capture", "perekam": "record screen video",
     "layar": "screen desktop display monitor", "tangkap": "capture screenshot snapshot",
     "layanan": "service systemd daemon manage status restart", "servis": "service systemctl",

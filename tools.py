@@ -1520,11 +1520,11 @@ def schedule_reminder(reminder_time_iso: str, message: str) -> Dict[str, Any]:
         return {"status": "error", "message": str(e)}
 
 
-def capture_desktop_screenshot() -> Dict[str, Any]:
+def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
     """
-    Capture an ultra-fast, high-resolution screenshot of the active Linux desktop screen.
-    Uses native Wayland XDG Desktop Portal capture (compatible with Ubuntu GNOME Wayland)
-    with fallbacks to grim, import, and PIL ImageGrab.
+    Capture an ultra-fast, high-resolution screenshot of the active desktop screen (Windows, Linux & Mac).
+    On Windows: Uses native Win32 GDI screen capture for instant full-resolution multi-monitor screenshot.
+    On Linux: Uses Wayland XDG Desktop Portal, grim, ImageMagick, or PIL ImageGrab.
     """
     try:
         screenshot_path = os.path.join(SANDBOX_DIR, "desktop_screen.png")
@@ -1533,95 +1533,146 @@ def capture_desktop_screenshot() -> Dict[str, Any]:
                 os.remove(screenshot_path)
             except OSError:
                 pass
+        os.makedirs(os.path.dirname(os.path.abspath(screenshot_path)), exist_ok=True)
 
-        # 1. Native Wayland XDG Desktop Portal (Official GNOME/KDE Wayland Screen Capture)
-        portal_script = (
-            "import os, sys, shutil, urllib.parse, random\n"
-            "from gi.repository import Gio, GLib\n"
-            "target_path = sys.argv[1]\n"
-            "bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n"
-            "loop = GLib.MainLoop()\n"
-            "saved_uri = None\n"
-            "def on_signal(connection, sender_name, object_path, interface_name, signal_name, parameters, user_data):\n"
-            "    global saved_uri\n"
-            "    res = parameters.unpack()\n"
-            "    if len(res) >= 2 and isinstance(res[1], dict) and 'uri' in res[1]:\n"
-            "        saved_uri = res[1]['uri']\n"
-            "    loop.quit()\n"
-            "token = f'shot_{random.randint(1000, 9999)}'\n"
-            "options = {'interactive': GLib.Variant('b', False), 'handle_token': GLib.Variant('s', token)}\n"
-            "ret = bus.call_sync(\n"
-            "    'org.freedesktop.portal.Desktop',\n"
-            "    '/org/freedesktop/portal/desktop',\n"
-            "    'org.freedesktop.portal.Screenshot',\n"
-            "    'Screenshot',\n"
-            "    GLib.Variant('(sa{sv})', ('', options)),\n"
-            "    GLib.VariantType('(o)'),\n"
-            "    Gio.DBusCallFlags.NONE,\n"
-            "    4000,\n"
-            "    None\n"
-            ")\n"
-            "req_path = ret.unpack()[0]\n"
-            "bus.signal_subscribe(\n"
-            "    'org.freedesktop.portal.Desktop',\n"
-            "    'org.freedesktop.portal.Request',\n"
-            "    'Response',\n"
-            "    req_path,\n"
-            "    None,\n"
-            "    Gio.DBusSignalFlags.NONE,\n"
-            "    on_signal,\n"
-            "    None\n"
-            ")\n"
-            "GLib.timeout_add_seconds(3, loop.quit)\n"
-            "loop.run()\n"
-            "if saved_uri and saved_uri.startswith('file://'):\n"
-            "    parsed_path = urllib.parse.unquote(saved_uri[7:])\n"
-            "    if os.path.exists(parsed_path) and os.path.getsize(parsed_path) > 1000:\n"
-            "        os.makedirs(os.path.dirname(target_path), exist_ok=True)\n"
-            "        shutil.move(parsed_path, target_path)\n"
-            "        sys.exit(0)\n"
-            "sys.exit(1)\n"
-        )
-        try:
-            p_res = subprocess.run(
-                ["/usr/bin/python3", "-c", portal_script, screenshot_path],
-                capture_output=True,
-                timeout=4
+        # 1. Native Windows GDI Screen Capture (Windows 10 / 11 Native Multi-Monitor)
+        if os.name == 'nt' or sys.platform == 'win32':
+            try:
+                import ctypes, struct
+                from PIL import Image
+
+                user32 = ctypes.windll.user32
+                gdi32 = ctypes.windll.gdi32
+                user32.SetProcessDPIAware()
+
+                left = user32.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
+                top = user32.GetSystemMetrics(77)    # SM_YVIRTUALSCREEN
+                width = user32.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
+                height = user32.GetSystemMetrics(79) # SM_CYVIRTUALSCREEN
+
+                if width <= 0 or height <= 0:
+                    left, top = 0, 0
+                    width = user32.GetSystemMetrics(0)
+                    height = user32.GetSystemMetrics(1)
+
+                hdesktop = user32.GetDesktopWindow()
+                desktop_dc = user32.GetWindowDC(hdesktop)
+                img_dc = gdi32.CreateCompatibleDC(desktop_dc)
+                mem_bitmap = gdi32.CreateCompatibleBitmap(desktop_dc, width, height)
+                gdi32.SelectObject(img_dc, mem_bitmap)
+                gdi32.BitBlt(img_dc, 0, 0, width, height, desktop_dc, left, top, 0x00CC0020)
+
+                struct_fmt = '<IiiHHIIIIII'
+                bmi_bytes = struct.pack(struct_fmt, 40, width, -height, 1, 32, 0, width * height * 4, 0, 0, 0, 0)
+                buf = (ctypes.c_char * (width * height * 4))()
+                gdi32.GetDIBits(img_dc, mem_bitmap, 0, height, ctypes.byref(buf), ctypes.c_char_p(bmi_bytes), 0)
+
+                img = Image.frombuffer('RGBA', (width, height), buf, 'raw', 'BGRA', 0, 1)
+                img = img.convert('RGB')
+                img.save(screenshot_path, quality=95)
+
+                gdi32.DeleteObject(mem_bitmap)
+                gdi32.DeleteDC(img_dc)
+                user32.ReleaseDC(hdesktop, desktop_dc)
+
+                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                    return {
+                        "status": "success",
+                        "message": "Screenshot desktop Windows berhasil diambil dengan resolusi penuh.",
+                        "file_path": screenshot_path
+                    }
+            except Exception as win_err:
+                logger.warning(f"Win32 GDI screen capture failed ({win_err}), trying fallbacks...")
+
+        # 2. Native Wayland XDG Desktop Portal (Official GNOME/KDE Wayland Screen Capture)
+        if sys.platform.startswith('linux'):
+            portal_script = (
+                "import os, sys, shutil, urllib.parse, random\n"
+                "from gi.repository import Gio, GLib\n"
+                "target_path = sys.argv[1]\n"
+                "bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n"
+                "loop = GLib.MainLoop()\n"
+                "saved_uri = None\n"
+                "def on_signal(connection, sender_name, object_path, interface_name, signal_name, parameters, user_data):\n"
+                "    global saved_uri\n"
+                "    res = parameters.unpack()\n"
+                "    if len(res) >= 2 and isinstance(res[1], dict) and 'uri' in res[1]:\n"
+                "        saved_uri = res[1]['uri']\n"
+                "    loop.quit()\n"
+                "token = f'shot_{random.randint(1000, 9999)}'\n"
+                "options = {'interactive': GLib.Variant('b', False), 'handle_token': GLib.Variant('s', token)}\n"
+                "ret = bus.call_sync(\n"
+                "    'org.freedesktop.portal.Desktop',\n"
+                "    '/org/freedesktop/portal/desktop',\n"
+                "    'org.freedesktop.portal.Screenshot',\n"
+                "    'Screenshot',\n"
+                "    GLib.Variant('(sa{sv})', ('', options)),\n"
+                "    GLib.VariantType('(o)'),\n"
+                "    Gio.DBusCallFlags.NONE,\n"
+                "    4000,\n"
+                "    None\n"
+                ")\n"
+                "req_path = ret.unpack()[0]\n"
+                "bus.signal_subscribe(\n"
+                "    'org.freedesktop.portal.Desktop',\n"
+                "    'org.freedesktop.portal.Request',\n"
+                "    'Response',\n"
+                "    req_path,\n"
+                "    None,\n"
+                "    Gio.DBusSignalFlags.NONE,\n"
+                "    on_signal,\n"
+                "    None\n"
+                ")\n"
+                "GLib.timeout_add_seconds(3, loop.quit)\n"
+                "loop.run()\n"
+                "if saved_uri and saved_uri.startswith('file://'):\n"
+                "    parsed_path = urllib.parse.unquote(saved_uri[7:])\n"
+                "    if os.path.exists(parsed_path) and os.path.getsize(parsed_path) > 1000:\n"
+                "        os.makedirs(os.path.dirname(target_path), exist_ok=True)\n"
+                "        shutil.move(parsed_path, target_path)\n"
+                "        sys.exit(0)\n"
+                "sys.exit(1)\n"
             )
-            if p_res.returncode == 0 and os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
-                return {
-                    "status": "success",
-                    "message": "Screenshot desktop berhasil diambil via Wayland Portal.",
-                    "file_path": screenshot_path
-                }
-        except Exception:
-            pass
+            try:
+                p_res = subprocess.run(
+                    ["/usr/bin/python3", "-c", portal_script, screenshot_path],
+                    capture_output=True,
+                    timeout=4
+                )
+                if p_res.returncode == 0 and os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                    return {
+                        "status": "success",
+                        "message": "Screenshot desktop berhasil diambil via Wayland Portal.",
+                        "file_path": screenshot_path
+                    }
+            except Exception:
+                pass
 
-        # 2. Try grim (wlroots Wayland compositors like Sway/Hyprland)
-        try:
-            subprocess.run(f"grim '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
-            if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
-                return {
-                    "status": "success",
-                    "message": "Screenshot desktop berhasil diambil via grim.",
-                    "file_path": screenshot_path
-                }
-        except Exception:
-            pass
+            # 3. Try grim (wlroots Wayland compositors like Sway/Hyprland)
+            try:
+                subprocess.run(f"grim '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
+                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                    return {
+                        "status": "success",
+                        "message": "Screenshot desktop berhasil diambil via grim.",
+                        "file_path": screenshot_path
+                    }
+            except Exception:
+                pass
 
-        # 3. Try import (ImageMagick)
-        try:
-            subprocess.run(f"import -window root '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
-            if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
-                return {
-                    "status": "success",
-                    "message": "Screenshot desktop berhasil diambil via ImageMagick.",
-                    "file_path": screenshot_path
-                }
-        except Exception:
-            pass
+            # 4. Try import (ImageMagick)
+            try:
+                subprocess.run(f"import -window root '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
+                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                    return {
+                        "status": "success",
+                        "message": "Screenshot desktop berhasil diambil via ImageMagick.",
+                        "file_path": screenshot_path
+                    }
+            except Exception:
+                pass
 
-        # 4. Fallback PIL ImageGrab
+        # 5. Fallback PIL ImageGrab
         try:
             from PIL import ImageGrab
             img = ImageGrab.grab()
