@@ -10,19 +10,19 @@ import time
 def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
     """
     Benchmark kecepatan internet nyata menggunakan koneksi HTTP CDN multi-chunk.
-    
+
     Args:
         test_size_mb: Ukuran sample data download untuk tes (default: 5 MB, maks: 25 MB).
     """
     import socket
     import urllib.request
-    
+
     test_size_mb = max(1, min(25, test_size_mb))
 
     # 1. Ping Latency test (Cloudflare DNS & Google DNS)
-    ping_hosts = [('Cloudflare', '1.1.1.1', 53), ('Google', '8.8.8.8', 53)]
+    ping_hosts = [("Cloudflare", "1.1.1.1", 53), ("Google", "8.8.8.8", 53)]
     latencies = []
-    
+
     for label, host, port in ping_hosts:
         try:
             s_time = time.time()
@@ -34,19 +34,23 @@ def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
             latencies.append(lat_ms)
         except Exception:
             pass
-            
+
     avg_latency = round(sum(latencies) / len(latencies), 2) if latencies else None
-    
+
     # 2. Download Throughput Test (Cloudflare 10MB test file)
-    test_url = 'https://speed.cloudflare.com/__down?bytes=' + str(test_size_mb * 1024 * 1024)
+    test_url = "https://speed.cloudflare.com/__down?bytes=" + str(
+        test_size_mb * 1024 * 1024
+    )
     try:
         start_dl = time.time()
-        req = urllib.request.Request(test_url, headers={'User-Agent': 'ALFA-Speedtest/1.0'})
+        req = urllib.request.Request(
+            test_url, headers={"User-Agent": "ALFA-Speedtest/1.0"}
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = resp.read()
             bytes_received = len(data)
         dl_time = time.time() - start_dl
-        
+
         # Calculate Mbps: (bytes * 8) / (seconds * 1,000,000)
         mbps = round((bytes_received * 8) / (dl_time * 1_000_000), 2)
         mb_sec = round((bytes_received / (1024 * 1024)) / dl_time, 2)
@@ -54,13 +58,21 @@ def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
         mbps = None
         mb_sec = None
         dl_time = None
-        
+
     return {
-        'status': 'success',
-        'latency_ping_ms': avg_latency,
-        'download_speed_mbps': mbps,
-        'download_speed_mb_s': mb_sec,
-        'test_payload_mb': test_size_mb,
-        'duration_seconds': round(dl_time, 2) if dl_time else 0,
-        'quality_rating': 'Sangat Cepat 🚀' if (mbps and mbps > 50) else 'Cepat ⚡' if (mbps and mbps > 20) else 'Standar 📶' if (mbps and mbps > 5) else 'Lambat 🐢'
+        "status": "success",
+        "latency_ping_ms": avg_latency,
+        "download_speed_mbps": mbps,
+        "download_speed_mb_s": mb_sec,
+        "test_payload_mb": test_size_mb,
+        "duration_seconds": round(dl_time, 2) if dl_time else 0,
+        "quality_rating": (
+            "Sangat Cepat 🚀"
+            if (mbps and mbps > 50)
+            else (
+                "Cepat ⚡"
+                if (mbps and mbps > 20)
+                else "Standar 📶" if (mbps and mbps > 5) else "Lambat 🐢"
+            )
+        ),
     }

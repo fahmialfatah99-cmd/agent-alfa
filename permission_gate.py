@@ -56,14 +56,25 @@ GATED_TOOLS = {
 
 # Tool read-only/riset yang selalu otomatis lolos tanpa tanya.
 SAFE_TOOLS = {
-    "web_search", "fetch_web_page_content", "deep_research_topic",
-    "read_local_file", "search_workspace_files", "grep_workspace",
+    "web_search",
+    "fetch_web_page_content",
+    "deep_research_topic",
+    "read_local_file",
+    "search_workspace_files",
+    "grep_workspace",
     "find_user_files",
-    "index_codebase", "search_codebase",
-    "save_knowledge_memory", "search_knowledge_memory",
-    "get_system_stats", "get_current_user_id", "get_current_chat_id",
-    "capture_desktop_screenshot", "list_running_processes",
-    "generate_secure_password", "translate_text", "token_usage_query",
+    "index_codebase",
+    "search_codebase",
+    "save_knowledge_memory",
+    "search_knowledge_memory",
+    "get_system_stats",
+    "get_current_user_id",
+    "get_current_chat_id",
+    "capture_desktop_screenshot",
+    "list_running_processes",
+    "generate_secure_password",
+    "translate_text",
+    "token_usage_query",
 }
 
 _LABELS = {
@@ -77,8 +88,7 @@ _LABELS = {
 # ── Penyimpanan aturan 'selalu izinkan' ──────────────────────────────────────
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS tool_permissions(
+    conn.execute("""CREATE TABLE IF NOT EXISTS tool_permissions(
                id INTEGER PRIMARY KEY AUTOINCREMENT,
                chat_id INTEGER NOT NULL,
                tool_name TEXT NOT NULL,
@@ -94,7 +104,8 @@ def is_always_allowed(chat_id: Optional[int], tool_name: str) -> bool:
         with _connect() as conn:
             row = conn.execute(
                 "SELECT 1 FROM tool_permissions WHERE chat_id=? AND tool_name=?",
-                (int(chat_id), tool_name)).fetchone()
+                (int(chat_id), tool_name),
+            ).fetchone()
         return row is not None
     except Exception as e:
         logger.warning(f"cek tool_permissions gagal (lolos-aman): {e}")
@@ -106,7 +117,9 @@ def save_always_allow(chat_id: int, tool_name: str) -> None:
         with _connect() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO tool_permissions(chat_id, tool_name, created_at) "
-                "VALUES (?,?,?)", (int(chat_id), tool_name, time.time()))
+                "VALUES (?,?,?)",
+                (int(chat_id), tool_name, time.time()),
+            )
     except Exception as e:
         logger.warning(f"simpan tool_permissions gagal: {e}")
 
@@ -114,9 +127,13 @@ def save_always_allow(chat_id: int, tool_name: str) -> None:
 def list_always_allowed(chat_id: int):
     try:
         with _connect() as conn:
-            return [r[0] for r in conn.execute(
-                "SELECT tool_name FROM tool_permissions WHERE chat_id=? ORDER BY tool_name",
-                (int(chat_id),)).fetchall()]
+            return [
+                r[0]
+                for r in conn.execute(
+                    "SELECT tool_name FROM tool_permissions WHERE chat_id=? ORDER BY tool_name",
+                    (int(chat_id),),
+                ).fetchall()
+            ]
     except Exception:
         return []
 
@@ -141,8 +158,9 @@ def make_gate(chat_id: Optional[int]):
     return gate
 
 
-async def request_approval(tool_name: str, arguments_json: str = "{}",
-                           chat_id: int = None) -> Optional[str]:
+async def request_approval(
+    tool_name: str, arguments_json: str = "{}", chat_id: int = None
+) -> Optional[str]:
     """Tanya izin ke pengguna via tombol Telegram.
     Return None bila diizinkan; string penolakan bila ditolak/timeout."""
     if not PERMISSION_GATE_ENABLED or chat_id is None:
@@ -182,10 +200,17 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         from subagents import get_telegram_app
+
         app = get_telegram_app()
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton(text, callback_data=f"perm|{req_id}|{act}")
-            for text, act in row] for row in keyboard])
+        markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(text, callback_data=f"perm|{req_id}|{act}")
+                    for text, act in row
+                ]
+                for row in keyboard
+            ]
+        )
         sent_message = await app.bot.send_message(
             chat_id=int(chat_id),
             text=(
@@ -198,7 +223,8 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         )
     except Exception as e:
         logger.warning(
-            f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed).")
+            f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed)."
+        )
         _PENDING.pop(req_id, None)
         fail_mode = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
         if fail_mode == "allow":
@@ -223,11 +249,14 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
     if sent_message is not None:
         try:
             from subagents import get_telegram_app
+
             app = get_telegram_app()
             base_text = sent_message.text or ""
             await app.bot.edit_message_text(
-                chat_id=int(chat_id), message_id=sent_message.message_id,
-                text=f"{base_text}\n\n→ {label}")
+                chat_id=int(chat_id),
+                message_id=sent_message.message_id,
+                text=f"{base_text}\n\n→ {label}",
+            )
         except Exception as e:
             logger.debug(f"edit pesan izin gagal (abaikan): {e}")
 

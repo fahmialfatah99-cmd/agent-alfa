@@ -4,6 +4,7 @@ OAuth login manager untuk Antigravity Multi-Account Gateway.
 Login Google langsung dari website; token per-akun disimpan terpisah dan
 otomatis didaftarkan sebagai instans proxy + masuk rotasi router :8890.
 """
+
 import json
 import logging
 import os
@@ -23,8 +24,7 @@ logger = logging.getLogger("AntigravityLogin")
 
 BASE = os.path.expanduser("~/antigravity-gateway")
 CLIENT_ID = os.getenv("ANTIGRAVITY_CLIENT_ID", "").strip() or (
-    "1071006060591-tmhssin2h21lcre2"
-    "35vtolojh4g403ep.apps.googleusercontent.com"
+    "1071006060591-tmhssin2h21lcre2" "35vtolojh4g403ep.apps.googleusercontent.com"
 )
 CLIENT_SECRET = os.getenv("ANTIGRAVITY_CLIENT_SECRET", "").strip() or (
     "GOCSPX-K58FWR486LdL" "J1mLB8sXC4z6qDAf"
@@ -33,9 +33,11 @@ AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 USERINFO_EP = "https://openidconnect.googleapis.com/v1/userinfo"
 REDIRECT_PORT = 8899
-SCOPES = ("https://www.googleapis.com/auth/cloud-platform "
-          "https://www.googleapis.com/auth/userinfo.email "
-          "https://www.googleapis.com/auth/userinfo.profile")
+SCOPES = (
+    "https://www.googleapis.com/auth/cloud-platform "
+    "https://www.googleapis.com/auth/userinfo.email "
+    "https://www.googleapis.com/auth/userinfo.profile"
+)
 LOGIN_TIMEOUT_S = 300
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
 
@@ -83,16 +85,21 @@ def _rfc3339_in(seconds: int) -> str:
 
 
 def _exchange_code(code: str, redirect_uri: str) -> Dict[str, Any]:
-    body = urllib.parse.urlencode({
-        "code": code,
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code",
-    }).encode()
+    body = urllib.parse.urlencode(
+        {
+            "code": code,
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        }
+    ).encode()
     req = urllib.request.Request(
-        TOKEN_ENDPOINT, data=body, method="POST",
-        headers={"Content-Type": "application/x-www-form-urlencoded"})
+        TOKEN_ENDPOINT,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
     with urllib.request.urlopen(req, timeout=30) as resp:
         payload = json.loads(resp.read().decode())
     if "access_token" not in payload:
@@ -109,7 +116,8 @@ def _exchange_code(code: str, redirect_uri: str) -> Dict[str, Any]:
 def _fetch_email(access_token: str) -> str:
     try:
         req = urllib.request.Request(
-            USERINFO_EP, headers={"Authorization": f"Bearer {access_token}"})
+            USERINFO_EP, headers={"Authorization": f"Bearer {access_token}"}
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode()).get("email", "")
     except Exception:
@@ -138,22 +146,29 @@ def _register_instance(name: str, home_dir: str, port: int):
     with open(os.path.join(unit_dir, f"antigravity-proxy-{name}.service"), "w") as f:
         f.write(unit)
     subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=20)
-    subprocess.run(["systemctl", "--user", "enable", "--now",
-                    f"antigravity-proxy-{name}.service"],
-                   timeout=30, capture_output=True)
+    subprocess.run(
+        ["systemctl", "--user", "enable", "--now", f"antigravity-proxy-{name}.service"],
+        timeout=30,
+        capture_output=True,
+    )
 
 
 def _unregister_instance(name: str):
     if os.name == "nt" or not shutil.which("systemctl"):
         return
-    subprocess.run(["systemctl", "--user", "stop",
-                    f"antigravity-proxy-{name}.service"],
-                   timeout=20, capture_output=True)
-    subprocess.run(["systemctl", "--user", "disable",
-                    f"antigravity-proxy-{name}.service"],
-                   timeout=20, capture_output=True)
+    subprocess.run(
+        ["systemctl", "--user", "stop", f"antigravity-proxy-{name}.service"],
+        timeout=20,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["systemctl", "--user", "disable", f"antigravity-proxy-{name}.service"],
+        timeout=20,
+        capture_output=True,
+    )
     unit = os.path.expanduser(
-        f"~/.config/systemd/user/antigravity-proxy-{name}.service")
+        f"~/.config/systemd/user/antigravity-proxy-{name}.service"
+    )
     if os.path.exists(unit):
         os.remove(unit)
     subprocess.run(["systemctl", "--user", "daemon-reload"], timeout=20)
@@ -164,8 +179,7 @@ class _Handler(BaseHTTPRequestHandler):
     result: Dict[str, str] = {}
 
     def do_GET(self):
-        params = urllib.parse.parse_qs(
-            urllib.parse.urlparse(self.path).query)
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         if "error" in params:
             type(self).result = {"error": params["error"][0]}
             msg, code = "<h2>\u274c Login dibatalkan / gagal.</h2>".encode("utf-8"), 400
@@ -174,8 +188,10 @@ class _Handler(BaseHTTPRequestHandler):
             if "state" in params:
                 r["state"] = params["state"][0]
             type(self).result = r
-            msg = ("<h2 style='font-family:sans-serif'>\u2705 Login berhasil! "
-                   "Silakan kembali ke dashboard ALFA.</h2>").encode("utf-8")
+            msg = (
+                "<h2 style='font-family:sans-serif'>\u2705 Login berhasil! "
+                "Silakan kembali ke dashboard ALFA.</h2>"
+            ).encode("utf-8")
             code = 200
         else:
             msg, code = b"bad request", 400
@@ -195,33 +211,46 @@ def start_login(name: str) -> Dict[str, Any]:
     global REDIRECT_PORT
     name = (name or "").strip().lower()
     if not NAME_RE.match(name):
-        return {"status": "error",
-                "message": "Nama akun hanya huruf kecil/angka/-/_ (maks 24 karakter)."}
+        return {
+            "status": "error",
+            "message": "Nama akun hanya huruf kecil/angka/-/_ (maks 24 karakter).",
+        }
 
     REDIRECT_PORT = 8899
 
     with _pending_lock:
         waiting = [n for n, p in _pending.items() if p["status"] == "waiting"]
         if waiting:
-            return {"status": "error",
-                    "message": ("Masih ada proses login '"
-                                + waiting[0] + "' berjalan (maks 5 menit).")}
+            return {
+                "status": "error",
+                "message": (
+                    "Masih ada proses login '"
+                    + waiting[0]
+                    + "' berjalan (maks 5 menit)."
+                ),
+            }
 
     state = secrets.token_urlsafe(16)
     redirect_uri = f"http://localhost:{REDIRECT_PORT}/callback"
-    qs = urllib.parse.urlencode({
-        "client_id": CLIENT_ID,
-        "redirect_uri": redirect_uri,
-        "response_type": "code",
-        "scope": SCOPES,
-        "state": state,
-        "access_type": "offline",
-        "prompt": "consent select_account",
-    })
+    qs = urllib.parse.urlencode(
+        {
+            "client_id": CLIENT_ID,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": SCOPES,
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent select_account",
+        }
+    )
     auth_url = AUTH_ENDPOINT + "?" + qs
 
-    entry: Dict[str, Any] = {"status": "waiting", "state": state,
-                             "started": time.time(), "auth_url": auth_url}
+    entry: Dict[str, Any] = {
+        "status": "waiting",
+        "state": state,
+        "started": time.time(),
+        "auth_url": auth_url,
+    }
     with _pending_lock:
         _pending[name] = entry
 
@@ -240,8 +269,9 @@ def start_login(name: str) -> Dict[str, Any]:
 
             code = res.get("code")
             if not code:
-                raise RuntimeError(res.get("error") or
-                                   "timeout menunggu konfirmasi browser")
+                raise RuntimeError(
+                    res.get("error") or "timeout menunggu konfirmasi browser"
+                )
             if res.get("state") != state:
                 raise RuntimeError("state tidak cocok")
 
@@ -286,16 +316,23 @@ def start_login(name: str) -> Dict[str, Any]:
                 server.server_close()
 
     threading.Thread(target=worker, daemon=True).start()
-    return {"status": "success", "name": name, "auth_url": auth_url,
-            "message": "Buka URL di browser & pilih akun Google."}
+    return {
+        "status": "success",
+        "name": name,
+        "auth_url": auth_url,
+        "message": "Buka URL di browser & pilih akun Google.",
+    }
 
 
 def login_status(name: str) -> Dict[str, Any]:
     p = _pending.get((name or "").strip().lower())
     if not p:
         return {"status": "idle"}
-    return {"status": p["status"], "email": p.get("email", ""),
-            "error": p.get("error", "")}
+    return {
+        "status": p["status"],
+        "email": p.get("email", ""),
+        "error": p.get("error", ""),
+    }
 
 
 def list_accounts() -> List[Dict[str, Any]]:
@@ -312,9 +349,14 @@ def list_accounts() -> List[Dict[str, Any]]:
                         email = json.load(f).get("email", "")
                 except Exception:
                     pass
-            out.append({"name": nm, "email": email,
-                        "port": inst.get(nm, {}).get("port"),
-                        "has_token": True})
+            out.append(
+                {
+                    "name": nm,
+                    "email": email,
+                    "port": inst.get(nm, {}).get("port"),
+                    "has_token": True,
+                }
+            )
     return out
 
 
@@ -324,13 +366,18 @@ def remove_account(name: str) -> Dict[str, Any]:
         return {"status": "error", "message": "Nama wajib diisi."}
     _unregister_instance(name)
     removed = []
-    for target in [os.path.join(BASE, "accounts", name),
-                   os.path.join(BASE, f"home_{name}")]:
+    for target in [
+        os.path.join(BASE, "accounts", name),
+        os.path.join(BASE, f"home_{name}"),
+    ]:
         if os.path.isdir(target):
             shutil.rmtree(target, ignore_errors=True)
             removed.append(target)
     inst = _load_instances()
     inst.get("instances", {}).pop(name, None)
     _save_instances(inst)
-    return {"status": "success", "removed": len(removed),
-            "message": f"Akun '{name}' dihapus dari gateway."}
+    return {
+        "status": "success",
+        "removed": len(removed),
+        "message": f"Akun '{name}' dihapus dari gateway.",
+    }

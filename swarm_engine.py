@@ -31,6 +31,7 @@ import tools
 # Checkpoint & tracing: opsional — bot tetap berjalan tanpa keduanya
 try:
     from swarm_checkpoint import SwarmCheckpoint as _SwarmCheckpoint
+
     _CHECKPOINT_AVAILABLE = True
 except ImportError:
     _CHECKPOINT_AVAILABLE = False
@@ -38,6 +39,7 @@ except ImportError:
 
 try:
     import tracing as _tracing
+
     _TRACING_AVAILABLE = True
 except ImportError:
     _TRACING_AVAILABLE = False
@@ -49,8 +51,19 @@ logger = logging.getLogger(__name__)
 # ini (misal 'custom'/'tokenra'/'oxalpha') tetap didukung selama kuncinya punya
 # Base URL OpenAI-compatible di vault.
 KNOWN_OPENAI_PROVIDERS = {
-    "openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim",
-    "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope",
+    "openai",
+    "groq",
+    "openrouter",
+    "9router",
+    "ollama",
+    "nvidia",
+    "nim",
+    "deepseek",
+    "minimax",
+    "moonshot",
+    "kimi",
+    "qwen",
+    "dashscope",
 }
 
 SWARM_OUTPUT_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
@@ -66,8 +79,17 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 # RAM disk (/dev/shm) dan TIDAK ikut salinan deliverable standar (CSV/HTML).
 # Snapshot diambil saat rapat mulai; di akhir rapat folder baru diarsipkan
 # otomatis ke ALFA_SWARM_OUTPUTS/projects tanpa node_modules & sejenisnya.
-_HARVEST_EXCLUDE = {"node_modules", ".next", ".git", ".toolchain",
-                    "__pycache__", ".cache", ".local", ".venv", "venv"}
+_HARVEST_EXCLUDE = {
+    "node_modules",
+    ".next",
+    ".git",
+    ".toolchain",
+    "__pycache__",
+    ".cache",
+    ".local",
+    ".venv",
+    "venv",
+}
 _SANDBOX_SNAPSHOT: set = set()
 # Folder target kerja agen saat sesi eksekusi berjalan ("" = bebas).
 _TARGET_FOLDER: str = ""
@@ -83,8 +105,11 @@ def _hash_sandbox_projects() -> Dict[str, str]:
             roots = [_TARGET_FOLDER]
         else:
             sb = tools.SANDBOX_DIR
-            roots = [os.path.join(sb, d) for d in os.listdir(sb)
-                     if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")]
+            roots = [
+                os.path.join(sb, d)
+                for d in os.listdir(sb)
+                if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")
+            ]
         for pdir in roots:
             for root, dirs, files in os.walk(pdir):
                 dirs[:] = [x for x in dirs if x not in _HARVEST_EXCLUDE]
@@ -109,8 +134,11 @@ def _fs_changed_since_snapshot() -> bool:
 def _sandbox_project_dirs() -> set:
     try:
         sb = tools.SANDBOX_DIR
-        return {d for d in os.listdir(sb)
-                if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")}
+        return {
+            d
+            for d in os.listdir(sb)
+            if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".")
+        }
     except Exception:
         return set()
 
@@ -126,9 +154,13 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
             new_dirs.add(os.path.basename(_TARGET_FOLDER.rstrip("/")))
         if not new_dirs:
             return harvested
-        slug = re.sub(r"[^a-z0-9]+", "_", (topic or "rapat").lower())[:30].strip("_") or "rapat"
-        dst_root = os.path.join(SWARM_OUTPUT_DIR, "projects",
-                                f"{slug}_{int(time.time())}")
+        slug = (
+            re.sub(r"[^a-z0-9]+", "_", (topic or "rapat").lower())[:30].strip("_")
+            or "rapat"
+        )
+        dst_root = os.path.join(
+            SWARM_OUTPUT_DIR, "projects", f"{slug}_{int(time.time())}"
+        )
         for d in sorted(new_dirs):
             src = os.path.join(tools.SANDBOX_DIR, d)
             total = 0
@@ -149,12 +181,17 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
             if total < 512:
                 log_live("HARVEST", f"⏭️ '{d}' dilewati (folder kosong/tanpa karya)")
                 continue
-            shutil.copytree(src, os.path.join(dst_root, d),
-                            ignore=shutil.ignore_patterns(*_HARVEST_EXCLUDE),
-                            dirs_exist_ok=True)
+            shutil.copytree(
+                src,
+                os.path.join(dst_root, d),
+                ignore=shutil.ignore_patterns(*_HARVEST_EXCLUDE),
+                dirs_exist_ok=True,
+            )
             harvested.append(d)
-            log_live("HARVEST",
-                     f"📦 Proyek '{d}' ({total // 1024}KB) diarsipkan ke {dst_root}")
+            log_live(
+                "HARVEST",
+                f"📦 Proyek '{d}' ({total // 1024}KB) diarsipkan ke {dst_root}",
+            )
         return harvested
     except Exception as e:
         log_live("HARVEST", f"⚠️ harvest gagal: {e}")
@@ -162,6 +199,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
     finally:
         _SANDBOX_SNAPSHOT.clear()
         _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
+
 
 # ── LIVE TERMINAL FEED ───────────────────────────────────────────────────────
 # Sumber kebenaran: file JSONL agar lintas-proses (rapat dari Telegram maupun
@@ -185,7 +223,10 @@ def request_cancel_swarm() -> bool:
             f.write(str(time.time()))
     except OSError:
         pass
-    log_live("CANCEL", "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...")
+    log_live(
+        "CANCEL",
+        "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...",
+    )
     return True
 
 
@@ -258,6 +299,7 @@ def log_tool_live(text: str) -> None:
 # Structured error record per step, dikumpulkan selama sesi berlangsung
 # dan dikirim ke agen berikutnya sebagai konteks agar pipeline tidak buta.
 
+
 def _build_error_context(failed_steps: list) -> str:
     """Format daftar kegagalan agen menjadi blok konteks untuk agen berikutnya.
 
@@ -284,7 +326,7 @@ def _record_step_error(session_id: str, step_result: dict, feedback: str) -> Non
                 session_id=session_id,
                 step_name=step_result.get("task_assigned", "")[:80],
                 agent_name=step_result.get("agent_name", "?"),
-                error=feedback or step_result.get("execution_summary", "")
+                error=feedback or step_result.get("execution_summary", ""),
             )
         except Exception:
             pass
@@ -303,36 +345,120 @@ def qa_verdict_passed(text: str) -> bool:
 def detect_task_intent(topic: str) -> Dict[str, Any]:
     """Analyze the user's topic/command to determine tool strategy, categories, and limits."""
     low = topic.lower()
-    
+
     # Detect target count (e.g. 20 mouse, 10 jobs)
-    count_match = re.search(r'\b(\d{1,3})\b', low)
+    count_match = re.search(r"\b(\d{1,3})\b", low)
     limit = int(count_match.group(1)) if count_match else 20
     limit = min(50, max(5, limit))
 
-    is_scrape = any(k in low for k in ["scrape", "scraping", "ambil data", "sedot", "cari data", "carikan produk", "lowongan", "kontak", "supplier", "harga"])
-    is_code = any(k in low for k in ["script", "skrip", "python", "koding", "coding", "program", "buatkan script", "bikin script", "aplikasi", "fungsi", "function"])
-    is_audit = any(k in low for k in ["audit", "security", "keamanan", "vram", "ram", "cpu", "port", "firewall", "celah"])
+    is_scrape = any(
+        k in low
+        for k in [
+            "scrape",
+            "scraping",
+            "ambil data",
+            "sedot",
+            "cari data",
+            "carikan produk",
+            "lowongan",
+            "kontak",
+            "supplier",
+            "harga",
+        ]
+    )
+    is_code = any(
+        k in low
+        for k in [
+            "script",
+            "skrip",
+            "python",
+            "koding",
+            "coding",
+            "program",
+            "buatkan script",
+            "bikin script",
+            "aplikasi",
+            "fungsi",
+            "function",
+        ]
+    )
+    is_audit = any(
+        k in low
+        for k in [
+            "audit",
+            "security",
+            "keamanan",
+            "vram",
+            "ram",
+            "cpu",
+            "port",
+            "firewall",
+            "celah",
+        ]
+    )
 
     category = "general_web"
-    if any(k in low for k in ["shopee", "tokopedia", "tiktok", "lazada", "blibli", "marketplace", "produk", "jual", "harga", "beli", "mouse", "baju", "sepatu", "laptop", "hp"]):
+    if any(
+        k in low
+        for k in [
+            "shopee",
+            "tokopedia",
+            "tiktok",
+            "lazada",
+            "blibli",
+            "marketplace",
+            "produk",
+            "jual",
+            "harga",
+            "beli",
+            "mouse",
+            "baju",
+            "sepatu",
+            "laptop",
+            "hp",
+        ]
+    ):
         category = "all_marketplace"
-    elif any(k in low for k in ["loker", "lowongan", "kerja", "job", "karir", "jobstreet", "glints", "linkedin"]):
+    elif any(
+        k in low
+        for k in [
+            "loker",
+            "lowongan",
+            "kerja",
+            "job",
+            "karir",
+            "jobstreet",
+            "glints",
+            "linkedin",
+        ]
+    ):
         category = "jobs_career"
-    elif any(k in low for k in ["kontak", "supplier", "wa", "whatsapp", "distributor", "email", "pabrik"]):
+    elif any(
+        k in low
+        for k in [
+            "kontak",
+            "supplier",
+            "wa",
+            "whatsapp",
+            "distributor",
+            "email",
+            "pabrik",
+        ]
+    ):
         category = "leads_contacts"
     elif any(k in low for k in ["berita", "news", "detik", "kompas", "cnn", "media"]):
         category = "news_media"
     # Extract search term cleanly
     cleaned = topic
     fillers = [
-        r'(?i)\b(tolong|coba|scrape|scraping|carikan|ambilkan|ambil|cari|eksekusi|buatkan|bikin|analisa|analisis|rekap|buatkan skrip|skrip|script|rekap csv|csv-nya|file csv|terlaris|terpopuler|murah|bagus|dan buatkan.*|analisa rentang.*)\b',
-        r'(?i)\b(di shopee|di tokopedia|di lazada|di tiktok|shopee & tokopedia|shopee dan tokopedia|di marketplace|di google)\b',
-        r'\b\d+\b',
-        r'[^\w\s-]'
+        r"(?i)\b(tolong|coba|scrape|scraping|carikan|ambilkan|ambil|cari|eksekusi|buatkan|bikin|analisa|analisis|rekap|buatkan skrip|skrip|script|rekap csv|csv-nya|file csv|terlaris|terpopuler|murah|bagus|dan buatkan.*|analisa rentang.*)\b",
+        r"(?i)\b(di shopee|di tokopedia|di lazada|di tiktok|shopee & tokopedia|shopee dan tokopedia|di marketplace|di google)\b",
+        r"\b\d+\b",
+        r"[^\w\s-]",
     ]
     for p in fillers:
-        cleaned = re.sub(p, ' ', cleaned)
-    cleaned = ' '.join(cleaned.split()).strip()
+        cleaned = re.sub(p, " ", cleaned)
+    cleaned = " ".join(cleaned.split()).strip()
     if len(cleaned) < 3:
         cleaned = topic[:40]
 
@@ -342,7 +468,7 @@ def detect_task_intent(topic: str) -> Dict[str, Any]:
         "is_audit": is_audit,
         "category": category,
         "limit": limit,
-        "clean_query": cleaned
+        "clean_query": cleaned,
     }
 
 
@@ -365,18 +491,24 @@ def _default_gemini_model() -> str:
     return "gemini-flash-latest"
 
 
-def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional[str], Optional[int]]:
+def get_agent_api_client(
+    agent: Dict[str, Any],
+) -> tuple[str, str, str, Optional[str], Optional[int]]:
     """Resolve (provider, api_key, model, base_url, key_id) for a specific agent."""
     provider = (agent.get("provider") or "gemini").lower()
-    model = agent.get("model") or (_default_gemini_model()
-                                   if provider == "gemini" else "")
+    model = agent.get("model") or (
+        _default_gemini_model() if provider == "gemini" else ""
+    )
     api_key = ""
     base_url = ""
     key_id = None
 
     if agent.get("api_key_id"):
         with database.get_sync_db() as conn:
-            row = conn.execute("SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?", (agent["api_key_id"],)).fetchone()
+            row = conn.execute(
+                "SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?",
+                (agent["api_key_id"],),
+            ).fetchone()
             if row:
                 provider = row["provider"]
                 api_key = database.decrypt_key(row["api_key"])
@@ -422,7 +554,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
+        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -431,7 +563,9 @@ async def _generate_with_gemini(
     try:
         client = genai.Client(api_key=api_key)
     except Exception as client_err:
-        logger.error(f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}")
+        logger.error(
+            f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}"
+        )
         return None
     for m in unique_models:
         try:
@@ -442,7 +576,8 @@ async def _generate_with_gemini(
             )
             if thinking_budget is not None:
                 cfg_kw["thinking_config"] = types.ThinkingConfig(
-                    thinking_budget=thinking_budget)
+                    thinking_budget=thinking_budget
+                )
             if tools:
                 # SDK melakukan automatic function calling & mengirim hasil
                 # tool berikutnya secara internal sampai jawaban final.
@@ -458,17 +593,24 @@ async def _generate_with_gemini(
                 )
             except asyncio.TimeoutError:
                 last_err = TimeoutError(
-                    f"[gemini] HARD DEADLINE {timeout_s}s terlampaui untuk model '{m}'")
+                    f"[gemini] HARD DEADLINE {timeout_s}s terlampaui untuk model '{m}'"
+                )
                 logger.warning(f"{last_err}. Trying next fallback...")
                 continue
             if response and response.text:
-                token_usage.from_gemini_response(response, model=m, key_id=key_id,
-                                                 key_label=key_label or f"agent:{agent_name}",
-                                                 context=context)
+                token_usage.from_gemini_response(
+                    response,
+                    model=m,
+                    key_id=key_id,
+                    key_label=key_label or f"agent:{agent_name}",
+                    context=context,
+                )
                 return response.text.strip()
         except Exception as e:
             last_err = e
-            logger.warning(f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback...")
+            logger.warning(
+                f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback..."
+            )
 
     logger.error(f"All Gemini models failed for agent '{agent_name}': {last_err!r}")
     return None
@@ -491,6 +633,7 @@ async def _generate_with_openai_compat(
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
         import httpx
+
         url = base_url
         if not url:
             if provider in ["nvidia", "nim"]:
@@ -516,7 +659,7 @@ async def _generate_with_openai_compat(
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         if provider == "openrouter":
             headers["HTTP-Referer"] = "https://alfa-agent.local"
@@ -526,19 +669,24 @@ async def _generate_with_openai_compat(
             "model": model,
             "messages": [
                 {"role": "system", "content": final_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": max_tokens
+            "max_tokens": max_tokens,
         }
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=10.0)) as http_client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout_s, connect=10.0)
+        ) as http_client:
             # Deadline KERAS: read-timeout httpx bisa ter-reset oleh respons
             # yang menetes, jadi total waktu dipaksa lewat asyncio.wait_for.
             try:
                 res = await asyncio.wait_for(
-                    http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                     headers=headers, json=payload),
+                    http_client.post(
+                        f"{url.rstrip('/')}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    ),
                     timeout=timeout_s,
                 )
             except asyncio.TimeoutError:
@@ -549,16 +697,23 @@ async def _generate_with_openai_compat(
                 return None
             if res.status_code == 200:
                 data = res.json()
-                token_usage.from_openai_json(data, provider=provider, model=model,
-                                             key_id=key_id,
-                                             key_label=key_label or f"agent:{agent_name}",
-                                             context=context)
+                token_usage.from_openai_json(
+                    data,
+                    provider=provider,
+                    model=model,
+                    key_id=key_id,
+                    key_label=key_label or f"agent:{agent_name}",
+                    context=context,
+                )
                 msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                 content = (msg0.get("content") or "").strip()
                 if not content:
-                    content = (msg0.get("reasoning_content")
-                               or msg0.get("reasoning") or "").strip()
-                    logger.warning(f"[{provider}] content kosong, fallback reasoning ({len(content)} char)")
+                    content = (
+                        msg0.get("reasoning_content") or msg0.get("reasoning") or ""
+                    ).strip()
+                    logger.warning(
+                        f"[{provider}] content kosong, fallback reasoning ({len(content)} char)"
+                    )
                 if content:
                     return content
                 return None
@@ -566,6 +721,7 @@ async def _generate_with_openai_compat(
             # mampu dibayar - coba sekali lagi dengan budget itu (dikurangi margin).
             if res.status_code == 402:
                 import re as _re
+
                 m_afford = _re.search(r"can only afford (\d+)", res.text)
                 if m_afford:
                     afford = max(256, int(m_afford.group(1)) - 128)
@@ -574,25 +730,38 @@ async def _generate_with_openai_compat(
                         f"[{provider}] kuota terbatas - retry dengan max_tokens={afford}"
                     )
                     try:
-                        res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                                     headers=headers, json=payload)
+                        res = await http_client.post(
+                            f"{url.rstrip('/')}/chat/completions",
+                            headers=headers,
+                            json=payload,
+                        )
                     except Exception as retry_err:
                         logger.error(
-                            f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}")
+                            f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}"
+                        )
                         return None
                     if res.status_code == 200:
                         data = res.json()
-                        token_usage.from_openai_json(data, provider=provider, model=model,
-                                                     key_id=key_id, key_label=key_label,
-                                                     context=context)
+                        token_usage.from_openai_json(
+                            data,
+                            provider=provider,
+                            model=model,
+                            key_id=key_id,
+                            key_label=key_label,
+                            context=context,
+                        )
                         msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                         content = (msg0.get("content") or "").strip()
                         if content:
                             return content
                     else:
-                        logger.error(f"[{provider}] retry 402 tetap gagal HTTP {res.status_code}")
+                        logger.error(
+                            f"[{provider}] retry 402 tetap gagal HTTP {res.status_code}"
+                        )
                 err_detail = res.text[:200] or "(empty body)"
-                logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+                logger.error(
+                    f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
+                )
                 return None
 
             if res.status_code == 429:
@@ -601,16 +770,26 @@ async def _generate_with_openai_compat(
                     delay = min(max(float(retry_after_str), 1.0), 5.0)
                 except ValueError:
                     delay = 2.0
-                logger.warning(f"[{provider}] HTTP 429 Rate Limit for '{agent_name}'. Backing off {delay}s...")
+                logger.warning(
+                    f"[{provider}] HTTP 429 Rate Limit for '{agent_name}'. Backing off {delay}s..."
+                )
                 await asyncio.sleep(delay)
                 try:
-                    res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                                 headers=headers, json=payload)
+                    res = await http_client.post(
+                        f"{url.rstrip('/')}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
                     if res.status_code == 200:
                         data = res.json()
-                        token_usage.from_openai_json(data, provider=provider, model=model,
-                                                     key_id=key_id, key_label=key_label,
-                                                     context=context)
+                        token_usage.from_openai_json(
+                            data,
+                            provider=provider,
+                            model=model,
+                            key_id=key_id,
+                            key_label=key_label,
+                            context=context,
+                        )
                         msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                         content = (msg0.get("content") or "").strip()
                         if content:
@@ -619,17 +798,23 @@ async def _generate_with_openai_compat(
                     logger.error(f"[{provider}] retry 429 failed: {retry_err}")
 
             err_detail = res.text[:200] or "(empty body)"
-            logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+            logger.error(
+                f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
+            )
             return None
     except Exception as e:
         logger.error(f"Error in {provider} agent '{agent_name}': {e!r}")
         return None
 
 
-async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str,
-                                  max_tokens: Optional[int] = None,
-                                  timeout_s: float = 180.0,
-                                  thinking_budget: Optional[int] = None) -> Optional[str]:
+async def generate_agent_response(
+    agent: Dict[str, Any],
+    prompt: str,
+    system_instruction: str,
+    max_tokens: Optional[int] = None,
+    timeout_s: float = 180.0,
+    thinking_budget: Optional[int] = None,
+) -> Optional[str]:
     """Generate response for a specific agent using its configured provider and key.
 
     If the agent's primary provider fails (timeout, bad key, quota, etc.), it
@@ -665,7 +850,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             "3. Sebelum melapor selesai, pastikan file benar-benar ditulis via tool."
         )
     else:
-        final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
+        final_instruction = (
+            system_instruction or "Kamu adalah engineer spesialis di AI Swarm."
+        ) + tone_directive
 
     key_label = f"agent:{agent_name}"
 
@@ -674,8 +861,12 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         try:
             import main_brain as _mb
             import tools as _t
-            return [getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
-                    if hasattr(_t, n) and callable(getattr(_t, n))]
+
+            return [
+                getattr(_t, n)
+                for n in sorted(_mb.SAFE_TOOL_NAMES)
+                if hasattr(_t, n) and callable(getattr(_t, n))
+            ]
         except Exception:
             return []
 
@@ -687,12 +878,16 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             try:
                 import main_brain as _mb
                 import tools as _t
+
                 gemini_tools = [
-                    getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
+                    getattr(_t, n)
+                    for n in sorted(_mb.SAFE_TOOL_NAMES)
                     if hasattr(_t, n) and callable(getattr(_t, n))
                 ]
             except Exception as tools_err:
-                logger.warning(f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}")
+                logger.warning(
+                    f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}"
+                )
         result = await _generate_with_gemini(
             agent_name=agent_name,
             api_key=api_key or os.getenv("GEMINI_API_KEY", ""),
@@ -712,6 +907,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         if enable_tools:
             try:
                 import main_brain as _mb
+
                 result = await _mb.run_openai_agentic_turn(
                     provider=provider,
                     base_url=base_url,
@@ -735,7 +931,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                 or not result.strip()
             ):
                 logger.warning(
-                    f"Agentic turn '{agent_name}' balas kosong -> paksa fallback.")
+                    f"Agentic turn '{agent_name}' balas kosong -> paksa fallback."
+                )
                 result = None
         if result is None:
             # Semua provider non-gemini dicoba sebagai OpenAI-compatible
@@ -746,19 +943,19 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     "fallback ke Gemini."
                 )
             result = await _generate_with_openai_compat(
-            agent_name=agent_name,
-            provider=provider,
-            api_key=api_key,
-            model=model,
-            base_url=base_url,
-            prompt=prompt,
-            final_instruction=final_instruction,
-            key_id=key_id,
-            key_label=key_label,
-            context="swarm",
-            max_tokens=eff_max_tokens,
-            timeout_s=timeout_s,
-        )
+                agent_name=agent_name,
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+                prompt=prompt,
+                final_instruction=final_instruction,
+                key_id=key_id,
+                key_label=key_label,
+                context="swarm",
+                max_tokens=eff_max_tokens,
+                timeout_s=timeout_s,
+            )
         if result is None and enable_tools:
             # Agen ber-tool TIDAK boleh jatuh ke jalur tanpa tool (sumber
             # hallusinasi 'berhasil' kosong). Fallback: agen Gemini dengan
@@ -766,20 +963,26 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             # KECUALI kunci yang baru saja gagal (kunci bermasalah, mis.
             # kuota habis, tak akan menyembuhkan dirinya sendiri).
             try:
-                gem_keys = [k for k in database.list_active_keys_sync()
-                            if (k.get("provider") or "").lower() == "gemini"
-                            and k.get("id") != key_id]
+                gem_keys = [
+                    k
+                    for k in database.list_active_keys_sync()
+                    if (k.get("provider") or "").lower() == "gemini"
+                    and k.get("id") != key_id
+                ]
             except Exception:
                 gem_keys = []
             for gk in gem_keys:
                 try:
                     logger.warning(
                         f"Agen ber-tool '{agent_name}' gagal via {provider} "
-                        f"-> fallback Gemini agentic k#{gk.get('id')} (tools tetap aktif).")
+                        f"-> fallback Gemini agentic k#{gk.get('id')} (tools tetap aktif)."
+                    )
                     gagent = {
                         "name": agent_name,
                         "provider": "gemini",
-                        "model": (gk.get("default_model") or "gemini-flash-latest").strip(),
+                        "model": (
+                            gk.get("default_model") or "gemini-flash-latest"
+                        ).strip(),
                         "api_key_id": gk.get("id"),
                         "enable_tools": 1,
                     }
@@ -800,7 +1003,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
 
         if result is None and os.getenv("GEMINI_API_KEY"):
-            logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
+            logger.warning(
+                f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini."
+            )
             result = await _generate_with_gemini(
                 agent_name=f"{agent_name} (fallback)",
                 api_key=os.getenv("GEMINI_API_KEY", ""),
@@ -816,7 +1021,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     if result is None:
         logger.error(
             f"[Swarm] '{agent_name}': semua provider & fallback gagal "
-            f"(primary: {provider}) — langkah ini dilaporkan GAGAL.")
+            f"(primary: {provider}) — langkah ini dilaporkan GAGAL."
+        )
         return None
     return result
 
@@ -833,13 +1039,14 @@ def _extract_html_doc(text: str) -> str:
         return m.group(1).strip()
     low = text.lower()
     if "<html" in low:
-        return text[low.index("<html"):].strip()
+        return text[low.index("<html") :].strip()
     return ""
 
 
 def validate_python_code(code: str) -> str:
     """Return an error message if code is empty, trivial, or syntactically invalid; '' if OK."""
     import ast as _ast
+
     cleaned = (code or "").strip()
     if len(cleaned) < 30:
         return "kode kosong atau terlalu pendek untuk dijalankan"
@@ -850,7 +1057,9 @@ def validate_python_code(code: str) -> str:
     return ""
 
 
-async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dict[str, str]:
+async def _decompose_task(
+    topic: str, participants: List[Dict[str, Any]]
+) -> Dict[str, str]:
     """Ask the planner to break the topic into one concrete subtask per agent.
 
     Returns {agent_name: instruction}; empty dict when parsing fails so the
@@ -862,7 +1071,7 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
         f"TIM: {roster}\n\n"
         "Pecah topik ini menjadi SATU subtask konkret dan dapat dieksekusi sistem "
         "(bukan rencana abstrak) untuk setiap anggota tim.\n"
-        'Balas HANYA array JSON tanpa teks lain: '
+        "Balas HANYA array JSON tanpa teks lain: "
         '[{"name": "<nama persis dari tim>", "task": "<instruksi spesifik maksimal 25 kata>"}]'
     )
     try:
@@ -895,9 +1104,24 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     # perubahan file tingkat-langkah (pre/post hash) bila tersedia;
     # fallback ke snapshot global untuk data lama.
     low_task = (task or "").lower()
-    claims_file_work = any(k in low_task for k in (
-        "bangun", "buat", "perbaiki", "sempurnakan", "refactor", "tulis",
-        "kode", "website", "aplikasi", "file", "deploy", "komponen", "halaman"))
+    claims_file_work = any(
+        k in low_task
+        for k in (
+            "bangun",
+            "buat",
+            "perbaiki",
+            "sempurnakan",
+            "refactor",
+            "tulis",
+            "kode",
+            "website",
+            "aplikasi",
+            "file",
+            "deploy",
+            "komponen",
+            "halaman",
+        )
+    )
     # Inisialisasi dulu: langkah berstatus gagal (error) tidak boleh
     # memunculkan NameError saat variabel ini dirujuk di bawah.
     fs_changed = None
@@ -905,19 +1129,26 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     if claims_file_work and step_result.get("status") == "success":
         fs_changed = step_result.get("fs_changed")
         if fs_changed is None and _EXEC_FS_SNAPSHOT:
-            fs_changed = len(_hash_sandbox_projects()) != len(_EXEC_FS_SNAPSHOT) or \
-                         bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
+            fs_changed = len(_hash_sandbox_projects()) != len(
+                _EXEC_FS_SNAPSHOT
+            ) or bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
         if fs_changed == 0:
-            log_live("VERIFY",
-                     "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis")
-            return False, ("FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
-                           "yang berubah. Kerjakan nyata dan tulis perubahan ke folder kerja.")
+            log_live(
+                "VERIFY",
+                "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis",
+            )
+            return False, (
+                "FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
+                "yang berubah. Kerjakan nyata dan tulis perubahan ke folder kerja."
+            )
         changed_sample = step_result.get("changed_sample") or []
 
     summary = (step_result.get("execution_summary") or "")[:600]
     fs_evidence = ""
     if claims_file_work and fs_changed is not None:
-        samp = "; ".join(changed_sample[:4]) if changed_sample else "(detail tak tersedia)"
+        samp = (
+            "; ".join(changed_sample[:4]) if changed_sample else "(detail tak tersedia)"
+        )
         fs_evidence = f"\n- BUKTI FILESYSTEM: {fs_changed} file berubah ({samp})\n"
     prompt = (
         f"TUGAS YANG DIMINTA: {task[:300]}\n\n"
@@ -939,29 +1170,48 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
         return False, fb[:200]
     except Exception as ver_err:
         logger.warning("Verification call failed (treated as unverified): %r", ver_err)
-        return True, ""   # don't block pipeline on verifier outage
+        return True, ""  # don't block pipeline on verifier outage
 
 
-
-
-async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: str,
-                                     target_folder: str) -> str:
+async def _single_shot_edit_fallback(
+    agent: Dict[str, Any], task_instruction: str, target_folder: str
+) -> str:
     """Penyelesai pamungkas: minta KONTEN PENUH satu file utama dari model,
     lalu engine menulisnya sendiri (tanpa bergantung tool-call model)."""
     import glob as _glob
+
     cands = []
-    for pat in ("index.html", "page.html", "*.html", "*.htm",
-                "main.py", "app.py", "*.py", "*.md"):
-        cands += [p for p in _glob.glob(os.path.join(target_folder, "**", pat),
-                                        recursive=True)
-                  if "node_modules" not in p]
+    for pat in (
+        "index.html",
+        "page.html",
+        "*.html",
+        "*.htm",
+        "main.py",
+        "app.py",
+        "*.py",
+        "*.md",
+    ):
+        cands += [
+            p
+            for p in _glob.glob(os.path.join(target_folder, "**", pat), recursive=True)
+            if "node_modules" not in p
+        ]
     cands = sorted(set(cands), key=lambda p: os.path.getmtime(p), reverse=True)
-    main_file = cands[0] if cands else os.path.join(
-        target_folder,
-        re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-") + ".html")
+    main_file = (
+        cands[0]
+        if cands
+        else os.path.join(
+            target_folder,
+            re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-")
+            + ".html",
+        )
+    )
     ext = os.path.splitext(main_file)[1].lower()
-    fmt_hint = ("Dokumen HTML5 utuh mulai <!DOCTYPE html>." if ext.startswith(".h")
-                else "Kode sumber lengkap tanpa penjelasan.")
+    fmt_hint = (
+        "Dokumen HTML5 utuh mulai <!DOCTYPE html>."
+        if ext.startswith(".h")
+        else "Kode sumber lengkap tanpa penjelasan."
+    )
     prompt = (
         f"Tugas: {task_instruction[:400]}\n\n"
         f"Kembalikan HANYA isi penuh TERBARU untuk file `{main_file}` "
@@ -969,9 +1219,12 @@ async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: st
         f"Tanpa penjelasan, tanpa fence markdown."
     )
     content = await generate_agent_response(
-        agent, prompt,
+        agent,
+        prompt,
         "Kamu code generator. Output = isi file mentah saja.",
-        max_tokens=8000, timeout_s=300.0)
+        max_tokens=8000,
+        timeout_s=300.0,
+    )
     if not content or len(content.strip()) < 20:
         return "(single-shot) konten kosong dari model"
     content = content.strip()
@@ -993,15 +1246,19 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
     memanggil function call sendiri."""
     plan_sys = (
         "Kamu execution planner. Output HANYA array JSON murni (tanpa teks lain) "
-        'berisi aksi tool berurutan untuk menyelesaikan tugas. Skema aksi:\n'
+        "berisi aksi tool berurutan untuk menyelesaikan tugas. Skema aksi:\n"
         '[{"tool":"write_local_file","path":"/abs/file","content":"isi file"},\n'
         ' {"tool":"edit_file_precise","path":"/abs/file","old_text":"...","new_text":"..."},\n'
         ' {"tool":"execute_bash_command","command":"...","working_dir":"/abs/folder"}]\n'
         "Gunakan path ABSOLUT folder kerja. Konten file ditulis penuh di JSON."
     )
     raw = await generate_agent_response(
-        agent, "TUGAS:\n" + task_instruction[:1500], plan_sys,
-        max_tokens=4000, timeout_s=240.0)
+        agent,
+        "TUGAS:\n" + task_instruction[:1500],
+        plan_sys,
+        max_tokens=4000,
+        timeout_s=240.0,
+    )
     if not raw:
         return "(forced-exec) planner tidak merespons"
 
@@ -1010,6 +1267,7 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
         return f"(forced-exec) rencana tidak valid: {raw[:120]}"
 
     import json as _json
+
     try:
         actions = _json.loads(m.group(0))
     except Exception as je:
@@ -1046,7 +1304,12 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
 
 
-async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, topic: str, intent_info: Dict[str, Any]) -> Dict[str, Any]:
+async def execute_swarm_task_step(
+    agent: Dict[str, Any],
+    task_instruction: str,
+    topic: str,
+    intent_info: Dict[str, Any],
+) -> Dict[str, Any]:
     """
     Executes a real action for an agent in Swarm Live Execution mode.
     Calls appropriate system tools, writes files, scrapes data, or tests code.
@@ -1055,7 +1318,7 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
     agent_name = agent.get("name", "Agent")
     role = agent.get("role", "Specialist")
     agent_id = agent.get("id", 1)
-    
+
     # Snapshot hash utk bukti perubahan file tingkat-langkah
     pre_hash = _hash_sandbox_projects()
     step_fs_changed = None
@@ -1069,14 +1332,20 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
     deliverable_data = []
 
     # 1. SPECIALIST: RESEARCHER PRIME (Deep Scraping & Real Web Intelligence)
-    if "Research" in agent_name or "Intel" in role or (intent_info.get("is_scrape") and "Prime" in agent_name):
+    if (
+        "Research" in agent_name
+        or "Intel" in role
+        or (intent_info.get("is_scrape") and "Prime" in agent_name)
+    ):
         tool_name = "universal_deep_scraper"
         search_query = intent_info.get("clean_query") or topic
         cat = intent_info.get("category", "all_marketplace")
         limit = intent_info.get("limit", 20)
 
         try:
-            scrape_res = tools.universal_deep_scraper(query=search_query, category=cat, limit=limit)
+            scrape_res = tools.universal_deep_scraper(
+                query=search_query, category=cat, limit=limit
+            )
             total = scrape_res.get("total_scraped", len(scrape_res.get("items", [])))
             csv_path = scrape_res.get("csv_path") or scrape_res.get("csv_file", "")
             items = scrape_res.get("items") or scrape_res.get("results", [])
@@ -1087,10 +1356,12 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 shutil.copyfile(csv_path, dest_csv)
                 deliverable_file = dest_csv
 
-            top_items_text = "\n".join([
-                f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
-                for i, it in enumerate(items[:8])
-            ])
+            top_items_text = "\n".join(
+                [
+                    f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
+                    for i, it in enumerate(items[:8])
+                ]
+            )
 
             tool_output = f"✅ Scraping Berhasil: {total} data nyata berhasil ditarik!\n📁 File CSV: {deliverable_file}\n\nSampel Data Teratas:\n{top_items_text}"
             deliverable_data = items[:10]
@@ -1130,7 +1401,8 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             f"kamu sendiri yang mengeksekusi lewat tool."
         )
         generated_content = await generate_agent_response(
-            work_agent, exec_prompt,
+            work_agent,
+            exec_prompt,
             "Kamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap giliranmu WAJIB "
             "memuat panggilan function call (read_local_file / edit_file_precise / "
             "write_local_file / execute_bash_command / web_search). Membalas teks saja "
@@ -1143,40 +1415,61 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         # sukses, tidak di-retry paksa, dan tidak ditulis ke deliverable.
         if generated_content is None or str(generated_content).startswith("[Error:"):
             status = "error"
-            tool_output = "SEMUA provider gagal (kuota/kunci/jaringan) — langkah dibatalkan"
+            tool_output = (
+                "SEMUA provider gagal (kuota/kunci/jaringan) — langkah dibatalkan"
+            )
             generated_content = "(gagal: tidak ada respons dari provider mana pun)"
 
         # Bukti filesystem tingkat-langkah (anti klaim kosong)
         post_hash = _hash_sandbox_projects()
-        changed_files = [p for p in set(pre_hash) | set(post_hash)
-                         if pre_hash.get(p) != post_hash.get(p)]
+        changed_files = [
+            p
+            for p in set(pre_hash) | set(post_hash)
+            if pre_hash.get(p) != post_hash.get(p)
+        ]
         step_fs_changed = len(changed_files)
         if step_fs_changed == 0 and status == "success":
-            log_live("EXEC", "🔄 Tidak ada file berubah -> beralih ke forced-JSON execution...")
+            log_live(
+                "EXEC",
+                "🔄 Tidak ada file berubah -> beralih ke forced-JSON execution...",
+            )
             generated_content = await _forced_json_execution(
-                work_agent, task_instruction)
+                work_agent, task_instruction
+            )
             post_hash = _hash_sandbox_projects()
-            changed_files = [p for p in set(pre_hash) | set(post_hash)
-                             if pre_hash.get(p) != post_hash.get(p)]
+            changed_files = [
+                p
+                for p in set(pre_hash) | set(post_hash)
+                if pre_hash.get(p) != post_hash.get(p)
+            ]
             step_fs_changed = len(changed_files)
         if step_fs_changed == 0 and status == "success":
             if _TARGET_FOLDER and os.path.isdir(_TARGET_FOLDER):
                 log_live("EXEC", "🛟 Single-shot edit fallback dijalankan...")
                 generated_content = await _single_shot_edit_fallback(
-                    work_agent, task_instruction, _TARGET_FOLDER)
+                    work_agent, task_instruction, _TARGET_FOLDER
+                )
                 post_hash = _hash_sandbox_projects()
-                changed_files = [p for p in set(pre_hash) | set(post_hash)
-                                 if pre_hash.get(p) != post_hash.get(p)]
+                changed_files = [
+                    p
+                    for p in set(pre_hash) | set(post_hash)
+                    if pre_hash.get(p) != post_hash.get(p)
+                ]
                 step_fs_changed = len(changed_files)
             else:
                 generated_content = await _forced_json_execution(
-                    work_agent, task_instruction)
+                    work_agent, task_instruction
+                )
         if changed_files:
             sample = "; ".join(os.path.basename(p) for p in changed_files[:3])
-            tool_output = (f"{len(generated_content or '')} char respons; "
-                           f"{step_fs_changed} file berubah: {sample}")
+            tool_output = (
+                f"{len(generated_content or '')} char respons; "
+                f"{step_fs_changed} file berubah: {sample}"
+            )
         else:
-            tool_output = f"{len(generated_content or '')} char respons; TIDAK ada file berubah"
+            tool_output = (
+                f"{len(generated_content or '')} char respons; TIDAK ada file berubah"
+            )
 
     duration_ms = round((time.time() - t0) * 1000, 2)
 
@@ -1189,7 +1482,7 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         tool_input=tool_input[:200],
         tool_output=tool_output[:300],
         status=status,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
     )
 
     return {
@@ -1207,13 +1500,13 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         "status": status,
         "fs_changed": step_fs_changed,
         "changed_sample": [os.path.basename(p) for p in changed_files[:5]],
-        "timestamp": datetime.now().strftime("%H:%M:%S")
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
     }
 
 
 async def conduct_multi_agent_meeting(
-    topic: str, 
-    participant_names: Optional[List[str]] = None, 
+    topic: str,
+    participant_names: Optional[List[str]] = None,
     rounds: int = 2,
     mode: str = "execute",
     target_folder: str = "",
@@ -1239,17 +1532,38 @@ async def conduct_multi_agent_meeting(
             _TARGET_FOLDER = tf
             log_live("TARGET", f"📁 Folder kerja agen: {_TARGET_FOLDER}")
         else:
-            log_live("TARGET", f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.")
+            log_live(
+                "TARGET",
+                f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.",
+            )
 
     # ── AUTO-CREATE: prompt bertema membangun tapi tanpa folder pilihan ──
     # Engine membuatkan folder baru bernama rapi dari topik, supaya hasil
     # rapat terorganisir (tidak berserakan) dan mudah dipilih lagi nanti.
     if not _TARGET_FOLDER:
-        build_kw = ("buat", "bangun", "rancang", "bikin", "website", "web ",
-                    "aplikasi", "landing", "dashboard", "desain", "design",
-                    "script", "skrip", "program", "refactor", "perbaiki tampilan")
+        build_kw = (
+            "buat",
+            "bangun",
+            "rancang",
+            "bikin",
+            "website",
+            "web ",
+            "aplikasi",
+            "landing",
+            "dashboard",
+            "desain",
+            "design",
+            "script",
+            "skrip",
+            "program",
+            "refactor",
+            "perbaiki tampilan",
+        )
         if any(k in topic.lower() for k in build_kw):
-            slug = re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-") or "proyek-baru"
+            slug = (
+                re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-")
+                or "proyek-baru"
+            )
             nf = os.path.join(tools.SANDBOX_DIR, f"{slug}_{int(time.time()) % 100000}")
             try:
                 os.makedirs(nf, exist_ok=True)
@@ -1266,9 +1580,15 @@ async def conduct_multi_agent_meeting(
         all_agents = database.list_custom_agents_sync()
 
     if participant_names:
-        participants = [a for a in all_agents if a["name"] in participant_names and a.get("is_enabled", 1)]
+        participants = [
+            a
+            for a in all_agents
+            if a["name"] in participant_names and a.get("is_enabled", 1)
+        ]
     else:
-        participants = [a for a in all_agents if a.get("is_enabled", 1)][:MAX_SWARM_AGENTS]
+        participants = [a for a in all_agents if a.get("is_enabled", 1)][
+            :MAX_SWARM_AGENTS
+        ]
 
     if not participants:
         participants = all_agents[:3]
@@ -1282,7 +1602,7 @@ async def conduct_multi_agent_meeting(
                 participants=participants,
                 steps=[],
                 steps_done=0,
-                status="running"
+                status="running",
             )
         except Exception:
             pass
@@ -1291,14 +1611,23 @@ async def conduct_multi_agent_meeting(
     history_summary = []
     execution_steps = []
 
-    meeting_type_label = "⚡ SWARM EKSEKUSI LANGSUNG" if mode in ["execute", "plan_and_execute"] else "📋 RAPAT STRATEGIS & PLAN"
+    meeting_type_label = (
+        "⚡ SWARM EKSEKUSI LANGSUNG"
+        if mode in ["execute", "plan_and_execute"]
+        else "📋 RAPAT STRATEGIS & PLAN"
+    )
     meeting_title = f"{meeting_type_label}: {topic[:60]}"
 
-    logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id}).")
+    logger.info(
+        f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id})."
+    )
     global MEETING_RUNNING
     MEETING_RUNNING = True
     _clear_cancel_flag()  # sesi baru = reset sinyal cancel lama
-    log_live("SESSION", f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)")
+    log_live(
+        "SESSION",
+        f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)",
+    )
     # Snapshot folder sandbox utk auto-harvester di akhir rapat
     _SANDBOX_SNAPSHOT.clear()
     _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
@@ -1309,6 +1638,7 @@ async def conduct_multi_agent_meeting(
         # Publikasikan folder target ke tool sandbox agar dimount dengan
         # path identik di dalam kontainer (path absolut agen jadi valid).
         import os as _os
+
         if _TARGET_FOLDER:
             _os.environ["ALFA_TARGET_FOLDER"] = _TARGET_FOLDER
         else:
@@ -1319,8 +1649,12 @@ async def conduct_multi_agent_meeting(
 
     for r in range(1, actual_rounds + 1):
         for agent in participants:
-            context_text = "\n".join(history_summary) if history_summary else "(Sesi baru saja dibuka oleh Alpha Lead)"
-            
+            context_text = (
+                "\n".join(history_summary)
+                if history_summary
+                else "(Sesi baru saja dibuka oleh Alpha Lead)"
+            )
+
             if mode in ["execute", "plan_and_execute"]:
                 prompt = (
                     f"=== PERINTAH EKSEKUSI LANGSUNG SWARM ===\n"
@@ -1348,11 +1682,17 @@ async def conduct_multi_agent_meeting(
                     f"3. HEMAT TOKEN & ON-POINT: Tulis 2 sampai 4 kalimat padat saja."
                 )
 
-            response_text = await generate_agent_response(
-                agent=agent,
-                prompt=prompt,
-                system_instruction=agent.get("system_instruction", "Kamu adalah anggota tim AI otonom profesional.")
-            ) or "(tidak merespons — semua provider gagal)"
+            response_text = (
+                await generate_agent_response(
+                    agent=agent,
+                    prompt=prompt,
+                    system_instruction=agent.get(
+                        "system_instruction",
+                        "Kamu adalah anggota tim AI otonom profesional.",
+                    ),
+                )
+                or "(tidak merespons — semua provider gagal)"
+            )
 
             entry = {
                 "round": r,
@@ -1361,16 +1701,20 @@ async def conduct_multi_agent_meeting(
                 "avatar_emoji": agent.get("avatar_emoji", "🤖"),
                 "color_theme": agent.get("color_theme", "cyan"),
                 "message": response_text,
-                "timestamp": datetime.now().strftime("%H:%M:%S")
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
             }
             dialogue_transcript.append(entry)
-            history_summary.append(f"[{agent['name']} - {agent['role']}]:\n{response_text}\n")
+            history_summary.append(
+                f"[{agent['name']} - {agent['role']}]:\n{response_text}\n"
+            )
             log_live("DIALOG", f"💬 {entry['agent_name']}: {response_text[:140]}")
 
     # --- PHASE 2: Live Autonomous Swarm Execution (Real Tools & Real Data) ---
     swarm_cancelled = False
     if mode in ["execute", "plan_and_execute"]:
-        logger.info(f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents...")
+        logger.info(
+            f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents..."
+        )
 
         # Dynamic task decomposition: lead breaks the topic into one concrete
         # subtask per agent instead of generic role assignments.
@@ -1397,8 +1741,10 @@ async def conduct_multi_agent_meeting(
             _wave_size = 1
 
         def _build_task_desc(agent: Dict[str, Any], err_ctx: str) -> str:
-            td = subtask_map.get(agent["name"]) or \
-                f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            td = (
+                subtask_map.get(agent["name"])
+                or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            )
             if err_ctx:
                 td += f"\n\n{err_ctx}"
             if _TARGET_FOLDER:
@@ -1420,9 +1766,14 @@ async def conduct_multi_agent_meeting(
 
         async def _execute_agent_step(agent: Dict[str, Any], task_desc: str):
             log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
-            step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
+            step_result = await execute_swarm_task_step(
+                agent, task_desc, topic, intent_info
+            )
             if step_result.get("deliverable_file"):
-                log_live("FILE", f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}")
+                log_live(
+                    "FILE",
+                    f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}",
+                )
 
             passed, feedback = await _verify_step_result(task_desc, step_result)
             attempts = 0
@@ -1433,21 +1784,28 @@ async def conduct_multi_agent_meeting(
                 and not _cancel_requested()
             ):
                 attempts += 1
-                logger.warning(f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections...")
+                logger.warning(
+                    f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections..."
+                )
                 retry_desc = (
                     f"{task_desc}\n"
                     f"PERCOBAAN SEBELUMNYA DITOLAK VERIFIKATOR: {feedback}\n"
                     f"Kerjakan ulang dan pastikan menghasilkan bukti nyata (file/data/output)."
                 )
-                step_result = await execute_swarm_task_step(agent, retry_desc, topic, intent_info)
+                step_result = await execute_swarm_task_step(
+                    agent, retry_desc, topic, intent_info
+                )
                 step_result["retry_count"] = attempts
                 passed, feedback = await _verify_step_result(retry_desc, step_result)
             return step_result, passed, feedback
 
         for wave_start in range(0, len(participants), _wave_size):
-            wave = participants[wave_start:wave_start + _wave_size]
+            wave = participants[wave_start : wave_start + _wave_size]
             if _cancel_requested():
-                log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.")
+                log_live(
+                    "CANCEL",
+                    f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.",
+                )
                 swarm_cancelled = True
                 if _CHECKPOINT_AVAILABLE:
                     try:
@@ -1462,10 +1820,15 @@ async def conduct_multi_agent_meeting(
 
             try:
                 wave_results = await asyncio.gather(
-                    *[_execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot)) for a in wave],
+                    *[
+                        _execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot))
+                        for a in wave
+                    ],
                     return_exceptions=True,
                 )
-            except Exception as wave_err:  # safety net; gather rarely raises dgn return_exceptions
+            except (
+                Exception
+            ) as wave_err:  # safety net; gather rarely raises dgn return_exceptions
                 logger.error(f"Wave execution error: {wave_err}")
                 wave_results = [wave_err] * len(wave)
 
@@ -1481,17 +1844,35 @@ async def conduct_multi_agent_meeting(
                 else:
                     step_result, passed, feedback = res
 
-                if not passed and step_result.get("tool_used") != "strategic_orchestration":
-                    failed_steps.append({
-                        "agent_name": agent["name"],
-                        "tool_used": step_result.get("tool_used"),
-                        "feedback": feedback,
-                        "execution_summary": step_result.get("execution_summary", ""),
-                    })
+                if (
+                    not passed
+                    and step_result.get("tool_used") != "strategic_orchestration"
+                ):
+                    failed_steps.append(
+                        {
+                            "agent_name": agent["name"],
+                            "tool_used": step_result.get("tool_used"),
+                            "feedback": feedback,
+                            "execution_summary": step_result.get(
+                                "execution_summary", ""
+                            ),
+                        }
+                    )
                     _record_step_error(session_id, step_result, feedback)
 
-                step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
-                log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
+                step_result["verification"] = (
+                    "PASS"
+                    if passed
+                    else (
+                        "FAIL"
+                        if step_result.get("tool_used") != "strategic_orchestration"
+                        else "N/A"
+                    )
+                )
+                log_live(
+                    "VERIFY",
+                    f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}",
+                )
                 execution_steps.append(step_result)
 
                 # Simpan progress checkpoint setelah setiap langkah selesai
@@ -1504,12 +1885,14 @@ async def conduct_multi_agent_meeting(
                             participants=participants,
                             steps=execution_steps,
                             steps_done=len(execution_steps),
-                            status="cancelled" if swarm_cancelled else "running"
+                            status="cancelled" if swarm_cancelled else "running",
                         )
                     except Exception:
                         pass
 
-                brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
+                brief = (step_result.get("execution_summary") or "")[:180].replace(
+                    "\n", " "
+                )
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
 
     # --- PHASE 2.5: SENTINEL QA — LOOP ZERO BUG ---
@@ -1517,22 +1900,37 @@ async def conduct_multi_agent_meeting(
     # independen (menjalankan kode/file sendiri). Bila ditemukan bug, tugas
     # perbaikan dikembalikan ke agen pelaku, lalu diuji ulang — sampai
     # QA_VERDICT: PASS atau batas putaran habis.
-    if mode == "execute" and not swarm_cancelled and not _cancel_requested() \
-            and execution_steps and MAX_QA_ROUNDS > 0:
+    if (
+        mode == "execute"
+        and not swarm_cancelled
+        and not _cancel_requested()
+        and execution_steps
+        and MAX_QA_ROUNDS > 0
+    ):
         qa_agent = next(
-            (a for a in all_agents
-             if a.get("name") == "Sentinel QA" and a.get("is_enabled", 1)),
-            None)
+            (
+                a
+                for a in all_agents
+                if a.get("name") == "Sentinel QA" and a.get("is_enabled", 1)
+            ),
+            None,
+        )
         if not qa_agent:
             # Fallback: pakai agen baku yang memang berperan QA/audit
             # (instalasi default tidak punya agen bernama "Sentinel QA").
             _qa_kw = ("qa", "audit", "sentinel", "quality", "tester", "uji")
             qa_agent = next(
-                (a for a in all_agents
-                 if a.get("is_enabled", 1) and (
-                     any(k in a.get("name", "").lower() for k in _qa_kw)
-                     or any(k in a.get("role", "").lower() for k in _qa_kw))),
-                None)
+                (
+                    a
+                    for a in all_agents
+                    if a.get("is_enabled", 1)
+                    and (
+                        any(k in a.get("name", "").lower() for k in _qa_kw)
+                        or any(k in a.get("role", "").lower() for k in _qa_kw)
+                    )
+                ),
+                None,
+            )
         if qa_agent:
             fix_feedback = ""
             zero_bug = False
@@ -1541,17 +1939,37 @@ async def conduct_multi_agent_meeting(
                     break
                 # Snapshot hasil kerja TERKINI tiap putaran: setelah putaran
                 # perbaikan, file baru dari fixer ikut diuji ulang.
-                deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+                deliverables = [
+                    s["deliverable_file"]
+                    for s in execution_steps
+                    if s.get("deliverable_file")
+                ]
                 work_summary = "\n".join(
                     f"- {s['agent_name']} ({s.get('tool_used','?')}): {(s.get('execution_summary') or '')[:220]}"
-                    for s in execution_steps)
-                log_live("QA", f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...")
+                    for s in execution_steps
+                )
+                log_live(
+                    "QA",
+                    f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...",
+                )
                 qa_task = (
                     f"=== MISI TIM YANG HARUS KAMU UJI ===\n{topic[:120]}\n\n"
                     f"=== HASIL KERJA AGEN (JANGAN DIPERCAYA — BUKTIKAN SENDIRI) ===\n{work_summary}\n"
-                    + (f"=== FILE DELIVERABLE ===\n{chr(10).join(deliverables)}\n" if deliverables else "")
-                    + (f"\nFOLDER KERJA: {_TARGET_FOLDER} — jalankan file/kode dari sini.\n" if _TARGET_FOLDER else "")
-                    + (f"\n=== BUG PUTARAN SEBELUMNYA (diklaim sudah diperbaiki — VERIFIKASI ULANG) ===\n{fix_feedback}\n" if fix_feedback else "")
+                    + (
+                        f"=== FILE DELIVERABLE ===\n{chr(10).join(deliverables)}\n"
+                        if deliverables
+                        else ""
+                    )
+                    + (
+                        f"\nFOLDER KERJA: {_TARGET_FOLDER} — jalankan file/kode dari sini.\n"
+                        if _TARGET_FOLDER
+                        else ""
+                    )
+                    + (
+                        f"\n=== BUG PUTARAN SEBELUMNYA (diklaim sudah diperbaiki — VERIFIKASI ULANG) ===\n{fix_feedback}\n"
+                        if fix_feedback
+                        else ""
+                    )
                     + "\n=== ATURAN QA ===\n"
                     "1. JALANKAN sendiri kode/file hasil tim via tool (execute_bash_command / read_local_file / sandbox).\n"
                     "2. Catat tiap bug dengan bukti: command + output error.\n"
@@ -1559,21 +1977,33 @@ async def conduct_multi_agent_meeting(
                     "   QA_VERDICT: PASS   (terbukti nol bug)\n"
                     "   QA_VERDICT: FAIL - <daftar bug bernomor + file penyebab>"
                 )
-                qa_step = await execute_swarm_task_step(qa_agent, qa_task, topic, intent_info)
+                qa_step = await execute_swarm_task_step(
+                    qa_agent, qa_task, topic, intent_info
+                )
                 qa_step["phase"] = f"qa_round_{qa_round}"
                 execution_steps.append(qa_step)
                 # Verdict ada di teks jawaban model (generated_content), bukan
                 # execution_summary (hanya ringkasan jumlah karakter/file).
-                qa_text = str(qa_step.get("generated_content")
-                              or qa_step.get("execution_summary") or "")
+                qa_text = str(
+                    qa_step.get("generated_content")
+                    or qa_step.get("execution_summary")
+                    or ""
+                )
                 if qa_verdict_passed(qa_text):
                     zero_bug = True
-                    log_live("QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}.")
+                    log_live(
+                        "QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}."
+                    )
                     break
 
                 fix_feedback = qa_text[-1500:]
-                log_live("QA", f"🐞 Bug terdeteksi (putaran {qa_round}) — dikembalikan ke tim pelaksana.")
-                fixers = [a for a in participants if a.get("name") != qa_agent.get("name")] or participants
+                log_live(
+                    "QA",
+                    f"🐞 Bug terdeteksi (putaran {qa_round}) — dikembalikan ke tim pelaksana.",
+                )
+                fixers = [
+                    a for a in participants if a.get("name") != qa_agent.get("name")
+                ] or participants
                 for fa in fixers:
                     if _cancel_requested():
                         break
@@ -1583,17 +2013,24 @@ async def conduct_multi_agent_meeting(
                         f"LAPORAN QA (bukti + daftar bug):\n{fix_feedback}\n\n"
                         f"ATURAN PERBAIKAN:\n"
                         f"1. Perbaiki HANYA file/kode yang kamu buat"
-                        + (f" (folder {_TARGET_FOLDER})." if _TARGET_FOLDER else ".") + "\n"
+                        + (f" (folder {_TARGET_FOLDER})." if _TARGET_FOLDER else ".")
+                        + "\n"
                         "2. Jalankan ulang untuk MEMBUKTIKAN fix bekerja.\n"
                         "3. Laporkan apa yang diubah + bukti hasil uji ulang."
                     )
-                    fix_step = await execute_swarm_task_step(fa, fix_task, topic, intent_info)
+                    fix_step = await execute_swarm_task_step(
+                        fa, fix_task, topic, intent_info
+                    )
                     fix_step["phase"] = f"qa_fix_round_{qa_round}"
                     execution_steps.append(fix_step)
                     ctx_lines.append(
-                        f"[QA-FIX r{qa_round}] {fa['name']} -> {(fix_step.get('execution_summary') or '')[:150]}")
+                        f"[QA-FIX r{qa_round}] {fa['name']} -> {(fix_step.get('execution_summary') or '')[:150]}"
+                    )
             if not zero_bug:
-                log_live("QA", "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.")
+                log_live(
+                    "QA",
+                    "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.",
+                )
 
     # --- PHASE 3: Final Consensus & Real Deliverables Synthesis by Lead Agent ---
     if not participants:
@@ -1611,7 +2048,7 @@ async def conduct_multi_agent_meeting(
             "dialogue_transcript": [],
             "execution_steps": [],
             "consensus": "",
-            "action_plan": ""
+            "action_plan": "",
         }
 
     lead_agent = participants[0]
@@ -1620,7 +2057,10 @@ async def conduct_multi_agent_meeting(
     if swarm_cancelled or _cancel_requested():
         MEETING_RUNNING = False
         _clear_cancel_flag()
-        log_live("DONE", f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.")
+        log_live(
+            "DONE",
+            f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.",
+        )
         return {
             "status": "cancelled",
             "meeting_id": None,
@@ -1636,16 +2076,20 @@ async def conduct_multi_agent_meeting(
                 f"{len(participants)} agen tuntas dieksekusi sebelum berhenti. "
                 "File/hasil yang sudah dibuat tetap tersimpan."
             ),
-            "action_plan": ""
+            "action_plan": "",
         }
 
     if mode in ["execute", "plan_and_execute"]:
         # Collect real files and real data extracted
-        real_files = [s['deliverable_file'] for s in execution_steps if s.get('deliverable_file')]
-        real_summaries = "\n".join([
-            f"• **{s['agent_name']} ({s['role']})** [Tool: `{s['tool_used']}` | {s['duration_ms']}ms]:\n  {s['execution_summary']}"
-            for s in execution_steps
-        ])
+        real_files = [
+            s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")
+        ]
+        real_summaries = "\n".join(
+            [
+                f"• **{s['agent_name']} ({s['role']})** [Tool: `{s['tool_used']}` | {s['duration_ms']}ms]:\n  {s['execution_summary']}"
+                for s in execution_steps
+            ]
+        )
 
         consensus_prompt = (
             f"=== TARGET PERINTAH DARI USER ===\n{topic}\n\n"
@@ -1661,18 +2105,23 @@ async def conduct_multi_agent_meeting(
     else:
         consensus_prompt = (
             f"=== TOPIK RAPAT ===\n{topic}\n\n"
-            f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n" + "\n".join(history_summary) + "\n\n"
+            f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n"
+            + "\n".join(history_summary)
+            + "\n\n"
             f"Sebagai kapten rapat ({lead_agent['name']}), buatlah rangkuman KONSENSUS & ACTION PLAN yang ON-POINT:\n"
             f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2-3 poin ringkas).\n"
             f"2. ACTION PLAN (Tabel tugas terstruktur: No, Modul/Tugas, Penanggung Jawab, Target).\n"
             f"Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
         )
 
-    consensus_text = await generate_agent_response(
-        agent=lead_agent,
-        prompt=consensus_prompt,
-        system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir dan pelaporan hasil eksekusi nyata."
-    ) or "(laporan gagal: semua provider tidak merespons)"
+    consensus_text = (
+        await generate_agent_response(
+            agent=lead_agent,
+            prompt=consensus_prompt,
+            system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir dan pelaporan hasil eksekusi nyata.",
+        )
+        or "(laporan gagal: semua provider tidak merespons)"
+    )
 
     action_plan_text = ""
     marker = "ACTION PLAN"
@@ -1680,7 +2129,7 @@ async def conduct_multi_agent_meeting(
     if marker_idx != -1:
         # Case-insensitive split: the model may write "Action Plan" etc.
         consensus_text_clean = consensus_text[:marker_idx].strip()
-        action_plan_text = marker + consensus_text[marker_idx + len(marker):]
+        action_plan_text = marker + consensus_text[marker_idx + len(marker) :]
     else:
         consensus_text_clean = consensus_text
 
@@ -1693,7 +2142,11 @@ async def conduct_multi_agent_meeting(
     # Tandai checkpoint selesai
     if _CHECKPOINT_AVAILABLE:
         try:
-            _deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+            _deliverables = [
+                s["deliverable_file"]
+                for s in execution_steps
+                if s.get("deliverable_file")
+            ]
             _SwarmCheckpoint.mark_completed(session_id, deliverables=_deliverables)
         except Exception:
             pass
@@ -1712,7 +2165,7 @@ async def conduct_multi_agent_meeting(
         "dialogue_transcript": dialogue_transcript,
         "execution_results": execution_steps,
         "consensus": consensus_text_clean,
-        "action_plan": action_plan_text
+        "action_plan": action_plan_text,
     }
 
 
@@ -1725,11 +2178,18 @@ async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
 
     ckpt = _SwarmCheckpoint.load(session_id)
     if not ckpt:
-        return {"status": "error", "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan."}
+        return {
+            "status": "error",
+            "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan.",
+        }
 
     topic = ckpt.get("topic", "")
     mode = ckpt.get("mode", "execute")
-    participant_names = [a["name"] for a in ckpt.get("participants", []) if isinstance(a, dict) and "name" in a]
+    participant_names = [
+        a["name"]
+        for a in ckpt.get("participants", [])
+        if isinstance(a, dict) and "name" in a
+    ]
 
     log_live("RESUME", f"🔄 Melanjutkan sesi {session_id} (Topik: {topic[:60]})...")
 
@@ -1739,4 +2199,3 @@ async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
         mode=mode,
         session_id=session_id,
     )
-

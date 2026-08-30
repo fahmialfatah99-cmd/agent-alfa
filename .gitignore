@@ -1,57 +1,100 @@
-# Environment variables and credentials
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.cert
-*.crt
+```
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Python virtual environment & cache
+# Virtual environments
 venv/
 env/
 ENV/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-dist/
-build/
+.venv/
+.env/
 
-# Local databases & state
-*.db
-*.db-wal
-*.db-shm
-*.sqlite
-*.sqlite3
+# Testing
+.coverage
+htmlcov/
+.coverage.*
+.cache
+.pytest_cache/
+.hypothesis/
 
-# Logs & temp files
-*.log
-logs/
-temp/
-tmp/
-storage/traces/
-.tempmediaStorage/
-.user_uploaded/
-
-# OS and IDE
-.DS_Store
-Thumbs.db
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# Node / WhatsApp Bot Session data
-node_modules/
-.wwebjs_auth/
-.wwebjs_cache/
-*.session
-gdrive_credentials.json
-gdrive_oauth_token.json
-gdrive_oauth_client_secret.json
-client_secret.json
+# Logs
+*.log
 
-# Ruff
-.ruff_cache/
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Git
+.git/
+
+# Database
+*.db
+*.sqlite
+
+# Compiled
+*.class
+*.o
+*.obj
+*.out
+*.dll
+*.so
+*.a
+
+# Compressed
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```

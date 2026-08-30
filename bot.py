@@ -51,15 +51,20 @@ import permission_gate
 import token_usage
 import tools
 import tts_engine
-from tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_chat_id_var, current_user_id_var, get_system_stats
+from tools import (
+    AVAILABLE_TOOLS,
+    SANDBOX_DIR,
+    current_chat_id_var,
+    current_user_id_var,
+    get_system_stats,
+)
 
 # Load environment
 load_dotenv()
 
 # Setup logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -142,7 +147,6 @@ CODING_DELIVERY_BLOCK = (
 
 # ── PETA KEMAMPUAN: agar agent paham semua fitur ekosistem & kapan memakainya ──
 CAPABILITIES_BLOCK = (
-
     "\n\n### 🗺️ PETA KEMAMPUAN ALFA (ekosistem Telegram + Web Dashboard)\n"
     "Kamu aktif di DUA kanal sekaligus — Telegram dan Web Dashboard (http://localhost:8080) — "
     "dengan ingatan, riwayat, dan kepribadian yang SAMA. Fitur dashboard punya padanan tool "
@@ -225,10 +229,28 @@ ARTIFACT_DIRS = [
     os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
     SANDBOX_DIR,
 ]
-ARTIFACT_NOUNS = ('laporan', 'file', 'csv', 'excel', 'pdf', 'website', 'scrape',
-                  'grafik', 'chart', 'pptx', 'dokumen', 'landing')
-COMPLETION_VERBS = ('sudah', 'selesai', 'berhasil', 'telah dibuat', 'sudah dibuat',
-                    'aku buatkan')
+ARTIFACT_NOUNS = (
+    "laporan",
+    "file",
+    "csv",
+    "excel",
+    "pdf",
+    "website",
+    "scrape",
+    "grafik",
+    "chart",
+    "pptx",
+    "dokumen",
+    "landing",
+)
+COMPLETION_VERBS = (
+    "sudah",
+    "selesai",
+    "berhasil",
+    "telah dibuat",
+    "sudah dibuat",
+    "aku buatkan",
+)
 
 
 def _artifact_signature() -> list:
@@ -249,9 +271,23 @@ def _artifact_signature() -> list:
     return sorted(sig)
 
 
-MEETING_INTENT_KEYWORDS = ('rapat', 'meeting', 'swarm', 'diskusi tim', 'round-table', 'roundtable')
-MEETING_FABRICATION_MARKERS = ('konsensus', 'transkrip', 'action plan', 'peserta',
-                               'putaran', 'hasil rapat', 'kesimpulan rapat')
+MEETING_INTENT_KEYWORDS = (
+    "rapat",
+    "meeting",
+    "swarm",
+    "diskusi tim",
+    "round-table",
+    "roundtable",
+)
+MEETING_FABRICATION_MARKERS = (
+    "konsensus",
+    "transkrip",
+    "action plan",
+    "peserta",
+    "putaran",
+    "hasil rapat",
+    "kesimpulan rapat",
+)
 
 AUDIT_CORRECTION_TEXT = (
     "⛔ SISTEM AUDIT KEBENARAN:\n"
@@ -270,6 +306,7 @@ AUDIT_CORRECTION_TEXT = (
 if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
     try:
         from google import genai
+
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
         logger.info("Google GenAI client initialized successfully.")
     except Exception as e:
@@ -338,6 +375,7 @@ def resolve_main_gemini(key_id: Optional[int] = None):
     cli = _gemini_client_cache.get(api_key)
     if cli is None:
         from google import genai as _genai
+
         cli = _genai.Client(api_key=api_key)
         _gemini_client_cache[api_key] = cli
     return cli, key_id, label
@@ -411,7 +449,7 @@ async def safe_send_message(
     chat_id: int,
     text: str,
     reply_to_message_id: Optional[int] = None,
-    reply_markup: Optional[InlineKeyboardMarkup] = None
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
 ):
     """
     Safely send message to Telegram with automatic chunking and fallback to plain text
@@ -427,7 +465,7 @@ async def safe_send_message(
                 text=chunk,
                 parse_mode=constants.ParseMode.MARKDOWN,
                 reply_to_message_id=reply_id,
-                reply_markup=markup
+                reply_markup=markup,
             )
         except Exception:
             try:
@@ -436,7 +474,7 @@ async def safe_send_message(
                     chat_id=chat_id,
                     text=chunk,
                     reply_to_message_id=reply_id,
-                    reply_markup=markup
+                    reply_markup=markup,
                 )
             except Exception as e:
                 logger.error(f"Failed to send message chunk: {e}")
@@ -446,7 +484,7 @@ async def send_typing_loop(
     chat_id: int,
     context: ContextTypes.DEFAULT_TYPE,
     stop_event: asyncio.Event,
-    action=constants.ChatAction.TYPING
+    action=constants.ChatAction.TYPING,
 ):
     """Keep sending chat action indicator while processing."""
     while not stop_event.is_set():
@@ -464,7 +502,7 @@ async def run_agent_turn(
     multimodal_parts: Optional[list] = None,
     chat_id: Optional[int] = None,
     override_model: Optional[str] = None,
-    override_key_id: Optional[int] = None
+    override_key_id: Optional[int] = None,
 ) -> str:
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
@@ -473,7 +511,9 @@ async def run_agent_turn(
     """
     global gemini_client
 
-    brain = main_brain.get_main_brain(override_key_id=override_key_id, override_model=override_model)
+    brain = main_brain.get_main_brain(
+        override_key_id=override_key_id, override_model=override_model
+    )
     if brain["provider"] == "gemini":
         gemini_client, gkey_id, gkey_label = resolve_main_gemini(key_id=override_key_id)
         if not gemini_client:
@@ -500,18 +540,16 @@ async def run_agent_turn(
 
     # 1. Fetch recent chat history from SQLite
     history_rows = await database.get_recent_chat_history(user_id, limit=12)
-    
+
     # 2. Build contents payload
     from google.genai import types
+
     contents = []
-    
+
     for row in history_rows:
         role = "user" if row["role"] == "user" else "model"
         contents.append(
-            types.Content(
-                role=role,
-                parts=[types.Part.from_text(text=row["content"])]
-            )
+            types.Content(role=role, parts=[types.Part.from_text(text=row["content"])])
         )
 
     # 3. Add current turn with any multimodal attachments
@@ -530,37 +568,44 @@ async def run_agent_turn(
     # 5. Fetch all long-term memories & knowledge graph for instant recall
     user_memories = await database.get_all_memories(user_id)
     kg_triples = database.get_all_knowledge_graph_sync(user_id)
-    
+
     memory_context_parts = []
     if user_memories:
         memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
         for m in user_memories:
-            memory_context_parts.append(f"- [{m['category']}] {m['key_topic']}: {m['content']}")
-            
+            memory_context_parts.append(
+                f"- [{m['category']}] {m['key_topic']}: {m['content']}"
+            )
+
     if kg_triples:
         memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
         for k in kg_triples:
-            tag_str = f" ({k['tags']})" if k.get('tags') else ""
-            memory_context_parts.append(f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}")
+            tag_str = f" ({k['tags']})" if k.get("tags") else ""
+            memory_context_parts.append(
+                f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}"
+            )
 
     # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan.
     # Inilah yang membuat Second Brain benar-benar jadi otak: tanpa diminta,
     # pengetahuan dari dokumen tersinkron ikut masuk konteks tiap giliran.
     try:
         import vector_memory
+
         brain_hits = vector_memory.semantic_search(
             user_id=user_id, query=user_prompt or "", top_k=4
         )
         relevant = [h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25]
         if relevant:
-            memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
+            memory_context_parts.append(
+                "📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):"
+            )
             for h in relevant:
                 memory_context_parts.append(
                     f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
                 )
     except Exception as rag_err:
         logger.debug(f"Auto-RAG skipped: {rag_err}")
-            
+
     memory_block = ""
     if memory_context_parts:
         memory_block = (
@@ -568,13 +613,13 @@ async def run_agent_turn(
             "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
             f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
             "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
-            + "\n".join(memory_context_parts) +
-            "\n======================================================\n"
+            + "\n".join(memory_context_parts)
+            + "\n======================================================\n"
         )
 
     # 6. Fetch user settings for prompt override / preferred model
     user_settings = await database.get_user_settings(user_id)
-    
+
     # Reload latest prompt from file if available
     active_base_prompt = BASE_SYSTEM_PROMPT
     if os.path.exists(ALFA_PROMPT_PATH):
@@ -586,7 +631,9 @@ async def run_agent_turn(
 
     brain_model_override = database.get_main_brain_model()
     preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
-    current_active_model = override_model or brain.get("model") or brain_model_override or preferred_model
+    current_active_model = (
+        override_model or brain.get("model") or brain_model_override or preferred_model
+    )
     current_active_provider = brain.get("provider", "gemini").upper()
     current_key_label = brain.get("label", "")
 
@@ -601,21 +648,37 @@ async def run_agent_turn(
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
     full_system_instruction = (
-        base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
-        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK
+        base_instruction
+        + active_identity_block
+        + memory_block
+        + ENFORCEMENT_BLOCK
+        + CODING_DELIVERY_BLOCK
+        + CAPABILITIES_BLOCK
+        + ANTIGRAVITY_WORKFLOW_BLOCK
+        + TOOL_FIRST_EXECUTION_BLOCK
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
-    fallback_chain = [m.strip() for m in os.getenv(
-        "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
-    ).split(",") if m.strip()]
+    fallback_chain = [
+        m.strip()
+        for m in os.getenv(
+            "GEMINI_FALLBACK_MODELS",
+            "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
+        ).split(",")
+        if m.strip()
+    ]
 
     # Model otak utama (dari System Settings) menang atas preferensi per-user jika tidak ada override
     base_model = current_active_model
-    candidate_models = [base_model] + (
-        [preferred_model] if preferred_model and preferred_model != base_model else []
-    ) + fallback_chain
+    candidate_models = (
+        [base_model]
+        + (
+            [preferred_model]
+            if preferred_model and preferred_model != base_model
+            else []
+        )
+        + fallback_chain
+    )
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
@@ -632,7 +695,10 @@ async def run_agent_turn(
     if brain["provider"] != "gemini":
         compat_text = user_prompt or ""
         if multimodal_parts:
-            compat_text = (compat_text + "\n[Lampiran media tidak didukung provider otak utama saat ini]").strip()
+            compat_text = (
+                compat_text
+                + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
+            ).strip()
         reply_text = await main_brain.run_openai_agentic_turn(
             provider=brain["provider"],
             base_url=brain["base_url"],
@@ -648,17 +714,22 @@ async def run_agent_turn(
         new_meetings = _meetings_count() - meetings_before
         if meeting_intent and new_meetings == 0 and reply_text:
             low = reply_text.lower()
-            if ('rapat' in low or 'meeting' in low) and \
-               any(mk in low for mk in MEETING_FABRICATION_MARKERS):
+            if ("rapat" in low or "meeting" in low) and any(
+                mk in low for mk in MEETING_FABRICATION_MARKERS
+            ):
                 logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
                 corrected = await main_brain.run_openai_agentic_turn(
-                    provider=brain["provider"], base_url=brain["base_url"],
+                    provider=brain["provider"],
+                    base_url=brain["base_url"],
                     api_key=brain["api_key"],
                     model=brain["model"] or preferred_model,
                     system_instruction=full_system_instruction,
                     user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
-                    history=history_msgs, key_id=brain["key_id"],
-                    key_label=brain["label"], approval_gate=approval_gate)
+                    history=history_msgs,
+                    key_id=brain["key_id"],
+                    key_label=brain["label"],
+                    approval_gate=approval_gate,
+                )
                 if corrected:
                     reply_text = corrected
         if reply_text:
@@ -666,6 +737,7 @@ async def run_agent_turn(
             # MEMORY REFLECTION: refleksi otomatis tiap N giliran (fire-and-forget)
             try:
                 import memory_reflection
+
                 refl_history = list(history_rows) + [
                     {"role": "user", "content": display_user_text},
                     {"role": "model", "content": reply_text},
@@ -674,7 +746,9 @@ async def run_agent_turn(
             except Exception:
                 pass
             return reply_text
-        logger.warning(f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini")
+        logger.warning(
+            f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
+        )
 
     # Guard: rantai fallback Gemini butuh klien; resolve ulang bila masih kosong
     if gemini_client is None:
@@ -692,8 +766,10 @@ async def run_agent_turn(
             gemini_tools = AVAILABLE_TOOLS
             try:
                 from tool_rag import select_relevant_functions
+
                 gemini_tools = select_relevant_functions(
-                    AVAILABLE_TOOLS, user_prompt or "", history=history_msgs)
+                    AVAILABLE_TOOLS, user_prompt or "", history=history_msgs
+                )
             except Exception:
                 pass
             config = types.GenerateContentConfig(
@@ -704,19 +780,21 @@ async def run_agent_turn(
                 # melewati persetujuan manusia (loop manual di bawah).
                 automatic_function_calling=(
                     types.AutomaticFunctionCallingConfig(disable=True)
-                    if gate_on else None
+                    if gate_on
+                    else None
                 ),
             )
 
             response = await gemini_client.aio.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=config
+                model=model_name, contents=contents, config=config
             )
-            token_usage.from_gemini_response(response, model=model_name,
-                                             key_id=gkey_id,
-                                             key_label=gkey_label or "gemini-env",
-                                             context="telegram_chat")
+            token_usage.from_gemini_response(
+                response,
+                model=model_name,
+                key_id=gkey_id,
+                key_label=gkey_label or "gemini-env",
+                context="telegram_chat",
+            )
 
             # ── Loop agentic manual (Permission Gate ON) ──
             if gate_on:
@@ -732,25 +810,40 @@ async def run_agent_turn(
                     except Exception:
                         pass
                     for fc in fcs:
-                        args_json = json.dumps(dict(fc.args or {}),
-                                               ensure_ascii=False, default=str)
+                        args_json = json.dumps(
+                            dict(fc.args or {}), ensure_ascii=False, default=str
+                        )
                         denial = await approval_gate(fc.name, args_json)
                         if denial:
                             out = denial
                         else:
                             out = await asyncio.to_thread(
-                                main_brain._execute_tool, fc.name, args_json)
+                                main_brain._execute_tool, fc.name, args_json
+                            )
                         logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
-                        _turn_contents.append(types.Content(role="user", parts=[
-                            types.Part(function_response=types.FunctionResponse(
-                                name=fc.name,
-                                response={"result": str(out)[:4000]}))]))
+                        _turn_contents.append(
+                            types.Content(
+                                role="user",
+                                parts=[
+                                    types.Part(
+                                        function_response=types.FunctionResponse(
+                                            name=fc.name,
+                                            response={"result": str(out)[:4000]},
+                                        )
+                                    )
+                                ],
+                            )
+                        )
                     response = await gemini_client.aio.models.generate_content(
-                        model=model_name, contents=_turn_contents, config=config)
-                    token_usage.from_gemini_response(response, model=model_name,
-                                                     key_id=gkey_id,
-                                                     key_label=gkey_label or "gemini-env",
-                                                     context="telegram_chat:gate")
+                        model=model_name, contents=_turn_contents, config=config
+                    )
+                    token_usage.from_gemini_response(
+                        response,
+                        model=model_name,
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat:gate",
+                    )
 
             try:
                 reply_text = response.text or "✅ Permintaan selesai diproses."
@@ -762,8 +855,9 @@ async def run_agent_turn(
             reply_low = reply_text.lower()
 
             need_meeting_audit = (
-                meeting_intent and new_meetings == 0
-                and ('rapat' in reply_low or 'meeting' in reply_low)
+                meeting_intent
+                and new_meetings == 0
+                and ("rapat" in reply_low or "meeting" in reply_low)
                 and any(mk in reply_low for mk in MEETING_FABRICATION_MARKERS)
             )
             need_artifact_audit = (
@@ -775,39 +869,50 @@ async def run_agent_turn(
             )
 
             if need_meeting_audit or need_artifact_audit:
-                audit_kind = "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
-                logger.warning(f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})")
+                audit_kind = (
+                    "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
+                )
+                logger.warning(
+                    f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})"
+                )
                 audit_parts = ["⛔ SISTEM AUDIT KEBENARAN:"]
                 if need_meeting_audit:
                     audit_parts.append(
-                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil).")
+                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil)."
+                    )
                 if need_artifact_audit:
                     audit_parts.append(
-                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai.")
+                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai."
+                    )
                 audit_parts.append(
                     "Perbaiki SEKARANG: panggil tool pembuatnya secara nyata "
                     "(conduct_ai_meeting / execute_python_sandbox / generate_pdf_report / "
                     "generate_excel_spreadsheet / universal_deep_scraper) ATAU jawab jujur "
                     "bahwa belum dieksekusi. Dilarang klaim palsu."
                 )
-                contents.append(types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text="\n".join(audit_parts))]
-                ))
-                response2 = await gemini_client.aio.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=config
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text="\n".join(audit_parts))],
+                    )
                 )
-                token_usage.from_gemini_response(response2, model=f"{model_name}:audit",
-                                                 key_id=gkey_id,
-                                                 key_label=gkey_label or "gemini-env",
-                                                 context="telegram_chat")
+                response2 = await gemini_client.aio.models.generate_content(
+                    model=model_name, contents=contents, config=config
+                )
+                token_usage.from_gemini_response(
+                    response2,
+                    model=f"{model_name}:audit",
+                    key_id=gkey_id,
+                    key_label=gkey_label or "gemini-env",
+                    context="telegram_chat",
+                )
                 if response2.text and response2.text.strip():
                     reply_text = response2.text
-                logger.warning(f"[AUDIT] Koreksi selesai ({audit_kind}); "
-                               f"rapat baru: {_meetings_count() - meetings_before}; "
-                               f"artefak berubah: {_artifact_signature() != art_before}")
+                logger.warning(
+                    f"[AUDIT] Koreksi selesai ({audit_kind}); "
+                    f"rapat baru: {_meetings_count() - meetings_before}; "
+                    f"artefak berubah: {_artifact_signature() != art_before}"
+                )
 
             # Save model response to database
             await database.save_chat_message(user_id, "model", reply_text)
@@ -820,7 +925,9 @@ async def run_agent_turn(
     # ── CROSS-PROVIDER FALLBACK ───────────────────────────────────────
     # Kuota Gemini habis? Coba semua kunci non-Gemini aktif di vault
     # (OpenRouter / NVIDIA / custom) sesuai urutan pembuatan kunci.
-    logger.error(f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain...")
+    logger.error(
+        f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain..."
+    )
     try:
         alt_keys = database.list_active_keys_sync(exclude_provider="gemini")
     except Exception:
@@ -830,8 +937,10 @@ async def run_agent_turn(
         if not (key.get("api_key") or "").strip():
             continue
         try:
-            logger.info(f"[Fallback] mencoba {prov} ({key.get('name')}) model "
-                        f"{key.get('default_model')}")
+            logger.info(
+                f"[Fallback] mencoba {prov} ({key.get('name')}) model "
+                f"{key.get('default_model')}"
+            )
             reply_text = await main_brain.run_openai_agentic_turn(
                 provider=prov,
                 base_url=key.get("base_url") or "",
@@ -863,7 +972,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(user.id):
         await update.message.reply_text(
             f"⛔ *Akses Ditolak*\n\nID Anda: `{user.id}` belum terdaftar di whitelist bot.",
-            parse_mode=constants.ParseMode.MARKDOWN
+            parse_mode=constants.ParseMode.MARKDOWN,
         )
         return
 
@@ -879,7 +988,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("🧹 Reset Sesi", callback_data="btn_clear"),
             InlineKeyboardButton("📖 Bantuan & Tools", callback_data="btn_help"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -915,15 +1024,22 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🧠 Lihat Memori", callback_data="btn_memory"),
         ],
         [
-            InlineKeyboardButton(f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"),
+            InlineKeyboardButton(
+                f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"
+            ),
             InlineKeyboardButton("📈 Python & Plot", callback_data="btn_python_info"),
         ],
         [
             InlineKeyboardButton("🧹 Reset Konteks", callback_data="btn_clear"),
             InlineKeyboardButton("❓ Daftar Perintah", callback_data="btn_help"),
-        ]
+        ],
     ]
-    await safe_send_message(context, chat_id, "🎛️ **Menu Kontrol Autonomous Agent:**", reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_send_message(
+        context,
+        chat_id,
+        "🎛️ **Menu Kontrol Autonomous Agent:**",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
 
 
 async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -935,36 +1051,52 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     import sqlite3 as _sq
+
     conn = _sq.connect(database.DB_PATH)
     conn.row_factory = _sq.Row
     try:
         brain_key = conn.execute(
-            "SELECT value FROM system_settings WHERE key='main_brain_key_id'").fetchone()
+            "SELECT value FROM system_settings WHERE key='main_brain_key_id'"
+        ).fetchone()
         brain_model = conn.execute(
-            "SELECT value FROM system_settings WHERE key='main_brain_model'").fetchone()
+            "SELECT value FROM system_settings WHERE key='main_brain_model'"
+        ).fetchone()
         bk = int(brain_key[0]) if brain_key else None
         bm = (brain_model[0] or "").strip() if brain_model else ""
-        krow = conn.execute(
-            "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
-            (bk,)).fetchone() if bk else None
+        krow = (
+            conn.execute(
+                "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
+                (bk,),
+            ).fetchone()
+            if bk
+            else None
+        )
 
         lines = ["🩺 **AUDIT KONFIGURASI AGENT**\n"]
         if krow:
-            ok_model = (bm == (krow["default_model"] or "").strip())
+            ok_model = bm == (krow["default_model"] or "").strip()
             lines.append(
                 f"*Otak Utama:* key#{bk} `{krow['name']}` ({krow['provider']})\n"
                 f"  Model override: `{bm}` {'✅' if ok_model else '⚠️ beda dari default kunci (`' + krow['default_model'] + '`)'}\n"
-                f"  Status kunci: {'🟢 aktif' if krow['is_active'] else '🔴 NONAKTIF'}")
+                f"  Status kunci: {'🟢 aktif' if krow['is_active'] else '🔴 NONAKTIF'}"
+            )
         else:
             lines.append("*Otak Utama:* ❌ pointer kosong/tidak valid!")
 
         lines.append("\n*Agen Swarm:*")
         problems = 0
-        for a in conn.execute("SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"):
+        for a in conn.execute(
+            "SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"
+        ):
             kid = a["api_key_id"]
-            k2 = conn.execute(
-                "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
-                (kid,)).fetchone() if kid else None
+            k2 = (
+                conn.execute(
+                    "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
+                    (kid,),
+                ).fetchone()
+                if kid
+                else None
+            )
             issues = []
             if not k2:
                 issues.append("kunci hilang")
@@ -973,18 +1105,23 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     issues.append(f"kunci {k2['provider']} ≠ agen {a['provider']}")
                 if not k2["is_active"]:
                     issues.append("kunci nonaktif/kuota bisa habis terpisah")
-                if (a["model"] or "").strip() and a["model"].strip() != (k2["default_model"] or "").strip():
+                if (a["model"] or "").strip() and a["model"].strip() != (
+                    k2["default_model"] or ""
+                ).strip():
                     if a["provider"] == k2["provider"]:
                         issues.append(f"model '{a['model']}' ≠ default kunci")
             flag = "✅" if not issues else "❌"
             problems += len(issues)
             status = " | ".join(issues) if issues else "sehat"
             on = "" if a["is_enabled"] else " (off)"
-            lines.append(f"  {flag} {a['name']}: {a['provider']}/{a['model']} → key#{kid} — {status}{on}")
+            lines.append(
+                f"  {flag} {a['name']}: {a['provider']}/{a['model']} → key#{kid} — {status}{on}"
+            )
 
         lines.append(
             f"\n{'🎉 Semua konfigurasi konsisten.' if problems == 0 else f'⚠️ {problems} masalah ditemukan.'}\n"
-            "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm.")
+            "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm."
+        )
         await safe_send_message(context, update.effective_chat.id, "\n".join(lines))
     finally:
         conn.close()
@@ -1007,8 +1144,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Power/Baterai:** `{stats.get('battery')}`\n"
         f"• **IP Addr:** `{stats.get('ip_addresses')}`\n"
         f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-        f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])]) + "\n\n"
-        "⚡ **Top CPU:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_cpu_processes', [])])
+        f"🔥 **Top RAM:**\n"
+        + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
+        + "\n\n"
+        "⚡ **Top CPU:**\n"
+        + "\n".join([f"  - {p}" for p in stats.get("top_cpu_processes", [])])
     )
     await safe_send_message(context, chat_id, text)
 
@@ -1025,13 +1165,15 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_message(
             context,
             chat_id,
-            "🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_\"Ingat bahwa port database staging adalah 5433\"_"
+            '🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_"Ingat bahwa port database staging adalah 5433"_',
         )
         return
 
     text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
     for m in memories:
-        text += f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
+        text += (
+            f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
+        )
 
     await safe_send_message(context, chat_id, text)
 
@@ -1044,7 +1186,11 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await database.clear_user_chat_history(user_id)
-    await safe_send_message(context, chat_id, "🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!")
+    await safe_send_message(
+        context,
+        chat_id,
+        "🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!",
+    )
 
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1067,7 +1213,11 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     is_on = await database.toggle_voice_setting(user_id)
-    status_str = "AKTIF 🔊 (Bot akan membalas dengan Voice Note & Teks)" if is_on else "NONAKTIF 🔇 (Bot membalas teks saja)"
+    status_str = (
+        "AKTIF 🔊 (Bot akan membalas dengan Voice Note & Teks)"
+        if is_on
+        else "NONAKTIF 🔇 (Bot membalas teks saja)"
+    )
     await safe_send_message(context, chat_id, f"🎙️ **Mode Suara:** {status_str}")
 
 
@@ -1095,14 +1245,17 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• **Power:** `{stats.get('battery')}`\n"
             f"• **IP:** `{stats.get('ip_addresses')}`\n"
             f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-            f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])])
+            f"🔥 **Top RAM:**\n"
+            + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
         )
         await safe_send_message(context, chat_id, text)
 
     elif data == "btn_memory":
         memories = await database.get_all_memories(user_id)
         if not memories:
-            await safe_send_message(context, chat_id, "🧠 Memori jangka panjang masih kosong.")
+            await safe_send_message(
+                context, chat_id, "🧠 Memori jangka panjang masih kosong."
+            )
         else:
             text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
             for m in memories:
@@ -1112,7 +1265,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "btn_toggle_voice":
         is_on = await database.toggle_voice_setting(user_id)
         status_str = "AKTIF 🔊" if is_on else "NONAKTIF 🔇"
-        await safe_send_message(context, chat_id, f"🎙️ Mode Balasan Suara sekarang: **{status_str}**")
+        await safe_send_message(
+            context, chat_id, f"🎙️ Mode Balasan Suara sekarang: **{status_str}**"
+        )
 
     elif data == "btn_python_info":
         info_text = (
@@ -1127,7 +1282,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif data == "btn_clear":
         await database.clear_user_chat_history(user_id)
-        await safe_send_message(context, chat_id, "🧹 Konteks percakapan telah direset.")
+        await safe_send_message(
+            context, chat_id, "🧹 Konteks percakapan telah direset."
+        )
 
     elif data == "btn_help":
         help_text = (
@@ -1154,23 +1311,35 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "btn_wa_status":
         res = tools.manage_wa_sheets_bot("status")
         st = "🟢 RUNNING (Aktif)" if res.get("is_running") else "🔴 STOPPED (Mati)"
-        await safe_send_message(context, chat_id, f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```")
+        await safe_send_message(
+            context,
+            chat_id,
+            f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```",
+        )
 
     elif data == "btn_wa_restart":
         res = tools.manage_wa_sheets_bot("restart")
-        await safe_send_message(context, chat_id, f"🔄 {res.get('message', 'Restart diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"🔄 {res.get('message', 'Restart diproses.')}"
+        )
 
     elif data == "btn_wa_start":
         res = tools.manage_wa_sheets_bot("start")
-        await safe_send_message(context, chat_id, f"▶️ {res.get('message', 'Start diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"▶️ {res.get('message', 'Start diproses.')}"
+        )
 
     elif data == "btn_wa_stop":
         res = tools.manage_wa_sheets_bot("stop")
-        await safe_send_message(context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}"
+        )
 
 
 # --- Media & Document Artifact Auto-Dispatcher ---
-async def check_and_send_media_artifacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_and_send_media_artifacts(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
     """
     Checks if any screenshot, webcam frame, Python chart, or document (PDF, Excel, PPTX, ZIP)
     was created and dispatches it directly to the Telegram user.
@@ -1193,9 +1362,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
             try:
                 with open(full_path, "rb") as photo_file:
                     await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=photo_file,
-                        caption=caption
+                        chat_id=chat_id, photo=photo_file, caption=caption
                     )
             except Exception as send_err:
                 logger.error(f"Failed to send media artifact {filename}: {send_err}")
@@ -1217,13 +1384,11 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
         ext = os.path.splitext(fname)[1].lower()
-        if ext in ['.png', '.jpg', '.jpeg', '.webp']:
+        if ext in [".png", ".jpg", ".jpeg", ".webp"]:
             try:
                 with open(fpath, "rb") as pf:
                     await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=pf,
-                        caption=f"📸 Berkas Gambar: {fname}"
+                        chat_id=chat_id, photo=pf, caption=f"📸 Berkas Gambar: {fname}"
                     )
             except Exception as img_err:
                 logger.error(f"Failed to send image {fname}: {img_err}")
@@ -1236,9 +1401,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
             try:
                 with open(fpath, "rb") as df:
                     await context.bot.send_document(
-                        chat_id=chat_id,
-                        document=df,
-                        caption=f"📄 Berkas: {fname}"
+                        chat_id=chat_id, document=df, caption=f"📄 Berkas: {fname}"
                     )
             except Exception as doc_err:
                 logger.error(f"Failed to send document {fname}: {doc_err}")
@@ -1258,21 +1421,24 @@ def should_reply_with_text_instead_of_voice(text: str) -> bool:
     # 1. Code blocks or raw command snippets
     if "```" in text:
         return True
-    
+
     # 2. Markdown tables
     if "\n|" in text and ("|---" in text or "|:---" in text or "---|" in text):
         return True
-        
+
     # 3. Multiple URLs/links
     import re
+
     urls = re.findall(r"https?://\S+", text)
     if len(urls) >= 2:
         return True
-        
+
     # 4. Long structured technical lists (>900 chars with multiple bullet points)
-    if len(text) > 900 and (text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3):
+    if len(text) > 900 and (
+        text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3
+    ):
         return True
-        
+
     return False
 
 
@@ -1284,17 +1450,23 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
-        await safe_send_message(context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist.")
+        await safe_send_message(
+            context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist."
+        )
         return
 
     user_text = update.message.text.strip()
 
     # Typing indicator
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
+    typing_task = asyncio.create_task(
+        send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING)
+    )
 
     try:
-        reply = await run_agent_turn(user_id=user_id, user_prompt=user_text, chat_id=chat_id)
+        reply = await run_agent_turn(
+            user_id=user_id, user_prompt=user_text, chat_id=chat_id
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -1307,10 +1479,14 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # If voice mode enabled and content is conversational, send voice note
     settings = await database.get_user_settings(user_id)
-    if settings.get("voice_reply") and not should_reply_with_text_instead_of_voice(reply):
+    if settings.get("voice_reply") and not should_reply_with_text_instead_of_voice(
+        reply
+    ):
         voice_path = None
         try:
-            await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
+            await context.bot.send_chat_action(
+                chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE
+            )
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as voice_file:
                 await update.message.reply_voice(voice=voice_file)
@@ -1342,7 +1518,11 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE
+        )
+    )
     try:
         # 1. Download voice audio
         file_obj = await context.bot.get_file(voice.file_id)
@@ -1351,6 +1531,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         voice_bytes = voice_bytes_io.getvalue()
 
         from google.genai import types
+
         mime = getattr(voice, "mime_type", None) or "audio/ogg"
         audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
@@ -1387,17 +1568,24 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
                     if tr_resp and tr_resp.text:
                         transcription_text = tr_resp.text.strip()
-                        logger.info(f"Transkripsi pesan suara ({model_id}): {transcription_text}")
+                        logger.info(
+                            f"Transkripsi pesan suara ({model_id}): {transcription_text}"
+                        )
                         break
                 except Exception as tr_err:
                     logger.debug(f"Fast transcription skipped ({model_id}): {tr_err}")
 
         if transcription_text:
-            prompt = f"[PESAN SUARA PENGGUNA (Transkripsi): \"{transcription_text}\"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat."
+            prompt = f'[PESAN SUARA PENGGUNA (Transkripsi): "{transcription_text}"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat.'
         else:
             prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
 
-        reply = await run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
+        reply = await run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            multimodal_parts=[audio_part],
+            chat_id=chat_id,
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -1412,7 +1600,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     if not prefer_text:
         voice_path = None
         try:
-            await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
+            await context.bot.send_chat_action(
+                chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE
+            )
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as vf:
                 await update.message.reply_voice(voice=vf)
@@ -1450,7 +1640,11 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     best_photo = photos[-1]
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO
+        )
+    )
     reply = "❌ Maaf, terjadi kesalahan saat memproses gambarmu."
 
     try:
@@ -1460,9 +1654,15 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
         photo_bytes = photo_bytes_io.getvalue()
 
         from google.genai import types
+
         image_part = types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg")
 
-        reply = await run_agent_turn(user_id=user_id, user_prompt=caption, multimodal_parts=[image_part], chat_id=chat_id)
+        reply = await run_agent_turn(
+            user_id=user_id,
+            user_prompt=caption,
+            multimodal_parts=[image_part],
+            chat_id=chat_id,
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -1492,7 +1692,11 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     mime_type = doc.mime_type or "application/octet-stream"
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT
+        )
+    )
     reply = "❌ Maaf, terjadi kesalahan saat memproses dokumenmu."
 
     try:
@@ -1504,7 +1708,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         import universal_file_extractor as ufe
 
         txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
-        
+
         multimodal_parts = [part] if part is not None else None
         if txt_ctx:
             prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}"
@@ -1515,7 +1719,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
             user_id=user_id,
             user_prompt=prompt,
             multimodal_parts=multimodal_parts,
-            chat_id=chat_id
+            chat_id=chat_id,
         )
 
     finally:
@@ -1550,12 +1754,16 @@ async def proactive_reminder_loop(application: Application):
                     logger.info(f"Dispatched reminder #{rem_id} to chat {chat_id}")
                 except Exception as send_err:
                     # Keep the reminder queued for retry unless it is stale (>24h overdue)
-                    logger.error(f"Failed to dispatch reminder #{rem_id}: {send_err}. Will retry.")
+                    logger.error(
+                        f"Failed to dispatch reminder #{rem_id}: {send_err}. Will retry."
+                    )
                     try:
                         due_dt = datetime.fromisoformat(rem_time.replace("T", " "))
                         if (datetime.now() - due_dt).total_seconds() > 86400:
                             await database.mark_reminder_executed(rem_id)
-                            logger.warning(f"Reminder #{rem_id} dropped: overdue >24h and undeliverable.")
+                            logger.warning(
+                                f"Reminder #{rem_id} dropped: overdue >24h and undeliverable."
+                            )
                     except Exception:
                         await database.mark_reminder_executed(rem_id)
         except Exception as e:
@@ -1579,7 +1787,9 @@ async def proactive_cron_watchdog_loop(application: Application):
                 prompt = job["prompt_instruction"]
                 interval = job["interval_minutes"]
 
-                logger.info(f"Executing recurring cron task #{job_id}: '{title}' for user {user_id}")
+                logger.info(
+                    f"Executing recurring cron task #{job_id}: '{title}' for user {user_id}"
+                )
                 await database.update_cron_job_after_run(job_id, interval)
 
                 cron_prompt = (
@@ -1588,7 +1798,9 @@ async def proactive_cron_watchdog_loop(application: Application):
                     f"Jalankan tugas ini secara otonom menggunakan tools yang relevan dan laporkan hasilnya dengan rapi."
                 )
                 try:
-                    result = await run_agent_turn(user_id=user_id, user_prompt=cron_prompt, chat_id=chat_id)
+                    result = await run_agent_turn(
+                        user_id=user_id, user_prompt=cron_prompt, chat_id=chat_id
+                    )
                     header = f"⏰ **[WATCHDOG / CRON TASK #{job_id}: {title.upper()}]**\n\n{result}"
                     await safe_send_message(application, chat_id, header)
 
@@ -1603,18 +1815,28 @@ async def proactive_cron_watchdog_loop(application: Application):
                             if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
                                 ext = os.path.splitext(fname)[1].lower()
                                 try:
-                                    if ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                                    if ext in [".png", ".jpg", ".jpeg", ".webp"]:
                                         with open(fpath, "rb") as pf:
-                                            await application.bot.send_photo(chat_id=chat_id, photo=pf, caption=f"📸 Lampiran Cron: {fname}")
+                                            await application.bot.send_photo(
+                                                chat_id=chat_id,
+                                                photo=pf,
+                                                caption=f"📸 Lampiran Cron: {fname}",
+                                            )
                                     else:
                                         with open(fpath, "rb") as df:
-                                            await application.bot.send_document(chat_id=chat_id, document=df, caption=f"📄 Lampiran Cron: {fname}")
+                                            await application.bot.send_document(
+                                                chat_id=chat_id,
+                                                document=df,
+                                                caption=f"📄 Lampiran Cron: {fname}",
+                                            )
                                     try:
                                         os.remove(fpath)
                                     except OSError:
                                         pass
                                 except Exception as attach_err:
-                                    logger.error(f"Failed to send cron attachment {fname}: {attach_err}")
+                                    logger.error(
+                                        f"Failed to send cron attachment {fname}: {attach_err}"
+                                    )
                 except Exception as run_err:
                     logger.error(f"Error executing cron job #{job_id}: {run_err}")
         except Exception as e:
@@ -1628,47 +1850,65 @@ async def proactive_system_guardian_loop(application: Application):
     """Background daemon that monitors system health 24/7 and takes autonomous protective actions."""
     logger.info("🛡️ God Mode: System Guardian daemon started.")
     import json as _json
+
     config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
-    
+
     while True:
         try:
             if not os.path.exists(config_path):
                 await asyncio.sleep(30)
                 continue
-            
+
             with open(config_path, "r") as f:
                 config = _json.load(f)
-            
+
             if not config.get("enabled", False):
                 await asyncio.sleep(30)
                 continue
-            
+
             alerts = []
-            
+
             # Check CPU
             cpu_pct = psutil.cpu_percent(interval=1)
             cpu_thresh = config.get("cpu_threshold", 90)
             if cpu_pct > cpu_thresh:
-                alerts.append(f"🔴 **CPU** sangat tinggi: {cpu_pct}% (threshold: {cpu_thresh}%)")
-            
+                alerts.append(
+                    f"🔴 **CPU** sangat tinggi: {cpu_pct}% (threshold: {cpu_thresh}%)"
+                )
+
             # Check RAM
             ram = psutil.virtual_memory()
             ram_thresh = config.get("ram_threshold", 85)
             if ram.percent > ram_thresh:
                 alert_msg = f"🔴 **RAM** kritis: {ram.percent}% ({round(ram.used / (1024**3), 1)}/{round(ram.total / (1024**3), 1)} GB)"
                 alerts.append(alert_msg)
-                
+
                 # Auto-kill RAM hogs if enabled
                 if config.get("auto_kill_ram_hogs", False):
-                    protected = {"python3", "systemd", "gnome-shell", "Xwayland", "pipewire", "dbus-daemon", "telegram-ai"}
+                    protected = {
+                        "python3",
+                        "systemd",
+                        "gnome-shell",
+                        "Xwayland",
+                        "pipewire",
+                        "dbus-daemon",
+                        "telegram-ai",
+                    }
                     killed = []
-                    procs = sorted(psutil.process_iter(['pid', 'name', 'memory_info']), 
-                                   key=lambda p: (p.info.get('memory_info') or type('', (), {'rss': 0})).rss, reverse=True)
+                    procs = sorted(
+                        psutil.process_iter(["pid", "name", "memory_info"]),
+                        key=lambda p: (
+                            p.info.get("memory_info") or type("", (), {"rss": 0})
+                        ).rss,
+                        reverse=True,
+                    )
                     for p in procs[:5]:
                         try:
-                            pname = p.info.get('name', '')
+                            pname = p.info.get("name", "")
                             if not any(prot in pname.lower() for prot in protected):
-                                mem_mb = round(p.info['memory_info'].rss / (1024*1024), 1)
+                                mem_mb = round(
+                                    p.info["memory_info"].rss / (1024 * 1024), 1
+                                )
                                 if mem_mb > 500:  # Only kill if using >500MB
                                     p.terminate()
                                     killed.append(f"{pname} ({mem_mb}MB)")
@@ -1676,19 +1916,23 @@ async def proactive_system_guardian_loop(application: Application):
                             continue
                     if killed:
                         alerts.append(f"⚡ **Auto-Kill:** {', '.join(killed)}")
-            
+
             # Check Disk
             disk = psutil.disk_usage("/")
             disk_thresh = config.get("disk_threshold", 90)
             if disk.percent > disk_thresh:
-                alerts.append(f"🔴 **Disk** hampir penuh: {disk.percent}% ({round(disk.free / (1024**3), 1)} GB tersisa)")
-            
+                alerts.append(
+                    f"🔴 **Disk** hampir penuh: {disk.percent}% ({round(disk.free / (1024**3), 1)} GB tersisa)"
+                )
+
             # Check Battery
             battery = psutil.sensors_battery()
             batt_thresh = config.get("battery_critical", 10)
             if battery and not battery.power_plugged and battery.percent <= batt_thresh:
-                alerts.append(f"🔴 **Baterai KRITIS:** {battery.percent}% — Tidak sedang mengisi!")
-            
+                alerts.append(
+                    f"🔴 **Baterai KRITIS:** {battery.percent}% — Tidak sedang mengisi!"
+                )
+
             # Send alerts to all authorized users
             if alerts:
                 alert_text = "🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
@@ -1699,7 +1943,7 @@ async def proactive_system_guardian_loop(application: Application):
                         pass
         except Exception as e:
             logger.error(f"Guardian daemon error: {e}")
-        
+
         await asyncio.sleep(30)
 
 
@@ -1716,7 +1960,7 @@ async def proactive_focus_session_loop(application: Application):
                 title = s["title"]
                 duration = s["duration_minutes"]
                 notes = s.get("notes", "")
-                
+
                 alert_text = (
                     f"🎉 **[SESI FOKUS SELESAI!]**\n\n"
                     f"🎯 **Target:** {title}\n"
@@ -1726,13 +1970,17 @@ async def proactive_focus_session_loop(application: Application):
                 try:
                     await safe_send_message(application, chat_id, alert_text)
                     await database.mark_focus_session_completed(s_id)
-                    logger.info(f"Dispatched focus session completion #{s_id} to chat {chat_id}")
+                    logger.info(
+                        f"Dispatched focus session completion #{s_id} to chat {chat_id}"
+                    )
                 except Exception as send_err:
-                    logger.error(f"Failed to dispatch focus session #{s_id}: {send_err}")
+                    logger.error(
+                        f"Failed to dispatch focus session #{s_id}: {send_err}"
+                    )
                     await database.mark_focus_session_completed(s_id)
         except Exception as e:
             logger.error(f"Error in focus session loop: {e}")
-            
+
         await asyncio.sleep(15)
 
 
@@ -1745,15 +1993,23 @@ async def proactive_ambient_agent_loop(application: Application):
     """
     logger.info("🤖 Ambient Proactive Agent loop started.")
     import json as _json
-    config_path = os.path.join(os.path.expanduser("~"), ".alfa", "proactive_config.json")
-    
+
+    config_path = os.path.join(
+        os.path.expanduser("~"), ".alfa", "proactive_config.json"
+    )
+
     # Initial wait after startup before evaluation
     await asyncio.sleep(60)
-    
+
     while True:
         cycle_backoff = 600  # default: evaluasi tiap 10 menit
         try:
-            config = {"enabled": True, "min_hours_between_pings": 3, "quiet_hours_start": 23, "quiet_hours_end": 7}
+            config = {
+                "enabled": True,
+                "min_hours_between_pings": 3,
+                "quiet_hours_start": 23,
+                "quiet_hours_end": 7,
+            }
             if os.path.exists(config_path):
                 try:
                     with open(config_path, "r", encoding="utf-8") as f:
@@ -1769,15 +2025,19 @@ async def proactive_ambient_agent_loop(application: Application):
 
                 # Hemat kuota free-tier: batas jumlah ping per hari
                 today_str = now_dt.strftime("%Y-%m-%d")
-                pings_today = config.get("pings_today", 0) if config.get("last_ping_date") == today_str else 0
+                pings_today = (
+                    config.get("pings_today", 0)
+                    if config.get("last_ping_date") == today_str
+                    else 0
+                )
                 max_pings = int(config.get("max_pings_per_day", 4))
 
                 # Check quiet hours (e.g. 23 to 7)
                 is_quiet = False
                 if q_start > q_end:
-                    is_quiet = (current_hour >= q_start or current_hour < q_end)
+                    is_quiet = current_hour >= q_start or current_hour < q_end
                 else:
-                    is_quiet = (q_start <= current_hour < q_end)
+                    is_quiet = q_start <= current_hour < q_end
 
                 if is_quiet or pings_today >= max_pings:
                     pass  # diam di jam tenang / kuota ping harian habis
@@ -1787,27 +2047,48 @@ async def proactive_ambient_agent_loop(application: Application):
                     if last_ping_str:
                         try:
                             last_ping_dt = datetime.fromisoformat(last_ping_str)
-                            elapsed_hours = (now_dt - last_ping_dt).total_seconds() / 3600.0
+                            elapsed_hours = (
+                                now_dt - last_ping_dt
+                            ).total_seconds() / 3600.0
                             min_hours = config.get("min_hours_between_pings", 3)
                             if elapsed_hours < min_hours:
                                 should_evaluate = False
                         except Exception:
                             pass
-                            
+
                     if should_evaluate and gemini_client and ALLOWED_USER_IDS:
                         target_user = ALLOWED_USER_IDS[0]
-                        day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+                        day_names = [
+                            "Senin",
+                            "Selasa",
+                            "Rabu",
+                            "Kamis",
+                            "Jumat",
+                            "Sabtu",
+                            "Minggu",
+                        ]
                         now_formatted = f"{day_names[now_dt.weekday()]}, {now_dt.strftime('%d %B %Y pukul %H:%M WIB')}"
-                        
+
                         batt = psutil.sensors_battery()
-                        batt_status = f"{batt.percent}% ({'Mengisi daya ⚡' if batt.power_plugged else 'Menggunakan baterai 🔋'})" if batt else "Desktop / AC Power"
+                        batt_status = (
+                            f"{batt.percent}% ({'Mengisi daya ⚡' if batt.power_plugged else 'Menggunakan baterai 🔋'})"
+                            if batt
+                            else "Desktop / AC Power"
+                        )
                         ram = psutil.virtual_memory()
                         ram_str = f"RAM terpakai {ram.percent}%"
-                        
+
                         user_memories = await database.get_all_memories(target_user)
-                        mem_samples = [f"{m['key_topic']}: {m['content']}" for m in user_memories[:4]]
-                        memories_summary = "; ".join(mem_samples) if mem_samples else "Belum ada catatan proyek spesifik."
-                        
+                        mem_samples = [
+                            f"{m['key_topic']}: {m['content']}"
+                            for m in user_memories[:4]
+                        ]
+                        memories_summary = (
+                            "; ".join(mem_samples)
+                            if mem_samples
+                            else "Belum ada catatan proyek spesifik."
+                        )
+
                         proactive_eval_prompt = (
                             f"Kamu adalah ALFA, asisten AI otonom pribadi {OWNER_NAME} yang cerdas, proaktif, dan memiliki inisiatif sendiri.\n"
                             f"Kondisi real-time saat ini:\n"
@@ -1822,31 +2103,58 @@ async def proactive_ambient_agent_loop(application: Application):
                             f"2. Jika saat ini tidak ada hal yang bernilai tinggi untuk disampaikan, balas hanya satu kata: NO_ACTION.\n"
                             f"3. DILARANG menggunakan format robotik kaku. Bersikaplah seperti partner asisten pribadi profesional."
                         )
-                        
+
                         from google.genai import types
+
                         p_client, p_key_id, p_key_label = resolve_main_gemini()
                         if not p_client:
-                            raise RuntimeError("Tidak ada API key Gemini aktif (vault/env) untuk loop proaktif.")
+                            raise RuntimeError(
+                                "Tidak ada API key Gemini aktif (vault/env) untuk loop proaktif."
+                            )
                         proactive_model = _main_brain_gemini_model()
                         resp = await p_client.aio.models.generate_content(
                             model=proactive_model,
-                            contents=[types.Content(role="user", parts=[types.Part.from_text(text=proactive_eval_prompt)])]
+                            contents=[
+                                types.Content(
+                                    role="user",
+                                    parts=[
+                                        types.Part.from_text(text=proactive_eval_prompt)
+                                    ],
+                                )
+                            ],
                         )
-                        token_usage.from_gemini_response(resp, model=proactive_model,
-                                                         key_id=p_key_id,
-                                                         key_label=p_key_label or "gemini-env",
-                                                         context="proactive")
-                        
+                        token_usage.from_gemini_response(
+                            resp,
+                            model=proactive_model,
+                            key_id=p_key_id,
+                            key_label=p_key_label or "gemini-env",
+                            context="proactive",
+                        )
+
                         reply_text = (resp.text or "").strip()
                         # Setiap evaluasi memakai kuota API (termasuk yang
                         # berujung NO_ACTION) — catat pemakaian harian di sini.
                         config["last_ping_date"] = today_str
                         config["pings_today"] = pings_today + 1
 
-                        if reply_text and "NO_ACTION" not in reply_text.upper() and len(reply_text) > 10:
-                            logger.info(f"Proactive agent initiated autonomous message to user {target_user}")
-                            await safe_send_message(application, target_user, f"✨ **[INISIATIF MANDIRI ALFA]**\n\n{reply_text}")
-                            await database.save_chat_message(target_user, "model", f"[Inisiatif Mandiri]: {reply_text}")
+                        if (
+                            reply_text
+                            and "NO_ACTION" not in reply_text.upper()
+                            and len(reply_text) > 10
+                        ):
+                            logger.info(
+                                f"Proactive agent initiated autonomous message to user {target_user}"
+                            )
+                            await safe_send_message(
+                                application,
+                                target_user,
+                                f"✨ **[INISIATIF MANDIRI ALFA]**\n\n{reply_text}",
+                            )
+                            await database.save_chat_message(
+                                target_user,
+                                "model",
+                                f"[Inisiatif Mandiri]: {reply_text}",
+                            )
 
                             config["last_ping_time"] = now_dt.isoformat()
 
@@ -1857,7 +2165,9 @@ async def proactive_ambient_agent_loop(application: Application):
             logger.error(f"Error in proactive ambient loop: {e}")
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 cycle_backoff = 3600
-                logger.warning("Kuota model habis (429) -> loop proaktif tidur 1 jam agar chat utama tetap punya jatah.")
+                logger.warning(
+                    "Kuota model habis (429) -> loop proaktif tidur 1 jam agar chat utama tetap punya jatah."
+                )
 
         await asyncio.sleep(cycle_backoff)
 
@@ -1870,14 +2180,14 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
     """
     logger.info("📱 WhatsApp Sheets Bot Ecosystem Watchdog started.")
     import socket
-    
+
     def is_internet_connected():
         try:
             socket.create_connection(("1.1.1.1", 53), timeout=3)
             return True
         except OSError:
             return False
-            
+
     last_known_auth_status = "UNKNOWN"
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
@@ -1891,13 +2201,33 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                 #    di Windows layanan WA dikelola manual via /wa)
                 if os.name != "nt":
                     res = await asyncio.to_thread(
-                        lambda: subprocess.run(["systemctl", "--user", "is-active", "wa-sheets-bot.service"], capture_output=True, text=True)
+                        lambda: subprocess.run(
+                            [
+                                "systemctl",
+                                "--user",
+                                "is-active",
+                                "wa-sheets-bot.service",
+                            ],
+                            capture_output=True,
+                            text=True,
+                        )
                     )
                     state = res.stdout.strip()
                     if state in ["inactive", "failed"]:
-                        logger.info("🌐 Internet connected & wa-sheets-bot is offline. Auto-starting wa-sheets-bot.service...")
+                        logger.info(
+                            "🌐 Internet connected & wa-sheets-bot is offline. Auto-starting wa-sheets-bot.service..."
+                        )
                         await asyncio.to_thread(
-                            lambda: subprocess.run(["systemctl", "--user", "start", "wa-sheets-bot.service"], capture_output=True, text=True)
+                            lambda: subprocess.run(
+                                [
+                                    "systemctl",
+                                    "--user",
+                                    "start",
+                                    "wa-sheets-bot.service",
+                                ],
+                                capture_output=True,
+                                text=True,
+                            )
                         )
 
                 # 2. Check WhatsApp authentication status & alert if logged out
@@ -1907,10 +2237,19 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                             wa_data = json.load(f)
                         current_status = wa_data.get("status", "UNKNOWN")
                         qr_str = wa_data.get("qr", "")
-                        
+
                         # Detect transition: was READY/AUTHENTICATED, now QR_READY or LOGGED_OUT
-                        if last_known_auth_status in ["READY", "AUTHENTICATED"] and current_status in ["QR_READY", "LOGGED_OUT", "DISCONNECTED"]:
-                            logger.warning(f"🚨 WhatsApp logged out! Sending instant alarm to Telegram user {primary_uid}...")
+                        if last_known_auth_status in [
+                            "READY",
+                            "AUTHENTICATED",
+                        ] and current_status in [
+                            "QR_READY",
+                            "LOGGED_OUT",
+                            "DISCONNECTED",
+                        ]:
+                            logger.warning(
+                                f"🚨 WhatsApp logged out! Sending instant alarm to Telegram user {primary_uid}..."
+                            )
                             alarm_text = (
                                 "🚨 **ALARM: WhatsApp Web Logout / Sesi Terputus!**\n\n"
                                 "Bot mendeteksi sesi WhatsApp kamu telah keluar (*logged out*).\n"
@@ -1922,6 +2261,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                 import io
 
                                 import qrcode
+
                                 img = qrcode.make(qr_str)
                                 buf = io.BytesIO()
                                 img.save(buf, format="PNG")
@@ -1930,33 +2270,34 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                     chat_id=primary_uid,
                                     photo=buf,
                                     caption=alarm_text,
-                                    parse_mode="Markdown"
+                                    parse_mode="Markdown",
                                 )
                             else:
                                 await application.bot.send_message(
                                     chat_id=primary_uid,
                                     text=alarm_text,
-                                    parse_mode="Markdown"
+                                    parse_mode="Markdown",
                                 )
-                                
+
                         last_known_auth_status = current_status
                     except Exception as e:
                         logger.error(f"Error checking WA status in watchdog: {e}")
-                        
+
         except Exception as e:
             logger.error(f"Ecosystem watchdog error: {e}")
-            
+
         await asyncio.sleep(15)
 
 
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
-    
+
     # Connect Subagent swarm to Telegram app instance
     import subagents
+
     subagents.set_telegram_app(application)
-    
+
     # Start background dispatchers
     asyncio.create_task(proactive_reminder_loop(application))
     asyncio.create_task(proactive_cron_watchdog_loop(application))
@@ -1977,12 +2318,16 @@ async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     jobs = database.list_cron_jobs_sync(user_id)
     if not jobs:
-        await safe_send_message(context, chat_id, "⏰ Belum ada tugas berulang (cron/watchdog) yang aktif.\n\nContoh membuat: *'Jadwalkan pantau server tiap 30 menit'*.")
+        await safe_send_message(
+            context,
+            chat_id,
+            "⏰ Belum ada tugas berulang (cron/watchdog) yang aktif.\n\nContoh membuat: *'Jadwalkan pantau server tiap 30 menit'*.",
+        )
         return
 
     text = f"⏰ **Daftar Tugas Berulang & Watchdog ({len(jobs)} tugas):**\n\n"
     for j in jobs:
-        status_icon = "🟢 Aktif" if j['is_active'] else "🔴 Nonaktif"
+        status_icon = "🟢 Aktif" if j["is_active"] else "🔴 Nonaktif"
         text += f"• **#{j['id']} {j['title']}** ({status_icon})\n"
         text += f"  - Interval: Setiap {j['interval_minutes']} menit\n"
         text += f"  - Instruksi: `{j['prompt_instruction']}`\n"
@@ -1997,11 +2342,11 @@ async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
-        
+
     config = tools.proactive_ambient_agent_config("status")
     p_cfg = config.get("proactive_config", {})
     status_str = "🟢 AKTIF" if p_cfg.get("enabled", True) else "🔴 NONAKTIF"
-    
+
     text = (
         f"🤖 **Status Inisiatif Proaktif Otonom:**\n\n"
         f"• **Status:** {status_str}\n"
@@ -2047,11 +2392,15 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🌐 Buka Web Dashboard", url="http://localhost:8080"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    auth_desc = "✅ Terhubung (Logged In)" if wa_auth_status == "READY" else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
+    auth_desc = (
+        "✅ Terhubung (Logged In)"
+        if wa_auth_status == "READY"
+        else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
+    )
 
     text = (
         f"📱 **Manajer WhatsApp Google Sheets Bot:**\n\n"
@@ -2067,6 +2416,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import io
 
             import qrcode
+
             img = qrcode.make(qr_str)
             buf = io.BytesIO()
             img.save(buf, format="PNG")
@@ -2076,20 +2426,22 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo=buf,
                 caption=f"📲 **SCAN QR CODE WHATSAPP SEKARANG**\n\n{text}",
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return
         except Exception as e:
             logger.error(f"Failed to generate QR photo: {e}")
 
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
+
+
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard or /web command."""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not is_authorized(user_id):
         return
-        
+
     res = tools.open_web_dashboard(port=8080)
     text = (
         f"🛸 **ALFA SOVEREIGN COMMAND CENTER (Web Dashboard):**\n\n"
@@ -2171,16 +2523,20 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id, 
+        context,
+        chat_id,
         f"🏛️ **Membuka Rapat Perencanaan AI...**\n\n"
         f"📋 **Agenda:** _{topic}_\n"
-        f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu..."
+        f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu...",
     )
 
     try:
         import swarm_engine
-        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2, mode="plan")
-        
+
+        result = await swarm_engine.conduct_multi_agent_meeting(
+            topic=topic, rounds=2, mode="plan"
+        )
+
         # Send summary of transcript
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
@@ -2202,7 +2558,9 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error during Telegram /rapat meeting: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}"
+        )
 
 
 async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2227,21 +2585,27 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id, 
+        context,
+        chat_id,
         f"⚡ **Membangunkan AI Swarm & Mengeksekusi Tugas Nyata...**\n\n"
         f"📌 **Tugas:** _{topic}_\n"
-        f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu..."
+        f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu...",
     )
 
     try:
         import swarm_engine
-        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=1, mode="execute")
-        
+
+        result = await swarm_engine.conduct_multi_agent_meeting(
+            topic=topic, rounds=1, mode="execute"
+        )
+
         # Send execution steps breakdown
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Laporan Eksekusi Tiap Agen:**\n\n"
         for s in steps:
-            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += (
+                f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            )
             steps_text += f"   • Tool: `{s['tool_used']}` ({s['duration_ms']}ms)\n"
             steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
 
@@ -2266,14 +2630,18 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             chat_id=chat_id,
                             document=f_doc,
                             filename=os.path.basename(fpath),
-                            caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`"
+                            caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`",
                         )
                 except Exception as file_err:
-                    logger.warning(f"Failed to send deliverable file to Telegram: {file_err}")
+                    logger.warning(
+                        f"Failed to send deliverable file to Telegram: {file_err}"
+                    )
 
     except Exception as e:
         logger.error(f"Error during Telegram /swarm execution: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}"
+        )
 
 
 async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2284,12 +2652,17 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     from swarm_checkpoint import SwarmCheckpoint
+
     resumable = SwarmCheckpoint.list_resumable()
 
     session_id = (context.args[0].strip()) if context.args else ""
     if not session_id:
         if not resumable:
-            await safe_send_message(context, chat_id, "ℹ️ Tidak ada sesi swarm yang tertunda atau bisa dilanjutkan saat ini.")
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Tidak ada sesi swarm yang tertunda atau bisa dilanjutkan saat ini.",
+            )
             return
 
         text = "🔄 **Daftar Sesi Swarm yang Bisa Dilanjutkan (Checkpoints):**\n\n"
@@ -2304,18 +2677,29 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, text)
         return
 
-    await safe_send_message(context, chat_id, f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**")
+    await safe_send_message(
+        context,
+        chat_id,
+        f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**",
+    )
     try:
         import swarm_engine
+
         result = await swarm_engine.resume_swarm_session(session_id)
         if result.get("status") == "error":
-            await safe_send_message(context, chat_id, f"❌ Gagal resume: {result.get('message', 'Unknown error')}")
+            await safe_send_message(
+                context,
+                chat_id,
+                f"❌ Gagal resume: {result.get('message', 'Unknown error')}",
+            )
             return
 
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Hasil Lanjutan Sesi Swarm:**\n\n"
         for s in steps:
-            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += (
+                f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            )
             steps_text += f"   • Tool: `{s['tool_used']}`\n"
             steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
         await safe_send_message(context, chat_id, steps_text)
@@ -2327,7 +2711,9 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, final_text)
     except Exception as e:
         logger.error(f"Error during /resume_swarm: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}"
+        )
 
 
 def main():
@@ -2378,15 +2764,25 @@ def main():
 
     # Callback Query (Buttons) — handler perm| di group terpisah agar selalu
     # dieksekusi walau turn agent sedang menunggu keputusan izin.
-    application.add_handler(CallbackQueryHandler(
-        permission_gate.handle_permission_callback, pattern=r"^perm\|"), group=1)
+    application.add_handler(
+        CallbackQueryHandler(
+            permission_gate.handle_permission_callback, pattern=r"^perm\|"
+        ),
+        group=1,
+    )
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Multimodal message handlers
-    application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message))
+    application.add_handler(
+        MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message)
+    )
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo_message))
-    application.add_handler(MessageHandler(filters.Document.ALL, handle_document_message))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    application.add_handler(
+        MessageHandler(filters.Document.ALL, handle_document_message)
+    )
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message)
+    )
 
     print("✅ Bot Telegram Otonom siap melayani! Menunggu interaksi...")
     application.run_polling(drop_pending_updates=True)
@@ -2394,5 +2790,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

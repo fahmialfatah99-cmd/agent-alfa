@@ -2,6 +2,7 @@
 Lightweight structured tracing for ALFA Agent.
 No external dependencies. Outputs JSONL to storage/traces/.
 """
+
 import json
 import os
 import threading
@@ -10,7 +11,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-TRACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "storage", "traces")
+TRACE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "storage", "traces"
+)
 os.makedirs(TRACE_DIR, exist_ok=True)
 
 _write_lock = threading.Lock()
@@ -21,7 +24,14 @@ class TraceSpan:
     Represents a single span (unit of work) in a trace.
     Thread-safe. Auto-closes on context manager exit.
     """
-    def __init__(self, name: str, trace_id: Optional[str] = None, parent_span_id: Optional[str] = None, tags: Optional[Dict[str, Any]] = None):
+
+    def __init__(
+        self,
+        name: str,
+        trace_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
+        tags: Optional[Dict[str, Any]] = None,
+    ):
         self.span_id = str(uuid.uuid4())[:8]
         self.trace_id = trace_id or str(uuid.uuid4())[:12]
         self.parent_span_id = parent_span_id
@@ -53,7 +63,9 @@ class TraceSpan:
             "name": self.name,
             "start_time": self.start_time,
             "end_time": self.end_time or time.time(),
-            "duration_ms": round(((self.end_time or time.time()) - self.start_time) * 1000, 1),
+            "duration_ms": round(
+                ((self.end_time or time.time()) - self.start_time) * 1000, 1
+            ),
             "status": self.status,
             "error": self.error,
             "tags": self.tags,
@@ -88,9 +100,16 @@ def _append_trace(entry: Dict[str, Any]):
         pass  # tracing must never crash the main app
 
 
-def new_span(name: str, trace_id: Optional[str] = None, parent_span_id: Optional[str] = None, **tags) -> TraceSpan:
+def new_span(
+    name: str,
+    trace_id: Optional[str] = None,
+    parent_span_id: Optional[str] = None,
+    **tags,
+) -> TraceSpan:
     """Create a new TraceSpan. Use as context manager or call .finish() manually."""
-    return TraceSpan(name=name, trace_id=trace_id, parent_span_id=parent_span_id, tags=tags)
+    return TraceSpan(
+        name=name, trace_id=trace_id, parent_span_id=parent_span_id, tags=tags
+    )
 
 
 def get_recent_traces(n: int = 100) -> List[Dict[str, Any]]:
