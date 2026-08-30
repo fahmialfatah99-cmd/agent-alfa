@@ -1,36 +1,36 @@
+```
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Database & SQLite locks
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-*.sqlite
-*.sqlite3
-
-# Logs & Traces
-*.log
-storage/
-*.jsonl
-
-# Environment & Credentials
-.env
-.env.local
-*.env.*
-gdrive_oauth_*.json
-
 # Dependencies
 .venv/
 venv/
-pip-log.txt
-pipenv.lock
+env/
+.env
+.env.*
+!requirements.txt
+!Pipfile
+!pyproject.toml
+!poetry.lock
 
-# Test & Coverage
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Testing
 .coverage
 htmlcov/
-.coverage.*
 .pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```
