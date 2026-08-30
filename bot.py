@@ -545,23 +545,27 @@ async def run_agent_turn(
             tag_str = f" ({k['tags']})" if k.get('tags') else ""
             memory_context_parts.append(f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}")
 
-    # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan.
-    # Inilah yang membuat Second Brain benar-benar jadi otak: tanpa diminta,
-    # pengetahuan dari dokumen tersinkron ikut masuk konteks tiap giliran.
-    try:
-        import vector_memory
-        brain_hits = vector_memory.semantic_search(
-            user_id=user_id, query=user_prompt or "", top_k=4
-        )
-        relevant = [h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25]
-        if relevant:
-            memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
-            for h in relevant:
-                memory_context_parts.append(
-                    f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
-                )
-    except Exception as rag_err:
-        logger.debug(f"Auto-RAG skipped: {rag_err}")
+    # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan (hanya saat relevan)
+    p_check = (user_prompt or "").lower().strip()
+    should_search_rag = len(p_check) > 15 and not any(
+        p_check == g or p_check.startswith(g + " ") for g in ["halo", "hai", "pagi", "siang", "malam", "apa kabar", "siapa kamu", "tes", "ping"]
+    ) and any(k in p_check for k in ["dokumen", "drive", "file", "catatan", "ingat", "materi", "referensi", "data", "info", "tentang", "jelaskan", "bagaimana", "apa itu", "siapa"])
+    
+    if should_search_rag:
+        try:
+            import vector_memory
+            brain_hits = vector_memory.semantic_search(
+                user_id=user_id, query=user_prompt or "", top_k=4
+            )
+            relevant = [h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25]
+            if relevant:
+                memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
+                for h in relevant:
+                    memory_context_parts.append(
+                        f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
+                    )
+        except Exception as rag_err:
+            logger.debug(f"Auto-RAG skipped: {rag_err}")
             
     memory_block = ""
     if memory_context_parts:

@@ -372,16 +372,38 @@ async def run_openai_agentic_turn(
     """
     try:
         import httpx
-
         import token_usage
+
         if tools_schema is None:
-            tools_schema = build_openai_tools()
-            # TOOL-RAG: suntikkan hanya tool relevan (hemat token, cegah confusion)
-            try:
-                from tool_rag import select_relevant_tools
-                tools_schema = select_relevant_tools(tools_schema, user_text, history=history)
-            except Exception:
-                pass  # fail-open: set lengkap
+            txt_low = (user_text or "").lower().strip()
+            # Fast check: apakah pertanyaan sederhana/percakapan yang tidak membutuhkan tool?
+            is_simple_chat = (
+                len(txt_low) <= 40 and any(
+                    txt_low == g or txt_low.startswith(g + " ") or txt_low.startswith(g + ",")
+                    for g in [
+                        "halo", "hai", "hei", "pagi", "siang", "sore", "malam", "selamat",
+                        "apa kabar", "siapa kamu", "tes", "ping", "test", "makasih", "terima kasih",
+                        "thanks", "ok", "oke", "siap", "siap bos", "mantap", "sip", "yoi"
+                    ]
+                )
+            )
+            has_action_trigger = any(k in txt_low for k in [
+                "buat", "bikin", "tulis", "cari", "search", "googling", "browse", "web", "scrape",
+                "jalankan", "run", "eksekusi", "hitung", "baca", "cek", "analisis", "pdf", "excel",
+                "gambar", "foto", "drive", "email", "rapat", "meeting", "jadwal", "ingat", "catat",
+                "simpan", "hapus", "file", "folder", "kode", "code", "python", "bash", "curl", "swarm"
+            ])
+            
+            if is_simple_chat and not has_action_trigger:
+                tools_schema = []
+            else:
+                tools_schema = build_openai_tools()
+                # TOOL-RAG: suntikkan hanya tool relevan (hemat token, cegah confusion)
+                try:
+                    from tool_rag import select_relevant_tools
+                    tools_schema = select_relevant_tools(tools_schema, user_text, history=history)
+                except Exception:
+                    pass  # fail-open: set lengkap
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system_instruction}]
         for h in (history or [])[-10:]:
