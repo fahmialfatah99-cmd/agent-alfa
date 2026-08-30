@@ -7,25 +7,36 @@ __pycache__/
 
 # Database
 *.db
-*.sqlite
-*.sqlite3
 
-# Logs
+# Logs and temp files
 *.log
+*.tmp
 
 # Environment
 .env
 .env.local
 *.env.*
 
+# Editors
+.vscode/
+.idea/
+
 # Dependencies
 .venv/
 venv/
-pip-log.txt
-pipenv.lock
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
 
 # Coverage
 .coverage
+coverage/
 htmlcov/
-.coverage.*
+
+# Cache
+.mypy_cache/
+.pytest_cache/
 ```
