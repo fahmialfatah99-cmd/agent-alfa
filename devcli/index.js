@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
-const inquirer = require('inquirer');
+const inquirer = require('@inquirer/prompts');
 const chalk = require('chalk');
 const fs = require('fs').promises;
 const path = require('path');
@@ -133,13 +133,9 @@ async function startInteractiveMode() {
   console.log(chalk.gray("Ketik 'exit' untuk keluar, 'clear' untuk reset chat.\n"));
 
   while (true) {
-    const { input } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'input',
-        message: chalk.green('You: '),
-      }
-    ]);
+    const input = await inquirer.input({
+      message: chalk.green('You: '),
+    });
 
     if (input.toLowerCase() === 'exit') break;
     if (input.toLowerCase() === 'clear') {
