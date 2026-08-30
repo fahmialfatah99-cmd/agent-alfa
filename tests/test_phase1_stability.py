@@ -60,8 +60,9 @@ def test_self_heal_hint_generation():
     assert "sintaks" in hint3
 
 
-def test_execute_bash_self_heal_integration():
+def test_execute_bash_self_heal_integration(monkeypatch):
     """Verify execute_bash_command includes self_heal_hint on failure."""
+    monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "true")
     res = tools.execute_bash_command("this_non_existent_binary_xyz_123", backend="host")
     assert res["status"] == "failed"
     assert res.get("self_heal_hint") is not None

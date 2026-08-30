@@ -29,7 +29,11 @@ import sys
 import platform
 import getpass
 import argparse
-import readline
+try:
+    import readline
+    READLINE_AVAILABLE = True
+except ImportError:
+    READLINE_AVAILABLE = False
 import re
 from datetime import datetime
 from pathlib import Path
@@ -155,6 +159,8 @@ class AlfaCLI(cmd.Cmd):
     
     def _setup_readline(self):
         """Setup readline for command history and auto-completion."""
+        if not READLINE_AVAILABLE:
+            return
         try:
             readline.read_history_file(HISTORY_FILE)
         except FileNotFoundError:
@@ -184,6 +190,8 @@ class AlfaCLI(cmd.Cmd):
     
     def _save_history(self):
         """Save command history to file."""
+        if not READLINE_AVAILABLE:
+            return
         try:
             readline.write_history_file(HISTORY_FILE)
         except Exception:
@@ -302,8 +310,9 @@ class AlfaCLI(cmd.Cmd):
         res = self._request("GET", "/api/auth/me")
         if res and res.status_code == 200:
             data = res.json()
-            self.username = data.get('username')
-            self.is_admin = data.get('is_admin', False)
+            user_data = data.get('user', {})
+            self.username = user_data.get('username') or data.get('username')
+            self.is_admin = user_data.get('is_admin', False) or data.get('is_admin', False)
             return True
         return False
 
@@ -365,7 +374,8 @@ class AlfaCLI(cmd.Cmd):
                 # Cek admin status
                 me_res = self._request("GET", "/api/auth/me")
                 if me_res and me_res.status_code == 200:
-                    self.is_admin = me_res.json().get('is_admin', False)
+                    me_data = me_res.json()
+                    self.is_admin = me_data.get('user', {}).get('is_admin', False) or me_data.get('is_admin', False)
                 
                 self._save_session()
                 self._update_prompt()
@@ -790,140 +800,6 @@ class AlfaCLI(cmd.Cmd):
             return
         
         print_status("Fitur download akan segera hadir.", "info")
-
-    # --- Commands ---
-
-    def do_register(self, arg):
-        """Daftar akun baru. Usage: register <username>"""
-        username = arg.strip()
-        if not username:
-            username = input("Masukkan username: ").strip()
-        
-        if not username:
-            print_status("Username tidak boleh kosong.", "error")
-            return
-
-        password = getpass.getpass("Masukkan password: ")
-        confirm = getpass.getpass("Konfirmasi password: ")
-
-        if password != confirm:
-            print_status("Password tidak cocok!", "error")
-            return
-
-        payload = {"username": username, "password": password}
-        res = self._request("POST", "/api/auth/register", payload)
-
-        if res:
-            if res.status_code == 201:
-                print_status(f"Akun '{username}' berhasil dibuat! Silakan login.", "success")
-                # Auto login setelah register
-                self.do_login(username)
-            else:
-                try:
-                    msg = res.json().get('detail', 'Registrasi gagal')
-                except:
-                    msg = res.text
-                print_status(msg, "error")
-
-    def do_login(self, arg):
-        """Login ke akun. Usage: login <username>"""
-        username = arg.strip()
-        if not username:
-            username = input("Username: ").strip()
-        
-        if not username:
-            print_status("Username diperlukan.", "error")
-            return
-
-        password = getpass.getpass("Password: ")
-        payload = {"username": username, "password": password}
-        
-        print_status("Sedang login...", "info")
-        res = self._request("POST", "/api/auth/login", payload)
-
-        if res:
-            if res.status_code == 200:
-                data = res.json()
-                self.session_token = data.get('access_token') or data.get('token')
-                self.username = username
-                # Cek admin status
-                me_res = self._request("GET", "/api/auth/me")
-                if me_res and me_res.status_code == 200:
-                    self.is_admin = me_res.json().get('is_admin', False)
-                
-                self._save_session()
-                self._update_prompt()
-                print_status(f"Login berhasil sebagai {self.username}!", "success")
-            else:
-                try:
-                    msg = res.json().get('detail', 'Login gagal')
-                except:
-                    msg = "Username atau password salah."
-                print_status(msg, "error")
-
-    def do_logout(self, arg):
-        """Logout dari akun saat ini."""
-        if self.session_token:
-            self._request("POST", "/api/auth/logout") # Optional invalidate di server
-        self._clear_session()
-        print_status("Berhasil logout.", "success")
-
-    def do_stats(self, arg):
-        """Melihat statistik sistem ALFA."""
-        if not self.session_token:
-            print_status("Anda harus login terlebih dahulu.", "warning")
-            return
-        
-        res = self._request("GET", "/api/stats")
-        if res and res.status_code == 200:
-            data = res.json()
-            print("\n" + "="*30)
-            print(f"{Colors.BOLD}📊 Statistik Sistem{Colors.ENDC}")
-            print("="*30)
-            for key, value in data.items():
-                print(f"{Colors.CYAN}{key}:{Colors.ENDC} {value}")
-            print("="*30 + "\n")
-        else:
-            print_status("Gagal mengambil statistik.", "error")
-
-    def do_tools(self, arg):
-        """Melihat daftar tools yang tersedia."""
-        if not self.session_token:
-            print_status("Anda harus login terlebih dahulu.", "warning")
-            return
-        
-        # Asumsi endpoint /api/tools ada, jika tidak fallback
-        res = self._request("GET", "/api/tools")
-        if res and res.status_code == 200:
-            data = res.json()
-            tools = data if isinstance(data, list) else data.get('tools', [])
-            print(f"\n{Colors.BOLD}🛠️ Daftar Tools ({len(tools)}):{Colors.ENDC}\n")
-            for i, tool in enumerate(tools[:20], 1): # Tampilkan 20 pertama
-                name = tool.get('name', 'Unknown') if isinstance(tool, dict) else str(tool)
-                desc = tool.get('description', '') if isinstance(tool, dict) else ''
-                print(f"{i}. {Colors.GREEN}{name}{Colors.ENDC}")
-                if desc:
-                    print(f"   {Colors.WARNING}{desc}{Colors.ENDC}")
-            if len(tools) > 20:
-                print(f"... dan {len(tools)-20} tools lainnya.")
-            print()
-        else:
-            print_status("Gagal mengambil daftar tools atau endpoint belum tersedia.", "error")
-
-    def do_clear(self, arg):
-        """Membersihkan layar terminal."""
-        os.system('cls' if platform.system() == 'Windows' else 'clear')
-        print_banner()
-
-    def do_exit(self, arg):
-        """Keluar dari aplikasi."""
-        self._save_history()
-        print_status("Terima kasih telah menggunakan ALFA CLI. Sampai jumpa!", "success")
-        return True
-
-    def do_q(self, arg):
-        """Alias untuk exit."""
-        return self.do_exit(arg)
 
     def default(self, line):
         """Menangani input chat biasa atau slash commands."""

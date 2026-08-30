@@ -1,4 +1,3 @@
-```
 # Dependencies
 __pycache__/
 *.pyc
@@ -9,6 +8,21 @@ __pycache__/
 .coverage
 htmlcov/
 .coveragerc
+
+# Databases & Runtime storage
+*.db
+*.db-shm
+*.db-wal
+storage/
+guardian_err.log
+bot_err.log
+bot_out.log
+dash_err.log
+dash_out.log
+
+# Node dependencies
+node_modules/
+devcli/node_modules/
 
 # Virtual environments
 .venv/
@@ -23,10 +37,12 @@ dist/
 # Logs
 *.log
 
-# Environment variables
+# Environment variables & Keys
 .env
 .env.local
 *.env.*
+*.key
+.alfa_vault_master.key
 
 # Editors
 .vscode/
@@ -41,4 +57,3 @@ Thumbs.db
 
 # Coverage
 coverage/
-```

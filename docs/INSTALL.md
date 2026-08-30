@@ -89,9 +89,13 @@ chmod +x setup.sh run.sh
 ```
 
 ### Windows
+```powershell
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+cd agent-alfa
+powershell -ExecutionPolicy Bypass -File .\setup.ps1   # wizard interaktif Windows
+```
+Atau langsung jalankan peluncur otomatis:
 ```cmd
-git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
-cd telegram-ai-bot
 run.bat
 ```
 
@@ -162,7 +166,7 @@ journalctl --user -u telegram-ai-bot -f
 | `Conflict: terminated by other getUpdates request` | Ada 2 instance bot jalan | Matikan satu: cek `ps aux \| grep bot.py` |
 | `404 model ... not available` | Model di `.env` sudah pensiun | Ganti `GEMINI_MODEL` ke generasi aktif (mis. `gemini-3.6-flash`) |
 | `429 RESOURCE_EXHAUSTED` | Kuota free-tier habis | Tunggu reset kuota / pakai kunci lain via dashboard; loop proaktif otomatis mundur 1 jam |
-| `[PERINGATAN: dieksekusi di HOST]` | Docker tidak terdeteksi | Instal Docker + pastikan user anggota grup `docker` |
+| `[PERINGATAN: dieksekusi di HOST]` | Docker tidak terdeteksi | Instal Docker + aktifkan integrasi WSL2 (Windows); atau jika sengaja tanpa Docker, set `ALFA_ALLOW_HOST_EXEC=true` di `.env` (Hanya untuk mesin pribadi tepercaya) |
 | Bot tidak merespons apa pun | `ALLOWED_USER_IDS` kosong/salah | Isi ID kamu (langkah 4) lalu restart |
 | `Temporary failure in name resolution` | Internet/DNS putus | Otomatis retry; periksa koneksi |
 | Dashboard 401/403 | `DASHBOARD_AUTH_TOKEN` aktif | Login dengan password tersebut |

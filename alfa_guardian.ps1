@@ -1,5 +1,5 @@
 # ALFA Guardian — auto-heal bot & dashboard + alarm Telegram + rotasi log + cleanup disk
-$dir = "C:\Users\mj9\telegram-ai-bot"
+$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $env:PYTHONUTF8 = "1"
 
 # ── Baca .env minimal ──
@@ -76,7 +76,10 @@ while ($true) {
                 Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
                 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
         }
-    } catch {}
+    } catch {
+        $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        "[$timestamp] Guardian error: $_" | Out-File -Append -FilePath "$dir\guardian_err.log" -Encoding UTF8
+    }
 
     Start-Sleep -Seconds 60
 }
