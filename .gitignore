@@ -1,36 +1,23 @@
-# Python
-__pycache__/
+```
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
 
-# Database & SQLite locks
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-*.sqlite
-*.sqlite3
-
-# Logs & Traces
-*.log
-storage/
-*.jsonl
-
-# Environment & Credentials
+# Environment files
 .env
 .env.local
 *.env.*
-gdrive_oauth_*.json
 
 # Dependencies
 .venv/
 venv/
-pip-log.txt
-pipenv.lock
+node_modules/
 
-# Test & Coverage
-.coverage
-htmlcov/
-.coverage.*
-.pytest_cache/
+# Logs and temp files
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+```

@@ -1232,13 +1232,26 @@ def add_custom_agent_sync(name: str, role: str, persona: str, system_instruction
 
 def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
     """Update custom agent configuration."""
-    allowed = ["name", "role", "persona", "system_instruction", "provider", "model", "api_key_id", "avatar_emoji", "color_theme", "is_enabled", "enable_tools"]
+    # Whitelist kolom yang valid untuk UPDATE - mencegah SQL injection via column name
+    ALLOWED_COLUMNS = frozenset([
+        "name", "role", "persona", "system_instruction", "provider", 
+        "model", "api_key_id", "avatar_emoji", "color_theme", 
+        "is_enabled", "enable_tools"
+    ])
+    
     fields = []
     values = []
     for k, v in updates.items():
-        if k in allowed:
-            fields.append(f"{k} = ?")
-            values.append(v)
+        # Validasi ketat: hanya kolom dalam whitelist yang diproses
+        if k not in ALLOWED_COLUMNS:
+            logger.warning(f"update_custom_agent: kolom '{k}' ditolak (tidak ada di whitelist)")
+            continue
+        # Sanitasi tambahan: pastikan column name hanya berisi alphanumeric + underscore
+        if not all(c.isalnum() or c == '_' for c in k):
+            logger.warning(f"update_custom_agent: kolom '{k}' ditolak (karakter tidak valid)")
+            continue
+        fields.append(f'"{k}" = ?')  # Quote column name dengan double quotes
+        values.append(v)
     if not fields:
         return {"status": "error", "message": "No valid fields to update"}
     values.append(agent_id)

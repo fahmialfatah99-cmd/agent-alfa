@@ -1,13 +1,19 @@
-"""ALFA Security: Vault encryption, permission gates, and sandboxing."""
-import sys
-from pathlib import Path
-root_dir = str(Path(__file__).resolve().parents[2])
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
+"""
+ALFA Security Module - Centralized security utilities and configurations.
+"""
 
-try:
-    import vault_engine
-    import permission_gate
-    import security_auditor
-except ImportError:
-    pass
+# Re-export security constants and utilities
+from .bash_blacklist import BASH_DESTRUCTIVE_PATTERNS, is_command_blocked, get_block_reason
+from .encryption import encrypt_api_key, decrypt_api_key, setup_vault_encryption
+
+__all__ = [
+    # Bash blacklist
+    "BASH_DESTRUCTIVE_PATTERNS",
+    "is_command_blocked",
+    "get_block_reason",
+    
+    # Encryption
+    "encrypt_api_key",
+    "decrypt_api_key",
+    "setup_vault_encryption",
+]
