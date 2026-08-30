@@ -1,0 +1,22 @@
+{
+  "name": "devcli",
+  "version": "1.0.0",
+  "description": "AI Coding Assistant CLI seperti Cursor/OpenCode",
+  "main": "index.js",
+  "bin": {
+    "devcli": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["ai", "cli", "coding", "assistant"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.0.0",
+    "inquirer": "^9.2.0",
+    "chalk": "^4.1.2",
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
