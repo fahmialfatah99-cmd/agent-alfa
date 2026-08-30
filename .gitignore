@@ -1,42 +1,17 @@
-```gitignore
+```
 # Compiled Python files
 *.pyc
 __pycache__/
 
-# Virtual environments
-venv/
-.venv/
-env/
+# Database files
+*.db
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.swp
+# Storage directories
+storage/traces/
+storage/runs/
 
 # Environment files
 .env
 .env.local
 *.env.*
-
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Distribution artifacts
-dist/
-build/
-*.egg-info/
-
-# Testing
-.pytest_cache/
-.mypy_cache/
 ```
