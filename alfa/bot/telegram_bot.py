@@ -581,10 +581,10 @@ class TelegramStreamer:
             return
 
         if (now - self.last_edit) >= self.min_edit_interval:
-            self.last_edit = now
             if self.message_id and not self.is_done:
                 if self._edit_task and not self._edit_task.done():
                     return
+                self.last_edit = now
                 draft_text = self.buffer + self.cursor
                 self._edit_task = asyncio.create_task(self._apply_edit(draft_text))
                 await asyncio.sleep(0)
