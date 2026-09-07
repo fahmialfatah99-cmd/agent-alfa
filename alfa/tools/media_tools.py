@@ -19,7 +19,6 @@ logger = logging.getLogger("AgentTools.Media")
 
 
 
-@register_tool(category="pdf")
 def get_pdf_output_dir(subfolder: str) -> str:
     """Returns absolute path to ~/Dokumen/ALFA_PDF_TOOLS/<subfolder>/ and ensures it exists."""
     home_dir = os.path.expanduser("~")

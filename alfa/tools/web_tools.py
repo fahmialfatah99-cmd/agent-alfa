@@ -610,8 +610,6 @@ def browser_use_autonomous_task(task_instruction: str, start_url: str = "https:/
         max_steps: Maximum autonomous steps allowed (default 5, max 15).
     """
     try:
-        from tools import fetch_web_page_content, web_search
-        
         search_query = task_instruction.replace("Search for", "").replace("Cari", "").strip()
         search_res = web_search(query=search_query, max_results=max_steps)
         
