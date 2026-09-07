@@ -328,7 +328,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        public_paths = ["/", "/health", "/api/auth/login", "/api/auth/register", "/docs", "/redoc", "/openapi.json"]
+        public_paths = ["/", "/static", "/health", "/api/auth/login", "/api/auth/register", "/docs", "/redoc", "/openapi.json"]
         if path == "/" or any(path.startswith(pp) for pp in public_paths if pp != "/"):
             return await call_next(request)
 
