@@ -68,12 +68,12 @@
 - Consumes: `gemini_client.aio.models.generate_content_stream()`, Telegram `context.bot.edit_message_text`.
 - Produces: `TelegramStreamer` class with rate-limit dampener (1.2s interval) and progressive draft streaming.
 
-- [ ] **Step 1: Write failing test in `tests/test_telegram_streamer.py` mocking progressive editing & rate-limit backoff**
-- [ ] **Step 2: Run pytest to verify test fails**
-- [ ] **Step 3: Implement `TelegramStreamer` in `alfa/bot/telegram_bot.py`**
-- [ ] **Step 4: Integrate streaming response into `run_agent_turn()` and `handle_text_message()`**
-- [ ] **Step 5: Run pytest and confirm all streaming tests pass**
-- [ ] **Step 6: Commit changes**
+- [x] **Step 1: Write failing test in `tests/test_telegram_streamer.py` mocking progressive editing & rate-limit backoff**
+- [x] **Step 2: Run pytest to verify test fails**
+- [x] **Step 3: Implement `TelegramStreamer` in `alfa/bot/telegram_bot.py`**
+- [x] **Step 4: Integrate streaming response into `run_agent_turn()` and `handle_text_message()`**
+- [x] **Step 5: Run pytest and confirm all streaming tests pass**
+- [x] **Step 6: Commit changes**
 
 ---
 
