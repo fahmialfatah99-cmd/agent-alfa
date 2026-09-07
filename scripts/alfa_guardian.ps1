@@ -1,5 +1,6 @@
 # ALFA Guardian — auto-heal bot & dashboard + alarm Telegram + rotasi log + cleanup disk
-$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
 $env:PYTHONUTF8 = "1"
 
 # ── Baca .env minimal ──
@@ -48,7 +49,7 @@ while ($true) {
         }
 
         if (-not $botUp -or -not $dashUp -or -not $routerUp) {
-            & powershell -NoProfile -ExecutionPolicy Bypass -File "$dir\start_alfa.ps1"
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptsDir\start_alfa.ps1"
             Start-Sleep -Seconds 15
             $botNew    = Test-Proc 'bot\.py'
             $dashNew   = Test-Proc 'web_dashboard\.py'
