@@ -49,12 +49,12 @@
 - Consumes: `agent_data.db` vector table, text queries.
 - Produces: `get_embedding(text)` with transparent local fallback, `semantic_search(user_id, query, top_k)` operating with 0 API cost and offline resilience.
 
-- [ ] **Step 1: Write failing test in `tests/test_local_vector_memory.py` for offline local embedding generation & search**
-- [ ] **Step 2: Run pytest to verify test fails without local fallback**
-- [ ] **Step 3: Implement lightweight local embedding engine and fallback in `vector_memory.py`**
-- [ ] **Step 4: Update `alfa/tools/memory_tools.py` to seamlessly leverage local embeddings**
-- [ ] **Step 5: Run pytest and confirm all vector tests pass**
-- [ ] **Step 6: Commit changes**
+- [x] **Step 1: Write failing test in `tests/test_local_vector_memory.py` for offline local embedding generation & search**
+- [x] **Step 2: Run pytest to verify test fails without local fallback**
+- [x] **Step 3: Implement lightweight local embedding engine and fallback in `vector_memory.py`**
+- [x] **Step 4: Update `alfa/tools/memory_tools.py` to seamlessly leverage local embeddings**
+- [x] **Step 5: Run pytest and confirm all vector tests pass**
+- [x] **Step 6: Commit changes**
 
 ---
 
