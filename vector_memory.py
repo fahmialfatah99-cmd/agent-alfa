@@ -4,23 +4,32 @@ Provides vector embeddings, semantic search, sliding-window chunking, and docume
 for permanent long-term memory across chat turns, documents, and research notes.
 """
 
+import collections
 import hashlib
 import json
 import logging
 import math
 import os
+import re
 import sqlite3
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 logger = logging.getLogger("VectorMemory")
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+DB_PATH = DEFAULT_DB_PATH
 
 
-def init_vector_db():
+def _resolve_db_path(custom_path: Optional[str] = None) -> str:
+    """Resolve database path, allowing callers and tests to supply an isolated DB path."""
+    return custom_path if custom_path is not None else DB_PATH
+
+
+def init_vector_db(db_path: Optional[str] = None):
     """Ensure vector knowledge table and indices exist in SQLite."""
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    target_path = _resolve_db_path(db_path)
+    conn = sqlite3.connect(target_path, timeout=10)
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS vector_knowledge_embeddings (
@@ -40,7 +49,7 @@ def init_vector_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);")
         conn.commit()
     except Exception as e:
-        logger.error(f"Failed to init vector db: {e}")
+        logger.error(f"Failed to init vector db ({target_path}): {e}")
     finally:
         conn.close()
 
@@ -50,41 +59,125 @@ init_vector_db()
 
 def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     """
-    High-quality deterministic subword & character n-gram hashing dense vectorizer.
-    Produces a normalized dense vector of dimension `dim` (default 768) for offline fallback.
+    High-quality deterministic subword & character n-gram hashing dense vectorizer
+    with positional dampening and BM25-style term frequency saturation.
+    Produces a normalized dense unit vector of dimension `dim` (default 768) for offline fallback.
     """
+    if not text or not text.strip():
+        return [0.0] * dim
+
     vec = np.zeros(dim, dtype=np.float32)
     clean_text = text.lower().strip()
-    words = clean_text.split()
-    
-    # 1. Word level hashing
-    for w in words:
+    words = re.findall(r"\b\w+\b", clean_text)
+    if not words:
+        return [0.0] * dim
+
+    total_words = len(words)
+    word_counts = collections.Counter(words)
+
+    # Track first seen position for positional weighting
+    first_seen: Dict[str, int] = {}
+    for idx, w in enumerate(words):
+        if w not in first_seen:
+            first_seen[w] = idx
+
+    # BM25 term frequency saturation parameters
+    k1 = 1.2
+    b = 0.75
+    avg_len = 30.0
+    len_norm = (1.0 - b) + b * (total_words / avg_len)
+
+    # 1. Word-level hashing with BM25 TF saturation and positional weighting
+    for w, count in word_counts.items():
+        tf_weight = (count * (k1 + 1.0)) / (count + k1 * len_norm)
+        pos = first_seen[w]
+        pos_weight = 1.0 + (0.5 / (1.0 + 0.08 * pos))
+        word_len_weight = math.log(max(1, len(w)) + 1.0)
+        combined_weight = tf_weight * pos_weight * word_len_weight
+
         h = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16)
-        idx = h % dim
+        bucket = h % dim
         sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0
-        vec[idx] += sign * (1.0 + math.log(len(w) + 1))
-        
-    # 2. Character 3-gram and 4-gram hashing
-    for n in (3, 4):
-        for i in range(max(0, len(clean_text) - n + 1)):
-            ngram = clean_text[i:i+n]
-            h = int(hashlib.sha256(ngram.encode("utf-8")).hexdigest(), 16)
-            idx = h % dim
-            sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0
-            vec[idx] += sign * 0.5
-            
-    # L2 normalize
+        vec[bucket] += sign * combined_weight
+
+        # 2. Subword character n-grams with word boundary tags
+        bounded_w = f"^{w}$"
+        w_n = len(bounded_w)
+        for n in (3, 4):
+            if w_n >= n:
+                for i in range(w_n - n + 1):
+                    ngram = bounded_w[i : i + n]
+                    h_ng = int(hashlib.sha256(ngram.encode("utf-8")).hexdigest(), 16)
+                    ng_bucket = h_ng % dim
+                    ng_sign = 1.0 if ((h_ng >> 8) % 2 == 0) else -1.0
+                    vec[ng_bucket] += ng_sign * (0.35 * tf_weight)
+
+    # L2 normalize to strictly unit length
     norm = np.linalg.norm(vec)
     if norm > 1e-6:
         vec = vec / norm
-    return vec.tolist()
+        return vec.tolist()
+    return [0.0] * dim
 
 
-def get_text_embedding(text: str) -> List[float]:
+def _attempt_local_library_embedding(text: str, dim: int = 768) -> Optional[List[float]]:
     """
-    Generate vector embedding using Gemini API (text-embedding-004 / gemini-embedding-001) if available,
-    otherwise fallback seamlessly to local dense subword vectorizer.
+    Attempt to use any installed local embedding library (fastembed, sentence_transformers, onnxruntime).
+    Returns normalized unit float vector if successful, or None.
     """
+    # 1. FastEmbed
+    try:
+        from fastembed import TextEmbedding
+        model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        embeddings = list(model.embed([text]))
+        if embeddings and len(embeddings) > 0:
+            vec = np.array(embeddings[0], dtype=np.float32)
+            if len(vec) != dim and dim > 0:
+                if len(vec) < dim:
+                    vec = np.pad(vec, (0, dim - len(vec)), "constant")
+                else:
+                    vec = vec[:dim]
+            norm = np.linalg.norm(vec)
+            if norm > 1e-6:
+                vec = vec / norm
+            return vec.tolist()
+    except Exception:
+        pass
+
+    # 2. Sentence Transformers
+    try:
+        from sentence_transformers import SentenceTransformer
+        st_model = SentenceTransformer("all-MiniLM-L6-v2")
+        emb = st_model.encode(text)
+        vec = np.array(emb, dtype=np.float32)
+        if len(vec) != dim and dim > 0:
+            if len(vec) < dim:
+                vec = np.pad(vec, (0, dim - len(vec)), "constant")
+            else:
+                vec = vec[:dim]
+        norm = np.linalg.norm(vec)
+        if norm > 1e-6:
+            vec = vec / norm
+        return vec.tolist()
+    except Exception:
+        pass
+
+    return None
+
+
+def get_text_embedding(text: str, dim: int = 768) -> List[float]:
+    """
+    Generate vector embedding using:
+    1. Local embedding model library if available (fastembed / sentence_transformers).
+    2. Gemini API (gemini-embedding-001 / text-embedding-004) if API key is present.
+    3. Deterministic local subword dense vectorizer as reliable zero-cost offline engine.
+    """
+    # 1. Attempt local embedding library
+    local_vec = _attempt_local_library_embedding(text, dim=dim)
+    if local_vec is not None:
+        return local_vec
+
+    # 2. Attempt Gemini API
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if api_key and api_key != "your_gemini_api_key_here":
         try:
@@ -94,22 +187,32 @@ def get_text_embedding(text: str) -> List[float]:
                 model="gemini-embedding-001",
                 contents=text
             )
+            raw_vals = None
             if hasattr(resp, "embedding") and hasattr(resp.embedding, "values"):
-                vec = np.array(resp.embedding.values, dtype=np.float32)
-                norm = np.linalg.norm(vec)
-                if norm > 1e-6:
-                    vec = vec / norm
-                return vec.tolist()
+                raw_vals = resp.embedding.values
             elif hasattr(resp, "embeddings") and len(resp.embeddings) > 0:
-                vec = np.array(resp.embeddings[0].values, dtype=np.float32)
+                raw_vals = resp.embeddings[0].values
+
+            if raw_vals is not None:
+                vec = np.array(raw_vals, dtype=np.float32)
+                if len(vec) != dim and dim > 0:
+                    if len(vec) < dim:
+                        vec = np.pad(vec, (0, dim - len(vec)), "constant")
+                    else:
+                        vec = vec[:dim]
                 norm = np.linalg.norm(vec)
                 if norm > 1e-6:
                     vec = vec / norm
                 return vec.tolist()
         except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
-            
-    return _local_subword_embedding(text, dim=768)
+
+    # 3. Deterministic local subword fallback
+    return _local_subword_embedding(text, dim=dim)
+
+
+# API alias
+get_embedding = get_text_embedding
 
 
 def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -168,13 +271,15 @@ def ingest_document(
     user_id: int, 
     title: str, 
     content_or_path: str, 
-    category: str = "general"
+    category: str = "general",
+    db_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Ingest a document (raw text or file path like .txt, .md, .pdf, .py, .csv, .json)
     into the vector database with chunking and embeddings.
     """
-    init_vector_db()
+    target_db = _resolve_db_path(db_path)
+    init_vector_db(target_db)
     source_type = "text"
     text_content = content_or_path.strip()
     
@@ -207,7 +312,7 @@ def ingest_document(
     # Reindex atomically in a single transaction: delete old chunks and insert
     # new ones together so a failure never leaves the document half-deleted.
     saved_count = 0
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(target_db, timeout=10)
     try:
         conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, title))
         for idx, chunk in enumerate(chunks):
@@ -250,19 +355,21 @@ def semantic_search(
     user_id: int, 
     query: str, 
     top_k: int = 5, 
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    db_path: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Perform fast cosine similarity semantic search across all stored vector knowledge chunks.
     """
-    init_vector_db()
+    target_db = _resolve_db_path(db_path)
+    init_vector_db(target_db)
     if not query.strip():
         return []
         
     query_emb = get_text_embedding(query)
     
     # Fetch candidate embeddings
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(target_db, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
         if category and category.strip() and category.lower() != "all":
@@ -306,11 +413,12 @@ def semantic_search(
     return scored_results[:top_k]
 
 
-def list_ingested_documents(user_id: int) -> List[Dict[str, Any]]:
+def list_ingested_documents(user_id: int, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
     """List summary of all documents currently ingested in Vector Brain."""
-    init_vector_db()
+    target_db = _resolve_db_path(db_path)
+    init_vector_db(target_db)
     docs = []
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = sqlite3.connect(target_db, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("""
@@ -334,10 +442,11 @@ def list_ingested_documents(user_id: int) -> List[Dict[str, Any]]:
     return docs
 
 
-def delete_document(user_id: int, doc_title: str) -> Dict[str, Any]:
+def delete_document(user_id: int, doc_title: str, db_path: Optional[str] = None) -> Dict[str, Any]:
     """Delete all chunks belonging to a document title."""
-    init_vector_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    target_db = _resolve_db_path(db_path)
+    init_vector_db(target_db)
+    conn = sqlite3.connect(target_db, timeout=10)
     try:
         cursor = conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, doc_title))
         deleted_count = cursor.rowcount
@@ -350,3 +459,37 @@ def delete_document(user_id: int, doc_title: str) -> Dict[str, Any]:
         "message": f"Dokumen '{doc_title}' ({deleted_count} chunks) berhasil dihapus dari Vector Brain.",
         "deleted_chunks": deleted_count
     }
+
+
+def save_to_vector_memory(
+    user_id: int,
+    title: str,
+    content: str,
+    category: str = "general",
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """Save content or note into vector memory (alias for ingest_document)."""
+    return ingest_document(
+        user_id=user_id,
+        title=title,
+        content_or_path=content,
+        category=category,
+        db_path=db_path
+    )
+
+
+def search_vector_memory(
+    user_id: int,
+    query: str,
+    top_k: int = 5,
+    category: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Search vector memory using semantic search (alias for semantic_search)."""
+    return semantic_search(
+        user_id=user_id,
+        query=query,
+        top_k=top_k,
+        category=category,
+        db_path=db_path
+    )
