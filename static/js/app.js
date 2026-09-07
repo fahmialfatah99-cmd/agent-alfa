@@ -2481,17 +2481,24 @@ async function startAiMeeting() {
         statusBadge.innerText = 'DISCUSSING & DEBATING...';
     }
 
-    dialogueContainer.classList.remove('hidden');
-    consensusBox.classList.add('hidden');
+    if (statusBadge) {
+        statusBadge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold animate-pulse';
+        statusBadge.innerText = 'DISCUSSING & DEBATING...';
+    }
+
+    if (dialogueContainer) dialogueContainer.classList.remove('hidden');
+    if (consensusBox) consensusBox.classList.add('hidden');
     if (execContainer) execContainer.classList.add('hidden');
 
-    transcriptFeed.innerHTML = `
-        <div class="p-6 flex flex-col items-center justify-center space-y-2 text-violet-300 text-xs font-mono">
-            <i data-lucide="loader" class="w-6 h-6 animate-spin text-violet-400"></i>
-            <span>${currentMeetingMode === 'execute' ? 'Membangunkan swarm agent dan mendistribusikan eksekusi tugas...' : 'Memanggil agent peserta rapat dan memulai perdebatan round-table...'}</span>
-        </div>
-    `;
-    lucide.createIcons();
+    if (transcriptFeed) {
+        transcriptFeed.innerHTML = `
+            <div class="p-6 flex flex-col items-center justify-center space-y-2 text-violet-300 text-xs font-mono">
+                <i data-lucide="loader" class="w-6 h-6 animate-spin text-violet-400"></i>
+                <span>${currentMeetingMode === 'execute' ? 'Membangunkan swarm agent dan mendistribusikan eksekusi tugas...' : 'Memanggil agent peserta rapat dan memulai perdebatan round-table...'}</span>
+            </div>
+        `;
+        if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+    }
 
     try {
         const res = await fetch('/api/meetings/start', {
@@ -2509,21 +2516,27 @@ async function startAiMeeting() {
         if (data.status === 'cancelled') {
             // Render hasil parsial lalu tandai sesi dibatalkan
             renderMeetingDialogue(data.dialogue_transcript || []);
-            document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
+            const countEl = document.getElementById('meeting-dialogue-count');
+            if (countEl) countEl.innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
             if (data.execution_results && data.execution_results.length > 0) {
                 renderSwarmExecutionResults(data.execution_results);
                 if (execContainer) execContainer.classList.remove('hidden');
             }
             const markedConsensusC = marked.parse(data.consensus || 'Eksekusi dibatalkan.');
-            document.getElementById('meeting-consensus-text').innerHTML = markedConsensusC;
-            document.getElementById('meeting-action-plan-text').innerHTML = '';
-            consensusBox.classList.remove('hidden');
-            statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-slate-500/20 text-slate-300 border border-slate-400/40 font-black';
-            statusBadge.innerText = 'DIBATALKAN ⏹';
+            const consText = document.getElementById('meeting-consensus-text');
+            if (consText) consText.innerHTML = markedConsensusC;
+            const actText = document.getElementById('meeting-action-plan-text');
+            if (actText) actText.innerHTML = '';
+            if (consensusBox) consensusBox.classList.remove('hidden');
+            if (statusBadge) {
+                statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-slate-500/20 text-slate-300 border border-slate-400/40 font-black';
+                statusBadge.innerText = 'DIBATALKAN ⏹';
+            }
             showToast('Eksekusi swarm dibatalkan. Hasil parsial tetap tersimpan.', 'warning');
         } else if (data.status === 'success') {
             renderMeetingDialogue(data.dialogue_transcript || []);
-            document.getElementById('meeting-dialogue-count').innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
+            const countEl = document.getElementById('meeting-dialogue-count');
+            if (countEl) countEl.innerText = `${(data.dialogue_transcript || []).length} Aksi Terkoordinasi`;
 
             // Render Live Execution Results if in Execution Mode
             if (data.mode === 'execute' && data.execution_results && data.execution_results.length > 0) {
@@ -2541,12 +2554,16 @@ async function startAiMeeting() {
 
             const markedConsensus = marked.parse(data.consensus || 'Tidak ada konsensus.');
             const markedAction = marked.parse(data.action_plan || '');
-            document.getElementById('meeting-consensus-text').innerHTML = markedConsensus;
-            document.getElementById('meeting-action-plan-text').innerHTML = markedAction;
-            consensusBox.classList.remove('hidden');
+            const consText = document.getElementById('meeting-consensus-text');
+            if (consText) consText.innerHTML = markedConsensus;
+            const actText = document.getElementById('meeting-action-plan-text');
+            if (actText) actText.innerHTML = markedAction;
+            if (consensusBox) consensusBox.classList.remove('hidden');
 
-            statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black shadow-glow-emerald';
-            statusBadge.innerText = data.mode === 'execute' ? 'EKSEKUSI SUKSES ⚡' : 'KONSENSUS TERCAPAI ✅';
+            if (statusBadge) {
+                statusBadge.className = 'px-3.5 py-1 text-xs font-mono rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-black shadow-glow-emerald';
+                statusBadge.innerText = data.mode === 'execute' ? 'EKSEKUSI SUKSES ⚡' : 'KONSENSUS TERCAPAI ✅';
+            }
 
             showToast(data.mode === 'execute' ? 'Swarm selesai mengeksekusi semua tugas langsung!' : 'Konferensi AI selesai & Action Plan berhasil dirumuskan!', 'success');
 
@@ -2554,17 +2571,17 @@ async function startAiMeeting() {
             document.getElementById('ai-virtual-hq')?.scrollIntoView({ behavior: 'smooth' });
             playHqMeetingAnimation(data.dialogue_transcript || [], data.consensus, data.action_plan, topic);
         } else {
-            transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Error: ${data.message || 'Gagal'}</div>`;
-            statusBadge.innerText = 'SESI ERROR';
+            if (transcriptFeed) transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Error: ${data.message || 'Gagal'}</div>`;
+            if (statusBadge) statusBadge.innerText = 'SESI ERROR';
         }
     } catch (err) {
-        transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Connection error: ${err.message}</div>`;
-        statusBadge.innerText = 'SESI ERROR';
+        if (transcriptFeed) transcriptFeed.innerHTML = `<div class="p-4 text-rose-400 font-mono text-xs">Connection error: ${err.message}</div>`;
+        if (statusBadge) statusBadge.innerText = 'SESI ERROR';
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         if (btnCancel) btnCancel.style.display = 'none';
         setMeetingMode(currentMeetingMode);
-        lucide.createIcons();
+        if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
     }
 }
 
