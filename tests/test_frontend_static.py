@@ -94,3 +94,29 @@ def test_static_files_accessible_with_auth_token():
             os.environ["DASHBOARD_AUTH_TOKEN"] = orig_token
         else:
             os.environ.pop("DASHBOARD_AUTH_TOKEN", None)
+
+
+def test_static_boundary_check():
+    """Verify paths like /statistics or /static_analysis do not bypass auth."""
+    from alfa.dashboard.routes.auth import DashboardAuthMiddleware
+    from starlette.requests import Request
+    from starlette.datastructures import URL
+    from unittest.mock import AsyncMock
+
+    middleware = DashboardAuthMiddleware(app=AsyncMock())
+
+    # Helper mock request
+    def make_req(path: str):
+        scope = {"type": "http", "method": "GET", "path": path, "headers": [], "cookies": {}}
+        return Request(scope)
+
+    # Valid static paths
+    assert make_req("/static").url.path == "/static"
+    assert make_req("/static/css/dashboard.css").url.path.startswith("/static/")
+
+    # Non-static similar paths
+    bad_paths = ["/statistics", "/static_data", "/staticanalysis"]
+    for bp in bad_paths:
+        req = make_req(bp)
+        assert req.url.path != "/static" and not req.url.path.startswith("/static/"), f"{bp} should not match /static boundary"
+

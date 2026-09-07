@@ -3,7 +3,7 @@
    ========================================================================== */
 
 let allToolsData = [];
-let activeCategory = all;
+let activeCategory = 'all';
 let currentModalTool = null;
 
 /**
