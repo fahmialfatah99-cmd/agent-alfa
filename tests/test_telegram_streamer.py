@@ -40,14 +40,14 @@ class TestTelegramStreamer:
         """Check default parameters and initial state of TelegramStreamer."""
         streamer = TelegramStreamer(context=mock_context, chat_id=999)
         assert streamer.chat_id == 999
-        assert streamer.initial_text == "💭 Sedang berpikir..."
+        assert streamer.initial_text is None
         assert streamer.min_edit_interval == 1.2
         assert streamer.message_id is None
         assert streamer.buffer == ""
         assert streamer.is_done is False
 
     def test_streamer_start_sends_placeholder(self, mock_context):
-        """start() sends placeholder message and stores message_id."""
+        """start() sends placeholder message and stores message_id when initial_text is provided."""
         streamer = TelegramStreamer(
             context=mock_context,
             chat_id=999,
@@ -62,11 +62,36 @@ class TestTelegramStreamer:
             text="Sedang mengetik...",
         )
 
+    def test_realtime_typing_without_placeholder_bubble(self, mock_context):
+        """Default streamer mode does NOT send dummy placeholder bubble; starts typing and sends on first text."""
+        streamer = TelegramStreamer(context=mock_context, chat_id=999)
+        _run(streamer.start())
+
+        # No dummy placeholder sent!
+        assert mock_context.bot.send_message.call_count == 0
+        assert streamer.message_id is None
+
+        # Real text chunk arrives
+        with patch("time.monotonic", return_value=200.0):
+            streamer.last_edit = 100.0
+            _run(streamer.push_chunk("Halo ini jawaban AI."))
+            # Now first real message is sent with content + cursor!
+            assert mock_context.bot.send_message.call_count == 1
+            assert streamer.message_id == 12345
+            sent_text = mock_context.bot.send_message.call_args[1]["text"]
+            assert "Halo ini jawaban AI. ▌" in sent_text
+
+        # Finalize delivers finished text without cursor
+        _run(streamer.finalize("Halo ini jawaban AI."))
+        assert streamer.is_done is True
+        assert mock_context.bot.edit_message_text.call_count == 1
+
     def test_push_chunk_rate_limit_throttling(self, mock_context):
         """push_chunk() throttles edits to respect min_edit_interval (e.g. 1.2s)."""
         streamer = TelegramStreamer(
             context=mock_context,
             chat_id=999,
+            initial_text="Sedang berpikir...",
             min_edit_interval=1.2,
         )
 
@@ -116,7 +141,7 @@ class TestTelegramStreamer:
         mock_context.bot.edit_message_text.side_effect = BadRequest(
             "Message is not modified: specified new message content and reply markup are exactly the same"
         )
-        streamer = TelegramStreamer(context=mock_context, chat_id=999, min_edit_interval=1.0)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...", min_edit_interval=1.0)
 
         current_time = 200.0
 
@@ -130,7 +155,7 @@ class TestTelegramStreamer:
     def test_swallow_message_to_edit_not_found(self, mock_context):
         """'Message to edit not found' Telegram BadRequest is safely caught without crash."""
         mock_context.bot.edit_message_text.side_effect = BadRequest("Message to edit not found")
-        streamer = TelegramStreamer(context=mock_context, chat_id=999, min_edit_interval=1.0)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...", min_edit_interval=1.0)
 
         current_time = 300.0
 
@@ -144,7 +169,7 @@ class TestTelegramStreamer:
     def test_rate_limit_retry_after_triggers_backoff(self, mock_context):
         """RetryAfter (HTTP 429) triggers safe backoff and delays subsequent edits."""
         mock_context.bot.edit_message_text.side_effect = RetryAfter(retry_after=5)
-        streamer = TelegramStreamer(context=mock_context, chat_id=999, min_edit_interval=1.0)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...", min_edit_interval=1.0)
 
         current_time = 400.0
 
@@ -177,7 +202,7 @@ class TestTelegramStreamer:
 
     def test_finalize_always_pushes_final_text(self, mock_context):
         """finalize() always pushes the final complete text without cursor, and marks done."""
-        streamer = TelegramStreamer(context=mock_context, chat_id=999)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...")
         _run(streamer.start())
 
         final_content = "Ini adalah kesimpulan akhir yang sangat rapi."
@@ -203,7 +228,7 @@ class TestTelegramStreamer:
             Exception("Network timeout on start"),
             MagicMock(message_id=99999),
         ]
-        streamer = TelegramStreamer(context=mock_context, chat_id=999)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...")
         msg_id = _run(streamer.start())
         assert msg_id is None
         assert streamer.message_id is None
@@ -217,7 +242,7 @@ class TestTelegramStreamer:
 
     def test_finalize_splits_long_message(self, mock_context):
         """If final text exceeds Telegram limits (>3900 chars), first chunk edits in place and remainder sends."""
-        streamer = TelegramStreamer(context=mock_context, chat_id=999)
+        streamer = TelegramStreamer(context=mock_context, chat_id=999, initial_text="Sedang berpikir...")
         _run(streamer.start())
 
         long_text = "A" * 4000 + "\n\n" + "B" * 500
@@ -243,7 +268,14 @@ class TestHandleTextMessageStreamingIntegration:
              patch("alfa.bot.telegram_bot.check_and_send_media_artifacts", new_callable=AsyncMock), \
              patch("alfa.bot.telegram_bot.database.get_user_settings", new_callable=AsyncMock, return_value={"voice_reply": False}):
 
-            mock_agent_turn.return_value = "Arsitektur bot menggunakan arsitektur modular event-driven."
+            async def fake_agent_turn(*args, **kwargs):
+                streamer = kwargs.get("streamer")
+                if streamer:
+                    await streamer.push_chunk("Arsitektur bot menggunakan ")
+                    await streamer.push_chunk("arsitektur modular event-driven.")
+                return "Arsitektur bot menggunakan arsitektur modular event-driven."
+
+            mock_agent_turn.side_effect = fake_agent_turn
 
             _run(handle_text_message(update, mock_context))
 
@@ -259,6 +291,29 @@ class TestHandleTextMessageStreamingIntegration:
             assert mock_context.bot.edit_message_text.called
             edit_text = mock_context.bot.edit_message_text.call_args[1]["text"]
             assert "Arsitektur bot menggunakan arsitektur modular event-driven." in edit_text
+
+    def test_handle_text_message_non_streaming_delivers_safely(self, mock_context):
+        """If run_agent_turn does not push chunks (e.g. non-streaming), finalize() safely delivers via safe_send_message."""
+        update = MagicMock()
+        update.message = MagicMock()
+        update.message.text = "Info sistem"
+        update.effective_user.id = 111
+        update.effective_chat.id = 222
+
+        with patch("alfa.bot.telegram_bot.is_authorized", return_value=True), \
+             patch("alfa.bot.telegram_bot.run_agent_turn", new_callable=AsyncMock) as mock_agent_turn, \
+             patch("alfa.bot.telegram_bot.check_and_send_media_artifacts", new_callable=AsyncMock), \
+             patch("alfa.bot.telegram_bot.database.get_user_settings", new_callable=AsyncMock, return_value={"voice_reply": False}):
+
+            mock_agent_turn.return_value = "Sistem berjalan normal tanpa streaming."
+
+            _run(handle_text_message(update, mock_context))
+
+            # Safe send message should be invoked since no chunks were pushed
+            assert mock_context.bot.send_message.called
+            sent_text = mock_context.bot.send_message.call_args[1]["text"]
+            assert "Sistem berjalan normal tanpa streaming." in sent_text
+
 
     def test_handle_text_message_fallback_on_streamer_failure(self, mock_context):
         """If TelegramStreamer fails, handle_text_message gracefully falls back to safe_send_message."""

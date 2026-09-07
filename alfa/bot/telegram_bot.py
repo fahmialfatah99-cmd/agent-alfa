@@ -493,19 +493,19 @@ async def send_typing_loop(
 
 class TelegramStreamer:
     """
-    Progressive draft streaming response engine for Telegram.
+    Progressive draft streaming and realtime typing engine for Telegram.
 
-    Buffers incoming text chunks and periodically edits a placeholder message
-    using a rate-limit dampener (default 1.2s minimum interval) to avoid Telegram
-    rate limits. Safely swallows non-fatal Telegram errors (e.g. 'Message is not modified',
-    'Message to edit not found') and handles RetryAfter (429) backoff.
+    Maintains native Telegram 'typing...' chat action while thinking/processing.
+    Does NOT send dummy placeholder bubbles (e.g. '💭 Sedang berpikir...').
+    When text chunks arrive, sends/edits real text progressively with rate-limit dampening.
+    Safely swallows non-fatal Telegram errors and handles RetryAfter (429) backoff.
     """
 
     def __init__(
         self,
         context: Any,
         chat_id: int,
-        initial_text: str = "💭 Sedang berpikir...",
+        initial_text: Optional[str] = None,
         min_edit_interval: float = 1.2,
     ):
         self.context = context
@@ -518,12 +518,24 @@ class TelegramStreamer:
         self.backoff_until: float = 0.0
         self.is_done: bool = False
         self._edit_task: Optional[asyncio.Task] = None
+        self._stop_typing: asyncio.Event = asyncio.Event()
+        self._typing_task: Optional[asyncio.Task] = None
         self.cursor: str = " ▌"
 
     async def start(self) -> Optional[int]:
-        """Send placeholder message and record message_id."""
+        """Start realtime typing loop and optional initial placeholder message."""
+        if self._typing_task is None or self._typing_task.done():
+            self._stop_typing.clear()
+            self._typing_task = asyncio.create_task(
+                send_typing_loop(self.chat_id, self.context, self._stop_typing, constants.ChatAction.TYPING)
+            )
+
         if self.message_id is not None:
             return self.message_id
+
+        if not self.initial_text:
+            return None
+
         try:
             msg = await self.context.bot.send_message(
                 chat_id=self.chat_id,
@@ -533,7 +545,7 @@ class TelegramStreamer:
             self.last_edit = time.monotonic()
             return self.message_id
         except Exception as e:
-            logger.warning(f"[TelegramStreamer] Gagal mengirim pesan placeholder: {e}")
+            logger.warning(f"[TelegramStreamer] Gagal mengirim pesan initial: {e}")
             self.message_id = None
             return None
 
@@ -568,8 +580,10 @@ class TelegramStreamer:
 
     async def push_chunk(self, chunk_text: str) -> None:
         """
-        Append text chunk to buffer. If min_edit_interval has passed and
-        no backoff is active, triggers edit_message_text in background.
+        Append text chunk to buffer.
+        If message_id is None, sends the first message with actual text once buffer has content,
+        and stops the typing action.
+        If message_id exists, edits draft with rate-limit dampening.
         """
         if self.is_done:
             return
@@ -580,8 +594,24 @@ class TelegramStreamer:
         if now < self.backoff_until:
             return
 
+        # If no message sent yet, send the first draft message once text is present
+        if not self.message_id:
+            if (now - self.last_edit) >= self.min_edit_interval and len(self.buffer.strip()) >= 1:
+                self._stop_typing.set()
+                self.last_edit = now
+                draft_text = self.buffer + self.cursor
+                try:
+                    msg = await self.context.bot.send_message(
+                        chat_id=self.chat_id,
+                        text=draft_text,
+                    )
+                    self.message_id = getattr(msg, "message_id", None)
+                except Exception as e:
+                    logger.warning(f"[TelegramStreamer] Gagal mengirim initial streaming message: {e}")
+            return
+
         if (now - self.last_edit) >= self.min_edit_interval:
-            if self.message_id and not self.is_done:
+            if not self.is_done:
                 if self._edit_task and not self._edit_task.done():
                     return
                 self.last_edit = now
@@ -591,14 +621,18 @@ class TelegramStreamer:
 
     async def finalize(self, final_text: Optional[str] = None) -> None:
         """
-        Send the final polished text (without cursor) and mark streamer as done.
-        If start() failed or message_id is None, falls back to safe_send_message.
-        If text exceeds Telegram chunk length (>3900 chars), edits first chunk in-place
-        and delivers remaining chunks safely.
+        Stop typing indicator, deliver the final complete text, and mark streamer as done.
+        If message_id is None, sends via safe_send_message directly.
         """
         if self.is_done:
             return
         self.is_done = True
+        self._stop_typing.set()
+        if self._typing_task and not self._typing_task.done():
+            try:
+                await self._typing_task
+            except Exception:
+                pass
 
         if self._edit_task and not self._edit_task.done():
             try:
@@ -1553,19 +1587,18 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_text = update.message.text.strip()
 
-    # Initialize progressive streamer
+    # Initialize progressive streamer with real-time typing indicator (NO placeholder bubble)
     streamer = None
+    stop_typing = None
+    typing_task = None
     try:
-        streamer = TelegramStreamer(context=context, chat_id=chat_id)
+        streamer = TelegramStreamer(context=context, chat_id=chat_id, initial_text=None)
         await streamer.start()
     except Exception as se:
         logger.warning(f"[TelegramStreamer] Start failed: {se}")
         streamer = None
 
-    # Fallback to typing action if streamer failed to start
-    stop_typing = None
-    typing_task = None
-    if not streamer or not streamer.message_id:
+    if not streamer:
         stop_typing = asyncio.Event()
         typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
 
@@ -1581,8 +1614,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             stop_typing.set()
             await typing_task
 
-    # Finalize streamer or send via safe_send_message fallback
-    if streamer and streamer.message_id:
+    # Finalize streamer (delivers final text and stops typing action)
+    if streamer:
         try:
             await streamer.finalize(reply)
         except Exception as fe:
