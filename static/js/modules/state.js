@@ -271,6 +271,8 @@ function updateClock() {
     const now = new Date();
     clockEl.innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
 }
+setInterval(updateClock, 1000);
+updateClock();
 
 // ==================== SESSION / AUTH STATE ====================
 

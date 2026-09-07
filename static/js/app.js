@@ -1590,11 +1590,12 @@ async function fetchAgents() {
     }
 }
 
-// ==================== VIRTUAL AI HEADQUARTERS & 3D WAR ROOM ====================
 let hqViewMode = 'war-room'; // 'war-room' or 'office'
-let hqSfxEnabled = true;
-let hqSpeedMultiplier = 1; // 1, 1.5, 2, or 99 (instant)
-// AudioContext and Cyber SFX synthesized effects modularized into /static/js/modules/audio.js
+let isMeetingAnimationPlaying = false;
+if (typeof window !== 'undefined') {
+    window.isMeetingAnimationPlaying = isMeetingAnimationPlaying;
+}
+// AudioContext, hqSfxEnabled, and hqSpeedMultiplier modularized into /static/js/modules/audio.js
 
 function setHqViewMode(mode) {
     if (!document.getElementById('ai-virtual-hq')) return;

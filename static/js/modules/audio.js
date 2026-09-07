@@ -214,7 +214,7 @@ class AudioVisualizer {
 /**
  * Helper class for recording audio blobs from microphone.
  */
-class ToolAudioRecorder {
+window.ToolAudioRecorder = window.ToolAudioRecorder || class ToolAudioRecorder {
     constructor() {
         this.mediaRecorder = null;
         this.audioChunks = [];
@@ -340,6 +340,8 @@ function stopSpeaking() {
 // ==================== GLOBAL & MODULE EXPORTS ====================
 
 window.audioCtx = audioCtx;
+window.hqSfxEnabled = hqSfxEnabled;
+window.hqSpeedMultiplier = hqSpeedMultiplier;
 window.getAudioContext = getAudioContext;
 window.playCyberBeep = playCyberBeep;
 window.playTurnStartSfx = playTurnStartSfx;
@@ -347,7 +349,6 @@ window.playConsensusSfx = playConsensusSfx;
 window.toggleHqSfx = toggleHqSfx;
 window.cycleHqSpeed = cycleHqSpeed;
 window.AudioVisualizer = AudioVisualizer;
-window.ToolAudioRecorder = ToolAudioRecorder;
 window.playToolAudio = playToolAudio;
 window.speakTextMessage = speakTextMessage;
 window.stopSpeaking = stopSpeaking;
@@ -360,7 +361,7 @@ window.AlfaAudio = {
     toggleHqSfx,
     cycleHqSpeed,
     AudioVisualizer,
-    ToolAudioRecorder,
+    ToolAudioRecorder: window.ToolAudioRecorder,
     playToolAudio,
     speakTextMessage,
     stopSpeaking
