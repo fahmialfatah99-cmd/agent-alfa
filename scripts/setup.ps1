@@ -1,11 +1,12 @@
-﻿# ==============================================================================
+# ==============================================================================
 # ALFA SOVEREIGN AI AGENT & TELEGRAM BOT - 1-CLICK WINDOWS SETUP WIZARD
 # ==============================================================================
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = "Stop"
-$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
 Set-Location $dir
 
 $env:PYTHONUTF8 = "1"
@@ -185,5 +186,5 @@ Write-Host ""
 $launchNow = Read-Host "👉 Ingin langsung menjalankan ALFA sekarang? (Y/n)"
 if ($launchNow -ne "n" -and $launchNow -ne "N") {
     Write-Host "[*] Meluncurkan ALFA Sovereign AI..." -ForegroundColor Green
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$dir\run.bat`"" -WorkingDirectory $dir
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$scriptsDir\run.bat`"" -WorkingDirectory $dir
 }

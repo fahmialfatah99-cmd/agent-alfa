@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
@@ -9,6 +9,9 @@ echo ===================================================
 echo   ALFA SOVEREIGN AI AGENT (Windows Launcher)
 echo ===================================================
 echo.
+
+:: Anchor working directory to repository root
+cd /d "%~dp0.."
 
 :: 1. Cek Virtual Environment & .env
 if not exist venv (

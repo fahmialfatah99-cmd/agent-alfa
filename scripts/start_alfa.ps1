@@ -1,5 +1,6 @@
 # Auto-start ALFA Bot + Dashboard + 9Router (aman dijalankan berulang)
-$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
 Set-Location $dir
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"

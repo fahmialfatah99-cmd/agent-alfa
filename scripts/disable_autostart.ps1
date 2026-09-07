@@ -1,10 +1,11 @@
-﻿# ==============================================================================
+# ==============================================================================
 # ALFA SOVEREIGN AI AGENT - NONAKTIFKAN AUTO-START WINDOWS
 # ==============================================================================
 [CmdletBinding()]
 param()
 
-$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
 Set-Location $dir
 
 Write-Host "==============================================================================" -ForegroundColor Cyan

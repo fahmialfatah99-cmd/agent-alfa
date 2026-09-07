@@ -1,10 +1,11 @@
-﻿# ==============================================================================
+# ==============================================================================
 # ALFA SOVEREIGN AI AGENT - AKTIVASI AUTO-START WINDOWS (24/7 AUTO-RUN & AUTO-HEAL)
 # ==============================================================================
 [CmdletBinding()]
 param()
 
-$dir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
 Set-Location $dir
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
@@ -15,10 +16,10 @@ Write-Host ""
 # 1. Buat Silent VBScript Launcher
 $vbsContent = @"
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$dir\alfa_guardian.ps1""", 0, False
+WshShell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$scriptsDir\alfa_guardian.ps1""", 0, False
 "@
 
-$vbsPath = "$dir\launch_guardian_hidden.vbs"
+$vbsPath = "$scriptsDir\launch_guardian_hidden.vbs"
 Set-Content -Path $vbsPath -Value $vbsContent -Encoding UTF8
 Write-Host "   [OK] File peluncur silent VBScript dibuat: $vbsPath" -ForegroundColor Green
 
@@ -45,7 +46,7 @@ try {
 # 4. Jalankan Guardian & Semua Layanan Sekarang
 Write-Host ""
 Write-Host "[*] Meluncurkan seluruh service ALFA secara instan di latar belakang..." -ForegroundColor Cyan
-& powershell -NoProfile -ExecutionPolicy Bypass -File "$dir\start_alfa.ps1"
+& powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptsDir\start_alfa.ps1"
 Start-Process -FilePath "wscript.exe" -ArgumentList "`"$vbsPath`"" -WorkingDirectory $dir -WindowStyle Hidden
 
 Write-Host ""
