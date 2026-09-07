@@ -300,8 +300,12 @@ function handleKeyDown(e) {
  * Initialize hotkey event listeners on the window.
  */
 function initHotkeys() {
-    window.removeEventListener('keydown', handleKeyDown);
-    window.addEventListener('keydown', handleKeyDown);
+    if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('keydown', handleKeyDown);
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('keydown', handleKeyDown);
+    }
 }
 
 // Auto-initialize when script loads

@@ -73,7 +73,7 @@ def test_index_html_includes_module_scripts():
 
 
 def test_javascript_syntax_validity():
-    """Verify JavaScript files have valid syntax using `node -c`."""
+    """Verify JavaScript files have valid syntax individually using `node -c`."""
     from alfa.dashboard.app import STATIC_DIR
 
     js_dir = Path(STATIC_DIR) / "js"
@@ -89,3 +89,92 @@ def test_javascript_syntax_validity():
             text=True
         )
         assert res.returncode == 0, f"Syntax error in {f.name}:\n{res.stderr}"
+
+
+def test_sequential_module_loading_in_shared_vm():
+    """Verify sequential execution of all frontend modules and app.js in a shared browser-like VM context.
+
+    Detects duplicate top-level lexical declarations (e.g. duplicate let/const/class)
+    which cause SyntaxError in browser environments, and checks for critical runtime variables.
+    """
+    from alfa.dashboard.app import STATIC_DIR
+
+    js_dir = Path(STATIC_DIR) / "js"
+    scripts = [
+        str(js_dir / "modules" / "state.js"),
+        str(js_dir / "modules" / "audio.js"),
+        str(js_dir / "modules" / "hotkeys.js"),
+        str(js_dir / "modules" / "telemetry.js"),
+        str(js_dir / "app.js"),
+    ]
+
+    node_eval_script = r"""
+const fs = require('fs');
+const vm = require('vm');
+
+const files = process.argv.slice(1);
+
+const sandbox = {
+    window: {},
+    document: {
+        documentElement: { classList: { contains: () => false, add: () => {}, remove: () => {} } },
+        getElementById: () => null,
+        querySelectorAll: () => [],
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        createElement: () => ({ classList: { add: () => {} }, setAttribute: () => {}, style: {} }),
+        body: { appendChild: () => {} }
+    },
+    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    navigator: { clipboard: { writeText: () => Promise.resolve() }, mediaDevices: {} },
+    fetch: () => Promise.resolve({ json: () => Promise.resolve({}) }),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    setInterval: () => 1,
+    setTimeout: () => 1,
+    console: console,
+    Chart: function() { return { update: () => {}, destroy: () => {} }; },
+    lucide: { createIcons: () => {} }
+};
+sandbox.window = sandbox;
+sandbox.window.addEventListener = () => {};
+sandbox.window.removeEventListener = () => {};
+
+const context = vm.createContext(sandbox);
+
+for (const file of files) {
+    const code = fs.readFileSync(file, 'utf8');
+    vm.runInContext(code, context, { filename: file });
+}
+
+// Assert critical state variables and functions exist in the shared scope
+const isAnimPlayingType = vm.runInContext('typeof isMeetingAnimationPlaying', context);
+if (isAnimPlayingType === 'undefined') {
+    throw new Error('isMeetingAnimationPlaying is not defined in shared context');
+}
+const hqSfxType = vm.runInContext('typeof hqSfxEnabled', context);
+if (hqSfxType === 'undefined') {
+    throw new Error('hqSfxEnabled is not defined in shared context');
+}
+const hqSpeedType = vm.runInContext('typeof hqSpeedMultiplier', context);
+if (hqSpeedType === 'undefined') {
+    throw new Error('hqSpeedMultiplier is not defined in shared context');
+}
+const clockType = vm.runInContext('typeof updateClock', context);
+if (clockType !== 'function') {
+    throw new Error('updateClock function is not defined in shared context');
+}
+
+console.log('SUCCESS: All scripts executed in shared VM context without duplicate declarations');
+"""
+
+    res = subprocess.run(
+        ["node", "-e", node_eval_script, *scripts],
+        capture_output=True,
+        text=True
+    )
+    assert res.returncode == 0, (
+        f"Shared VM execution failed (possible duplicate lexical declaration or missing variable):\n"
+        f"STDOUT: {res.stdout}\n"
+        f"STDERR: {res.stderr}"
+    )
