@@ -57,3 +57,7 @@ Thumbs.db
 
 # Coverage
 coverage/
+
+# Scratch & Worktrees
+.superpowers/
+.alfa_worktrees/
