@@ -84,7 +84,6 @@ def _check_docker_available() -> bool:
 
 
 
-@register_tool(category="system")
 def normalize_path(p: str) -> str:
     """Samakan path gaya Linux (/dev/shm/...) dengan lokasi fisiknya di Windows
     (C:\\dev\\shm\\...) dan rapikan pemisah campuran / vs \\. No-op di Linux."""
@@ -225,7 +224,6 @@ def _clean_code_snippet(code: str) -> str:
     return cleaned
 
 
-@register_tool(category="system")
 def generate_self_heal_hint(tool_name: str, error_msg: str, stdout: str = "", stderr: str = "") -> Optional[str]:
     """Analisis kegagalan eksekusi tool & hasilkan petunjuk pemulihan otomatis cerdas (Self-Heal Hint) bagi agen LLM."""
     combined = f"{error_msg} {stderr} {stdout}".lower()
@@ -463,7 +461,6 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
         return {"status": "error", "message": str(e), "isolation": "none"}
 
 
-@register_tool(category="system")
 def is_internal_sandbox_artifact(fname: str) -> bool:
     """True bila file adalah artefak infrastruktur sandbox (bukan hasil kerja
     untuk dikirim ke pengguna): skrip wrapper bash/python, Dockerfile,
@@ -481,7 +478,6 @@ def is_internal_sandbox_artifact(fname: str) -> bool:
     )
 
 
-@register_tool(category="system")
 def is_source_code_file(fname: str) -> bool:
     """True bila file adalah kode sumber — tidak usah dikirim mentah ke chat;
     hasil coding ditulis langsung di folder proyek lokal."""

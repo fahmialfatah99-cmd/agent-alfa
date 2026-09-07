@@ -238,12 +238,22 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# Module subclass to propagate monkeypatching of sandbox/docker attributes to system_tools
+# Module subclass to propagate monkeypatching across all domain submodules
 class _AlfaToolsModule(sys.modules[__name__].__class__):
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
-        if hasattr(system_tools, name):
-            setattr(system_tools, name, value)
+        for mod in (
+            system_tools,
+            filesystem_tools,
+            web_tools,
+            desktop_tools,
+            academic_tools,
+            media_tools,
+            memory_tools,
+            registry,
+        ):
+            if hasattr(mod, name):
+                setattr(mod, name, value)
 
 
 sys.modules[__name__].__class__ = _AlfaToolsModule
