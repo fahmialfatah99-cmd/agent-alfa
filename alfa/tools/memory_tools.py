@@ -64,7 +64,7 @@ def search_knowledge_memory(query: str) -> Dict[str, Any]:
 
 
 @register_tool(category="memory")
-def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "") -> Dict[str, Any]:
+def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "", db_path: Optional[str] = None) -> Dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: Performs semantic similarity search (Hybrid RAG) across all permanent
     knowledge embeddings, documents, research reports, and notes based on meaning/context.
@@ -73,11 +73,18 @@ def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "")
         query: Search query, question, or conceptual topic.
         top_k: Number of most relevant document chunks to return (default: 5).
         category: Optional category filter (e.g. 'bisnis', 'coding', 'personal', or empty for all).
+        db_path: Optional custom sqlite DB path for isolated environments.
     """
     try:
         import vector_memory
         user_id = current_user_id_var.get() or 0
-        results = vector_memory.semantic_search(user_id=user_id, query=query, top_k=top_k, category=category or None)
+        results = vector_memory.semantic_search(
+            user_id=user_id,
+            query=query,
+            top_k=top_k,
+            category=category or None,
+            db_path=db_path
+        )
         return {
             "status": "success",
             "query": query,
@@ -89,7 +96,26 @@ def semantic_search_vector_brain(query: str, top_k: int = 5, category: str = "")
 
 
 @register_tool(category="memory")
-def ingest_document_to_vector_brain(title: str, content_or_file_path: str, category: str = "general") -> Dict[str, Any]:
+def search_vector_memory(query: str, top_k: int = 5, category: str = "", db_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Search vector memory using semantic similarity search.
+    
+    Args:
+        query: Conceptual query or phrase to search for.
+        top_k: Number of most relevant results to return (default: 5).
+        category: Optional category filter.
+        db_path: Optional custom sqlite DB path for isolated environments.
+    """
+    return semantic_search_vector_brain(query=query, top_k=top_k, category=category, db_path=db_path)
+
+
+@register_tool(category="memory")
+def ingest_document_to_vector_brain(
+    title: str,
+    content_or_file_path: str,
+    category: str = "general",
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: Ingests, chunks, embeds, and indexes a document or local file 
     (.txt, .md, .pdf, .py, .csv, .json, or raw text) into the permanent Vector Brain database.
@@ -98,24 +124,55 @@ def ingest_document_to_vector_brain(title: str, content_or_file_path: str, categ
         title: Title / Label for the document.
         content_or_file_path: Raw text string OR absolute/relative file path to ingest.
         category: Knowledge category (e.g. 'bisnis', 'technical', 'finance', 'project').
+        db_path: Optional custom sqlite DB path for isolated environments.
     """
     try:
         import vector_memory
         user_id = current_user_id_var.get() or 0
-        return vector_memory.ingest_document(user_id=user_id, title=title, content_or_path=content_or_file_path, category=category)
+        return vector_memory.ingest_document(
+            user_id=user_id,
+            title=title,
+            content_or_path=content_or_file_path,
+            category=category,
+            db_path=db_path
+        )
     except Exception as e:
         return {"status": "error", "message": f"Document ingestion error: {str(e)}"}
 
 
 @register_tool(category="memory")
-def list_vector_brain_documents() -> Dict[str, Any]:
+def save_to_vector_memory(
+    title: str,
+    content: str,
+    category: str = "general",
+    db_path: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Save or ingest text, notes, or document into persistent vector memory for semantic search.
+    
+    Args:
+        title: Title / Label for the memory.
+        content: Raw text content to remember in vector memory.
+        category: Category tag (e.g. 'general', 'notes', 'technical', 'finance').
+        db_path: Optional custom sqlite DB path for isolated environments.
+    """
+    return ingest_document_to_vector_brain(
+        title=title,
+        content_or_file_path=content,
+        category=category,
+        db_path=db_path
+    )
+
+
+@register_tool(category="memory")
+def list_vector_brain_documents(db_path: Optional[str] = None) -> Dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: List all documents and files currently indexed in the Semantic Vector Brain.
     """
     try:
         import vector_memory
         user_id = current_user_id_var.get() or 0
-        docs = vector_memory.list_ingested_documents(user_id=user_id)
+        docs = vector_memory.list_ingested_documents(user_id=user_id, db_path=db_path)
         return {
             "status": "success",
             "total_documents": len(docs),
