@@ -740,6 +740,7 @@ class AlfaCLI(cmd.Cmd):
         
         res = self._request("GET", "/api/models")
         if res and res.status_code == 200:
+            data = res.json()
             models = data if isinstance(data, list) else data.get('models', [])
             print(f"\n{Colors.BOLD}🧠 Model AI Aktif:{Colors.ENDC}\n")
             for model in models:
