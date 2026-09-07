@@ -25,6 +25,9 @@ dash_out.log
 # Node dependencies
 node_modules/
 devcli/node_modules/
+package-lock.json
+alfa/package-lock.json
+alfa-cli/
 
 # Virtual environments
 .venv/
