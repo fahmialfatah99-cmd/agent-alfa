@@ -17,8 +17,8 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-import database
-import tools
+from alfa.core import database
+from alfa import tools
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
 
 system_router = APIRouter(tags=["system"])
@@ -636,7 +636,7 @@ async def workspace_read_file(path: str):
 @system_router.get("/api/artifacts/download")
 async def download_artifact(path: str):
     """Safely download an artifact file (restricted to known artifact directories)."""
-    import swarm_engine
+    from alfa.swarm import engine as swarm_engine
     import video_generator
     allowed_dirs = [
         os.path.realpath("/dev/shm/alfa_sandbox"),
@@ -755,7 +755,7 @@ async def delete_vault_secret(secret_id: int):
 @system_router.post("/api/security/audit")
 async def audit_target_security(payload: Dict[str, Any]):
     """Perform comprehensive defensive cybersecurity audit on a target URL."""
-    import security_auditor
+    from alfa.core import permissions as security_auditor
     target_url = payload.get("url", "").strip()
     if not target_url:
         return {"status": "error", "message": "URL target wajib dimasukkan."}
@@ -890,7 +890,7 @@ async def get_system_settings():
             pass
 
     try:
-        import main_brain as _mb
+        from alfa.core import brain as _mb
         brain = _mb.get_main_brain()
         main_brain_info = {
             "provider": brain["provider"],
@@ -1012,7 +1012,7 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
             (model,))
         conn.commit()
-    import main_brain as _mb
+    from alfa.core import brain as _mb
     brain = _mb.get_main_brain()
     return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
                            "key_id": brain["key_id"], "label": brain["label"]}}
@@ -1166,7 +1166,7 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
                     res["message"] += " Alpha Lead ikut tersinkron."
                     break
 
-        import main_brain as _mb
+        from alfa.core import brain as _mb
         brain = _mb.get_main_brain()
         res["main_brain"] = {
             "provider": brain["provider"],
@@ -1284,7 +1284,7 @@ async def update_system_settings(payload: Dict[str, Any]):
 @system_router.post("/api/scraper/universal")
 async def api_universal_scrape(payload: Dict[str, Any]):
     """Execute high-yield universal keyword scraper across specialized platforms."""
-    import universal_scraper
+    from alfa.scrapers import universal as universal_scraper
     query = payload.get("query", "").strip()
     category = payload.get("category", "all_marketplace")
     limit = safe_int(payload.get("limit", 50), 50, minimum=1, maximum=200)
@@ -1298,7 +1298,7 @@ async def api_universal_scrape(payload: Dict[str, Any]):
 @system_router.post("/api/scraper/custom-batch")
 async def api_custom_batch_scrape(payload: Dict[str, Any]):
     """Execute custom multi-URL batch scraper."""
-    import universal_scraper
+    from alfa.scrapers import universal as universal_scraper
     urls = payload.get("urls", [])
     concurrency = safe_int(payload.get("concurrency", 15), 15, minimum=1, maximum=50)
     use_camoufox = bool(payload.get("use_camoufox", False))
@@ -1312,7 +1312,7 @@ async def api_custom_batch_scrape(payload: Dict[str, Any]):
 @system_router.get("/api/scraper/batches")
 async def api_list_scraper_batches(limit: int = 15):
     """List recent master scraper batches."""
-    import universal_scraper
+    from alfa.scrapers import universal as universal_scraper
     batches = universal_scraper.list_all_scrape_batches(limit=limit)
     return {"status": "success", "batches": batches}
 
@@ -2181,7 +2181,7 @@ async def test_api_key_endpoint(key_id: int):
             raise HTTPException(status_code=404, detail="API Key tidak ditemukan")
         key_data = dict(row)
 
-    import swarm_engine
+    from alfa.swarm import engine as swarm_engine
     dummy_agent = {
         "name": f"Tester-{key_data['provider']}",
         "provider": key_data["provider"],
@@ -2542,7 +2542,7 @@ async def get_trace_detail_endpoint(trace_id: str):
 async def get_checkpoints_endpoint():
     """Ambil daftar checkpoint swarm yang dapat di-resume."""
     try:
-        from swarm_checkpoint import SwarmCheckpoint
+        from alfa.swarm.checkpoint import SwarmCheckpoint
         resumable = SwarmCheckpoint.list_resumable()
         return {"status": "success", "total": len(resumable), "checkpoints": resumable}
     except Exception as e:
@@ -2553,7 +2553,7 @@ async def get_checkpoints_endpoint():
 async def resume_checkpoint_endpoint(session_id: str):
     """Lanjutkan sesi swarm dari checkpoint."""
     try:
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         res = await swarm_engine.resume_swarm_session(session_id)
         return res
     except Exception as e:

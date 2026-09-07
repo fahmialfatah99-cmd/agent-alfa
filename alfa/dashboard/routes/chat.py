@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
-import database
-import tools
+from alfa.core import database
+from alfa import tools
 from alfa.dashboard.common import _get_bot, get_primary_user_id, logger
 
 chat_router = APIRouter(tags=["chat"])

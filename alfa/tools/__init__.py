@@ -9,7 +9,7 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-import database
+from alfa.core import database
 import plugins
 from alfa.core.runtime_ctx import (
     current_chat_id_var as current_chat_id_var,

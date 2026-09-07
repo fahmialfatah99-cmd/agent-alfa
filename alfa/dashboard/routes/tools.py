@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-import tools
+from alfa import tools
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger
 
 tools_router = APIRouter(tags=["tools"])

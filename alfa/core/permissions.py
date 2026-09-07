@@ -26,7 +26,6 @@ import json
 import logging
 import os
 import sqlite3
-import sys
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -36,8 +35,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 logger = logging.getLogger("PermissionGate")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 PROJECT_DIR = REPO_ROOT
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(PROJECT_DIR, "agent_data.db"))

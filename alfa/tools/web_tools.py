@@ -695,7 +695,7 @@ def universal_deep_scraper(query: str, category: str = "all_marketplace", limit:
         limit: Total items to harvest (default: 50, supports up to 200).
     """
     try:
-        import universal_scraper
+        from alfa.scrapers import universal as universal_scraper
         return universal_scraper.scrape_universal_keyword(query=query, category=category, limit=limit)
     except Exception as e:
         return {"status": "error", "message": f"Universal scraper error: {str(e)}"}
@@ -713,7 +713,7 @@ def scrape_custom_urls_batch(urls: List[str], concurrency: int = 15, use_camoufo
         use_camoufox: If True, uses Camoufox anti-detect stealth browser (for Cloudflare/JS-heavy pages).
     """
     try:
-        import universal_scraper
+        from alfa.scrapers import universal as universal_scraper
         return universal_scraper.scrape_custom_urls_or_selectors(urls=urls, concurrency=concurrency, use_camoufox=use_camoufox)
     except Exception as e:
         return {"status": "error", "message": f"Custom URL batch scraper error: {str(e)}"}
@@ -730,7 +730,7 @@ def scrape_real_product_data(url: str, engine: str = "auto") -> Dict[str, Any]:
         engine: Pilihan engine ('auto', 'camoufox', 'fast_tls').
     """
     try:
-        import fast_scraper
+        from alfa.scrapers import fast as fast_scraper
         if engine == "camoufox":
             return fast_scraper.scrape_with_camoufox(url)
         elif engine == "fast_tls":
@@ -764,7 +764,7 @@ def scrape_large_scale_batch(
         use_camoufox: True untuk menggunakan browser Camoufox Anti-Detect, False untuk Fast TLS engine.
     """
     try:
-        import fast_scraper
+        from alfa.scrapers import fast as fast_scraper
         return fast_scraper.run_batch_scrape(
             urls=urls,
             batch_name=batch_name,
@@ -787,7 +787,7 @@ def marketplace_search_products(query: str, platform: str = "shopee", max_items:
         max_items: Jumlah maksimal produk yang diambil (default: 15).
     """
     try:
-        import fast_scraper
+        from alfa.scrapers import fast as fast_scraper
         return fast_scraper.search_and_scrape_marketplace(
             query=query,
             platform=platform,
@@ -916,7 +916,7 @@ def audit_website_security(target_url: str) -> Dict[str, Any]:
         target_url: The URL or domain to audit (e.g. 'https://shopee.co.id', 'https://example.com').
     """
     try:
-        import security_auditor
+        from alfa.core import permissions as security_auditor
         return security_auditor.audit_website_security(target_url)
     except Exception as e:
         return {"status": "error", "message": f"Security audit error: {str(e)}"}

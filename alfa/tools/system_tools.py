@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import psutil
 from dotenv import load_dotenv
 
-import database
+from alfa.core import database
 import plugins
 from alfa.core.runtime_ctx import (
     current_chat_id_var,
@@ -1656,7 +1656,7 @@ def conduct_ai_meeting(topic: str, participants: str = "", rounds: int = 2, mode
     try:
         import concurrent.futures
 
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         part_list = [p.strip() for p in participants.split(",") if p.strip()] if participants else None
         rounds_clamped = max(1, min(3, int(rounds)))
         

@@ -21,14 +21,11 @@ import inspect
 import json
 import logging
 import os
-import sys
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("MainBrain")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 PROJECT_DIR = REPO_ROOT
 # Batas putaran tool-call per turn. Naik dari 8 -> 24 agar tugas kompleks
@@ -58,7 +55,7 @@ def get_main_brain(override_key_id: Optional[int] = None, override_model: Option
             "label": "ollama-local",
         }
 
-    import database
+    from alfa.core import database
     kid = override_key_id or database.get_main_brain_key_id()
     if kid:
         try:
@@ -177,7 +174,7 @@ def build_openai_tools(safe_only: bool = False) -> List[Dict[str, Any]]:
     file, sandbox eksekusi, dan memori — tanpa vault rahasia & kontrol desktop.
     """
     try:
-        import tools as t
+        from alfa import tools as t
         fns = [f for f in t.AVAILABLE_TOOLS if callable(f)]
     except Exception as e:
         logger.error(f"build_openai_tools gagal: {e}")
@@ -214,7 +211,7 @@ SAFE_TOOL_NAMES = {
 
 def _find_tool(name: str):
     try:
-        import tools as t
+        from alfa import tools as t
         for f in t.AVAILABLE_TOOLS:
             if getattr(f, "__name__", "") == name:
                 return f
@@ -271,7 +268,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
     # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)
     try:
-        import swarm_engine as _se
+        from alfa.swarm import engine as _se
         if getattr(_se, "MEETING_RUNNING", False):
             arg_hint = ", ".join(f"{k}={str(v)[:40]}" for k, v in
                                  list(args.items())[:2]) or "-"
@@ -324,7 +321,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
     # Laporkan hasil ke live feed juga
     try:
-        import swarm_engine as _se
+        from alfa.swarm import engine as _se
         if getattr(_se, "MEETING_RUNNING", False):
             _se.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
     except Exception:
