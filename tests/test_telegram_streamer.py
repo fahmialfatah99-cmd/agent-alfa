@@ -359,3 +359,25 @@ class TestRunAgentTurnStreaming:
             assert "Jawaban dari generate_content fallback" in result
             mock_gemini.aio.models.generate_content.assert_called_once()
 
+    def test_push_chunk_does_not_starve_when_task_in_flight(self, mock_context):
+        """Verify last_edit is NOT bumped when an edit task is in-flight, preventing starvation."""
+        streamer = TelegramStreamer(
+            context=mock_context,
+            chat_id=999,
+            min_edit_interval=1.0,
+        )
+        streamer.message_id = 42
+        streamer.last_edit = 100.0
+
+        # Create a mock pending task that is not done
+        pending_task = MagicMock()
+        pending_task.done.return_value = False
+        streamer._edit_task = pending_task
+
+        current_time = 101.5  # 1.5s elapsed (> 1.0s interval)
+        with patch("time.monotonic", return_value=current_time):
+            _run(streamer.push_chunk("new token"))
+            # Because task was pending, push_chunk returns without updating last_edit
+            assert streamer.last_edit == 100.0
+            assert streamer.buffer == "new token"
+

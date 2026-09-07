@@ -230,3 +230,90 @@ class TestLocalVectorMemory:
                     assert search_res["status"] == "success"
                     assert len(search_res["matches"]) == 1
                     mock_search.assert_called_once()
+
+    def test_schema_migration_includes_model_and_dimension(self, tmp_path):
+        """Verify vector database tables migrate safely and include model/dimension columns."""
+        test_db = str(tmp_path / "legacy_vector.db")
+        # Create legacy table without model or dimension
+        conn = sqlite3.connect(test_db)
+        conn.execute("""
+            CREATE TABLE vector_knowledge_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                doc_title TEXT NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                chunk_text TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                category TEXT DEFAULT 'general',
+                source_type TEXT DEFAULT 'text',
+                char_count INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        conn.close()
+
+        # Run init_vector_db migration
+        vector_memory.init_vector_db(db_path=test_db)
+
+        # Check columns
+        conn = sqlite3.connect(test_db)
+        cur = conn.execute("PRAGMA table_info(vector_knowledge_embeddings);")
+        col_names = [col[1] for col in cur.fetchall()]
+        conn.close()
+
+        assert "model" in col_names
+        assert "dimension" in col_names
+
+    def test_dimension_and_model_compatibility_prevents_mismatch(self, tmp_path):
+        """Verify semantic search filters out embeddings with mismatched dimensions or incompatible models."""
+        test_db = str(tmp_path / "compat_vector.db")
+        vector_memory.init_vector_db(db_path=test_db)
+
+        # Ingest doc1 with 768-dim embedding (local subword)
+        with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
+            vector_memory.ingest_document(
+                user_id=10,
+                title="Local Subword Doc",
+                content_or_path="Quantum computing and superposition algorithms.",
+                db_path=test_db,
+            )
+
+        # Ingest doc2 directly with 384-dim embedding simulating fastembed/MiniLM
+        vec_384 = [0.1] * 384
+        conn = sqlite3.connect(test_db)
+        conn.execute("""
+            INSERT INTO vector_knowledge_embeddings
+            (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, model, dimension, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (
+            10, "FastEmbed Doc", 0, "Deep learning neural network optimization.",
+            json.dumps(vec_384), "ai", "text", 50, "fastembed/bge-small-en-v1.5", 384
+        ))
+        conn.commit()
+        conn.close()
+
+        # Search with 768-dim query (local subword)
+        with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
+            results_768 = vector_memory.semantic_search(
+                user_id=10,
+                query="Quantum computing principles",
+                db_path=test_db
+            )
+            # Only the compatible 768-dim doc should be returned, NOT the 384-dim doc!
+            assert len(results_768) == 1
+            assert results_768[0]["doc_title"] == "Local Subword Doc"
+            assert results_768[0]["dimension"] == 768
+
+        # Search with 384-dim query (mocked local library)
+        mock_meta = ([0.1] * 384, "fastembed/bge-small-en-v1.5", 384)
+        with patch("vector_memory.get_text_embedding_with_meta", return_value=mock_meta):
+            results_384 = vector_memory.semantic_search(
+                user_id=10,
+                query="Neural networks",
+                db_path=test_db
+            )
+            # Only the compatible 384-dim doc should be returned, NOT the 768-dim doc!
+            assert len(results_384) == 1
+            assert results_384[0]["doc_title"] == "FastEmbed Doc"
+            assert results_384[0]["dimension"] == 384

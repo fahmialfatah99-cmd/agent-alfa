@@ -12,7 +12,7 @@ import math
 import os
 import re
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -42,11 +42,22 @@ def init_vector_db(db_path: Optional[str] = None):
                 category TEXT DEFAULT 'general',
                 source_type TEXT DEFAULT 'text',
                 char_count INTEGER DEFAULT 0,
+                model TEXT DEFAULT 'gemini',
+                dimension INTEGER DEFAULT 768,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        # Safe schema migration for pre-existing tables lacking model/dimension
+        cur = conn.execute("PRAGMA table_info(vector_knowledge_embeddings);")
+        columns = [row[1] for row in cur.fetchall()]
+        if "model" not in columns:
+            conn.execute("ALTER TABLE vector_knowledge_embeddings ADD COLUMN model TEXT DEFAULT 'gemini';")
+        if "dimension" not in columns:
+            conn.execute("ALTER TABLE vector_knowledge_embeddings ADD COLUMN dimension INTEGER DEFAULT 768;")
+
         conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_user_cat ON vector_knowledge_embeddings(user_id, category);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_model_dim ON vector_knowledge_embeddings(user_id, model, dimension);")
         conn.commit()
     except Exception as e:
         logger.error(f"Failed to init vector db ({target_path}): {e}")
@@ -120,62 +131,52 @@ def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     return [0.0] * dim
 
 
-def _attempt_local_library_embedding(text: str, dim: int = 768) -> Optional[List[float]]:
+def _attempt_local_library_embedding(text: str) -> Optional[Tuple[List[float], str, int]]:
     """
-    Attempt to use any installed local embedding library (fastembed, sentence_transformers, onnxruntime).
-    Returns normalized unit float vector if successful, or None.
+    Attempt to use any installed local embedding library (fastembed, sentence_transformers).
+    Returns (normalized_vector, model_name, dimension) if successful, or None.
     """
     # 1. FastEmbed
     try:
         from fastembed import TextEmbedding
-        model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
-        embeddings = list(model.embed([text]))
+        model_name = "BAAI/bge-small-en-v1.5"
+        fe_model = TextEmbedding(model_name=model_name)
+        embeddings = list(fe_model.embed([text]))
         if embeddings and len(embeddings) > 0:
             vec = np.array(embeddings[0], dtype=np.float32)
-            if len(vec) != dim and dim > 0:
-                if len(vec) < dim:
-                    vec = np.pad(vec, (0, dim - len(vec)), "constant")
-                else:
-                    vec = vec[:dim]
             norm = np.linalg.norm(vec)
             if norm > 1e-6:
                 vec = vec / norm
-            return vec.tolist()
+            return vec.tolist(), f"fastembed/{model_name}", len(vec)
     except Exception:
         pass
 
     # 2. Sentence Transformers
     try:
         from sentence_transformers import SentenceTransformer
-        st_model = SentenceTransformer("all-MiniLM-L6-v2")
+        st_name = "all-MiniLM-L6-v2"
+        st_model = SentenceTransformer(st_name)
         emb = st_model.encode(text)
         vec = np.array(emb, dtype=np.float32)
-        if len(vec) != dim and dim > 0:
-            if len(vec) < dim:
-                vec = np.pad(vec, (0, dim - len(vec)), "constant")
-            else:
-                vec = vec[:dim]
         norm = np.linalg.norm(vec)
         if norm > 1e-6:
             vec = vec / norm
-        return vec.tolist()
+        return vec.tolist(), f"sentence-transformers/{st_name}", len(vec)
     except Exception:
         pass
 
     return None
 
 
-def get_text_embedding(text: str, dim: int = 768) -> List[float]:
+def get_text_embedding_with_meta(text: str, dim: int = 768) -> Tuple[List[float], str, int]:
     """
-    Generate vector embedding using:
-    1. Local embedding model library if available (fastembed / sentence_transformers).
-    2. Gemini API (gemini-embedding-001 / text-embedding-004) if API key is present.
-    3. Deterministic local subword dense vectorizer as reliable zero-cost offline engine.
+    Generate vector embedding along with its model identifier and dimension.
+    Returns (vector, model_name, dimension).
     """
     # 1. Attempt local embedding library
-    local_vec = _attempt_local_library_embedding(text, dim=dim)
-    if local_vec is not None:
-        return local_vec
+    local_res = _attempt_local_library_embedding(text)
+    if local_res is not None:
+        return local_res
 
     # 2. Attempt Gemini API
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -183,10 +184,18 @@ def get_text_embedding(text: str, dim: int = 768) -> List[float]:
         try:
             from google import genai
             client = genai.Client(api_key=api_key)
-            resp = client.models.embed_content(
-                model="gemini-embedding-001",
-                contents=text
-            )
+            kwargs = {
+                "model": "gemini-embedding-001",
+                "contents": text
+            }
+            if dim and dim > 0:
+                try:
+                    from google.genai import types
+                    kwargs["config"] = types.EmbedContentConfig(output_dimensionality=dim)
+                except Exception:
+                    pass
+
+            resp = client.models.embed_content(**kwargs)
             raw_vals = None
             if hasattr(resp, "embedding") and hasattr(resp.embedding, "values"):
                 raw_vals = resp.embedding.values
@@ -195,24 +204,55 @@ def get_text_embedding(text: str, dim: int = 768) -> List[float]:
 
             if raw_vals is not None:
                 vec = np.array(raw_vals, dtype=np.float32)
-                if len(vec) != dim and dim > 0:
-                    if len(vec) < dim:
-                        vec = np.pad(vec, (0, dim - len(vec)), "constant")
-                    else:
+                if dim and dim > 0 and len(vec) != dim:
+                    if len(vec) > dim:
                         vec = vec[:dim]
+                    else:
+                        vec = np.pad(vec, (0, dim - len(vec)), "constant")
                 norm = np.linalg.norm(vec)
                 if norm > 1e-6:
                     vec = vec / norm
-                return vec.tolist()
+                return vec.tolist(), "gemini-embedding-001", len(vec)
         except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
 
     # 3. Deterministic local subword fallback
-    return _local_subword_embedding(text, dim=dim)
+    subword_vec = _local_subword_embedding(text, dim=dim)
+    return subword_vec, "local-subword-bm25", dim
+
+
+def get_text_embedding(text: str, dim: int = 768) -> List[float]:
+    """
+    Generate vector embedding using:
+    1. Local embedding model library if available (fastembed / sentence_transformers).
+    2. Gemini API (gemini-embedding-001) if API key is present.
+    3. Deterministic local subword dense vectorizer as reliable zero-cost offline engine.
+    """
+    vec, _model, _dim = get_text_embedding_with_meta(text, dim=dim)
+    return vec
 
 
 # API alias
 get_embedding = get_text_embedding
+
+
+def _are_models_compatible(model_a: Optional[str], model_b: Optional[str], dim_a: int, dim_b: int) -> bool:
+    """Check if two embedding models and dimensions are compatible for cosine similarity."""
+    if dim_a != dim_b:
+        return False
+    if not model_a or not model_b:
+        return True
+    norm_a = model_a.lower().strip()
+    norm_b = model_b.lower().strip()
+    if norm_a == norm_b:
+        return True
+    if ("subword" in norm_a or norm_a == "local") and ("subword" in norm_b or norm_b == "local"):
+        return True
+    if "gemini" in norm_a and "gemini" in norm_b:
+        return True
+    if "fastembed" in norm_a and "fastembed" in norm_b:
+        return True
+    return False
 
 
 def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
@@ -316,11 +356,11 @@ def ingest_document(
     try:
         conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, title))
         for idx, chunk in enumerate(chunks):
-            emb = get_text_embedding(chunk)
+            emb, emb_model, emb_dim = get_text_embedding_with_meta(chunk)
             conn.execute("""
                 INSERT INTO vector_knowledge_embeddings
-                (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, model, dimension, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (
                 user_id, 
                 title, 
@@ -329,7 +369,9 @@ def ingest_document(
                 json.dumps(emb), 
                 category, 
                 source_type, 
-                len(chunk)
+                len(chunk),
+                emb_model,
+                emb_dim
             ))
             saved_count += 1
         conn.commit()
@@ -339,7 +381,7 @@ def ingest_document(
     finally:
         conn.close()
         
-    logger.info(f"Ingested '{title}' ({saved_count} chunks, category: {category}) into Vector Brain for user {user_id}")
+    logger.info(f"Ingested '{title}' ({saved_count} chunks, category: {category}, model: {emb_model}) into Vector Brain for user {user_id}")
     return {
         "status": "success",
         "message": f"Dokumen '{title}' berhasil diindeks ke dalam Vector Brain ({saved_count} chunks, kategori: {category})!",
@@ -360,13 +402,15 @@ def semantic_search(
 ) -> List[Dict[str, Any]]:
     """
     Perform fast cosine similarity semantic search across all stored vector knowledge chunks.
+    Only compares embeddings with compatible models and matching dimensions to prevent
+    mathematically invalid cross-model comparisons.
     """
     target_db = _resolve_db_path(db_path)
     init_vector_db(target_db)
     if not query.strip():
         return []
         
-    query_emb = get_text_embedding(query)
+    query_emb, query_model, query_dim = get_text_embedding_with_meta(query)
     
     # Fetch candidate embeddings
     conn = sqlite3.connect(target_db, timeout=10)
@@ -374,13 +418,13 @@ def semantic_search(
         conn.row_factory = sqlite3.Row
         if category and category.strip() and category.lower() != "all":
             rows = conn.execute("""
-                SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at
+                SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at, model, dimension
                 FROM vector_knowledge_embeddings
                 WHERE user_id = ? AND category = ?
             """, (user_id, category.strip())).fetchall()
         else:
             rows = conn.execute("""
-                SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at
+                SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at, model, dimension
                 FROM vector_knowledge_embeddings
                 WHERE user_id = ?
             """, (user_id,)).fetchall()
@@ -394,6 +438,15 @@ def semantic_search(
     for r in rows:
         try:
             stored_emb = json.loads(r["embedding_json"])
+            row_keys = r.keys()
+            row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else len(stored_emb)
+            row_model = r["model"] if ("model" in row_keys and r["model"]) else None
+
+            # Enforce dimension and model compatibility:
+            # Skip candidate if dimensions mismatch or models are incompatible
+            if not _are_models_compatible(query_model, row_model, query_dim, row_dim):
+                continue
+
             sim = cosine_similarity(query_emb, stored_emb)
             scored_results.append({
                 "id": r["id"],
@@ -403,6 +456,8 @@ def semantic_search(
                 "similarity_score": round(sim, 4),
                 "category": r["category"],
                 "source_type": r["source_type"],
+                "model": row_model or query_model,
+                "dimension": row_dim,
                 "created_at": r["created_at"]
             })
         except Exception as parse_err:
