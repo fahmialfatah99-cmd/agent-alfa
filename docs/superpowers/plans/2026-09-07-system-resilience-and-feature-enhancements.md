@@ -92,14 +92,14 @@
 - Consumes: Alpine.js global store, browser Web Audio API, Chart.js.
 - Produces: Modularized JS architecture under 1,500 lines per module, clean dependency graph.
 
-- [ ] **Step 1: Write failing test in `tests/test_frontend_modules.py` verifying all modules are served and syntactically valid**
-- [ ] **Step 2: Extract `state.js` (Alpine reactive store & session variables)**
-- [ ] **Step 3: Extract `audio.js` (Visualizer, mic recorder, TTS playback)**
-- [ ] **Step 4: Extract `hotkeys.js` (Keyboard navigation & shortcut modal)**
-- [ ] **Step 5: Extract `telemetry.js` (Hardware graphs & WebSocket live monitors)**
-- [ ] **Step 6: Slim down `static/js/app.js` into clean orchestrator**
-- [ ] **Step 7: Update `templates/index.html` script tags and verify test suite passes**
-- [ ] **Step 8: Commit changes**
+- [x] **Step 1: Write failing test in `tests/test_frontend_modules.py` verifying all modules are served and syntactically valid**
+- [x] **Step 2: Extract `state.js` (Alpine reactive store & session variables)**
+- [x] **Step 3: Extract `audio.js` (Visualizer, mic recorder, TTS playback)**
+- [x] **Step 4: Extract `hotkeys.js` (Keyboard navigation & shortcut modal)**
+- [x] **Step 5: Extract `telemetry.js` (Hardware graphs & WebSocket live monitors)**
+- [x] **Step 6: Slim down `static/js/app.js` into clean orchestrator**
+- [x] **Step 7: Update `templates/index.html` script tags and verify test suite passes**
+- [x] **Step 8: Commit changes**
 
 ---
 
