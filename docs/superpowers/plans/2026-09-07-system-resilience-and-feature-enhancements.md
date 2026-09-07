@@ -130,8 +130,8 @@
 - Verify: Full codebase & all running services
 - Test: `tests/`
 
-- [ ] **Step 1: Run complete pytest suite: `./venv/bin/pytest tests/ -v`**
-- [ ] **Step 2: Restart and verify systemd user services: `alfa-dashboard.service`, `telegram-ai-bot.service`, `wa-sheets-bot.service`**
-- [ ] **Step 3: Verify HTTP 200 on `http://127.0.0.1:8080/` and `http://127.0.0.1:3000/health`**
-- [ ] **Step 4: Verify SQLite database `agent_data.db` integrity**
-- [ ] **Step 5: Final code review & merge preparation**
+- [x] **Step 1: Run complete pytest suite: `./venv/bin/pytest tests/ -v`**
+- [x] **Step 2: Restart and verify systemd user services: `alfa-dashboard.service`, `telegram-ai-bot.service`, `wa-sheets-bot.service`**
+- [x] **Step 3: Verify HTTP 200 on `http://127.0.0.1:8080/` and `http://127.0.0.1:3000/health`**
+- [x] **Step 4: Verify SQLite database `agent_data.db` integrity**
+- [x] **Step 5: Final code review & merge preparation**
