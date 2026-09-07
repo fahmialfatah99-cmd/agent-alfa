@@ -96,11 +96,13 @@ exclude = '''
 [tool.ruff]
 line-length = 88
 target-version = "py310"
-select = ["E", "F", "B", "W", "I", "N", "UP", "YTT"]
-ignore = ["E501", "B006"]
 exclude = [".git", ".venv", "venv", "__pycache__", "build", "dist"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint]
+select = ["E", "F", "B", "W", "I", "N", "UP", "YTT"]
+ignore = ["E501", "B006"]
+
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "PLR2004"]
 "*_test.py" = ["S101"]
 
