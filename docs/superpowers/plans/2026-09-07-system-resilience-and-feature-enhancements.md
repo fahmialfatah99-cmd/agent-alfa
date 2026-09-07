@@ -115,12 +115,12 @@
 - Consumes: Swarm session events from `alfa/swarm/engine.py`.
 - Produces: Interactive visual debate stage in Web Dashboard Swarm tab with agent cards, active speaker glow, and consensus progress bar.
 
-- [ ] **Step 1: Write failing test in `tests/test_swarm_visualizer.py` validating Swarm live event payload formatting**
-- [ ] **Step 2: Enhance `alfa/dashboard/routes/swarm.py` to stream structured visual debate events**
-- [ ] **Step 3: Add Swarm Live Arena HTML component in `templates/index.html`**
-- [ ] **Step 4: Add real-time visualizer state handlers in frontend JS**
-- [ ] **Step 5: Run pytest to verify endpoint tests pass**
-- [ ] **Step 6: Commit changes**
+- [x] **Step 1: Write failing test in `tests/test_swarm_visualizer.py` validating Swarm live event payload formatting**
+- [x] **Step 2: Enhance `alfa/dashboard/routes/swarm.py` to stream structured visual debate events**
+- [x] **Step 3: Add Swarm Live Arena HTML component in `templates/index.html`**
+- [x] **Step 4: Add real-time visualizer state handlers in frontend JS**
+- [x] **Step 5: Run pytest to verify endpoint tests pass**
+- [x] **Step 6: Commit changes**
 
 ---
 
