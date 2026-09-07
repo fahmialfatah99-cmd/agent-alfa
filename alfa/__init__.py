@@ -6,6 +6,7 @@ Modules:
     - core: Main reasoning engine, tool RAG, brain routing
     - scrapers: Multi-tier stealth web scraping engines
     - swarm: Autonomous multi-agent orchestration
+    - bot: Telegram AI agent and interface handlers
     - security: Security utilities and configurations
     - cli: Command-line interface for ALFA Agent
 
@@ -20,4 +21,4 @@ Usage:
 
 __version__ = "2.5.0"
 __author__ = "Fahmi Alfatah"
-__all__ = ["core", "scrapers", "swarm", "security", "cli"]
+__all__ = ["core", "scrapers", "swarm", "bot", "security", "cli"]

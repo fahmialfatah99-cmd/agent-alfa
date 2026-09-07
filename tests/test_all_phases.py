@@ -12,6 +12,7 @@ import alfa.core
 import alfa.security
 import alfa.swarm
 import alfa.scrapers
+import alfa.bot
 
 
 def test_alfa_modular_package_structure():
@@ -21,6 +22,7 @@ def test_alfa_modular_package_structure():
     assert hasattr(alfa, "security")
     assert hasattr(alfa, "swarm")
     assert hasattr(alfa, "scrapers")
+    assert hasattr(alfa, "bot")
 
 
 def test_ollama_offline_mode_main_brain(monkeypatch):
