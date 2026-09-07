@@ -8,7 +8,9 @@ import sys
 import tempfile
 import sqlite3
 
-sys.path.insert(0, '/workspace')
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def test_dashboard_auth_requirement():
     """Test 1: Dashboard menolak start tanpa token saat binding ke 0.0.0.0"""
@@ -22,8 +24,8 @@ def test_dashboard_auth_requirement():
         os.environ['DASHBOARD_HOST'] = '0.0.0.0'
         
         import importlib
-        import web_dashboard
         try:
+            import web_dashboard
             importlib.reload(web_dashboard)
             print("  FAIL: Seharusnya raise RuntimeError")
             return False
@@ -36,6 +38,7 @@ def test_dashboard_auth_requirement():
         
         os.environ['DASHBOARD_AUTH_TOKEN'] = 'testtoken123'
         os.environ['DASHBOARD_HOST'] = '0.0.0.0'
+        import web_dashboard
         importlib.reload(web_dashboard)
         print("  PASS: Dashboard start OK dengan token")
         
@@ -130,7 +133,8 @@ def test_env_documentation():
     """Test 3: Dokumentasi .env.example sudah diperbaiki"""
     print("\n[TEST 3] Dokumentasi .env.example...")
     
-    with open('/workspace/.env.example', 'r') as f:
+    env_path = Path(__file__).resolve().parents[1] / ".env.example"
+    with open(env_path, "r") as f:
         content = f.read()
     
     checks = [
@@ -148,6 +152,7 @@ def test_env_documentation():
             print(f"  FAIL: {description} - teks '{check_str}' tidak ditemukan")
             all_pass = False
     
+    assert all_pass, "Beberapa dokumentasi .env.example tidak ditemukan"
     return all_pass
 
 

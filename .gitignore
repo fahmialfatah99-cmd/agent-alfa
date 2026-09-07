@@ -13,6 +13,8 @@ htmlcov/
 *.db
 *.db-shm
 *.db-wal
+agent_data.db.bak
+agent_data.db.local_backup
 storage/
 guardian_err.log
 bot_err.log
@@ -43,6 +45,8 @@ dist/
 *.env.*
 *.key
 .alfa_vault_master.key
+gdrive_oauth_client_secret.json
+gdrive_oauth_token.json
 
 # Editors
 .vscode/
