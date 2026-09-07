@@ -487,3 +487,55 @@ html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
 .cv-in:hover, .cv-out:hover { background: #22d3ee; box-shadow: 0 0 8px #22d3ee88; }
 .cv-node { z-index: 2; width: 15rem; }
 #cv-svg { z-index: 1; }
+
+/* ==========================================================================
+   SWARM LIVE ARENA VISUALIZER STYLES
+   ========================================================================== */
+.agent-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.agent-card.is-speaking {
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px -3px rgba(34, 211, 238, 0.4), 0 0 10px 1px rgba(168, 85, 247, 0.3);
+    border-color: rgba(34, 211, 238, 0.8) !important;
+    animation: speaker-pulse 2s infinite ease-in-out;
+}
+
+@keyframes speaker-pulse {
+    0%, 100% {
+        box-shadow: 0 0 20px -2px rgba(34, 211, 238, 0.45), 0 0 0 1px rgba(34, 211, 238, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 35px 2px rgba(168, 85, 247, 0.55), 0 0 0 3px rgba(168, 85, 247, 0.7);
+    }
+}
+
+.stage-pill {
+    transition: all 0.25s ease;
+}
+
+.stage-pill.is-active-stage {
+    background: rgba(34, 211, 238, 0.15) !important;
+    border-color: rgba(34, 211, 238, 0.7) !important;
+    color: #67e8f9 !important;
+    box-shadow: 0 0 15px -2px rgba(34, 211, 238, 0.4);
+    font-weight: 700;
+}
+
+.stage-pill.is-completed-stage {
+    background: rgba(16, 185, 129, 0.12) !important;
+    border-color: rgba(16, 185, 129, 0.5) !important;
+    color: #6ee7b7 !important;
+}
+
+.agent-quote-bubble {
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.agent-card.is-speaking .agent-quote-bubble {
+    border-color: rgba(34, 211, 238, 0.35);
+    background: rgba(15, 23, 42, 0.75);
+}
+
