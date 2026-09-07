@@ -182,3 +182,35 @@ class TestErrorPropagation:
         assert "Code Crafter" in ctx
         assert "System Auditor" in ctx
         assert "Port 8080" in ctx
+
+
+class TestModularSwarmAndBotShims:
+    def test_swarm_engine_shim_and_package(self):
+        import alfa.swarm.engine
+        assert hasattr(alfa.swarm.engine, "conduct_multi_agent_meeting")
+        assert hasattr(swarm_engine, "conduct_multi_agent_meeting")
+        assert swarm_engine.conduct_multi_agent_meeting is alfa.swarm.engine.conduct_multi_agent_meeting
+
+    def test_swarm_checkpoint_shim_and_package(self):
+        import alfa.swarm.checkpoint
+        import swarm_checkpoint
+        assert hasattr(alfa.swarm.checkpoint, "SwarmCheckpoint")
+        assert hasattr(swarm_checkpoint, "SwarmCheckpoint")
+        assert swarm_checkpoint.SwarmCheckpoint is alfa.swarm.checkpoint.SwarmCheckpoint
+
+    def test_swarm_personas_shim_and_package(self):
+        import alfa.swarm.personas
+        import swarm_personas
+        assert hasattr(alfa.swarm.personas, "AGENTS")
+        assert hasattr(swarm_personas, "AGENTS")
+        assert swarm_personas.AGENTS is alfa.swarm.personas.AGENTS
+
+    def test_bot_shim_and_package(self):
+        import alfa.bot.telegram_bot
+        import bot
+        assert hasattr(alfa.bot.telegram_bot, "main")
+        assert hasattr(bot, "main")
+        assert hasattr(bot, "run_agent_turn")
+        assert hasattr(bot, "safe_send_message")
+        assert bot.main is alfa.bot.telegram_bot.main
+
