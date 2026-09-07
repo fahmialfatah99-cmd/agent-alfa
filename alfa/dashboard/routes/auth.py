@@ -84,8 +84,14 @@ def _verify_session_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+_auth_db_initialized = False
+
+
 def init_auth_db():
     """Inisialisasi tabel users dan sessions di database."""
+    global _auth_db_initialized
+    if _auth_db_initialized:
+        return
     import database as db
     conn = db.get_connection_pool().acquire()
     try:
@@ -124,6 +130,7 @@ def init_auth_db():
             CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON dashboard_sessions(expires_at)
         """)
         conn.commit()
+        _auth_db_initialized = True
         logger.info("Auth database tables initialized successfully")
     finally:
         db.get_connection_pool().release(conn)
@@ -312,10 +319,6 @@ def delete_user(user_id: int) -> bool:
         return cursor.rowcount > 0
     finally:
         db.get_connection_pool().release(conn)
-
-
-# Inisialisasi auth database saat startup
-init_auth_db()
 
 
 class DashboardAuthMiddleware(BaseHTTPMiddleware):

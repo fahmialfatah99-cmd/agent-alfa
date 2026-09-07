@@ -95,6 +95,10 @@ async def _malloc_trim_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
+    try:
+        init_auth_db()
+    except Exception as e:
+        logger.error(f"Gagal inisialisasi auth database di lifespan startup: {e}")
     asyncio.create_task(_pipeline_trigger_scheduler())
     asyncio.create_task(_malloc_trim_loop())
     yield
@@ -202,15 +206,13 @@ def create_app() -> FastAPI:
     return app_instance
 
 
-# Top-level security check at module import/reload
-_check_security_config()
-
-# Global FastAPI instance
+# Global FastAPI instance (create_app() runs _check_security_config())
 app = create_app()
 
 __all__ = [
     "app",
     "create_app",
+    "_check_security_config",
     "lifespan",
     "_pipeline_trigger_scheduler",
     "_malloc_trim_loop",

@@ -9,20 +9,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 def test_dashboard_package_import():
     """Verify alfa.dashboard imports and exposes FastAPI app."""
     import alfa.dashboard
-    import alfa.dashboard.app as dash_app
-    from alfa.dashboard.app import app
+    from alfa.dashboard import app as app_from_pkg, get_app, create_app
+    from alfa.dashboard.app import app as app_from_mod
 
-    assert isinstance(app, FastAPI)
-    assert app.title == "ALFA Sovereign Command Center Pro-Max"
-    assert dash_app.app is app
+    assert isinstance(app_from_pkg, FastAPI)
+    assert app_from_pkg.title == "ALFA Sovereign Command Center Pro-Max"
+    assert app_from_mod is app_from_pkg
+    assert get_app() is app_from_pkg
+    assert callable(create_app)
 
 
 def test_web_dashboard_shim_parity():
     """Verify root web_dashboard.py acts as transparent shim for alfa.dashboard."""
     import web_dashboard
-    import alfa.dashboard.app as dash_app
+    from alfa.dashboard import app as pkg_app
 
-    assert web_dashboard.app is dash_app.app
+    assert web_dashboard.app is pkg_app
     assert hasattr(web_dashboard, "_parse_ai_sections")
     assert hasattr(web_dashboard, "create_user")
     assert hasattr(web_dashboard, "authenticate_user")
