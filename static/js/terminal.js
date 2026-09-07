@@ -259,16 +259,26 @@ const SW_TAG_STYLE = {
 async function fetchSwarmLive() {
     if (document.hidden) return;
     const box = document.getElementById('sw-terminal');
-    if (!box) return;
+    const arena = document.getElementById('swarm-arena');
+    if (!box && !arena) return;
     try {
         const res = await fetch(`/api/swarm/live?since=${_swLastSeq}`);
         const data = await res.json();
+
+        // Update Swarm Live Arena Visualizer DOM elements
+        if (typeof updateSwarmArena === 'function') {
+            updateSwarmArena(data);
+        } else if (window.updateSwarmArena) {
+            window.updateSwarmArena(data);
+        }
+
         const dot = document.getElementById('sw-live-dot');
         if (dot) {
             const running = data.running;
             dot.className = `w-2 h-2 rounded-full ${running ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`;
         }
         const entries = data.entries || [];
+        if (!box) return;
         if (entries.length === 0) {
             // hapus placeholder menunggu bila ada
             const p = box.querySelector('p.text-slate-600');

@@ -297,6 +297,175 @@ function clearSessionToken() {
     AlfaStore.session.user = null;
 }
 
+// ==================== SWARM LIVE ARENA VISUALIZER HOOK ====================
+
+function updateSwarmArena(data) {
+    if (!data) return;
+    const arena = document.getElementById('swarm-arena');
+    if (!arena) return;
+
+    const isRunning = Boolean(data.running);
+    const activeSpeaker = data.active_speaker || null;
+    const stage = data.stage || 'idle';
+    const consensusPct = Math.max(0, Math.min(100, Number(data.consensus_percent) || 0));
+    const agentStates = data.agent_states || {};
+
+    // 1. Update Arena Status Badge & Active Speaker Label
+    const statusBadge = document.getElementById('swarm-arena-status-badge');
+    if (statusBadge) {
+        if (!isRunning) {
+            statusBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-slate-500/20 text-slate-400 border border-white/10';
+            statusBadge.innerText = 'ARENA STANDBY';
+        } else {
+            statusBadge.className = 'text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40 animate-pulse';
+            statusBadge.innerText = `SWARM ACTIVE // ${stage.toUpperCase()}`;
+        }
+    }
+
+    const speakerLabel = document.getElementById('swarm-active-speaker-label');
+    if (speakerLabel) {
+        speakerLabel.innerText = activeSpeaker ? activeSpeaker : (isRunning ? 'Orchestrating...' : 'Standby');
+    }
+
+    // 2. Highlight Stage Progress Tracker Pills
+    const stagesOrder = ['plan', 'debate', 'vote', 'consensus', 'execute'];
+    const currentStageIdx = stagesOrder.indexOf(stage);
+
+    stagesOrder.forEach((stg, idx) => {
+        const pill = document.getElementById(`stage-pill-${stg}`);
+        if (!pill) return;
+
+        pill.classList.remove('is-active-stage', 'is-completed-stage');
+        const dot = pill.querySelector('span');
+
+        if (!isRunning && stage === 'idle') {
+            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-500';
+        } else if (idx === currentStageIdx) {
+            pill.classList.add('is-active-stage');
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping';
+        } else if (currentStageIdx > -1 && idx < currentStageIdx) {
+            pill.classList.add('is-completed-stage');
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+        } else {
+            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5';
+            if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-600';
+        }
+    });
+
+    // 3. Update Consensus Agreement Bar
+    const pctEl = document.getElementById('swarm-consensus-percent');
+    if (pctEl) {
+        pctEl.innerText = `${consensusPct}%`;
+    }
+
+    const fillEl = document.getElementById('swarm-consensus-fill');
+    if (fillEl) {
+        fillEl.style.width = `${consensusPct}%`;
+        if (consensusPct >= 80) {
+            fillEl.className = 'h-full rounded-full bg-gradient-to-r from-cyan-400 via-emerald-400 to-emerald-300 transition-all duration-500 shadow-glow-emerald';
+        } else if (consensusPct >= 40) {
+            fillEl.className = 'h-full rounded-full bg-gradient-to-r from-violet-500 via-cyan-400 to-blue-400 transition-all duration-500 shadow-glow-cyan';
+        } else {
+            fillEl.className = 'h-full rounded-full bg-gradient-to-r from-violet-600 to-purple-500 transition-all duration-500';
+        }
+    }
+
+    const consensusText = document.getElementById('swarm-consensus-text');
+    if (consensusText) {
+        if (!isRunning) {
+            consensusText.innerText = consensusPct === 100 ? '✅ Misi tuntas — konsensus 100% tercapai.' : 'Menunggu deliberasi tim & konsensus...';
+        } else if (stage === 'plan') {
+            consensusText.innerText = '📋 Alpha Lead sedang memetakan dekomposisi rencana...';
+        } else if (stage === 'debate') {
+            consensusText.innerText = '💬 Deliberasi persona aktif: analisis data & sudut pandang berlawanan...';
+        } else if (stage === 'vote') {
+            consensusText.innerText = '🗳️ Voting matriks berjalan: mengevaluasi opsi solusi terbaik...';
+        } else if (stage === 'consensus') {
+            consensusText.innerText = '🤝 Konsensus tercapai: tim menyepakati strategi final...';
+        } else if (stage === 'execute') {
+            consensusText.innerText = '⚡ Eksekusi aktif: perkakas sandbox & penulisan berkas berlangsung...';
+        }
+    }
+
+    // 4. Update Agent Cards (Commander, Researcher, Critic, Executor)
+    const personaIds = ['commander', 'researcher', 'critic', 'executor'];
+    personaIds.forEach(id => {
+        const card = document.getElementById(`agent-card-${id}`);
+        const statusEl = document.getElementById(`agent-status-${id}`);
+        if (!card) return;
+
+        const st = (agentStates[id] || (isRunning ? 'waiting' : 'idle')).toLowerCase();
+        const isSpeaking = st === 'speaking';
+
+        if (isSpeaking) {
+            card.classList.add('is-speaking');
+            if (statusEl) {
+                statusEl.className = 'text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse';
+                statusEl.innerText = 'SPEAKING ⚡';
+            }
+        } else {
+            card.classList.remove('is-speaking');
+            if (statusEl) {
+                if (!isRunning) {
+                    statusEl.className = 'text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10';
+                    statusEl.innerText = 'STANDBY';
+                } else if (st === 'done') {
+                    statusEl.className = 'text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                    statusEl.innerText = 'DONE ✓';
+                } else {
+                    statusEl.className = 'text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10';
+                    statusEl.innerText = 'LISTENING';
+                }
+            }
+        }
+    });
+
+    // 5. Update Current Agent Thought & Quote Bubble
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    if (entries.length > 0) {
+        let lastThoughtEntry = null;
+        for (let i = entries.length - 1; i >= 0; i--) {
+            const ent = entries[i];
+            const tag = (ent.tag || '').toUpperCase();
+            if (['DIALOG', 'PLAN', 'EXEC', 'QA', 'CONSENSUS', 'VOTE'].includes(tag) || (ent.text && ent.text.includes('💬'))) {
+                lastThoughtEntry = ent;
+                break;
+            }
+        }
+
+        if (lastThoughtEntry) {
+            const thoughtText = lastThoughtEntry.text || '';
+            const activeThoughtEl = document.getElementById('swarm-active-thought');
+            const speakerTag = document.getElementById('swarm-thought-speaker-badge');
+
+            if (activeThoughtEl) {
+                activeThoughtEl.innerText = thoughtText;
+            }
+            if (speakerTag) {
+                speakerTag.innerText = activeSpeaker || lastThoughtEntry.tag || 'AGENT';
+            }
+
+            if (activeSpeaker) {
+                const spLower = activeSpeaker.toLowerCase();
+                let matchedId = null;
+                if (spLower.includes('lead') || spLower.includes('commander') || spLower.includes('alpha')) matchedId = 'commander';
+                else if (spLower.includes('researcher') || spLower.includes('intel') || spLower.includes('analis')) matchedId = 'researcher';
+                else if (spLower.includes('auditor') || spLower.includes('critic') || spLower.includes('sentinel')) matchedId = 'critic';
+                else if (spLower.includes('crafter') || spLower.includes('executor') || spLower.includes('code')) matchedId = 'executor';
+
+                if (matchedId) {
+                    const bubble = document.getElementById(`agent-bubble-${matchedId}`);
+                    if (bubble) {
+                        const cleanThought = thoughtText.replace(/^💬\s*[^:]+:\s*/, '').replace(/^⚙️\s*[^:]+:\s*/, '');
+                        bubble.innerText = cleanThought;
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ==================== GLOBAL & MODULE EXPORTS ====================
 
 window.escAttr = escAttr;
@@ -315,6 +484,7 @@ window.updateClock = updateClock;
 window.getSessionToken = getSessionToken;
 window.setSessionToken = setSessionToken;
 window.clearSessionToken = clearSessionToken;
+window.updateSwarmArena = updateSwarmArena;
 
 window.AlfaState = {
     store: AlfaStore,
@@ -331,5 +501,7 @@ window.AlfaState = {
     fmtTokens,
     getSessionToken,
     setSessionToken,
-    clearSessionToken
+    clearSessionToken,
+    updateSwarmArena
 };
+

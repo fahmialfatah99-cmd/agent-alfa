@@ -118,6 +118,13 @@
                             </div>
                             <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                         </button>
+                        <button onclick="switchTab('swarm')" id="tab-btn-swarm" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-violet-300 hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="users" class="w-4 h-4 text-violet-400"></i>
+                                <span>Swarm Live Arena</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold">⚡ ARENA</span>
+                        </button>
                         <button onclick="switchTab('scraper')" id="tab-btn-scraper" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-orange-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="scan" class="w-4 h-4 text-orange-400"></i>
@@ -470,6 +477,256 @@
             </div>
         </section>
 
+        <!-- ==================== TAB: SWARM LIVE ARENA ==================== -->
+        <section id="view-swarm" class="tab-view hidden space-y-6">
+            <!-- Hero Header Banner -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-violet-500/30 bg-gradient-to-r from-violet-950/40 via-dark-900 to-cyan-950/30 shadow-2xl relative overflow-hidden">
+                <div class="absolute -right-20 -top-20 w-60 h-60 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="space-y-1 relative z-10">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/40 flex items-center justify-center text-xl shadow-glow-violet">
+                            ⚡
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2.5">
+                                <h2 class="text-base font-extrabold text-white tracking-wide font-mono">SWARM LIVE ARENA</h2>
+                                <span id="swarm-arena-status-badge" class="text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-violet-500/20 text-violet-300 border border-violet-500/40 animate-pulse">ARENA STANDBY</span>
+                            </div>
+                            <p class="text-xs text-slate-400">Panggung visual interaksi multi-agent autonomous: perdebatan persona, konsensus strategi, dan eksekusi tool nyata.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-950/80 border border-white/10 text-xs font-mono text-slate-300">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Pembicara Aktif:</span>
+                        <span id="swarm-active-speaker-label" class="font-bold text-cyan-300">Standby</span>
+                    </div>
+                    <button type="button" onclick="cancelSwarmMeeting()" id="btn-cancel-meeting" class="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-mono font-bold transition-all flex items-center gap-1.5">
+                        <i data-lucide="square" class="w-3.5 h-3.5"></i> Hentikan Swarm
+                    </button>
+                </div>
+            </div>
+
+            <!-- SWARM LIVE ARENA VISUALIZER COMPONENT -->
+            <div id="swarm-arena" class="glass-card p-6 rounded-2xl border border-violet-500/30 bg-dark-950/70 backdrop-blur-xl space-y-6 shadow-2xl relative overflow-hidden">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
+                    <!-- Stage Progress Tracker Pills -->
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="git-merge" class="w-4 h-4 text-violet-400"></i>
+                            <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-300">STAGE PROGRESS TRACKER</span>
+                        </div>
+                        <div id="swarm-stage-pills" class="flex items-center gap-2 flex-wrap">
+                            <span id="stage-pill-plan" data-stage="plan" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 1. Planning
+                            </span>
+                            <span id="stage-pill-debate" data-stage="debate" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 2. Debate
+                            </span>
+                            <span id="stage-pill-vote" data-stage="vote" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 3. Voting
+                            </span>
+                            <span id="stage-pill-consensus" data-stage="consensus" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 4. Consensus
+                            </span>
+                            <span id="stage-pill-execute" data-stage="execute" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 5. Execution
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Consensus Agreement Bar -->
+                    <div id="swarm-consensus-panel" class="lg:w-80 space-y-2">
+                        <div class="flex items-center justify-between font-mono text-xs">
+                            <span class="text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="award" class="w-3.5 h-3.5 text-cyan-400"></i> Consensus Index
+                            </span>
+                            <span id="swarm-consensus-percent" class="font-black text-cyan-300">0%</span>
+                        </div>
+                        <div id="swarm-consensus-bar" class="w-full h-3 bg-dark-900 rounded-full overflow-hidden border border-white/10 p-0.5">
+                            <div id="swarm-consensus-fill" class="h-full rounded-full bg-gradient-to-r from-violet-500 via-cyan-400 to-emerald-400 transition-all duration-500 shadow-glow-cyan" style="width: 0%;"></div>
+                        </div>
+                        <p id="swarm-consensus-text" class="text-[10px] font-mono text-slate-400 truncate">Menunggu deliberasi tim & konsensus...</p>
+                    </div>
+                </div>
+
+                <!-- Central Arena Active Thought -->
+                <div id="swarm-thought-banner" class="p-4 rounded-xl bg-dark-900/90 border border-cyan-500/20 font-mono text-xs flex items-start gap-3 relative overflow-hidden shadow-inner">
+                    <div class="flex-shrink-0 mt-0.5">
+                        <span id="swarm-thought-speaker-badge" class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">STANDBY</span>
+                    </div>
+                    <div class="flex-1 space-y-0.5">
+                        <p id="swarm-active-thought" class="text-slate-300 italic text-xs leading-relaxed">Panggung Swarm Arena siap. Masukkan perintah tugas tim untuk mengaktifkan rapat dan eksekusi.</p>
+                    </div>
+                </div>
+
+                <!-- Grid of Agent Cards (Commander, Researcher, Critic, Executor) -->
+                <div id="swarm-agents-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <!-- Agent Card: Commander -->
+                    <div id="agent-card-commander" data-agent-id="commander" class="agent-card p-4 rounded-xl bg-dark-900 border border-violet-500/30 space-y-3">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">👑</span>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-1">Alpha Lead</h4>
+                                    <span class="text-[10px] text-violet-400 font-mono">Commander // Strategy</span>
+                                </div>
+                            </div>
+                            <span id="agent-status-commander" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">STANDBY</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono text-slate-400">Live Quote:</span>
+                            <div id="agent-bubble-commander" class="agent-quote-bubble p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] font-mono text-slate-300 min-h-[52px] leading-relaxed">
+                                Siap memimpin orkestrasi dan memecah rencana tugas.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card: Researcher -->
+                    <div id="agent-card-researcher" data-agent-id="researcher" class="agent-card p-4 rounded-xl bg-dark-900 border border-cyan-500/30 space-y-3">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">🔬</span>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-1">Researcher Prime</h4>
+                                    <span class="text-[10px] text-cyan-400 font-mono">Researcher // Intel</span>
+                                </div>
+                            </div>
+                            <span id="agent-status-researcher" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">STANDBY</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono text-slate-400">Live Quote:</span>
+                            <div id="agent-bubble-researcher" class="agent-quote-bubble p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] font-mono text-slate-300 min-h-[52px] leading-relaxed">
+                                Siap riset sumber primer dan validasi data empiris.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card: Critic -->
+                    <div id="agent-card-critic" data-agent-id="critic" class="agent-card p-4 rounded-xl bg-dark-900 border border-rose-500/30 space-y-3">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">🛡️</span>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-1">System Auditor</h4>
+                                    <span class="text-[10px] text-rose-400 font-mono">Critic // Security QA</span>
+                                </div>
+                            </div>
+                            <span id="agent-status-critic" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">STANDBY</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono text-slate-400">Live Quote:</span>
+                            <div id="agent-bubble-critic" class="agent-quote-bubble p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] font-mono text-slate-300 min-h-[52px] leading-relaxed">
+                                Siap membedah celah keamanan, logika, & edge cases.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Agent Card: Executor -->
+                    <div id="agent-card-executor" data-agent-id="executor" class="agent-card p-4 rounded-xl bg-dark-900 border border-amber-500/30 space-y-3">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">💻</span>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white font-mono flex items-center gap-1">Code Crafter</h4>
+                                    <span class="text-[10px] text-amber-400 font-mono">Executor // Builder</span>
+                                </div>
+                            </div>
+                            <span id="agent-status-executor" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">STANDBY</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono text-slate-400">Live Quote:</span>
+                            <div id="agent-bubble-executor" class="agent-quote-bubble p-2.5 rounded-lg bg-black/40 border border-white/5 text-[11px] font-mono text-slate-300 min-h-[52px] leading-relaxed">
+                                Siap memproduksi kode berkualitas dan menjalankan sandbox.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SWARM MISSION DISPATCH & LIVE FEED TERMINAL DECK -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- Mission Dispatch Controls -->
+                <div class="lg:col-span-5 glass-card p-6 rounded-2xl border border-white/10 space-y-4">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i>
+                            <h3 class="text-xs font-bold text-white font-mono">DISPATCH SWARM MISSION</h3>
+                        </div>
+                        <span id="meeting-status-badge" class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono font-bold border border-amber-500/20">READY</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label id="meeting-topic-label" class="text-xs font-mono text-slate-300 font-semibold">Perintah / Topik Misi Swarm:</label>
+                        <textarea id="meeting-topic-input" rows="3" placeholder="Contoh: Analisis log server, buatkan visual monitoring dashboard, dan siapkan script recovery otomatis..." class="w-full p-3 bg-dark-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-sans leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <label id="meeting-rounds-label" class="text-[11px] font-mono text-slate-400">Alur Koordinasi:</label>
+                            <select id="meeting-rounds-select" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono">
+                                <option value="1">⚡ Eksekusi Cepat + Live Tools</option>
+                                <option value="2" selected>⚡ Deliberasi Mendalam + Multi-Tahap</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-mono text-slate-400">Target Folder:</label>
+                            <select id="meeting-folder-select" onchange="onMeetingFolderChange()" class="w-full p-2 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono">
+                                <option value="">🌐 Bebas (Otonom)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Hidden input for custom folder if selected -->
+                    <input type="text" id="meeting-folder-custom" placeholder="/path/to/custom/folder" class="hidden w-full p-2.5 bg-dark-900 border border-white/10 rounded-xl text-xs text-white font-mono" />
+
+                    <!-- Participants Checkboxes (All 4 selected by default) -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-mono text-slate-400">Peserta Swarm:</label>
+                        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-dark-950 border border-white/5 cursor-pointer hover:border-violet-500/40">
+                                <input type="checkbox" name="meeting-agent" value="Alpha Lead" checked class="rounded border-white/20 text-violet-500 focus:ring-0">
+                                <span class="text-slate-200">👑 Alpha Lead</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-dark-950 border border-white/5 cursor-pointer hover:border-cyan-500/40">
+                                <input type="checkbox" name="meeting-agent" value="Researcher Prime" checked class="rounded border-white/20 text-cyan-500 focus:ring-0">
+                                <span class="text-slate-200">🔬 Researcher</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-dark-950 border border-white/5 cursor-pointer hover:border-rose-500/40">
+                                <input type="checkbox" name="meeting-agent" value="System Auditor" checked class="rounded border-white/20 text-rose-500 focus:ring-0">
+                                <span class="text-slate-200">🛡️ Critic</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2 rounded-lg bg-dark-950 border border-white/5 cursor-pointer hover:border-amber-500/40">
+                                <input type="checkbox" name="meeting-agent" value="Code Crafter" checked class="rounded border-white/20 text-amber-500 focus:ring-0">
+                                <span class="text-slate-200">💻 Executor</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="startAiMeeting()" id="btn-start-meeting" class="w-full py-3 bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white font-bold rounded-xl text-xs font-mono flex items-center justify-center gap-2 shadow-glow-violet transition-all">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-300"></i> Jalankan Swarm Live Arena Sekarang!
+                    </button>
+                </div>
+
+                <!-- Realtime Terminal Stream -->
+                <div class="lg:col-span-7 glass-card p-6 rounded-2xl border border-emerald-500/25 space-y-3">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div class="flex items-center gap-2">
+                            <span id="sw-live-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+                            <h3 class="text-xs font-black text-white font-mono tracking-wide">LIVE TERMINAL // REALTIME SWARM STREAM</h3>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="toggleSwLiveScroll()" id="btn-sw-scroll" class="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-bold">AUTO-SCROLL</button>
+                            <button type="button" onclick="clearSwLiveView()" class="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 hover:text-white border border-white/10">BERSIHKAN</button>
+                        </div>
+                    </div>
+                    <div id="sw-terminal" class="h-[430px] overflow-y-auto custom-scrollbar bg-black/80 rounded-xl p-4 font-mono text-[11px] leading-relaxed space-y-1 border border-emerald-500/15 shadow-inner">
+                        <p class="text-slate-600">// Menunggu aktivitas swarm... luncurkan misi di atas untuk memantau pergerakan agen secara langsung.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- ==================== TAB 2: TOOLS ARSENAL (72 TOOLS) ==================== -->
         <section id="view-tools" class="tab-view hidden space-y-6">
