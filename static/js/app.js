@@ -1,205 +1,15 @@
 /* ==========================================================================
-   ALFA DASHBOARD — Core Application, State Store, Theme & Navigation
+   ALFA DASHBOARD — Core Application Orchestrator
+   Modular frontend architecture:
+   - /static/js/modules/state.js     (Reactive store, theme, tab navigation, UI toasts)
+   - /static/js/modules/audio.js     (Web Audio API, visualizer, mic recorder, TTS)
+   - /static/js/modules/hotkeys.js   (Keyboard navigation, modal shortcuts, cheat sheet)
+   - /static/js/modules/telemetry.js (Chart.js metrics, hardware polling, service badges)
    ========================================================================== */
 
-// Helper string escape for attributes
-function escAttr(s) {
-    return String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-window.escAttr = escAttr;
-
-// Helper number formatting for tokens
-function fmtTokens(n) {
-    n = Number(n) || 0;
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-    return String(n);
-}
-window.fmtTokens = fmtTokens;
-
-// Central Reactive App Store
-window.AlfaStore = {
-    theme: localStorage.getItem("alfa_theme") || "dark",
-    activeTab: "overview",
-    stats: {},
-    services: [],
-    models: [],
-    notifications: []
-};
-
-// Alpine.js integration if Alpine is loaded
-if (window.Alpine) {
-    window.Alpine.store("alfa", {
-        theme: localStorage.getItem("alfa_theme") || "dark",
-        activeTab: "overview",
-        stats: {},
-        setTheme(t) {
-            this.theme = t;
-            setTheme(t);
-        },
-        switchTab(tab) {
-            this.activeTab = tab;
-            switchTab(tab);
-        }
-    });
-}
-
-let telemetryChart = null;
-
-const chartHistory = {
-    labels: Array(15).fill(''),
-    cpu: Array(15).fill(0),
-    ram: Array(15).fill(0)
-};
-
-// Initialize Icons
-lucide.createIcons();
-
-// Toast Notification System
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    const colors = {
-        info: 'border-cyan-500/40 bg-dark-900/90 text-cyan-300',
-        success: 'border-emerald-500/40 bg-dark-900/90 text-emerald-300',
-        error: 'border-rose-500/40 bg-dark-900/90 text-rose-300'
-    };
-    toast.className = `toast px-4 py-3 rounded-xl border backdrop-blur-xl shadow-2xl font-mono text-xs flex items-center gap-2.5 ${colors[type] || colors.info}`;
-    toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> <span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
-}
-
-// Live Clock
-function updateClock() {
-    const now = new Date();
-    document.getElementById('header-clock').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// Chart.js Telemetry Initializer
-function initTelemetryChart() {
-    const ctx = document.getElementById('telemetryChart').getContext('2d');
-    telemetryChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: chartHistory.labels,
-            datasets: [
-                {
-                    label: 'CPU (%)',
-                    data: chartHistory.cpu,
-                    borderColor: '#06B6D4',
-                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0
-                },
-                {
-                    label: 'RAM (%)',
-                    data: chartHistory.ram,
-                    borderColor: '#8B5CF6',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748B', font: { family: 'JetBrains Mono', size: 10 } } },
-                x: { grid: { display: false }, ticks: { display: false } }
-            },
-            plugins: { legend: { display: false } }
-        }
-    });
-}
-
-// ==================== THEME SWITCHER LOGIC (DARK / LIGHT MODE) ====================
-function initTheme() {
-    const savedTheme = localStorage.getItem('alfa_theme') || 'dark';
-    setTheme(savedTheme, false);
-}
-
-function toggleTheme() {
-    const isDark = document.documentElement.classList.contains('dark');
-    const newTheme = isDark ? 'light' : 'dark';
-    setTheme(newTheme, true);
-}
-
-function setTheme(theme, showToastNotification = true) {
-    const html = document.documentElement;
-    const themeIcon = document.getElementById('theme-icon');
-    const themeLabel = document.getElementById('theme-label');
-    const sidebarThemeIcon = document.getElementById('sidebar-theme-icon');
-    const sidebarThemeText = document.getElementById('sidebar-theme-text');
-
-    if (theme === 'dark') {
-        html.classList.add('dark');
-        localStorage.setItem('alfa_theme', 'dark');
-        if (themeIcon) themeIcon.innerText = '🌙';
-        if (themeLabel) themeLabel.innerText = 'Dark Mode';
-        if (sidebarThemeIcon) sidebarThemeIcon.innerText = '🌙';
-        if (sidebarThemeText) sidebarThemeText.innerText = 'Gelap 🌙';
-    } else {
-        html.classList.remove('dark');
-        localStorage.setItem('alfa_theme', 'light');
-        if (themeIcon) themeIcon.innerText = '☀️';
-        if (themeLabel) themeLabel.innerText = 'Light Mode';
-        if (sidebarThemeIcon) sidebarThemeIcon.innerText = '☀️';
-        if (sidebarThemeText) sidebarThemeText.innerText = 'Terang ☀️';
-    }
-
-    if (showToastNotification) {
-        showToast(`Beralih ke Mode ${theme === 'dark' ? 'Gelap 🌙' : 'Terang ☀️'}`, 'info');
-    }
-}
-
-// Run early to prevent theme flashing
-initTheme();
-
-const tabTitles = {
-    'overview': 'Telemetry & Live Overview',
-    'swarm': 'AI Swarm — Eksekusi Langsung',
-    'scraper': 'Master Scraper Pro Studio',
-    'affiliate': 'Affiliate Sales Studio',
-    'vault': 'Passkey Vault & Security',
-    'keys': 'API Keys Manager',
-    'tools': '126 Tools Catalog & Sandbox',
-    'memory': 'Second Brain Memory',
-    'artifacts': 'File Artifacts & Storage',
-    'gdrive': 'Google Drive & Google Cloud Suite',
-    'services': 'System Services & Background Tasks',
-    'canvas': 'Pipeline Canvas Studio — Drag & Drop Workflow',
-    'guardian': 'Guardian Defense & Integrity',
-    'console': 'Chat Agent ALFA (Multimodal Live)',
-    'settings': 'System Settings & Environment Config'
-};
-
-function toggleSidebar(show = null) {
-    const sidebar = document.getElementById('main-sidebar');
-    const backdrop = document.getElementById('sidebar-backdrop');
-    if (!sidebar) return;
-
-    const isCurrentlyHidden = sidebar.classList.contains('-translate-x-full');
-    const willShow = show !== null ? show : isCurrentlyHidden;
-
-    if (willShow) {
-        sidebar.classList.remove('-translate-x-full');
-        backdrop?.classList.remove('hidden');
-    } else {
-        sidebar.classList.add('-translate-x-full');
-        backdrop?.classList.add('hidden');
-    }
+// Initialize Lucide icons on load
+if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
 }
 
 // ==================== SYSTEM SETTINGS MANAGER ====================
@@ -622,125 +432,7 @@ async function saveSettings(e) {
     }
 }
 
-// Tab Navigation
-function switchTab(tabId) {
-    document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(el => {
-        el.classList.remove('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
-        el.classList.add('text-slate-400');
-    });
-
-    const targetView = document.getElementById(`view-${tabId}`);
-    const targetBtn = document.getElementById(`tab-btn-${tabId}`);
-    if (targetView) targetView.classList.remove('hidden');
-    if (targetBtn) {
-        targetBtn.classList.remove('text-slate-400');
-        targetBtn.classList.add('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
-    }
-
-    // Update Breadcrumb Title
-    const titleEl = document.getElementById('top-current-tab-title');
-    if (titleEl && tabTitles[tabId]) {
-        titleEl.innerText = tabTitles[tabId];
-    }
-
-    // Close sidebar drawer on mobile after clicking
-    if (window.innerWidth < 1024) {
-        toggleSidebar(false);
-    }
-
-    if (tabId === 'console') loadChatAvailableModels();
-    if (tabId === 'tools') { if (allToolsData.length === 0) fetchTools(); fetchDynamicPlugins(); fetchSuperpowersSkills(); }
-    if (tabId === 'services') fetchServices();
-    if (tabId === 'canvas') initCanvas();
-    if (tabId === 'memory') fetchMemory();
-    if (tabId === 'artifacts') { fetchArtifacts(); if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); } }
-    if (tabId === 'guardian') fetchGuardian();
-    if (tabId === 'swarm') { fetchAgents(); fetchKeys(); fetchSwarmLive(); loadMeetingFolders(); }
-    if (tabId === 'affiliate') fetchAffiliateCampaigns();
-    if (tabId === 'keys') { fetchKeys(); fetchTokenUsage(); fetchAntigravityAccounts(); }
-    if (tabId === 'waformat') { fetchWaFormats(); fetchWaMediaRules(); }
-    if (tabId === 'vault') { fetchVaultSecrets(); fetchPasskeyStatus(); }
-    if (tabId === 'scraper') fetchScraperBatches();
-    if (tabId === 'gdrive') { fetchGdriveStatus(); fetchGdriveFiles(); }
-    if (tabId === 'settings') { fetchSettings(); fetchAgents(); fetchKeys(); }
-
-    lucide.createIcons();
-}
-
-// Live Telemetry Polling
-async function fetchStats(isManual = false) {
-    const icon = document.getElementById('refresh-icon');
-    if (icon && isManual) icon.classList.add('animate-spin');
-
-    try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        if (data.status === 'success') {
-            document.getElementById('stat-cpu-pct').innerText = `${data.cpu.percent}%`;
-            document.getElementById('stat-cpu-cores').innerText = `${data.cpu.cores} Cores (${data.cpu.freq_mhz} MHz)`;
-            document.getElementById('stat-cpu-bar').style.width = `${data.cpu.percent}%`;
-
-            document.getElementById('stat-ram-pct').innerText = `${data.ram.percent}%`;
-            document.getElementById('stat-ram-used').innerText = `${data.ram.used_gb} / ${data.ram.total_gb} GB`;
-            document.getElementById('stat-ram-bar').style.width = `${data.ram.percent}%`;
-
-            document.getElementById('stat-disk-pct').innerText = `${data.disk.percent}%`;
-            document.getElementById('stat-disk-used').innerText = `${data.disk.used_gb} / ${data.disk.total_gb} GB`;
-            document.getElementById('stat-disk-bar').style.width = `${data.disk.percent}%`;
-
-            document.getElementById('stat-batt-pct').innerText = `${Math.round(data.battery.percent)}%`;
-            document.getElementById('stat-batt-status').innerText = data.battery.status;
-            document.getElementById('stat-uptime').innerText = data.uptime;
-
-            // Update Chart.js buffer
-            if (telemetryChart) {
-                chartHistory.cpu.shift();
-                chartHistory.cpu.push(data.cpu.percent);
-                chartHistory.ram.shift();
-                chartHistory.ram.push(data.ram.percent);
-                telemetryChart.update('none');
-            }
-
-            // Services Badges
-            updateServiceBadge('tb-service', data.services.telegram_bot);
-            updateServiceBadge('wa-service', data.services.wa_sheets_bot);
-
-            // Top Processes
-            const procBox = document.getElementById('top-processes-list');
-            if (data.top_ram_processes && data.top_ram_processes.length > 0) {
-                procBox.innerHTML = data.top_ram_processes.map(p => `
-                    <div class="flex items-center justify-between p-2.5 bg-dark-950 rounded-xl border border-white/5">
-                        <span class="text-slate-300 truncate text-[11px]">${p}</span>
-                        <span class="text-violet-400 text-[10px] font-bold">RAM</span>
-                    </div>
-                `).join('');
-            }
-
-            if (isManual) showToast('Data telemetry diperbarui real-time', 'success');
-        }
-    } catch (err) {
-        console.error('Stats error:', err);
-    } finally {
-        if (icon && isManual) setTimeout(() => icon.classList.remove('animate-spin'), 500);
-    }
-}
-
-function updateServiceBadge(prefix, isActive) {
-    const dot = document.getElementById(`dot-${prefix}`);
-    const badge = document.getElementById(`badge-${prefix}`);
-    if (dot && badge) {
-        if (isActive) {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot';
-            badge.className = 'px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-            badge.innerText = 'ACTIVE';
-        } else {
-            dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
-            badge.className = 'px-2 py-0.5 text-[10px] font-mono rounded bg-rose-500/10 text-rose-400 border border-rose-500/20';
-            badge.innerText = 'STOPPED';
-        }
-    }
-}
+// Navigation & Telemetry logic modularized into /static/js/modules/state.js and /static/js/modules/telemetry.js
 
 // Services Hub
 async function fetchServices() {
@@ -1902,67 +1594,7 @@ async function fetchAgents() {
 let hqViewMode = 'war-room'; // 'war-room' or 'office'
 let hqSfxEnabled = true;
 let hqSpeedMultiplier = 1; // 1, 1.5, 2, or 99 (instant)
-let isMeetingAnimationPlaying = false;
-let audioCtx = null;
-
-function getAudioContext() {
-    if (!audioCtx) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) audioCtx = new AudioContext();
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-    return audioCtx;
-}
-
-function playCyberBeep(freq = 600, type = 'sine', duration = 0.08, vol = 0.08) {
-    if (!hqSfxEnabled) return;
-    try {
-        const ctx = getAudioContext();
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(vol, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-    } catch (e) {}
-}
-
-function playTurnStartSfx() {
-    playCyberBeep(520, 'sine', 0.06, 0.06);
-    setTimeout(() => playCyberBeep(780, 'triangle', 0.12, 0.08), 60);
-}
-
-function playConsensusSfx() {
-    if (!hqSfxEnabled) return;
-    [440, 554.37, 659.25, 880].forEach((freq, idx) => {
-        setTimeout(() => playCyberBeep(freq, 'triangle', 0.3, 0.09), idx * 110);
-    });
-}
-
-function toggleHqSfx() {
-    hqSfxEnabled = !hqSfxEnabled;
-    document.getElementById('sfx-icon').innerText = hqSfxEnabled ? '🔊' : '🔇';
-    document.getElementById('sfx-text').innerText = hqSfxEnabled ? 'SFX ON' : 'SFX OFF';
-    if (hqSfxEnabled) playCyberBeep(800, 'sine', 0.1, 0.08);
-    showToast(`Suara Efek UI: ${hqSfxEnabled ? 'AKTIF' : 'NONAKTIF'}`, 'info');
-}
-
-function cycleHqSpeed() {
-    const speeds = [1, 1.5, 2, 99];
-    const labels = { 1: '⚡ 1x', 1.5: '⚡ 1.5x', 2: '⚡ 2x', 99: '🚀 Kilat' };
-    const currIdx = speeds.indexOf(hqSpeedMultiplier);
-    const nextIdx = (currIdx + 1) % speeds.length;
-    hqSpeedMultiplier = speeds[nextIdx];
-    document.getElementById('hq-speed-text').innerText = labels[hqSpeedMultiplier];
-    playCyberBeep(650 + nextIdx * 80, 'sine', 0.05, 0.07);
-}
+// AudioContext and Cyber SFX synthesized effects modularized into /static/js/modules/audio.js
 
 function setHqViewMode(mode) {
     if (!document.getElementById('ai-virtual-hq')) return;
@@ -5474,29 +5106,54 @@ async function uploadDirectToGdrive() {
     }
 }
 
-// Initialize telemetry & all data on load
+// Master Application Orchestrator Initialization
 window.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    initTelemetryChart();
-    fetchStats();
-    fetchTools();
-    fetchGdriveStatus();
-    fetchVaultSecrets();
-    fetchPasskeyStatus();
-    fetchWaQr();
-    fetchWaReports();
-    fetchModelsCatalog();
-    fetchAgents();
-    fetchKeys();
-    startTokenUsagePolling();
-    fetchAntigravityAccounts();
-    fetchSettings();
-    setInterval(fetchStats, 2000);
+    // 1. Initialize State, Theme & Active Tab
+    if (typeof initTheme === 'function') initTheme();
+    if (typeof restoreActiveTab === 'function') restoreActiveTab();
+    if (typeof initAlpineState === 'function') initAlpineState();
+
+    // 2. Initialize Telemetry Chart & Polling
+    if (typeof initTelemetryChart === 'function') initTelemetryChart();
+    if (typeof startTelemetryPolling === 'function') {
+        startTelemetryPolling(2000);
+    } else if (typeof fetchStats === 'function') {
+        fetchStats();
+        setInterval(fetchStats, 2000);
+    }
+
+    // 3. Initialize Global Hotkeys
+    if (typeof initHotkeys === 'function') initHotkeys();
+
+    // 4. Initialize Domain Data & Services
+    if (typeof fetchTools === 'function') fetchTools();
+    if (typeof fetchGdriveStatus === 'function') fetchGdriveStatus();
+    if (typeof fetchVaultSecrets === 'function') fetchVaultSecrets();
+    if (typeof fetchPasskeyStatus === 'function') fetchPasskeyStatus();
+    if (typeof fetchWaQr === 'function') fetchWaQr();
+    if (typeof fetchWaReports === 'function') fetchWaReports();
+    if (typeof fetchModelsCatalog === 'function') fetchModelsCatalog();
+    if (typeof fetchAgents === 'function') fetchAgents();
+    if (typeof fetchKeys === 'function') fetchKeys();
+    if (typeof startTokenUsagePolling === 'function') startTokenUsagePolling();
+    if (typeof fetchAntigravityAccounts === 'function') fetchAntigravityAccounts();
+    if (typeof fetchSettings === 'function') fetchSettings();
+
+    // Periodic Background Timers
     setInterval(fetchWaQr, 4000);
     setInterval(fetchWaReports, 8000);
-    fetchWaDriveUploads();
-    setInterval(fetchWaDriveUploads, 8000);
-    setInterval(fetchSwarmLive, 2500);
+    if (typeof fetchWaDriveUploads === 'function') {
+        fetchWaDriveUploads();
+        setInterval(fetchWaDriveUploads, 8000);
+    }
+    if (typeof fetchSwarmLive === 'function') {
+        setInterval(fetchSwarmLive, 2500);
+    }
+
+    // Refresh Lucide Icons
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
 });
 
 // ==================== PIPELINE CANVAS STUDIO ====================
