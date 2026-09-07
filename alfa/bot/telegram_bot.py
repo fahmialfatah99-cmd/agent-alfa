@@ -24,6 +24,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -38,6 +39,7 @@ from telegram import (
     WebAppInfo,
     constants,
 )
+from telegram.error import BadRequest, RetryAfter
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -489,6 +491,165 @@ async def send_typing_loop(
         await asyncio.sleep(4)
 
 
+class TelegramStreamer:
+    """
+    Progressive draft streaming response engine for Telegram.
+
+    Buffers incoming text chunks and periodically edits a placeholder message
+    using a rate-limit dampener (default 1.2s minimum interval) to avoid Telegram
+    rate limits. Safely swallows non-fatal Telegram errors (e.g. 'Message is not modified',
+    'Message to edit not found') and handles RetryAfter (429) backoff.
+    """
+
+    def __init__(
+        self,
+        context: Any,
+        chat_id: int,
+        initial_text: str = "💭 Sedang berpikir...",
+        min_edit_interval: float = 1.2,
+    ):
+        self.context = context
+        self.chat_id = chat_id
+        self.initial_text = initial_text
+        self.min_edit_interval = float(min_edit_interval)
+        self.message_id: Optional[int] = None
+        self.buffer: str = ""
+        self.last_edit: float = 0.0
+        self.backoff_until: float = 0.0
+        self.is_done: bool = False
+        self._edit_task: Optional[asyncio.Task] = None
+        self.cursor: str = " ▌"
+
+    async def start(self) -> Optional[int]:
+        """Send placeholder message and record message_id."""
+        if self.message_id is not None:
+            return self.message_id
+        try:
+            msg = await self.context.bot.send_message(
+                chat_id=self.chat_id,
+                text=self.initial_text,
+            )
+            self.message_id = getattr(msg, "message_id", None)
+            self.last_edit = time.monotonic()
+            return self.message_id
+        except Exception as e:
+            logger.warning(f"[TelegramStreamer] Gagal mengirim pesan placeholder: {e}")
+            self.message_id = None
+            return None
+
+    async def _apply_edit(self, text: str) -> None:
+        """Perform message edit with exception suppression and 429 backoff handling."""
+        if not self.message_id or self.is_done:
+            return
+        now = time.monotonic()
+        if now < self.backoff_until:
+            return
+        try:
+            await self.context.bot.edit_message_text(
+                chat_id=self.chat_id,
+                message_id=self.message_id,
+                text=text,
+            )
+            self.last_edit = time.monotonic()
+        except RetryAfter as e:
+            retry_secs = float(getattr(e, "retry_after", 1.0) or 1.0)
+            self.backoff_until = time.monotonic() + retry_secs
+            logger.warning(f"[TelegramStreamer] Rate limited (RetryAfter): backoff {retry_secs}s")
+        except BadRequest as e:
+            err_msg = str(e).lower()
+            if "message is not modified" in err_msg:
+                logger.debug("[TelegramStreamer] Message is not modified, skipping.")
+            elif "message to edit not found" in err_msg:
+                logger.warning("[TelegramStreamer] Message to edit not found.")
+            else:
+                logger.warning(f"[TelegramStreamer] BadRequest saat edit: {e}")
+        except Exception as e:
+            logger.warning(f"[TelegramStreamer] Error tak terduga saat edit: {e}")
+
+    async def push_chunk(self, chunk_text: str) -> None:
+        """
+        Append text chunk to buffer. If min_edit_interval has passed and
+        no backoff is active, triggers edit_message_text in background.
+        """
+        if self.is_done:
+            return
+
+        self.buffer += chunk_text
+        now = time.monotonic()
+
+        if now < self.backoff_until:
+            return
+
+        if (now - self.last_edit) >= self.min_edit_interval:
+            self.last_edit = now
+            if self.message_id and not self.is_done:
+                if self._edit_task and not self._edit_task.done():
+                    return
+                draft_text = self.buffer + self.cursor
+                self._edit_task = asyncio.create_task(self._apply_edit(draft_text))
+                await asyncio.sleep(0)
+
+    async def finalize(self, final_text: Optional[str] = None) -> None:
+        """
+        Send the final polished text (without cursor) and mark streamer as done.
+        If start() failed or message_id is None, falls back to safe_send_message.
+        If text exceeds Telegram chunk length (>3900 chars), edits first chunk in-place
+        and delivers remaining chunks safely.
+        """
+        if self.is_done:
+            return
+        self.is_done = True
+
+        if self._edit_task and not self._edit_task.done():
+            try:
+                await asyncio.wait_for(asyncio.shield(self._edit_task), timeout=2.0)
+            except Exception:
+                pass
+
+        target_text = final_text if final_text is not None else self.buffer
+        if not target_text or not target_text.strip():
+            target_text = "✅ Selesai."
+
+        if not self.message_id:
+            await safe_send_message(self.context, self.chat_id, target_text)
+            return
+
+        chunks = split_message(target_text)
+        first_chunk = chunks[0] if chunks else target_text
+
+        edited = False
+        try:
+            await self.context.bot.edit_message_text(
+                chat_id=self.chat_id,
+                message_id=self.message_id,
+                text=first_chunk,
+                parse_mode=constants.ParseMode.MARKDOWN,
+            )
+            edited = True
+        except Exception:
+            try:
+                await self.context.bot.edit_message_text(
+                    chat_id=self.chat_id,
+                    message_id=self.message_id,
+                    text=first_chunk,
+                )
+                edited = True
+            except BadRequest as be:
+                if "message is not modified" in str(be).lower():
+                    edited = True
+                else:
+                    logger.warning(f"[TelegramStreamer] Finalize edit failed: {be}")
+            except Exception as e:
+                logger.warning(f"[TelegramStreamer] Finalize edit failed: {e}")
+
+        if not edited:
+            await safe_send_message(self.context, self.chat_id, target_text)
+            return
+
+        for overflow_chunk in chunks[1:]:
+            await safe_send_message(self.context, self.chat_id, overflow_chunk)
+
+
 # --- Core AI Generation Engine ---
 async def run_agent_turn(
     user_id: int,
@@ -496,7 +657,8 @@ async def run_agent_turn(
     multimodal_parts: Optional[list] = None,
     chat_id: Optional[int] = None,
     override_model: Optional[str] = None,
-    override_key_id: Optional[int] = None
+    override_key_id: Optional[int] = None,
+    streamer: Optional[TelegramStreamer] = None
 ) -> str:
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
@@ -765,15 +927,59 @@ async def run_agent_turn(
                 ),
             )
 
-            response = await gemini_client.aio.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=config
-            )
-            token_usage.from_gemini_response(response, model=model_name,
-                                             key_id=gkey_id,
-                                             key_label=gkey_label or "gemini-env",
-                                             context="telegram_chat")
+            if streamer and not gate_on and hasattr(gemini_client.aio.models, "generate_content_stream"):
+                try:
+                    response_stream = await gemini_client.aio.models.generate_content_stream(
+                        model=model_name,
+                        contents=contents,
+                        config=config
+                    )
+                    streamed_text = ""
+                    last_chunk = None
+                    async for chunk in response_stream:
+                        last_chunk = chunk
+                        c_text = getattr(chunk, "text", None)
+                        if c_text:
+                            streamed_text += c_text
+                            await streamer.push_chunk(c_text)
+                    if last_chunk:
+                        try:
+                            token_usage.from_gemini_response(
+                                last_chunk,
+                                model=model_name,
+                                key_id=gkey_id,
+                                key_label=gkey_label or "gemini-env",
+                                context="telegram_chat:stream"
+                            )
+                        except Exception:
+                            pass
+                    response = last_chunk
+                    reply_text = streamed_text or (last_chunk.text if last_chunk else "") or "✅ Permintaan selesai diproses."
+                except Exception as stream_err:
+                    logger.warning(f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content.")
+                    response = await gemini_client.aio.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=config
+                    )
+                    token_usage.from_gemini_response(response, model=model_name,
+                                                     key_id=gkey_id,
+                                                     key_label=gkey_label or "gemini-env",
+                                                     context="telegram_chat")
+                    try:
+                        reply_text = response.text or "✅ Permintaan selesai diproses."
+                    except Exception:
+                        reply_text = "✅ Permintaan selesai diproses."
+            else:
+                response = await gemini_client.aio.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=config
+                )
+                token_usage.from_gemini_response(response, model=model_name,
+                                                 key_id=gkey_id,
+                                                 key_label=gkey_label or "gemini-env",
+                                                 context="telegram_chat")
 
             # ── Loop agentic manual (Permission Gate ON) ──
             if gate_on:
@@ -809,10 +1015,11 @@ async def run_agent_turn(
                                                      key_label=gkey_label or "gemini-env",
                                                      context="telegram_chat:gate")
 
-            try:
-                reply_text = response.text or "✅ Permintaan selesai diproses."
-            except Exception:
-                reply_text = "✅ Permintaan selesai diproses."
+            if "reply_text" not in locals() or not reply_text:
+                try:
+                    reply_text = response.text or "✅ Permintaan selesai diproses."
+                except Exception:
+                    reply_text = "✅ Permintaan selesai diproses."
 
             # ══ AUDIT ANTI-BOHONG v2 (deterministik: database + filesystem) ══
             new_meetings = _meetings_count() - meetings_before
@@ -1346,18 +1553,43 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_text = update.message.text.strip()
 
-    # Typing indicator
-    stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
+    # Initialize progressive streamer
+    streamer = None
+    try:
+        streamer = TelegramStreamer(context=context, chat_id=chat_id)
+        await streamer.start()
+    except Exception as se:
+        logger.warning(f"[TelegramStreamer] Start failed: {se}")
+        streamer = None
+
+    # Fallback to typing action if streamer failed to start
+    stop_typing = None
+    typing_task = None
+    if not streamer or not streamer.message_id:
+        stop_typing = asyncio.Event()
+        typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
 
     try:
-        reply = await run_agent_turn(user_id=user_id, user_prompt=user_text, chat_id=chat_id)
+        reply = await run_agent_turn(
+            user_id=user_id,
+            user_prompt=user_text,
+            chat_id=chat_id,
+            streamer=streamer,
+        )
     finally:
-        stop_typing.set()
-        await typing_task
+        if stop_typing and typing_task:
+            stop_typing.set()
+            await typing_task
 
-    # Send text response
-    await safe_send_message(context, chat_id, reply)
+    # Finalize streamer or send via safe_send_message fallback
+    if streamer and streamer.message_id:
+        try:
+            await streamer.finalize(reply)
+        except Exception as fe:
+            logger.error(f"[TelegramStreamer] Finalize failed: {fe}, fallback to safe_send_message")
+            await safe_send_message(context, chat_id, reply)
+    else:
+        await safe_send_message(context, chat_id, reply)
 
     # Auto-send any generated media/doc artifacts
     await check_and_send_media_artifacts(update, context)
