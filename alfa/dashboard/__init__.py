@@ -1,9 +1,11 @@
 """alfa.dashboard package."""
 
-def __getattr__(name: str):
-    if name == "app":
-        from alfa.dashboard.app import app
-        return app
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+from alfa.dashboard.app import app, create_app
 
-__all__ = ["app"]
+
+def get_app():
+    """Return the global FastAPI application instance."""
+    return app
+
+
+__all__ = ["app", "get_app", "create_app"]

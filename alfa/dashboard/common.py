@@ -14,6 +14,7 @@ load_dotenv()
 # Setup logging
 logger = logging.getLogger("Dashboard")
 logger.setLevel(logging.INFO)
+logger.propagate = False
 if not logger.handlers:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
