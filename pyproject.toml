@@ -118,8 +118,8 @@ exclude = ["tests/", "venv/", ".venv/", "build/", "dist/"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=alfa --cov-report=term-missing"
-testpaths = ["tests", "."]
+addopts = "-ra -q"
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
