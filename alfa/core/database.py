@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import sqlite3
-import sys
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from collections import deque
@@ -20,8 +19,6 @@ import aiosqlite
 logger = logging.getLogger("DB")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(REPO_ROOT, "agent_data.db"))
 
@@ -365,8 +362,8 @@ def init_db_sync():
         if agent_count and agent_count[0] == 0:
             # Persona tersinkron dengan identitas ALFA (sumber: swarm_personas.py)
             try:
-                from swarm_personas import AGENTS as _AG
-                from swarm_personas import DNA as _DNA
+                from alfa.swarm.personas import AGENTS as _AG
+                from alfa.swarm.personas import DNA as _DNA
                 _seed_persona = {
                     aid: d["system_instruction"].replace("{DNA}", _DNA)
                     for aid, d in _AG.items()}

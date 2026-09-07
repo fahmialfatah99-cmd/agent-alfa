@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 """Sinkronisasi persona agen swarm ALFA dengan identitas otak utama (bagian 1: data)."""
 import os as _os
-import sys
-from pathlib import Path
-
-root_dir = str(Path(__file__).resolve().parents[2])
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
 
 # ── DNA identitas bersama: WAJIB identik di semua unit ──
 DNA = """[DNA TIM ALFA — IDENTITAS INTI & PROTOKOL SUPERPOWERS]

@@ -12,7 +12,6 @@ import logging
 import os
 import re
 import sqlite3
-import sys
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -29,8 +28,6 @@ os.makedirs(os.path.join(SCRAPER_DATA_DIR, "CSV"), exist_ok=True)
 os.makedirs(os.path.join(SCRAPER_DATA_DIR, "Exports"), exist_ok=True)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(REPO_ROOT, "agent_data.db"))
 
@@ -381,7 +378,7 @@ def search_and_scrape_marketplace(query: str, platform: str = "shopee", max_item
     Cari dan scrape katalog produk real dari marketplace berdasarkan kata kunci.
     Mengambil produk viral, harga, rating, dan link langsung.
     """
-    import tools
+    from alfa import tools
     search_q = f"site:{platform}.co.id produk {query} diskon rating" if platform in ["shopee", "tokopedia"] else f"{query} {platform} shop promo diskon"
     search_res = tools.web_search(search_q)
     results = search_res.get("results", [])

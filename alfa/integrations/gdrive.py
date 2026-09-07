@@ -8,21 +8,13 @@ tools.py lain — itu akan membuat impor melingkar."""
 
 import logging
 import os
-import sys
 from typing import Any, Dict
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
-
 PROJECT_DIR = REPO_ROOT
 
-try:
-    from alfa.core import database
-    from alfa.core.runtime_ctx import current_user_id_var
-except ImportError:
-    import database
-    from runtime_ctx import current_user_id_var
+from alfa.core import database
+from alfa.core.runtime_ctx import current_user_id_var
 
 logger = logging.getLogger("AgentTools")
 

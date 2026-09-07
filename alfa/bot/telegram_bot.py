@@ -28,8 +28,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 import psutil
 from dotenv import load_dotenv
@@ -49,15 +47,15 @@ from telegram.ext import (
     filters,
 )
 
-# Local modules
-import database
-import main_brain
-import permission_gate
+# Internal ALFA package modules
+from alfa.core import database
+from alfa.core import brain as main_brain
+from alfa.core import permissions as permission_gate
 import plugins
 import token_usage
-import tools
+from alfa import tools
 import tts_engine
-from tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_chat_id_var, current_user_id_var, get_system_stats
+from alfa.tools import AVAILABLE_TOOLS, SANDBOX_DIR, current_chat_id_var, current_user_id_var, get_system_stats
 
 # Load environment
 load_dotenv()
@@ -2246,7 +2244,7 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2, mode="plan")
         
         # Send summary of transcript
@@ -2302,7 +2300,7 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=1, mode="execute")
         
         # Send execution steps breakdown
@@ -2351,7 +2349,7 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
     if not is_authorized(user_id):
         return
 
-    from swarm_checkpoint import SwarmCheckpoint
+    from alfa.swarm.checkpoint import SwarmCheckpoint
     resumable = SwarmCheckpoint.list_resumable()
 
     session_id = (context.args[0].strip()) if context.args else ""
@@ -2374,7 +2372,7 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
     await safe_send_message(context, chat_id, f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**")
     try:
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         result = await swarm_engine.resume_swarm_session(session_id)
         if result.get("status") == "error":
             await safe_send_message(context, chat_id, f"❌ Gagal resume: {result.get('message', 'Unknown error')}")

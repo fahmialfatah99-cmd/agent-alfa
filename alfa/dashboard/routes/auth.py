@@ -92,7 +92,7 @@ def init_auth_db():
     global _auth_db_initialized
     if _auth_db_initialized:
         return
-    import database as db
+    from alfa.core import database as db
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
@@ -139,7 +139,7 @@ def init_auth_db():
 def create_user(username: str, password: str, telegram_user_id: int = None, is_admin: bool = False) -> Dict[str, Any]:
     """Buat user baru di database."""
     import sqlite3
-    import database as db
+    from alfa.core import database as db
 
     if len(username) < 3:
         raise ValueError("Username minimal 3 karakter")
@@ -167,7 +167,7 @@ def create_user(username: str, password: str, telegram_user_id: int = None, is_a
 
 def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     """Autentikasi user dan return info user jika berhasil."""
-    import database as db
+    from alfa.core import database as db
 
     conn = db.get_connection_pool().acquire()
     try:
@@ -203,7 +203,7 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
 
 def store_session(user_id: int, token: str) -> None:
     """Simpan session token di database."""
-    import database as db
+    from alfa.core import database as db
 
     token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
     expires_at = datetime.now() + timedelta(hours=SESSION_DURATION_HOURS)
@@ -226,7 +226,7 @@ def store_session(user_id: int, token: str) -> None:
 
 def validate_session(token: str) -> Optional[Dict[str, Any]]:
     """Validasi session token dari database."""
-    import database as db
+    from alfa.core import database as db
 
     session_data = _verify_session_token(token)
     if not session_data:
@@ -259,7 +259,7 @@ def validate_session(token: str) -> Optional[Dict[str, Any]]:
 
 def invalidate_session(token: str) -> bool:
     """Invalidate/logout session token."""
-    import database as db
+    from alfa.core import database as db
 
     token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
 
@@ -278,7 +278,7 @@ def invalidate_session(token: str) -> bool:
 
 def get_all_users() -> List[Dict[str, Any]]:
     """Dapatkan daftar semua users (hanya admin)."""
-    import database as db
+    from alfa.core import database as db
 
     conn = db.get_connection_pool().acquire()
     try:
@@ -307,7 +307,7 @@ def get_all_users() -> List[Dict[str, Any]]:
 
 def delete_user(user_id: int) -> bool:
     """Hapus user dari database."""
-    import database as db
+    from alfa.core import database as db
 
     conn = db.get_connection_pool().acquire()
     try:
@@ -394,7 +394,7 @@ async def register_user(payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="Username dan password wajib diisi")
 
     try:
-        import database as db
+        from alfa.core import database as db
         conn = db.get_connection_pool().acquire()
         try:
             cursor = conn.cursor()

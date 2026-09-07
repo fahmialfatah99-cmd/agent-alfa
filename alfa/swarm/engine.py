@@ -12,15 +12,12 @@ import logging
 import os
 import re
 import shutil
-import sys
 import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 from dotenv import load_dotenv
 
@@ -29,21 +26,17 @@ load_dotenv()
 from google import genai
 from google.genai import types
 
-import database
+from alfa.core import database
 import token_usage
-import tools
+from alfa import tools
 
 # Checkpoint & tracing: opsional — bot tetap berjalan tanpa keduanya
 try:
     from alfa.swarm.checkpoint import SwarmCheckpoint as _SwarmCheckpoint
     _CHECKPOINT_AVAILABLE = True
 except ImportError:
-    try:
-        from swarm_checkpoint import SwarmCheckpoint as _SwarmCheckpoint
-        _CHECKPOINT_AVAILABLE = True
-    except ImportError:
-        _CHECKPOINT_AVAILABLE = False
-        _SwarmCheckpoint = None
+    _CHECKPOINT_AVAILABLE = False
+    _SwarmCheckpoint = None
 
 try:
     import tracing as _tracing
@@ -723,8 +716,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     def gemini_like_tools() -> List[Any]:
         """Subset aman tool swarm (identik dgn jalur gemini enable_tools)."""
         try:
-            import main_brain as _mb
-            import tools as _t
+            from alfa.core import brain as _mb
+            from alfa import tools as _t
             return [getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
                     if hasattr(_t, n) and callable(getattr(_t, n))]
         except Exception:
@@ -736,8 +729,8 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         if enable_tools:
             gemini_tools = gemini_like_tools() or None
             try:
-                import main_brain as _mb
-                import tools as _t
+                from alfa.core import brain as _mb
+                from alfa import tools as _t
                 gemini_tools = [
                     getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
                     if hasattr(_t, n) and callable(getattr(_t, n))
@@ -762,7 +755,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         # Agen dgn enable_tools: loop agentik penuh memakai subset aman
         if enable_tools:
             try:
-                import main_brain as _mb
+                from alfa.core import brain as _mb
                 result = await _mb.run_openai_agentic_turn(
                     provider=provider,
                     base_url=base_url,

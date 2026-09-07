@@ -31,7 +31,7 @@ SESSION_DURATION_HOURS = int(os.getenv("SESSION_DURATION_HOURS", "24"))
 # Lazy bot module reference
 bot = None
 try:
-    import bot as _initial_bot
+    from alfa.bot import telegram_bot as _initial_bot
     bot = _initial_bot
 except Exception:
     bot = None
@@ -41,7 +41,7 @@ def _get_bot():
     """Lazily load or retrieve bot module."""
     global bot
     if bot is None:
-        import bot as _bot_mod
+        from alfa.bot import telegram_bot as _bot_mod
         bot = _bot_mod
     return bot
 

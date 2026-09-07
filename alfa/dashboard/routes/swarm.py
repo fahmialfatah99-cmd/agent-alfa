@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 
-import database
+from alfa.core import database
 from alfa.dashboard.common import logger, safe_int
 
 swarm_router = APIRouter(tags=["swarm"])
@@ -76,7 +76,7 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
 
     res["ai_enriched"] = False
     try:
-        import swarm_engine
+        from alfa.swarm import engine as swarm_engine
         alchemist = next(
             (a for a in database.list_custom_agents_sync()
              if a.get("name") == "Content Alchemist" and a.get("is_enabled", 1)),
@@ -275,7 +275,7 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
-    import swarm_engine
+    from alfa.swarm import engine as swarm_engine
     start_t = time.time()
     resp = await swarm_engine.generate_agent_response(
         agent=agent_data,
@@ -307,7 +307,7 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     rounds = payload.get("rounds", 2)
     folder = payload.get("folder", "")
 
-    import swarm_engine
+    from alfa.swarm import engine as swarm_engine
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
@@ -321,7 +321,7 @@ async def start_agent_meeting(payload: Dict[str, Any]):
 @swarm_router.post("/api/meetings/cancel")
 async def cancel_agent_meeting():
     """Minta pembatalan eksekusi swarm yang sedang berjalan (lintas proses)."""
-    import swarm_engine
+    from alfa.swarm import engine as swarm_engine
     ok = swarm_engine.request_cancel_swarm()
     if ok:
         return {"status": "success", "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai."}
@@ -331,7 +331,7 @@ async def cancel_agent_meeting():
 @swarm_router.get("/api/swarm/live")
 async def swarm_live_feed(since: int = 0):
     """Realtime terminal feed of what the swarm agents are doing right now."""
-    import swarm_engine as _se
+    from alfa.swarm import engine as _se
     since = safe_int(since, 0, minimum=0)
     entries = []
     try:
@@ -468,8 +468,8 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
-    import swarm_engine
-    import tools
+    from alfa.swarm import engine as swarm_engine
+    from alfa import tools
     start_t = time.time()
 
     tool_router_prompt = (

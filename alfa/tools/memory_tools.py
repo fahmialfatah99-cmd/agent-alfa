@@ -10,7 +10,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
-import database
+from alfa.core import database
 from alfa.core.runtime_ctx import (
     current_chat_id_var,
     current_user_id_var,

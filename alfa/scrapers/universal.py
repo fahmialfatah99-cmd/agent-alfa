@@ -13,7 +13,6 @@ import logging
 import os
 import re
 import sqlite3
-import sys
 import time
 import urllib.parse
 import uuid
@@ -35,8 +34,6 @@ os.makedirs(os.path.join(MASTER_EXPORT_DIR, "CSV"), exist_ok=True)
 os.makedirs(os.path.join(MASTER_EXPORT_DIR, "JSON"), exist_ok=True)
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(REPO_ROOT, "agent_data.db"))
 
@@ -332,10 +329,7 @@ def scrape_custom_urls_or_selectors(
     """
     Scrapes a custom list of URLs with auto-extraction and concurrency.
     """
-    try:
-        from alfa.scrapers import fast as fast_scraper
-    except ImportError:
-        import fast_scraper
+    from alfa.scrapers import fast as fast_scraper
     start_time = time.time()
     batch_id = f"custom_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     batch_name = f"Custom_Batch_{len(urls)}_URLs"
