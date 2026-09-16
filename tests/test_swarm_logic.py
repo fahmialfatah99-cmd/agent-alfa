@@ -214,3 +214,169 @@ class TestModularSwarmAndBotShims:
         assert hasattr(bot, "safe_send_message")
         assert bot.main is alfa.bot.telegram_bot.main
 
+
+class TestSanitizeProjectDirectory:
+    def test_sanitize_removes_junk_and_prunes_empty_folders(self, tmp_path):
+        """Sanitizer wajib membersihkan file sampah & memangkas habis folder kosong."""
+        site_dir = tmp_path / "my_website"
+        site_dir.mkdir()
+
+        # File sah website
+        (site_dir / "index.html").write_text("<!DOCTYPE html><html><body><h1>Halo</h1></body></html>", encoding="utf-8")
+        css_dir = site_dir / "css"
+        css_dir.mkdir()
+        (css_dir / "style.css").write_text("body { color: red; }", encoding="utf-8")
+
+        # File sampah
+        (site_dir / ".DS_Store").write_bytes(b"\x00\x00")
+        (site_dir / "Thumbs.db").write_bytes(b"\x00\x00")
+        (site_dir / "app.log").write_text("log dummy", encoding="utf-8")
+        (site_dir / "server.log").write_text("server started", encoding="utf-8")
+        (site_dir / "fallback.log").write_text("error traceback", encoding="utf-8")
+        (site_dir / "temp_file.tmp").write_text("temp", encoding="utf-8")
+        (site_dir / "audit_test.py").write_text("import sys; print(1)", encoding="utf-8")
+
+        # Folder sampah / clutter
+        nm_dir = site_dir / "node_modules" / "some_pkg"
+        nm_dir.mkdir(parents=True)
+        (nm_dir / "index.js").write_text("module.exports = {};", encoding="utf-8")
+
+        pycache_dir = site_dir / "__pycache__"
+        pycache_dir.mkdir()
+        (pycache_dir / "app.cpython-314.pyc").write_bytes(b"\x00\x00")
+
+        # Folder bocoran Docker bind-mount
+        (site_dir / "alfa_projects").mkdir()
+        (site_dir / "ALFA_WORKSPACE").mkdir()
+        (site_dir / "ALFA_SWARM_OUTPUTS").mkdir()
+        (site_dir / "output").mkdir()
+
+        # Folder kosong bersarang
+        (site_dir / "packages" / "api").mkdir(parents=True)
+        (site_dir / "packages" / "web").mkdir(parents=True)
+        (site_dir / "empty_dir").mkdir()
+
+        # Jalankan sanitasi
+        stats = swarm_engine.sanitize_project_directory(str(site_dir))
+        assert stats["deleted_files"] > 0
+        assert stats["pruned_dirs"] > 0
+
+        # File sah WAJIB tetap ada
+        assert (site_dir / "index.html").exists()
+        assert (css_dir / "style.css").exists()
+
+        # File sampah WAJIB hilang
+        assert not (site_dir / ".DS_Store").exists()
+        assert not (site_dir / "Thumbs.db").exists()
+        assert not (site_dir / "app.log").exists()
+        assert not (site_dir / "server.log").exists()
+        assert not (site_dir / "fallback.log").exists()
+        assert not (site_dir / "temp_file.tmp").exists()
+        assert not (site_dir / "audit_test.py").exists()
+
+        # Folder clutter & bocoran docker WAJIB hilang
+        assert not (site_dir / "node_modules").exists()
+        assert not (site_dir / "__pycache__").exists()
+        assert not (site_dir / "alfa_projects").exists()
+        assert not (site_dir / "ALFA_WORKSPACE").exists()
+        assert not (site_dir / "ALFA_SWARM_OUTPUTS").exists()
+        assert not (site_dir / "output").exists()
+
+        # Folder kosong bersarang WAJIB hilang habis tanpa sisa
+        assert not (site_dir / "packages").exists()
+        assert not (site_dir / "empty_dir").exists()
+
+
+class TestAutoHarvestSanitization:
+    def test_harvest_routes_website_cleanly(self, tmp_path, monkeypatch):
+        """Website harus masuk ke outputs/websites tanpa double nesting & bersih."""
+        sandbox_dir = tmp_path / "sandbox"
+        sandbox_dir.mkdir()
+        output_dir = tmp_path / "outputs"
+        output_dir.mkdir()
+
+        monkeypatch.setattr(swarm_engine.tools, "SANDBOX_DIR", str(sandbox_dir))
+        monkeypatch.setattr(swarm_engine, "SWARM_OUTPUT_DIR", str(output_dir))
+        monkeypatch.setattr(swarm_engine, "_SANDBOX_SNAPSHOT", set())
+        monkeypatch.setattr(swarm_engine, "_TARGET_FOLDER", "")
+
+        # Buat proyek website di sandbox
+        proj_dir = sandbox_dir / "website_toko_123"
+        proj_dir.mkdir()
+        (proj_dir / "index.html").write_text("<!DOCTYPE html><html><body>Toko</body></html>", encoding="utf-8")
+        (proj_dir / "alfa_projects").mkdir()  # leak mount
+        (proj_dir / ".DS_Store").write_bytes(b"\x00")  # junk file
+        (proj_dir / "empty_assets").mkdir()  # empty folder
+
+        harvested = swarm_engine._harvest_new_sandbox_projects(topic="Buat website toko online")
+        assert len(harvested) == 1
+        hpath = Path(harvested[0])
+        assert "websites" in str(hpath)
+        assert (hpath / "index.html").exists()
+
+        # Periksa tidak ada sampah atau folder kosong di hasil panen
+        assert not (hpath / "alfa_projects").exists()
+        assert not (hpath / ".DS_Store").exists()
+        assert not (hpath / "empty_assets").exists()
+
+
+class TestDockerMountHygiene:
+    def test_bash_docker_cmd_no_inner_mounts(self, monkeypatch, tmp_path):
+        """Memastikan execute_bash_command tidak me-mount subfolder ke dalam /workspace atau /sandbox."""
+        from alfa.tools import system_tools
+        captured_cmd = []
+
+        def fake_run(cmd, **kwargs):
+            captured_cmd.extend(cmd)
+            class FakeRes:
+                returncode = 0
+                stdout = "ok"
+                stderr = ""
+            return FakeRes()
+
+        monkeypatch.setattr(system_tools.subprocess, "run", fake_run)
+        monkeypatch.setattr(system_tools, "_docker_available", lambda: True)
+
+        wd = tmp_path / "project_x"
+        wd.mkdir()
+
+        system_tools.execute_bash_command("ls", working_dir=str(wd), backend="docker")
+
+        # Pastikan tidak ada -v ...:/workspace/<folder> yang menciptakan folder bocoran
+        for i, arg in enumerate(captured_cmd):
+            if arg == "-v" and i + 1 < len(captured_cmd):
+                mount_spec = captured_cmd[i + 1]
+                assert not mount_spec.endswith(":/workspace/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/workspace/ALFA_WORKSPACE"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/workspace/ALFA_SWARM_OUTPUTS"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/workspace/output"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/sandbox/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
+
+    def test_python_docker_cmd_no_inner_sandbox_mounts(self, monkeypatch, tmp_path):
+        """Memastikan execute_python_sandbox tidak me-mount subfolder ke dalam /sandbox/<basename>."""
+        from alfa.tools import system_tools
+        captured_cmd = []
+
+        def fake_run(cmd, **kwargs):
+            captured_cmd.extend(cmd)
+            class FakeRes:
+                returncode = 0
+                stdout = "ok"
+                stderr = ""
+            return FakeRes()
+
+        monkeypatch.setattr(system_tools.subprocess, "run", fake_run)
+        monkeypatch.setattr(system_tools, "_docker_available", lambda: True)
+
+        system_tools.execute_python_sandbox("print('hello')")
+
+        for i, arg in enumerate(captured_cmd):
+            if arg == "-v" and i + 1 < len(captured_cmd):
+                mount_spec = captured_cmd[i + 1]
+                assert not mount_spec.endswith(":/sandbox/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/sandbox/ALFA_WORKSPACE"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/sandbox/ALFA_SWARM_OUTPUTS"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/sandbox/output"), f"Bocoran mount terdeteksi: {mount_spec}"
+
+
+
