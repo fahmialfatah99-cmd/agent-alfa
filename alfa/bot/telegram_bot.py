@@ -196,7 +196,7 @@ def main():
 
     # Callback Query (Buttons)
     application.add_handler(CallbackQueryHandler(
-        permission_gate.handle_permission_callback, pattern=r"^perm\|"), group=1)
+        permission_gate.handle_permission_callback, pattern=r"^perm(\|.*|_done)$"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Multimodal message handlers
