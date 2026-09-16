@@ -20,6 +20,7 @@ from alfa.core.perm import (
     audit_website_security,
     get_tool_tier,
     get_trust_score,
+    handle_permission_callback,
     is_always_allowed,
     is_enabled,
     list_always_allowed,

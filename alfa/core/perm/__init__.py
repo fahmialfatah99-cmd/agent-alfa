@@ -24,6 +24,7 @@ from alfa.core.perm.store import (
 )
 from alfa.core.perm.gate import (
     get_tool_tier,
+    handle_permission_callback,
     is_enabled,
     make_gate,
     request_approval,
@@ -55,6 +56,7 @@ __all__ = [
     "save_always_allow",
     "update_trust_score",
     "get_tool_tier",
+    "handle_permission_callback",
     "is_enabled",
     "make_gate",
     "request_approval",
