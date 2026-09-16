@@ -397,6 +397,52 @@ class TestHardeningAndRobustness:
         assert res is not None
         assert "[IZIN DITOLAK]" in res
 
+    def test_handle_permission_callback_feedback(self):
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        import alfa.core.perm.gate as perm_gate
+
+        ev = asyncio.Event()
+        req_id = "test_req_123"
+        perm_gate._PENDING[req_id] = {
+            "event": ev,
+            "decision": "",
+            "chat_id": 12345,
+        }
+
+        query = MagicMock()
+        query.data = f"perm|{req_id}|once"
+        query.from_user.id = 12345
+        query.message.text = "🔐 PERMINTAAN IZIN AGENT\n\n🛠 Tool: run_shell"
+        query.answer = AsyncMock()
+        query.edit_message_text = AsyncMock()
+
+        update = MagicMock()
+        update.callback_query = query
+        context = MagicMock()
+
+        asyncio.run(perm_gate.handle_permission_callback(update, context))
+
+        assert perm_gate._PENDING[req_id]["decision"] == "once"
+        assert ev.is_set()
+        query.answer.assert_awaited_once()
+        assert "✅ Telah Diizinkan (Sekali)" in query.answer.call_args[0][0]
+        query.edit_message_text.assert_awaited_once()
+        call_kwargs = query.edit_message_text.call_args.kwargs
+        assert "→ Status: ✅ Diizinkan" in call_kwargs["text"]
+        assert call_kwargs["reply_markup"] is not None
+
+        # Test perm_done
+        query_done = MagicMock()
+        query_done.data = "perm_done"
+        query_done.answer = AsyncMock()
+        update_done = MagicMock()
+        update_done.callback_query = query_done
+        asyncio.run(perm_gate.handle_permission_callback(update_done, context))
+        query_done.answer.assert_awaited_once_with(
+            "Permintaan izin ini sudah selesai diproses.", show_alert=False
+        )
+
     def test_vector_similarity_dimension_alignment(self):
         from vector_memory import cosine_similarity
         vec_384 = [0.1] * 384

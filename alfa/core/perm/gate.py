@@ -18,6 +18,7 @@ from alfa.core.perm.constants import (
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
+    _LABELS,
     logger,
 )
 from alfa.core.perm.store import (
@@ -158,16 +159,39 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         _PENDING.pop(req_id, None)
 
     label = _LABELS.get(decision, decision)
-    if sent_message is not None:
+    if decision == "timeout" and sent_message is not None:
+        try:
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            from subagents import get_telegram_app
+            app = get_telegram_app()
+            if app:
+                base_text = sent_message.text or ""
+                timeout_markup = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⏰ Kedaluwarsa (Timeout)", callback_data="perm_done")
+                ]])
+                await app.bot.edit_message_text(
+                    chat_id=int(chat_id),
+                    message_id=sent_message.message_id,
+                    text=f"{base_text}\n\n→ Status: {label}",
+                    reply_markup=timeout_markup,
+                )
+        except Exception as e:
+            logger.debug(f"edit pesan izin timeout gagal (abaikan): {e}")
+    elif sent_message is not None:
+        # Fallback jika belum sempat diedit via callback query handler
         try:
             from subagents import get_telegram_app
             app = get_telegram_app()
-            base_text = sent_message.text or ""
-            await app.bot.edit_message_text(
-                chat_id=int(chat_id), message_id=sent_message.message_id,
-                text=f"{base_text}\n\n→ {label}")
+            if app:
+                base_text = sent_message.text or ""
+                if "\n\n→ Status:" not in base_text and "\n\n→ " not in base_text:
+                    await app.bot.edit_message_text(
+                        chat_id=int(chat_id),
+                        message_id=sent_message.message_id,
+                        text=f"{base_text}\n\n→ Status: {label}",
+                    )
         except Exception as e:
-            logger.debug(f"edit pesan izin gagal (abaikan): {e}")
+            logger.debug(f"edit pesan izin fallback gagal (abaikan): {e}")
 
     if decision == "always":
         save_always_allow(int(chat_id), tool_name)
@@ -186,17 +210,34 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
 
 
 async def handle_permission_callback(update, context) -> None:
-    """Handler CallbackQueryHandler utk data 'perm|<req_id>|<decision>'."""
+    """Handler CallbackQueryHandler utk data 'perm|<req_id>|<decision>' atau 'perm_done'."""
     query = update.callback_query
+    if not query:
+        return
+
+    data = query.data or ""
+    if data == "perm_done":
+        try:
+            await query.answer("Permintaan izin ini sudah selesai diproses.", show_alert=False)
+        except Exception:
+            pass
+        return
+
     try:
-        _, req_id, decision = query.data.split("|", 2)
+        _, req_id, decision = data.split("|", 2)
     except Exception:
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
         return
 
     entry = _PENDING.get(req_id)
     if not entry:
-        await query.answer("Permintaan sudah kedaluwarsa.", show_alert=False)
+        try:
+            await query.answer("Permintaan sudah kedaluwarsa atau telah diproses.", show_alert=False)
+        except Exception:
+            pass
         return
 
     # Hanya pemilik chat yang boleh memutuskan
@@ -209,10 +250,41 @@ async def handle_permission_callback(update, context) -> None:
 
     entry["decision"] = decision
     entry["event"].set()
+
+    label = _LABELS.get(decision, decision)
+    if decision == "once":
+        status_btn = "✅ Telah Diizinkan (Sekali)"
+    elif decision == "always":
+        status_btn = "🔁 Telah Diizinkan Selalu"
+    elif decision == "deny":
+        status_btn = "❌ Telah Ditolak"
+    else:
+        status_btn = f"🔘 {label}"
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    updated_markup = InlineKeyboardMarkup([[
+        InlineKeyboardButton(status_btn, callback_data="perm_done")
+    ]])
+
+    # 1. Beri feedback respons instan ke Telegram (toast alert)
     try:
-        await query.answer(_LABELS.get(decision, decision))
-    except Exception:
-        pass
+        await query.answer(f"Pilihan disimpan: {status_btn}")
+    except Exception as e:
+        logger.debug(f"query.answer gagal: {e}")
+
+    # 2. Perbarui tampilan teks pesan dan ganti tombol menjadi status final
+    try:
+        base_text = query.message.text if query.message else ""
+        if "\n\n→ Status:" in base_text:
+            base_text = base_text.split("\n\n→ Status:")[0]
+        elif "\n\n→ " in base_text:
+            base_text = base_text.split("\n\n→ ")[0]
+
+        new_text = f"{base_text}\n\n→ Status: {label}"
+        await query.edit_message_text(text=new_text, reply_markup=updated_markup)
+    except Exception as e:
+        logger.debug(f"edit_message_text pada callback gagal: {e}")
 
 
 def wrap_tool_for_afc(fn):

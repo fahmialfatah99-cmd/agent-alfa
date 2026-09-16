@@ -59,6 +59,13 @@ async def _check_and_send_media_artifacts(update: Update, context: ContextTypes.
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle inline button clicks."""
     query = update.callback_query
+    if not query:
+        return
+
+    data = query.data or ""
+    if data.startswith("perm|") or data == "perm_done":
+        return
+
     await query.answer()
 
     user_id = update.effective_user.id

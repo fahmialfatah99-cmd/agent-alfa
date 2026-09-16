@@ -83,7 +83,7 @@ TIER_TIMEOUTS = {
 
 _LABELS = {
     "once": "✅ Diizinkan (sekali ini)",
-    "always": "🔁 Diizinkan SELALY untuk sesi mendatang",
+    "always": "🔁 Diizinkan SELALU untuk sesi mendatang",
     "always_session": "⏳ Izinkan sampai sesi berakhir",
     "deny": "❌ Ditolak oleh pengguna",
     "timeout": "⏰ Auto-ditolak (tidak ada respons)",

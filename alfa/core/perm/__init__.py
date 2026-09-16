@@ -12,6 +12,7 @@ from alfa.core.perm.constants import (
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
+    _LABELS,
 )
 from alfa.core.perm.store import (
     _connect,
@@ -48,6 +49,7 @@ __all__ = [
     "SAFE_TOOLS",
     "TOOL_CLASSIFICATION",
     "TRUST_THRESHOLD",
+    "_LABELS",
     "_connect",
     "get_trust_score",
     "is_always_allowed",
