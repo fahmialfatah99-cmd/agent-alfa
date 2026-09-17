@@ -1,52 +1,77 @@
-```gitignore
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 *.py~
-*.py.class
-*.pyc.class
-*.pyo.class
-*.pyd.class
-*.py~
-*.py.class~
-*.pyc.class~
-*.pyo.class~
-*.pyd.class~
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Database
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+gdrive_oauth_client_secret.json
+gdrive_oauth_token.json
+
+# Databases and Backups
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+*.bak
+*.local_backup
 
-# Dependencies
-venv/
-.venv/
-.env
-.env.local
-.env.*
-requirements.txt.bak
-poetry.lock
-Pipfile.lock
-
-# Storage and data files
+# Storage runtime data
+storage/runs/
+storage/traces/
+storage/audio/
+storage/checkpoints/
+storage/key_value_stores/
+storage/request_queues/
+storage/*.log
 storage/pipelines/*.json
-storage/runs/*.jsonl
-storage/traces/*.jsonl
-
-# Dependencies and virtual environments
-.venv/
-venv/
-env/
-.env
-.env.local
-.env.*
-
-# Logs
 *.log
 
-# OS generated files
+# Testing & Coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+
+# OS and IDE
 .DS_Store
 .DS_Store?
 ._*
@@ -55,11 +80,8 @@ env/
 ehthumbs.db
 Thumbs.db
 desktop.ini
-
-# IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-```

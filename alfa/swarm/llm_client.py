@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Multi-provider LLM Client & agent response generation for ALFA Swarm.
 Supports Gemini (with automatic function calling) and OpenAI-compatible providers.
@@ -8,13 +7,12 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from google import genai
 from google.genai import types
 
-import token_usage
-from alfa.core import database
+from alfa.core import database, token_usage
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +53,8 @@ def _default_gemini_model() -> str:
 
 
 def get_agent_api_client(
-    agent: Dict[str, Any],
-) -> tuple[str, str, str, Optional[str], Optional[int]]:
+    agent: dict[str, Any],
+) -> tuple[str, str, str, str | None, int | None]:
     """Resolve (provider, api_key, model, base_url, key_id) for a specific agent."""
     provider = (agent.get("provider") or "gemini").lower()
     model = agent.get("model") or (
@@ -130,17 +128,17 @@ def get_agent_api_client(
 async def _generate_with_gemini(
     agent_name: str,
     api_key: str,
-    models: List[str],
+    models: list[str],
     prompt: str,
     final_instruction: str,
     key_id=None,
     key_label: str = "",
     context: str = "swarm",
     max_tokens: int = 500,
-    thinking_budget: Optional[int] = None,
+    thinking_budget: int | None = None,
     timeout_s: float = 180.0,
-    tools: Optional[List[Any]] = None,
-) -> Optional[str]:
+    tools: list[Any] | None = None,
+) -> str | None:
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
@@ -209,7 +207,7 @@ async def _generate_with_openai_compat(
     provider: str,
     api_key: str,
     model: str,
-    base_url: Optional[str],
+    base_url: str | None,
     prompt: str,
     final_instruction: str,
     key_id=None,
@@ -217,7 +215,7 @@ async def _generate_with_openai_compat(
     context: str = "swarm",
     max_tokens: int = 500,
     timeout_s: float = 180.0,
-) -> Optional[str]:
+) -> str | None:
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
         import httpx
@@ -421,19 +419,19 @@ async def _generate_with_openai_compat(
 
 
 async def generate_agent_response(
-    agent: Dict[str, Any],
+    agent: dict[str, Any],
     prompt: str,
     system_instruction: str,
-    max_tokens: Optional[int] = None,
+    max_tokens: int | None = None,
     timeout_s: float = 180.0,
-    thinking_budget: Optional[int] = None,
-) -> Optional[str]:
+    thinking_budget: int | None = None,
+) -> str | None:
     """Generate response for a specific agent using its configured provider and key."""
     # Check if patched on swarm_engine or alfa.swarm.engine
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "generate_agent_response"):
-            fn = getattr(mod, "generate_agent_response")
+            fn = mod.generate_agent_response
             if fn is not generate_agent_response and callable(fn):
                 return await fn(
                     agent=agent,
@@ -469,7 +467,7 @@ async def generate_agent_response(
 
     key_label = f"agent:{agent_name}"
 
-    def gemini_like_tools() -> List[Any]:
+    def gemini_like_tools() -> list[Any]:
         try:
             from alfa import tools as _t
             from alfa.core import brain as _mb

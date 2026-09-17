@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 Workforce Agents & Round-Table Meetings Database Functions.
 """
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("DB.Agents")
 
 
-def list_custom_agents_sync() -> List[Dict[str, Any]]:
+def list_custom_agents_sync() -> list[dict[str, Any]]:
     """List all registered custom agents."""
     with get_sync_db() as conn:
         cursor = conn.execute("""
@@ -35,10 +34,10 @@ def add_custom_agent_sync(
     system_instruction: str,
     provider: str = "gemini",
     model: str = "gemini-3.6-flash",
-    api_key_id: Optional[int] = None,
+    api_key_id: int | None = None,
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new specialized AI agent in the workforce."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -63,7 +62,7 @@ def add_custom_agent_sync(
     return {"status": "success", "id": agent_id, "name": name, "role": role}
 
 
-def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+def update_custom_agent_sync(agent_id: int, updates: dict[str, Any]) -> dict[str, Any]:
     """Update custom agent configuration."""
     ALLOWED_COLUMNS = frozenset(
         [
@@ -109,7 +108,7 @@ def update_custom_agent_sync(agent_id: int, updates: Dict[str, Any]) -> Dict[str
     return {"status": "success", "message": f"Agent #{agent_id} updated"}
 
 
-def delete_custom_agent_sync(agent_id: int) -> Dict[str, Any]:
+def delete_custom_agent_sync(agent_id: int) -> dict[str, Any]:
     """Delete a custom agent."""
     with get_sync_db() as conn:
         cursor = conn.execute("DELETE FROM custom_agents WHERE id = ?", (agent_id,))
@@ -119,7 +118,7 @@ def delete_custom_agent_sync(agent_id: int) -> Dict[str, Any]:
     return {"status": "success", "message": f"Agent #{agent_id} deleted"}
 
 
-def get_custom_agent_sync(name_or_id: Any) -> Optional[Dict[str, Any]]:
+def get_custom_agent_sync(name_or_id: Any) -> dict[str, Any] | None:
     """Retrieve custom agent by name or id."""
     with get_sync_db() as conn:
         if isinstance(name_or_id, int) or (
@@ -142,14 +141,14 @@ def get_custom_agent_sync(name_or_id: Any) -> Optional[Dict[str, Any]]:
 def create_agent_meeting_sync(
     title: str,
     topic: str,
-    participants: List[str],
-    dialogue_transcript: List[Dict[str, Any]],
+    participants: list[str],
+    dialogue_transcript: list[dict[str, Any]],
     consensus: str,
     action_plan: str,
     mode: str = "plan",
     execution_results: Any = "",
     status: str = "completed",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Save a completed or active multi-agent meeting with mode and live execution results."""
     exec_str = (
         execution_results
@@ -179,7 +178,7 @@ def create_agent_meeting_sync(
     return {"status": "success", "id": meeting_id, "title": title}
 
 
-def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
+def list_agent_meetings_sync(limit: int = 50) -> list[dict[str, Any]]:
     """List recent meetings with mode information."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -219,7 +218,7 @@ def list_agent_meetings_sync(limit: int = 50) -> List[Dict[str, Any]]:
         return results
 
 
-def get_agent_meeting_sync(meeting_id: int) -> Optional[Dict[str, Any]]:
+def get_agent_meeting_sync(meeting_id: int) -> dict[str, Any] | None:
     """Get full details of a specific meeting including full dialogue transcript and execution results."""
     with get_sync_db() as conn:
         cursor = conn.execute(

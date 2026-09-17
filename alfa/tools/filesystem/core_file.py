@@ -3,8 +3,7 @@
 import difflib
 import logging
 import os
-import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import normalize_path
@@ -14,7 +13,7 @@ logger = logging.getLogger("AgentTools.Filesystem.CoreFile")
 _MAX_EDIT_FILE_BYTES = 2 * 1024 * 1024
 
 
-def _py_syntax_guard(path: str, original_content: str) -> Optional[str]:
+def _py_syntax_guard(path: str, original_content: str) -> str | None:
     """Validasi sintaks Python pasca-edit; rollback bila rusak.
 
     Mengembalikan pesan error (dan memulihkan isi lama) bila file .py kini
@@ -23,7 +22,7 @@ def _py_syntax_guard(path: str, original_content: str) -> Optional[str]:
     if not path.endswith(".py"):
         return None
     try:
-        with open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
+        with open(path, encoding="utf-8", errors="surrogateescape") as f:
             new_content = f.read()
         compile(new_content, path, "exec")
         return None
@@ -47,7 +46,7 @@ def _resolve_host_path(file_path: str) -> str:
 @register_tool(category="file")
 def read_local_file(
     file_path: str, max_lines: int = 300, start_line: int = 1
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Read the text content of a local file on the system safely.
 
@@ -75,7 +74,7 @@ def read_local_file(
             files = os.listdir(expanded_path)
             return {"status": "is_directory", "files": files[:50], "total": len(files)}
 
-        with open(expanded_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(expanded_path, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
 
         total_lines = len(lines)
@@ -99,7 +98,7 @@ def read_local_file(
 
 
 @register_tool(category="file")
-def write_local_file(file_path: str, content: str) -> Dict[str, Any]:
+def write_local_file(file_path: str, content: str) -> dict[str, Any]:
     """
     Write or create a text file on the local system.
 
@@ -128,7 +127,7 @@ def write_local_file(file_path: str, content: str) -> Dict[str, Any]:
 @register_tool(category="file")
 def edit_file_precise(
     file_path: str, old_text: str, new_text: str, occurrence: int = 0
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Edit a file with SURGICAL precision (opencode-style): replace an exact
     unique snippet instead of rewriting the whole file. old_text must match
@@ -160,7 +159,7 @@ def edit_file_precise(
                 "message": "old_text kosong — gunakan write_local_file untuk membuat isi baru.",
             }
 
-        with open(p, "r", encoding="utf-8", errors="surrogateescape") as f:
+        with open(p, encoding="utf-8", errors="surrogateescape") as f:
             content = f.read()
 
         count = content.count(old_text)
@@ -232,7 +231,7 @@ def edit_file_precise(
 
 
 @register_tool(category="file")
-def apply_unified_diff(file_path: str, diff_text: str) -> Dict[str, Any]:
+def apply_unified_diff(file_path: str, diff_text: str) -> dict[str, Any]:
     """
     Apply a UNIFIED DIFF (format `diff -u` / git diff) to a single file with
     context-matching and small drift tolerance — like `patch` but built-in.
@@ -255,7 +254,7 @@ def apply_unified_diff(file_path: str, diff_text: str) -> Dict[str, Any]:
                 "message": f"File terlalu besar (>2MB): {file_path}",
             }
 
-        with open(p, "r", encoding="utf-8", errors="surrogateescape") as f:
+        with open(p, encoding="utf-8", errors="surrogateescape") as f:
             orig_lines = f.read().split("\n")
 
         # Parse hunks

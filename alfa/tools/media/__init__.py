@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Media Tools Package for ALFA.
 Deconstructed modules:

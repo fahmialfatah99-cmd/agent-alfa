@@ -7,12 +7,9 @@ and backwards-compatible exports.
 import asyncio
 import base64
 import ctypes
-import json
-import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -27,7 +24,6 @@ from alfa.dashboard.common import (
     SESSION_SECRET,
     STATIC_DIR,
     TEMPLATES_DIR,
-    _get_bot,
     get_primary_user_id,
     logger,
     safe_int,
@@ -63,7 +59,7 @@ load_dotenv()
 
 async def _pipeline_trigger_scheduler():
     """Background loop: eksekusi pipeline ber-trigger interval tiap 60 detik cek."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     while True:
         try:
@@ -178,7 +174,7 @@ def create_app() -> FastAPI:
         """Serve the single-page luxury glassmorphic dashboard."""
         index_path = os.path.join(TEMPLATES_DIR, "index.html")
         if os.path.exists(index_path):
-            with open(index_path, "r", encoding="utf-8") as f:
+            with open(index_path, encoding="utf-8") as f:
                 html_content = f.read()
 
             user = getattr(request.state, "user", None)

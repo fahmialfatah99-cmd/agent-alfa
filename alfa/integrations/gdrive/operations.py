@@ -1,24 +1,19 @@
 """Google Drive file upload, download, folder creation, and Second Brain sync."""
 
-import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from alfa.core import database
 from alfa.core.runtime_ctx import current_user_id_var
 from alfa.integrations.gdrive.auth import (
-    PROJECT_DIR,
     SANDBOX_DIR,
-    _detect_gdrive_auth_mode,
     _get_default_gdrive_folder_id,
     _get_gdrive_service,
-    logger,
 )
 
 
 def gdrive_list_files(
     folder_id: str = "", query: str = "", limit: int = 20
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List, search, and browse files and folders stored in Google Drive.
 
@@ -67,7 +62,7 @@ def gdrive_list_files(
 
 def gdrive_upload_file(
     filepath: str, folder_id: str = "", custom_filename: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Upload a local file or document (PDF, Excel, Word, images, code, archive) to Google Drive.
 
@@ -154,7 +149,7 @@ def gdrive_upload_file(
         }
 
 
-def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any]:
+def gdrive_download_file(file_id: str, save_filename: str = "") -> dict[str, Any]:
     """
     Download a file from Google Drive by its File ID to the local system.
 
@@ -199,7 +194,7 @@ def gdrive_download_file(file_id: str, save_filename: str = "") -> Dict[str, Any
 
 def gdrive_create_folder(
     folder_name: str, parent_folder_id: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new folder in Google Drive.
 
@@ -245,7 +240,7 @@ def gdrive_create_folder(
         }
 
 
-def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[str, Any]:
+def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> dict[str, Any]:
     """
     Ingest and sync documents from Google Drive directly into ALFA's Neural Vector Brain (Second Brain RAG).
 
@@ -254,7 +249,7 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> Dict[st
         limit: Max documents to ingest (default 10).
     """
     try:
-        import vector_memory
+        from alfa.memory import vector as vector_memory
 
         target_folder = (
             folder_id.strip() if folder_id else _get_default_gdrive_folder_id()

@@ -12,11 +12,9 @@ Usage:
   python html-token-validator.py --fix              # Auto-fix issues (WIP)
 """
 
-import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # Project root relative to this script
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
@@ -69,8 +67,8 @@ class ValidationResult:
 
     def __init__(self, file_path: Path):
         self.file_path = file_path
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.passed = True
 
     def add_error(self, msg: str):
@@ -81,7 +79,7 @@ class ValidationResult:
         self.warnings.append(msg)
 
 
-def load_css_variables() -> Dict[str, str]:
+def load_css_variables() -> dict[str, str]:
     """Load CSS variables from design-tokens.css."""
     variables = {}
     if TOKENS_CSS_PATH.exists():
@@ -207,7 +205,7 @@ def validate_file(file_path: Path, verbose: bool = False) -> ValidationResult:
     return validate_html(content, file_path, verbose)
 
 
-def validate_directory(dir_path: Path, verbose: bool = False) -> List[ValidationResult]:
+def validate_directory(dir_path: Path, verbose: bool = False) -> list[ValidationResult]:
     """Validate all HTML files in a directory."""
     results = []
     if dir_path.exists():
@@ -232,7 +230,7 @@ def print_result(result: ValidationResult, verbose: bool = False):
             print(f"      [warn] {warning}")
 
 
-def print_summary(all_results: Dict[str, List[ValidationResult]]):
+def print_summary(all_results: dict[str, list[ValidationResult]]):
     """Print summary of all validation results."""
     total_files = 0
     total_passed = 0
@@ -318,7 +316,7 @@ Examples:
             print(f"  ... and {len(variables) - 30} more")
         return
 
-    all_results: Dict[str, List[ValidationResult]] = {}
+    all_results: dict[str, list[ValidationResult]] = {}
 
     # Validate specific files
     if args.files:

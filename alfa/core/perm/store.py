@@ -4,7 +4,6 @@ import os
 import sqlite3
 import sys
 import time
-from typing import Any, Dict, List, Optional
 
 from alfa.core.perm.constants import DB_PATH, logger
 
@@ -12,7 +11,7 @@ from alfa.core.perm.constants import DB_PATH, logger
 def _get_db_path() -> str:
     mod = sys.modules.get("permission_gate") or sys.modules.get("alfa.core.permissions")
     if mod and hasattr(mod, "DB_PATH"):
-        return getattr(mod, "DB_PATH")
+        return mod.DB_PATH
     return os.getenv("ALFA_DB_PATH", DB_PATH)
 
 
@@ -47,7 +46,7 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
-def get_trust_score(chat_id: Optional[int]) -> float:
+def get_trust_score(chat_id: int | None) -> float:
     """Get user's trust score (0.0 - 1.0)."""
     if chat_id is None:
         return 0.0
@@ -132,7 +131,7 @@ def log_permission_decision(
         logger.warning(f"log audit trail gagal: {e}")
 
 
-def is_always_allowed(chat_id: Optional[int], tool_name: str) -> bool:
+def is_always_allowed(chat_id: int | None, tool_name: str) -> bool:
     if chat_id is None:
         return False
     try:
@@ -168,7 +167,7 @@ def save_always_allow(
         logger.warning(f"simpan tool_permissions gagal: {e}")
 
 
-def list_always_allowed(chat_id: int) -> List[str]:
+def list_always_allowed(chat_id: int) -> list[str]:
     try:
         with _connect() as conn:
             return [

@@ -14,7 +14,7 @@ import re
 import sqlite3
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -67,8 +67,8 @@ init_scraper_tables()
 
 
 def scrape_with_camoufox(
-    url: str, wait_selector: Optional[str] = None, timeout: int = 30000
-) -> Dict[str, Any]:
+    url: str, wait_selector: str | None = None, timeout: int = 30000
+) -> dict[str, Any]:
     """
     Scrape protected/dynamic JavaScript web pages using Camoufox Anti-Detect browser.
     Bypasses Cloudflare, DataDome, Akamai, and browser fingerprint detection.
@@ -127,7 +127,7 @@ def scrape_with_camoufox(
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
+def scrape_with_fast_tls(url: str) -> dict[str, Any]:
     """
     Ultra-fast scraping using primp HTTP/2 with real Chrome/Firefox client fingerprint.
     Sub-second response times, handles thousands of requests efficiently.
@@ -178,7 +178,7 @@ def scrape_with_fast_tls(url: str) -> Dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str, Any]:
+def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> dict[str, Any]:
     """Ekstraksi field produk secara otomatis dari HTML (Shopee, Tokopedia, TikTok, generic e-commerce)."""
     # Title
     title = ""
@@ -251,8 +251,8 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> Dict[str,
 
 
 async def scrape_urls_batch_async(
-    urls: List[str], max_concurrency: int = 15, use_camoufox: bool = False
-) -> List[Dict[str, Any]]:
+    urls: list[str], max_concurrency: int = 15, use_camoufox: bool = False
+) -> list[dict[str, Any]]:
     """
     Scrape ratusan hingga ribuan URL sekaligus secara paralel dengan batasan concurrency.
     Sangat cepat, efisien, dan tidak membebani memori server.
@@ -283,11 +283,11 @@ async def scrape_urls_batch_async(
 
 
 def run_batch_scrape(
-    urls: List[str],
+    urls: list[str],
     batch_name: str = "batch_products",
     max_concurrency: int = 10,
     use_camoufox: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Fungsi utama untuk scraping skala besar dengan ekspor otomatis ke JSON, CSV, dan Database.
     """
@@ -407,7 +407,7 @@ def run_batch_scrape(
 
 def search_and_scrape_marketplace(
     query: str, platform: str = "shopee", max_items: int = 15
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cari dan scrape katalog produk real dari marketplace berdasarkan kata kunci.
     Mengambil produk viral, harga, rating, dan link langsung.

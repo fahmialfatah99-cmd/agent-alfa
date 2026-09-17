@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PDF Report generation, watermarking, page numbering, and image conversions.
 """
@@ -9,7 +8,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 
@@ -30,7 +29,7 @@ def get_pdf_output_dir(subfolder: str) -> str:
 @register_tool(category="pdf")
 def generate_pdf_report(
     title: str, summary: str, table_data_json: str = "", filename: str = "laporan.pdf"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a modern, beautifully styled PDF document report with ReportLab and automatically send it to Telegram.
 
@@ -138,7 +137,7 @@ def pdf_apply_watermark_text(
     opacity: float = 0.2,
     angle: float = 45,
     output_filename: str = "watermarked.pdf",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Tambahkan stempel watermark teks diagonal transparan ke setiap halaman PDF.
 
@@ -207,7 +206,7 @@ def pdf_insert_page_numbers(
     position: str = "bottom-center",
     start_number: int = 1,
     output_filename: str = "numbered.pdf",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Sematkan penomoran halaman otomatis pada dokumen PDF.
 
@@ -279,7 +278,7 @@ def pdf_insert_page_numbers(
 @register_tool(category="pdf")
 def pdf_convert_to_images(
     pdf_path: str, dpi: int = 150, output_dir: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Konversi seluruh halaman PDF menjadi gambar PNG resolusi tinggi.
 
@@ -325,8 +324,8 @@ def pdf_convert_to_images(
 
 @register_tool(category="pdf")
 def images_convert_to_pdf(
-    image_paths: List[str], output_filename: str = "images_album.pdf"
-) -> Dict[str, Any]:
+    image_paths: list[str], output_filename: str = "images_album.pdf"
+) -> dict[str, Any]:
     """
     Gabungkan kumpulan file foto/gambar (JPG, PNG, WEBP) menjadi satu dokumen PDF rapi.
 

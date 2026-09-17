@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Regression tests for color-mode coherence in design_system.py (issue #428).
 
@@ -154,7 +153,7 @@ class TestEndToEndCoherence(unittest.TestCase):
         background = ds["colors"]["background"]
         self.assertTrue(
             _palette_is_dark({"Background": background}),
-            "dark-mode query returned a light background: {}".format(background),
+            f"dark-mode query returned a light background: {background}",
         )
 
     def test_generator_exports_every_semantic_foreground_pair(self):

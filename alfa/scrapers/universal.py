@@ -18,7 +18,7 @@ import urllib.parse
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 try:
     from ddgs import DDGS
@@ -142,7 +142,7 @@ def scrape_universal_keyword(
     category: str = "all_marketplace",
     limit: int = 50,
     extract_contacts: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Executes high-yield multi-query deep search across specialized platforms.
     Paginates and merges results to yield 20 - 500+ rich records.
@@ -374,8 +374,8 @@ def scrape_universal_keyword(
 
 
 def scrape_custom_urls_or_selectors(
-    urls: List[str], concurrency: int = 15, use_camoufox: bool = False
-) -> Dict[str, Any]:
+    urls: list[str], concurrency: int = 15, use_camoufox: bool = False
+) -> dict[str, Any]:
     """
     Scrapes a custom list of URLs with auto-extraction and concurrency.
     """
@@ -393,7 +393,7 @@ def scrape_custom_urls_or_selectors(
     if not clean_urls:
         return {"status": "error", "message": "Tidak ada URL valid yang diberikan."}
 
-    def _scrape_single(url: str) -> Dict[str, Any]:
+    def _scrape_single(url: str) -> dict[str, Any]:
         try:
             if use_camoufox:
                 return fast_scraper.scrape_with_camoufox(url)
@@ -479,7 +479,7 @@ def scrape_custom_urls_or_selectors(
     }
 
 
-def list_all_scrape_batches(limit: int = 20) -> List[Dict[str, Any]]:
+def list_all_scrape_batches(limit: int = 20) -> list[dict[str, Any]]:
     """List recent master scrape batches."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

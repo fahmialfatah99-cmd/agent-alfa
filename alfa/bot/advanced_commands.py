@@ -10,7 +10,6 @@ from telegram import (
     InlineKeyboardMarkup,
     Update,
     WebAppInfo,
-    constants,
 )
 from telegram.ext import ContextTypes
 
@@ -18,7 +17,6 @@ from alfa import tools
 from alfa.bot.config import is_authorized
 from alfa.bot.helpers import safe_send_message
 from alfa.core import database
-from alfa.tools import get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -50,7 +48,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     if os.path.exists(status_file):
         try:
-            with open(status_file, "r") as f:
+            with open(status_file) as f:
                 wa_data = json.load(f)
             wa_auth_status = wa_data.get("status", "UNKNOWN")
             qr_str = wa_data.get("qr", "")

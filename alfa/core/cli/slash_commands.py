@@ -1,15 +1,9 @@
 """Command handlers for ALFA CLI."""
 
-import getpass
-import json
 import os
-import sys
 
 from alfa.core.cli.constants import (
-    RICH_AVAILABLE,
     Colors,
-    Console,
-    Panel,
     print_status,
 )
 
@@ -85,7 +79,7 @@ class CliSlashCommandsMixin:
                 print_status(f"   Temperature: {data['temperature']}", "info")
         else:
             print_status(
-                f"Gagal mengubah provider. Pastikan server mendukung endpoint ini.",
+                "Gagal mengubah provider. Pastikan server mendukung endpoint ini.",
                 "error",
             )
 

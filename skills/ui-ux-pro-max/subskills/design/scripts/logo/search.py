@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Logo Design Search - CLI for searching logo design guidelines
 Usage: python search.py "<query>" [--domain <domain>] [--max-results 3]
@@ -19,7 +18,7 @@ def format_output(result):
         return f"Error: {result['error']}"
 
     output = []
-    output.append(f"## Logo Design Search Results")
+    output.append("## Logo Design Search Results")
     output.append(f"**Domain:** {result['domain']} | **Query:** {result['query']}")
     output.append(
         f"**Source:** {result['file']} | **Found:** {result['count']} results\n"

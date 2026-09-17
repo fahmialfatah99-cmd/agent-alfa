@@ -10,7 +10,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.video.audio import VIDEO_OUT_DIR, generate_voiceover, get_audio_duration
 from alfa.video.compositor import create_ui_overlay_layer
@@ -34,10 +34,10 @@ GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 def _veo_api_request(
     url: str,
-    payload: Optional[Dict[str, Any]] = None,
+    payload: dict[str, Any] | None = None,
     api_key: str = "",
     method: str = "GET",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Helper request JSON ke Gemini API dgn auth header x-goog-api-key."""
     req = urllib.request.Request(
         url,
@@ -67,7 +67,7 @@ def _veo_api_request(
 def _generate_google_veo_video(
     engine: str,
     api_key: str,
-    image_paths: List[str],
+    image_paths: list[str],
     product_name: str,
     visual_prompt: str,
     voiceover_text: str,
@@ -77,8 +77,8 @@ def _generate_google_veo_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None,
-) -> Dict[str, Any]:
+    output_filename: str | None = None,
+) -> dict[str, Any]:
     """
     Generate video AI dgn Google Veo 3.1 (Gemini API predictLongRunning),
     lalu komposit ulang: overlay UI promo + dubbing voiceover Indonesia.
@@ -90,7 +90,7 @@ def _generate_google_veo_video(
     ts = int(time.time() * 1000)
 
     # 1. Gambar referensi pertama (opsional tapi disarankan utk konsistensi produk)
-    instance: Dict[str, Any] = {}
+    instance: dict[str, Any] = {}
     for p in image_paths:
         exp = os.path.expanduser(p.strip())
         if os.path.exists(exp):
@@ -240,7 +240,7 @@ def _generate_google_veo_video(
     }
 
 
-def _find_video_payload(obj: Any, hint: str = "") -> Optional[Dict[str, Any]]:
+def _find_video_payload(obj: Any, hint: str = "") -> dict[str, Any] | None:
     """Telusuri JSON respons Interactions API secara rekursif mencari payload
     video: inline base64 (mime_type video/* + data) atau URI yang bisa diunduh.
     `hint` membawa nama kunci induk agar URI di bawah kunci seperti
@@ -277,7 +277,7 @@ def _find_video_payload(obj: Any, hint: str = "") -> Optional[Dict[str, Any]]:
 def _generate_gemini_omni_video(
     engine: str,
     api_key: str,
-    image_paths: List[str],
+    image_paths: list[str],
     product_name: str,
     visual_prompt: str,
     voiceover_text: str,
@@ -287,8 +287,8 @@ def _generate_gemini_omni_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None,
-) -> Dict[str, Any]:
+    output_filename: str | None = None,
+) -> dict[str, Any]:
     """
     Generate video AI dengan Gemini Omni Flash (Interactions API).
     Flow: POST /v1beta/interactions (background) -> poll by name ->
@@ -301,7 +301,7 @@ def _generate_gemini_omni_video(
     ts = int(time.time() * 1000)
 
     # 1. Susun input multimodal: gambar referensi (image_to_video) atau teks saja
-    parts: List[Dict[str, Any]] = []
+    parts: list[dict[str, Any]] = []
     task = "text_to_video"
     for p in image_paths:
         exp = os.path.expanduser(p.strip())
@@ -466,15 +466,15 @@ def _generate_gemini_omni_video(
 def _generate_cloud_ai_video(
     engine: str,
     api_key: str,
-    image_paths: List[str],
+    image_paths: list[str],
     product_name: str,
     visual_prompt: str,
     voiceover_text: str,
     orig_price: str,
     disc_price: str,
     voice: str,
-    output_filename: Optional[str],
-) -> Dict[str, Any]:
+    output_filename: str | None,
+) -> dict[str, Any]:
     """
     Dispatcher for Cloud AI Video Generation APIs (Kling, Luma, Runway, Fal.ai, Replicate).
     """

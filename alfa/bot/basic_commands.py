@@ -1,15 +1,12 @@
 """Telegram bot command handlers."""
 
-import json
 import logging
-import os
 import sys
 
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Update,
-    WebAppInfo,
     constants,
 )
 from telegram.ext import ContextTypes

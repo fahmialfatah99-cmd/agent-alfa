@@ -8,7 +8,7 @@ File checkpoint disimpan di: storage/checkpoints/
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -30,11 +30,11 @@ class SwarmCheckpoint:
         session_id: str,
         topic: str,
         mode: str,
-        participants: List[Dict[str, Any]],
-        steps: List[Dict[str, Any]],
+        participants: list[dict[str, Any]],
+        steps: list[dict[str, Any]],
         steps_done: int,
-        deliverables: Optional[List[str]] = None,
-        error_log: Optional[List[Dict[str, Any]]] = None,
+        deliverables: list[str] | None = None,
+        error_log: list[dict[str, Any]] | None = None,
         status: str = "running",
         resume_count: int = 0,
     ) -> str:
@@ -43,7 +43,7 @@ class SwarmCheckpoint:
         existing = {}
         if os.path.exists(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     existing = json.load(f)
             except Exception:
                 pass
@@ -69,19 +69,19 @@ class SwarmCheckpoint:
         return path
 
     @staticmethod
-    def load(session_id: str) -> Optional[Dict[str, Any]]:
+    def load(session_id: str) -> dict[str, Any] | None:
         """Load a checkpoint. Returns None if not found."""
         path = SwarmCheckpoint._path(session_id)
         if not os.path.exists(path):
             return None
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return None
 
     @staticmethod
-    def list_resumable() -> List[Dict[str, Any]]:
+    def list_resumable() -> list[dict[str, Any]]:
         """
         List all checkpoints that can be resumed (status = paused/cancelled/running).
         Returns list sorted by updated_at desc.
@@ -93,7 +93,7 @@ class SwarmCheckpoint:
                     continue
                 fpath = os.path.join(CHECKPOINT_DIR, fname)
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         state = json.load(f)
                     if state.get("status") in ("paused", "cancelled", "running"):
                         result.append(
@@ -115,7 +115,7 @@ class SwarmCheckpoint:
         return sorted(result, key=lambda x: x.get("updated_at", ""), reverse=True)
 
     @staticmethod
-    def mark_completed(session_id: str, deliverables: Optional[List[str]] = None):
+    def mark_completed(session_id: str, deliverables: list[str] | None = None):
         """Mark a checkpoint as completed."""
         state = SwarmCheckpoint.load(session_id)
         if not state:

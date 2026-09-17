@@ -1,24 +1,23 @@
 """Browser automation, screenshot capture, and visual testing via Camoufox and Browser-Use."""
 
-import json
 import logging
 import os
 import shutil
 import subprocess
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
 from alfa.tools.web.search import fetch_web_page_content, web_search
-from visual_tester import browser_visual_test_page as browser_visual_test_page
+from alfa.tools.web.visual_tester import (
+    browser_visual_test_page as browser_visual_test_page,
+)
 
 logger = logging.getLogger("AgentTools.Web.Browser")
 
 
-def _find_camofox_bin() -> Optional[str]:
+def _find_camofox_bin() -> str | None:
     """Find Camofox binary in PATH or common NVM / node directories."""
-    import shutil
 
     found = shutil.which("camofox")
     if found:
@@ -69,7 +68,7 @@ def _ensure_camofox_server() -> bool:
         return False
 
 
-def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
+def _run_camofox_cli(args: list[str]) -> dict[str, Any]:
     """Execute camofox CLI command with proper environment and output parsing."""
     _ensure_camofox_server()
     camofox_bin = _find_camofox_bin()
@@ -96,7 +95,7 @@ def _run_camofox_cli(args: List[str]) -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def browser_open_url(url: str) -> Dict[str, Any]:
+def browser_open_url(url: str) -> dict[str, Any]:
     """
     Open a web page in the Camofox stealth browser engine (with automatic Stealth Scrapling fallback) and return its interactive accessibility snapshot.
     Use this tool when the user asks to open a website, browse a web page, fill forms, or inspect web elements.
@@ -173,7 +172,7 @@ def browser_open_url(url: str) -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:
+def browser_click_element(element_ref: str, tab_id: str = "") -> dict[str, Any]:
     """
     Click an interactive button, link, checkbox, or element on the active Camofox browser page by its reference.
 
@@ -206,7 +205,7 @@ def browser_click_element(element_ref: str, tab_id: str = "") -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> Dict[str, Any]:
+def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> dict[str, Any]:
     """
     Type text into an input field or search bar on the active Camofox browser page.
 
@@ -233,7 +232,7 @@ def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> Dict[str
 
 
 @register_tool(category="web")
-def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
+def browser_capture_screenshot(tab_id: str = "") -> dict[str, Any]:
     """
     Take a screenshot of the current Camofox browser page and automatically send it to the Telegram chat.
 
@@ -276,7 +275,7 @@ def browser_capture_screenshot(tab_id: str = "") -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def browser_close_tab(tab_id: str = "") -> Dict[str, Any]:
+def browser_close_tab(tab_id: str = "") -> dict[str, Any]:
     """
     Close the active or specified Camofox browser tab.
 
@@ -303,7 +302,7 @@ def browser_close_tab(tab_id: str = "") -> Dict[str, Any]:
 @register_tool(category="web")
 def browser_use_autonomous_task(
     task_instruction: str, start_url: str = "https://www.google.com", max_steps: int = 5
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     BROWSER-USE AGENT: Autonomous AI browser agent that visually controls the browser,
     clicks buttons, types into forms, and navigates complex multi-step web workflows.

@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Long-Term Knowledge Memory, Semantic Knowledge Graph, Chat History & Settings.
 """
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -27,7 +26,7 @@ async def save_chat_message(user_id: int, role: str, content: str):
 
 async def get_recent_chat_history(
     user_id: int, limit: int = 15
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """Get the most recent messages for a user in chronological order."""
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
@@ -104,7 +103,7 @@ async def save_memory_fact(
         return f"Memori '{key_topic}' berhasil disimpan."
 
 
-def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
+def search_memories_sync(user_id: int, query: str) -> list[dict[str, Any]]:
     """Synchronously search memories for a specific user."""
     with get_sync_db() as conn:
         pattern = f"%{query.strip().lower()}%"
@@ -127,7 +126,7 @@ def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
         ]
 
 
-async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
+async def get_all_memories(user_id: int) -> list[dict[str, Any]]:
     """Retrieve all long-term memories for a user."""
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
@@ -139,7 +138,7 @@ async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
             return [dict(r) for r in rows]
 
 
-async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
+async def search_memories(user_id: int, query: str) -> list[dict[str, Any]]:
     """Search long-term memories matching query for a user."""
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
@@ -175,7 +174,7 @@ def add_knowledge_relation_sync(
     target_value: str,
     category: str = "general",
     tags: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Synchronously insert or update a semantic relation in the knowledge graph."""
     with get_sync_db() as conn:
         conn.execute(
@@ -201,7 +200,7 @@ def add_knowledge_relation_sync(
     }
 
 
-def search_knowledge_graph_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
+def search_knowledge_graph_sync(user_id: int, query: str) -> list[dict[str, Any]]:
     """Synchronously search the knowledge graph by entity, relation, target, or tags."""
     pattern = f"%{query}%"
     with get_sync_db() as conn:
@@ -218,7 +217,7 @@ def search_knowledge_graph_sync(user_id: int, query: str) -> List[Dict[str, Any]
         return [dict(r) for r in rows]
 
 
-def get_all_knowledge_graph_sync(user_id: int) -> List[Dict[str, Any]]:
+def get_all_knowledge_graph_sync(user_id: int) -> list[dict[str, Any]]:
     """Retrieve all semantic relations in user's knowledge graph."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -234,7 +233,7 @@ def get_all_knowledge_graph_sync(user_id: int) -> List[Dict[str, Any]]:
         return [dict(r) for r in rows]
 
 
-def export_full_second_brain_sync(user_id: int) -> Dict[str, Any]:
+def export_full_second_brain_sync(user_id: int) -> dict[str, Any]:
     """Export complete user knowledge base: facts + semantic knowledge graph."""
     with get_sync_db() as conn:
         c1 = conn.execute(
@@ -259,7 +258,7 @@ def export_full_second_brain_sync(user_id: int) -> Dict[str, Any]:
 
 
 # --- User Settings ---
-async def get_user_settings(user_id: int) -> Dict[str, Any]:
+async def get_user_settings(user_id: int) -> dict[str, Any]:
     """Get settings for a user."""
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row

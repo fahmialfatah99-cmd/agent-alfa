@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 from telegram import constants
 from telegram.error import BadRequest, RetryAfter
@@ -27,24 +27,24 @@ class TelegramStreamer:
         self,
         context: Any,
         chat_id: int,
-        initial_text: Optional[str] = None,
+        initial_text: str | None = None,
         min_edit_interval: float = 1.2,
     ):
         self.context = context
         self.chat_id = chat_id
         self.initial_text = initial_text
         self.min_edit_interval = float(min_edit_interval)
-        self.message_id: Optional[int] = None
+        self.message_id: int | None = None
         self.buffer: str = ""
         self.last_edit: float = 0.0
         self.backoff_until: float = 0.0
         self.is_done: bool = False
-        self._edit_task: Optional[asyncio.Task] = None
+        self._edit_task: asyncio.Task | None = None
         self._stop_typing: asyncio.Event = asyncio.Event()
-        self._typing_task: Optional[asyncio.Task] = None
+        self._typing_task: asyncio.Task | None = None
         self.cursor: str = " ▌"
 
-    async def start(self) -> Optional[int]:
+    async def start(self) -> int | None:
         """Start realtime typing loop and optional initial placeholder message."""
         if self._typing_task is None or self._typing_task.done():
             self._stop_typing.clear()
@@ -152,7 +152,7 @@ class TelegramStreamer:
                 self._edit_task = asyncio.create_task(self._apply_edit(draft_text))
                 await asyncio.sleep(0)
 
-    async def finalize(self, final_text: Optional[str] = None) -> None:
+    async def finalize(self, final_text: str | None = None) -> None:
         """
         Stop typing indicator, deliver the final complete text, and mark streamer as done.
         If message_id is None, sends via safe_send_message directly.

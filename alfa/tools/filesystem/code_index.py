@@ -2,10 +2,9 @@
 
 import logging
 import os
-import sys
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.filesystem.core_file import _MAX_EDIT_FILE_BYTES, _resolve_host_path
 from alfa.tools.registry import register_tool
@@ -54,12 +53,12 @@ def _code_index_connect():
     return conn
 
 
-def _index_freshness(root: str, sample_paths: List[str]) -> Dict[str, Any]:
+def _index_freshness(root: str, sample_paths: list[str]) -> dict[str, Any]:
     """Periksa apakah index masih segar: bandingkan mtime sampel file
     vs waktu indexing. Mengembalikan info kesegaran utk hasil pencarian."""
     import sqlite3 as _sq
 
-    info: Dict[str, Any] = {"stale": False, "indexed_at": None}
+    info: dict[str, Any] = {"stale": False, "indexed_at": None}
     if not root:
         return info
     try:
@@ -138,7 +137,7 @@ def _index_one_file(fpath: str, root: str):
     try:
         if os.path.getsize(fpath) > _MAX_EDIT_FILE_BYTES:
             return None
-        with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+        with open(fpath, encoding="utf-8", errors="replace") as f:
             lines = f.read().split("\n")
     except OSError:
         return None
@@ -158,7 +157,7 @@ def _index_one_file(fpath: str, root: str):
 def index_codebase(
     repo_path: str,
     file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Build/refresh a full-text INDEX of a repository so later searches are fast
     and context-aware (RAG-style retrieval without external services).
@@ -268,7 +267,7 @@ def index_codebase(
 
 
 @register_tool(category="file")
-def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[str, Any]:
+def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> dict[str, Any]:
     """
     Search an indexed repository semantically-by-keyword (FTS5 ranked).
     Returns the most relevant code chunks with file:line references.
@@ -316,7 +315,7 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[st
 
         # Cek kesegaran index utk repo-repo yang muncul di hasil
         roots = list(dict.fromkeys(r[3] for r in rows))
-        sample_by_root: Dict[str, List[str]] = {}
+        sample_by_root: dict[str, list[str]] = {}
         for r in rows:
             sample_by_root.setdefault(r[3], []).append(r[0])
         stale_roots = []

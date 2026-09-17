@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Media generation, speech synthesis (TTS), PDF suite, and Office documents.
 

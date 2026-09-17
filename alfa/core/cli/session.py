@@ -5,7 +5,6 @@ import os
 import platform
 import sys
 from datetime import datetime
-from pathlib import Path
 
 import requests
 
@@ -90,7 +89,7 @@ class CliSessionMixin:
         """Load user configuration from file."""
         if CONFIG_FILE.exists():
             try:
-                with open(CONFIG_FILE, "r") as f:
+                with open(CONFIG_FILE) as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -107,7 +106,7 @@ class CliSessionMixin:
     def _load_session(self):
         if SESSION_FILE.exists():
             try:
-                with open(SESSION_FILE, "r") as f:
+                with open(SESSION_FILE) as f:
                     data = json.load(f)
                     self.session_token = data.get("token")
                     self.username = data.get("username")

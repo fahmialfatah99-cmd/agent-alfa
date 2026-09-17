@@ -2,10 +2,7 @@
 
 import asyncio
 import json
-import logging
-import os
-import subprocess
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -18,10 +15,10 @@ class ConnectionManager:
     """Manages active WebSocket client connections and message broadcasting."""
 
     def __init__(self):
-        self.active_connections: Set[WebSocket] = set()
-        self.channel_subscribers: Dict[str, Set[WebSocket]] = {}
+        self.active_connections: set[WebSocket] = set()
+        self.channel_subscribers: dict[str, set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, channel: Optional[str] = None):
+    async def connect(self, websocket: WebSocket, channel: str | None = None):
         await websocket.accept()
         self.active_connections.add(websocket)
         if channel:
@@ -29,7 +26,7 @@ class ConnectionManager:
                 self.channel_subscribers[channel] = set()
             self.channel_subscribers[channel].add(websocket)
 
-    def disconnect(self, websocket: WebSocket, channel: Optional[str] = None):
+    def disconnect(self, websocket: WebSocket, channel: str | None = None):
         self.active_connections.discard(websocket)
         if channel and channel in self.channel_subscribers:
             self.channel_subscribers[channel].discard(websocket)
@@ -45,7 +42,7 @@ class ConnectionManager:
         except Exception as e:
             logger.debug(f"Failed to send personal websocket message: {e}")
 
-    async def broadcast(self, message: Any, channel: Optional[str] = None):
+    async def broadcast(self, message: Any, channel: str | None = None):
         target_connections = (
             list(self.channel_subscribers.get(channel, set()))
             if channel

@@ -1,7 +1,7 @@
 """Secure vault credential and secrets management tools."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from alfa.tools.registry import register_tool
 
@@ -11,7 +11,7 @@ logger = logging.getLogger("AgentTools.Filesystem.Vault")
 @register_tool(category="file")
 def vault_store_secret(
     name: str, value: str, category: str = "api_key", notes: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Encrypt and store a sensitive credential, API key, affiliate token, or secret note
     into αlfa Secure Vault with AES-256-GCM authenticated encryption.
@@ -23,7 +23,7 @@ def vault_store_secret(
         notes: Optional description or context about the secret.
     """
     try:
-        import vault_engine
+        from alfa.security import vault as vault_engine
 
         res = vault_engine.vault.store_secret(
             name=name, value=value, category=category, notes=notes
@@ -34,7 +34,7 @@ def vault_store_secret(
 
 
 @register_tool(category="file")
-def vault_get_secret(name_or_id: str) -> Dict[str, Any]:
+def vault_get_secret(name_or_id: str) -> dict[str, Any]:
     """
     Retrieve and decrypt a sensitive secret from αlfa Secure Vault using AES-256-GCM.
 
@@ -42,7 +42,7 @@ def vault_get_secret(name_or_id: str) -> Dict[str, Any]:
         name_or_id: The unique name or ID of the secret to decrypt.
     """
     try:
-        import vault_engine
+        from alfa.security import vault as vault_engine
 
         sec = vault_engine.vault.get_secret(name_or_id)
         if not sec:
@@ -63,7 +63,7 @@ def vault_get_secret(name_or_id: str) -> Dict[str, Any]:
 
 
 @register_tool(category="file")
-def vault_list_secrets(category: str = "all") -> Dict[str, Any]:
+def vault_list_secrets(category: str = "all") -> dict[str, Any]:
     """
     List all stored secrets metadata in αlfa Secure Vault without exposing decrypted plaintext.
 
@@ -71,7 +71,7 @@ def vault_list_secrets(category: str = "all") -> Dict[str, Any]:
         category: Filter by category ('all', 'api_key', 'affiliate', 'password', 'note').
     """
     try:
-        import vault_engine
+        from alfa.security import vault as vault_engine
 
         items = vault_engine.vault.list_secrets(category=category)
         return {
@@ -85,7 +85,7 @@ def vault_list_secrets(category: str = "all") -> Dict[str, Any]:
 
 
 @register_tool(category="file")
-def vault_delete_secret(secret_id: int) -> Dict[str, Any]:
+def vault_delete_secret(secret_id: int) -> dict[str, Any]:
     """
     Permanently delete a secret from αlfa Secure Vault by ID.
 
@@ -93,7 +93,7 @@ def vault_delete_secret(secret_id: int) -> Dict[str, Any]:
         secret_id: Numeric ID of the secret to delete.
     """
     try:
-        import vault_engine
+        from alfa.security import vault as vault_engine
 
         deleted = vault_engine.vault.delete_secret(int(secret_id))
         if deleted:

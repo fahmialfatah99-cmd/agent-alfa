@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Database Cryptography & API Key Encryption at-rest (AES-256-GCM).
 """
@@ -7,7 +6,6 @@ import base64
 import logging
 import os
 import sqlite3
-from typing import Dict, Optional
 
 logger = logging.getLogger("DB.Crypto")
 
@@ -17,7 +15,7 @@ _ENC_PREFIX = "enc1:"
 def _get_aesgcm():
     """Kembalikan objek AESGCM dari vault; None bila vault tak tersedia."""
     try:
-        from vault_engine import vault
+        from alfa.security.vault import vault
 
         return vault.aesgcm
     except Exception:
@@ -64,7 +62,7 @@ def mask_key(k: str) -> str:
     return k[:4] + "••••••••" + k[-4:]
 
 
-def migrate_encrypt_api_keys() -> Dict[str, int]:
+def migrate_encrypt_api_keys() -> dict[str, int]:
     """Enkripsi satu kali seluruh api_key yang masih plaintext. Idempoten."""
     from alfa.core.db.connection import _get_db_path
 

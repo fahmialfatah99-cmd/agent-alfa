@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 UI/UX Pro Max Search - BM25 search engine for UI/UX style guides
 Usage: python search.py "<query>" [--domain <domain>] [--stack <stack>] [--max-results 3]
@@ -26,9 +25,7 @@ Persistence (Master + Overrides pattern):
 """
 
 import argparse
-import io
 import json as json_module
-import sys
 
 from core import (
     AVAILABLE_STACKS,

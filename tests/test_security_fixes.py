@@ -133,7 +133,7 @@ def test_env_documentation():
     print("\n[TEST 3] Dokumentasi .env.example...")
 
     env_path = Path(__file__).resolve().parents[1] / ".env.example"
-    with open(env_path, "r") as f:
+    with open(env_path) as f:
         content = f.read()
 
     checks = [

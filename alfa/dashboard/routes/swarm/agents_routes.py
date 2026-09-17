@@ -1,15 +1,10 @@
-import asyncio
 import json
-import logging
-import os
-import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 from alfa.core import database
-from alfa.dashboard.common import logger, safe_int
 
 router = APIRouter()
 
@@ -24,7 +19,7 @@ async def get_custom_agents():
 
 
 @router.post("/api/agents")
-async def create_custom_agent(payload: Dict[str, Any]):
+async def create_custom_agent(payload: dict[str, Any]):
     """Create a new specialized AI agent."""
     name = payload.get("name")
     role = payload.get("role")
@@ -54,7 +49,7 @@ async def create_custom_agent(payload: Dict[str, Any]):
 
 
 @router.put("/api/agents/{agent_id}")
-async def update_custom_agent_endpoint(agent_id: int, payload: Dict[str, Any]):
+async def update_custom_agent_endpoint(agent_id: int, payload: dict[str, Any]):
     """Update custom agent configuration."""
     res = database.update_custom_agent_sync(agent_id, payload)
     return res
@@ -68,7 +63,7 @@ async def delete_custom_agent_endpoint(agent_id: int):
 
 
 @router.post("/api/agents/{agent_id}/chat")
-async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
+async def chat_with_custom_agent(agent_id: int, payload: dict[str, Any]):
     """Send a test message directly to a specific custom agent."""
     prompt = payload.get("message")
     if not prompt:
@@ -160,7 +155,7 @@ async def get_agent_activity():
 
 
 @router.post("/api/agents/{agent_id}/execute")
-async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
+async def execute_agent_task(agent_id: int, payload: dict[str, Any]):
     """Directly dispatch an autonomous task to a specialized agent with real tool execution."""
     instruction = payload.get("instruction")
     if not instruction:

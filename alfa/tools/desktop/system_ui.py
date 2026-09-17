@@ -1,22 +1,17 @@
 """Desktop GUI automation, vision, screenshot, and webcam tools."""
 
-import datetime
-import json
 import logging
 import os
-import re
 import subprocess
 import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
-from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Desktop")
 
 
-def read_clipboard() -> Dict[str, Any]:
+def read_clipboard() -> dict[str, Any]:
     """
     Read the current desktop clipboard content (Windows: PowerShell, Linux: wl-paste/xclip/xsel).
     """
@@ -47,7 +42,7 @@ def read_clipboard() -> Dict[str, Any]:
 
 
 @register_tool(category="media")
-def write_to_clipboard(text: str) -> Dict[str, Any]:
+def write_to_clipboard(text: str) -> dict[str, Any]:
     """
     Write/copy text to the desktop clipboard so it can be pasted (Ctrl+V) anywhere.
 
@@ -98,7 +93,7 @@ def write_to_clipboard(text: str) -> Dict[str, Any]:
 @register_tool(category="media")
 def show_desktop_notification(
     title: str, message: str, urgency: str = "normal"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Show a native desktop popup notification across Linux, macOS, and Windows.
 
@@ -107,7 +102,6 @@ def show_desktop_notification(
         message: Notification body text.
         urgency: 'low', 'normal', or 'critical'.
     """
-    import sys
 
     try:
         if sys.platform == "darwin":  # macOS

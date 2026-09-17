@@ -4,7 +4,6 @@ import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import Request
@@ -50,7 +49,7 @@ def _get_bot():
     return bot
 
 
-def get_primary_user_id(request: Optional[Request] = None) -> int:
+def get_primary_user_id(request: Request | None = None) -> int:
     """Safely get target telegram user id from request headers/params or ALLOWED_USER_IDS env var."""
     if request is not None:
         req_uid = request.headers.get("X-User-Id") or request.query_params.get(

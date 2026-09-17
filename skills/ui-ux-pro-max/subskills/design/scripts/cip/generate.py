@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CIP Design Generator - Generate corporate identity mockups using Gemini Nano Banana
 
@@ -156,13 +155,13 @@ def build_cip_prompt(
         # Image editing prompt: instructs to USE the provided logo image
         prompt_parts = [
             f"Create a professional corporate identity mockup photograph of a {deliverable_name}",
-            f"Use the EXACT logo from the provided image - do NOT modify or recreate the logo",
-            f"The logo MUST appear exactly as shown in the input image",
+            "Use the EXACT logo from the provided image - do NOT modify or recreate the logo",
+            "The logo MUST appear exactly as shown in the input image",
             f"Place the logo on the {deliverable_name} at: {logo_placement}",
             f"Brand name: '{brand_name}'",
             f"{description}" if description else "",
             f"Design style: {style_name}",
-            f"Color scheme matching the logo colors",
+            "Color scheme matching the logo colors",
             f"Materials: {materials} with {finishes} finish",
             f"Setting: {mockup_context}",
             f"Mood: {mood}",
@@ -173,7 +172,7 @@ def build_cip_prompt(
     else:
         # Pure text-to-image prompt
         prompt_parts = [
-            f"Professional corporate identity mockup photograph",
+            "Professional corporate identity mockup photograph",
             f"showing {deliverable_name} for brand '{brand_name}'",
             f"{description}" if description else "",
             f"{style_name} design style",
@@ -243,7 +242,7 @@ def generate_with_nano_banana(
     # Determine mode
     mode = "image-editing" if logo_image else "text-to-image"
 
-    print(f"\n🎨 Generating CIP mockup...")
+    print("\n🎨 Generating CIP mockup...")
     print(f"   Mode: {mode}")
     print(f"   Deliverable: {prompt_data['deliverable']}")
     print(f"   Brand: {prompt_data['brand']}")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PDF Editor: merge, split, extract text, encrypt, decrypt, rotate, inspect, and compress.
 """
@@ -7,7 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.media.pdf_builder import get_pdf_output_dir
 from alfa.tools.registry import register_tool
@@ -17,8 +16,8 @@ logger = logging.getLogger("AgentTools.Media.PDFEditor")
 
 @register_tool(category="pdf")
 def pdf_merge_documents(
-    pdf_paths: List[str], output_filename: str = "merged.pdf"
-) -> Dict[str, Any]:
+    pdf_paths: list[str], output_filename: str = "merged.pdf"
+) -> dict[str, Any]:
     """
     Gabungkan beberapa file PDF menjadi satu dokumen PDF utuh.
 
@@ -76,7 +75,7 @@ def pdf_merge_documents(
 @register_tool(category="pdf")
 def pdf_split_document(
     pdf_path: str, page_ranges: str = "", output_dir: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Pecah file PDF per halaman atau berdasarkan rentang halaman tertentu (misal '1-3, 5, 8-10').
 
@@ -144,7 +143,7 @@ def pdf_split_document(
 
 
 @register_tool(category="pdf")
-def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, Any]:
+def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, Any]:
     """
     Ekstrak teks lengkap dari dokumen PDF secara bersih dan terstruktur serta simpan salinan file .txt.
 
@@ -240,7 +239,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> Dict[str, An
 @register_tool(category="pdf")
 def pdf_encrypt_password(
     pdf_path: str, password: str, output_filename: str = "protected.pdf"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Lindungi dan kunci file PDF dengan password menggunakan enkripsi kuat AES-256.
 
@@ -288,7 +287,7 @@ def pdf_encrypt_password(
 @register_tool(category="pdf")
 def pdf_decrypt_password(
     pdf_path: str, password: str, output_filename: str = "unlocked.pdf"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Buka kunci PDF yang terproteksi password dan simpan salinan tanpa password.
 
@@ -344,7 +343,7 @@ def pdf_rotate_pages(
     angle: int = 90,
     page_numbers: str = "",
     output_filename: str = "rotated.pdf",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Putar orientasi halaman PDF (90, 180, atau 270 derajat searah jarum jam).
 
@@ -406,7 +405,7 @@ def pdf_rotate_pages(
 
 
 @register_tool(category="pdf")
-def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
+def pdf_inspect_metadata(pdf_path: str) -> dict[str, Any]:
     """
     Periksa informasi teknis mendalam dari file PDF (jumlah halaman, versi PDF, ukuran file, enkripsi, metadata) dan simpan salinan JSON.
 
@@ -455,7 +454,7 @@ def pdf_inspect_metadata(pdf_path: str) -> Dict[str, Any]:
 @register_tool(category="pdf")
 def pdf_compress_and_optimize(
     pdf_path: str, output_filename: str = "compressed.pdf"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Kompresi dan optimalkan ukuran file PDF dengan mereduksi stream konten dan metadata berlebih.
 

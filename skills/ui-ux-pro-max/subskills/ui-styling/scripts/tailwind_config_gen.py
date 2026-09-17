@@ -11,7 +11,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Valid npm package name pattern: optional @scope/, then package name with
 # optional subpath. Only allows alphanumeric, hyphens, dots, underscores,
@@ -28,7 +28,7 @@ class TailwindConfigGenerator:
         self,
         typescript: bool = True,
         framework: str = "react",
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ):
         """
         Initialize generator.
@@ -41,14 +41,14 @@ class TailwindConfigGenerator:
         self.typescript = typescript
         self.framework = framework
         self.output_path = output_path or self._default_output_path()
-        self.config: Dict[str, Any] = self._base_config()
+        self.config: dict[str, Any] = self._base_config()
 
     def _default_output_path(self) -> Path:
         """Determine default output path."""
         ext = "ts" if self.typescript else "js"
         return Path.cwd() / f"tailwind.config.{ext}"
 
-    def _base_config(self) -> Dict[str, Any]:
+    def _base_config(self) -> dict[str, Any]:
         """Create base configuration structure."""
         return {
             "darkMode": ["class"],
@@ -57,7 +57,7 @@ class TailwindConfigGenerator:
             "plugins": [],
         }
 
-    def _default_content_paths(self) -> List[str]:
+    def _default_content_paths(self) -> list[str]:
         """Get default content paths for framework."""
         paths = {
             "react": [
@@ -80,7 +80,7 @@ class TailwindConfigGenerator:
         }
         return paths.get(self.framework, paths["react"])
 
-    def add_colors(self, colors: Dict[str, str]) -> None:
+    def add_colors(self, colors: dict[str, str]) -> None:
         """
         Add custom colors to theme.
 
@@ -119,7 +119,7 @@ class TailwindConfigGenerator:
             "950": f"var(--color-{name}-950)",
         }
 
-    def add_fonts(self, fonts: Dict[str, List[str]]) -> None:
+    def add_fonts(self, fonts: dict[str, list[str]]) -> None:
         """
         Add custom font families.
 
@@ -132,7 +132,7 @@ class TailwindConfigGenerator:
 
         self.config["theme"]["extend"]["fontFamily"].update(fonts)
 
-    def add_spacing(self, spacing: Dict[str, str]) -> None:
+    def add_spacing(self, spacing: dict[str, str]) -> None:
         """
         Add custom spacing values.
 
@@ -145,7 +145,7 @@ class TailwindConfigGenerator:
 
         self.config["theme"]["extend"]["spacing"].update(spacing)
 
-    def add_breakpoints(self, breakpoints: Dict[str, str]) -> None:
+    def add_breakpoints(self, breakpoints: dict[str, str]) -> None:
         """
         Add custom breakpoints.
 
@@ -158,7 +158,7 @@ class TailwindConfigGenerator:
 
         self.config["theme"]["extend"]["screens"].update(breakpoints)
 
-    def add_plugins(self, plugins: List[str]) -> None:
+    def add_plugins(self, plugins: list[str]) -> None:
         """
         Add plugin requirements.
 
@@ -170,7 +170,7 @@ class TailwindConfigGenerator:
             if plugin not in self.config["plugins"]:
                 self.config["plugins"].append(plugin)
 
-    def recommend_plugins(self) -> List[str]:
+    def recommend_plugins(self) -> list[str]:
         """
         Get plugin recommendations based on configuration.
 

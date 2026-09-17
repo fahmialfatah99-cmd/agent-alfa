@@ -5,7 +5,7 @@ Description: AI UI/UX intelligence engine for generating design systems, selecti
 
 import os
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Add skills/ui-ux-pro-max/scripts to path
 SKILL_SCRIPTS_DIR = os.path.join(
@@ -23,7 +23,7 @@ def ui_ux_pro_max_search(
     domain: str = "auto",
     action: str = "search",
     project_name: str = "My Project",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Kueri mesin kecerdasan UI/UX Pro Max untuk mendapatkan rekomendasi gaya UI (67 styles),
     palet warna, tipografi Google Fonts, animasi/motion, pola landing page, atau pembuatan

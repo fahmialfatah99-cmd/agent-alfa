@@ -3,10 +3,8 @@
 import logging
 import math
 import os
-import re
 import textwrap
 import time
-from typing import Optional
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
@@ -181,7 +179,7 @@ def create_ui_overlay_layer(
     call_to_action: str = "KLIK KERANJANG KUNING / BIO SEBELUM HABIS",
     theme: str = "viral_tiktok",
     rating: str = "4.9",
-    output_path: Optional[str] = None,
+    output_path: str | None = None,
 ) -> str:
     """
     Creates Layer 1: Transparent PNG with Pin-Sharp Typography, Vector Gold Stars,

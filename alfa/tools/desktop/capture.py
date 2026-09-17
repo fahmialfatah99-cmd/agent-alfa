@@ -1,14 +1,10 @@
 """Desktop GUI automation, vision, screenshot, and webcam tools."""
 
-import datetime
-import json
 import logging
 import os
-import re
 import subprocess
 import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -17,7 +13,7 @@ logger = logging.getLogger("AgentTools.Desktop")
 
 
 @register_tool(category="media")
-def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
+def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
     """
     Capture an ultra-fast, high-resolution screenshot of the active desktop screen (Windows, Linux & Mac).
     On Windows: Uses native Win32 GDI screen capture for instant full-resolution multi-monitor screenshot.
@@ -268,7 +264,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
 
 
 @register_tool(category="media")
-def capture_webcam_frame() -> Dict[str, Any]:
+def capture_webcam_frame() -> dict[str, Any]:
     """
     Capture a live snapshot frame from the connected hardware webcam/camera (/dev/video0).
     Use this tool when the user asks for a desk check, room status, or webcam photo.
@@ -307,7 +303,7 @@ def capture_webcam_frame() -> Dict[str, Any]:
         return {"status": "error", "message": str(err)}
 
 
-def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
+def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:
     """
     Record the desktop screen as an MP4 video for a specified duration and send to Telegram.
     Cross-platform: Windows (ffmpeg gdigrab), Linux (wf-recorder / x11grab).

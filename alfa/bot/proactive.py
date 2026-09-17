@@ -6,12 +6,10 @@ import logging
 import os
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import psutil
 from telegram.ext import Application
 
-import token_usage
 from alfa import tools
 from alfa.bot.config import (
     ALLOWED_USER_IDS,
@@ -22,7 +20,7 @@ from alfa.bot.config import (
 )
 from alfa.bot.helpers import safe_send_message
 from alfa.bot.turn_executor import run_agent_turn
-from alfa.core import database
+from alfa.core import database, token_usage
 from alfa.tools import SANDBOX_DIR
 
 logger = logging.getLogger("TelegramAIAgent")
@@ -150,7 +148,7 @@ async def proactive_system_guardian_loop(application: Application):
                 await asyncio.sleep(30)
                 continue
 
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
 
             if not config.get("enabled", False):
@@ -292,7 +290,7 @@ async def proactive_ambient_agent_loop(application: Application):
             }
             if os.path.exists(config_path):
                 try:
-                    with open(config_path, "r", encoding="utf-8") as f:
+                    with open(config_path, encoding="utf-8") as f:
                         config = json.load(f)
                 except Exception:
                     pass
@@ -505,7 +503,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
 
                 if os.path.exists(status_file) and primary_uid:
                     try:
-                        with open(status_file, "r") as f:
+                        with open(status_file) as f:
                             wa_data = json.load(f)
                         current_status = wa_data.get("status", "UNKNOWN")
                         qr_str = wa_data.get("qr", "")

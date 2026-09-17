@@ -1,13 +1,10 @@
 """Academic literature research, arXiv, and deep research tools."""
 
 import logging
-import os
 import re
-import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from academic_researcher import (
+from alfa.tools.academic_researcher import (
     academic_deep_research_paper as academic_deep_research_paper,
 )
 from alfa.tools.registry import register_tool
@@ -16,7 +13,7 @@ logger = logging.getLogger("AgentTools.Academic")
 
 
 @register_tool(category="academic")
-def deep_research_topic(topic: str, max_depth: int = 3) -> Dict[str, Any]:
+def deep_research_topic(topic: str, max_depth: int = 3) -> dict[str, Any]:
     """
     GOD MODE: Autonomous Deep Multi-Source Research Engine.
     Executes multiple recursive web search queries on a topic, crawls and scrapes the top

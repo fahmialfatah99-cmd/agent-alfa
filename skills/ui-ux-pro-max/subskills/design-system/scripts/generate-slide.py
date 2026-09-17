@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Slide Generator - Generates HTML slides using design tokens
 ALL styles MUST use CSS variables from design-tokens.css
@@ -762,7 +761,7 @@ def main():
         print(f"Demo deck generated: {output_path}")
 
     elif args.json:
-        with open(args.json, "r") as f:
+        with open(args.json) as f:
             data = json.load(f)
 
         html = generate_deck(data.get("slides", []), data.get("title", "Presentation"))

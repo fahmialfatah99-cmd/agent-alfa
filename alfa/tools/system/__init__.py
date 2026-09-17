@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 System Tools Modular Package for ALFA.
 Deconstructs monolithic system tooling into single-responsibility modules:

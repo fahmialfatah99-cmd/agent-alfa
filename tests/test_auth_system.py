@@ -17,7 +17,6 @@ from web_dashboard import (
     _verify_password,
     authenticate_user,
     create_user,
-    delete_user,
     get_all_users,
     invalidate_session,
     store_session,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Autonomous Multi-Agent Swarm & Meeting Engine for ALFA Ecosystem.
 Enables round-table AI meetings, inter-agent dialogue, debate, consensus building,
@@ -19,7 +18,7 @@ import re
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa import tools
 from alfa.core import database
@@ -80,12 +79,12 @@ logger = logging.getLogger(__name__)
 
 async def conduct_multi_agent_meeting(
     topic: str,
-    participant_names: Optional[List[str]] = None,
+    participant_names: list[str] | None = None,
     rounds: int = 2,
     mode: str = "execute",
     target_folder: str = "",
-    session_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    session_id: str | None = None,
+) -> dict[str, Any]:
     """
     SWARM EKSEKUSI LANGSUNG — tanpa mode rapat/diskusi lagi.
 
@@ -293,8 +292,8 @@ async def conduct_multi_agent_meeting(
             for _n, _t in subtask_map.items():
                 log_live("PLAN", f"🗂️ {_n}: {_t[:90]}")
 
-        failed_steps: List[Dict[str, Any]] = []
-        ctx_lines: List[str] = []
+        failed_steps: list[dict[str, Any]] = []
+        ctx_lines: list[str] = []
 
         _parallel = os.getenv("ALFA_SWARM_PARALLEL", "on").strip().lower() != "off"
         try:
@@ -304,7 +303,7 @@ async def conduct_multi_agent_meeting(
         if not _parallel:
             _wave_size = 1
 
-        def _build_task_desc(agent: Dict[str, Any], err_ctx: str) -> str:
+        def _build_task_desc(agent: dict[str, Any], err_ctx: str) -> str:
             td = (
                 subtask_map.get(agent["name"])
                 or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
@@ -329,7 +328,7 @@ async def conduct_multi_agent_meeting(
                 )
             return td
 
-        async def _execute_agent_step(agent: Dict[str, Any], task_desc: str):
+        async def _execute_agent_step(agent: dict[str, Any], task_desc: str):
             log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
             step_result = await execute_swarm_task_step(
                 agent, task_desc, topic, intent_info
@@ -718,7 +717,7 @@ async def conduct_multi_agent_meeting(
     }
 
 
-async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
+async def resume_swarm_session(session_id: str) -> dict[str, Any]:
     """
     Melanjutkan sesi swarm yang sebelumnya dibatalkan atau tertunda berdasarkan checkpoint.
     """

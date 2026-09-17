@@ -1,23 +1,14 @@
-import asyncio
-import json
-import logging
 import os
-import shutil
-import sqlite3
 import subprocess
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
 import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, HTTPException
 
 from alfa import tools
-from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import REPO_ROOT
 
 router = APIRouter()
 
@@ -144,7 +135,7 @@ async def get_stats():
 
 
 @router.post("/api/system/cli-exec")
-async def execute_cli_terminal_command(payload: Dict[str, Any]):
+async def execute_cli_terminal_command(payload: dict[str, Any]):
     """Execute arbitrary bash/linux terminal command directly in the host system with timing and exit codes."""
     command = (payload.get("command") or "").strip()
     if not command:
@@ -237,7 +228,7 @@ async def get_services_status():
 
 
 @router.post("/api/services/action")
-async def service_action(payload: Dict[str, Any]):
+async def service_action(payload: dict[str, Any]):
     """Start, stop, or restart a systemd user service."""
     service_name = payload.get("service")
     action = payload.get("action", "status")
@@ -284,7 +275,7 @@ async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int 
         )
         path = os.path.join(REPO_ROOT, log_file)
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as f:
+            with open(path, encoding="utf-8", errors="replace") as f:
                 tail = f.readlines()[-lines:]
             return {
                 "status": "success",

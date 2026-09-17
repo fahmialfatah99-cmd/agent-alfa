@@ -1,16 +1,11 @@
 """Command handlers for ALFA CLI."""
 
 import getpass
-import json
 import os
 import platform
-import sys
 
 from alfa.core.cli.constants import (
-    RICH_AVAILABLE,
     Colors,
-    Console,
-    Panel,
     print_banner,
     print_status,
 )

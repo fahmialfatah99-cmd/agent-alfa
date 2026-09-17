@@ -2,7 +2,6 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -10,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def test_index_html_decomposition():
     """Verify templates/index.html is decomposed and cleanly links to static assets."""
-    from alfa.dashboard.app import STATIC_DIR, TEMPLATES_DIR, app
+    from alfa.dashboard.app import TEMPLATES_DIR
 
     index_path = Path(TEMPLATES_DIR) / "index.html"
     assert index_path.exists(), "templates/index.html does not exist"
@@ -107,7 +106,6 @@ def test_static_boundary_check():
     """Verify paths like /statistics or /static_analysis do not bypass auth."""
     from unittest.mock import AsyncMock
 
-    from starlette.datastructures import URL
     from starlette.requests import Request
 
     from alfa.dashboard.routes.auth import DashboardAuthMiddleware

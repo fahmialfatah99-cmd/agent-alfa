@@ -2,18 +2,13 @@
 
 import asyncio
 import json
-import logging
 import os
-import sys
-import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from alfa.core.perm.constants import (
     _LABELS,
     APPROVAL_TIMEOUT,
     DEFAULT_TIER,
-    FAIL_MODE,
     PERMISSION_GATE_ENABLED,
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
@@ -24,9 +19,7 @@ from alfa.core.perm.constants import (
 from alfa.core.perm.store import (
     get_trust_score,
     is_always_allowed,
-    log_permission_decision,
     save_always_allow,
-    update_trust_score,
 )
 
 
@@ -40,7 +33,7 @@ def get_tool_tier(tool_name: str) -> RiskTier:
     return DEFAULT_TIER
 
 
-def should_auto_approve(chat_id: int, tool_name: str) -> Tuple[bool, str]:
+def should_auto_approve(chat_id: int, tool_name: str) -> tuple[bool, str]:
     """Determine if request should be auto-approved based on trust score and tier."""
     tier = get_tool_tier(tool_name)
     trust = get_trust_score(chat_id)
@@ -61,20 +54,20 @@ def should_auto_approve(chat_id: int, tool_name: str) -> Tuple[bool, str]:
 
 
 # ── Registry permintaan yang menunggu keputusan ──────────────────────────────
-_PENDING: Dict[str, dict] = {}
+_PENDING: dict[str, dict] = {}
 
 
 def is_enabled() -> bool:
     return PERMISSION_GATE_ENABLED
 
 
-def make_gate(chat_id: Optional[int]):
+def make_gate(chat_id: int | None):
     """Kembalikan closure async gate(tool_name, args_json)->Optional[str].
     Return None = boleh jalan; str = pesan penolakan utk dimakan model."""
     if not PERMISSION_GATE_ENABLED or chat_id is None:
         return None
 
-    async def gate(tool_name: str, arguments_json: str = "{}") -> Optional[str]:
+    async def gate(tool_name: str, arguments_json: str = "{}") -> str | None:
         return await request_approval(tool_name, arguments_json, chat_id)
 
     return gate
@@ -82,7 +75,7 @@ def make_gate(chat_id: Optional[int]):
 
 async def request_approval(
     tool_name: str, arguments_json: str = "{}", chat_id: int = None
-) -> Optional[str]:
+) -> str | None:
     """Tanya izin ke pengguna via tombol Telegram.
     Return None bila diizinkan; string penolakan bila ditolak/timeout."""
     if not PERMISSION_GATE_ENABLED or chat_id is None:
@@ -121,7 +114,7 @@ async def request_approval(
     try:
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-        from subagents import get_telegram_app
+        from alfa.swarm.subagents import get_telegram_app
 
         app = get_telegram_app()
         markup = InlineKeyboardMarkup(
@@ -172,7 +165,7 @@ async def request_approval(
         try:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-            from subagents import get_telegram_app
+            from alfa.swarm.subagents import get_telegram_app
 
             app = get_telegram_app()
             if app:
@@ -197,7 +190,7 @@ async def request_approval(
     elif sent_message is not None:
         # Fallback jika belum sempat diedit via callback query handler
         try:
-            from subagents import get_telegram_app
+            from alfa.swarm.subagents import get_telegram_app
 
             app = get_telegram_app()
             if app:
@@ -327,10 +320,3 @@ def wrap_tool_for_afc(fn):
 
 
 # ── Defensive Security Auditor (migrated from security_auditor.py) ────────────
-import socket
-import ssl
-import stat
-import subprocess
-import urllib.parse
-import urllib.request
-from datetime import datetime

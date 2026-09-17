@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 API Key Multi-Provider Vault & Brain Model configuration.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core.db.connection import get_sync_db
 from alfa.core.db.crypto import decrypt_key, encrypt_key, mask_key
@@ -12,7 +11,7 @@ from alfa.core.db.crypto import decrypt_key, encrypt_key, mask_key
 logger = logging.getLogger("DB.Keys")
 
 
-def list_api_keys_sync() -> List[Dict[str, Any]]:
+def list_api_keys_sync() -> list[dict[str, Any]]:
     """List all configured API keys with masked key values."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -43,7 +42,7 @@ def add_api_key_sync(
     default_model: str,
     base_url: str = "",
     set_active: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Add a new API key to the vault."""
     provider_norm = provider.strip().lower()
     with get_sync_db() as conn:
@@ -71,8 +70,8 @@ def add_api_key_sync(
 
 
 def activate_api_key_sync(
-    key_id: int, custom_model: Optional[str] = None
-) -> Dict[str, Any]:
+    key_id: int, custom_model: str | None = None
+) -> dict[str, Any]:
     """Set an API key as active. The MOST RECENTLY activated key across any
     provider automatically becomes the MAIN BRAIN for the Telegram/Web agent."""
     with get_sync_db() as conn:
@@ -125,7 +124,7 @@ def get_main_brain_model() -> str:
         return ""
 
 
-def get_api_key_by_id_sync(key_id: int) -> Optional[Dict[str, Any]]:
+def get_api_key_by_id_sync(key_id: int) -> dict[str, Any] | None:
     """Ambil record API key berdasarkan ID dengan kunci terdekripsi."""
     try:
         with get_sync_db() as conn:
@@ -144,7 +143,7 @@ def get_api_key_by_id_sync(key_id: int) -> Optional[Dict[str, Any]]:
         return None
 
 
-def get_main_brain_key_id() -> Optional[int]:
+def get_main_brain_key_id() -> int | None:
     """Return key id marked as main brain, if still valid."""
     try:
         with get_sync_db() as conn:
@@ -159,7 +158,7 @@ def get_main_brain_key_id() -> Optional[int]:
         return None
 
 
-def delete_api_key_sync(key_id: int) -> Dict[str, Any]:
+def delete_api_key_sync(key_id: int) -> dict[str, Any]:
     """Delete an API key from the vault."""
     with get_sync_db() as conn:
         cursor = conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
@@ -172,7 +171,7 @@ def delete_api_key_sync(key_id: int) -> Dict[str, Any]:
     return {"status": "success", "message": f"API key #{key_id} deleted"}
 
 
-def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]]:
+def get_active_api_key_sync(provider: str = "gemini") -> dict[str, Any] | None:
     """Get active API key record for a given provider."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -196,9 +195,9 @@ def get_active_api_key_sync(provider: str = "gemini") -> Optional[Dict[str, Any]
     return None
 
 
-def list_active_keys_sync(exclude_provider: str = "") -> List[Dict[str, Any]]:
+def list_active_keys_sync(exclude_provider: str = "") -> list[dict[str, Any]]:
     """Daftar semua kunci aktif (didekripsi), opsional kecualikan satu provider."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         excl = (exclude_provider or "").lower()
         with get_sync_db() as conn:

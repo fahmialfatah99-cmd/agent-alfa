@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Office documents (Excel, PowerPoint), dataset analysis/charts, and text translation.
 """
@@ -7,7 +6,7 @@ import csv
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -17,8 +16,8 @@ logger = logging.getLogger("AgentTools.Media.Documents")
 
 @register_tool(category="office")
 def generate_excel_spreadsheet(
-    sheet_title: str, headers: List[str], rows_json: str, filename: str = "data.xlsx"
-) -> Dict[str, Any]:
+    sheet_title: str, headers: list[str], rows_json: str, filename: str = "data.xlsx"
+) -> dict[str, Any]:
     """
     Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.
     """
@@ -87,7 +86,7 @@ def generate_excel_spreadsheet(
 @register_tool(category="office")
 def generate_presentation_pptx(
     title: str, subtitle: str, slides_json: str, filename: str = "presentasi.pptx"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a clean PowerPoint presentation (.pptx) and send it directly to Telegram.
     """
@@ -143,7 +142,7 @@ def analyze_dataset_csv_json(
     x_column: str = "",
     y_column: str = "",
     title: str = "Data Analysis",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Intelligent Dataset Analyzer & Visualizer.
     Reads and parses a CSV, JSON, or Excel dataset, computes statistical metrics
@@ -167,12 +166,12 @@ def analyze_dataset_csv_json(
 
         ext = os.path.splitext(expanded)[1].lower()
         if ext == ".csv":
-            with open(expanded, "r", encoding="utf-8", errors="replace") as f:
+            with open(expanded, encoding="utf-8", errors="replace") as f:
                 reader = csv.DictReader(f)
                 headers = reader.fieldnames or []
                 data_rows = list(reader)
         elif ext == ".json":
-            with open(expanded, "r", encoding="utf-8") as f:
+            with open(expanded, encoding="utf-8") as f:
                 raw_json = json.load(f)
                 if isinstance(raw_json, list) and raw_json:
                     data_rows = raw_json
@@ -255,7 +254,7 @@ def analyze_dataset_csv_json(
 @register_tool(category="media")
 def translate_text(
     text: str, target_lang: str = "en", source_lang: str = "auto"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Translate text between languages using Google Translate.
     """

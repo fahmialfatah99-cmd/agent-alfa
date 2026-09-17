@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Data integrity guardrail for ui-ux-pro-max. Stdlib-only, no pytest dependency,
 so it can run as a standalone pre-publish/CI check:
@@ -25,7 +24,6 @@ import re
 import statistics
 import sys
 from datetime import date
-from pathlib import Path
 from urllib.parse import parse_qs, quote_plus, urlsplit
 
 from core import (
@@ -193,7 +191,7 @@ def contrast_ratio(foreground, background):
 
 
 def _read_rows(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return reader.fieldnames or [], list(reader)
 

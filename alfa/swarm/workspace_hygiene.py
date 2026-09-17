@@ -1,19 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Workspace hygiene, sandboxing project snapshotting, and output harvesting for ALFA Swarm.
 """
 
 import collections
 import fnmatch
-import itertools
-import json
 import logging
 import os
 import re
 import shutil
 import sys
 import time
-from typing import Any, Dict, List, Optional, Set
 
 from alfa import tools
 
@@ -79,9 +75,9 @@ _JUNK_FILE_PATTERNS = {
     "*.log",
 }
 
-_SANDBOX_SNAPSHOT: Set[str] = set()
+_SANDBOX_SNAPSHOT: set[str] = set()
 _TARGET_FOLDER: str = ""
-_EXEC_FS_SNAPSHOT: Dict[str, str] = {}
+_EXEC_FS_SNAPSHOT: dict[str, str] = {}
 
 LIVE_FEED_FILE = os.path.join(SWARM_OUTPUT_DIR, "live_meeting_feed.jsonl")
 CANCEL_FLAG_FILE = os.path.join(SWARM_OUTPUT_DIR, "swarm_cancel.flag")
@@ -93,7 +89,7 @@ def _get_swarm_output_dir() -> str:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "SWARM_OUTPUT_DIR"):
-            return getattr(mod, "SWARM_OUTPUT_DIR")
+            return mod.SWARM_OUTPUT_DIR
     return SWARM_OUTPUT_DIR
 
 
@@ -101,19 +97,19 @@ def _get_target_folder() -> str:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "_TARGET_FOLDER"):
-            return getattr(mod, "_TARGET_FOLDER")
+            return mod._TARGET_FOLDER
     return _TARGET_FOLDER
 
 
-def _get_sandbox_snapshot() -> Set[str]:
+def _get_sandbox_snapshot() -> set[str]:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "_SANDBOX_SNAPSHOT"):
-            return getattr(mod, "_SANDBOX_SNAPSHOT")
+            return mod._SANDBOX_SNAPSHOT
     return _SANDBOX_SNAPSHOT
 
 
-def sanitize_project_directory(dir_path: str) -> Dict[str, int]:
+def sanitize_project_directory(dir_path: str) -> dict[str, int]:
     """
     Membersihkan file sampah, folder dependensi/clutter (node_modules, .cache, dll),
     dan memangkas habis seluruh folder kosong dari proyek/website secara menyeluruh.
@@ -164,8 +160,8 @@ def sanitize_project_directory(dir_path: str) -> Dict[str, int]:
     return {"deleted_files": deleted_files, "pruned_dirs": pruned_dirs}
 
 
-def _hash_sandbox_projects() -> Dict[str, str]:
-    out: Dict[str, str] = {}
+def _hash_sandbox_projects() -> dict[str, str]:
+    out: dict[str, str] = {}
     target = _get_target_folder()
     try:
         if target and os.path.isdir(target):
@@ -214,11 +210,11 @@ def _sandbox_project_dirs() -> set:
         return set()
 
 
-def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
+def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
     """Arsipkan folder proyek baru di sandbox tanpa file sampah & folder kosong."""
     from alfa.swarm.live_logger import log_live
 
-    harvested: List[str] = []
+    harvested: list[str] = []
     output_dir = _get_swarm_output_dir()
     target_folder = _get_target_folder()
     snapshot = _get_sandbox_snapshot()
