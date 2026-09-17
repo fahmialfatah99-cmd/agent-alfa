@@ -1,15 +1,22 @@
 """Host system and target website security auditing tools."""
 
+import datetime
 import json
 import logging
 import os
 import re
 import shutil
+import socket
+import ssl
+import stat
 import subprocess
 import time
+import urllib.parse
+import urllib.request
+import urllib.error
 from typing import Any, Dict, List, Optional
 
-from alfa.core.perm.constants import logger
+from alfa.core.perm.constants import PROJECT_DIR, logger
 
 def audit_local_host_security() -> Dict[str, Any]:
     """

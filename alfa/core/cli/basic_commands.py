@@ -3,6 +3,7 @@
 import getpass
 import json
 import os
+import platform
 import sys
 
 from alfa.core.cli.constants import (
@@ -10,6 +11,7 @@ from alfa.core.cli.constants import (
     Console,
     Panel,
     RICH_AVAILABLE,
+    print_banner,
     print_status,
 )
 
