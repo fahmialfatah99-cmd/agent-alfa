@@ -7,6 +7,7 @@ from pathlib import Path
 
 try:
     import readline
+
     READLINE_AVAILABLE = True
 except ImportError:
     READLINE_AVAILABLE = False
@@ -20,11 +21,12 @@ except ImportError:
 
 try:
     from rich.console import Console
+    from rich.live import Live
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.spinner import Spinner
-    from rich.live import Live
     from rich.text import Text
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -38,38 +40,41 @@ HISTORY_FILE = Path.home() / ".alfa_cli_history"
 TIMEOUT = 120
 MAX_HISTORY_LENGTH = 1000
 
+
 class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    GRAY = '\033[90m'
-    WHITE = '\033[97m'
+    HEADER = "\033[95m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    GRAY = "\033[90m"
+    WHITE = "\033[97m"
 
     @staticmethod
     def disable():
         if platform.system() == "Windows":
-            pass 
-        Colors.HEADER = ''
-        Colors.BLUE = ''
-        Colors.CYAN = ''
-        Colors.GREEN = ''
-        Colors.WARNING = ''
-        Colors.FAIL = ''
-        Colors.ENDC = ''
-        Colors.BOLD = ''
-        Colors.UNDERLINE = ''
-        Colors.GRAY = ''
-        Colors.WHITE = ''
+            pass
+        Colors.HEADER = ""
+        Colors.BLUE = ""
+        Colors.CYAN = ""
+        Colors.GREEN = ""
+        Colors.WARNING = ""
+        Colors.FAIL = ""
+        Colors.ENDC = ""
+        Colors.BOLD = ""
+        Colors.UNDERLINE = ""
+        Colors.GRAY = ""
+        Colors.WHITE = ""
+
 
 # Cek apakah output ke terminal mendukung warna
 if not sys.stdout.isatty():
     Colors.disable()
+
 
 def print_banner():
     banner = f"""
@@ -81,6 +86,7 @@ def print_banner():
     """
     print(banner)
 
+
 def print_status(msg, status="info"):
     icons = {
         "info": "ℹ️",
@@ -88,7 +94,7 @@ def print_status(msg, status="info"):
         "error": "❌",
         "warning": "⚠️",
         "thinking": "🤔",
-        "loading": "⏳"
+        "loading": "⏳",
     }
     colors = {
         "info": Colors.BLUE,
@@ -96,11 +102,10 @@ def print_status(msg, status="info"):
         "error": Colors.FAIL,
         "warning": Colors.WARNING,
         "thinking": Colors.CYAN,
-        "loading": Colors.GRAY
+        "loading": Colors.GRAY,
     }
-    
+
     icon = icons.get(status, "ℹ️")
     color = colors.get(status, Colors.BLUE)
-    
-    print(f"{color}{icon} {msg}{Colors.ENDC}")
 
+    print(f"{color}{icon} {msg}{Colors.ENDC}")

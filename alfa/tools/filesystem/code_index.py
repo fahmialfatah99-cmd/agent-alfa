@@ -7,8 +7,8 @@ import tempfile
 import time
 from typing import Any, Dict, List, Optional
 
-from alfa.tools.registry import register_tool
 from alfa.tools.filesystem.core_file import _MAX_EDIT_FILE_BYTES, _resolve_host_path
+from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Filesystem.CodeIndex")
 
@@ -19,13 +19,27 @@ _CODE_INDEX_DB = os.path.join(
 _CODE_INDEX_MAX_CHUNKS = 10_000
 _CODE_CHUNK_LINES = 60
 _CODE_INDEX_SKIP_DIRS = {
-    ".git", "venv", ".venv", "env", "__pycache__", "node_modules",
-    "dist", "build", ".idea", ".vscode", "coverage", ".pytest_cache",
-    ".mypy_cache", ".ruff_cache", "site-packages",
+    ".git",
+    "venv",
+    ".venv",
+    "env",
+    "__pycache__",
+    "node_modules",
+    "dist",
+    "build",
+    ".idea",
+    ".vscode",
+    "coverage",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "site-packages",
 }
+
 
 def _code_index_connect():
     import sqlite3
+
     conn = sqlite3.connect(_CODE_INDEX_DB, timeout=15)
     conn.execute("""
         CREATE VIRTUAL TABLE IF NOT EXISTS code_fts USING fts5(
@@ -44,6 +58,7 @@ def _index_freshness(root: str, sample_paths: List[str]) -> Dict[str, Any]:
     """Periksa apakah index masih segar: bandingkan mtime sampel file
     vs waktu indexing. Mengembalikan info kesegaran utk hasil pencarian."""
     import sqlite3 as _sq
+
     info: Dict[str, Any] = {"stale": False, "indexed_at": None}
     if not root:
         return info
@@ -51,11 +66,14 @@ def _index_freshness(root: str, sample_paths: List[str]) -> Dict[str, Any]:
         conn = _sq.connect(_CODE_INDEX_DB, timeout=10)
         row = conn.execute(
             "SELECT indexed_at, files, chunks FROM code_index_meta WHERE repo_root = ?",
-            (root,)).fetchone()
+            (root,),
+        ).fetchone()
         conn.close()
         if not row:
             info["stale"] = True
-            info["note"] = "index tidak tercatat meta-nya — jalankan ulang index_codebase."
+            info["note"] = (
+                "index tidak tercatat meta-nya — jalankan ulang index_codebase."
+            )
             return info
         indexed_at, files, chunks = row
         info["indexed_at"] = indexed_at
@@ -80,8 +98,11 @@ def _index_freshness(root: str, sample_paths: List[str]) -> Dict[str, Any]:
 
 
 def _iter_code_files(root: str, extensions: str):
-    exts = {"." + e.strip().lstrip(".").lower()
-            for e in (extensions or "").split(",") if e.strip()}
+    exts = {
+        "." + e.strip().lstrip(".").lower()
+        for e in (extensions or "").split(",")
+        if e.strip()
+    }
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in _CODE_INDEX_SKIP_DIRS]
         for name in filenames:
@@ -93,7 +114,10 @@ def _chunk_code_lines(lines):
     """Pecah file jadi chunk ~_CODE_CHUNK_LINES di batas baris kosong."""
     chunks, cur, sym = [], [], None
     import re as _re
-    sym_re = _re.compile(r"^\s*(?:async\s+)?(?:def|class|function|func|fn|impl|type)\s+(\w+)")
+
+    sym_re = _re.compile(
+        r"^\s*(?:async\s+)?(?:def|class|function|func|fn|impl|type)\s+(\w+)"
+    )
     for ln in lines:
         cur.append(ln)
         if len(cur) >= _CODE_CHUNK_LINES and ln.strip() == "":
@@ -131,7 +155,10 @@ def _index_one_file(fpath: str, root: str):
 
 
 @register_tool(category="file")
-def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml") -> Dict[str, Any]:
+def index_codebase(
+    repo_path: str,
+    file_extensions: str = "py,js,ts,tsx,jsx,go,rs,java,c,cpp,h,md,json,yaml,yml,toml",
+) -> Dict[str, Any]:
     """
     Build/refresh a full-text INDEX of a repository so later searches are fast
     and context-aware (RAG-style retrieval without external services).
@@ -145,18 +172,21 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
     try:
         root = _resolve_host_path(repo_path)
         if not os.path.isdir(root):
-            return {"status": "error", "message": f"Direktori tidak ditemukan: {repo_path}"}
+            return {
+                "status": "error",
+                "message": f"Direktori tidak ditemukan: {repo_path}",
+            }
 
         # Pengaman: jangan indeks home dir / filesystem root utuh — ini yang
         # dulu membengkakkan DB 857MB. Minta folder proyek spesifik.
-        if os.path.realpath(root) in (
-            os.path.realpath(os.path.expanduser("~")), "/"
-        ):
+        if os.path.realpath(root) in (os.path.realpath(os.path.expanduser("~")), "/"):
             return {
                 "status": "error",
-                "message": ("[KEAMANAN DB] Folder terlalu luas (home/root). "
-                            "Sebutkan folder proyek spesifik, mis. "
-                            "~/alfa_projects/<nama-proyek>."),
+                "message": (
+                    "[KEAMANAN DB] Folder terlalu luas (home/root). "
+                    "Sebutkan folder proyek spesifik, mis. "
+                    "~/alfa_projects/<nama-proyek>."
+                ),
             }
 
         conn = _code_index_connect()
@@ -181,11 +211,14 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
             if len(file_list) >= 50:
                 try:
                     from concurrent.futures import ProcessPoolExecutor
+
                     workers = max(2, min(4, (os.cpu_count() or 2)))
                     with ProcessPoolExecutor(max_workers=workers) as pool:
-                        for res in pool.map(_index_one_file,
-                                            file_list[:_CODE_INDEX_MAX_CHUNKS * 3],
-                                            (root,)):
+                        for res in pool.map(
+                            _index_one_file,
+                            file_list[: _CODE_INDEX_MAX_CHUNKS * 3],
+                            (root,),
+                        ):
                             _consume(res)
                 except Exception as pe:
                     logger.warning(f"Index paralel gagal ({pe}); fallback sekuensial.")
@@ -206,21 +239,26 @@ def index_codebase(repo_path: str, file_extensions: str = "py,js,ts,tsx,jsx,go,r
                 conn.execute("DELETE FROM code_fts WHERE repo_root = ?", (root,))
                 conn.executemany(
                     "INSERT INTO code_fts(rel_path, content, symbol, repo_root, start_line, end_line) "
-                    "VALUES (?,?,?,?,?,?)", rows)
+                    "VALUES (?,?,?,?,?,?)",
+                    rows,
+                )
                 chunks_inserted = len(rows)
                 conn.execute(
                     "INSERT INTO code_index_meta(repo_root, indexed_at, files, chunks) "
                     "VALUES (?,?,?,?) ON CONFLICT(repo_root) DO UPDATE SET "
                     "indexed_at=excluded.indexed_at, files=excluded.files, chunks=excluded.chunks",
-                    (root, time.time(), files_scanned, chunks_inserted))
+                    (root, time.time(), files_scanned, chunks_inserted),
+                )
         finally:
             conn.close()
 
         return {
             "status": "success",
-            "message": (f"Index selesai: {files_scanned} file, {chunks_inserted} chunk tersimpan"
-                        f"{' (' + str(skipped_big) + ' file besar dilewati)' if skipped_big else ''}"
-                        f"{f'. [DIPOTONG di batas {_CODE_INDEX_MAX_CHUNKS} chunk — indeks folder lebih spesifik bila perlu]' if truncated else ''}."),
+            "message": (
+                f"Index selesai: {files_scanned} file, {chunks_inserted} chunk tersimpan"
+                f"{' (' + str(skipped_big) + ' file besar dilewati)' if skipped_big else ''}"
+                f"{f'. [DIPOTONG di batas {_CODE_INDEX_MAX_CHUNKS} chunk — indeks folder lebih spesifik bila perlu]' if truncated else ''}."
+            ),
             "files_indexed": files_scanned,
             "chunks": chunks_inserted,
             "truncated": truncated,
@@ -246,9 +284,11 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[st
             return {"status": "error", "message": "Query kosong."}
         conn = _code_index_connect()
         try:
-            sql = ("SELECT rel_path, content, symbol, repo_root, start_line, end_line, "
-                   "snippet(code_fts, 1, '>>>', '<<<', ' … ', 12) AS snip "
-                   "FROM code_fts WHERE code_fts MATCH ? ")
+            sql = (
+                "SELECT rel_path, content, symbol, repo_root, start_line, end_line, "
+                "snippet(code_fts, 1, '>>>', '<<<', ' … ', 12) AS snip "
+                "FROM code_fts WHERE code_fts MATCH ? "
+            )
             params = [query.strip()]
             if repo_path.strip():
                 sql += "AND repo_root = ? "
@@ -260,14 +300,19 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[st
             conn.close()
 
         if not rows:
-            return {"status": "empty",
-                    "message": "Tidak ada hasil. Index mungkin belum dibuat — panggil index_codebase dulu."}
+            return {
+                "status": "empty",
+                "message": "Tidak ada hasil. Index mungkin belum dibuat — panggil index_codebase dulu.",
+            }
 
-        results = [{
-            "location": f"{r[0]}:{r[4]}-{r[5]}",
-            "symbol": r[2] or None,
-            "snippet": r[6],
-        } for r in rows]
+        results = [
+            {
+                "location": f"{r[0]}:{r[4]}-{r[5]}",
+                "symbol": r[2] or None,
+                "snippet": r[6],
+            }
+            for r in rows
+        ]
 
         # Cek kesegaran index utk repo-repo yang muncul di hasil
         roots = list(dict.fromkeys(r[3] for r in rows))
@@ -283,9 +328,9 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> Dict[st
         if stale_roots:
             resp["index_stale_warning"] = (
                 f"Index untuk {len(stale_roots)} repo sudah USANG (ada file berubah "
-                f"setelah indexing). Jalankan index_codebase lagi utk hasil akurat.")
+                f"setelah indexing). Jalankan index_codebase lagi utk hasil akurat."
+            )
             logger.warning(resp["index_stale_warning"])
         return resp
     except Exception as e:
         return {"status": "error", "message": str(e)}
-

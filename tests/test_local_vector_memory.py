@@ -7,12 +7,13 @@ semantic similarity ranking, chunking logic, and isolated database operations.
 import json
 import os
 import sqlite3
-from unittest.mock import patch, MagicMock
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import vector_memory
@@ -53,9 +54,13 @@ class TestLocalVectorMemory:
 
         # 2. Simulate API key present but API call throws exception (network down, 429, etc.)
         with patch.dict(os.environ, {"GEMINI_API_KEY": "dummy_test_key"}):
-            with patch("google.genai.Client", side_effect=RuntimeError("Network unreachable")):
+            with patch(
+                "google.genai.Client", side_effect=RuntimeError("Network unreachable")
+            ):
                 emb_fail = vector_memory.get_text_embedding(text)
-                assert emb_fail == emb_no_key_1  # Must fall back deterministically to local embedding
+                assert (
+                    emb_fail == emb_no_key_1
+                )  # Must fall back deterministically to local embedding
 
     def test_local_subword_embedding_features(self):
         """Verify _local_subword_embedding with positional and BM25-style frequency weighting."""
@@ -117,7 +122,8 @@ class TestLocalVectorMemory:
 
         # Multi-paragraph text
         paragraphs = [
-            f"Paragraph {i}: " + ("This is detailed knowledge content about autonomous systems. " * 5)
+            f"Paragraph {i}: "
+            + ("This is detailed knowledge content about autonomous systems. " * 5)
             for i in range(10)
         ]
         full_text = "\n\n".join(paragraphs)
@@ -187,7 +193,9 @@ class TestLocalVectorMemory:
             assert cat_results[0]["doc_title"] == "Dessert Menu"
 
             # List documents
-            doc_list = vector_memory.list_ingested_documents(user_id=42, db_path=test_db)
+            doc_list = vector_memory.list_ingested_documents(
+                user_id=42, db_path=test_db
+            )
             assert len(doc_list) == 2
             titles = [d["doc_title"] for d in doc_list]
             assert "Sovereign Architecture" in titles
@@ -200,7 +208,9 @@ class TestLocalVectorMemory:
             assert del_res["status"] == "success"
             assert del_res["deleted_chunks"] >= 1
 
-            remaining = vector_memory.list_ingested_documents(user_id=42, db_path=test_db)
+            remaining = vector_memory.list_ingested_documents(
+                user_id=42, db_path=test_db
+            )
             assert len(remaining) == 1
             assert remaining[0]["doc_title"] == "Sovereign Architecture"
 
@@ -218,15 +228,21 @@ class TestLocalVectorMemory:
                 with patch("vector_memory.ingest_document") as mock_ingest:
                     mock_ingest.return_value = {"status": "success", "total_chunks": 1}
                     res = memory_tools.save_to_vector_memory(
-                        title="Test Note", content="Sample memory content", category="notes"
+                        title="Test Note",
+                        content="Sample memory content",
+                        category="notes",
                     )
                     assert res["status"] == "success"
                     mock_ingest.assert_called_once()
 
                 # Search via memory_tools
                 with patch("vector_memory.semantic_search") as mock_search:
-                    mock_search.return_value = [{"doc_title": "Test Note", "similarity_score": 0.88}]
-                    search_res = memory_tools.search_vector_memory(query="Sample memory", top_k=3)
+                    mock_search.return_value = [
+                        {"doc_title": "Test Note", "similarity_score": 0.88}
+                    ]
+                    search_res = memory_tools.search_vector_memory(
+                        query="Sample memory", top_k=3
+                    )
                     assert search_res["status"] == "success"
                     assert len(search_res["matches"]) == 1
                     mock_search.assert_called_once()
@@ -282,23 +298,32 @@ class TestLocalVectorMemory:
         # Ingest doc2 directly with 384-dim embedding simulating fastembed/MiniLM
         vec_384 = [0.1] * 384
         conn = sqlite3.connect(test_db)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO vector_knowledge_embeddings
             (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, model, dimension, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (
-            10, "FastEmbed Doc", 0, "Deep learning neural network optimization.",
-            json.dumps(vec_384), "ai", "text", 50, "fastembed/bge-small-en-v1.5", 384
-        ))
+        """,
+            (
+                10,
+                "FastEmbed Doc",
+                0,
+                "Deep learning neural network optimization.",
+                json.dumps(vec_384),
+                "ai",
+                "text",
+                50,
+                "fastembed/bge-small-en-v1.5",
+                384,
+            ),
+        )
         conn.commit()
         conn.close()
 
         # Search with 768-dim query (local subword)
         with patch.dict(os.environ, {"GEMINI_API_KEY": ""}):
             results_768 = vector_memory.semantic_search(
-                user_id=10,
-                query="Quantum computing principles",
-                db_path=test_db
+                user_id=10, query="Quantum computing principles", db_path=test_db
             )
             # Only the compatible 768-dim doc should be returned, NOT the 384-dim doc!
             assert len(results_768) == 1
@@ -307,11 +332,11 @@ class TestLocalVectorMemory:
 
         # Search with 384-dim query (mocked local library)
         mock_meta = ([0.1] * 384, "fastembed/bge-small-en-v1.5", 384)
-        with patch("vector_memory.get_text_embedding_with_meta", return_value=mock_meta):
+        with patch(
+            "vector_memory.get_text_embedding_with_meta", return_value=mock_meta
+        ):
             results_384 = vector_memory.semantic_search(
-                user_id=10,
-                query="Neural networks",
-                db_path=test_db
+                user_id=10, query="Neural networks", db_path=test_db
             )
             # Only the compatible 384-dim doc should be returned, NOT the 768-dim doc!
             assert len(results_384) == 1

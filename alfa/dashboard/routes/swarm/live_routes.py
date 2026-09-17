@@ -16,7 +16,14 @@ router = APIRouter()
 # --- Swarm Arena State Parsing & Real-Time Visualization ---
 
 PERSONA_ID_MAP = {
-    "commander": ("alpha lead", "commander", "leader", "planner", "strategic planner", "lead"),
+    "commander": (
+        "alpha lead",
+        "commander",
+        "leader",
+        "planner",
+        "strategic planner",
+        "lead",
+    ),
     "researcher": ("researcher prime", "researcher", "analis", "analyst", "riset"),
     "critic": ("system auditor", "critic", "auditor", "sentinel", "sentinel qa", "qa"),
     "executor": ("code crafter", "executor", "crafter", "coder", "developer"),
@@ -62,7 +69,9 @@ def _extract_speaker_from_entry(e: Dict[str, Any]) -> Optional[str]:
         return m.group(1).strip()
 
     # ✅ PASS — Code Crafter (...) / ❌ FAIL — Code Crafter (...)
-    m = re.search(r"[✅❌]\s*(?:PASS|FAIL)\s*—\s*([A-Za-z0-9_\s]+?)(?:\s*\(|\s*:|$)", text)
+    m = re.search(
+        r"[✅❌]\s*(?:PASS|FAIL)\s*—\s*([A-Za-z0-9_\s]+?)(?:\s*\(|\s*:|$)", text
+    )
     if m:
         return m.group(1).strip()
 
@@ -116,14 +125,23 @@ def parse_swarm_stage(entries: List[Dict[str, Any]], running: bool = False) -> s
 
         # Fallback to semantic text keyword matching
         if any(
-            w in text for w in ("eksekusi", "execute", "running tool", "single-shot write", "forced-exec")
+            w in text
+            for w in (
+                "eksekusi",
+                "execute",
+                "running tool",
+                "single-shot write",
+                "forced-exec",
+            )
         ):
             return "execute"
         if any(w in text for w in ("voting", "vote", "memilih", "polling")):
             return "vote"
         if any(w in text for w in ("konsensus", "kesepakatan", "consensus")):
             return "consensus"
-        if any(w in text for w in ("diskusi", "debat", "deliberasi", "dialog", "tanggapan")):
+        if any(
+            w in text for w in ("diskusi", "debat", "deliberasi", "dialog", "tanggapan")
+        ):
             return "debate"
         if any(w in text for w in ("rencana", "planning", "dekomposisi", "roadmap")):
             return "plan"
@@ -131,7 +149,9 @@ def parse_swarm_stage(entries: List[Dict[str, Any]], running: bool = False) -> s
     return "plan"
 
 
-def compute_agent_states(entries: List[Dict[str, Any]], running: bool = False) -> Dict[str, str]:
+def compute_agent_states(
+    entries: List[Dict[str, Any]], running: bool = False
+) -> Dict[str, str]:
     """Compute status for each persona (commander, researcher, critic, executor): speaking, waiting, idle."""
     base_states = {
         "commander": "idle",
@@ -173,7 +193,9 @@ def compute_consensus_percent(stage: str, entries: List[Dict[str, Any]]) -> int:
     return 0
 
 
-def parse_arena_state(entries: List[Dict[str, Any]], running: bool = False) -> Dict[str, Any]:
+def parse_arena_state(
+    entries: List[Dict[str, Any]], running: bool = False
+) -> Dict[str, Any]:
     """Compile structured arena state for visualization."""
     stage = parse_swarm_stage(entries, running=running)
     active_speaker = detect_active_speaker(entries) if running else None
@@ -192,6 +214,7 @@ def parse_arena_state(entries: List[Dict[str, Any]], running: bool = False) -> D
 async def swarm_live_feed(since: int = 0):
     """Realtime terminal and Arena visualizer feed of what the swarm agents are doing right now."""
     from alfa.swarm import engine as _se
+
     since = safe_int(since, 0, minimum=0)
     entries = []
     all_recent_entries = []
@@ -260,9 +283,11 @@ async def swarm_list_folders():
             pass
 
     _add("/dev/shm/alfa_sandbox", "sandbox")
-    _add(os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites")
-    _add(os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/projects"), "outputs/projects")
+    _add(
+        os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites"
+    )
+    _add(
+        os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/projects"), "outputs/projects"
+    )
     _add(os.path.expanduser("~/alfa_projects"), "alfa_projects")
     return {"folders": candidates}
-
-

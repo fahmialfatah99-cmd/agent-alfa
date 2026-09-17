@@ -49,7 +49,9 @@ def should_reflect(user_id: int) -> bool:
     return _reflection_counters[user_id] % EVERY == 0
 
 
-async def reflect_recent_conversation(user_id: int, history: List[Dict[str, str]]) -> int:
+async def reflect_recent_conversation(
+    user_id: int, history: List[Dict[str, str]]
+) -> int:
     """
     Jalankan refleksi via otak utama, simpan fakta hasil ekstraksi.
     Return jumlah fakta tersimpan. Fire-and-forget friendly (tak pernah raise).
@@ -59,12 +61,14 @@ async def reflect_recent_conversation(user_id: int, history: List[Dict[str, str]
             return 0
 
         import database
+
         convo_text = "\n".join(
             f"{('USER' if m.get('role') in ('user',) else 'AGENT')}: {str(m.get('content', ''))[:500]}"
             for m in history[-10:]
         )[:8000]
 
         import main_brain as mb
+
         brain = mb.get_main_brain()
         if not brain.get("api_key"):
             return 0
@@ -93,7 +97,7 @@ async def reflect_recent_conversation(user_id: int, history: List[Dict[str, str]
         start, end = txt.find("["), txt.rfind("]")
         if start == -1 or end == -1 or end <= start:
             return 0
-        facts = json.loads(txt[start:end + 1])
+        facts = json.loads(txt[start : end + 1])
         if not isinstance(facts, list):
             return 0
 
@@ -102,7 +106,8 @@ async def reflect_recent_conversation(user_id: int, history: List[Dict[str, str]
             try:
                 await database.save_memory_fact(
                     user_id=user_id,
-                    key_topic=str(fact.get("key_topic", ""))[:80] or f"refleksi_{user_id}",
+                    key_topic=str(fact.get("key_topic", ""))[:80]
+                    or f"refleksi_{user_id}",
                     content=str(fact.get("content", ""))[:1000],
                     category=str(fact.get("category", "general"))[:30],
                 )
@@ -122,6 +127,7 @@ def maybe_schedule_reflection(user_id: int, history: List[Dict[str, str]]) -> No
     try:
         if should_reflect(user_id):
             asyncio.get_running_loop().create_task(
-                reflect_recent_conversation(user_id, history))
+                reflect_recent_conversation(user_id, history)
+            )
     except Exception:
         pass

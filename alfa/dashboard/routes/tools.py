@@ -17,25 +17,58 @@ tools_router = APIRouter(tags=["tools"])
 def categorize_tool(name: str) -> str:
     """Categorize tool by its functional domain."""
     name_lower = name.lower()
-    if "affiliate" in name_lower or "scrape" in name_lower or "marketplace" in name_lower:
+    if (
+        "affiliate" in name_lower
+        or "scrape" in name_lower
+        or "marketplace" in name_lower
+    ):
         return "Affiliate Sales & Product Scraper (Camoufox)"
     elif name_lower.startswith("pdf_") or "pdf" in name_lower:
         return "PDF Tools Suite (Offline & Online)"
     elif name_lower.startswith("browser_"):
         return "Browser Automation"
-    elif name_lower.startswith("desktop_") or name_lower.startswith("vision_") or "screenshot" in name_lower or "webcam" in name_lower:
+    elif (
+        name_lower.startswith("desktop_")
+        or name_lower.startswith("vision_")
+        or "screenshot" in name_lower
+        or "webcam" in name_lower
+    ):
         return "OS & Vision Control"
     elif name_lower.startswith("libreoffice_"):
         return "LibreOffice Suite"
-    elif "excel" in name_lower or "presentation" in name_lower or "media" in name_lower or "audio" in name_lower or "image" in name_lower:
+    elif (
+        "excel" in name_lower
+        or "presentation" in name_lower
+        or "media" in name_lower
+        or "audio" in name_lower
+        or "image" in name_lower
+    ):
         return "Media & Documents"
-    elif "security" in name_lower or "network" in name_lower or "ssh" in name_lower or "password" in name_lower:
+    elif (
+        "security" in name_lower
+        or "network" in name_lower
+        or "ssh" in name_lower
+        or "password" in name_lower
+    ):
         return "Security & Network"
     elif "knowledge" in name_lower or "memory" in name_lower or "brain" in name_lower:
         return "Memory & Second Brain"
-    elif "guardian" in name_lower or "heal" in name_lower or "service" in name_lower or "cron" in name_lower or "clean" in name_lower or "storage" in name_lower:
+    elif (
+        "guardian" in name_lower
+        or "heal" in name_lower
+        or "service" in name_lower
+        or "cron" in name_lower
+        or "clean" in name_lower
+        or "storage" in name_lower
+    ):
         return "System & Healing"
-    elif "subagent" in name_lower or "research" in name_lower or "search" in name_lower or "translate" in name_lower or "dataset" in name_lower:
+    elif (
+        "subagent" in name_lower
+        or "research" in name_lower
+        or "search" in name_lower
+        or "translate" in name_lower
+        or "dataset" in name_lower
+    ):
         return "AI & Intelligence"
     elif "wa_" in name_lower or "sheets" in name_lower:
         return "Ecosystem & Bots"
@@ -48,6 +81,7 @@ async def get_tools_list():
     """Get list of all registered tools with descriptions, args, and categories."""
     try:
         import plugins
+
         plugins.load_all_plugin_tools()
     except Exception as e:
         logger.warning(f"Failed to load dynamic plugins for API: {e}")
@@ -62,25 +96,38 @@ async def get_tools_list():
 
         params = []
         for p_name, param in sig.parameters.items():
-            params.append({
-                "name": p_name,
-                "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                "required": param.default == inspect.Parameter.empty,
-                "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
-            })
+            params.append(
+                {
+                    "name": p_name,
+                    "default": (
+                        str(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    ),
+                    "required": param.default == inspect.Parameter.empty,
+                    "type": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else "Any"
+                    ),
+                }
+            )
 
-        tools_list.append({
-            "name": name,
-            "short_description": short_desc,
-            "full_docstring": doc,
-            "category": categorize_tool(name),
-            "signature": f"{name}{str(sig)}",
-            "parameters": params
-        })
+        tools_list.append(
+            {
+                "name": name,
+                "short_description": short_desc,
+                "full_docstring": doc,
+                "category": categorize_tool(name),
+                "signature": f"{name}{str(sig)}",
+                "parameters": params,
+            }
+        )
 
     # Add dynamic plugins from registry
     try:
         import plugins as pl_mod
+
         for tool_name, tool_fn in pl_mod._RUNTIME_PLUGIN_REGISTRY.items():
             if not any(t["name"] == tool_name for t in tools_list):
                 sig = inspect.signature(tool_fn)
@@ -90,28 +137,40 @@ async def get_tools_list():
 
                 params = []
                 for p_name, param in sig.parameters.items():
-                    params.append({
-                        "name": p_name,
-                        "default": str(param.default) if param.default != inspect.Parameter.empty else None,
-                        "required": param.default == inspect.Parameter.empty,
-                        "type": str(param.annotation) if param.annotation != inspect.Parameter.empty else "Any"
-                    })
+                    params.append(
+                        {
+                            "name": p_name,
+                            "default": (
+                                str(param.default)
+                                if param.default != inspect.Parameter.empty
+                                else None
+                            ),
+                            "required": param.default == inspect.Parameter.empty,
+                            "type": (
+                                str(param.annotation)
+                                if param.annotation != inspect.Parameter.empty
+                                else "Any"
+                            ),
+                        }
+                    )
 
-                tools_list.append({
-                    "name": tool_name,
-                    "short_description": short_desc,
-                    "full_docstring": doc,
-                    "category": "Dynamic Plugins",
-                    "signature": f"{tool_name}{str(sig)}",
-                    "parameters": params
-                })
+                tools_list.append(
+                    {
+                        "name": tool_name,
+                        "short_description": short_desc,
+                        "full_docstring": doc,
+                        "category": "Dynamic Plugins",
+                        "signature": f"{tool_name}{str(sig)}",
+                        "parameters": params,
+                    }
+                )
     except Exception as e:
         logger.warning(f"Failed to add dynamic plugins to list: {e}")
 
     return {
         "status": "success",
         "total_tools": len(tools_list),
-        "tools": sorted(tools_list, key=lambda x: (x["category"], x["name"]))
+        "tools": sorted(tools_list, key=lambda x: (x["category"], x["name"])),
     }
 
 
@@ -127,6 +186,7 @@ async def execute_tool(payload: Dict[str, Any]):
     target_fn = getattr(tools, tool_name, None)
     if not target_fn or not callable(target_fn):
         import plugins
+
         target_fn = plugins._RUNTIME_PLUGIN_REGISTRY.get(tool_name)
 
     if not target_fn or not callable(target_fn):
@@ -145,14 +205,10 @@ async def execute_tool(payload: Dict[str, Any]):
             "status": "success",
             "tool": tool_name,
             "duration_ms": duration_ms,
-            "result": result
+            "result": result,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "tool": tool_name,
-            "message": str(e)
-        }
+        return {"status": "error", "tool": tool_name, "message": str(e)}
 
 
 @tools_router.post("/api/tools/upload")
@@ -174,13 +230,15 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
         with open(target_path, "wb") as out_f:
             out_f.write(content)
 
-        saved_files.append({
-            "filename": safe_name,
-            "original_name": f.filename,
-            "file_path": target_path,
-            "size_bytes": len(content),
-            "size_kb": round(len(content) / 1024, 2)
-        })
+        saved_files.append(
+            {
+                "filename": safe_name,
+                "original_name": f.filename,
+                "file_path": target_path,
+                "size_bytes": len(content),
+                "size_kb": round(len(content) / 1024, 2),
+            }
+        )
 
     return {
         "status": "success",
@@ -188,21 +246,23 @@ async def upload_files_for_tools(files: List[UploadFile] = File(...)):
         "upload_dir": upload_dir,
         "files": saved_files,
         "primary_file_path": saved_files[0]["file_path"] if saved_files else None,
-        "all_file_paths": [sf["file_path"] for sf in saved_files]
+        "all_file_paths": [sf["file_path"] for sf in saved_files],
     }
 
 
 # ==================== DYNAMIC SELF-EVOLUTION PLUGINS ENDPOINTS ====================
 
+
 @tools_router.get("/api/plugins/list")
 async def api_plugins_list():
     """List all active self-evolved dynamic plugin tools."""
     import plugins
+
     plugins_list = plugins.list_all_plugins()
     return {
         "status": "success",
         "total_plugins": len(plugins_list),
-        "plugins": plugins_list
+        "plugins": plugins_list,
     }
 
 
@@ -210,15 +270,20 @@ async def api_plugins_list():
 async def api_plugins_create(payload: Dict[str, Any]):
     """Compile, sandbox-test, and hot-load a new dynamic plugin tool."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     tool_description = payload.get("tool_description", "").strip()
     tool_code = payload.get("tool_code", "").strip()
     test_kwargs = payload.get("test_kwargs", {})
 
     if not tool_name or not tool_code:
-        raise HTTPException(status_code=400, detail="tool_name and tool_code are required")
+        raise HTTPException(
+            status_code=400, detail="tool_name and tool_code are required"
+        )
 
-    res = plugins.create_and_register_plugin(tool_name, tool_description, tool_code, test_kwargs=test_kwargs)
+    res = plugins.create_and_register_plugin(
+        tool_name, tool_description, tool_code, test_kwargs=test_kwargs
+    )
     return res
 
 
@@ -226,6 +291,7 @@ async def api_plugins_create(payload: Dict[str, Any]):
 async def api_plugins_delete(payload: Dict[str, Any]):
     """Permanently remove a dynamic plugin tool."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     if not tool_name:
         raise HTTPException(status_code=400, detail="tool_name is required")
@@ -236,6 +302,7 @@ async def api_plugins_delete(payload: Dict[str, Any]):
 async def api_plugins_execute(payload: Dict[str, Any]):
     """Execute a dynamic plugin tool directly."""
     import plugins
+
     tool_name = payload.get("tool_name", "").strip()
     kwargs = payload.get("kwargs", {})
     if not tool_name:
@@ -249,13 +316,14 @@ async def api_plugins_execute(payload: Dict[str, Any]):
             "status": "success",
             "tool_name": tool_name,
             "duration_ms": duration_ms,
-            "result": result
+            "result": result,
         }
     except Exception as e:
         return {"status": "error", "message": f"Plugin execution error: {str(e)}"}
 
 
 # ==================== SUPERPOWERS AGENTIC SKILLS ENDPOINTS ====================
+
 
 @tools_router.get("/api/skills/superpowers")
 async def api_superpowers_list():
@@ -267,20 +335,76 @@ async def api_superpowers_list():
         skills_dir = r"C:\Users\mj9\.gemini\config\skills"
 
     icons_map = {
-        "brainstorming": ("🧠", "Explores user intent, requirements and design before implementation", "Planning & Design"),
-        "systematic-debugging": ("🔍", "Iron Law: 4-phase root-cause investigation before proposing any fix", "Debugging & Health"),
-        "writing-plans": ("📝", "Generates rigorous implementation plans with dependencies and verification steps", "Planning & Design"),
-        "executing-plans": ("⚡", "Step-by-step plan execution with human review checkpoints", "Execution & Swarm"),
-        "test-driven-development": ("🧪", "TDD: Write failing automated tests first before code implementation", "Quality & Testing"),
-        "verification-before-completion": ("✅", "Zero Hallucination: Verifies terminal output before claiming done", "Quality & Testing"),
-        "subagent-driven-development": ("🤖", "Dispatches independent task subagents in current session", "Execution & Swarm"),
-        "dispatching-parallel-agents": ("🔀", "Executes 2+ independent tasks concurrently without state collision", "Execution & Swarm"),
-        "using-git-worktrees": ("🌲", "Devin-style isolated git worktrees/sandboxes for safe coding", "Architecture & Sandbox"),
-        "requesting-code-review": ("🛡️", "Validates work against strict requirements before merge", "Quality & Testing"),
-        "receiving-code-review": ("🧐", "Rigorously verifies feedback without performative agreement", "Quality & Testing"),
-        "using-superpowers": ("🚀", "Master skill dispatcher and routing across all agents", "Core Framework"),
-        "finishing-a-development-branch": ("🏁", "Systematic merge, verification, and branch cleanup", "Architecture & Sandbox"),
-        "writing-skills": ("✍️", "Creates, tests, and validates new dynamic skills", "Core Framework"),
+        "brainstorming": (
+            "🧠",
+            "Explores user intent, requirements and design before implementation",
+            "Planning & Design",
+        ),
+        "systematic-debugging": (
+            "🔍",
+            "Iron Law: 4-phase root-cause investigation before proposing any fix",
+            "Debugging & Health",
+        ),
+        "writing-plans": (
+            "📝",
+            "Generates rigorous implementation plans with dependencies and verification steps",
+            "Planning & Design",
+        ),
+        "executing-plans": (
+            "⚡",
+            "Step-by-step plan execution with human review checkpoints",
+            "Execution & Swarm",
+        ),
+        "test-driven-development": (
+            "🧪",
+            "TDD: Write failing automated tests first before code implementation",
+            "Quality & Testing",
+        ),
+        "verification-before-completion": (
+            "✅",
+            "Zero Hallucination: Verifies terminal output before claiming done",
+            "Quality & Testing",
+        ),
+        "subagent-driven-development": (
+            "🤖",
+            "Dispatches independent task subagents in current session",
+            "Execution & Swarm",
+        ),
+        "dispatching-parallel-agents": (
+            "🔀",
+            "Executes 2+ independent tasks concurrently without state collision",
+            "Execution & Swarm",
+        ),
+        "using-git-worktrees": (
+            "🌲",
+            "Devin-style isolated git worktrees/sandboxes for safe coding",
+            "Architecture & Sandbox",
+        ),
+        "requesting-code-review": (
+            "🛡️",
+            "Validates work against strict requirements before merge",
+            "Quality & Testing",
+        ),
+        "receiving-code-review": (
+            "🧐",
+            "Rigorously verifies feedback without performative agreement",
+            "Quality & Testing",
+        ),
+        "using-superpowers": (
+            "🚀",
+            "Master skill dispatcher and routing across all agents",
+            "Core Framework",
+        ),
+        "finishing-a-development-branch": (
+            "🏁",
+            "Systematic merge, verification, and branch cleanup",
+            "Architecture & Sandbox",
+        ),
+        "writing-skills": (
+            "✍️",
+            "Creates, tests, and validates new dynamic skills",
+            "Core Framework",
+        ),
     }
 
     result = []
@@ -301,24 +425,33 @@ async def api_superpowers_list():
                 except Exception:
                     pass
 
-            icon, default_desc, category = icons_map.get(item, ("🦸", desc or "Superpowers agentic skill", "Specialist Skill"))
+            icon, default_desc, category = icons_map.get(
+                item, ("🦸", desc or "Superpowers agentic skill", "Specialist Skill")
+            )
             file_count = sum(len(files) for _, _, files in os.walk(skill_path))
-            result.append({
-                "id": item,
-                "name": item.replace("-", " ").title(),
-                "icon": icon,
-                "category": category,
-                "description": desc or default_desc,
-                "file_count": file_count,
-                "is_active_all_agents": True,
-                "enforcement": "Main Agent, Swarm 6 Specialists, Background Subagents"
-            })
+            result.append(
+                {
+                    "id": item,
+                    "name": item.replace("-", " ").title(),
+                    "icon": icon,
+                    "category": category,
+                    "description": desc or default_desc,
+                    "file_count": file_count,
+                    "is_active_all_agents": True,
+                    "enforcement": "Main Agent, Swarm 6 Specialists, Background Subagents",
+                }
+            )
 
     return {
         "status": "success",
         "total_skills": len(result),
-        "applied_units": ["Main Brain (bot.py)", "Swarm 6 Personas (swarm_personas.py)", "Background Subagents (subagents.py)", "Auto-RAG Vector Brain"],
-        "skills": result
+        "applied_units": [
+            "Main Brain (bot.py)",
+            "Swarm 6 Personas (swarm_personas.py)",
+            "Background Subagents (subagents.py)",
+            "Auto-RAG Vector Brain",
+        ],
+        "skills": result,
     }
 
 
@@ -333,7 +466,9 @@ async def api_superpowers_detail(skill_id: str):
 
     target_skill = os.path.join(skills_dir, skill_id.strip())
     if not os.path.isdir(target_skill):
-        raise HTTPException(status_code=404, detail=f"Superpower skill '{skill_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Superpower skill '{skill_id}' not found"
+        )
 
     skill_md = os.path.join(target_skill, "SKILL.md")
     content = ""
@@ -354,16 +489,18 @@ async def api_superpowers_detail(skill_id: str):
         "name": skill_id.replace("-", " ").title(),
         "content": content,
         "reference_files": ref_files,
-        "applied_to_all_agents": True
+        "applied_to_all_agents": True,
     }
 
 
 # ==================== UI/UX PRO MAX DESIGN INTELLIGENCE ENDPOINTS ====================
 
+
 @tools_router.get("/api/skills/ui-ux-pro-max/search")
 def api_ui_ux_search(q: str = "", domain: str = "auto"):
     """Search UI/UX Pro Max intelligence engine."""
     from plugins.ui_ux_pro_max import ui_ux_pro_max_search
+
     if not q:
         return {"status": "error", "message": "Parameter q (query) is required."}
     return ui_ux_pro_max_search(query=q, domain=domain, action="search")
@@ -373,11 +510,14 @@ def api_ui_ux_search(q: str = "", domain: str = "auto"):
 def api_ui_ux_design_system(payload: Dict[str, Any]):
     """Generate comprehensive Design System for any product or niche."""
     from plugins.ui_ux_pro_max import ui_ux_pro_max_search
+
     query = payload.get("query", "").strip()
     project_name = payload.get("project_name", "My Project").strip()
     if not query:
         raise HTTPException(status_code=400, detail="query is required")
-    return ui_ux_pro_max_search(query=query, action="generate_design_system", project_name=project_name)
+    return ui_ux_pro_max_search(
+        query=query, action="generate_design_system", project_name=project_name
+    )
 
 
 @tools_router.get("/api/skills/ui-ux-pro-max/catalog")
@@ -387,14 +527,42 @@ def api_ui_ux_catalog():
         "status": "success",
         "total_styles": 67,
         "total_rules": 192,
-        "domains": ["product", "style", "color", "typography", "landing", "motion", "chart", "icon", "ux-guidelines"],
+        "domains": [
+            "product",
+            "style",
+            "color",
+            "typography",
+            "landing",
+            "motion",
+            "chart",
+            "icon",
+            "ux-guidelines",
+        ],
         "popular_styles": [
-            {"name": "Glassmorphism", "desc": "Frosted glass depth with backdrop blur and subtle borders"},
-            {"name": "Bento Grid", "desc": "Asymmetric modular card containers popular in Apple & SaaS"},
-            {"name": "Dark Mode (OLED)", "desc": "High contrast true black backgrounds with vivid accents"},
-            {"name": "Minimalism & Swiss", "desc": "Grid-based typographic precision, generous whitespace"},
-            {"name": "Neubrutalism", "desc": "High contrast bold black borders, vibrant pop colors, sharp shadows"},
-            {"name": "Cyberpunk / Sci-Fi", "desc": "Neon glow accents, dark metallic grids, futuristic HUD"}
+            {
+                "name": "Glassmorphism",
+                "desc": "Frosted glass depth with backdrop blur and subtle borders",
+            },
+            {
+                "name": "Bento Grid",
+                "desc": "Asymmetric modular card containers popular in Apple & SaaS",
+            },
+            {
+                "name": "Dark Mode (OLED)",
+                "desc": "High contrast true black backgrounds with vivid accents",
+            },
+            {
+                "name": "Minimalism & Swiss",
+                "desc": "Grid-based typographic precision, generous whitespace",
+            },
+            {
+                "name": "Neubrutalism",
+                "desc": "High contrast bold black borders, vibrant pop colors, sharp shadows",
+            },
+            {
+                "name": "Cyberpunk / Sci-Fi",
+                "desc": "Neon glow accents, dark metallic grids, futuristic HUD",
+            },
         ],
         "checklist": [
             "No raw emojis as UI icons (Use Lucide / SVG)",
@@ -402,7 +570,7 @@ def api_ui_ux_catalog():
             "Responsive breakpoints (375, 768, 1024, 1440)",
             "Minimum 4.5:1 text color contrast ratio",
             "Visible focus outline for accessibility",
-            "Smooth transition easing (150-250ms)"
-        ]
+            "Smooth transition easing (150-250ms)",
+        ],
     }
     return summary

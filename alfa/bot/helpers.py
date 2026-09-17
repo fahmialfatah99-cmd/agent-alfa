@@ -4,12 +4,13 @@ import asyncio
 import logging
 import os
 from typing import List, Optional
+
 from telegram import InlineKeyboardMarkup, constants
 from telegram.ext import ContextTypes
 
+from alfa.bot.config import OWNER_NAME
 from alfa.core import database
 from alfa.tools import SANDBOX_DIR
-from alfa.bot.config import OWNER_NAME
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -17,10 +18,28 @@ ARTIFACT_DIRS = [
     os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
     SANDBOX_DIR,
 ]
-ARTIFACT_NOUNS = ('laporan', 'file', 'csv', 'excel', 'pdf', 'website', 'scrape',
-                  'grafik', 'chart', 'pptx', 'dokumen', 'landing')
-COMPLETION_VERBS = ('sudah', 'selesai', 'berhasil', 'telah dibuat', 'sudah dibuat',
-                    'aku buatkan')
+ARTIFACT_NOUNS = (
+    "laporan",
+    "file",
+    "csv",
+    "excel",
+    "pdf",
+    "website",
+    "scrape",
+    "grafik",
+    "chart",
+    "pptx",
+    "dokumen",
+    "landing",
+)
+COMPLETION_VERBS = (
+    "sudah",
+    "selesai",
+    "berhasil",
+    "telah dibuat",
+    "sudah dibuat",
+    "aku buatkan",
+)
 
 
 def _meetings_count() -> int:
@@ -98,7 +117,7 @@ async def safe_send_message(
     chat_id: int,
     text: str,
     reply_to_message_id: Optional[int] = None,
-    reply_markup: Optional[InlineKeyboardMarkup] = None
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
 ):
     """
     Safely send message to Telegram with automatic chunking and fallback to plain text
@@ -114,7 +133,7 @@ async def safe_send_message(
                 text=chunk,
                 parse_mode=constants.ParseMode.MARKDOWN,
                 reply_to_message_id=reply_id,
-                reply_markup=markup
+                reply_markup=markup,
             )
         except Exception:
             try:
@@ -123,7 +142,7 @@ async def safe_send_message(
                     chat_id=chat_id,
                     text=chunk,
                     reply_to_message_id=reply_id,
-                    reply_markup=markup
+                    reply_markup=markup,
                 )
             except Exception as e:
                 logger.error(f"Failed to send message chunk: {e}")
@@ -133,7 +152,7 @@ async def send_typing_loop(
     chat_id: int,
     context: ContextTypes.DEFAULT_TYPE,
     stop_event: asyncio.Event,
-    action=constants.ChatAction.TYPING
+    action=constants.ChatAction.TYPING,
 ):
     """Keep sending chat action indicator while processing."""
     while not stop_event.is_set():
@@ -155,9 +174,12 @@ def should_reply_with_text_instead_of_voice(text: str) -> bool:
     if "\n|" in text and ("|---" in text or "|:---" in text or "---|" in text):
         return True
     import re
+
     urls = re.findall(r"https?://\S+", text)
     if len(urls) >= 2:
         return True
-    if len(text) > 900 and (text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3):
+    if len(text) > 900 and (
+        text.count("\n- ") >= 4 or text.count("\n* ") >= 4 or text.count("\n1. ") >= 3
+    ):
         return True
     return False

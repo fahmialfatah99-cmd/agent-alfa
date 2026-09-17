@@ -8,12 +8,22 @@ import sys
 from typing import Any, Dict, Optional
 
 # Add skills/ui-ux-pro-max/scripts to path
-SKILL_SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "ui-ux-pro-max", "scripts")
+SKILL_SCRIPTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "skills",
+    "ui-ux-pro-max",
+    "scripts",
+)
 if SKILL_SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SKILL_SCRIPTS_DIR)
 
 
-def ui_ux_pro_max_search(query: str, domain: str = "auto", action: str = "search", project_name: str = "My Project") -> Dict[str, Any]:
+def ui_ux_pro_max_search(
+    query: str,
+    domain: str = "auto",
+    action: str = "search",
+    project_name: str = "My Project",
+) -> Dict[str, Any]:
     """
     Kueri mesin kecerdasan UI/UX Pro Max untuk mendapatkan rekomendasi gaya UI (67 styles),
     palet warna, tipografi Google Fonts, animasi/motion, pola landing page, atau pembuatan
@@ -35,6 +45,7 @@ def ui_ux_pro_max_search(query: str, domain: str = "auto", action: str = "search
     try:
         if action == "generate_design_system":
             from design_system import generate_design_system
+
             ds_res = generate_design_system(query, project_name)
             return {
                 "status": "success",
@@ -42,11 +53,12 @@ def ui_ux_pro_max_search(query: str, domain: str = "auto", action: str = "search
                 "query": query,
                 "project_name": project_name,
                 "design_system_text": ds_res.get("text", ""),
-                "summary": f"Design system berhasil dibuat untuk '{project_name}' berdasarkan konsep '{query}'."
+                "summary": f"Design system berhasil dibuat untuk '{project_name}' berdasarkan konsep '{query}'.",
             }
         else:
             from core import search
             from search import format_output
+
             target_domain = None if domain == "auto" else domain
             search_result_dict = search(query, target_domain, max_results=5)
             formatted_text = format_output(search_result_dict)
@@ -57,10 +69,10 @@ def ui_ux_pro_max_search(query: str, domain: str = "auto", action: str = "search
                 "query": query,
                 "total_found": search_result_dict.get("count", 0),
                 "results": search_result_dict.get("results", []),
-                "formatted_output": formatted_text
+                "formatted_output": formatted_text,
             }
     except Exception as e:
         return {
             "status": "error",
-            "message": f"Gagal mengeksekusi UI/UX Pro Max: {str(e)}"
+            "message": f"Gagal mengeksekusi UI/UX Pro Max: {str(e)}",
         }

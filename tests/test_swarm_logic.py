@@ -6,6 +6,7 @@ Fokus regresi bug yang pernah ditemukan audit:
 - Verdict QA tidak terbaca (sumber teks salah)
 - Parser seksi affiliate AI
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -20,8 +21,10 @@ import swarm_engine  # noqa: E402
 @pytest.fixture
 def stub_verifier_pass(monkeypatch):
     """Stub generate_agent_response -> verifier selalu menjawab PASS."""
+
     async def fake(agent, prompt, system_instruction=None, **kw):
         return "PASS"
+
     monkeypatch.setattr(swarm_engine, "generate_agent_response", fake)
 
 
@@ -38,7 +41,8 @@ class TestVerifyStepResult:
             "execution_summary": "Error: provider down",
         }
         passed, feedback = _run(
-            swarm_engine._verify_step_result("Buat website landing page", step))
+            swarm_engine._verify_step_result("Buat website landing page", step)
+        )
         assert isinstance(passed, bool)
         assert isinstance(feedback, str)
 
@@ -51,7 +55,8 @@ class TestVerifyStepResult:
             "fs_changed": 0,
         }
         passed, feedback = _run(
-            swarm_engine._verify_step_result("Buat aplikasi kasir", step))
+            swarm_engine._verify_step_result("Buat aplikasi kasir", step)
+        )
         assert passed is False
         assert "GROUND-TRUTH" in feedback
 
@@ -64,7 +69,8 @@ class TestVerifyStepResult:
             "changed_sample": ["index.html", "style.css", "app.js"],
         }
         passed, feedback = _run(
-            swarm_engine._verify_step_result("Bangun halaman profil", step))
+            swarm_engine._verify_step_result("Bangun halaman profil", step)
+        )
         assert passed is True
 
     def test_tugas_non_file_lewati_ground_truth(self, stub_verifier_pass):
@@ -75,20 +81,24 @@ class TestVerifyStepResult:
             "execution_summary": "20 data ditarik",
         }
         passed, _ = _run(
-            swarm_engine._verify_step_result("Riset harga laptop gaming", step))
+            swarm_engine._verify_step_result("Riset harga laptop gaming", step)
+        )
         assert passed is True
 
 
 class TestQaVerdict:
-    @pytest.mark.parametrize("teks,harap", [
-        ("laporan penuh...\nQA_VERDICT: PASS", True),
-        ("qa_verdict : pass — semua aman", True),
-        ("QA VERDICT:PASS", False),          # tanpa titik dua rapat beda format
-        ("QA_VERDICT: FAIL - bug di main.py", False),
-        ("belum ada verdict sama sekali", False),
-        ("", False),
-        (None, False),
-    ])
+    @pytest.mark.parametrize(
+        "teks,harap",
+        [
+            ("laporan penuh...\nQA_VERDICT: PASS", True),
+            ("qa_verdict : pass — semua aman", True),
+            ("QA VERDICT:PASS", False),  # tanpa titik dua rapat beda format
+            ("QA_VERDICT: FAIL - bug di main.py", False),
+            ("belum ada verdict sama sekali", False),
+            ("", False),
+            (None, False),
+        ],
+    )
     def test_varian_keluaran_model(self, teks, harap):
         assert swarm_engine.qa_verdict_passed(teks) is harap
 
@@ -109,14 +119,20 @@ class TestSwarmCheckpoint:
     def test_save_and_load(self, tmp_path, monkeypatch):
         """Checkpoint tersimpan dan dapat dimuat kembali."""
         import swarm_checkpoint
-        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
         sid = "test-session-001"
         swarm_checkpoint.SwarmCheckpoint.save(
-            session_id=sid, topic="Buat website", mode="execute",
+            session_id=sid,
+            topic="Buat website",
+            mode="execute",
             participants=[{"name": "Alpha Lead"}],
-            steps=[{"agent": "Alpha Lead", "task": "Buat index.html", "status": "done"}],
-            steps_done=1, status="paused"
+            steps=[
+                {"agent": "Alpha Lead", "task": "Buat index.html", "status": "done"}
+            ],
+            steps_done=1,
+            status="paused",
         )
         loaded = swarm_checkpoint.SwarmCheckpoint.load(sid)
         assert loaded is not None
@@ -127,11 +143,18 @@ class TestSwarmCheckpoint:
 
     def test_list_resumable_excludes_completed(self, tmp_path, monkeypatch):
         import swarm_checkpoint
-        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
 
-        swarm_checkpoint.SwarmCheckpoint.save("s1", "T1", "execute", [], [], 0, status="paused")
-        swarm_checkpoint.SwarmCheckpoint.save("s2", "T2", "execute", [], [], 2, status="completed")
-        swarm_checkpoint.SwarmCheckpoint.save("s3", "T3", "execute", [], [], 1, status="cancelled")
+        monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save(
+            "s1", "T1", "execute", [], [], 0, status="paused"
+        )
+        swarm_checkpoint.SwarmCheckpoint.save(
+            "s2", "T2", "execute", [], [], 2, status="completed"
+        )
+        swarm_checkpoint.SwarmCheckpoint.save(
+            "s3", "T3", "execute", [], [], 1, status="cancelled"
+        )
 
         resumable = swarm_checkpoint.SwarmCheckpoint.list_resumable()
         ids = [r["session_id"] for r in resumable]
@@ -141,26 +164,33 @@ class TestSwarmCheckpoint:
 
     def test_mark_cancelled_and_resume(self, tmp_path, monkeypatch):
         import swarm_checkpoint
-        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
 
-        swarm_checkpoint.SwarmCheckpoint.save("s-cancel", "T", "execute", [], [], 0, status="running")
+        monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
+
+        swarm_checkpoint.SwarmCheckpoint.save(
+            "s-cancel", "T", "execute", [], [], 0, status="running"
+        )
         swarm_checkpoint.SwarmCheckpoint.mark_cancelled("s-cancel")
         loaded = swarm_checkpoint.SwarmCheckpoint.load("s-cancel")
         assert loaded["status"] == "cancelled"
 
     def test_add_error_log(self, tmp_path, monkeypatch):
         import swarm_checkpoint
-        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
         swarm_checkpoint.SwarmCheckpoint.save("s-err", "T", "execute", [], [], 0)
-        swarm_checkpoint.SwarmCheckpoint.add_error("s-err", "step1", "Code Crafter", "Provider timeout")
+        swarm_checkpoint.SwarmCheckpoint.add_error(
+            "s-err", "step1", "Code Crafter", "Provider timeout"
+        )
         loaded = swarm_checkpoint.SwarmCheckpoint.load("s-err")
         assert len(loaded["error_log"]) == 1
         assert loaded["error_log"][0]["error"] == "Provider timeout"
 
     def test_clear_checkpoint(self, tmp_path, monkeypatch):
         import swarm_checkpoint
-        monkeypatch.setattr(swarm_checkpoint, 'CHECKPOINT_DIR', str(tmp_path))
+
+        monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
         swarm_checkpoint.SwarmCheckpoint.save("s-del", "T", "execute", [], [], 0)
         assert swarm_checkpoint.SwarmCheckpoint.load("s-del") is not None
@@ -175,8 +205,16 @@ class TestErrorPropagation:
 
     def test_build_error_context_with_failures(self):
         failures = [
-            {"agent_name": "Code Crafter", "tool_used": "write_local_file", "feedback": "File syntax error in line 12"},
-            {"agent_name": "System Auditor", "tool_used": "execute_bash_command", "feedback": "Port 8080 already in use"},
+            {
+                "agent_name": "Code Crafter",
+                "tool_used": "write_local_file",
+                "feedback": "File syntax error in line 12",
+            },
+            {
+                "agent_name": "System Auditor",
+                "tool_used": "execute_bash_command",
+                "feedback": "Port 8080 already in use",
+            },
         ]
         ctx = swarm_engine._build_error_context(failures)
         assert "Code Crafter" in ctx
@@ -187,13 +225,18 @@ class TestErrorPropagation:
 class TestModularSwarmAndBotShims:
     def test_swarm_engine_shim_and_package(self):
         import alfa.swarm.engine
+
         assert hasattr(alfa.swarm.engine, "conduct_multi_agent_meeting")
         assert hasattr(swarm_engine, "conduct_multi_agent_meeting")
-        assert swarm_engine.conduct_multi_agent_meeting is alfa.swarm.engine.conduct_multi_agent_meeting
+        assert (
+            swarm_engine.conduct_multi_agent_meeting
+            is alfa.swarm.engine.conduct_multi_agent_meeting
+        )
 
     def test_swarm_checkpoint_shim_and_package(self):
         import alfa.swarm.checkpoint
         import swarm_checkpoint
+
         assert hasattr(alfa.swarm.checkpoint, "SwarmCheckpoint")
         assert hasattr(swarm_checkpoint, "SwarmCheckpoint")
         assert swarm_checkpoint.SwarmCheckpoint is alfa.swarm.checkpoint.SwarmCheckpoint
@@ -201,6 +244,7 @@ class TestModularSwarmAndBotShims:
     def test_swarm_personas_shim_and_package(self):
         import alfa.swarm.personas
         import swarm_personas
+
         assert hasattr(alfa.swarm.personas, "AGENTS")
         assert hasattr(swarm_personas, "AGENTS")
         assert swarm_personas.AGENTS is alfa.swarm.personas.AGENTS
@@ -208,6 +252,7 @@ class TestModularSwarmAndBotShims:
     def test_bot_shim_and_package(self):
         import alfa.bot.telegram_bot
         import bot
+
         assert hasattr(alfa.bot.telegram_bot, "main")
         assert hasattr(bot, "main")
         assert hasattr(bot, "run_agent_turn")
@@ -222,7 +267,9 @@ class TestSanitizeProjectDirectory:
         site_dir.mkdir()
 
         # File sah website
-        (site_dir / "index.html").write_text("<!DOCTYPE html><html><body><h1>Halo</h1></body></html>", encoding="utf-8")
+        (site_dir / "index.html").write_text(
+            "<!DOCTYPE html><html><body><h1>Halo</h1></body></html>", encoding="utf-8"
+        )
         css_dir = site_dir / "css"
         css_dir.mkdir()
         (css_dir / "style.css").write_text("body { color: red; }", encoding="utf-8")
@@ -234,7 +281,9 @@ class TestSanitizeProjectDirectory:
         (site_dir / "server.log").write_text("server started", encoding="utf-8")
         (site_dir / "fallback.log").write_text("error traceback", encoding="utf-8")
         (site_dir / "temp_file.tmp").write_text("temp", encoding="utf-8")
-        (site_dir / "audit_test.py").write_text("import sys; print(1)", encoding="utf-8")
+        (site_dir / "audit_test.py").write_text(
+            "import sys; print(1)", encoding="utf-8"
+        )
 
         # Folder sampah / clutter
         nm_dir = site_dir / "node_modules" / "some_pkg"
@@ -303,12 +352,16 @@ class TestAutoHarvestSanitization:
         # Buat proyek website di sandbox
         proj_dir = sandbox_dir / "website_toko_123"
         proj_dir.mkdir()
-        (proj_dir / "index.html").write_text("<!DOCTYPE html><html><body>Toko</body></html>", encoding="utf-8")
+        (proj_dir / "index.html").write_text(
+            "<!DOCTYPE html><html><body>Toko</body></html>", encoding="utf-8"
+        )
         (proj_dir / "alfa_projects").mkdir()  # leak mount
         (proj_dir / ".DS_Store").write_bytes(b"\x00")  # junk file
         (proj_dir / "empty_assets").mkdir()  # empty folder
 
-        harvested = swarm_engine._harvest_new_sandbox_projects(topic="Buat website toko online")
+        harvested = swarm_engine._harvest_new_sandbox_projects(
+            topic="Buat website toko online"
+        )
         assert len(harvested) == 1
         hpath = Path(harvested[0])
         assert "websites" in str(hpath)
@@ -324,14 +377,17 @@ class TestDockerMountHygiene:
     def test_bash_docker_cmd_no_inner_mounts(self, monkeypatch, tmp_path):
         """Memastikan execute_bash_command tidak me-mount subfolder ke dalam /workspace atau /sandbox."""
         from alfa.tools import system_tools
+
         captured_cmd = []
 
         def fake_run(cmd, **kwargs):
             captured_cmd.extend(cmd)
+
             class FakeRes:
                 returncode = 0
                 stdout = "ok"
                 stderr = ""
+
             return FakeRes()
 
         monkeypatch.setattr(system_tools.subprocess, "run", fake_run)
@@ -346,23 +402,36 @@ class TestDockerMountHygiene:
         for i, arg in enumerate(captured_cmd):
             if arg == "-v" and i + 1 < len(captured_cmd):
                 mount_spec = captured_cmd[i + 1]
-                assert not mount_spec.endswith(":/workspace/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/workspace/ALFA_WORKSPACE"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/workspace/ALFA_SWARM_OUTPUTS"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/workspace/output"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/sandbox/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/workspace/alfa_projects"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/workspace/ALFA_WORKSPACE"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/workspace/ALFA_SWARM_OUTPUTS"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/workspace/output"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/sandbox/alfa_projects"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
 
     def test_python_docker_cmd_no_inner_sandbox_mounts(self, monkeypatch, tmp_path):
         """Memastikan execute_python_sandbox tidak me-mount subfolder ke dalam /sandbox/<basename>."""
         from alfa.tools import system_tools
+
         captured_cmd = []
 
         def fake_run(cmd, **kwargs):
             captured_cmd.extend(cmd)
+
             class FakeRes:
                 returncode = 0
                 stdout = "ok"
                 stderr = ""
+
             return FakeRes()
 
         monkeypatch.setattr(system_tools.subprocess, "run", fake_run)
@@ -373,10 +442,15 @@ class TestDockerMountHygiene:
         for i, arg in enumerate(captured_cmd):
             if arg == "-v" and i + 1 < len(captured_cmd):
                 mount_spec = captured_cmd[i + 1]
-                assert not mount_spec.endswith(":/sandbox/alfa_projects"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/sandbox/ALFA_WORKSPACE"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/sandbox/ALFA_SWARM_OUTPUTS"), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(":/sandbox/output"), f"Bocoran mount terdeteksi: {mount_spec}"
-
-
-
+                assert not mount_spec.endswith(
+                    ":/sandbox/alfa_projects"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/sandbox/ALFA_WORKSPACE"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/sandbox/ALFA_SWARM_OUTPUTS"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(
+                    ":/sandbox/output"
+                ), f"Bocoran mount terdeteksi: {mount_spec}"

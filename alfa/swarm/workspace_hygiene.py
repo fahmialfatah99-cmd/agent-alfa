@@ -26,22 +26,56 @@ os.makedirs(SWARM_OUTPUT_DIR, exist_ok=True)
 
 _HARVEST_EXCLUDE = {
     # Dependency & build clutter
-    "node_modules", ".next", ".nuxt", ".turbo", ".parcel-cache", ".svelte-kit",
-    ".venv", "venv", "env", ".toolchain",
+    "node_modules",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    ".parcel-cache",
+    ".svelte-kit",
+    ".venv",
+    "venv",
+    "env",
+    ".toolchain",
     # Python & test caches
-    "__pycache__", ".cache", ".local", ".pytest_cache", ".ruff_cache", ".mypy_cache",
+    "__pycache__",
+    ".cache",
+    ".local",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
     # Version control
     ".git",
     # Docker bind-mount leak artifacts (never belong inside project outputs)
-    "alfa_projects", "ALFA_WORKSPACE", "ALFA_SWARM_OUTPUTS", "output",
+    "alfa_projects",
+    "ALFA_WORKSPACE",
+    "ALFA_SWARM_OUTPUTS",
+    "output",
 }
 
 _JUNK_FILE_PATTERNS = {
-    "*.pyc", "*.pyo", "*.pyd",
-    ".DS_Store", "Thumbs.db", "desktop.ini", "ehthumbs.db",
-    "*.tmp", "*.temp", "*~", "*.swp", "*.swo", "*.bak", "*.orig",
-    "npm-debug.log*", "yarn-debug.log*", "yarn-error.log*", "pnpm-debug.log*",
-    "server.log", "fallback.log", "audit_test.py", "test_fallback.py", "secret.key",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini",
+    "ehthumbs.db",
+    "*.tmp",
+    "*.temp",
+    "*~",
+    "*.swp",
+    "*.swo",
+    "*.bak",
+    "*.orig",
+    "npm-debug.log*",
+    "yarn-debug.log*",
+    "yarn-error.log*",
+    "pnpm-debug.log*",
+    "server.log",
+    "fallback.log",
+    "audit_test.py",
+    "test_fallback.py",
+    "secret.key",
     "*.log",
 }
 
@@ -106,7 +140,9 @@ def sanitize_project_directory(dir_path: str) -> Dict[str, int]:
         for f in files:
             fp = os.path.join(root, f)
             low_f = f.lower()
-            is_junk = any(fnmatch.fnmatch(low_f, pat.lower()) for pat in _JUNK_FILE_PATTERNS)
+            is_junk = any(
+                fnmatch.fnmatch(low_f, pat.lower()) for pat in _JUNK_FILE_PATTERNS
+            )
             if is_junk:
                 try:
                     os.remove(fp)
@@ -137,8 +173,11 @@ def _hash_sandbox_projects() -> Dict[str, str]:
         else:
             sb = tools.SANDBOX_DIR
             roots = [
-                os.path.join(sb, d) for d in os.listdir(sb)
-                if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".") and d not in _HARVEST_EXCLUDE
+                os.path.join(sb, d)
+                for d in os.listdir(sb)
+                if os.path.isdir(os.path.join(sb, d))
+                and not d.startswith(".")
+                and d not in _HARVEST_EXCLUDE
             ]
         for pdir in roots:
             for root, dirs, files in os.walk(pdir):
@@ -165,8 +204,11 @@ def _sandbox_project_dirs() -> set:
     try:
         sb = tools.SANDBOX_DIR
         return {
-            d for d in os.listdir(sb)
-            if os.path.isdir(os.path.join(sb, d)) and not d.startswith(".") and d not in _HARVEST_EXCLUDE
+            d
+            for d in os.listdir(sb)
+            if os.path.isdir(os.path.join(sb, d))
+            and not d.startswith(".")
+            and d not in _HARVEST_EXCLUDE
         }
     except Exception:
         return set()
@@ -194,15 +236,29 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
                 harvested.append(target_folder)
 
         # Buang folder internal/clutter dari daftar proyek
-        new_dirs = {d for d in new_dirs if d not in _HARVEST_EXCLUDE and not d.startswith(".")}
+        new_dirs = {
+            d for d in new_dirs if d not in _HARVEST_EXCLUDE and not d.startswith(".")
+        }
         if not new_dirs:
             return harvested
 
         low_topic = (topic or "").lower()
-        is_website_topic = any(k in low_topic for k in (
-            "website", "web ", "web-", "landing", "html", "portofolio",
-            "frontend", "front-end", "tampilan", "ui/ux", "dashboard"
-        ))
+        is_website_topic = any(
+            k in low_topic
+            for k in (
+                "website",
+                "web ",
+                "web-",
+                "landing",
+                "html",
+                "portofolio",
+                "frontend",
+                "front-end",
+                "tampilan",
+                "ui/ux",
+                "dashboard",
+            )
+        )
 
         slug = re.sub(r"[^a-z0-9]+", "_", low_topic[:30]).strip("_") or "proyek"
         ts = int(time.time())
@@ -228,31 +284,42 @@ def _harvest_new_sandbox_projects(topic: str = "") -> List[str]:
                 log_live("HARVEST", f"⏭️ '{d}' dilewati (folder kosong/tanpa karya)")
                 continue
 
-            is_web = is_website_topic or os.path.exists(os.path.join(src, "index.html")) or any(
-                f.endswith((".html", ".htm"))
-                for _, _, files in os.walk(src)
-                for f in files
+            is_web = (
+                is_website_topic
+                or os.path.exists(os.path.join(src, "index.html"))
+                or any(
+                    f.endswith((".html", ".htm"))
+                    for _, _, files in os.walk(src)
+                    for f in files
+                )
             )
             cat = "websites" if is_web else "projects"
             cat_parent = os.path.join(output_dir, cat)
             os.makedirs(cat_parent, exist_ok=True)
 
-            target_slug = slug if slug != "proyek" else re.sub(r"[^a-z0-9]+", "_", d.lower())[:30].strip("_")
+            target_slug = (
+                slug
+                if slug != "proyek"
+                else re.sub(r"[^a-z0-9]+", "_", d.lower())[:30].strip("_")
+            )
             dst_dir = os.path.join(cat_parent, f"{target_slug}_{ts}")
             if os.path.exists(dst_dir):
                 dst_dir = os.path.join(cat_parent, f"{target_slug}_{d}_{ts}")
 
             shutil.copytree(
-                src, dst_dir,
+                src,
+                dst_dir,
                 ignore=shutil.ignore_patterns(*_HARVEST_EXCLUDE),
-                dirs_exist_ok=True
+                dirs_exist_ok=True,
             )
 
             sanitize_project_directory(dst_dir)
 
             harvested.append(dst_dir)
-            log_live("HARVEST",
-                     f"📦 {cat.capitalize()} '{os.path.basename(dst_dir)}' ({max(1, total // 1024)}KB) rapi tanpa sampah diarsipkan ke {dst_dir}")
+            log_live(
+                "HARVEST",
+                f"📦 {cat.capitalize()} '{os.path.basename(dst_dir)}' ({max(1, total // 1024)}KB) rapi tanpa sampah diarsipkan ke {dst_dir}",
+            )
         return harvested
     except Exception as e:
         log_live("HARVEST", f"⚠️ harvest gagal: {e}")
@@ -277,7 +344,10 @@ def request_cancel_swarm() -> bool:
             f.write(str(time.time()))
     except OSError:
         pass
-    log_live("CANCEL", "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...")
+    log_live(
+        "CANCEL",
+        "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...",
+    )
     return True
 
 

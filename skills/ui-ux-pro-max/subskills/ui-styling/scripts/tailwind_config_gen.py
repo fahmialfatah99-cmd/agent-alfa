@@ -16,7 +16,9 @@ from typing import Any, Dict, List, Optional
 # Valid npm package name pattern: optional @scope/, then package name with
 # optional subpath. Only allows alphanumeric, hyphens, dots, underscores,
 # and forward slashes — no quotes, parens, or semicolons.
-_VALID_PLUGIN_NAME = re.compile(r'^(@[a-zA-Z0-9_-]+/)?[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$')
+_VALID_PLUGIN_NAME = re.compile(
+    r"^(@[a-zA-Z0-9_-]+/)?[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$"
+)
 
 
 class TailwindConfigGenerator:
@@ -51,10 +53,8 @@ class TailwindConfigGenerator:
         return {
             "darkMode": ["class"],
             "content": self._default_content_paths(),
-            "theme": {
-                "extend": {}
-            },
-            "plugins": []
+            "theme": {"extend": {}},
+            "plugins": [],
         }
 
     def _default_content_paths(self) -> List[str]:

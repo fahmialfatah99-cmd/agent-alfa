@@ -9,14 +9,12 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-from alfa.core import database
 import plugins
-from alfa.core.runtime_ctx import (
-    current_chat_id_var as current_chat_id_var,
-    current_user_id_var as current_user_id_var,
-    get_current_chat_id as get_current_chat_id,
-    get_current_user_id as get_current_user_id,
-)
+from alfa.core import database
+from alfa.core.runtime_ctx import current_chat_id_var as current_chat_id_var
+from alfa.core.runtime_ctx import current_user_id_var as current_user_id_var
+from alfa.core.runtime_ctx import get_current_chat_id as get_current_chat_id
+from alfa.core.runtime_ctx import get_current_user_id as get_current_user_id
 from alfa.tools import (
     academic_tools,
     desktop_tools,
@@ -30,47 +28,51 @@ from alfa.tools import (
 from alfa.tools.academic_tools import *  # noqa: F401, F403
 from alfa.tools.desktop_tools import *  # noqa: F401, F403
 from alfa.tools.filesystem_tools import *  # noqa: F401, F403
+from alfa.tools.filesystem_tools import (
+    _CODE_CHUNK_LINES as _CODE_CHUNK_LINES,
+)  # noqa: E402
+from alfa.tools.filesystem_tools import _CODE_INDEX_DB as _CODE_INDEX_DB
+from alfa.tools.filesystem_tools import _CODE_INDEX_MAX_CHUNKS as _CODE_INDEX_MAX_CHUNKS
+from alfa.tools.filesystem_tools import _CODE_INDEX_SKIP_DIRS as _CODE_INDEX_SKIP_DIRS
+from alfa.tools.filesystem_tools import _MAX_EDIT_FILE_BYTES as _MAX_EDIT_FILE_BYTES
+from alfa.tools.filesystem_tools import _chunk_code_lines as _chunk_code_lines
+from alfa.tools.filesystem_tools import _code_index_connect as _code_index_connect
+from alfa.tools.filesystem_tools import (
+    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
+)
+from alfa.tools.filesystem_tools import (
+    _get_default_gdrive_folder_id as _get_default_gdrive_folder_id,
+)
+from alfa.tools.filesystem_tools import _get_gdrive_service as _get_gdrive_service
+from alfa.tools.filesystem_tools import _index_freshness as _index_freshness
+from alfa.tools.filesystem_tools import _index_one_file as _index_one_file
+from alfa.tools.filesystem_tools import _iter_code_files as _iter_code_files
+from alfa.tools.filesystem_tools import _py_syntax_guard as _py_syntax_guard
+from alfa.tools.filesystem_tools import _resolve_host_path as _resolve_host_path
 from alfa.tools.media_tools import *  # noqa: F401, F403
 from alfa.tools.memory_tools import *  # noqa: F401, F403
 from alfa.tools.registry import *  # noqa: F401, F403
-from alfa.tools.system_tools import *  # noqa: F401, F403
-from alfa.tools.web_tools import *  # noqa: F401, F403
 
 # Explicit re-exports for private helpers and constants starting with _
-from alfa.tools.system_tools import (  # noqa: E402
+from alfa.tools.system_tools import *  # noqa: F401, F403
+from alfa.tools.system_tools import (
     _BASH_BLOCK_PATTERNS as _BASH_BLOCK_PATTERNS,
-    _DOCKER_AVAILABLE_CACHE as _DOCKER_AVAILABLE_CACHE,
-    _RM_DANGER_TARGETS as _RM_DANGER_TARGETS,
-    _SANDBOX_IMAGE as _SANDBOX_IMAGE,
-    _SOURCE_CODE_EXTS as _SOURCE_CODE_EXTS,
-    _bash_blocked_reason as _bash_blocked_reason,
-    _clean_code_snippet as _clean_code_snippet,
-    _docker_available as _docker_available,
-    _ensure_sandbox_image as _ensure_sandbox_image,
-    _sandbox_base as _sandbox_base,
-)
-from alfa.tools.filesystem_tools import (  # noqa: E402
-    _CODE_CHUNK_LINES as _CODE_CHUNK_LINES,
-    _CODE_INDEX_DB as _CODE_INDEX_DB,
-    _CODE_INDEX_MAX_CHUNKS as _CODE_INDEX_MAX_CHUNKS,
-    _CODE_INDEX_SKIP_DIRS as _CODE_INDEX_SKIP_DIRS,
-    _MAX_EDIT_FILE_BYTES as _MAX_EDIT_FILE_BYTES,
-    _chunk_code_lines as _chunk_code_lines,
-    _code_index_connect as _code_index_connect,
-    _detect_gdrive_auth_mode as _detect_gdrive_auth_mode,
-    _get_default_gdrive_folder_id as _get_default_gdrive_folder_id,
-    _get_gdrive_service as _get_gdrive_service,
-    _index_freshness as _index_freshness,
-    _index_one_file as _index_one_file,
-    _iter_code_files as _iter_code_files,
-    _py_syntax_guard as _py_syntax_guard,
-    _resolve_host_path as _resolve_host_path,
-)
-from alfa.tools.web_tools import (  # noqa: E402
+)  # noqa: E402
+from alfa.tools.system_tools import _DOCKER_AVAILABLE_CACHE as _DOCKER_AVAILABLE_CACHE
+from alfa.tools.system_tools import _RM_DANGER_TARGETS as _RM_DANGER_TARGETS
+from alfa.tools.system_tools import _SANDBOX_IMAGE as _SANDBOX_IMAGE
+from alfa.tools.system_tools import _SOURCE_CODE_EXTS as _SOURCE_CODE_EXTS
+from alfa.tools.system_tools import _bash_blocked_reason as _bash_blocked_reason
+from alfa.tools.system_tools import _clean_code_snippet as _clean_code_snippet
+from alfa.tools.system_tools import _docker_available as _docker_available
+from alfa.tools.system_tools import _ensure_sandbox_image as _ensure_sandbox_image
+from alfa.tools.system_tools import _sandbox_base as _sandbox_base
+from alfa.tools.web_tools import *  # noqa: F401, F403
+from alfa.tools.web_tools import (
     _ensure_camofox_server as _ensure_camofox_server,
-    _find_camofox_bin as _find_camofox_bin,
-    _run_camofox_cli as _run_camofox_cli,
-)
+)  # noqa: E402
+from alfa.tools.web_tools import _find_camofox_bin as _find_camofox_bin
+from alfa.tools.web_tools import _run_camofox_cli as _run_camofox_cli
 
 logger = logging.getLogger("AgentTools")
 
@@ -213,7 +215,7 @@ AVAILABLE_TOOLS = [
     capture_desktop_screenshot,
     capture_webcam_frame,
     scan_local_network,
-    *plugins.load_all_plugin_tools()
+    *plugins.load_all_plugin_tools(),
 ]
 
 

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -13,11 +14,11 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
-from alfa.core import database
 from alfa import tools
-from alfa.tools import get_system_stats
 from alfa.bot.config import is_authorized
 from alfa.bot.helpers import safe_send_message
+from alfa.core import database
+from alfa.tools import get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -40,7 +41,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_authorized(user.id):
         await update.message.reply_text(
             f"⛔ *Akses Ditolak*\n\nID Anda: `{user.id}` belum terdaftar di whitelist bot.",
-            parse_mode=constants.ParseMode.MARKDOWN
+            parse_mode=constants.ParseMode.MARKDOWN,
         )
         return
 
@@ -56,7 +57,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("🧹 Reset Sesi", callback_data="btn_clear"),
             InlineKeyboardButton("📖 Bantuan & Tools", callback_data="btn_help"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -92,15 +93,22 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🧠 Lihat Memori", callback_data="btn_memory"),
         ],
         [
-            InlineKeyboardButton(f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"),
+            InlineKeyboardButton(
+                f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"
+            ),
             InlineKeyboardButton("📈 Python & Plot", callback_data="btn_python_info"),
         ],
         [
             InlineKeyboardButton("🧹 Reset Konteks", callback_data="btn_clear"),
             InlineKeyboardButton("❓ Daftar Perintah", callback_data="btn_help"),
-        ]
+        ],
     ]
-    await safe_send_message(context, chat_id, "🎛️ **Menu Kontrol Autonomous Agent:**", reply_markup=InlineKeyboardMarkup(keyboard))
+    await safe_send_message(
+        context,
+        chat_id,
+        "🎛️ **Menu Kontrol Autonomous Agent:**",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
 
 
 async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -110,36 +118,52 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     import sqlite3 as _sq
+
     conn = _sq.connect(database.DB_PATH)
     conn.row_factory = _sq.Row
     try:
         brain_key = conn.execute(
-            "SELECT value FROM system_settings WHERE key='main_brain_key_id'").fetchone()
+            "SELECT value FROM system_settings WHERE key='main_brain_key_id'"
+        ).fetchone()
         brain_model = conn.execute(
-            "SELECT value FROM system_settings WHERE key='main_brain_model'").fetchone()
+            "SELECT value FROM system_settings WHERE key='main_brain_model'"
+        ).fetchone()
         bk = int(brain_key[0]) if brain_key else None
         bm = (brain_model[0] or "").strip() if brain_model else ""
-        krow = conn.execute(
-            "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
-            (bk,)).fetchone() if bk else None
+        krow = (
+            conn.execute(
+                "SELECT name,provider,default_model,is_active FROM api_keys WHERE id=?",
+                (bk,),
+            ).fetchone()
+            if bk
+            else None
+        )
 
         lines = ["🩺 **AUDIT KONFIGURASI AGENT**\n"]
         if krow:
-            ok_model = (bm == (krow["default_model"] or "").strip())
+            ok_model = bm == (krow["default_model"] or "").strip()
             lines.append(
                 f"*Otak Utama:* key#{bk} `{krow['name']}` ({krow['provider']})\n"
                 f"  Model override: `{bm}` {'✅' if ok_model else '⚠️ beda dari default kunci (`' + krow['default_model'] + '`)'}\n"
-                f"  Status kunci: {'🟢 aktif' if krow['is_active'] else '🔴 NONAKTIF'}")
+                f"  Status kunci: {'🟢 aktif' if krow['is_active'] else '🔴 NONAKTIF'}"
+            )
         else:
             lines.append("*Otak Utama:* ❌ pointer kosong/tidak valid!")
 
         lines.append("\n*Agen Swarm:*")
         problems = 0
-        for a in conn.execute("SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"):
+        for a in conn.execute(
+            "SELECT name,provider,model,api_key_id,is_enabled FROM custom_agents ORDER BY id"
+        ):
             kid = a["api_key_id"]
-            k2 = conn.execute(
-                "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
-                (kid,)).fetchone() if kid else None
+            k2 = (
+                conn.execute(
+                    "SELECT provider,default_model,is_active FROM api_keys WHERE id=?",
+                    (kid,),
+                ).fetchone()
+                if kid
+                else None
+            )
             issues = []
             if not k2:
                 issues.append("kunci hilang")
@@ -148,18 +172,23 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     issues.append(f"kunci {k2['provider']} ≠ agen {a['provider']}")
                 if not k2["is_active"]:
                     issues.append("kunci nonaktif/kuota bisa habis terpisah")
-                if (a["model"] or "").strip() and a["model"].strip() != (k2["default_model"] or "").strip():
+                if (a["model"] or "").strip() and a["model"].strip() != (
+                    k2["default_model"] or ""
+                ).strip():
                     if a["provider"] == k2["provider"]:
                         issues.append(f"model '{a['model']}' ≠ default kunci")
             flag = "✅" if not issues else "❌"
             problems += len(issues)
             status = " | ".join(issues) if issues else "sehat"
             on = "" if a["is_enabled"] else " (off)"
-            lines.append(f"  {flag} {a['name']}: {a['provider']}/{a['model']} → key#{kid} — {status}{on}")
+            lines.append(
+                f"  {flag} {a['name']}: {a['provider']}/{a['model']} → key#{kid} — {status}{on}"
+            )
 
         lines.append(
             f"\n{'🎉 Semua konfigurasi konsisten.' if problems == 0 else f'⚠️ {problems} masalah ditemukan.'}\n"
-            "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm.")
+            "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm."
+        )
         await safe_send_message(context, update.effective_chat.id, "\n".join(lines))
     finally:
         conn.close()
@@ -182,8 +211,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Power/Baterai:** `{stats.get('battery')}`\n"
         f"• **IP Addr:** `{stats.get('ip_addresses')}`\n"
         f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-        f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])]) + "\n\n"
-        "⚡ **Top CPU:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_cpu_processes', [])])
+        f"🔥 **Top RAM:**\n"
+        + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
+        + "\n\n"
+        "⚡ **Top CPU:**\n"
+        + "\n".join([f"  - {p}" for p in stats.get("top_cpu_processes", [])])
     )
     await safe_send_message(context, chat_id, text)
 
@@ -200,13 +232,15 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_message(
             context,
             chat_id,
-            "🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_\"Ingat bahwa port database staging adalah 5433\"_"
+            '🧠 **Memori Jangka Panjang Kosong.**\n\nAnda bisa menyuruh bot mengingat sesuatu, contoh:\n_"Ingat bahwa port database staging adalah 5433"_',
         )
         return
 
     text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
     for m in memories:
-        text += f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
+        text += (
+            f"• *[{m['category'].upper()}]* `{m['key_topic']}`:\n  {m['content']}\n\n"
+        )
 
     await safe_send_message(context, chat_id, text)
 
@@ -219,7 +253,11 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await database.clear_user_chat_history(user_id)
-    await safe_send_message(context, chat_id, "🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!")
+    await safe_send_message(
+        context,
+        chat_id,
+        "🧹 **Riwayat percakapan berhasil direset.** Memori jangka panjang tetap aman tersimpan!",
+    )
 
 
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -242,7 +280,11 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     is_on = await database.toggle_voice_setting(user_id)
-    status_str = "AKTIF 🔊 (Bot akan membalas dengan Voice Note & Teks)" if is_on else "NONAKTIF 🔇 (Bot membalas teks saja)"
+    status_str = (
+        "AKTIF 🔊 (Bot akan membalas dengan Voice Note & Teks)"
+        if is_on
+        else "NONAKTIF 🔇 (Bot membalas teks saja)"
+    )
     await safe_send_message(context, chat_id, f"🎙️ **Mode Suara:** {status_str}")
 
 
@@ -256,12 +298,16 @@ async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     jobs = database.list_cron_jobs_sync(user_id)
     if not jobs:
-        await safe_send_message(context, chat_id, "⏰ Belum ada tugas berulang (cron/watchdog) yang aktif.\n\nContoh membuat: *'Jadwalkan pantau server tiap 30 menit'*.")
+        await safe_send_message(
+            context,
+            chat_id,
+            "⏰ Belum ada tugas berulang (cron/watchdog) yang aktif.\n\nContoh membuat: *'Jadwalkan pantau server tiap 30 menit'*.",
+        )
         return
 
     text = f"⏰ **Daftar Tugas Berulang & Watchdog ({len(jobs)} tugas):**\n\n"
     for j in jobs:
-        status_icon = "🟢 Aktif" if j['is_active'] else "🔴 Nonaktif"
+        status_icon = "🟢 Aktif" if j["is_active"] else "🔴 Nonaktif"
         text += f"• **#{j['id']} {j['title']}** ({status_icon})\n"
         text += f"  - Interval: Setiap {j['interval_minutes']} menit\n"
         text += f"  - Instruksi: `{j['prompt_instruction']}`\n"
@@ -290,5 +336,3 @@ async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💡 _Saat aktif, bot akan berinisiatif mandiri menyapa, menanyakan progres tugas, atau mengingatkan sesuatu berdasarkan waktu & kondisi laptop._"
     )
     await safe_send_message(context, chat_id, text)
-
-

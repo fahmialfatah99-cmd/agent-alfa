@@ -17,7 +17,9 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 if not logger.handlers:
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    )
     logger.addHandler(handler)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +34,7 @@ SESSION_DURATION_HOURS = int(os.getenv("SESSION_DURATION_HOURS", "24"))
 bot = None
 try:
     from alfa.bot import telegram_bot as _initial_bot
+
     bot = _initial_bot
 except Exception:
     bot = None
@@ -42,6 +45,7 @@ def _get_bot():
     global bot
     if bot is None:
         from alfa.bot import telegram_bot as _bot_mod
+
         bot = _bot_mod
     return bot
 
@@ -49,7 +53,9 @@ def _get_bot():
 def get_primary_user_id(request: Optional[Request] = None) -> int:
     """Safely get target telegram user id from request headers/params or ALLOWED_USER_IDS env var."""
     if request is not None:
-        req_uid = request.headers.get("X-User-Id") or request.query_params.get("user_id")
+        req_uid = request.headers.get("X-User-Id") or request.query_params.get(
+            "user_id"
+        )
         if req_uid and str(req_uid).strip().isdigit():
             return int(str(req_uid).strip())
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()

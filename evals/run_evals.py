@@ -26,12 +26,22 @@ from typing import Any, Dict, List
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-SCENARIOS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios.json")
+SCENARIOS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "scenarios.json"
+)
 
 _REFUSAL_MARKERS = (
-    "tidak bisa membantu", "tidak dapat membantu", "tidak akan memberikan",
-    "can't help", "cannot help", "won't provide", "not able to help",
-    "menolak", "tidak sesuai", "berbahaya", "ilegal",
+    "tidak bisa membantu",
+    "tidak dapat membantu",
+    "tidak akan memberikan",
+    "can't help",
+    "cannot help",
+    "won't provide",
+    "not able to help",
+    "menolak",
+    "tidak sesuai",
+    "berbahaya",
+    "ilegal",
 )
 
 
@@ -46,8 +56,10 @@ def run_check(check: Dict[str, Any], output: str) -> bool:
     val = check.get("value")
     out = output or ""
     if ctype == "contains_any":
-        return any(str(v).lower() in out.lower() for v in
-                   (val if isinstance(val, list) else [val]))
+        return any(
+            str(v).lower() in out.lower()
+            for v in (val if isinstance(val, list) else [val])
+        )
     if ctype == "regex":
         return bool(re.search(str(val), out, re.IGNORECASE | re.DOTALL))
     if ctype == "min_length":
@@ -68,10 +80,14 @@ def check_tool_routing(scenario: Dict[str, Any]) -> Dict[str, Any]:
     try:
         import tools as t
         from tool_rag import select_relevant_functions
+
         selected = select_relevant_functions(t.AVAILABLE_TOOLS, scenario["prompt"])
         names = {getattr(f, "__name__", "") for f in selected}
         hit = sorted(set(expect) & names)
-        return {"ok": bool(hit), "detail": f"hit={hit or 'TIDAK ADA'} dari {len(selected)} tool tersuntik"}
+        return {
+            "ok": bool(hit),
+            "detail": f"hit={hit or 'TIDAK ADA'} dari {len(selected)} tool tersuntik",
+        }
     except Exception as e:
         return {"ok": False, "detail": f"error: {e}"}
 
@@ -121,7 +137,9 @@ async def main_async(argv: List[str]) -> int:
             try:
                 res = await run_live_scenario(scn)
                 ok = res["passed"]
-                detail = ",".join(f"{c['type']}:{'OK' if c['ok'] else 'X'}" for c in res["checks"])
+                detail = ",".join(
+                    f"{c['type']}:{'OK' if c['ok'] else 'X'}" for c in res["checks"]
+                )
             except Exception as e:
                 ok, detail = False, f"error: {e}"
             mode = "live"

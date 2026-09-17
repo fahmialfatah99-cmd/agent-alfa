@@ -24,13 +24,23 @@ _BASH_BLOCK_PATTERNS = [
     (r"chmod\s+-R\s+777\s+/", "chmod 777 rekursif pada root"),
     (r"chown\s+-R\b[^\n]*(\s/|\s~|\s\$HOME)(\s|$)", "chown rekursif pada root/home"),
     (r"\b(shutdown|reboot|halt|poweroff)\b", "mematikan/menyalakan ulang sistem"),
-    (r"(history\s+-c\b|>\s*~/\.bash_history|shred\s+[^;\n]*history|unset\s+HISTFILE)",
-     "menghapus jejak riwayat shell"),
-    (r"(curl|wget|fetch)[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b", "pipe skrip internet langsung ke shell"),
-    (r"base64\s+[^;\n|&]*(?:-d\b|--decode)[^;\n|&]*\|\s*(sudo\s+)?(ba|z|da)?sh\b",
-     "pipe payload base64 ke shell"),
+    (
+        r"(history\s+-c\b|>\s*~/\.bash_history|shred\s+[^;\n]*history|unset\s+HISTFILE)",
+        "menghapus jejak riwayat shell",
+    ),
+    (
+        r"(curl|wget|fetch)[^\n|]*\|\s*(sudo\s+)?(ba|z|da)?sh\b",
+        "pipe skrip internet langsung ke shell",
+    ),
+    (
+        r"base64\s+[^;\n|&]*(?:-d\b|--decode)[^;\n|&]*\|\s*(sudo\s+)?(ba|z|da)?sh\b",
+        "pipe payload base64 ke shell",
+    ),
     (r"/(dev/tcp/|proc/sysrq-trigger)", "teknik reverse-shell/kernel trigger"),
-    (r"\.(ssh/id_(rsa|ed25519|ecdsa)|aws/credentials|gnupg)", "akses berkas kredensial privat"),
+    (
+        r"\.(ssh/id_(rsa|ed25519|ecdsa)|aws/credentials|gnupg)",
+        "akses berkas kredensial privat",
+    ),
     (r"\b(useradd|userdel|usermod|visudo)\b", "manipulasi akun pengguna sistem"),
     (r"(iptables|nft)\s+(-F|--flush)", "flush firewall"),
     (r">\s*/dev/(sd|hd|vd|nvme)", "overwrite perangkat blok"),
@@ -45,9 +55,27 @@ _DOCKER_AVAILABLE_CACHE: Optional[bool] = None
 _SANDBOX_IMAGE = "alfa-sandbox:latest"
 
 _SOURCE_CODE_EXTS = {
-    ".py", ".sh", ".bash", ".js", ".ts", ".jsx", ".tsx",
-    ".html", ".css", ".json", ".yaml", ".yml", ".toml",
-    ".md", ".txt", ".sql", ".c", ".cpp", ".h", ".go", ".rs",
+    ".py",
+    ".sh",
+    ".bash",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".html",
+    ".css",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".md",
+    ".txt",
+    ".sql",
+    ".c",
+    ".cpp",
+    ".h",
+    ".go",
+    ".rs",
 }
 
 
@@ -58,7 +86,9 @@ def _docker_available() -> bool:
         try:
             probe = subprocess.run(
                 ["docker", "version", "--format", "{{.Server.Version}}"],
-                capture_output=True, text=True, timeout=8,
+                capture_output=True,
+                text=True,
+                timeout=8,
             )
             _DOCKER_AVAILABLE_CACHE = probe.returncode == 0
         except Exception:
@@ -103,10 +133,14 @@ def _bash_blocked_reason(command: str) -> Optional[str]:
     m = re.search(r"\brm\b([^#;\n]*)", cmd)
     if m:
         seg = m.group(1)
-        has_recursive = bool(re.search(
-            r"(?:^|\s)(-{1,2}[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\s|$)", seg))
-        has_danger_target = bool(re.search(
-            r"(?:^|\s)(\"|')?" + _RM_DANGER_TARGETS, seg))
+        has_recursive = bool(
+            re.search(
+                r"(?:^|\s)(-{1,2}[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(?:\s|$)", seg
+            )
+        )
+        has_danger_target = bool(
+            re.search(r"(?:^|\s)(\"|')?" + _RM_DANGER_TARGETS, seg)
+        )
         if has_recursive and has_danger_target:
             return "penghapusan massal direktori sistem/home"
 
@@ -131,7 +165,9 @@ def _clean_code_snippet(code: str) -> str:
     return cleaned
 
 
-def generate_self_heal_hint(tool_name: str, error_msg: str, stdout: str = "", stderr: str = "") -> Optional[str]:
+def generate_self_heal_hint(
+    tool_name: str, error_msg: str, stdout: str = "", stderr: str = ""
+) -> Optional[str]:
     """Analisis kegagalan eksekusi tool & hasilkan petunjuk pemulihan otomatis cerdas (Self-Heal Hint) bagi agen LLM."""
     combined = f"{error_msg} {stderr} {stdout}".lower()
 
@@ -181,12 +217,16 @@ def _ensure_sandbox_image() -> bool:
     try:
         chk = subprocess.run(
             ["docker", "images", "-q", _SANDBOX_IMAGE],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if chk.returncode == 0 and chk.stdout.strip():
             return True
 
-        logger.info("Building sandbox image '%s' (first use, ~2-5 min)...", _SANDBOX_IMAGE)
+        logger.info(
+            "Building sandbox image '%s' (first use, ~2-5 min)...", _SANDBOX_IMAGE
+        )
         dockerfile = os.path.join(SANDBOX_DIR, "Dockerfile")
         os.makedirs(SANDBOX_DIR, exist_ok=True)
         with open(dockerfile, "w", encoding="utf-8") as f:
@@ -197,7 +237,9 @@ def _ensure_sandbox_image() -> bool:
             )
         build = subprocess.run(
             ["docker", "build", "-t", _SANDBOX_IMAGE, SANDBOX_DIR],
-            capture_output=True, text=True, timeout=600,
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
         if build.returncode == 0:
             logger.info("Sandbox image built successfully.")

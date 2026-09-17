@@ -108,12 +108,12 @@ TOOL_DOMAINS: Dict[str, List[str]] = {
     ],
 }
 
-ALL_TOOL_NAMES: List[str] = sorted({name for names in TOOL_DOMAINS.values() for name in names})
+ALL_TOOL_NAMES: List[str] = sorted(
+    {name for names in TOOL_DOMAINS.values() for name in names}
+)
 
 TOOL_DOMAIN_MAP: Dict[str, str] = {
-    name: domain
-    for domain, names in TOOL_DOMAINS.items()
-    for name in names
+    name: domain for domain, names in TOOL_DOMAINS.items() for name in names
 }
 
 
@@ -142,7 +142,11 @@ def _parse_docstring_params(doc: str) -> Dict[str, str]:
             if not stripped:
                 continue
             if stripped.endswith(":") or stripped.split(":")[0].lower() in (
-                "returns", "raises", "yields", "example", "examples"
+                "returns",
+                "raises",
+                "yields",
+                "example",
+                "examples",
             ):
                 break
             if ":" in stripped:
@@ -165,20 +169,25 @@ def _fn_to_schema(fn: Callable) -> Dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        jtype = _JSON_TYPES.get(ann, "string") if isinstance(ann, type) else \
-            _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
+        jtype = (
+            _JSON_TYPES.get(ann, "string")
+            if isinstance(ann, type)
+            else _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
+        )
         pdesc = argdocs.get(pname, pname)
         props[pname] = {"type": jtype, "description": pdesc}
         is_req = p.default is inspect.Parameter.empty
         if is_req:
             required.append(pname)
-        parameters.append({
-            "name": pname,
-            "type": str(ann) if ann != inspect.Parameter.empty else "Any",
-            "default": str(p.default) if not is_req else None,
-            "required": is_req,
-            "description": pdesc,
-        })
+        parameters.append(
+            {
+                "name": pname,
+                "type": str(ann) if ann != inspect.Parameter.empty else "Any",
+                "default": str(p.default) if not is_req else None,
+                "required": is_req,
+                "description": pdesc,
+            }
+        )
 
     name = getattr(fn, "__name__", str(fn))
     return {
@@ -217,15 +226,22 @@ def register_tool(
         @register_tool(category="system", tags=["os", "bash"])
         def my_tool(...): ...
     """
+
     def decorator(fn: Callable) -> Callable:
-        actual_name = (name if isinstance(name, str) else None) or getattr(fn, "__name__", "")
+        actual_name = (name if isinstance(name, str) else None) or getattr(
+            fn, "__name__", ""
+        )
         actual_cat = category or get_domain_for_tool(actual_name) or "general"
         try:
             schema = _fn_to_schema(fn)
         except Exception:
             schema = {
                 "name": actual_name,
-                "short_description": (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else actual_name,
+                "short_description": (
+                    (fn.__doc__ or "").strip().splitlines()[0]
+                    if fn.__doc__
+                    else actual_name
+                ),
                 "full_docstring": fn.__doc__ or "",
                 "signature": f"{actual_name}()",
                 "parameters": [],

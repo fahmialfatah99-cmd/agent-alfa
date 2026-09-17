@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -12,11 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from alfa.dashboard.app import app
 from alfa.dashboard.routes.swarm import (
-    parse_arena_state,
-    parse_swarm_stage,
-    detect_active_speaker,
     compute_agent_states,
     compute_consensus_percent,
+    detect_active_speaker,
+    parse_arena_state,
+    parse_swarm_stage,
 )
 
 
@@ -29,6 +30,7 @@ def test_swarm_live_response_structure(client, monkeypatch):
     """Test /api/swarm/live response includes structured arena data."""
     # Ensure no residual running state
     from alfa.swarm import engine as se
+
     monkeypatch.setattr(se, "MEETING_RUNNING", False)
 
     res = client.get("/api/swarm/live")
@@ -74,7 +76,10 @@ def test_parse_stage_deliberation():
     """Test stage parsing detects debate / deliberation stage."""
     entries = [
         {"tag": "SESSION", "text": "Sesi EXECUTE dimulai"},
-        {"tag": "DIALOG", "text": "💬 Researcher Prime: Berdasarkan data benchmark, opsi B lebih stabil."},
+        {
+            "tag": "DIALOG",
+            "text": "💬 Researcher Prime: Berdasarkan data benchmark, opsi B lebih stabil.",
+        },
     ]
     assert parse_swarm_stage(entries, running=True) == "debate"
 
@@ -83,7 +88,10 @@ def test_parse_stage_voting():
     """Test stage parsing detects voting stage."""
     entries = [
         {"tag": "SESSION", "text": "Sesi EXECUTE dimulai"},
-        {"tag": "VOTE", "text": "🗳️ Alpha Lead mengajukan voting konsensus solusi arsitektur"},
+        {
+            "tag": "VOTE",
+            "text": "🗳️ Alpha Lead mengajukan voting konsensus solusi arsitektur",
+        },
     ]
     assert parse_swarm_stage(entries, running=True) == "vote"
 
@@ -92,7 +100,10 @@ def test_parse_stage_consensus():
     """Test stage parsing detects consensus stage."""
     entries = [
         {"tag": "SESSION", "text": "Sesi EXECUTE dimulai"},
-        {"tag": "CONSENSUS", "text": "🤝 Konsensus tercapai: Seluruh agen menyepakati strategi hybrid."},
+        {
+            "tag": "CONSENSUS",
+            "text": "🤝 Konsensus tercapai: Seluruh agen menyepakati strategi hybrid.",
+        },
     ]
     assert parse_swarm_stage(entries, running=True) == "consensus"
 
@@ -101,7 +112,10 @@ def test_parse_stage_execution():
     """Test stage parsing detects execution stage."""
     entries = [
         {"tag": "SESSION", "text": "Sesi EXECUTE dimulai"},
-        {"tag": "EXEC", "text": "⚙️ Code Crafter mulai eksekusi: Tulis script database migration"},
+        {
+            "tag": "EXEC",
+            "text": "⚙️ Code Crafter mulai eksekusi: Tulis script database migration",
+        },
     ]
     assert parse_swarm_stage(entries, running=True) == "execute"
 
@@ -117,7 +131,10 @@ def test_agent_state_detection():
     """Test agent state detection marks current speaker as speaking and others as waiting/idle."""
     entries = [
         {"tag": "SESSION", "text": "Sesi dimulai"},
-        {"tag": "DIALOG", "text": "💬 Alpha Lead: Mari kita mulai dekomposisi rencana."},
+        {
+            "tag": "DIALOG",
+            "text": "💬 Alpha Lead: Mari kita mulai dekomposisi rencana.",
+        },
     ]
     speaker = detect_active_speaker(entries)
     assert speaker in ("Alpha Lead", "Commander")
@@ -132,13 +149,17 @@ def test_agent_state_detection():
 def test_agent_state_different_personas():
     """Test speaker detection and state mapping for different personas."""
     # Researcher speaking
-    res_entries = [{"tag": "DIALOG", "text": "💬 Researcher Prime: Menemukan 3 paper terkait."}]
+    res_entries = [
+        {"tag": "DIALOG", "text": "💬 Researcher Prime: Menemukan 3 paper terkait."}
+    ]
     res_states = compute_agent_states(res_entries, running=True)
     assert res_states["researcher"] == "speaking"
     assert res_states["commander"] != "speaking"
 
     # Critic speaking
-    crit_entries = [{"tag": "DIALOG", "text": "💬 System Auditor: Perlu audit keamanan port 8080."}]
+    crit_entries = [
+        {"tag": "DIALOG", "text": "💬 System Auditor: Perlu audit keamanan port 8080."}
+    ]
     crit_states = compute_agent_states(crit_entries, running=True)
     assert crit_states["critic"] == "speaking"
     assert crit_states["executor"] != "speaking"
@@ -153,11 +174,31 @@ def test_agent_state_different_personas():
 def test_consensus_percent_computation():
     """Test consensus percentage scales appropriately with stages and events."""
     assert compute_consensus_percent("idle", []) == 0
-    assert compute_consensus_percent("plan", [{"tag": "PLAN", "text": "Plan ready"}]) >= 15
-    assert compute_consensus_percent("debate", [{"tag": "DIALOG", "text": "Discussing"}]) >= 35
-    assert compute_consensus_percent("vote", [{"tag": "VOTE", "text": "Voting in progress"}]) >= 65
-    assert compute_consensus_percent("consensus", [{"tag": "CONSENSUS", "text": "Agreement reached"}]) >= 85
-    assert compute_consensus_percent("idle", [{"tag": "DONE", "text": "Finished successfully"}]) == 100
+    assert (
+        compute_consensus_percent("plan", [{"tag": "PLAN", "text": "Plan ready"}]) >= 15
+    )
+    assert (
+        compute_consensus_percent("debate", [{"tag": "DIALOG", "text": "Discussing"}])
+        >= 35
+    )
+    assert (
+        compute_consensus_percent(
+            "vote", [{"tag": "VOTE", "text": "Voting in progress"}]
+        )
+        >= 65
+    )
+    assert (
+        compute_consensus_percent(
+            "consensus", [{"tag": "CONSENSUS", "text": "Agreement reached"}]
+        )
+        >= 85
+    )
+    assert (
+        compute_consensus_percent(
+            "idle", [{"tag": "DONE", "text": "Finished successfully"}]
+        )
+        == 100
+    )
 
 
 def test_templates_index_renders_swarm_arena():
@@ -193,9 +234,24 @@ def test_live_feed_integration_with_temp_file(client, monkeypatch):
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as f:
         events = [
-            {"i": 1, "ts": "18:00:01", "tag": "SESSION", "text": "Sesi EXECUTE dimulai — topik: Refactor Swarm Arena"},
-            {"i": 2, "ts": "18:00:03", "tag": "PLAN", "text": "🗂️ 1: Desain visualizer komponen"},
-            {"i": 3, "ts": "18:00:06", "tag": "DIALOG", "text": "💬 Alpha Lead: Code Crafter siapkan styling cyber."},
+            {
+                "i": 1,
+                "ts": "18:00:01",
+                "tag": "SESSION",
+                "text": "Sesi EXECUTE dimulai — topik: Refactor Swarm Arena",
+            },
+            {
+                "i": 2,
+                "ts": "18:00:03",
+                "tag": "PLAN",
+                "text": "🗂️ 1: Desain visualizer komponen",
+            },
+            {
+                "i": 3,
+                "ts": "18:00:06",
+                "tag": "DIALOG",
+                "text": "💬 Alpha Lead: Code Crafter siapkan styling cyber.",
+            },
         ]
         for e in events:
             f.write(json.dumps(e) + "\n")
