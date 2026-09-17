@@ -1,5 +1,8 @@
-"""ALFA Scrapers: Multi-tier stealth web scraping & crawling engines."""
+"""ALFA Multi-Tier Stealth Web Scraping Engines."""
 
-from alfa.scrapers import fast, universal
+# Re-export from submodules
+# from .universal_scraper import *
+# from .fast_scraper import *
+# from .large_scale_scraper import *
 
-__all__ = ["fast", "universal"]
+__all__ = []
