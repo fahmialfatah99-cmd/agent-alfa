@@ -1,11 +1,52 @@
-```
-# Database files
-*.db
+```gitignore
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py~
+*.py.class
+*.pyc.class
+*.pyo.class
+*.pyd.class
+*.py~
+*.py.class~
+*.pyc.class~
+*.pyo.class~
+*.pyd.class~
 
-# Test artifacts
-.tests/
-.pytest_cache/
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Dependencies
+venv/
+.venv/
+.env
+.env.local
+.env.*
+requirements.txt.bak
+poetry.lock
+Pipfile.lock
 
 # Logs
 *.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 ```
