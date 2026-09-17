@@ -4,10 +4,9 @@ Jalankan: python3 test_security_fixes.py
 """
 
 import os
+import sqlite3
 import sys
 import tempfile
-import sqlite3
-
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -17,43 +16,48 @@ def test_dashboard_auth_requirement():
     """Test 1: Dashboard menolak start tanpa token saat binding ke 0.0.0.0"""
     print("\n[TEST 1] Dashboard auth requirement...")
 
-    orig_token = os.environ.get('DASHBOARD_AUTH_TOKEN', '')
-    orig_host = os.environ.get('DASHBOARD_HOST', '')
+    orig_token = os.environ.get("DASHBOARD_AUTH_TOKEN", "")
+    orig_host = os.environ.get("DASHBOARD_HOST", "")
 
     try:
-        os.environ['DASHBOARD_AUTH_TOKEN'] = ''
-        os.environ['DASHBOARD_HOST'] = '0.0.0.0'
+        os.environ["DASHBOARD_AUTH_TOKEN"] = ""
+        os.environ["DASHBOARD_HOST"] = "0.0.0.0"
 
         import importlib
+
         try:
             import web_dashboard
+
             importlib.reload(web_dashboard)
             assert False, "Seharusnya raise RuntimeError"
         except RuntimeError as e:
-            assert "tanpa autentikasi" in str(e).lower(), f"Pesan error tidak sesuai: {e}"
+            assert (
+                "tanpa autentikasi" in str(e).lower()
+            ), f"Pesan error tidak sesuai: {e}"
             print("  PASS: RuntimeError raised dengan pesan yang tepat")
 
-        os.environ['DASHBOARD_AUTH_TOKEN'] = 'testtoken123'
-        os.environ['DASHBOARD_HOST'] = '0.0.0.0'
+        os.environ["DASHBOARD_AUTH_TOKEN"] = "testtoken123"
+        os.environ["DASHBOARD_HOST"] = "0.0.0.0"
         import web_dashboard
+
         importlib.reload(web_dashboard)
         print("  PASS: Dashboard start OK dengan token")
 
-        os.environ['DASHBOARD_AUTH_TOKEN'] = ''
-        os.environ['DASHBOARD_HOST'] = '127.0.0.1'
+        os.environ["DASHBOARD_AUTH_TOKEN"] = ""
+        os.environ["DASHBOARD_HOST"] = "127.0.0.1"
         importlib.reload(web_dashboard)
         print("  PASS: Dashboard start OK di localhost (dengan warning)")
 
     finally:
         if orig_token:
-            os.environ['DASHBOARD_AUTH_TOKEN'] = orig_token
-        elif 'DASHBOARD_AUTH_TOKEN' in os.environ:
-            del os.environ['DASHBOARD_AUTH_TOKEN']
+            os.environ["DASHBOARD_AUTH_TOKEN"] = orig_token
+        elif "DASHBOARD_AUTH_TOKEN" in os.environ:
+            del os.environ["DASHBOARD_AUTH_TOKEN"]
 
         if orig_host:
-            os.environ['DASHBOARD_HOST'] = orig_host
-        elif 'DASHBOARD_HOST' in os.environ:
-            del os.environ['DASHBOARD_HOST']
+            os.environ["DASHBOARD_HOST"] = orig_host
+        elif "DASHBOARD_HOST" in os.environ:
+            del os.environ["DASHBOARD_HOST"]
 
 
 def test_sql_column_whitelist():
@@ -62,7 +66,7 @@ def test_sql_column_whitelist():
 
     from database import update_custom_agent_sync
 
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         tmp_db = tmp.name
 
     try:
@@ -76,32 +80,43 @@ def test_sql_column_whitelist():
                 is_enabled INTEGER DEFAULT 1, enable_tools INTEGER DEFAULT 1
             )
         """)
-        conn.execute("INSERT INTO custom_agents (id, name, role) VALUES (1, 'Test Agent', 'assistant')")
+        conn.execute(
+            "INSERT INTO custom_agents (id, name, role) VALUES (1, 'Test Agent', 'assistant')"
+        )
         conn.commit()
         conn.close()
 
         import database
+
         original_path = database.DB_PATH
         database.DB_PATH = tmp_db
 
         try:
             result = update_custom_agent_sync(1, {"name": "New Name", "role": "coder"})
-            assert result.get("status") == "success", f"Update kolom valid gagal: {result}"
+            assert (
+                result.get("status") == "success"
+            ), f"Update kolom valid gagal: {result}"
             print("  PASS: Update kolom valid berhasil")
 
             malicious_key = "name; DROP TABLE custom_agents; --"
             result = update_custom_agent_sync(1, {malicious_key: "hacked"})
-            if result.get("status") == "error" and "No valid fields" in result.get("message", ""):
+            if result.get("status") == "error" and "No valid fields" in result.get(
+                "message", ""
+            ):
                 print("  PASS: Kolom berbahaya ditolak")
             else:
                 print(f"  WARNING: Kolom berbahaya mungkin diproses: {result}")
 
             result = update_custom_agent_sync(1, {"name; DELETE FROM": "bad"})
-            assert result.get("status") == "error", f"Kolom dengan karakter spesial diterima: {result}"
+            assert (
+                result.get("status") == "error"
+            ), f"Kolom dengan karakter spesial diterima: {result}"
             print("  PASS: Kolom dengan karakter spesial ditolak")
 
             conn = sqlite3.connect(tmp_db)
-            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='custom_agents'")
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='custom_agents'"
+            )
             assert cursor.fetchone(), "Tabel custom_agents hilang!"
             print("  PASS: Tabel custom_agents masih ada (tidak ter-inject)")
             conn.close()

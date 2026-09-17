@@ -2,12 +2,11 @@
 
 import logging
 import os
+import re
 import subprocess
 import time
 from typing import Any, Dict, List, Optional
 
-from alfa.video.audio import VIDEO_OUT_DIR, generate_voiceover, get_audio_duration
-from alfa.video.compositor import create_product_stage_layer, create_ui_overlay_layer
 from alfa.video.ai_engines import (
     OMNI_MODEL_MAP,
     VEO_MODEL_MAP,
@@ -15,8 +14,11 @@ from alfa.video.ai_engines import (
     _generate_gemini_omni_video,
     _generate_google_veo_video,
 )
+from alfa.video.audio import VIDEO_OUT_DIR, generate_voiceover, get_audio_duration
+from alfa.video.compositor import create_product_stage_layer, create_ui_overlay_layer
 
 logger = logging.getLogger("alfa.video.orchestrator")
+
 
 def generate_video_from_images(
     image_paths: List[str],
@@ -32,7 +34,7 @@ def generate_video_from_images(
     visual_prompt: Optional[str] = None,
     engine: str = "local_pro",
     api_key: Optional[str] = None,
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Renders ultra-sharp 9:16 (1080x1920) promotional video with Two-Layer Compositor:
@@ -59,7 +61,7 @@ def generate_video_from_images(
                 theme=theme,
                 badge_text=badge_text,
                 call_to_action=call_to_action,
-                output_filename=output_filename
+                output_filename=output_filename,
             )
         except Exception as e:
             logger.error(f"Omni Flash render gagal: {e}")
@@ -67,7 +69,7 @@ def generate_video_from_images(
                 "status": "error",
                 "engine": engine,
                 "model": OMNI_MODEL_MAP.get(engine),
-                "message": str(e)
+                "message": str(e),
             }
     if engine in VEO_MODEL_MAP:
         try:
@@ -84,7 +86,7 @@ def generate_video_from_images(
                 theme=theme,
                 badge_text=badge_text,
                 call_to_action=call_to_action,
-                output_filename=output_filename
+                output_filename=output_filename,
             )
         except Exception as e:
             logger.error(f"Veo render gagal: {e}")
@@ -92,7 +94,7 @@ def generate_video_from_images(
                 "status": "error",
                 "engine": engine,
                 "model": VEO_MODEL_MAP.get(engine),
-                "message": str(e)
+                "message": str(e),
             }
     if engine in ("kling", "luma", "runway", "fal_ai", "replicate") and api_key:
         return _generate_cloud_ai_video(
@@ -105,16 +107,16 @@ def generate_video_from_images(
             orig_price=orig_price,
             disc_price=disc_price,
             voice=voice,
-            output_filename=output_filename
+            output_filename=output_filename,
         )
-    
+
     # 1. Validate images
     valid_images = []
     for p in image_paths:
         exp = os.path.expanduser(p.strip())
         if os.path.exists(exp):
             valid_images.append(exp)
-            
+
     if not valid_images:
         placeholder = os.path.join(VIDEO_OUT_DIR, "Frames", "temp_stage.png")
         create_product_stage_layer("", placeholder)
@@ -128,11 +130,15 @@ def generate_video_from_images(
     # 3. Create Layer 0 (Product Stage) & Layer 1 (Transparent UI Overlay)
     stage_layers = []
     for idx, img_p in enumerate(valid_images):
-        stage_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"stage_{int(time.time() * 1000)}_{idx}.png")
+        stage_out = os.path.join(
+            VIDEO_OUT_DIR, "Frames", f"stage_{int(time.time() * 1000)}_{idx}.png"
+        )
         create_product_stage_layer(img_p, stage_out)
         stage_layers.append(stage_out)
 
-    overlay_out = os.path.join(VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png")
+    overlay_out = os.path.join(
+        VIDEO_OUT_DIR, "Frames", f"overlay_{int(time.time() * 1000)}.png"
+    )
     create_ui_overlay_layer(
         product_name=product_name,
         orig_price=orig_price,
@@ -140,19 +146,19 @@ def generate_video_from_images(
         badge_text=badge_text,
         call_to_action=call_to_action,
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     # 4. Output Path
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_{int(time.time())}.mp4"
     else:
         # Prevent path traversal via user-supplied filenames
         output_filename = os.path.basename(output_filename.strip())
         if not output_filename.endswith(".mp4"):
             output_filename = f"{output_filename}.mp4"
-        
+
     final_video_path = os.path.join(VIDEO_OUT_DIR, output_filename)
 
     # 5. Dual-Layer FFmpeg Motion Compositing (Gentle 1.00 -> 1.05 push-in on background only)
@@ -160,7 +166,7 @@ def generate_video_from_images(
         zoom_expr = f"zoompan=z='max(1.05-0.00004*on,1.0)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
     elif motion_style == "pan_left_right":
         zoom_expr = f"zoompan=z='1.03':x='(iw-iw/zoom)*(sin(it*0.5)+1)/2':y='ih/2-(ih/zoom/2)':d={total_frames}:s=1080x1920:fps=30"
-    else: # zoom_in
+    else:  # zoom_in
         zoom_expr = f"zoompan=z='min(1.0+0.00004*on,1.05)':d={total_frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30"
 
     per_img_dur = max(3.0, duration_sec / len(stage_layers))
@@ -168,17 +174,39 @@ def generate_video_from_images(
     if len(stage_layers) == 1:
         filter_complex = f"[0:v]{zoom_expr}[bg];[bg][1:v]overlay=0:0[outv]"
         cmd = [
-            "ffmpeg", "-y",
-            "-loop", "1", "-i", stage_layers[0],
-            "-loop", "1", "-i", overlay_out,
-            "-i", audio_path,
-            "-filter_complex", filter_complex,
-            "-map", "[outv]",
-            "-map", "2:a",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-            "-c:a", "aac", "-b:a", "192k",
-            "-t", str(duration_sec + 0.3),
-            final_video_path
+            "ffmpeg",
+            "-y",
+            "-loop",
+            "1",
+            "-i",
+            stage_layers[0],
+            "-loop",
+            "1",
+            "-i",
+            overlay_out,
+            "-i",
+            audio_path,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[outv]",
+            "-map",
+            "2:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-preset",
+            "medium",
+            "-crf",
+            "19",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-t",
+            str(duration_sec + 0.3),
+            final_video_path,
         ]
     else:
         inputs = []
@@ -202,28 +230,44 @@ def generate_video_from_images(
             filter_parts.append(
                 f"[{i}:v]zoompan=z='{z_expr}':d={per_frames}:{pos_expr}:s=1080x1920:fps=30[v{i}];"
             )
-            
+
         concat_inputs = "".join([f"[v{i}]" for i in range(len(stage_layers))])
         filter_parts.append(f"{concat_inputs}concat=n={len(stage_layers)}:v=1:a=0[bg];")
-        
+
         overlay_idx = len(stage_layers)
         audio_idx = overlay_idx + 1
         inputs.extend(["-loop", "1", "-i", overlay_out])
-        
+
         filter_parts.append(f"[bg][{overlay_idx}:v]overlay=0:0[outv]")
         filter_str = "".join(filter_parts)
-        
+
         cmd = [
-            "ffmpeg", "-y",
+            "ffmpeg",
+            "-y",
             *inputs,
-            "-i", audio_path,
-            "-filter_complex", filter_str,
-            "-map", "[outv]",
-            "-map", f"{audio_idx}:a",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-            "-c:a", "aac", "-b:a", "192k",
-            "-t", str(duration_sec + 0.3),
-            final_video_path
+            "-i",
+            audio_path,
+            "-filter_complex",
+            filter_str,
+            "-map",
+            "[outv]",
+            "-map",
+            f"{audio_idx}:a",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-preset",
+            "medium",
+            "-crf",
+            "19",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-t",
+            str(duration_sec + 0.3),
+            final_video_path,
         ]
 
     logger.info(f"Executing FFmpeg render: {' '.join(cmd)}")
@@ -246,6 +290,6 @@ def generate_video_from_images(
         "audio_voice": voice,
         "theme": theme,
         "motion_style": motion_style,
-        "visual_prompt": visual_prompt or f"8K Commercial Studio video of {product_name}"
+        "visual_prompt": visual_prompt
+        or f"8K Commercial Studio video of {product_name}",
     }
-

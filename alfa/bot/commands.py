@@ -3,6 +3,15 @@
 Facade aggregating basic and advanced bot commands.
 """
 
+from alfa.bot.advanced_commands import (
+    agents_command,
+    dashboard_command,
+    keys_command,
+    rapat_command,
+    resume_swarm_command,
+    swarm_command,
+    wa_command,
+)
 from alfa.bot.basic_commands import (
     _get_bot_module,
     _is_authorized,
@@ -16,15 +25,6 @@ from alfa.bot.basic_commands import (
     start_command,
     stats_command,
     voice_command,
-)
-from alfa.bot.advanced_commands import (
-    agents_command,
-    dashboard_command,
-    keys_command,
-    rapat_command,
-    resume_swarm_command,
-    swarm_command,
-    wa_command,
 )
 
 __all__ = [

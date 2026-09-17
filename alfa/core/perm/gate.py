@@ -10,15 +10,15 @@ import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from alfa.core.perm.constants import (
+    _LABELS,
     APPROVAL_TIMEOUT,
     DEFAULT_TIER,
     FAIL_MODE,
     PERMISSION_GATE_ENABLED,
-    RiskTier,
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
-    _LABELS,
+    RiskTier,
     logger,
 )
 from alfa.core.perm.store import (
@@ -44,19 +44,19 @@ def should_auto_approve(chat_id: int, tool_name: str) -> Tuple[bool, str]:
     """Determine if request should be auto-approved based on trust score and tier."""
     tier = get_tool_tier(tool_name)
     trust = get_trust_score(chat_id)
-    
+
     # Auto-approve LOW tier always
     if tier == RiskTier.LOW:
         return True, "auto_approved"
-    
+
     # Auto-approve MEDIUM tier if trust >= threshold
     if tier == RiskTier.MEDIUM and trust >= TRUST_THRESHOLD:
         return True, "auto_approved"
-    
+
     # Auto-approve HIGH/CRITICAL only if very high trust
     if tier in (RiskTier.HIGH, RiskTier.CRITICAL) and trust >= 0.9:
         return True, "auto_approved"
-    
+
     return False, ""
 
 
@@ -80,8 +80,9 @@ def make_gate(chat_id: Optional[int]):
     return gate
 
 
-async def request_approval(tool_name: str, arguments_json: str = "{}",
-                           chat_id: int = None) -> Optional[str]:
+async def request_approval(
+    tool_name: str, arguments_json: str = "{}", chat_id: int = None
+) -> Optional[str]:
     """Tanya izin ke pengguna via tombol Telegram.
     Return None bila diizinkan; string penolakan bila ditolak/timeout."""
     if not PERMISSION_GATE_ENABLED or chat_id is None:
@@ -121,10 +122,17 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         from subagents import get_telegram_app
+
         app = get_telegram_app()
-        markup = InlineKeyboardMarkup([[
-            InlineKeyboardButton(text, callback_data=f"perm|{req_id}|{act}")
-            for text, act in row] for row in keyboard])
+        markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(text, callback_data=f"perm|{req_id}|{act}")
+                    for text, act in row
+                ]
+                for row in keyboard
+            ]
+        )
         sent_message = await app.bot.send_message(
             chat_id=int(chat_id),
             text=(
@@ -137,7 +145,8 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         )
     except Exception as e:
         logger.warning(
-            f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed).")
+            f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed)."
+        )
         _PENDING.pop(req_id, None)
         fail_mode = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
         if fail_mode == "allow":
@@ -162,13 +171,21 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
     if decision == "timeout" and sent_message is not None:
         try:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
             from subagents import get_telegram_app
+
             app = get_telegram_app()
             if app:
                 base_text = sent_message.text or ""
-                timeout_markup = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("⏰ Kedaluwarsa (Timeout)", callback_data="perm_done")
-                ]])
+                timeout_markup = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "⏰ Kedaluwarsa (Timeout)", callback_data="perm_done"
+                            )
+                        ]
+                    ]
+                )
                 await app.bot.edit_message_text(
                     chat_id=int(chat_id),
                     message_id=sent_message.message_id,
@@ -181,6 +198,7 @@ async def request_approval(tool_name: str, arguments_json: str = "{}",
         # Fallback jika belum sempat diedit via callback query handler
         try:
             from subagents import get_telegram_app
+
             app = get_telegram_app()
             if app:
                 base_text = sent_message.text or ""
@@ -218,7 +236,9 @@ async def handle_permission_callback(update, context) -> None:
     data = query.data or ""
     if data == "perm_done":
         try:
-            await query.answer("Permintaan izin ini sudah selesai diproses.", show_alert=False)
+            await query.answer(
+                "Permintaan izin ini sudah selesai diproses.", show_alert=False
+            )
         except Exception:
             pass
         return
@@ -235,7 +255,9 @@ async def handle_permission_callback(update, context) -> None:
     entry = _PENDING.get(req_id)
     if not entry:
         try:
-            await query.answer("Permintaan sudah kedaluwarsa atau telah diproses.", show_alert=False)
+            await query.answer(
+                "Permintaan sudah kedaluwarsa atau telah diproses.", show_alert=False
+            )
         except Exception:
             pass
         return
@@ -263,9 +285,9 @@ async def handle_permission_callback(update, context) -> None:
 
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-    updated_markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton(status_btn, callback_data="perm_done")
-    ]])
+    updated_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(status_btn, callback_data="perm_done")]]
+    )
 
     # 1. Beri feedback respons instan ke Telegram (toast alert)
     try:

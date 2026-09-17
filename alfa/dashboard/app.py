@@ -86,7 +86,10 @@ async def _malloc_trim_loop():
         try:
             freed = libc.malloc_trim(0)
             if freed:
-                rss_mb = int(open("/proc/self/status").read().split("VmRSS:")[1].split()[0]) // 1024
+                rss_mb = (
+                    int(open("/proc/self/status").read().split("VmRSS:")[1].split()[0])
+                    // 1024
+                )
                 logger.debug(f"malloc_trim OK — RSS sekarang {rss_mb} MB")
         except Exception as e:
             logger.debug(f"malloc_trim gagal (abaikan): {e}")
@@ -146,7 +149,9 @@ def create_app() -> FastAPI:
 
     _cors_env = os.getenv("ALLOWED_CORS_ORIGINS", "").strip()
     if _cors_env:
-        allowed_cors_origins = [orig.strip() for orig in _cors_env.split(",") if orig.strip()]
+        allowed_cors_origins = [
+            orig.strip() for orig in _cors_env.split(",") if orig.strip()
+        ]
     else:
         allowed_cors_origins = [
             "http://localhost:8080",
@@ -193,7 +198,9 @@ def create_app() -> FastAPI:
                 content=html_content,
                 headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
             )
-        return HTMLResponse("<h2>Dashboard template not found. Please create templates/index.html</h2>")
+        return HTMLResponse(
+            "<h2>Dashboard template not found. Please create templates/index.html</h2>"
+        )
 
     # Include APIRouters
     app_instance.include_router(auth_router)

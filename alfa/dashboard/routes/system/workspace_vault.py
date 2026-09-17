@@ -15,8 +15,8 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from alfa.core import database
 from alfa import tools
+from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
 
 router = APIRouter()
@@ -24,15 +24,42 @@ router = APIRouter()
 # ==================== ARTIFACTS & WORKSPACE EXPLORER ====================
 
 WORKSPACE_ROOTS = [
-    {"id": "workspace", "label": "🏠 ALFA Workspace (proyek agen)", "path": "~/ALFA_WORKSPACE"},
-    {"id": "swarm", "label": "🤖 Output Swarm", "path": os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")},
-    {"id": "videos", "label": "🎬 Video Generator", "path": os.path.expanduser("~/Dokumen/ALFA_GENERATED_VIDEOS")},
-    {"id": "output", "label": "📦 Folder Output", "path": os.path.expanduser("~/output")},
+    {
+        "id": "workspace",
+        "label": "🏠 ALFA Workspace (proyek agen)",
+        "path": "~/ALFA_WORKSPACE",
+    },
+    {
+        "id": "swarm",
+        "label": "🤖 Output Swarm",
+        "path": os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
+    },
+    {
+        "id": "videos",
+        "label": "🎬 Video Generator",
+        "path": os.path.expanduser("~/Dokumen/ALFA_GENERATED_VIDEOS"),
+    },
+    {
+        "id": "output",
+        "label": "📦 Folder Output",
+        "path": os.path.expanduser("~/output"),
+    },
     {"id": "sandbox", "label": "⚡ Sandbox", "path": "/dev/shm/alfa_sandbox"},
 ]
 
-_WS_SKIP_DIRS = {".git", "venv", ".venv", "node_modules", "__pycache__",
-                 ".mypy_cache", ".pytest_cache", "dist", "build", ".next", "target"}
+_WS_SKIP_DIRS = {
+    ".git",
+    "venv",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    ".next",
+    "target",
+}
 _WS_MAX_FILE_BYTES = 300_000
 
 
@@ -52,9 +79,12 @@ def _safe_workspace_path(path: str) -> str:
         allowed = ", ".join(os.path.expanduser(r["path"]) for r in WORKSPACE_ROOTS)
         raise HTTPException(
             status_code=403,
-            detail=(f"Akses ditolak: '{path or '(kosong)'}' di luar workspace yang diizinkan. "
-                    f"Root tersedia: {allowed}. "
-                    "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."))
+            detail=(
+                f"Akses ditolak: '{path or '(kosong)'}' di luar workspace yang diizinkan. "
+                f"Root tersedia: {allowed}. "
+                "Proyek di luar folder ini bisa dipindahkan ke ~/ALFA_WORKSPACE."
+            ),
+        )
     return real
 
 
@@ -64,10 +94,26 @@ async def list_artifacts():
     search_dirs = [
         "/dev/shm/alfa_sandbox",
         os.path.expanduser("~/output"),
-        os.path.expanduser("~/.alfa")
+        os.path.expanduser("~/.alfa"),
     ]
     artifacts = []
-    valid_exts = {".png", ".jpg", ".jpeg", ".pdf", ".odt", ".ods", ".odp", ".docx", ".xlsx", ".pptx", ".mp3", ".mp4", ".csv", ".json", ".zip"}
+    valid_exts = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".pdf",
+        ".odt",
+        ".ods",
+        ".odp",
+        ".docx",
+        ".xlsx",
+        ".pptx",
+        ".mp3",
+        ".mp4",
+        ".csv",
+        ".json",
+        ".zip",
+    }
 
     for s_dir in search_dirs:
         if os.path.exists(s_dir):
@@ -77,14 +123,18 @@ async def list_artifacts():
                     if ext in valid_exts:
                         full_p = os.path.join(root, f)
                         st = os.stat(full_p)
-                        artifacts.append({
-                            "name": f,
-                            "path": full_p,
-                            "size_kb": round(st.st_size / 1024, 1),
-                            "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                            "extension": ext[1:].upper(),
-                            "is_image": ext in [".png", ".jpg", ".jpeg"]
-                        })
+                        artifacts.append(
+                            {
+                                "name": f,
+                                "path": full_p,
+                                "size_kb": round(st.st_size / 1024, 1),
+                                "modified": datetime.fromtimestamp(
+                                    st.st_mtime
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                "extension": ext[1:].upper(),
+                                "is_image": ext in [".png", ".jpg", ".jpeg"],
+                            }
+                        )
 
     artifacts = sorted(artifacts, key=lambda x: x["modified"], reverse=True)[:30]
     return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
@@ -108,8 +158,9 @@ async def workspace_tree(path: str):
         raise HTTPException(status_code=404, detail="Bukan direktori")
     items = []
     try:
-        entries = sorted(os.scandir(real),
-                         key=lambda e: (not e.is_dir(), e.name.lower()))
+        entries = sorted(
+            os.scandir(real), key=lambda e: (not e.is_dir(), e.name.lower())
+        )
     except PermissionError:
         raise HTTPException(status_code=403, detail="Izin dibatalkan")
     for e in entries[:400]:
@@ -117,12 +168,16 @@ async def workspace_tree(path: str):
             continue
         try:
             st = e.stat()
-            items.append({
-                "name": e.name,
-                "type": "dir" if e.is_dir() else "file",
-                "size": st.st_size if e.is_file() else None,
-                "modified": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M"),
-            })
+            items.append(
+                {
+                    "name": e.name,
+                    "type": "dir" if e.is_dir() else "file",
+                    "size": st.st_size if e.is_file() else None,
+                    "modified": datetime.fromtimestamp(st.st_mtime).strftime(
+                        "%Y-%m-%d %H:%M"
+                    ),
+                }
+            )
         except OSError:
             continue
     return {"status": "success", "path": real, "items": items}
@@ -139,9 +194,13 @@ async def workspace_read_file(path: str):
         head = f.read(4096)
     is_binary = b"\x00" in head
     if is_binary:
-        return {"status": "binary", "name": os.path.basename(real), "size": size,
-                "message": "File biner — gunakan tombol Download.",
-                "download_url": f"/api/artifacts/download?path={real}"}
+        return {
+            "status": "binary",
+            "name": os.path.basename(real),
+            "size": size,
+            "message": "File biner — gunakan tombol Download.",
+            "download_url": f"/api/artifacts/download?path={real}",
+        }
     truncated = size > _WS_MAX_FILE_BYTES
     with open(real, "rb") as f:
         data = f.read(_WS_MAX_FILE_BYTES)
@@ -158,8 +217,9 @@ async def workspace_read_file(path: str):
 @router.get("/api/artifacts/download")
 async def download_artifact(path: str):
     """Safely download an artifact file (restricted to known artifact directories)."""
-    from alfa.swarm import engine as swarm_engine
     import video_generator
+    from alfa.swarm import engine as swarm_engine
+
     allowed_dirs = [
         os.path.realpath("/dev/shm/alfa_sandbox"),
         os.path.realpath(os.path.expanduser("~/output")),
@@ -171,8 +231,13 @@ async def download_artifact(path: str):
         os.path.realpath(swarm_engine.SWARM_OUTPUT_DIR),
     ]
     real_path = os.path.realpath(path)
-    if not any(real_path == d or real_path.startswith(d + os.sep) for d in allowed_dirs):
-        raise HTTPException(status_code=403, detail="Akses ditolak: path di luar direktori artefak yang diizinkan.")
+    if not any(
+        real_path == d or real_path.startswith(d + os.sep) for d in allowed_dirs
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak: path di luar direktori artefak yang diizinkan.",
+        )
     if not os.path.exists(real_path) or not os.path.isfile(real_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(real_path, filename=os.path.basename(real_path))
@@ -180,16 +245,13 @@ async def download_artifact(path: str):
 
 # ==================== GUARDIAN & PROACTIVE AGENT ====================
 
+
 @router.get("/api/guardian/config")
 async def get_guardian_config():
     """Get configuration for System Guardian & Ambient Proactive Agent."""
     g_cfg = tools.proactive_system_guardian_config("status").get("guardian", {})
     p_cfg = tools.proactive_ambient_agent_config("status").get("proactive_config", {})
-    return {
-        "status": "success",
-        "guardian": g_cfg,
-        "proactive": p_cfg
-    }
+    return {"status": "success", "guardian": g_cfg, "proactive": p_cfg}
 
 
 @router.post("/api/guardian/config")
@@ -203,7 +265,7 @@ async def update_guardian_config(payload: Dict[str, Any]):
             ram_threshold=g.get("ram_threshold", 85),
             disk_threshold=g.get("disk_threshold", 90),
             battery_critical=g.get("battery_critical", 10),
-            auto_kill_ram_hogs=g.get("auto_kill_ram_hogs", False)
+            auto_kill_ram_hogs=g.get("auto_kill_ram_hogs", False),
         )
     if "proactive" in payload:
         p = payload["proactive"]
@@ -211,20 +273,25 @@ async def update_guardian_config(payload: Dict[str, Any]):
             action="enable" if p.get("enabled", True) else "disable",
             min_hours_between_pings=p.get("min_hours_between_pings", 3),
             quiet_hours_start=p.get("quiet_hours_start", 23),
-            quiet_hours_end=p.get("quiet_hours_end", 7)
+            quiet_hours_end=p.get("quiet_hours_end", 7),
         )
-    return {"status": "success", "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!"}
+    return {
+        "status": "success",
+        "message": "Konfigurasi Guardian & Proaktif berhasil disimpan!",
+    }
 
 
 # ==================== VAULT & SECURITY ====================
+
 
 @router.get("/api/vault/list")
 async def list_vault_secrets(category: str = "all"):
     """List metadata for secrets stored in the AES-256-GCM vault."""
     import vault_engine
+
     return {
         "status": "success",
-        "items": vault_engine.vault.list_secrets(category=category)
+        "items": vault_engine.vault.list_secrets(category=category),
     }
 
 
@@ -232,6 +299,7 @@ async def list_vault_secrets(category: str = "all"):
 async def store_vault_secret(payload: Dict[str, Any]):
     """Encrypt and store secret into AES-256-GCM vault."""
     import vault_engine
+
     name = payload.get("name", "").strip()
     value = payload.get("value", "").strip()
     category = payload.get("category", "api_key").strip()
@@ -240,7 +308,9 @@ async def store_vault_secret(payload: Dict[str, Any]):
     if not name or not value:
         return {"status": "error", "message": "Nama dan nilai secret wajib diisi."}
 
-    res = vault_engine.vault.store_secret(name=name, value=value, category=category, notes=notes)
+    res = vault_engine.vault.store_secret(
+        name=name, value=value, category=category, notes=notes
+    )
     return res
 
 
@@ -248,6 +318,7 @@ async def store_vault_secret(payload: Dict[str, Any]):
 async def reveal_vault_secret(payload: Dict[str, Any]):
     """Decrypt and reveal a secret value for authorized viewing."""
     import vault_engine
+
     secret_id = payload.get("id") or payload.get("name")
     if not secret_id:
         return {"status": "error", "message": "Secret ID atau nama diperlukan."}
@@ -260,7 +331,7 @@ async def reveal_vault_secret(payload: Dict[str, Any]):
         "status": "success",
         "name": sec["name"],
         "category": sec["category"],
-        "value": sec["value"]
+        "value": sec["value"],
     }
 
 
@@ -268,9 +339,13 @@ async def reveal_vault_secret(payload: Dict[str, Any]):
 async def delete_vault_secret(secret_id: int):
     """Delete a secret permanently from the vault."""
     import vault_engine
+
     deleted = vault_engine.vault.delete_secret(int(secret_id))
     if deleted:
-        return {"status": "success", "message": f"Secret ID {secret_id} berhasil dihapus dari vault."}
+        return {
+            "status": "success",
+            "message": f"Secret ID {secret_id} berhasil dihapus dari vault.",
+        }
     return {"status": "error", "message": f"Secret ID {secret_id} tidak ditemukan."}
 
 
@@ -278,6 +353,7 @@ async def delete_vault_secret(secret_id: int):
 async def audit_target_security(payload: Dict[str, Any]):
     """Perform comprehensive defensive cybersecurity audit on a target URL."""
     from alfa.core import permissions as security_auditor
+
     target_url = payload.get("url", "").strip()
     if not target_url:
         return {"status": "error", "message": "URL target wajib dimasukkan."}
@@ -300,7 +376,8 @@ async def get_permission_audit_log(chat_id: Optional[int] = None, limit: int = 5
                    FROM permission_audit 
                    WHERE chat_id=? 
                    ORDER BY created_at DESC LIMIT ?""",
-                (int(chat_id), limit)).fetchall()
+                (int(chat_id), limit),
+            ).fetchall()
         else:
             rows = conn.execute(
                 """SELECT id, chat_id, tool_name, tier, decision, arguments_json, 
@@ -308,20 +385,23 @@ async def get_permission_audit_log(chat_id: Optional[int] = None, limit: int = 5
                           round(response_time_sec, 2) as response_time
                    FROM permission_audit 
                    ORDER BY created_at DESC LIMIT ?""",
-                (limit,)).fetchall()
+                (limit,),
+            ).fetchall()
 
         audit_logs = []
         for row in rows:
-            audit_logs.append({
-                "id": row[0],
-                "chat_id": row[1],
-                "tool_name": row[2],
-                "tier": row[3],
-                "decision": row[4],
-                "arguments_json": json.loads(row[5]) if row[5] else {},
-                "timestamp": row[6],
-                "response_time_sec": row[7]
-            })
+            audit_logs.append(
+                {
+                    "id": row[0],
+                    "chat_id": row[1],
+                    "tool_name": row[2],
+                    "tier": row[3],
+                    "decision": row[4],
+                    "arguments_json": json.loads(row[5]) if row[5] else {},
+                    "timestamp": row[6],
+                    "response_time_sec": row[7],
+                }
+            )
         return {"status": "success", "logs": audit_logs, "total": len(audit_logs)}
     finally:
         conn.close()
@@ -337,18 +417,21 @@ async def get_all_trust_scores():
             """SELECT chat_id, trust_score, total_approvals, safe_approvals, risky_approvals,
                       datetime(last_updated, 'unixepoch', 'localtime') as last_updated
                FROM user_trust_scores 
-               ORDER BY trust_score DESC""").fetchall()
+               ORDER BY trust_score DESC"""
+        ).fetchall()
 
         scores = []
         for row in rows:
-            scores.append({
-                "chat_id": row[0],
-                "trust_score": round(row[1], 3),
-                "total_approvals": row[2],
-                "safe_approvals": row[3],
-                "risky_approvals": row[4],
-                "last_updated": row[5]
-            })
+            scores.append(
+                {
+                    "chat_id": row[0],
+                    "trust_score": round(row[1], 3),
+                    "total_approvals": row[2],
+                    "safe_approvals": row[3],
+                    "risky_approvals": row[4],
+                    "last_updated": row[5],
+                }
+            )
         return {"status": "success", "scores": scores, "total_users": len(scores)}
     finally:
         conn.close()
@@ -359,8 +442,12 @@ async def get_passkey_status():
     """Get status of biometric/passkey lock."""
     with database.get_sync_db() as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
-        c.execute("SELECT value FROM system_settings WHERE key = 'passkey_lock_enabled'")
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+        )
+        c.execute(
+            "SELECT value FROM system_settings WHERE key = 'passkey_lock_enabled'"
+        )
         row = c.fetchone()
         enabled = row[0] == "true" if row else False
         return {"enabled": enabled}
@@ -372,9 +459,16 @@ async def toggle_passkey_lock(payload: Dict[str, Any]):
     enabled = bool(payload.get("enabled", False))
     with database.get_sync_db() as conn:
         c = conn.cursor()
-        c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
-        c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('passkey_lock_enabled', ?)", ("true" if enabled else "false",))
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+        )
+        c.execute(
+            "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('passkey_lock_enabled', ?)",
+            ("true" if enabled else "false",),
+        )
         conn.commit()
-        return {"status": "success", "enabled": enabled, "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}."}
-
-
+        return {
+            "status": "success",
+            "enabled": enabled,
+            "message": f"Kunci Passkey Biometrik {'diaktifkan' if enabled else 'dinonaktifkan'}.",
+        }

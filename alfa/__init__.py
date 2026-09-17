@@ -14,7 +14,7 @@ Modules:
 Usage:
     from alfa.core import get_brain
     from alfa.cli import main as cli_main
-    
+
     # Or run CLI directly:
     # python -m alfa.cli
     # python -m alfa --server http://localhost:8080

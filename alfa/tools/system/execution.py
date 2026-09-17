@@ -9,8 +9,8 @@ from typing import Any, Dict, Optional
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system.constants import (
-    SANDBOX_DIR,
     _SANDBOX_IMAGE,
+    SANDBOX_DIR,
     _bash_blocked_reason,
     _check_docker_available,
     _clean_code_snippet,
@@ -29,7 +29,9 @@ def _get_subprocess():
 
 
 @register_tool(category="system")
-def execute_bash_command(command: str, working_dir: str = "", backend: str = "") -> Dict[str, Any]:
+def execute_bash_command(
+    command: str, working_dir: str = "", backend: str = ""
+) -> Dict[str, Any]:
     """
     Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
     default (resource-limited, no privileges). Falls back to a direct host run
@@ -72,21 +74,40 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             script_name = f"sandbox_sh_{stamp}.sh"
             script_path = os.path.join(SANDBOX_DIR, script_name)
             with open(script_path, "w", encoding="utf-8") as f:
-                f.write("#!/bin/bash\nset -o pipefail\n" + (command or "").strip() + "\n")
+                f.write(
+                    "#!/bin/bash\nset -o pipefail\n" + (command or "").strip() + "\n"
+                )
 
-            wd_abs = os.path.realpath(os.path.expanduser(working_dir)) if working_dir else ""
+            wd_abs = (
+                os.path.realpath(os.path.expanduser(working_dir)) if working_dir else ""
+            )
             cmd = [
-                "docker", "run", "--rm",
-                "--name", f"alfa_sbx_{stamp}",
-                "-v", f"{SANDBOX_DIR}:/sandbox",
-                "--cap-drop", "ALL",
-                "--security-opt", "no-new-privileges",
-                *(["--user", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []),
-                "-e", "HOME=/tmp",
-                "--memory", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--cpus", os.getenv("SANDBOX_CPUS", "1.0"),
-                "--pids-limit", "128",
+                "docker",
+                "run",
+                "--rm",
+                "--name",
+                f"alfa_sbx_{stamp}",
+                "-v",
+                f"{SANDBOX_DIR}:/sandbox",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                *(
+                    ["--user", f"{os.getuid()}:{os.getgid()}"]
+                    if hasattr(os, "getuid")
+                    else []
+                ),
+                "-e",
+                "HOME=/tmp",
+                "--memory",
+                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--memory-swap",
+                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--cpus",
+                os.getenv("SANDBOX_CPUS", "1.0"),
+                "--pids-limit",
+                "128",
             ]
             if wd_abs and os.path.isdir(wd_abs):
                 cmd += ["-v", f"{wd_abs}:/workspace", "-w", "/workspace"]
@@ -113,9 +134,13 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
             isolation = "docker"
         else:
-            allow_host = os.getenv("ALFA_ALLOW_HOST_EXEC", "false").strip().lower() == "true"
+            allow_host = (
+                os.getenv("ALFA_ALLOW_HOST_EXEC", "false").strip().lower() == "true"
+            )
             if not allow_host:
-                logger.warning("[SECURITY] Host execution blocked: Docker unavailable and ALFA_ALLOW_HOST_EXEC != true.")
+                logger.warning(
+                    "[SECURITY] Host execution blocked: Docker unavailable and ALFA_ALLOW_HOST_EXEC != true."
+                )
                 return {
                     "status": "error",
                     "exit_code": -1,
@@ -128,8 +153,14 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                     "isolation": "blocked",
                 }
             if pref in ("auto", "docker"):
-                logger.warning("[SECURITY] Docker tidak tersedia — eksekusi bash dialihkan ke HOST (ALFA_ALLOW_HOST_EXEC=true). Pastikan ALLOWED_USER_IDS terkonfigurasi ketat.")
-            target_dir = os.path.expanduser(working_dir) if working_dir else os.path.expanduser("~")
+                logger.warning(
+                    "[SECURITY] Docker tidak tersedia — eksekusi bash dialihkan ke HOST (ALFA_ALLOW_HOST_EXEC=true). Pastikan ALLOWED_USER_IDS terkonfigurasi ketat."
+                )
+            target_dir = (
+                os.path.expanduser(working_dir)
+                if working_dir
+                else os.path.expanduser("~")
+            )
             if not os.path.exists(target_dir):
                 target_dir = os.path.expanduser("~")
             if os.name == "nt":
@@ -163,14 +194,20 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                 proc = subprocess.Popen(cmd, **popen_kwargs)
                 try:
                     out, errout = proc.communicate(timeout=timeout_secs)
-                    result = subprocess.CompletedProcess(cmd, proc.returncode or 0, out, errout)
+                    result = subprocess.CompletedProcess(
+                        cmd, proc.returncode or 0, out, errout
+                    )
                 except subprocess.TimeoutExpired:
                     try:
                         if os.name == "nt":
-                            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                                           capture_output=True, timeout=10)
+                            subprocess.run(
+                                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                capture_output=True,
+                                timeout=10,
+                            )
                         else:
                             import signal as _sig
+
                             try:
                                 pgid = os.getpgid(proc.pid)
                                 if pgid != os.getpgrp():
@@ -199,16 +236,28 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
                 except OSError:
                     pass
 
-        stdout = result.stdout.strip() if hasattr(result, "stdout") and result.stdout else ""
-        stderr = result.stderr.strip() if hasattr(result, "stderr") and result.stderr else ""
+        stdout = (
+            result.stdout.strip() if hasattr(result, "stdout") and result.stdout else ""
+        )
+        stderr = (
+            result.stderr.strip() if hasattr(result, "stderr") and result.stderr else ""
+        )
         if len(stdout) > 3500:
             stdout = stdout[:3500] + "\n...[Output terpotong karena terlalu panjang]"
         if len(stderr) > 1200:
             stderr = stderr[:1200] + "\n...[Stderr terpotong]"
 
-        warn = "" if isolation == "docker" else " [PERINGATAN: dieksekusi di HOST tanpa isolasi]"
+        warn = (
+            ""
+            if isolation == "docker"
+            else " [PERINGATAN: dieksekusi di HOST tanpa isolasi]"
+        )
         returncode = result.returncode if hasattr(result, "returncode") else 0
-        hint = generate_self_heal_hint("execute_bash_command", "", stdout, stderr) if returncode != 0 else None
+        hint = (
+            generate_self_heal_hint("execute_bash_command", "", stdout, stderr)
+            if returncode != 0
+            else None
+        )
         return {
             "status": "success" if returncode == 0 else "failed",
             "exit_code": returncode,
@@ -219,7 +268,11 @@ def execute_bash_command(command: str, working_dir: str = "", backend: str = "")
             "self_heal_hint": hint,
         }
     except subprocess.TimeoutExpired:
-        return {"status": "error", "message": f"Command execution timed out ({timeout_secs}s).", "isolation": isolation}
+        return {
+            "status": "error",
+            "message": f"Command execution timed out ({timeout_secs}s).",
+            "isolation": isolation,
+        }
     except Exception as e:
         return {"status": "error", "message": str(e), "isolation": "none"}
 
@@ -234,14 +287,24 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
     sub = _get_subprocess()
     cleaned = _clean_code_snippet(code)
     if not cleaned:
-        return {"status": "error", "exit_code": -1, "stdout": "", "stderr": "Kode kosong untuk dieksekusi.", "has_plot": False, "isolation": "none"}
+        return {
+            "status": "error",
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": "Kode kosong untuk dieksekusi.",
+            "has_plot": False,
+            "isolation": "none",
+        }
     try:
         compile(cleaned, "<sandbox>", "exec")
     except SyntaxError as syn_err:
         return {
-            "status": "error", "exit_code": -1, "stdout": "",
+            "status": "error",
+            "exit_code": -1,
+            "stdout": "",
             "stderr": f"Syntax error di baris {syn_err.lineno}: {syn_err.msg}",
-            "has_plot": False, "isolation": "none",
+            "has_plot": False,
+            "isolation": "none",
         }
 
     backend_pref = os.getenv("SANDBOX_BACKEND", "auto").lower().strip()
@@ -287,18 +350,34 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
 
         if use_docker:
             cmd = [
-                "docker", "run", "--rm",
-                "--name", f"alfa_sbx_{stamp}",
-                "-v", f"{SANDBOX_DIR}:/sandbox",
-                "-w", "/sandbox",
-                "--cap-drop", "ALL",
-                "--security-opt", "no-new-privileges",
-                *(["--user", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []),
-                "-e", "HOME=/tmp",
-                "--memory", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--memory-swap", os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--cpus", os.getenv("SANDBOX_CPUS", "1.0"),
-                "--pids-limit", "128",
+                "docker",
+                "run",
+                "--rm",
+                "--name",
+                f"alfa_sbx_{stamp}",
+                "-v",
+                f"{SANDBOX_DIR}:/sandbox",
+                "-w",
+                "/sandbox",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                *(
+                    ["--user", f"{os.getuid()}:{os.getgid()}"]
+                    if hasattr(os, "getuid")
+                    else []
+                ),
+                "-e",
+                "HOME=/tmp",
+                "--memory",
+                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--memory-swap",
+                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+                "--cpus",
+                os.getenv("SANDBOX_CPUS", "1.0"),
+                "--pids-limit",
+                "128",
             ]
             user_home = os.path.expanduser("~")
             project_dirs = [
@@ -319,7 +398,9 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             timeout_secs = 30
             isolation = "none"
             if backend_pref in ("auto", "docker"):
-                logger.warning("Docker sandbox unavailable - falling back to DIRECT execution (no isolation).")
+                logger.warning(
+                    "Docker sandbox unavailable - falling back to DIRECT execution (no isolation)."
+                )
 
         try:
             res = sub.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
@@ -333,7 +414,11 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
         stderr = res.stderr.strip() if hasattr(res, "stderr") and res.stderr else ""
         returncode = res.returncode if hasattr(res, "returncode") else 0
         has_plot = os.path.exists(plot_path) and os.path.getsize(plot_path) > 0
-        hint = generate_self_heal_hint("execute_python_sandbox", "", stdout, stderr) if returncode != 0 else None
+        hint = (
+            generate_self_heal_hint("execute_python_sandbox", "", stdout, stderr)
+            if returncode != 0
+            else None
+        )
 
         return {
             "status": "success" if returncode == 0 else "error",
@@ -342,11 +427,23 @@ def execute_python_sandbox(code: str) -> Dict[str, Any]:
             "stderr": stderr or None,
             "generated_chart_photo": has_plot,
             "isolation": isolation,
-            "message": ("Grafik visual berhasil dibuat dan akan dikirim ke Telegram!" if has_plot else "Eksekusi kode selesai.")
-                        + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
+            "message": (
+                "Grafik visual berhasil dibuat dan akan dikirim ke Telegram!"
+                if has_plot
+                else "Eksekusi kode selesai."
+            )
+            + ("" if isolation == "docker" else " [PERINGATAN: tanpa isolasi]"),
             "self_heal_hint": hint,
         }
     except subprocess.TimeoutExpired:
-        return {"status": "error", "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).", "isolation": isolation}
+        return {
+            "status": "error",
+            "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).",
+            "isolation": isolation,
+        }
     except Exception as e:
-        return {"status": "error", "message": f"Python runner error: {str(e)}", "isolation": "none"}
+        return {
+            "status": "error",
+            "message": f"Python runner error: {str(e)}",
+            "isolation": "none",
+        }

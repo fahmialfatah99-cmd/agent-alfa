@@ -8,56 +8,70 @@ import os
 import subprocess
 
 
-def git_repo_health_analyzer(repo_path: str = '') -> dict:
+def git_repo_health_analyzer(repo_path: str = "") -> dict:
     """
     Audit kesehatan, histori commit, dan integritas repository Git lokal.
-    
+
     Args:
         repo_path: Path folder repository lokal (default: direktori project saat ini).
     """
-    
+
     if not repo_path:
         repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
-    if not os.path.exists(os.path.join(repo_path, '.git')):
-        return {'status': 'error', 'message': f'Direktori {repo_path} bukan merupakan repositori Git valid.'}
-        
+
+    if not os.path.exists(os.path.join(repo_path, ".git")):
+        return {
+            "status": "error",
+            "message": f"Direktori {repo_path} bukan merupakan repositori Git valid.",
+        }
+
     def run_git(cmd):
-        res = subprocess.run(['git'] + cmd, cwd=repo_path, capture_output=True, text=True)
+        res = subprocess.run(
+            ["git"] + cmd, cwd=repo_path, capture_output=True, text=True
+        )
         return res.stdout.strip()
-        
+
     try:
-        branch = run_git(['branch', '--show-current'])
-        total_commits = int(run_git(['rev-list', '--count', 'HEAD']) or 0)
-        last_commit = run_git(['log', '-1', '--pretty=format:%h - %s (%an, %ar)'])
-        status_raw = run_git(['status', '--short'])
-        modified_files = [line.strip() for line in status_raw.splitlines() if line.strip()]
-        
+        branch = run_git(["branch", "--show-current"])
+        total_commits = int(run_git(["rev-list", "--count", "HEAD"]) or 0)
+        last_commit = run_git(["log", "-1", "--pretty=format:%h - %s (%an, %ar)"])
+        status_raw = run_git(["status", "--short"])
+        modified_files = [
+            line.strip() for line in status_raw.splitlines() if line.strip()
+        ]
+
         # Check large files (>10MB) in working tree
         large_files = []
         for root, dirs, files in os.walk(repo_path):
-            if '.git' in root or 'venv' in root or 'node_modules' in root:
+            if ".git" in root or "venv" in root or "node_modules" in root:
                 continue
             for f in files:
                 fp = os.path.join(root, f)
                 try:
                     sz = os.path.getsize(fp)
                     if sz > 10 * 1024 * 1024:
-                        large_files.append({'file': os.path.relpath(fp, repo_path), 'size_mb': round(sz / (1024*1024), 2)})
+                        large_files.append(
+                            {
+                                "file": os.path.relpath(fp, repo_path),
+                                "size_mb": round(sz / (1024 * 1024), 2),
+                            }
+                        )
                 except OSError:
                     pass
-                    
+
         return {
-            'status': 'success',
-            'repo_path': repo_path,
-            'current_branch': branch,
-            'total_commits': total_commits,
-            'last_commit': last_commit,
-            'is_clean': len(modified_files) == 0,
-            'modified_or_untracked_count': len(modified_files),
-            'modified_files_sample': modified_files[:10],
-            'large_files_detected': large_files,
-            'health_score': 100 if (len(large_files) == 0 and len(modified_files) < 10) else 80
+            "status": "success",
+            "repo_path": repo_path,
+            "current_branch": branch,
+            "total_commits": total_commits,
+            "last_commit": last_commit,
+            "is_clean": len(modified_files) == 0,
+            "modified_or_untracked_count": len(modified_files),
+            "modified_files_sample": modified_files[:10],
+            "large_files_detected": large_files,
+            "health_score": (
+                100 if (len(large_files) == 0 and len(modified_files) < 10) else 80
+            ),
         }
     except Exception as e:
-        return {'status': 'error', 'message': f'Git audit error: {str(e)}'}
+        return {"status": "error", "message": f"Git audit error: {str(e)}"}

@@ -1,9 +1,11 @@
 """Web search, scraping, browser automation, and affiliate tools."""
 
-from alfa.tools.web.search import (
-    audit_website_security,
-    fetch_web_page_content,
-    web_search,
+from alfa.tools.web.affiliate import (
+    affiliate_broadcast_deal,
+    affiliate_generate_viral_content,
+    affiliate_hunt_trending_products,
+    affiliate_list_campaigns,
+    marketplace_search_products,
 )
 from alfa.tools.web.browser import (
     _ensure_camofox_server,
@@ -28,12 +30,10 @@ from alfa.tools.web.scrapers import (
     scrapy_spider_quick_scrape,
     universal_deep_scraper,
 )
-from alfa.tools.web.affiliate import (
-    affiliate_broadcast_deal,
-    affiliate_generate_viral_content,
-    affiliate_hunt_trending_products,
-    affiliate_list_campaigns,
-    marketplace_search_products,
+from alfa.tools.web.search import (
+    audit_website_security,
+    fetch_web_page_content,
+    web_search,
 )
 
 __all__ = [

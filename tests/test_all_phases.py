@@ -1,19 +1,20 @@
+import os
 import sys
 from pathlib import Path
-import os
+
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import tools
-import main_brain
 import alfa
+import alfa.bot
 import alfa.core
+import alfa.dashboard
+import alfa.scrapers
 import alfa.security
 import alfa.swarm
-import alfa.scrapers
-import alfa.bot
-import alfa.dashboard
+import main_brain
+import tools
 
 
 def test_alfa_modular_package_structure():
@@ -32,7 +33,7 @@ def test_ollama_offline_mode_main_brain(monkeypatch):
     monkeypatch.setenv("ALFA_OFFLINE_MODE", "true")
     monkeypatch.setenv("OLLAMA_MODEL", "hermes3:latest")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-    
+
     brain = main_brain.get_main_brain()
     assert brain["provider"] == "ollama"
     assert brain["model"] == "hermes3:latest"

@@ -2,46 +2,48 @@
 
 Used directly by systemd service alfa-dashboard.service.
 """
+
 import os
 import sys
+
 import uvicorn
 
 # Re-export all symbols from alfa.dashboard.app
 from alfa.dashboard.app import (
-    app,
-    create_app,
-    lifespan,
-    _check_security_config,
-    _pipeline_trigger_scheduler,
-    _malloc_trim_loop,
+    DASHBOARD_AUTH_TOKEN,
+    REPO_ROOT,
+    SESSION_DURATION_HOURS,
+    SESSION_SECRET,
+    STATIC_DIR,
+    TEMPLATES_DIR,
+    ConnectionManager,
     DashboardAuthMiddleware,
-    init_auth_db,
-    create_user,
+    _check_security_config,
+    _create_session_token,
+    _hash_password,
+    _malloc_trim_loop,
+    _parse_ai_sections,
+    _pipeline_trigger_scheduler,
+    _safe_workspace_path,
+    _verify_password,
+    _verify_session_token,
+    _ws_real_path,
+    app,
     authenticate_user,
+    categorize_tool,
+    create_app,
+    create_user,
+    delete_user,
+    get_all_users,
+    get_primary_user_id,
+    init_auth_db,
+    invalidate_session,
+    lifespan,
+    logger,
+    safe_int,
     store_session,
     validate_session,
-    invalidate_session,
-    get_all_users,
-    delete_user,
-    _hash_password,
-    _verify_password,
-    _create_session_token,
-    _verify_session_token,
-    get_primary_user_id,
-    safe_int,
-    categorize_tool,
-    _parse_ai_sections,
-    _ws_real_path,
-    _safe_workspace_path,
-    logger,
-    TEMPLATES_DIR,
-    STATIC_DIR,
-    REPO_ROOT,
-    DASHBOARD_AUTH_TOKEN,
-    SESSION_SECRET,
-    SESSION_DURATION_HOURS,
     ws_manager,
-    ConnectionManager,
 )
 
 # Re-run security check on module reload (initial import is checked by create_app())

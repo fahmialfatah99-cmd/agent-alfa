@@ -1,70 +1,184 @@
-# Dependencies
+```
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-.coveragerc
-
-# Databases & Runtime storage
-*.db
-*.db-shm
-*.db-wal
-agent_data.db.bak
-agent_data.db.local_backup
-storage/
-guardian_err.log
-bot_err.log
-bot_out.log
-dash_err.log
-dash_out.log
-
-# Node dependencies
-node_modules/
-devcli/node_modules/
-package-lock.json
-alfa/package-lock.json
-alfa-cli/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual environments
-.venv/
 venv/
-env/
+ENV/
+env.bak/
+.venv/
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+.pytest_cache/
+.hypothesis/
 
-# Logs
-*.log
-
-# Environment variables & Keys
-.env
-.env.local
-*.env.*
-*.key
-.alfa_vault_master.key
-gdrive_oauth_client_secret.json
-gdrive_oauth_token.json
-
-# Editors
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS generated files
+# OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+*.env.*
 
 # Coverage
 coverage/
 
-# Scratch & Worktrees
-.superpowers/
-.alfa_worktrees/
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage*
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Sphinx
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Sage
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# Pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# PyCharm
+# C extensions
+*.so
+
+# Coverage
+.coverage*
+```

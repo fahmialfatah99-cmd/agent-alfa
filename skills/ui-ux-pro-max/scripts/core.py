@@ -7,9 +7,9 @@ UI/UX Pro Max Core - BM25 search engine for UI/UX style guides
 import csv
 import difflib
 import re
-from pathlib import Path
-from math import log
 from collections import defaultdict
+from math import log
+from pathlib import Path
 
 # ============ CONFIGURATION ============
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -18,106 +18,319 @@ MAX_RESULTS = 3
 CSV_CONFIG = {
     "style": {
         "file": "styles.csv",
-        "search_cols": ["Style ID", "Style Category", "Aliases", "Keywords", "Best For", "Type", "AI Prompt Keywords"],
-        "output_cols": ["Style ID", "Style Category", "Aliases", "Status", "Parent Style ID", "Preferred Mode", "Type", "Keywords", "Primary Colors", "Effects & Animation", "Best For", "Light Mode ✓", "Dark Mode ✓", "Performance", "Accessibility", "Framework Compatibility", "Complexity", "AI Prompt Keywords", "CSS/Technical Keywords", "Implementation Checklist", "Design System Variables"]
+        "search_cols": [
+            "Style ID",
+            "Style Category",
+            "Aliases",
+            "Keywords",
+            "Best For",
+            "Type",
+            "AI Prompt Keywords",
+        ],
+        "output_cols": [
+            "Style ID",
+            "Style Category",
+            "Aliases",
+            "Status",
+            "Parent Style ID",
+            "Preferred Mode",
+            "Type",
+            "Keywords",
+            "Primary Colors",
+            "Effects & Animation",
+            "Best For",
+            "Light Mode ✓",
+            "Dark Mode ✓",
+            "Performance",
+            "Accessibility",
+            "Framework Compatibility",
+            "Complexity",
+            "AI Prompt Keywords",
+            "CSS/Technical Keywords",
+            "Implementation Checklist",
+            "Design System Variables",
+        ],
     },
     "color": {
         "file": "colors.csv",
         "search_cols": ["Product Type", "Notes"],
-        "output_cols": ["Product Type", "Primary", "On Primary", "Secondary", "On Secondary", "Accent", "On Accent", "Background", "Foreground", "Card", "Card Foreground", "Muted", "Muted Foreground", "Border", "Destructive", "On Destructive", "Ring", "Notes"]
+        "output_cols": [
+            "Product Type",
+            "Primary",
+            "On Primary",
+            "Secondary",
+            "On Secondary",
+            "Accent",
+            "On Accent",
+            "Background",
+            "Foreground",
+            "Card",
+            "Card Foreground",
+            "Muted",
+            "Muted Foreground",
+            "Border",
+            "Destructive",
+            "On Destructive",
+            "Ring",
+            "Notes",
+        ],
     },
     "chart": {
         "file": "charts.csv",
-        "search_cols": ["Data Type", "Keywords", "Best Chart Type", "When to Use", "When NOT to Use", "Accessibility Notes"],
-        "output_cols": ["Data Type", "Keywords", "Best Chart Type", "Secondary Options", "When to Use", "When NOT to Use", "Data Volume Threshold", "Color Guidance", "Accessibility Grade", "Accessibility Risk", "Accessibility Notes", "A11y Fallback", "Library Recommendation", "Interactive Level"]
+        "search_cols": [
+            "Data Type",
+            "Keywords",
+            "Best Chart Type",
+            "When to Use",
+            "When NOT to Use",
+            "Accessibility Notes",
+        ],
+        "output_cols": [
+            "Data Type",
+            "Keywords",
+            "Best Chart Type",
+            "Secondary Options",
+            "When to Use",
+            "When NOT to Use",
+            "Data Volume Threshold",
+            "Color Guidance",
+            "Accessibility Grade",
+            "Accessibility Risk",
+            "Accessibility Notes",
+            "A11y Fallback",
+            "Library Recommendation",
+            "Interactive Level",
+        ],
     },
     "landing": {
         "file": "landing.csv",
-        "search_cols": ["Pattern ID", "Pattern Name", "Aliases", "Keywords", "Conversion Optimization", "Section Order"],
-        "output_cols": ["Pattern ID", "Pattern Name", "Aliases", "Keywords", "Section Order", "Primary CTA Placement", "Color Strategy", "Conversion Optimization"]
+        "search_cols": [
+            "Pattern ID",
+            "Pattern Name",
+            "Aliases",
+            "Keywords",
+            "Conversion Optimization",
+            "Section Order",
+        ],
+        "output_cols": [
+            "Pattern ID",
+            "Pattern Name",
+            "Aliases",
+            "Keywords",
+            "Section Order",
+            "Primary CTA Placement",
+            "Color Strategy",
+            "Conversion Optimization",
+        ],
     },
     "product": {
         "file": "products.csv",
-        "search_cols": ["Product Type", "Keywords", "Primary Style Recommendation", "Key Considerations"],
-        "output_cols": ["Product Type", "Keywords", "Primary Style Recommendation", "Secondary Styles", "Landing Page Pattern", "Dashboard Style (if applicable)", "Color Palette Focus"]
+        "search_cols": [
+            "Product Type",
+            "Keywords",
+            "Primary Style Recommendation",
+            "Key Considerations",
+        ],
+        "output_cols": [
+            "Product Type",
+            "Keywords",
+            "Primary Style Recommendation",
+            "Secondary Styles",
+            "Landing Page Pattern",
+            "Dashboard Style (if applicable)",
+            "Color Palette Focus",
+        ],
     },
     "ux": {
         "file": "ux-guidelines.csv",
         "search_cols": ["Category", "Issue", "Description", "Platform"],
-        "output_cols": ["Category", "Issue", "Platform", "Description", "Do", "Don't", "Code Example Good", "Code Example Bad", "Severity"]
+        "output_cols": [
+            "Category",
+            "Issue",
+            "Platform",
+            "Description",
+            "Do",
+            "Don't",
+            "Code Example Good",
+            "Code Example Bad",
+            "Severity",
+        ],
     },
     "typography": {
         "file": "typography.csv",
-        "search_cols": ["Font Pairing Name", "Category", "Mood/Style Keywords", "Best For", "Heading Font", "Body Font"],
-        "output_cols": ["Font Pairing Name", "Category", "Heading Font", "Body Font", "Mood/Style Keywords", "Best For", "Google Fonts URL", "CSS Import", "Tailwind Config", "Notes"]
+        "search_cols": [
+            "Font Pairing Name",
+            "Category",
+            "Mood/Style Keywords",
+            "Best For",
+            "Heading Font",
+            "Body Font",
+        ],
+        "output_cols": [
+            "Font Pairing Name",
+            "Category",
+            "Heading Font",
+            "Body Font",
+            "Mood/Style Keywords",
+            "Best For",
+            "Google Fonts URL",
+            "CSS Import",
+            "Tailwind Config",
+            "Notes",
+        ],
     },
     "icons": {
         "file": "icons.csv",
         "search_cols": ["Category", "Icon Name", "Keywords", "Best For", "Library"],
-        "output_cols": ["Category", "Icon Name", "Keywords", "Library", "Import Code", "Usage", "Best For", "Style", "Semantic Role", "Allowed Contexts"]
+        "output_cols": [
+            "Category",
+            "Icon Name",
+            "Keywords",
+            "Library",
+            "Import Code",
+            "Usage",
+            "Best For",
+            "Style",
+            "Semantic Role",
+            "Allowed Contexts",
+        ],
     },
     "gsap": {
         "file": "motion.csv",
         "search_cols": ["Category", "Intensity Tier", "Keywords", "Trigger"],
-        "output_cols": ["Category", "Intensity Tier", "Trigger", "Duration", "Easing", "GSAP Snippet", "Framework Notes", "Do", "Don't", "Performance Notes"]
+        "output_cols": [
+            "Category",
+            "Intensity Tier",
+            "Trigger",
+            "Duration",
+            "Easing",
+            "GSAP Snippet",
+            "Framework Notes",
+            "Do",
+            "Don't",
+            "Performance Notes",
+        ],
     },
     "react": {
         "file": "react-performance.csv",
         "search_cols": ["Category", "Issue", "Keywords", "Description"],
-        "output_cols": ["Category", "Issue", "Platform", "Description", "Do", "Don't", "Code Example Good", "Code Example Bad", "Severity"]
+        "output_cols": [
+            "Category",
+            "Issue",
+            "Platform",
+            "Description",
+            "Do",
+            "Don't",
+            "Code Example Good",
+            "Code Example Bad",
+            "Severity",
+        ],
     },
     "web": {
         "file": "app-interface.csv",
         "search_cols": ["Category", "Issue", "Keywords", "Description"],
-        "output_cols": ["Category", "Issue", "Platform", "Description", "Do", "Don't", "Code Example Good", "Code Example Bad", "Severity"]
+        "output_cols": [
+            "Category",
+            "Issue",
+            "Platform",
+            "Description",
+            "Do",
+            "Don't",
+            "Code Example Good",
+            "Code Example Bad",
+            "Severity",
+        ],
     },
     "google-fonts": {
         "file": "google-fonts.csv",
-        "search_cols": ["Family", "Category", "Stroke", "Classifications", "Keywords", "Subsets", "Designers"],
-        "output_cols": ["Family", "Category", "Stroke", "Classifications", "Styles", "Variable Axes", "Subsets", "Designers", "Popularity Rank", "Google Fonts URL"]
-    }
+        "search_cols": [
+            "Family",
+            "Category",
+            "Stroke",
+            "Classifications",
+            "Keywords",
+            "Subsets",
+            "Designers",
+        ],
+        "output_cols": [
+            "Family",
+            "Category",
+            "Stroke",
+            "Classifications",
+            "Styles",
+            "Variable Axes",
+            "Subsets",
+            "Designers",
+            "Popularity Rank",
+            "Google Fonts URL",
+        ],
+    },
 }
 
 # Output columns whose content (code samples, checklists) must never be
 # hard-truncated for display -- truncating mid-snippet destroys the value.
 UNTRUNCATED_COLS = {
-    "Code Example Good", "Code Example Bad", "Code Good", "Code Bad",
-    "Implementation Checklist", "Design System Variables", "CSS Import",
-    "Tailwind Config", "GSAP Snippet",
+    "Code Example Good",
+    "Code Example Bad",
+    "Code Good",
+    "Code Bad",
+    "Implementation Checklist",
+    "Design System Variables",
+    "CSS Import",
+    "Tailwind Config",
+    "GSAP Snippet",
 }
 
 STACK_CONFIG = {
-    "react":            {"file": "stacks/react.csv"},
-    "nextjs":           {"file": "stacks/nextjs.csv"},
-    "vue":              {"file": "stacks/vue.csv"},
-    "svelte":           {"file": "stacks/svelte.csv"},
-    "astro":            {"file": "stacks/astro.csv"},
-    "swiftui":          {"file": "stacks/swiftui.csv"},
-    "react-native":     {"file": "stacks/react-native.csv"},
-    "flutter":          {"file": "stacks/flutter.csv"},
-    "nuxtjs":           {"file": "stacks/nuxtjs.csv"},
-    "nuxt-ui":          {"file": "stacks/nuxt-ui.csv"},
-    "html-tailwind":    {"file": "stacks/html-tailwind.csv"},
-    "shadcn":           {"file": "stacks/shadcn.csv"},
-    "jetpack-compose":  {"file": "stacks/jetpack-compose.csv"},
-    "threejs":          {"file": "stacks/threejs.csv"},
-    "angular":          {"file": "stacks/angular.csv"},
-    "laravel":          {"file": "stacks/laravel.csv"},
-    "javafx":           {"file": "stacks/javafx.csv"},
-    "wpf":              {"file": "stacks/wpf.csv"},
-    "winui":            {"file": "stacks/winui.csv"},
-    "avalonia":         {"file": "stacks/avalonia.csv"},
-    "uno":              {"file": "stacks/uno.csv"},
-    "uwp":              {"file": "stacks/uwp.csv"},
+    "react": {"file": "stacks/react.csv"},
+    "nextjs": {"file": "stacks/nextjs.csv"},
+    "vue": {"file": "stacks/vue.csv"},
+    "svelte": {"file": "stacks/svelte.csv"},
+    "astro": {"file": "stacks/astro.csv"},
+    "swiftui": {"file": "stacks/swiftui.csv"},
+    "react-native": {"file": "stacks/react-native.csv"},
+    "flutter": {"file": "stacks/flutter.csv"},
+    "nuxtjs": {"file": "stacks/nuxtjs.csv"},
+    "nuxt-ui": {"file": "stacks/nuxt-ui.csv"},
+    "html-tailwind": {"file": "stacks/html-tailwind.csv"},
+    "shadcn": {"file": "stacks/shadcn.csv"},
+    "jetpack-compose": {"file": "stacks/jetpack-compose.csv"},
+    "threejs": {"file": "stacks/threejs.csv"},
+    "angular": {"file": "stacks/angular.csv"},
+    "laravel": {"file": "stacks/laravel.csv"},
+    "javafx": {"file": "stacks/javafx.csv"},
+    "wpf": {"file": "stacks/wpf.csv"},
+    "winui": {"file": "stacks/winui.csv"},
+    "avalonia": {"file": "stacks/avalonia.csv"},
+    "uno": {"file": "stacks/uno.csv"},
+    "uwp": {"file": "stacks/uwp.csv"},
 }
 
 # Common columns for all stacks
 _STACK_COLS = {
-    "search_cols": ["Category", "Guideline", "Description", "Do", "Don't",
-                    "Code Good", "Code Bad"],
-    "output_cols": ["Category", "Guideline", "Description", "Do", "Don't",
-                    "Code Good", "Code Bad", "Severity", "Docs URL",
-                    "Applies To", "Status", "Verified At"]
+    "search_cols": [
+        "Category",
+        "Guideline",
+        "Description",
+        "Do",
+        "Don't",
+        "Code Good",
+        "Code Bad",
+    ],
+    "output_cols": [
+        "Category",
+        "Guideline",
+        "Description",
+        "Do",
+        "Don't",
+        "Code Good",
+        "Code Bad",
+        "Severity",
+        "Docs URL",
+        "Applies To",
+        "Status",
+        "Verified At",
+    ],
 }
 
 WEB_STACK_CURRENT_MAJORS = {
@@ -201,12 +414,18 @@ _SEARCH_CALIBRATION_VERSION = "2026-08-12-v1"
 # domain-specific because corpora vary greatly in size and document length.
 # Values are intentionally conservative and are measured by the calibration suite.
 _DOMAIN_SCORE_FLOORS = {
-    "style": 4.3, "landing": 4.0, "product": 6.0, "icons": 5.8,
+    "style": 4.3,
+    "landing": 4.0,
+    "product": 6.0,
+    "icons": 5.8,
     "react": 3.3,
 }
 _SEARCH_THRESHOLDS = {
-    domain: {"min_score": _DOMAIN_SCORE_FLOORS.get(domain, 0.0),
-             "min_margin": 0.0, "min_coverage": 0.5 if domain == "landing" else 0.0}
+    domain: {
+        "min_score": _DOMAIN_SCORE_FLOORS.get(domain, 0.0),
+        "min_margin": 0.0,
+        "min_coverage": 0.5 if domain == "landing" else 0.0,
+    }
     for domain in CSV_CONFIG
 }
 _STACK_THRESHOLD = {"min_score": 3.6, "min_margin": 0.0, "min_coverage": 1 / 3}
@@ -214,22 +433,50 @@ _NO_THRESHOLD = {"min_score": 0.0, "min_margin": 0.0, "min_coverage": 0.0}
 _STYLE_IDENTITY_FIELDS = ("Style ID", "Style Category", "Aliases")
 _LANDING_IDENTITY_FIELDS = ("Pattern ID", "Pattern Name", "Aliases")
 _DOMAIN_QUERY_REWRITES = {
-    "color": {term: None for term in (
-        "color", "palette", "hex", "rgb", "token", "semantic",
-        "destructive", "muted", "foreground")},
+    "color": {
+        term: None
+        for term in (
+            "color",
+            "palette",
+            "hex",
+            "rgb",
+            "token",
+            "semantic",
+            "destructive",
+            "muted",
+            "foreground",
+        )
+    },
     "landing": {"testimonial": "testimonials"},
-    "style": {"css": None, "implementation": None, "variable": None,
-              "checklist": None, "tailwind": None},
-    "ux": {"ux": "accessibility", "usability": "accessibility",
-           "wcag": "accessibility"},
+    "style": {
+        "css": None,
+        "implementation": None,
+        "variable": None,
+        "checklist": None,
+        "tailwind": None,
+    },
+    "ux": {
+        "ux": "accessibility",
+        "usability": "accessibility",
+        "wcag": "accessibility",
+    },
     "google-fonts": {"typography": "font"},
     "icons": {"lucide": None, "symbol": None, "glyph": None, "pictogram": None},
-    "gsap": {"gsap": "animation", "quickto": None, "scrolltrigger": "scroll",
-             "flip plugin": None, "splittext": None},
-    "react": {"nextjs": "react", "usecallback": "memoization",
-              "useeffect": "effects"},
-    "web": {"aria": "accessibility", "outline": "focus",
-            "semantic": None, "autocomplete": "input", "preconnect": None},
+    "gsap": {
+        "gsap": "animation",
+        "quickto": None,
+        "scrolltrigger": "scroll",
+        "flip plugin": None,
+        "splittext": None,
+    },
+    "react": {"nextjs": "react", "usecallback": "memoization", "useeffect": "effects"},
+    "web": {
+        "aria": "accessibility",
+        "outline": "focus",
+        "semantic": None,
+        "autocomplete": "input",
+        "preconnect": None,
+    },
 }
 
 
@@ -239,8 +486,28 @@ _DOMAIN_QUERY_REWRITES = {
 # css, 3d, js, os, md, gsap) must stay searchable, which is why we don't
 # filter purely by length.
 _STOPWORDS = {
-    "to", "in", "on", "at", "is", "of", "by", "or", "an", "if", "no", "so",
-    "do", "be", "we", "it", "as", "the", "and", "for", "are", "was",
+    "to",
+    "in",
+    "on",
+    "at",
+    "is",
+    "of",
+    "by",
+    "or",
+    "an",
+    "if",
+    "no",
+    "so",
+    "do",
+    "be",
+    "we",
+    "it",
+    "as",
+    "the",
+    "and",
+    "for",
+    "are",
+    "was",
 }
 
 # Query/corpus normalization so common spelling variants match each other.
@@ -266,7 +533,9 @@ _SYNONYMS = {
 
 _SYNONYM_PATTERNS = [
     (re.compile(r"(?<!\w)" + re.escape(variant) + r"(?!\w)", re.IGNORECASE), canonical)
-    for variant, canonical in sorted(_SYNONYMS.items(), key=lambda item: len(item[0]), reverse=True)
+    for variant, canonical in sorted(
+        _SYNONYMS.items(), key=lambda item: len(item[0]), reverse=True
+    )
 ]
 
 
@@ -296,7 +565,7 @@ class BM25:
     def tokenize(self, text):
         """Lowercase, normalize synonyms, split, remove punctuation, filter stopwords"""
         text = _normalize(str(text).lower())
-        text = re.sub(r'[^\w\s]', ' ', text)
+        text = re.sub(r"[^\w\s]", " ", text)
         return [w for w in text.split() if len(w) >= 2 and w not in _STOPWORDS]
 
     def fit(self, documents):
@@ -335,7 +604,9 @@ class BM25:
                     tf = term_freqs.get(token, 0)
                     idf = self.idf[token]
                     numerator = tf * (self.k1 + 1)
-                    denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avgdl)
+                    denominator = tf + self.k1 * (
+                        1 - self.b + self.b * doc_len / self.avgdl
+                    )
                     score += idf * numerator / denominator
 
             scores.append((idx, score))
@@ -351,7 +622,7 @@ class BM25:
 # Data files are small and reused across multiple domain searches within a
 # single --design-system run; avoid re-reading + re-indexing the same file
 # repeatedly in one process.
-_csv_cache = {}   # filepath -> (signature, rows)
+_csv_cache = {}  # filepath -> (signature, rows)
 _bm25_cache = {}  # (path, fields, scorer version) -> (file signature, index)
 
 
@@ -369,7 +640,7 @@ def _load_csv_snapshot(filepath, attempts=3):
 
     for _ in range(attempts):
         before = _file_signature(filepath)
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         after = _file_signature(filepath)
         if before == after:
@@ -388,14 +659,18 @@ def _get_bm25(filepath, search_cols, data, signature=None, cache_variant=""):
     key = (filepath, tuple(search_cols), _INDEX_VERSION, cache_variant)
     if signature is None:
         cached_rows = _csv_cache.get(filepath)
-        signature = (cached_rows[0] if cached_rows and cached_rows[1] is data
-                     else _file_signature(filepath))
+        signature = (
+            cached_rows[0]
+            if cached_rows and cached_rows[1] is data
+            else _file_signature(filepath)
+        )
     cached = _bm25_cache.get(key)
     if cached and cached[0] == signature:
         return cached[1]
 
-    documents = [" ".join(str(row.get(column, "")) for column in search_cols)
-                 for row in data]
+    documents = [
+        " ".join(str(row.get(column, "")) for column in search_cols) for row in data
+    ]
     index = BM25()
     index.fit(documents)
     _bm25_cache[key] = (signature, index)
@@ -411,9 +686,17 @@ def _query_coverage(index, query):
     return sum(token in vocabulary for token in tokens) / len(tokens)
 
 
-def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
-                         threshold=None, routing_domain=None, row_filter=None,
-                         cache_variant=""):
+def _search_csv_detailed(
+    filepath,
+    search_cols,
+    output_cols,
+    query,
+    max_results,
+    threshold=None,
+    routing_domain=None,
+    row_filter=None,
+    cache_variant="",
+):
     """Calibrated search returning results, index, and internal diagnostics."""
     if not filepath.exists():
         return [], None, {"reason": "missing-file"}
@@ -421,10 +704,14 @@ def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
     try:
         data, signature = _load_csv_snapshot(filepath)
     except (csv.Error, OSError, UnicodeDecodeError):
-        return [], None, {
-            "reason": "read-error",
-            "error": f"Unable to read search data: {filepath.name}",
-        }
+        return (
+            [],
+            None,
+            {
+                "reason": "read-error",
+                "error": f"Unable to read search data: {filepath.name}",
+            },
+        )
 
     if not data:
         return [], None, {"reason": "empty-data"}
@@ -441,10 +728,14 @@ def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
     top_score = ranked[0][1] if ranked else 0.0
     runner_up_score = ranked[1][1] if len(ranked) > 1 else 0.0
     coverage = _query_coverage(bm25, search_query)
-    abstain = (top_score <= threshold["min_score"]
-               or coverage < threshold["min_coverage"]
-               or (threshold["min_margin"] > 0
-                   and top_score - runner_up_score < threshold["min_margin"]))
+    abstain = (
+        top_score <= threshold["min_score"]
+        or coverage < threshold["min_coverage"]
+        or (
+            threshold["min_margin"] > 0
+            and top_score - runner_up_score < threshold["min_margin"]
+        )
+    )
 
     results = []
     if not abstain:
@@ -454,19 +745,26 @@ def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
             row = data[idx]
             results.append({col: row.get(col, "") for col in output_cols if col in row})
 
-    diagnostic = {"normalized_query": _normalize(query), "search_query": search_query,
-                  "query_rewrites": rewrites, "top_score": top_score,
-                  "runner_up_score": runner_up_score, "margin": top_score - runner_up_score,
-                  "token_coverage": coverage, "abstained": abstain,
-                  "calibration_version": _SEARCH_CALIBRATION_VERSION,
-                  "reason": "low-confidence" if abstain else "matched"}
+    diagnostic = {
+        "normalized_query": _normalize(query),
+        "search_query": search_query,
+        "query_rewrites": rewrites,
+        "top_score": top_score,
+        "runner_up_score": runner_up_score,
+        "margin": top_score - runner_up_score,
+        "token_coverage": coverage,
+        "abstained": abstain,
+        "calibration_version": _SEARCH_CALIBRATION_VERSION,
+        "reason": "low-confidence" if abstain else "matched",
+    }
     return results, bm25, diagnostic
 
 
 def _search_csv(filepath, search_cols, output_cols, query, max_results):
     """Backward-compatible internal search tuple used by existing callers/tests."""
     results, index, _ = _search_csv_detailed(
-        filepath, search_cols, output_cols, query, max_results)
+        filepath, search_cols, output_cols, query, max_results
+    )
     return results, index
 
 
@@ -474,10 +772,14 @@ def _passes_threshold(index, query, threshold):
     ranked = index.score(query)
     top_score = ranked[0][1] if ranked else 0.0
     runner_up_score = ranked[1][1] if len(ranked) > 1 else 0.0
-    return (top_score > threshold["min_score"]
-            and _query_coverage(index, query) >= threshold["min_coverage"]
-            and (threshold["min_margin"] <= 0
-                 or top_score - runner_up_score >= threshold["min_margin"]))
+    return (
+        top_score > threshold["min_score"]
+        and _query_coverage(index, query) >= threshold["min_coverage"]
+        and (
+            threshold["min_margin"] <= 0
+            or top_score - runner_up_score >= threshold["min_margin"]
+        )
+    )
 
 
 def _suggest_terms(bm25, query, limit=6, threshold=None):
@@ -493,10 +795,12 @@ def _suggest_terms(bm25, query, limit=6, threshold=None):
     for term in bm25.vocabulary():
         if term in query_tokens:
             continue
-        similarity = max(difflib.SequenceMatcher(None, token, term).ratio()
-                         for token in query_tokens)
-        if (similarity >= 0.72
-                and (threshold is None or _passes_threshold(bm25, term, threshold))):
+        similarity = max(
+            difflib.SequenceMatcher(None, token, term).ratio() for token in query_tokens
+        )
+        if similarity >= 0.72 and (
+            threshold is None or _passes_threshold(bm25, term, threshold)
+        ):
             candidates.append((-similarity, -bm25.doc_freqs.get(term, 0), term))
     return [term for _, _, term in sorted(candidates)[:limit]]
 
@@ -515,9 +819,13 @@ def _suggest_identities(rows, query, fields, limit=6):
                 continue
             similarity = max(
                 difflib.SequenceMatcher(None, source, target).ratio()
-                for source in query_tokens for target in identity_tokens
+                for source in query_tokens
+                for target in identity_tokens
             )
-            if similarity >= 0.72 and identity.casefold() != str(query).strip().casefold():
+            if (
+                similarity >= 0.72
+                and identity.casefold() != str(query).strip().casefold()
+            ):
                 candidates.append((-similarity, len(identity_tokens), identity))
     return [identity for _, _, identity in sorted(set(candidates))[:limit]]
 
@@ -526,7 +834,11 @@ def _row_identities(row, fields):
     """Return non-empty public identities from ordinary and alias fields."""
     identities = []
     for field in fields:
-        values = row.get(field, "").split("|") if field == "Aliases" else [row.get(field, "")]
+        values = (
+            row.get(field, "").split("|")
+            if field == "Aliases"
+            else [row.get(field, "")]
+        )
         identities.extend(value.strip() for value in values if value.strip())
     return identities
 
@@ -537,10 +849,29 @@ def _row_identities(row, fields):
 # missing (e.g. package built without data/).
 def _load_product_keywords():
     """Return high-signal product labels/aliases, never every corpus keyword."""
-    seed = ["saas", "ecommerce", "fintech", "healthcare", "gaming", "portfolio",
-            "crypto", "fitness", "marketplace", "banking", "cybersecurity",
-            "education", "travel", "restaurant", "real estate", "social media",
-            "beauty", "spa", "salon", "wellness", "booking"]
+    seed = [
+        "saas",
+        "ecommerce",
+        "fintech",
+        "healthcare",
+        "gaming",
+        "portfolio",
+        "crypto",
+        "fitness",
+        "marketplace",
+        "banking",
+        "cybersecurity",
+        "education",
+        "travel",
+        "restaurant",
+        "real estate",
+        "social media",
+        "beauty",
+        "spa",
+        "salon",
+        "wellness",
+        "booking",
+    ]
     filepath = DATA_DIR / CSV_CONFIG["product"]["file"]
     if not filepath.exists():
         return seed
@@ -569,18 +900,156 @@ def _domain_keywords():
         return _DOMAIN_KEYWORDS
 
     _DOMAIN_KEYWORDS = {
-        "color": ["color", "palette", "hex", "rgb", "token", "semantic", "accent", "destructive", "muted", "foreground"],
-        "chart": ["time series", "chart", "graph", "visualization", "trend", "bar chart", "pie", "scatter", "heatmap", "funnel", "forecast"],
-        "landing": ["landing", "page", "cta", "conversion", "hero", "testimonial", "pricing", "section"],
+        "color": [
+            "color",
+            "palette",
+            "hex",
+            "rgb",
+            "token",
+            "semantic",
+            "accent",
+            "destructive",
+            "muted",
+            "foreground",
+        ],
+        "chart": [
+            "time series",
+            "chart",
+            "graph",
+            "visualization",
+            "trend",
+            "bar chart",
+            "pie",
+            "scatter",
+            "heatmap",
+            "funnel",
+            "forecast",
+        ],
+        "landing": [
+            "landing",
+            "page",
+            "cta",
+            "conversion",
+            "hero",
+            "testimonial",
+            "pricing",
+            "section",
+        ],
         "product": _load_product_keywords(),
-        "style": ["style", "design", "ui", "minimalism", "glassmorphism", "neumorphism", "brutalism", "dark mode", "flat", "aurora", "css", "implementation", "variable", "checklist", "tailwind"],
-        "ux": ["ux", "usability", "accessibility", "wcag", "touch", "scroll", "animation", "keyboard", "navigation", "mobile"],
-        "typography": ["font pairing", "typography pairing", "heading font", "body font"],
-        "google-fonts": ["google font", "font family", "font weight", "font style", "variable font", "noto", "font for", "find font", "font subset", "font language", "monospace font", "serif font", "sans serif font", "display font", "handwriting font", "font", "typography", "serif", "sans"],
-        "icons": ["icon", "icons", "lucide", "phosphor", "heroicons", "symbol", "glyph", "pictogram", "svg icon"],
-        "gsap": ["gsap", "quickto", "scrolltrigger", "stagger", "magnetic cursor", "parallax", "page transition", "scroll reveal", "scroll-triggered", "scrollytelling", "flip plugin", "splittext", "shimmer", "skeleton loader"],
-        "react": ["react", "next.js", "nextjs", "suspense", "memo", "usecallback", "useeffect", "rerender", "bundle", "waterfall", "barrel", "dynamic import", "rsc", "server component"],
-        "web": ["aria", "focus", "outline", "semantic", "virtualize", "autocomplete", "form", "input type", "preconnect", "drag reorder", "single pointer", "touch target", "native accessibility"]
+        "style": [
+            "style",
+            "design",
+            "ui",
+            "minimalism",
+            "glassmorphism",
+            "neumorphism",
+            "brutalism",
+            "dark mode",
+            "flat",
+            "aurora",
+            "css",
+            "implementation",
+            "variable",
+            "checklist",
+            "tailwind",
+        ],
+        "ux": [
+            "ux",
+            "usability",
+            "accessibility",
+            "wcag",
+            "touch",
+            "scroll",
+            "animation",
+            "keyboard",
+            "navigation",
+            "mobile",
+        ],
+        "typography": [
+            "font pairing",
+            "typography pairing",
+            "heading font",
+            "body font",
+        ],
+        "google-fonts": [
+            "google font",
+            "font family",
+            "font weight",
+            "font style",
+            "variable font",
+            "noto",
+            "font for",
+            "find font",
+            "font subset",
+            "font language",
+            "monospace font",
+            "serif font",
+            "sans serif font",
+            "display font",
+            "handwriting font",
+            "font",
+            "typography",
+            "serif",
+            "sans",
+        ],
+        "icons": [
+            "icon",
+            "icons",
+            "lucide",
+            "phosphor",
+            "heroicons",
+            "symbol",
+            "glyph",
+            "pictogram",
+            "svg icon",
+        ],
+        "gsap": [
+            "gsap",
+            "quickto",
+            "scrolltrigger",
+            "stagger",
+            "magnetic cursor",
+            "parallax",
+            "page transition",
+            "scroll reveal",
+            "scroll-triggered",
+            "scrollytelling",
+            "flip plugin",
+            "splittext",
+            "shimmer",
+            "skeleton loader",
+        ],
+        "react": [
+            "react",
+            "next.js",
+            "nextjs",
+            "suspense",
+            "memo",
+            "usecallback",
+            "useeffect",
+            "rerender",
+            "bundle",
+            "waterfall",
+            "barrel",
+            "dynamic import",
+            "rsc",
+            "server component",
+        ],
+        "web": [
+            "aria",
+            "focus",
+            "outline",
+            "semantic",
+            "virtualize",
+            "autocomplete",
+            "form",
+            "input type",
+            "preconnect",
+            "drag reorder",
+            "single pointer",
+            "touch target",
+            "native accessibility",
+        ],
     }
     _DOMAIN_KEYWORDS_SIGNATURE = signature
     return _DOMAIN_KEYWORDS
@@ -588,7 +1057,7 @@ def _domain_keywords():
 
 def _contains_phrase(text, phrase):
     if re.search(r"\w", phrase):
-        return bool(re.search(r'(?<!\w)' + re.escape(phrase) + r'(?!\w)', text))
+        return bool(re.search(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)", text))
     return phrase in text
 
 
@@ -617,8 +1086,18 @@ def _rewrite_query_for_domain(query, domain, index):
 # Domains checked in this fixed order when scores tie, so results are
 # deterministic instead of depending on dict/hash ordering.
 _DOMAIN_TIEBREAK_ORDER = [
-    "ux", "product", "style", "color", "typography", "google-fonts",
-    "chart", "landing", "icons", "gsap", "react", "web",
+    "ux",
+    "product",
+    "style",
+    "color",
+    "typography",
+    "google-fonts",
+    "chart",
+    "landing",
+    "icons",
+    "gsap",
+    "react",
+    "web",
 ]
 _DOMAIN_TIEBREAK_RANK = {
     domain: rank for rank, domain in enumerate(_DOMAIN_TIEBREAK_ORDER)
@@ -674,20 +1153,26 @@ def _style_identity(rows, query, allow_contained=True):
         if not allow_contained:
             continue
         for identity in identities:
-            identity_tokens = set(re.findall(
-                r"\w+", _normalize(identity.casefold()), re.UNICODE))
-            if (identity_tokens and identity_tokens <= query_tokens
-                    and any(len(token) >= 4 for token in identity_tokens)):
+            identity_tokens = set(
+                re.findall(r"\w+", _normalize(identity.casefold()), re.UNICODE)
+            )
+            if (
+                identity_tokens
+                and identity_tokens <= query_tokens
+                and any(len(token) >= 4 for token in identity_tokens)
+            ):
                 distinctive = identity_tokens - generic_tokens
                 candidates.append(
-                    (len(distinctive), len(identity_tokens), len(identity), row))
+                    (len(distinctive), len(identity_tokens), len(identity), row)
+                )
     if not candidates:
         return None
     candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
     best_score = candidates[0][:3]
     best_rows = {
         candidate[3].get("Style ID", ""): candidate[3]
-        for candidate in candidates if candidate[:3] == best_score
+        for candidate in candidates
+        if candidate[:3] == best_score
     }
     return next(iter(best_rows.values())) if len(best_rows) == 1 else None
 
@@ -745,7 +1230,8 @@ def _style_search_destination(rows, matched):
     replacement_id = matched.get("Replacement ID", "").strip()
     if domain == "style" and replacement_id:
         replacement = next(
-            (row for row in rows if row.get("Style ID") == replacement_id), None)
+            (row for row in rows if row.get("Style ID") == replacement_id), None
+        )
         return replacement, None
     if domain and replacement_id:
         return None, {"domain": domain, "id": replacement_id}
@@ -755,7 +1241,10 @@ def _style_search_destination(rows, matched):
 def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
     """Main search function with auto-domain detection"""
     if not _valid_max_results(max_results):
-        return {"error": "max_results must be an integer from 1 to 20", "domain": domain}
+        return {
+            "error": "max_results must be an integer from 1 to 20",
+            "domain": domain,
+        }
     auto_detected = domain is None
     runner_up = None
     style_rows = None
@@ -767,8 +1256,7 @@ def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
         matched_style = _style_identity(style_rows, query, allow_contained=False)
         if matched_style is not None:
             domain = "style"
-            exact_style, redirect = _style_search_destination(
-                style_rows, matched_style)
+            exact_style, redirect = _style_search_destination(style_rows, matched_style)
         else:
             domain, runner_up = detect_domain(query, return_scores=True)
 
@@ -783,11 +1271,11 @@ def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
         if style_rows is None:
             style_rows = _load_rows_or_empty(filepath)
         exact_style, redirect = _style_search_destination(
-            style_rows, _style_identity(style_rows, query))
+            style_rows, _style_identity(style_rows, query)
+        )
     elif search_domain == "landing":
         landing_rows = _load_rows_or_empty(filepath)
-        exact_style = _exact_row_identity(
-            landing_rows, query, _LANDING_IDENTITY_FIELDS)
+        exact_style = _exact_row_identity(landing_rows, query, _LANDING_IDENTITY_FIELDS)
 
     if exact_style is not None:
         results = [_project_row(exact_style, config["output_cols"])]
@@ -805,16 +1293,24 @@ def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
         }
     else:
         results, bm25, diagnostic = _search_csv_detailed(
-            filepath, config["search_cols"], config["output_cols"], query,
-            max_results, _SEARCH_THRESHOLDS[search_domain], search_domain,
+            filepath,
+            config["search_cols"],
+            config["output_cols"],
+            query,
+            max_results,
+            _SEARCH_THRESHOLDS[search_domain],
+            search_domain,
             row_filter=(
                 (lambda row: row.get("Status", "active") == "active")
-                if search_domain == "style" else None
+                if search_domain == "style"
+                else None
             ),
             cache_variant="active-only" if search_domain == "style" else "",
         )
 
-    if search_domain == "icons" and _contains_phrase(_normalize(query.lower()), "lucide"):
+    if search_domain == "icons" and _contains_phrase(
+        _normalize(query.lower()), "lucide"
+    ):
         results = []
         diagnostic.update({"abstained": True, "reason": "unsupported-library"})
 
@@ -836,10 +1332,12 @@ def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
     if not results:
         if search_domain == "landing":
             out["suggestions"] = _suggest_identities(
-                landing_rows, query, _LANDING_IDENTITY_FIELDS)
+                landing_rows, query, _LANDING_IDENTITY_FIELDS
+            )
         else:
             out["suggestions"] = _suggest_terms(
-                bm25, query, threshold=_SEARCH_THRESHOLDS[search_domain])
+                bm25, query, threshold=_SEARCH_THRESHOLDS[search_domain]
+            )
     if diagnostics:
         out["diagnostics"] = diagnostic
     return out
@@ -867,20 +1365,25 @@ def _stack_query_requests_legacy(query, stack):
             requested_versions.extend(
                 (0, int(release)) for release in re.findall(r"\br(\d+)\b", normalized)
             )
-        migration_intent = bool(re.search(
-            r"\b(?:migrat\w*|upgrad\w*|replac\w*|instead|modern|current)\b",
-            normalized,
-        ))
+        migration_intent = bool(
+            re.search(
+                r"\b(?:migrat\w*|upgrad\w*|replac\w*|instead|modern|current)\b",
+                normalized,
+            )
+        )
         if requested_versions:
             if migration_intent and any(
-                    requested >= current_version[:len(requested)]
-                    for requested in requested_versions):
+                requested >= current_version[: len(requested)]
+                for requested in requested_versions
+            ):
                 return False
             return all(
-                requested < current_version[:len(requested)]
+                requested < current_version[: len(requested)]
                 for requested in requested_versions
             )
-    if re.search(r"\b(?:migrat\w*|upgrad\w*|replac\w*|instead|modern|current)\b", normalized):
+    if re.search(
+        r"\b(?:migrat\w*|upgrad\w*|replac\w*|instead|modern|current)\b", normalized
+    ):
         return False
     return bool(re.search(r"\b(?:legacy|deprecated)\b", normalized))
 
@@ -927,11 +1430,16 @@ def _exact_stack_identifier(rows, query, row_filter):
     identifier = str(query or "").strip()
     if len(identifier) < 6 or re.search(r"\s", identifier):
         return None
-    pattern = re.compile(rf"(?<![A-Za-z0-9_]){re.escape(identifier)}(?![A-Za-z0-9_])", re.I)
+    pattern = re.compile(
+        rf"(?<![A-Za-z0-9_]){re.escape(identifier)}(?![A-Za-z0-9_])", re.I
+    )
     fields = ("Guideline", "Description", "Do", "Don't", "Code Good", "Code Bad")
-    matches = [row for row in rows if row_filter(row) and any(
-        pattern.search(row.get(field, "")) for field in fields
-    )]
+    matches = [
+        row
+        for row in rows
+        if row_filter(row)
+        and any(pattern.search(row.get(field, "")) for field in fields)
+    ]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -939,12 +1447,24 @@ def _legacy_successor_guidance(rows, query, stack, row_filter):
     """Prefer the explicit successor row for a brand-new app on legacy-only stacks."""
     normalized = _normalize(str(query or "").casefold())
     if stack not in LEGACY_ONLY_STACKS or not re.search(
-            r"\b(?:brand new|new)\s+(?:app|application|project)\b", normalized):
+        r"\b(?:brand new|new)\s+(?:app|application|project)\b", normalized
+    ):
         return None
-    matches = [row for row in rows if row_filter(row) and re.search(
-        r"\b(?:prefer|choose|use)\b.*\bnew (?:apps?|projects?)\b",
-        " ".join((row.get("Guideline", ""), row.get("Description", ""), row.get("Do", ""))).casefold(),
-    )]
+    matches = [
+        row
+        for row in rows
+        if row_filter(row)
+        and re.search(
+            r"\b(?:prefer|choose|use)\b.*\bnew (?:apps?|projects?)\b",
+            " ".join(
+                (
+                    row.get("Guideline", ""),
+                    row.get("Description", ""),
+                    row.get("Do", ""),
+                )
+            ).casefold(),
+        )
+    ]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -953,7 +1473,9 @@ def search_stack(query, stack, max_results=MAX_RESULTS, diagnostics=False):
     if not _valid_max_results(max_results):
         return {"error": "max_results must be an integer from 1 to 20", "stack": stack}
     if stack not in STACK_CONFIG:
-        return {"error": f"Unknown stack: {stack}. Available: {', '.join(AVAILABLE_STACKS)}"}
+        return {
+            "error": f"Unknown stack: {stack}. Available: {', '.join(AVAILABLE_STACKS)}"
+        }
 
     filepath = DATA_DIR / STACK_CONFIG[stack]["file"]
 
@@ -963,17 +1485,24 @@ def search_stack(query, stack, max_results=MAX_RESULTS, diagnostics=False):
     rows = _load_rows_or_empty(filepath)
     row_filter, cache_variant = _stack_row_filter(rows, query, stack)
     threshold = _NO_THRESHOLD if cache_variant == "legacy-only" else _STACK_THRESHOLD
-    exact = (_legacy_successor_guidance(rows, query, stack, row_filter)
-             or _exact_stack_identifier(rows, query, row_filter))
+    exact = _legacy_successor_guidance(
+        rows, query, stack, row_filter
+    ) or _exact_stack_identifier(rows, query, row_filter)
     if exact is not None:
         results = [_project_row(exact, _STACK_COLS["output_cols"])]
         bm25 = None
         diagnostic = _exact_match_diagnostic(query, "exact-identifier")
     else:
         results, bm25, diagnostic = _search_csv_detailed(
-            filepath, _STACK_COLS["search_cols"], _STACK_COLS["output_cols"], query,
-            max_results, threshold, row_filter=row_filter,
-            cache_variant=cache_variant)
+            filepath,
+            _STACK_COLS["search_cols"],
+            _STACK_COLS["output_cols"],
+            query,
+            max_results,
+            threshold,
+            row_filter=row_filter,
+            cache_variant=cache_variant,
+        )
 
     out = {
         "domain": "stack",
@@ -986,8 +1515,7 @@ def search_stack(query, stack, max_results=MAX_RESULTS, diagnostics=False):
     if diagnostic.get("error"):
         out["error"] = diagnostic["error"]
     if not results:
-        out["suggestions"] = _suggest_terms(
-            bm25, query, threshold=threshold)
+        out["suggestions"] = _suggest_terms(bm25, query, threshold=threshold)
     if diagnostics:
         out["diagnostics"] = diagnostic
     return out

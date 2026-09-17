@@ -13,14 +13,25 @@ from typing import Any, Dict, List, Optional
 from google import genai
 from google.genai import types
 
-from alfa.core import database
 import token_usage
+from alfa.core import database
 
 logger = logging.getLogger(__name__)
 
 KNOWN_OPENAI_PROVIDERS = {
-    "openai", "groq", "openrouter", "9router", "ollama", "nvidia", "nim",
-    "deepseek", "minimax", "moonshot", "kimi", "qwen", "dashscope",
+    "openai",
+    "groq",
+    "openrouter",
+    "9router",
+    "ollama",
+    "nvidia",
+    "nim",
+    "deepseek",
+    "minimax",
+    "moonshot",
+    "kimi",
+    "qwen",
+    "dashscope",
 }
 
 
@@ -43,18 +54,24 @@ def _default_gemini_model() -> str:
     return "gemini-flash-latest"
 
 
-def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional[str], Optional[int]]:
+def get_agent_api_client(
+    agent: Dict[str, Any],
+) -> tuple[str, str, str, Optional[str], Optional[int]]:
     """Resolve (provider, api_key, model, base_url, key_id) for a specific agent."""
     provider = (agent.get("provider") or "gemini").lower()
-    model = agent.get("model") or (_default_gemini_model()
-                                   if provider == "gemini" else "")
+    model = agent.get("model") or (
+        _default_gemini_model() if provider == "gemini" else ""
+    )
     api_key = ""
     base_url = ""
     key_id = None
 
     if agent.get("api_key_id"):
         with database.get_sync_db() as conn:
-            row = conn.execute("SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?", (agent["api_key_id"],)).fetchone()
+            row = conn.execute(
+                "SELECT id, provider, api_key, default_model, base_url FROM api_keys WHERE id = ?",
+                (agent["api_key_id"],),
+            ).fetchone()
             if row:
                 provider = row["provider"]
                 api_key = database.decrypt_key(row["api_key"])
@@ -89,13 +106,18 @@ def get_agent_api_client(agent: Dict[str, Any]) -> tuple[str, str, str, Optional
             model = "all"
         if not api_key:
             try:
-                import glob as _glob, sqlite3 as _sq
-                db_paths = _glob.glob(os.path.expanduser("~/.9router/db/data.sqlite")) + \
-                           _glob.glob(os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite"))
+                import glob as _glob
+                import sqlite3 as _sq
+
+                db_paths = _glob.glob(
+                    os.path.expanduser("~/.9router/db/data.sqlite")
+                ) + _glob.glob(os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite"))
                 for dbp in db_paths:
                     if os.path.exists(dbp):
                         with _sq.connect(dbp) as _c:
-                            rk = _c.execute("SELECT key FROM apiKeys WHERE isActive=1 LIMIT 1").fetchone()
+                            rk = _c.execute(
+                                "SELECT key FROM apiKeys WHERE isActive=1 LIMIT 1"
+                            ).fetchone()
                             if rk and rk[0]:
                                 api_key = rk[0]
                                 break
@@ -122,7 +144,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
+        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -131,7 +153,9 @@ async def _generate_with_gemini(
     try:
         client = genai.Client(api_key=api_key)
     except Exception as client_err:
-        logger.error(f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}")
+        logger.error(
+            f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}"
+        )
         return None
     for m in unique_models:
         try:
@@ -142,7 +166,8 @@ async def _generate_with_gemini(
             )
             if thinking_budget is not None:
                 cfg_kw["thinking_config"] = types.ThinkingConfig(
-                    thinking_budget=thinking_budget)
+                    thinking_budget=thinking_budget
+                )
             if tools:
                 cfg_kw["tools"] = list(tools)
             try:
@@ -156,17 +181,24 @@ async def _generate_with_gemini(
                 )
             except asyncio.TimeoutError:
                 last_err = TimeoutError(
-                    f"[gemini] HARD DEADLINE {timeout_s}s terlampaui untuk model '{m}'")
+                    f"[gemini] HARD DEADLINE {timeout_s}s terlampaui untuk model '{m}'"
+                )
                 logger.warning(f"{last_err}. Trying next fallback...")
                 continue
             if response and response.text:
-                token_usage.from_gemini_response(response, model=m, key_id=key_id,
-                                                 key_label=key_label or f"agent:{agent_name}",
-                                                 context=context)
+                token_usage.from_gemini_response(
+                    response,
+                    model=m,
+                    key_id=key_id,
+                    key_label=key_label or f"agent:{agent_name}",
+                    context=context,
+                )
                 return response.text.strip()
         except Exception as e:
             last_err = e
-            logger.warning(f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback...")
+            logger.warning(
+                f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback..."
+            )
 
     logger.error(f"All Gemini models failed for agent '{agent_name}': {last_err!r}")
     return None
@@ -189,6 +221,7 @@ async def _generate_with_openai_compat(
     """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
     try:
         import httpx
+
         url = base_url
         if not url:
             if provider in ["nvidia", "nim"]:
@@ -214,7 +247,7 @@ async def _generate_with_openai_compat(
 
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         if provider == "openrouter":
             headers["HTTP-Referer"] = "https://alfa-agent.local"
@@ -224,18 +257,23 @@ async def _generate_with_openai_compat(
             "model": model,
             "messages": [
                 {"role": "system", "content": final_instruction},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             "temperature": 0.7,
             "max_tokens": max_tokens,
-            "stream": False
+            "stream": False,
         }
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=10.0)) as http_client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout_s, connect=10.0)
+        ) as http_client:
             try:
                 res = await asyncio.wait_for(
-                    http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                     headers=headers, json=payload),
+                    http_client.post(
+                        f"{url.rstrip('/')}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    ),
                     timeout=timeout_s,
                 )
             except asyncio.TimeoutError:
@@ -247,29 +285,45 @@ async def _generate_with_openai_compat(
             if res.status_code == 200:
                 try:
                     data = res.json()
-                    token_usage.from_openai_json(data, provider=provider, model=model,
-                                                 key_id=key_id,
-                                                 key_label=key_label or f"agent:{agent_name}",
-                                                 context=context)
+                    token_usage.from_openai_json(
+                        data,
+                        provider=provider,
+                        model=model,
+                        key_id=key_id,
+                        key_label=key_label or f"agent:{agent_name}",
+                        context=context,
+                    )
                     msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                     content = (msg0.get("content") or "").strip()
                     if not content:
-                        content = (msg0.get("reasoning_content")
-                                   or msg0.get("reasoning") or "").strip()
-                        logger.warning(f"[{provider}] content kosong, fallback reasoning ({len(content)} char)")
+                        content = (
+                            msg0.get("reasoning_content") or msg0.get("reasoning") or ""
+                        ).strip()
+                        logger.warning(
+                            f"[{provider}] content kosong, fallback reasoning ({len(content)} char)"
+                        )
                     if content:
                         return content
                 except Exception as parse_err:
-                    logger.warning(f"[{provider}] JSON parse fallback ({parse_err!r}) -> mencoba parsing SSE chunks")
+                    logger.warning(
+                        f"[{provider}] JSON parse fallback ({parse_err!r}) -> mencoba parsing SSE chunks"
+                    )
                     content_parts = []
                     for line in res.text.splitlines():
                         line_str = line.strip()
                         if line_str.startswith("data: ") and line_str != "data: [DONE]":
                             try:
                                 import json as _json
+
                                 chunk = _json.loads(line_str[6:].strip())
-                                delta = (chunk.get("choices") or [{}])[0].get("delta", {})
-                                c = delta.get("content") or delta.get("reasoning_content") or ""
+                                delta = (chunk.get("choices") or [{}])[0].get(
+                                    "delta", {}
+                                )
+                                c = (
+                                    delta.get("content")
+                                    or delta.get("reasoning_content")
+                                    or ""
+                                )
                                 if c:
                                     content_parts.append(c)
                             except Exception:
@@ -280,6 +334,7 @@ async def _generate_with_openai_compat(
 
             if res.status_code == 402:
                 import re as _re
+
                 m_afford = _re.search(r"can only afford (\d+)", res.text)
                 if m_afford:
                     afford = max(256, int(m_afford.group(1)) - 128)
@@ -288,25 +343,38 @@ async def _generate_with_openai_compat(
                         f"[{provider}] kuota terbatas - retry dengan max_tokens={afford}"
                     )
                     try:
-                        res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                                     headers=headers, json=payload)
+                        res = await http_client.post(
+                            f"{url.rstrip('/')}/chat/completions",
+                            headers=headers,
+                            json=payload,
+                        )
                     except Exception as retry_err:
                         logger.error(
-                            f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}")
+                            f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}"
+                        )
                         return None
                     if res.status_code == 200:
                         data = res.json()
-                        token_usage.from_openai_json(data, provider=provider, model=model,
-                                                     key_id=key_id, key_label=key_label,
-                                                     context=context)
+                        token_usage.from_openai_json(
+                            data,
+                            provider=provider,
+                            model=model,
+                            key_id=key_id,
+                            key_label=key_label,
+                            context=context,
+                        )
                         msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                         content = (msg0.get("content") or "").strip()
                         if content:
                             return content
                     else:
-                        logger.error(f"[{provider}] retry 402 tetap gagal HTTP {res.status_code}")
+                        logger.error(
+                            f"[{provider}] retry 402 tetap gagal HTTP {res.status_code}"
+                        )
                 err_detail = res.text[:200] or "(empty body)"
-                logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+                logger.error(
+                    f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
+                )
                 return None
 
             if res.status_code == 429:
@@ -315,16 +383,26 @@ async def _generate_with_openai_compat(
                     delay = min(max(float(retry_after_str), 1.0), 5.0)
                 except ValueError:
                     delay = 2.0
-                logger.warning(f"[{provider}] HTTP 429 Rate Limit for '{agent_name}'. Backing off {delay}s...")
+                logger.warning(
+                    f"[{provider}] HTTP 429 Rate Limit for '{agent_name}'. Backing off {delay}s..."
+                )
                 await asyncio.sleep(delay)
                 try:
-                    res = await http_client.post(f"{url.rstrip('/')}/chat/completions",
-                                                 headers=headers, json=payload)
+                    res = await http_client.post(
+                        f"{url.rstrip('/')}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
                     if res.status_code == 200:
                         data = res.json()
-                        token_usage.from_openai_json(data, provider=provider, model=model,
-                                                     key_id=key_id, key_label=key_label,
-                                                     context=context)
+                        token_usage.from_openai_json(
+                            data,
+                            provider=provider,
+                            model=model,
+                            key_id=key_id,
+                            key_label=key_label,
+                            context=context,
+                        )
                         msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                         content = (msg0.get("content") or "").strip()
                         if content:
@@ -333,17 +411,23 @@ async def _generate_with_openai_compat(
                     logger.error(f"[{provider}] retry 429 failed: {retry_err}")
 
             err_detail = res.text[:200] or "(empty body)"
-            logger.error(f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}")
+            logger.error(
+                f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
+            )
             return None
     except Exception as e:
         logger.error(f"Error in {provider} agent '{agent_name}': {e!r}")
         return None
 
 
-async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_instruction: str,
-                                  max_tokens: Optional[int] = None,
-                                  timeout_s: float = 180.0,
-                                  thinking_budget: Optional[int] = None) -> Optional[str]:
+async def generate_agent_response(
+    agent: Dict[str, Any],
+    prompt: str,
+    system_instruction: str,
+    max_tokens: Optional[int] = None,
+    timeout_s: float = 180.0,
+    thinking_budget: Optional[int] = None,
+) -> Optional[str]:
     """Generate response for a specific agent using its configured provider and key."""
     # Check if patched on swarm_engine or alfa.swarm.engine
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
@@ -379,16 +463,22 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             "3. Sebelum melapor selesai, pastikan file benar-benar ditulis via tool."
         )
     else:
-        final_instruction = (system_instruction or "Kamu adalah engineer spesialis di AI Swarm.") + tone_directive
+        final_instruction = (
+            system_instruction or "Kamu adalah engineer spesialis di AI Swarm."
+        ) + tone_directive
 
     key_label = f"agent:{agent_name}"
 
     def gemini_like_tools() -> List[Any]:
         try:
-            from alfa.core import brain as _mb
             from alfa import tools as _t
-            return [getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
-                    if hasattr(_t, n) and callable(getattr(_t, n))]
+            from alfa.core import brain as _mb
+
+            return [
+                getattr(_t, n)
+                for n in sorted(_mb.SAFE_TOOL_NAMES)
+                if hasattr(_t, n) and callable(getattr(_t, n))
+            ]
         except Exception:
             return []
 
@@ -398,14 +488,18 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         if enable_tools:
             gemini_tools = gemini_like_tools() or None
             try:
-                from alfa.core import brain as _mb
                 from alfa import tools as _t
+                from alfa.core import brain as _mb
+
                 gemini_tools = [
-                    getattr(_t, n) for n in sorted(_mb.SAFE_TOOL_NAMES)
+                    getattr(_t, n)
+                    for n in sorted(_mb.SAFE_TOOL_NAMES)
                     if hasattr(_t, n) and callable(getattr(_t, n))
                 ]
             except Exception as tools_err:
-                logger.warning(f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}")
+                logger.warning(
+                    f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}"
+                )
         result = await _generate_with_gemini(
             agent_name=agent_name,
             api_key=api_key or os.getenv("GEMINI_API_KEY", ""),
@@ -424,6 +518,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
         if enable_tools:
             try:
                 from alfa.core import brain as _mb
+
                 result = await _mb.run_openai_agentic_turn(
                     provider=provider,
                     base_url=base_url,
@@ -443,7 +538,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                 result.startswith("(provider tidak mengirim teks)")
                 or not result.strip()
             ):
-                logger.warning(f"Agentic turn '{agent_name}' balas kosong -> paksa fallback.")
+                logger.warning(
+                    f"Agentic turn '{agent_name}' balas kosong -> paksa fallback."
+                )
                 result = None
         if result is None:
             if not base_url and provider not in KNOWN_OPENAI_PROVIDERS:
@@ -467,20 +564,26 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
             )
         if result is None and enable_tools:
             try:
-                gem_keys = [k for k in database.list_active_keys_sync()
-                            if (k.get("provider") or "").lower() == "gemini"
-                            and k.get("id") != key_id]
+                gem_keys = [
+                    k
+                    for k in database.list_active_keys_sync()
+                    if (k.get("provider") or "").lower() == "gemini"
+                    and k.get("id") != key_id
+                ]
             except Exception:
                 gem_keys = []
             for gk in gem_keys:
                 try:
                     logger.warning(
                         f"Agen ber-tool '{agent_name}' gagal via {provider} "
-                        f"-> fallback Gemini agentic k#{gk.get('id')} (tools tetap aktif).")
+                        f"-> fallback Gemini agentic k#{gk.get('id')} (tools tetap aktif)."
+                    )
                     gagent = {
                         "name": agent_name,
                         "provider": "gemini",
-                        "model": (gk.get("default_model") or "gemini-flash-latest").strip(),
+                        "model": (
+                            gk.get("default_model") or "gemini-flash-latest"
+                        ).strip(),
                         "api_key_id": gk.get("id"),
                         "enable_tools": 1,
                     }
@@ -501,7 +604,9 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
                     logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
 
         if result is None and os.getenv("GEMINI_API_KEY"):
-            logger.warning(f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini.")
+            logger.warning(
+                f"Provider '{provider}' gagal untuk '{agent_name}' - fallback ke Gemini."
+            )
             result = await _generate_with_gemini(
                 agent_name=f"{agent_name} (fallback)",
                 api_key=os.getenv("GEMINI_API_KEY", ""),
@@ -517,6 +622,7 @@ async def generate_agent_response(agent: Dict[str, Any], prompt: str, system_ins
     if result is None:
         logger.error(
             f"[Swarm] '{agent_name}': semua provider & fallback gagal "
-            f"(primary: {provider}) — langkah ini dilaporkan GAGAL.")
+            f"(primary: {provider}) — langkah ini dilaporkan GAGAL."
+        )
         return None
     return result

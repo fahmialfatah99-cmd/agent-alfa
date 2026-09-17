@@ -8,27 +8,29 @@ import os
 import time
 
 
-def qr_barcode_generator(content: str, qr_type: str = 'url', output_filename: str = '') -> dict:
+def qr_barcode_generator(
+    content: str, qr_type: str = "url", output_filename: str = ""
+) -> dict:
     """
     Generate file gambar QR code resolusi tinggi dan menyimpannya di folder output.
-    
+
     Args:
         content: Isi konten (URL web, teks, atau string konfigurasi).
         qr_type: Tipe QR ('url', 'wifi', 'vcard', 'text').
         output_filename: Nama file output opsional (misal: 'wifi_tamu.png').
     """
     import qrcode
-    
-    out_dir = os.path.expanduser('~/Dokumen/ALFA_SWARM_OUTPUTS')
+
+    out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
     os.makedirs(out_dir, exist_ok=True)
-    
+
     if not output_filename:
-        output_filename = f'qr_code_{int(time.time())}.png'
-    if not output_filename.endswith('.png'):
-        output_filename += '.png'
-        
+        output_filename = f"qr_code_{int(time.time())}.png"
+    if not output_filename.endswith(".png"):
+        output_filename += ".png"
+
     file_path = os.path.join(out_dir, output_filename)
-    
+
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -37,15 +39,15 @@ def qr_barcode_generator(content: str, qr_type: str = 'url', output_filename: st
     )
     qr.add_data(content)
     qr.make(fit=True)
-    
-    img = qr.make_image(fill_color='black', back_color='white')
+
+    img = qr.make_image(fill_color="black", back_color="white")
     img.save(file_path)
-    
+
     return {
-        'status': 'success',
-        'message': f'QR Code berhasil dibuat di {file_path}',
-        'file_path': file_path,
-        'filename': output_filename,
-        'qr_type': qr_type,
-        'content': content
+        "status": "success",
+        "message": f"QR Code berhasil dibuat di {file_path}",
+        "file_path": file_path,
+        "filename": output_filename,
+        "qr_type": qr_type,
+        "content": content,
     }

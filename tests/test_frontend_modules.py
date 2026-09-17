@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -20,7 +21,9 @@ def test_module_files_exist():
     from alfa.dashboard.app import STATIC_DIR
 
     modules_dir = Path(STATIC_DIR) / "js" / "modules"
-    assert modules_dir.exists() and modules_dir.is_dir(), "static/js/modules directory does not exist"
+    assert (
+        modules_dir.exists() and modules_dir.is_dir()
+    ), "static/js/modules directory does not exist"
 
     for mod in MODULE_FILES:
         mod_path = modules_dir / mod
@@ -37,7 +40,9 @@ def test_modules_line_count_limit():
         mod_path = modules_dir / mod
         if mod_path.exists():
             lines = mod_path.read_text(encoding="utf-8").splitlines()
-            assert len(lines) < 1500, f"Module {mod} exceeds 1500 lines ({len(lines)} lines)"
+            assert (
+                len(lines) < 1500
+            ), f"Module {mod} exceeds 1500 lines ({len(lines)} lines)"
 
 
 def test_modules_served_via_fastapi():
@@ -48,9 +53,13 @@ def test_modules_served_via_fastapi():
     for mod in MODULE_FILES:
         route = f"/static/js/modules/{mod}"
         res = client.get(route)
-        assert res.status_code == 200, f"Failed serving {route}: status {res.status_code}"
+        assert (
+            res.status_code == 200
+        ), f"Failed serving {route}: status {res.status_code}"
         content_type = res.headers.get("content-type", "")
-        assert "javascript" in content_type, f"Expected javascript content-type for {route}, got {content_type}"
+        assert (
+            "javascript" in content_type
+        ), f"Expected javascript content-type for {route}, got {content_type}"
         assert len(res.content) > 0
 
 
@@ -69,7 +78,9 @@ def test_index_html_includes_module_scripts():
         script_tag = f"/static/js/modules/{mod}"
         mod_pos = content.find(script_tag)
         assert mod_pos != -1, f"Missing script tag for {script_tag} in index.html"
-        assert mod_pos < app_js_pos, f"Module {mod} should be loaded before app.js in index.html"
+        assert (
+            mod_pos < app_js_pos
+        ), f"Module {mod} should be loaded before app.js in index.html"
 
 
 def test_javascript_syntax_validity():
@@ -83,11 +94,7 @@ def test_javascript_syntax_validity():
 
     for f in files_to_check:
         assert f.exists(), f"File {f} does not exist for syntax check"
-        res = subprocess.run(
-            ["node", "-c", str(f)],
-            capture_output=True,
-            text=True
-        )
+        res = subprocess.run(["node", "-c", str(f)], capture_output=True, text=True)
         assert res.returncode == 0, f"Syntax error in {f.name}:\n{res.stderr}"
 
 
@@ -169,9 +176,7 @@ console.log('SUCCESS: All scripts executed in shared VM context without duplicat
 """
 
     res = subprocess.run(
-        ["node", "-e", node_eval_script, *scripts],
-        capture_output=True,
-        text=True
+        ["node", "-e", node_eval_script, *scripts], capture_output=True, text=True
     )
     assert res.returncode == 0, (
         f"Shared VM execution failed (possible duplicate lexical declaration or missing variable):\n"

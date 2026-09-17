@@ -7,17 +7,17 @@ import sys
 
 import requests
 
+from alfa.core.cli.chat import CliChatMixin
+from alfa.core.cli.commands import CliCommandsMixin
 from alfa.core.cli.constants import (
-    Colors,
-    Console,
     DEFAULT_SERVER,
     RICH_AVAILABLE,
+    Colors,
+    Console,
     print_banner,
     print_status,
 )
 from alfa.core.cli.session import CliSessionMixin
-from alfa.core.cli.commands import CliCommandsMixin
-from alfa.core.cli.chat import CliChatMixin
 
 
 class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
@@ -26,15 +26,15 @@ class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
 
     def __init__(self, server_url):
         super().__init__()
-        self.server_url = server_url.rstrip('/')
+        self.server_url = server_url.rstrip("/")
         self.session_token = None
         self.username = None
         self.is_admin = False
         self.chat_history = []
         self.config = self._load_config()
-        self.streaming = self.config.get('streaming', False)
+        self.streaming = self.config.get("streaming", False)
         self.console = Console() if RICH_AVAILABLE else None
-        
+
         self._setup_readline()
         self._load_session()
 
@@ -58,45 +58,55 @@ Features:
   - Streaming responses
   - Session management
   - Configurable themes
-        """
+        """,
     )
-    parser.add_argument("--server", type=str, default=os.getenv("ALFA_SERVER", DEFAULT_SERVER),
-                        help=f"URL Server ALFA (default: {DEFAULT_SERVER})")
+    parser.add_argument(
+        "--server",
+        type=str,
+        default=os.getenv("ALFA_SERVER", DEFAULT_SERVER),
+        help=f"URL Server ALFA (default: {DEFAULT_SERVER})",
+    )
     parser.add_argument("--no-color", action="store_true", help="Matikan warna output")
     parser.add_argument("--stream", action="store_true", help="Enable streaming mode")
-    
+
     args = parser.parse_args()
 
     if args.no_color:
         Colors.disable()
 
     print_banner()
-    
+
     # Cek koneksi awal
     try:
         r = requests.get(f"{args.server}/health", timeout=5)
         if r.status_code == 200:
             print_status(f"Terhubung ke server: {args.server}", "success")
         else:
-            print_status(f"Server merespons tapi status code: {r.status_code}", "warning")
+            print_status(
+                f"Server merespons tapi status code: {r.status_code}", "warning"
+            )
     except Exception:
-        print_status(f"Tidak dapat menghubungi server di {args.server}. Pastikan server berjalan.", "error")
+        print_status(
+            f"Tidak dapat menghubungi server di {args.server}. Pastikan server berjalan.",
+            "error",
+        )
         print("Tips: Gunakan flag --server http://ip-address:port jika server remote.")
         # Jangan exit, biarkan user tetap bisa coba login nanti atau exit manual
 
     try:
         cli = AlfaCLI(args.server)
-        
+
         # Override streaming from args
         if args.stream:
             cli.streaming = True
-            cli.config['streaming'] = True
-        
+            cli.config["streaming"] = True
+
         cli.cmdloop()
     except KeyboardInterrupt:
         print("\n")
         print_status("Interupsi diterima. Keluar...", "warning")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

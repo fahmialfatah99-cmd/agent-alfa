@@ -3,6 +3,7 @@
 Facade re-exporting from modular subpackage alfa.tools.desktop.
 """
 
+from alfa.tools.desktop import *  # noqa: F401, F403
 from alfa.tools.desktop import (
     capture_desktop_screenshot,
     capture_webcam_frame,
@@ -15,4 +16,3 @@ from alfa.tools.desktop import (
     vision_click_target,
     write_to_clipboard,
 )
-from alfa.tools.desktop import *  # noqa: F401, F403

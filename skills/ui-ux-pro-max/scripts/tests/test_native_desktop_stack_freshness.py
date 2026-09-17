@@ -11,13 +11,23 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import (DATA_DIR, STACK_CONFIG, STACK_CURRENT_APPLICABILITY,
-                  search_stack)  # noqa: E402
+from core import search_stack  # noqa: E402
+from core import DATA_DIR, STACK_CONFIG, STACK_CURRENT_APPLICABILITY
 from validate_data import STACK_OFFICIAL_HOSTS  # noqa: E402
 
 STACKS = {
-    "react-native", "flutter", "swiftui", "jetpack-compose", "avalonia",
-    "uwp", "winui", "wpf", "uno", "javafx", "threejs", "laravel",
+    "react-native",
+    "flutter",
+    "swiftui",
+    "jetpack-compose",
+    "avalonia",
+    "uwp",
+    "winui",
+    "wpf",
+    "uno",
+    "javafx",
+    "threejs",
+    "laravel",
 }
 
 
@@ -34,8 +44,9 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
                 with self.subTest(stack=stack, row=row["No"]):
                     expected = "deprecated" if stack == "uwp" else "active"
                     self.assertEqual(row["Status"], expected)
-                    self.assertTrue(row["Applies To"].startswith(
-                        STACK_CURRENT_APPLICABILITY[stack]))
+                    self.assertTrue(
+                        row["Applies To"].startswith(STACK_CURRENT_APPLICABILITY[stack])
+                    )
                     self.assertRegex(row["Verified At"], r"^\d{4}-\d{2}-\d{2}$")
                     self.assertEqual("legacy" in row["Applies To"], stack == "uwp")
 
@@ -73,13 +84,20 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
         self.assertGreater(legacy["count"], 0)
         self.assertEqual({row["Status"] for row in current["results"]}, {"active"})
         self.assertEqual({row["Status"] for row in legacy["results"]}, {"deprecated"})
-        self.assertTrue(any("winui" in " ".join(row.values()).casefold()
-                            for row in legacy["results"]))
+        self.assertTrue(
+            any(
+                "winui" in " ".join(row.values()).casefold()
+                for row in legacy["results"]
+            )
+        )
         successor = search_stack(
             "which Windows UI framework should a brand new app choose instead of legacy UWP",
-            "uwp", max_results=1,
+            "uwp",
+            max_results=1,
         )
-        self.assertEqual("Prefer WinUI 3 for new projects", successor["results"][0]["Guideline"])
+        self.assertEqual(
+            "Prefer WinUI 3 for new projects", successor["results"][0]["Guideline"]
+        )
 
     def test_old_version_without_curated_rows_abstains(self):
         cases = {
@@ -106,7 +124,9 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
             with self.subTest(stack=stack):
                 result = search_stack(query, stack)
                 self.assertGreater(result["count"], 0)
-                self.assertEqual({row["Status"] for row in result["results"]}, {"active"})
+                self.assertEqual(
+                    {row["Status"] for row in result["results"]}, {"active"}
+                )
 
         versioned_cases = {
             "react-native": "upgrade React Native 0.75 to React Native 0.86 Hermes",
@@ -117,7 +137,9 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
             with self.subTest(stack=stack, query=query):
                 result = search_stack(query, stack)
                 self.assertGreater(result["count"], 0)
-                self.assertEqual({row["Status"] for row in result["results"]}, {"active"})
+                self.assertEqual(
+                    {row["Status"] for row in result["results"]}, {"active"}
+                )
 
     def test_standalone_current_and_deprecated_identifiers_resolve_replacement(self):
         cases = {
@@ -130,7 +152,9 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
             with self.subTest(stack=stack, query=query):
                 result = search_stack(query, stack, max_results=1)
                 self.assertEqual(result["count"], 1)
-                self.assertIn(guideline.casefold(), result["results"][0]["Guideline"].casefold())
+                self.assertIn(
+                    guideline.casefold(), result["results"][0]["Guideline"].casefold()
+                )
 
     def test_current_threejs_uses_supported_module_and_color_apis(self):
         cases = {
@@ -156,8 +180,11 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
             "uno": ("system.windows", 'requestedtheme="default"'),
             "javafx": ("fxpermission", "javadoc/21"),
             "threejs": (
-                "r128", "three.orbitcontrols", "outputencoding",
-                "three.srgbencoding", "examples/js/controls",
+                "r128",
+                "three.orbitcontrols",
+                "outputencoding",
+                "three.srgbencoding",
+                "examples/js/controls",
             ),
         }
         for stack, tokens in forbidden.items():

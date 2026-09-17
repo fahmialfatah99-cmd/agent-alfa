@@ -1,6 +1,7 @@
-import sys
 import os
+import sys
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def test_index_html_decomposition():
     """Verify templates/index.html is decomposed and cleanly links to static assets."""
-    from alfa.dashboard.app import app, TEMPLATES_DIR, STATIC_DIR
+    from alfa.dashboard.app import STATIC_DIR, TEMPLATES_DIR, app
 
     index_path = Path(TEMPLATES_DIR) / "index.html"
     assert index_path.exists(), "templates/index.html does not exist"
@@ -43,7 +44,9 @@ def test_static_files_exist():
 
     for f in expected_files:
         assert f.exists(), f"Missing static asset file: {f}"
-        assert f.stat().st_size > 1000, f"Static asset {f} is suspiciously small ({f.stat().st_size} bytes)"
+        assert (
+            f.stat().st_size > 1000
+        ), f"Static asset {f} is suspiciously small ({f.stat().st_size} bytes)"
 
 
 def test_static_files_served_via_fastapi():
@@ -66,7 +69,9 @@ def test_static_files_served_via_fastapi():
         "/static/js/chat.js",
     ]:
         res = client.get(asset)
-        assert res.status_code == 200, f"Failed serving {asset}: status {res.status_code}"
+        assert (
+            res.status_code == 200
+        ), f"Failed serving {asset}: status {res.status_code}"
         assert len(res.content) > 0
 
 
@@ -88,7 +93,9 @@ def test_static_files_accessible_with_auth_token():
             "/static/js/chat.js",
         ]:
             res = client.get(asset)
-            assert res.status_code == 200, f"Asset {asset} blocked by auth: status {res.status_code}"
+            assert (
+                res.status_code == 200
+            ), f"Asset {asset} blocked by auth: status {res.status_code}"
     finally:
         if orig_token is not None:
             os.environ["DASHBOARD_AUTH_TOKEN"] = orig_token
@@ -98,16 +105,24 @@ def test_static_files_accessible_with_auth_token():
 
 def test_static_boundary_check():
     """Verify paths like /statistics or /static_analysis do not bypass auth."""
-    from alfa.dashboard.routes.auth import DashboardAuthMiddleware
-    from starlette.requests import Request
-    from starlette.datastructures import URL
     from unittest.mock import AsyncMock
+
+    from starlette.datastructures import URL
+    from starlette.requests import Request
+
+    from alfa.dashboard.routes.auth import DashboardAuthMiddleware
 
     middleware = DashboardAuthMiddleware(app=AsyncMock())
 
     # Helper mock request
     def make_req(path: str):
-        scope = {"type": "http", "method": "GET", "path": path, "headers": [], "cookies": {}}
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": path,
+            "headers": [],
+            "cookies": {},
+        }
         return Request(scope)
 
     # Valid static paths
@@ -118,5 +133,6 @@ def test_static_boundary_check():
     bad_paths = ["/statistics", "/static_data", "/staticanalysis"]
     for bp in bad_paths:
         req = make_req(bp)
-        assert req.url.path != "/static" and not req.url.path.startswith("/static/"), f"{bp} should not match /static boundary"
-
+        assert req.url.path != "/static" and not req.url.path.startswith(
+            "/static/"
+        ), f"{bp} should not match /static boundary"

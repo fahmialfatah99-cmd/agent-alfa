@@ -48,8 +48,7 @@ TOKEN_ACTION_PREFIXES = {"constraint", "style"}
 TOKEN_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CONDITION_PATTERNS = {
     condition: tuple(
-        re.compile(r"(?<!\w)" + re.escape(signal) + r"(?!\w)")
-        for signal in signals
+        re.compile(r"(?<!\w)" + re.escape(signal) + r"(?!\w)") for signal in signals
     )
     for condition, signals in CONDITION_SIGNALS.items()
 }
@@ -76,7 +75,9 @@ def parse_decision_rules(raw):
         if condition not in ALLOWED_CONDITIONS:
             raise ValueError("unknown decision-rule condition: {}".format(condition))
         if not isinstance(actions, list) or not actions:
-            raise ValueError("{} must map to a non-empty action array".format(condition))
+            raise ValueError(
+                "{} must map to a non-empty action array".format(condition)
+            )
         for action in actions:
             _validate_action(action)
         if len(actions) != len(set(actions)):
@@ -101,12 +102,18 @@ def _validate_action(action):
 def apply_decision_rules(rules, query):
     """Return deterministic mutations and an audit trail; never execute data."""
     normalized = str(query or "").casefold()
-    result = {"activated": [], "style_ids": [], "constraints": [],
-              "pattern": None, "mode": None}
+    result = {
+        "activated": [],
+        "style_ids": [],
+        "constraints": [],
+        "pattern": None,
+        "mode": None,
+    }
     for condition, actions in rules.items():
         active = condition == "must_have" or any(
             pattern.search(normalized)
-            for pattern in CONDITION_PATTERNS.get(condition, ()))
+            for pattern in CONDITION_PATTERNS.get(condition, ())
+        )
         if not active:
             continue
         result["activated"].append({"condition": condition, "actions": list(actions)})

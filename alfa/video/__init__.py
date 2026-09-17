@@ -3,6 +3,16 @@
 Two-Layer Motion Compositor & Multi-Engine AI Video Generator (9:16).
 """
 
+from alfa.video.ai_engines import (
+    GEMINI_API_BASE,
+    OMNI_MODEL_MAP,
+    VEO_MODEL_MAP,
+    _find_video_payload,
+    _generate_cloud_ai_video,
+    _generate_gemini_omni_video,
+    _generate_google_veo_video,
+    _veo_api_request,
+)
 from alfa.video.audio import (
     VIDEO_OUT_DIR,
     generate_voiceover,
@@ -15,16 +25,6 @@ from alfa.video.compositor import (
     draw_lightning_icon,
     draw_star,
     get_system_font,
-)
-from alfa.video.ai_engines import (
-    GEMINI_API_BASE,
-    OMNI_MODEL_MAP,
-    VEO_MODEL_MAP,
-    _find_video_payload,
-    _generate_cloud_ai_video,
-    _generate_gemini_omni_video,
-    _generate_google_veo_video,
-    _veo_api_request,
 )
 from alfa.video.orchestrator import generate_video_from_images
 

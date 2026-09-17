@@ -17,7 +17,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 logger = logging.getLogger("VectorMemory")
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+DEFAULT_DB_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "agent_data.db"
+)
 DB_PATH = DEFAULT_DB_PATH
 
 
@@ -51,13 +53,23 @@ def init_vector_db(db_path: Optional[str] = None):
         cur = conn.execute("PRAGMA table_info(vector_knowledge_embeddings);")
         columns = [row[1] for row in cur.fetchall()]
         if "model" not in columns:
-            conn.execute("ALTER TABLE vector_knowledge_embeddings ADD COLUMN model TEXT DEFAULT 'gemini';")
+            conn.execute(
+                "ALTER TABLE vector_knowledge_embeddings ADD COLUMN model TEXT DEFAULT 'gemini';"
+            )
         if "dimension" not in columns:
-            conn.execute("ALTER TABLE vector_knowledge_embeddings ADD COLUMN dimension INTEGER DEFAULT 768;")
+            conn.execute(
+                "ALTER TABLE vector_knowledge_embeddings ADD COLUMN dimension INTEGER DEFAULT 768;"
+            )
 
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_user_cat ON vector_knowledge_embeddings(user_id, category);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_vke_model_dim ON vector_knowledge_embeddings(user_id, model, dimension);")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vke_user_cat ON vector_knowledge_embeddings(user_id, category);"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vke_doc ON vector_knowledge_embeddings(user_id, doc_title);"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vke_model_dim ON vector_knowledge_embeddings(user_id, model, dimension);"
+        )
         conn.commit()
     except Exception as e:
         logger.error(f"Failed to init vector db ({target_path}): {e}")
@@ -131,7 +143,9 @@ def _local_subword_embedding(text: str, dim: int = 768) -> List[float]:
     return [0.0] * dim
 
 
-def _attempt_local_library_embedding(text: str) -> Optional[Tuple[List[float], str, int]]:
+def _attempt_local_library_embedding(
+    text: str,
+) -> Optional[Tuple[List[float], str, int]]:
     """
     Attempt to use any installed local embedding library (fastembed, sentence_transformers).
     Returns (normalized_vector, model_name, dimension) if successful, or None.
@@ -139,6 +153,7 @@ def _attempt_local_library_embedding(text: str) -> Optional[Tuple[List[float], s
     # 1. FastEmbed
     try:
         from fastembed import TextEmbedding
+
         model_name = "BAAI/bge-small-en-v1.5"
         fe_model = TextEmbedding(model_name=model_name)
         embeddings = list(fe_model.embed([text]))
@@ -154,6 +169,7 @@ def _attempt_local_library_embedding(text: str) -> Optional[Tuple[List[float], s
     # 2. Sentence Transformers
     try:
         from sentence_transformers import SentenceTransformer
+
         st_name = "all-MiniLM-L6-v2"
         st_model = SentenceTransformer(st_name)
         emb = st_model.encode(text)
@@ -168,7 +184,9 @@ def _attempt_local_library_embedding(text: str) -> Optional[Tuple[List[float], s
     return None
 
 
-def get_text_embedding_with_meta(text: str, dim: int = 768) -> Tuple[List[float], str, int]:
+def get_text_embedding_with_meta(
+    text: str, dim: int = 768
+) -> Tuple[List[float], str, int]:
     """
     Generate vector embedding along with its model identifier and dimension.
     Returns (vector, model_name, dimension).
@@ -183,15 +201,16 @@ def get_text_embedding_with_meta(text: str, dim: int = 768) -> Tuple[List[float]
     if api_key and api_key != "your_gemini_api_key_here":
         try:
             from google import genai
+
             client = genai.Client(api_key=api_key)
-            kwargs = {
-                "model": "gemini-embedding-001",
-                "contents": text
-            }
+            kwargs = {"model": "gemini-embedding-001", "contents": text}
             if dim and dim > 0:
                 try:
                     from google.genai import types
-                    kwargs["config"] = types.EmbedContentConfig(output_dimensionality=dim)
+
+                    kwargs["config"] = types.EmbedContentConfig(
+                        output_dimensionality=dim
+                    )
                 except Exception:
                     pass
 
@@ -236,7 +255,9 @@ def get_text_embedding(text: str, dim: int = 768) -> List[float]:
 get_embedding = get_text_embedding
 
 
-def _are_models_compatible(model_a: Optional[str], model_b: Optional[str], dim_a: int, dim_b: int) -> bool:
+def _are_models_compatible(
+    model_a: Optional[str], model_b: Optional[str], dim_a: int, dim_b: int
+) -> bool:
     """Check if two embedding models and dimensions are compatible for cosine similarity."""
     if dim_a != dim_b:
         return False
@@ -246,7 +267,9 @@ def _are_models_compatible(model_a: Optional[str], model_b: Optional[str], dim_a
     norm_b = model_b.lower().strip()
     if norm_a == norm_b:
         return True
-    if ("subword" in norm_a or norm_a == "local") and ("subword" in norm_b or norm_b == "local"):
+    if ("subword" in norm_a or norm_a == "local") and (
+        "subword" in norm_b or norm_b == "local"
+    ):
         return True
     if "gemini" in norm_a and "gemini" in norm_b:
         return True
@@ -282,11 +305,11 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
     if not paragraphs:
         return []
-        
+
     chunks = []
     current_chunk = []
     current_len = 0
-    
+
     for p in paragraphs:
         p_len = len(p)
         if current_len + p_len > chunk_size and current_chunk:
@@ -300,19 +323,19 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> List[str]
         else:
             current_chunk.append(p)
             current_len += p_len + 1
-            
+
     if current_chunk:
         chunks.append("\n".join(current_chunk))
-        
+
     return chunks
 
 
 def ingest_document(
-    user_id: int, 
-    title: str, 
-    content_or_path: str, 
+    user_id: int,
+    title: str,
+    content_or_path: str,
     category: str = "general",
-    db_path: Optional[str] = None
+    db_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Ingest a document (raw text or file path like .txt, .md, .pdf, .py, .csv, .json)
@@ -322,7 +345,7 @@ def ingest_document(
     init_vector_db(target_db)
     source_type = "text"
     text_content = content_or_path.strip()
-    
+
     # Check if content_or_path is an existing file
     if os.path.isfile(content_or_path):
         source_type = os.path.splitext(content_or_path)[1].lstrip(".").lower() or "file"
@@ -330,49 +353,62 @@ def ingest_document(
             if source_type == "pdf":
                 try:
                     import pypdf
+
                     reader = pypdf.PdfReader(content_or_path)
                     pages_text = [page.extract_text() or "" for page in reader.pages]
                     text_content = "\n\n".join(pages_text)
                 except ImportError:
-                    return {"status": "error", "message": "pypdf belum terpasang untuk membaca file PDF."}
+                    return {
+                        "status": "error",
+                        "message": "pypdf belum terpasang untuk membaca file PDF.",
+                    }
             else:
                 with open(content_or_path, "r", encoding="utf-8", errors="ignore") as f:
                     text_content = f.read()
         except Exception as read_err:
-            return {"status": "error", "message": f"Gagal membaca file {content_or_path}: {read_err}"}
-            
+            return {
+                "status": "error",
+                "message": f"Gagal membaca file {content_or_path}: {read_err}",
+            }
+
     if not text_content:
         return {"status": "error", "message": "Konten dokumen kosong."}
-        
+
     # Chunk text
     chunks = chunk_text(text_content, chunk_size=500, overlap=60)
     if not chunks:
         chunks = [text_content[:1000]]
-        
+
     # Reindex atomically in a single transaction: delete old chunks and insert
     # new ones together so a failure never leaves the document half-deleted.
     saved_count = 0
     conn = sqlite3.connect(target_db, timeout=10)
     try:
-        conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, title))
+        conn.execute(
+            "DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?",
+            (user_id, title),
+        )
         for idx, chunk in enumerate(chunks):
             emb, emb_model, emb_dim = get_text_embedding_with_meta(chunk)
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO vector_knowledge_embeddings
                 (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, model, dimension, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, (
-                user_id, 
-                title, 
-                idx, 
-                chunk, 
-                json.dumps(emb), 
-                category, 
-                source_type, 
-                len(chunk),
-                emb_model,
-                emb_dim
-            ))
+            """,
+                (
+                    user_id,
+                    title,
+                    idx,
+                    chunk,
+                    json.dumps(emb),
+                    category,
+                    source_type,
+                    len(chunk),
+                    emb_model,
+                    emb_dim,
+                ),
+            )
             saved_count += 1
         conn.commit()
     except Exception:
@@ -380,8 +416,10 @@ def ingest_document(
         raise
     finally:
         conn.close()
-        
-    logger.info(f"Ingested '{title}' ({saved_count} chunks, category: {category}, model: {emb_model}) into Vector Brain for user {user_id}")
+
+    logger.info(
+        f"Ingested '{title}' ({saved_count} chunks, category: {category}, model: {emb_model}) into Vector Brain for user {user_id}"
+    )
     return {
         "status": "success",
         "message": f"Dokumen '{title}' berhasil diindeks ke dalam Vector Brain ({saved_count} chunks, kategori: {category})!",
@@ -389,16 +427,16 @@ def ingest_document(
         "total_chunks": saved_count,
         "category": category,
         "source_type": source_type,
-        "total_chars": len(text_content)
+        "total_chars": len(text_content),
     }
 
 
 def semantic_search(
-    user_id: int, 
-    query: str, 
-    top_k: int = 5, 
+    user_id: int,
+    query: str,
+    top_k: int = 5,
     category: Optional[str] = None,
-    db_path: Optional[str] = None
+    db_path: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Perform fast cosine similarity semantic search across all stored vector knowledge chunks.
@@ -409,37 +447,47 @@ def semantic_search(
     init_vector_db(target_db)
     if not query.strip():
         return []
-        
+
     query_emb, query_model, query_dim = get_text_embedding_with_meta(query)
-    
+
     # Fetch candidate embeddings
     conn = sqlite3.connect(target_db, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
         if category and category.strip() and category.lower() != "all":
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at, model, dimension
                 FROM vector_knowledge_embeddings
                 WHERE user_id = ? AND category = ?
-            """, (user_id, category.strip())).fetchall()
+            """,
+                (user_id, category.strip()),
+            ).fetchall()
         else:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                 SELECT id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, created_at, model, dimension
                 FROM vector_knowledge_embeddings
                 WHERE user_id = ?
-            """, (user_id,)).fetchall()
+            """,
+                (user_id,),
+            ).fetchall()
     finally:
         conn.close()
-            
+
     if not rows:
         return []
-        
+
     scored_results = []
     for r in rows:
         try:
             stored_emb = json.loads(r["embedding_json"])
             row_keys = r.keys()
-            row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else len(stored_emb)
+            row_dim = (
+                r["dimension"]
+                if ("dimension" in row_keys and r["dimension"])
+                else len(stored_emb)
+            )
             row_model = r["model"] if ("model" in row_keys and r["model"]) else None
 
             # Enforce dimension and model compatibility:
@@ -448,27 +496,31 @@ def semantic_search(
                 continue
 
             sim = cosine_similarity(query_emb, stored_emb)
-            scored_results.append({
-                "id": r["id"],
-                "doc_title": r["doc_title"],
-                "chunk_index": r["chunk_index"],
-                "chunk_text": r["chunk_text"],
-                "similarity_score": round(sim, 4),
-                "category": r["category"],
-                "source_type": r["source_type"],
-                "model": row_model or query_model,
-                "dimension": row_dim,
-                "created_at": r["created_at"]
-            })
+            scored_results.append(
+                {
+                    "id": r["id"],
+                    "doc_title": r["doc_title"],
+                    "chunk_index": r["chunk_index"],
+                    "chunk_text": r["chunk_text"],
+                    "similarity_score": round(sim, 4),
+                    "category": r["category"],
+                    "source_type": r["source_type"],
+                    "model": row_model or query_model,
+                    "dimension": row_dim,
+                    "created_at": r["created_at"],
+                }
+            )
         except Exception as parse_err:
             logger.debug(f"Error parsing embedding for row {r['id']}: {parse_err}")
-            
+
     # Sort descending by similarity
     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return scored_results[:top_k]
 
 
-def list_ingested_documents(user_id: int, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_ingested_documents(
+    user_id: int, db_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """List summary of all documents currently ingested in Vector Brain."""
     target_db = _resolve_db_path(db_path)
     init_vector_db(target_db)
@@ -476,43 +528,53 @@ def list_ingested_documents(user_id: int, db_path: Optional[str] = None) -> List
     conn = sqlite3.connect(target_db, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT doc_title, category, source_type, COUNT(*) as total_chunks, SUM(char_count) as total_chars, MAX(created_at) as last_indexed
             FROM vector_knowledge_embeddings
             WHERE user_id = ?
             GROUP BY doc_title, category, source_type
             ORDER BY last_indexed DESC
-        """, (user_id,)).fetchall()
+        """,
+            (user_id,),
+        ).fetchall()
         for r in rows:
-            docs.append({
-                "doc_title": r["doc_title"],
-                "category": r["category"],
-                "source_type": r["source_type"],
-                "total_chunks": r["total_chunks"],
-                "total_chars": r["total_chars"],
-                "last_indexed": r["last_indexed"]
-            })
+            docs.append(
+                {
+                    "doc_title": r["doc_title"],
+                    "category": r["category"],
+                    "source_type": r["source_type"],
+                    "total_chunks": r["total_chunks"],
+                    "total_chars": r["total_chars"],
+                    "last_indexed": r["last_indexed"],
+                }
+            )
     finally:
         conn.close()
     return docs
 
 
-def delete_document(user_id: int, doc_title: str, db_path: Optional[str] = None) -> Dict[str, Any]:
+def delete_document(
+    user_id: int, doc_title: str, db_path: Optional[str] = None
+) -> Dict[str, Any]:
     """Delete all chunks belonging to a document title."""
     target_db = _resolve_db_path(db_path)
     init_vector_db(target_db)
     conn = sqlite3.connect(target_db, timeout=10)
     try:
-        cursor = conn.execute("DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?", (user_id, doc_title))
+        cursor = conn.execute(
+            "DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?",
+            (user_id, doc_title),
+        )
         deleted_count = cursor.rowcount
         conn.commit()
     finally:
         conn.close()
-        
+
     return {
         "status": "success",
         "message": f"Dokumen '{doc_title}' ({deleted_count} chunks) berhasil dihapus dari Vector Brain.",
-        "deleted_chunks": deleted_count
+        "deleted_chunks": deleted_count,
     }
 
 
@@ -521,7 +583,7 @@ def save_to_vector_memory(
     title: str,
     content: str,
     category: str = "general",
-    db_path: Optional[str] = None
+    db_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Save content or note into vector memory (alias for ingest_document)."""
     return ingest_document(
@@ -529,7 +591,7 @@ def save_to_vector_memory(
         title=title,
         content_or_path=content,
         category=category,
-        db_path=db_path
+        db_path=db_path,
     )
 
 
@@ -538,13 +600,9 @@ def search_vector_memory(
     query: str,
     top_k: int = 5,
     category: Optional[str] = None,
-    db_path: Optional[str] = None
+    db_path: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Search vector memory using semantic search (alias for semantic_search)."""
     return semantic_search(
-        user_id=user_id,
-        query=query,
-        top_k=top_k,
-        category=category,
-        db_path=db_path
+        user_id=user_id, query=query, top_k=top_k, category=category, db_path=db_path
     )

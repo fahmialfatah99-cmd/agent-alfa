@@ -15,6 +15,7 @@ from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Desktop")
 
+
 @register_tool(category="media")
 def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
     """
@@ -32,19 +33,21 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
         os.makedirs(os.path.dirname(os.path.abspath(screenshot_path)), exist_ok=True)
 
         # 1. Native Windows GDI Screen Capture (Windows 10 / 11 Native Multi-Monitor)
-        if os.name == 'nt' or sys.platform == 'win32':
+        if os.name == "nt" or sys.platform == "win32":
             try:
-                import ctypes, struct
+                import ctypes
+                import struct
+
                 from PIL import Image
 
                 user32 = ctypes.windll.user32
                 gdi32 = ctypes.windll.gdi32
                 user32.SetProcessDPIAware()
 
-                left = user32.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
-                top = user32.GetSystemMetrics(77)    # SM_YVIRTUALSCREEN
+                left = user32.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN
+                top = user32.GetSystemMetrics(77)  # SM_YVIRTUALSCREEN
                 width = user32.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
-                height = user32.GetSystemMetrics(79) # SM_CYVIRTUALSCREEN
+                height = user32.GetSystemMetrics(79)  # SM_CYVIRTUALSCREEN
 
                 if width <= 0 or height <= 0:
                     left, top = 0, 0
@@ -56,32 +59,62 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
                 img_dc = gdi32.CreateCompatibleDC(desktop_dc)
                 mem_bitmap = gdi32.CreateCompatibleBitmap(desktop_dc, width, height)
                 gdi32.SelectObject(img_dc, mem_bitmap)
-                gdi32.BitBlt(img_dc, 0, 0, width, height, desktop_dc, left, top, 0x00CC0020)
+                gdi32.BitBlt(
+                    img_dc, 0, 0, width, height, desktop_dc, left, top, 0x00CC0020
+                )
 
-                struct_fmt = '<IiiHHIIIIII'
-                bmi_bytes = struct.pack(struct_fmt, 40, width, -height, 1, 32, 0, width * height * 4, 0, 0, 0, 0)
+                struct_fmt = "<IiiHHIIIIII"
+                bmi_bytes = struct.pack(
+                    struct_fmt,
+                    40,
+                    width,
+                    -height,
+                    1,
+                    32,
+                    0,
+                    width * height * 4,
+                    0,
+                    0,
+                    0,
+                    0,
+                )
                 buf = (ctypes.c_char * (width * height * 4))()
-                gdi32.GetDIBits(img_dc, mem_bitmap, 0, height, ctypes.byref(buf), ctypes.c_char_p(bmi_bytes), 0)
+                gdi32.GetDIBits(
+                    img_dc,
+                    mem_bitmap,
+                    0,
+                    height,
+                    ctypes.byref(buf),
+                    ctypes.c_char_p(bmi_bytes),
+                    0,
+                )
 
-                img = Image.frombuffer('RGBA', (width, height), buf, 'raw', 'BGRA', 0, 1)
-                img = img.convert('RGB')
+                img = Image.frombuffer(
+                    "RGBA", (width, height), buf, "raw", "BGRA", 0, 1
+                )
+                img = img.convert("RGB")
                 img.save(screenshot_path, quality=95)
 
                 gdi32.DeleteObject(mem_bitmap)
                 gdi32.DeleteDC(img_dc)
                 user32.ReleaseDC(hdesktop, desktop_dc)
 
-                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                if (
+                    os.path.exists(screenshot_path)
+                    and os.path.getsize(screenshot_path) > 1000
+                ):
                     return {
                         "status": "success",
                         "message": "Screenshot desktop Windows berhasil diambil dengan resolusi penuh.",
-                        "file_path": screenshot_path
+                        "file_path": screenshot_path,
                     }
             except Exception as win_err:
-                logger.warning(f"Win32 GDI screen capture failed ({win_err}), trying fallbacks...")
+                logger.warning(
+                    f"Win32 GDI screen capture failed ({win_err}), trying fallbacks..."
+                )
 
         # 2. Native Wayland XDG Desktop Portal (Official GNOME/KDE Wayland Screen Capture)
-        if sys.platform.startswith('linux'):
+        if sys.platform.startswith("linux"):
             portal_script = (
                 "import os, sys, shutil, urllib.parse, random\n"
                 "from gi.repository import Gio, GLib\n"
@@ -133,49 +166,77 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
                 p_res = subprocess.run(
                     ["/usr/bin/python3", "-c", portal_script, screenshot_path],
                     capture_output=True,
-                    timeout=4
+                    timeout=4,
                 )
-                if p_res.returncode == 0 and os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                if (
+                    p_res.returncode == 0
+                    and os.path.exists(screenshot_path)
+                    and os.path.getsize(screenshot_path) > 1000
+                ):
                     return {
                         "status": "success",
                         "message": "Screenshot desktop berhasil diambil via Wayland Portal.",
-                        "file_path": screenshot_path
+                        "file_path": screenshot_path,
                     }
             except Exception:
                 pass
 
             # 3. Try grim (wlroots Wayland compositors like Sway/Hyprland)
             try:
-                subprocess.run(f"grim '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
-                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                subprocess.run(
+                    f"grim '{screenshot_path}'",
+                    shell=True,
+                    capture_output=True,
+                    timeout=2,
+                )
+                if (
+                    os.path.exists(screenshot_path)
+                    and os.path.getsize(screenshot_path) > 1000
+                ):
                     return {
                         "status": "success",
                         "message": "Screenshot desktop berhasil diambil via grim.",
-                        "file_path": screenshot_path
+                        "file_path": screenshot_path,
                     }
             except Exception:
                 pass
 
             # 4. Try import (ImageMagick)
             try:
-                subprocess.run(f"import -window root '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
-                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                subprocess.run(
+                    f"import -window root '{screenshot_path}'",
+                    shell=True,
+                    capture_output=True,
+                    timeout=2,
+                )
+                if (
+                    os.path.exists(screenshot_path)
+                    and os.path.getsize(screenshot_path) > 1000
+                ):
                     return {
                         "status": "success",
                         "message": "Screenshot desktop berhasil diambil via ImageMagick.",
-                        "file_path": screenshot_path
+                        "file_path": screenshot_path,
                     }
             except Exception:
                 pass
 
             # 5. Try scrot (Standard Linux X11 screen capture tool)
             try:
-                subprocess.run(f"scrot '{screenshot_path}'", shell=True, capture_output=True, timeout=2)
-                if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+                subprocess.run(
+                    f"scrot '{screenshot_path}'",
+                    shell=True,
+                    capture_output=True,
+                    timeout=2,
+                )
+                if (
+                    os.path.exists(screenshot_path)
+                    and os.path.getsize(screenshot_path) > 1000
+                ):
                     return {
                         "status": "success",
                         "message": "Screenshot desktop berhasil diambil via scrot.",
-                        "file_path": screenshot_path
+                        "file_path": screenshot_path,
                     }
             except Exception:
                 pass
@@ -183,18 +244,25 @@ def capture_desktop_screenshot(*args, **kwargs) -> Dict[str, Any]:
         # 6. Fallback PIL ImageGrab (Universal / macOS / Linux / Windows)
         try:
             from PIL import ImageGrab
+
             img = ImageGrab.grab()
             img.save(screenshot_path)
-            if os.path.exists(screenshot_path) and os.path.getsize(screenshot_path) > 1000:
+            if (
+                os.path.exists(screenshot_path)
+                and os.path.getsize(screenshot_path) > 1000
+            ):
                 return {
                     "status": "success",
                     "message": "Screenshot desktop berhasil diambil via ImageGrab.",
-                    "file_path": screenshot_path
+                    "file_path": screenshot_path,
                 }
         except Exception:
             pass
 
-        return {"status": "error", "message": "Gagal mengambil screenshot desktop di lingkungan display saat ini."}
+        return {
+            "status": "error",
+            "message": "Gagal mengambil screenshot desktop di lingkungan display saat ini.",
+        }
     except Exception as err:
         return {"status": "error", "message": str(err)}
 
@@ -212,79 +280,111 @@ def capture_webcam_frame() -> Dict[str, Any]:
                 os.remove(cam_path)
             except OSError:
                 pass
-                
+
         import cv2
+
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            return {"status": "error", "message": "Perangkat webcam tidak dapat diakses atau tidak terdeteksi (/dev/video0)."}
-        
+            return {
+                "status": "error",
+                "message": "Perangkat webcam tidak dapat diakses atau tidak terdeteksi (/dev/video0).",
+            }
+
         # Warmup camera frames
         for _ in range(5):
             ret, frame = cap.read()
         ret, frame = cap.read()
         cap.release()
-        
+
         if ret and frame is not None:
             cv2.imwrite(cam_path, frame)
             return {
                 "status": "success",
                 "message": "Foto webcam berhasil diambil.",
-                "file_path": cam_path
+                "file_path": cam_path,
             }
     except Exception as err:
         return {"status": "error", "message": str(err)}
-
 
 
 def record_desktop_screen(duration_seconds: int = 10) -> Dict[str, Any]:
     """
     Record the desktop screen as an MP4 video for a specified duration and send to Telegram.
     Cross-platform: Windows (ffmpeg gdigrab), Linux (wf-recorder / x11grab).
-    
+
     Args:
         duration_seconds: Recording duration in seconds (1-60, default: 10).
     """
     try:
         duration = max(1, min(60, duration_seconds))
         output_path = os.path.join(SANDBOX_DIR, "screen_recording.mp4")
-        
+
         # Windows: ffmpeg dengan capture driver gdigrab
         if os.name == "nt":
             res = subprocess.run(
-                f'ffmpeg -y -f gdigrab -framerate 15 -i desktop -t {duration} '
+                f"ffmpeg -y -f gdigrab -framerate 15 -i desktop -t {duration} "
                 f'-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p "{output_path}"',
-                shell=True, capture_output=True, text=True, timeout=duration + 30
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=duration + 30,
             )
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                 size_mb = os.path.getsize(output_path) / (1024 * 1024)
-                return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
+                return {
+                    "status": "success",
+                    "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram.",
+                }
             err = (res.stderr or "")[-300:]
-            return {"status": "error", "message": f"Gagal merekam layar via ffmpeg/gdigrab: {err}"}
-        
+            return {
+                "status": "error",
+                "message": f"Gagal merekam layar via ffmpeg/gdigrab: {err}",
+            }
+
         # Try Wayland wf-recorder first
         res = subprocess.run(
             f"timeout {duration + 2} wf-recorder -d /dev/dri/renderD128 -f {output_path} --duration {duration} 2>/dev/null",
-            shell=True, capture_output=True, text=True, timeout=duration + 10
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=duration + 10,
         )
-        if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+        if (
+            res.returncode == 0
+            and os.path.exists(output_path)
+            and os.path.getsize(output_path) > 0
+        ):
             size_mb = os.path.getsize(output_path) / (1024 * 1024)
-            return {"status": "success", "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram."}
-        
+            return {
+                "status": "success",
+                "message": f"Rekaman layar {duration}s berhasil ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram.",
+            }
+
         # Fallback to ffmpeg with PipeWire
         res = subprocess.run(
             f"timeout {duration + 5} ffmpeg -y -video_size 1920x1080 -framerate 15 -f x11grab -i :0 -t {duration} -c:v libx264 -preset ultrafast -crf 28 {output_path} 2>/dev/null",
-            shell=True, capture_output=True, text=True, timeout=duration + 15
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=duration + 15,
         )
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             size_mb = os.path.getsize(output_path) / (1024 * 1024)
-            return {"status": "success", "message": f"Rekaman layar {duration}s berhasil via ffmpeg ({round(size_mb, 2)} MB)."}
-        
-        return {"status": "error", "message": "Gagal merekam layar. Pastikan wf-recorder atau ffmpeg terinstall."}
+            return {
+                "status": "success",
+                "message": f"Rekaman layar {duration}s berhasil via ffmpeg ({round(size_mb, 2)} MB).",
+            }
+
+        return {
+            "status": "error",
+            "message": "Gagal merekam layar. Pastikan wf-recorder atau ffmpeg terinstall.",
+        }
     except subprocess.TimeoutExpired:
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-            return {"status": "success", "message": "Rekaman layar berhasil (timeout graceful)."}
+            return {
+                "status": "success",
+                "message": "Rekaman layar berhasil (timeout graceful).",
+            }
         return {"status": "error", "message": "Timeout saat merekam layar."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-

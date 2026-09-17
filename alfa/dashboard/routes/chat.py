@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
-from alfa.core import database
 from alfa import tools
+from alfa.core import database
 from alfa.dashboard.common import _get_bot, get_primary_user_id, logger
 
 chat_router = APIRouter(tags=["chat"])
@@ -29,7 +29,9 @@ async def chat_with_agent(payload: Dict[str, Any]):
     attachments = payload.get("attachments") or []
 
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
 
     uid = get_primary_user_id()
 
@@ -50,24 +52,28 @@ async def chat_with_agent(payload: Dict[str, Any]):
         except Exception:
             continue
 
-        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
+        txt_ctx, part = ufe.process_uploaded_attachment(
+            fname, mime, raw_bytes, save_disk=True
+        )
         if part is not None:
             multimodal_parts.append(part)
         if txt_ctx:
             text_contexts.append(txt_ctx)
-            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            m = re.search(r"\[FILE TERSIMPAN DI DISK:\s*(.+?)\]", txt_ctx)
             if m:
                 saved_disk_paths.append(m.group(1).strip())
 
     # 1. Check Sub-second Fast-Path Engine first (0.05s response)
-    fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+    fast_result = fpe.try_execute_fast_path(
+        user_prompt=message, saved_file_paths=saved_disk_paths
+    )
     if fast_result is not None:
         return {
             "status": "success",
             "reply": fast_result.get("reply"),
             "tool_used": fast_result.get("tool_name"),
             "execution_time_ms": fast_result.get("execution_time_ms"),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     # 2. Extract active model override from payload
@@ -82,7 +88,11 @@ async def chat_with_agent(payload: Dict[str, Any]):
     # 3. Autonomous Multi-step LLM Turn
     full_prompt = message
     if text_contexts:
-        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+        full_prompt = "\n\n".join(text_contexts) + (
+            "\n\n" + message
+            if message
+            else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+        )
 
     reply = await _get_bot().run_agent_turn(
         user_id=uid,
@@ -90,13 +100,13 @@ async def chat_with_agent(payload: Dict[str, Any]):
         multimodal_parts=multimodal_parts if multimodal_parts else None,
         chat_id=uid,
         override_model=selected_model,
-        override_key_id=selected_key_id
+        override_key_id=selected_key_id,
     )
     return {
         "status": "success",
         "reply": reply,
         "model_used": selected_model or "default",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -110,7 +120,9 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
     attachments = payload.get("attachments") or payload.get("files") or []
 
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
 
     uid = get_primary_user_id()
 
@@ -131,12 +143,14 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         except Exception:
             continue
 
-        txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes, save_disk=True)
+        txt_ctx, part = ufe.process_uploaded_attachment(
+            fname, mime, raw_bytes, save_disk=True
+        )
         if part is not None:
             multimodal_parts.append(part)
         if txt_ctx:
             text_contexts.append(txt_ctx)
-            m = re.search(r'\[FILE TERSIMPAN DI DISK:\s*(.+?)\]', txt_ctx)
+            m = re.search(r"\[FILE TERSIMPAN DI DISK:\s*(.+?)\]", txt_ctx)
             if m:
                 saved_disk_paths.append(m.group(1).strip())
 
@@ -151,7 +165,11 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
     expert_mode = (payload.get("expert_mode") or "general").strip()
     full_prompt = message
     if text_contexts:
-        full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+        full_prompt = "\n\n".join(text_contexts) + (
+            "\n\n" + message
+            if message
+            else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+        )
     if expert_mode and expert_mode != "general":
         full_prompt = f"[Mode Spesialis: {expert_mode}]\n{full_prompt}"
 
@@ -159,7 +177,9 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         start_t = time.time()
 
         # 1. Check Fast Path
-        fast_result = fpe.try_execute_fast_path(user_prompt=message, saved_file_paths=saved_disk_paths)
+        fast_result = fpe.try_execute_fast_path(
+            user_prompt=message, saved_file_paths=saved_disk_paths
+        )
         if fast_result is not None:
             reply = fast_result.get("reply", "")
             yield f"data: {json.dumps({'type': 'start', 'model': 'fast_path'})}\n\n"
@@ -175,17 +195,19 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         # 2. Yield reasoning progress
         yield f"data: {json.dumps({'type': 'progress', 'step': '1. Memvalidasi berkas & menyiapkan memori...'})}\n\n"
         await asyncio.sleep(0.05)
-        engine_label = selected_model or 'Otak Utama'
+        engine_label = selected_model or "Otak Utama"
         yield f"data: {json.dumps({'type': 'progress', 'step': f'2. Memanggil engine {engine_label} & eksekusi tools...'})}\n\n"
 
-        turn_task = asyncio.create_task(_get_bot().run_agent_turn(
-            user_id=uid,
-            user_prompt=full_prompt,
-            multimodal_parts=multimodal_parts if multimodal_parts else None,
-            chat_id=uid,
-            override_model=selected_model,
-            override_key_id=selected_key_id
-        ))
+        turn_task = asyncio.create_task(
+            _get_bot().run_agent_turn(
+                user_id=uid,
+                user_prompt=full_prompt,
+                multimodal_parts=multimodal_parts if multimodal_parts else None,
+                chat_id=uid,
+                override_model=selected_model,
+                override_key_id=selected_key_id,
+            )
+        )
 
         while not turn_task.done():
             yield ": ping\n\n"
@@ -224,8 +246,8 @@ async def chat_with_agent_stream(payload: Dict[str, Any]):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -239,11 +261,31 @@ async def get_chat_available_models():
     model_list = []
 
     gemini_models = [
-        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash (Default Agentic)", "provider": "gemini"},
-        {"id": "gemini-3.7-flash", "name": "Gemini 3.7 Flash Thinking (Deep Logic)", "provider": "gemini"},
-        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Stabil & Cepat)", "provider": "gemini"},
-        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite (Ultra Ringan)", "provider": "gemini"},
-        {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite", "provider": "gemini"},
+        {
+            "id": "gemini-3.6-flash",
+            "name": "Gemini 3.6 Flash (Default Agentic)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.7-flash",
+            "name": "Gemini 3.7 Flash Thinking (Deep Logic)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.5-flash",
+            "name": "Gemini 3.5 Flash (Stabil & Cepat)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.1-flash-lite",
+            "name": "Gemini 3.1 Flash Lite (Ultra Ringan)",
+            "provider": "gemini",
+        },
+        {
+            "id": "gemini-3.5-flash-lite",
+            "name": "Gemini 3.5 Flash Lite",
+            "provider": "gemini",
+        },
     ]
 
     has_gemini = False
@@ -257,54 +299,71 @@ async def get_chat_available_models():
         if prov == "gemini":
             has_gemini = True
             for gm in gemini_models:
-                model_list.append({
-                    "id": gm["id"],
-                    "name": f"✨ {gm['name']}",
-                    "provider": f"Gemini ({kname})",
-                    "key_id": kid,
-                    "key_name": kname,
-                    "is_active_key": is_act
-                })
+                model_list.append(
+                    {
+                        "id": gm["id"],
+                        "name": f"✨ {gm['name']}",
+                        "provider": f"Gemini ({kname})",
+                        "key_id": kid,
+                        "key_name": kname,
+                        "is_active_key": is_act,
+                    }
+                )
         elif prov == "openrouter":
             or_models = [
-                {"id": "nvidia/nemotron-3-super-120b-a12b:free", "name": "Nvidia Nemotron 120B (Free)"},
-                {"id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6 (Paid)"},
+                {
+                    "id": "nvidia/nemotron-3-super-120b-a12b:free",
+                    "name": "Nvidia Nemotron 120B (Free)",
+                },
+                {
+                    "id": "anthropic/claude-sonnet-4.6",
+                    "name": "Claude Sonnet 4.6 (Paid)",
+                },
                 {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Reasoning (Paid)"},
                 {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 (Paid)"},
-                {"id": def_m if def_m else "google/gemini-2.5-flash", "name": f"Kunci Default ({def_m or 'gemini-2.5-flash'})"},
+                {
+                    "id": def_m if def_m else "google/gemini-2.5-flash",
+                    "name": f"Kunci Default ({def_m or 'gemini-2.5-flash'})",
+                },
             ]
             seen_ids = set()
             for om in or_models:
                 if om["id"] not in seen_ids:
                     seen_ids.add(om["id"])
-                    model_list.append({
-                        "id": om["id"],
-                        "name": f"🌐 {om['name']}",
-                        "provider": f"OpenRouter ({kname})",
-                        "key_id": kid,
-                        "key_name": kname,
-                        "is_active_key": is_act
-                    })
+                    model_list.append(
+                        {
+                            "id": om["id"],
+                            "name": f"🌐 {om['name']}",
+                            "provider": f"OpenRouter ({kname})",
+                            "key_id": kid,
+                            "key_name": kname,
+                            "is_active_key": is_act,
+                        }
+                    )
         elif prov in ("groq", "openai", "custom", "nvidia", "9router"):
-            model_list.append({
-                "id": def_m or f"{prov}-model",
-                "name": f"⚡ {kname} ({def_m or prov})",
-                "provider": prov.upper(),
-                "key_id": kid,
-                "key_name": kname,
-                "is_active_key": is_act
-            })
+            model_list.append(
+                {
+                    "id": def_m or f"{prov}-model",
+                    "name": f"⚡ {kname} ({def_m or prov})",
+                    "provider": prov.upper(),
+                    "key_id": kid,
+                    "key_name": kname,
+                    "is_active_key": is_act,
+                }
+            )
 
     if not has_gemini:
         for gm in gemini_models:
-            model_list.append({
-                "id": gm["id"],
-                "name": f"✨ {gm['name']}",
-                "provider": "Gemini (Env)",
-                "key_id": None,
-                "key_name": "GEMINI_API_KEY",
-                "is_active_key": True
-            })
+            model_list.append(
+                {
+                    "id": gm["id"],
+                    "name": f"✨ {gm['name']}",
+                    "provider": "Gemini (Env)",
+                    "key_id": None,
+                    "key_name": "GEMINI_API_KEY",
+                    "is_active_key": True,
+                }
+            )
 
     is_offline = os.getenv("ALFA_OFFLINE_MODE", "").lower() in ("true", "1", "on")
     ollama_models = [
@@ -313,20 +372,22 @@ async def get_chat_available_models():
         {"id": "deepseek-r1:8b", "name": "🧠 DeepSeek R1 8B Reasoning (Offline Brain)"},
     ]
     for om in ollama_models:
-        model_list.append({
-            "id": om["id"],
-            "name": om["name"],
-            "provider": "Ollama Local Engine",
-            "key_id": "ollama",
-            "key_name": "Ollama (localhost:11434)",
-            "is_active_key": is_offline
-        })
+        model_list.append(
+            {
+                "id": om["id"],
+                "name": om["name"],
+                "provider": "Ollama Local Engine",
+                "key_id": "ollama",
+                "key_name": "Ollama (localhost:11434)",
+                "is_active_key": is_offline,
+            }
+        )
 
     return {
         "status": "success",
         "active_model": active_brain_model or "gemini-3.6-flash",
         "active_key_id": active_key_id,
-        "models": model_list
+        "models": model_list,
     }
 
 
@@ -341,14 +402,19 @@ async def set_chat_active_model(payload: Dict[str, Any]):
     elif key_id:
         os.environ["ALFA_OFFLINE_MODE"] = "false"
         try:
-            database.activate_api_key_sync(int(key_id), custom_model=model if model else None)
+            database.activate_api_key_sync(
+                int(key_id), custom_model=model if model else None
+            )
         except Exception as e:
             logger.warning(f"Failed activating key #{key_id}: {e}")
     else:
         os.environ["ALFA_OFFLINE_MODE"] = "false"
     if model:
         database.set_main_brain_model(model)
-    return {"status": "success", "message": f"Model aktif berhasil dialihkan ke: {model}"}
+    return {
+        "status": "success",
+        "message": f"Model aktif berhasil dialihkan ke: {model}",
+    }
 
 
 @chat_router.delete("/api/chat/history")
@@ -356,7 +422,10 @@ async def clear_chat_history_api():
     """Wipe chat conversation history from database."""
     uid = get_primary_user_id()
     await database.clear_user_chat_history(uid)
-    return {"status": "success", "message": "Riwayat percakapan berhasil dibersihkan dari memori!"}
+    return {
+        "status": "success",
+        "message": "Riwayat percakapan berhasil dibersihkan dari memori!",
+    }
 
 
 @chat_router.post("/api/chat/execute-code")
@@ -393,7 +462,7 @@ async def execute_chat_code_block(payload: Dict[str, Any]):
         "status": "success",
         "language": language,
         "execution_time_ms": elapsed_ms,
-        "result": result
+        "result": result,
     }
 
 
@@ -408,7 +477,7 @@ async def export_chat_history(format: str = "markdown"):
             "status": "success",
             "exported_at": datetime.now().isoformat(),
             "total_messages": len(rows),
-            "messages": [dict(r) for r in rows]
+            "messages": [dict(r) for r in rows],
         }
 
     lines = [
@@ -416,10 +485,12 @@ async def export_chat_history(format: str = "markdown"):
         f"*Diekspor pada: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} WIB*",
         "",
         "---",
-        ""
+        "",
     ]
     for r in rows:
-        role_label = "👤 **Fahmi (User)**" if r["role"] == "user" else "🤖 **Agent ALFA**"
+        role_label = (
+            "👤 **Fahmi (User)**" if r["role"] == "user" else "🤖 **Agent ALFA**"
+        )
         ts = r.get("timestamp") or ""
         lines.append(f"### {role_label}  `{ts}`")
         lines.append("")
@@ -432,7 +503,9 @@ async def export_chat_history(format: str = "markdown"):
     return Response(
         content=md_content,
         media_type="text/markdown",
-        headers={"Content-Disposition": f"attachment; filename=alfa_chat_export_{int(time.time())}.md"}
+        headers={
+            "Content-Disposition": f"attachment; filename=alfa_chat_export_{int(time.time())}.md"
+        },
     )
 
 
@@ -447,44 +520,44 @@ async def get_chat_expert_modes():
                 "name": "Super Agent (130+ Tools)",
                 "icon": "bot",
                 "color": "cyan",
-                "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory."
+                "description": "Mode otonom penuh dengan semua tools: web search, sandbox, media, OS, memory.",
             },
             {
                 "id": "swarm",
                 "name": "Autonomous Multi-Agent Swarm",
                 "icon": "users",
                 "color": "amber",
-                "description": "Orkestrasi eksekusi tim AI multi-agent untuk proyek besar dan tugas multi-tahap secara tuntas."
+                "description": "Orkestrasi eksekusi tim AI multi-agent untuk proyek besar dan tugas multi-tahap secara tuntas.",
             },
             {
                 "id": "coder",
                 "name": "Senior Software Architect",
                 "icon": "code-2",
                 "color": "emerald",
-                "description": "Fokus pada pembuatan kode berkualitas tinggi, refactoring, debug, dan testing di sandbox."
+                "description": "Fokus pada pembuatan kode berkualitas tinggi, refactoring, debug, dan testing di sandbox.",
             },
             {
                 "id": "researcher",
                 "name": "Deep Web & Academic Researcher",
                 "icon": "search",
                 "color": "violet",
-                "description": "Riset mendalam menggunakan internet live, arXiv, PubMed, Wikipedia, dan perbandingan referensi."
+                "description": "Riset mendalam menggunakan internet live, arXiv, PubMed, Wikipedia, dan perbandingan referensi.",
             },
             {
                 "id": "data",
                 "name": "Data Analyst & PDF Maestro",
                 "icon": "file-spreadsheet",
                 "color": "amber",
-                "description": "Analisis Excel/CSV, visualisasi data, manipulasi PDF, OCR, dan konversi dokumen."
+                "description": "Analisis Excel/CSV, visualisasi data, manipulasi PDF, OCR, dan konversi dokumen.",
             },
             {
                 "id": "fast",
                 "name": "Sub-Second Fast Native",
                 "icon": "zap",
                 "color": "rose",
-                "description": "Eksekusi instan deterministik (< 50ms) untuk konversi gambar ke PDF, waifu2x, dll."
-            }
-        ]
+                "description": "Eksekusi instan deterministik (< 50ms) untuk konversi gambar ke PDF, waifu2x, dll.",
+            },
+        ],
     }
 
 
@@ -496,7 +569,9 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []
     if not message and not attachments:
-        raise HTTPException(status_code=400, detail="message or attachments is required")
+        raise HTTPException(
+            status_code=400, detail="message or attachments is required"
+        )
     uid = get_primary_user_id()
     task_tag = f"[tugas-latar {datetime.now().strftime('%H:%M:%S')}]"
 
@@ -525,22 +600,28 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
 
             full_prompt = message
             if text_contexts:
-                full_prompt = "\n\n".join(text_contexts) + ("\n\n" + message if message else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam.")
+                full_prompt = "\n\n".join(text_contexts) + (
+                    "\n\n" + message
+                    if message
+                    else "\n\nAnalisis isi dokumen terlampir di atas secara mendalam."
+                )
 
             reply = await _get_bot().run_agent_turn(
                 user_id=uid,
                 user_prompt=full_prompt,
                 multimodal_parts=multimodal_parts if multimodal_parts else None,
-                chat_id=uid
+                chat_id=uid,
             )
             await database.save_chat_message(
-                uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}")
+                uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}"
+            )
             logger.info(f"chat_async selesai: {task_tag}")
         except Exception as e:
             logger.error(f"chat_async gagal ({task_tag}): {e}")
             try:
                 await database.save_chat_message(
-                    uid, "model", f"{task_tag} GAGAL ❌: {e}")
+                    uid, "model", f"{task_tag} GAGAL ❌: {e}"
+                )
             except Exception:
                 pass
 
@@ -548,5 +629,5 @@ async def chat_with_agent_async(payload: Dict[str, Any]):
     return {
         "status": "accepted",
         "message": "Tugas dijalankan di latar belakang. Hasil muncul di riwayat chat saat selesai.",
-        "tag": task_tag
+        "tag": task_tag,
     }
