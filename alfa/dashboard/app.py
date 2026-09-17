@@ -9,7 +9,11 @@ import base64
 import ctypes
 import os
 import secrets
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+
+_START_TIME = time.time()
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -197,6 +201,76 @@ def create_app() -> FastAPI:
         return HTMLResponse(
             "<h2>Dashboard template not found. Please create templates/index.html</h2>"
         )
+
+    # Health check & metrics endpoints
+    @app_instance.get("/health", tags=["Monitoring"])
+    @app_instance.get("/healthz", tags=["Monitoring"])
+    async def health_check():
+        """Health check endpoint for Docker, Kubernetes, and uptime monitoring."""
+        db_status = "unknown"
+        try:
+            from alfa.core import database as db
+
+            conn = db.get_connection_pool().acquire()
+            try:
+                conn.execute("SELECT 1")
+                db_status = "connected"
+            finally:
+                db.get_connection_pool().release(conn)
+        except Exception as e:
+            db_status = f"degraded: {e}"
+
+        import psutil
+
+        process = psutil.Process()
+        memory_info = process.memory_info()
+
+        return {
+            "status": "healthy" if db_status == "connected" else "degraded",
+            "service": "alfa-sovereign-ai",
+            "version": "2.5.0",
+            "database": db_status,
+            "uptime_seconds": round(time.time() - _START_TIME, 2),
+            "memory_rss_mb": round(memory_info.rss / (1024 * 1024), 2),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    @app_instance.get("/api/metrics", tags=["Monitoring"])
+    async def system_metrics():
+        """System performance and resource telemetry metrics."""
+        import psutil
+
+        cpu_pct = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        proc = psutil.Process()
+
+        db_pool_stats = {}
+        try:
+            from alfa.core import database as db
+
+            db_pool_stats = db.get_connection_pool().stats
+        except Exception:
+            pass
+
+        return {
+            "service": "alfa-sovereign-ai",
+            "version": "2.5.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "system": {
+                "cpu_percent": cpu_pct,
+                "memory_total_mb": round(mem.total / (1024 * 1024), 2),
+                "memory_used_mb": round(mem.used / (1024 * 1024), 2),
+                "memory_percent": mem.percent,
+                "disk_percent": disk.percent,
+            },
+            "process": {
+                "rss_mb": round(proc.memory_info().rss / (1024 * 1024), 2),
+                "threads": proc.num_threads(),
+                "uptime_seconds": round(time.time() - _START_TIME, 2),
+            },
+            "database_pool": db_pool_stats,
+        }
 
     # Include APIRouters
     app_instance.include_router(auth_router)

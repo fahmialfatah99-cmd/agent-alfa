@@ -20,11 +20,16 @@ _POOL_TIMEOUT = float(os.getenv("ALFA_DB_POOL_TIMEOUT", "30.0"))
 
 
 def _get_db_path() -> str:
-    """Dynamically resolve current DB_PATH, supporting test monkeypatching."""
+    """Dynamically resolve current DB_PATH, supporting test monkeypatching and DATABASE_URL."""
     for mod_name in ("database", "alfa.core.database"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "DB_PATH"):
             return mod.DB_PATH
+    db_env = os.getenv("ALFA_DB_PATH") or os.getenv("DATABASE_URL")
+    if db_env:
+        if db_env.startswith("sqlite:///"):
+            return db_env.replace("sqlite:///", "")
+        return db_env
     return DB_PATH
 
 
