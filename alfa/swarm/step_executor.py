@@ -4,7 +4,6 @@ Step executor, task decomposition, and verification logic for ALFA Swarm agents.
 """
 
 import ast
-from datetime import datetime
 import glob
 import json
 import logging
@@ -13,6 +12,7 @@ import re
 import shutil
 import sys
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from alfa import tools
@@ -20,10 +20,10 @@ from alfa.core import database
 from alfa.swarm.live_logger import log_live
 from alfa.swarm.llm_client import generate_agent_response
 from alfa.swarm.workspace_hygiene import (
-    _hash_sandbox_projects,
+    _EXEC_FS_SNAPSHOT,
     _get_swarm_output_dir,
     _get_target_folder,
-    _EXEC_FS_SNAPSHOT,
+    _hash_sandbox_projects,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _extract_html_doc(text: str) -> str:
         return m.group(1).strip()
     low = text.lower()
     if "<html" in low:
-        return text[low.index("<html"):].strip()
+        return text[low.index("<html") :].strip()
     return ""
 
 
@@ -57,7 +57,9 @@ def validate_python_code(code: str) -> str:
     return ""
 
 
-async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dict[str, str]:
+async def _decompose_task(
+    topic: str, participants: List[Dict[str, Any]]
+) -> Dict[str, str]:
     """Ask the planner to break the topic into one concrete subtask per agent."""
     roster = ", ".join(f"{a['name']} ({a.get('role','')})" for a in participants)
     prompt = (
@@ -65,7 +67,7 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
         f"TIM: {roster}\n\n"
         "Pecah topik ini menjadi SATU subtask konkret dan dapat dieksekusi sistem "
         "(bukan rencana abstrak) untuk setiap anggota tim.\n"
-        'Balas HANYA array JSON tanpa teks lain: '
+        "Balas HANYA array JSON tanpa teks lain: "
         '[{"name": "<nama persis dari tim>", "task": "<instruksi spesifik maksimal 25 kata>"}]'
     )
     try:
@@ -94,28 +96,50 @@ async def _decompose_task(topic: str, participants: List[Dict[str, Any]]) -> Dic
 async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     """LLM judge for a swarm execution step. Returns (passed: bool, feedback: str)."""
     low_task = (task or "").lower()
-    claims_file_work = any(k in low_task for k in (
-        "bangun", "buat", "perbaiki", "sempurnakan", "refactor", "tulis",
-        "kode", "website", "aplikasi", "file", "deploy", "komponen", "halaman"))
+    claims_file_work = any(
+        k in low_task
+        for k in (
+            "bangun",
+            "buat",
+            "perbaiki",
+            "sempurnakan",
+            "refactor",
+            "tulis",
+            "kode",
+            "website",
+            "aplikasi",
+            "file",
+            "deploy",
+            "komponen",
+            "halaman",
+        )
+    )
 
     fs_changed = None
     changed_sample: List[str] = []
     if claims_file_work and step_result.get("status") == "success":
         fs_changed = step_result.get("fs_changed")
         if fs_changed is None and _EXEC_FS_SNAPSHOT:
-            fs_changed = len(_hash_sandbox_projects()) != len(_EXEC_FS_SNAPSHOT) or \
-                         bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
+            fs_changed = len(_hash_sandbox_projects()) != len(
+                _EXEC_FS_SNAPSHOT
+            ) or bool(set(_hash_sandbox_projects()) ^ set(_EXEC_FS_SNAPSHOT))
         if fs_changed == 0:
-            log_live("VERIFY",
-                     "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis")
-            return False, ("FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
-                           "yang berubah. Kerjakan nyata dan tulis perubahan ke folder kerja.")
+            log_live(
+                "VERIFY",
+                "🚫 GROUND-TRUTH: tidak ada file proyek berubah -> klaim eksekusi ditolak mekanis",
+            )
+            return False, (
+                "FAIL: GROUND-TRUTH FILESYSTEM - tidak ada satu pun file proyek "
+                "yang berubah. Kerjakan nyata dan tulis perubahan ke folder kerja."
+            )
         changed_sample = step_result.get("changed_sample") or []
 
     summary = (step_result.get("execution_summary") or "")[:600]
     fs_evidence = ""
     if claims_file_work and fs_changed is not None:
-        samp = "; ".join(changed_sample[:4]) if changed_sample else "(detail tak tersedia)"
+        samp = (
+            "; ".join(changed_sample[:4]) if changed_sample else "(detail tak tersedia)"
+        )
         fs_evidence = f"\n- BUKTI FILESYSTEM: {fs_changed} file berubah ({samp})\n"
     prompt = (
         f"TUGAS YANG DIMINTA: {task[:300]}\n\n"
@@ -140,23 +164,43 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
         return True, ""
 
 
-async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: str,
-                                     target_folder: str) -> str:
+async def _single_shot_edit_fallback(
+    agent: Dict[str, Any], task_instruction: str, target_folder: str
+) -> str:
     """Penyelesai pamungkas: minta KONTEN PENUH satu file utama dari model,
     lalu engine menulisnya sendiri (tanpa bergantung tool-call model)."""
     cands = []
-    for pat in ("index.html", "page.html", "*.html", "*.htm",
-                "main.py", "app.py", "*.py", "*.md"):
-        cands += [p for p in glob.glob(os.path.join(target_folder, "**", pat),
-                                       recursive=True)
-                  if "node_modules" not in p]
+    for pat in (
+        "index.html",
+        "page.html",
+        "*.html",
+        "*.htm",
+        "main.py",
+        "app.py",
+        "*.py",
+        "*.md",
+    ):
+        cands += [
+            p
+            for p in glob.glob(os.path.join(target_folder, "**", pat), recursive=True)
+            if "node_modules" not in p
+        ]
     cands = sorted(set(cands), key=lambda p: os.path.getmtime(p), reverse=True)
-    main_file = cands[0] if cands else os.path.join(
-        target_folder,
-        re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-") + ".html")
+    main_file = (
+        cands[0]
+        if cands
+        else os.path.join(
+            target_folder,
+            re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-")
+            + ".html",
+        )
+    )
     ext = os.path.splitext(main_file)[1].lower()
-    fmt_hint = ("Dokumen HTML5 utuh mulai <!DOCTYPE html>." if ext.startswith(".h")
-                else "Kode sumber lengkap tanpa penjelasan.")
+    fmt_hint = (
+        "Dokumen HTML5 utuh mulai <!DOCTYPE html>."
+        if ext.startswith(".h")
+        else "Kode sumber lengkap tanpa penjelasan."
+    )
     prompt = (
         f"Tugas: {task_instruction[:400]}\n\n"
         f"Kembalikan HANYA isi penuh TERBARU untuk file `{main_file}` "
@@ -164,9 +208,12 @@ async def _single_shot_edit_fallback(agent: Dict[str, Any], task_instruction: st
         f"Tanpa penjelasan, tanpa fence markdown."
     )
     content = await generate_agent_response(
-        agent, prompt,
+        agent,
+        prompt,
         "Kamu code generator. Output = isi file mentah saja.",
-        max_tokens=8000, timeout_s=300.0)
+        max_tokens=8000,
+        timeout_s=300.0,
+    )
     if not content or len(content.strip()) < 20:
         return "(single-shot) konten kosong dari model"
     content = content.strip()
@@ -187,15 +234,19 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
     engine-lah yang menjalankannya."""
     plan_sys = (
         "Kamu execution planner. Output HANYA array JSON murni (tanpa teks lain) "
-        'berisi aksi tool berurutan untuk menyelesaikan tugas. Skema aksi:\n'
+        "berisi aksi tool berurutan untuk menyelesaikan tugas. Skema aksi:\n"
         '[{"tool":"write_local_file","path":"/abs/file","content":"isi file"},\n'
         ' {"tool":"edit_file_precise","path":"/abs/file","old_text":"...","new_text":"..."},\n'
         ' {"tool":"execute_bash_command","command":"...","working_dir":"/abs/folder"}]\n'
         "Gunakan path ABSOLUT folder kerja. Konten file ditulis penuh di JSON."
     )
     raw = await generate_agent_response(
-        agent, "TUGAS:\n" + task_instruction[:1500], plan_sys,
-        max_tokens=4000, timeout_s=240.0)
+        agent,
+        "TUGAS:\n" + task_instruction[:1500],
+        plan_sys,
+        max_tokens=4000,
+        timeout_s=240.0,
+    )
     if not raw:
         return "(forced-exec) planner tidak merespons"
 
@@ -238,7 +289,12 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
 
 
-async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, topic: str, intent_info: Dict[str, Any]) -> Dict[str, Any]:
+async def execute_swarm_task_step(
+    agent: Dict[str, Any],
+    task_instruction: str,
+    topic: str,
+    intent_info: Dict[str, Any],
+) -> Dict[str, Any]:
     """
     Executes a real action for an agent in Swarm Live Execution mode.
     Calls appropriate system tools, writes files, scrapes data, or tests code.
@@ -263,14 +319,20 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
     target_folder = _get_target_folder()
 
     # 1. SPECIALIST: RESEARCHER PRIME (Deep Scraping & Real Web Intelligence)
-    if "Research" in agent_name or "Intel" in role or (intent_info.get("is_scrape") and "Prime" in agent_name):
+    if (
+        "Research" in agent_name
+        or "Intel" in role
+        or (intent_info.get("is_scrape") and "Prime" in agent_name)
+    ):
         tool_name = "universal_deep_scraper"
         search_query = intent_info.get("clean_query") or topic
         cat = intent_info.get("category", "all_marketplace")
         limit = intent_info.get("limit", 20)
 
         try:
-            scrape_res = tools.universal_deep_scraper(query=search_query, category=cat, limit=limit)
+            scrape_res = tools.universal_deep_scraper(
+                query=search_query, category=cat, limit=limit
+            )
             total = scrape_res.get("total_scraped", len(scrape_res.get("items", [])))
             csv_path = scrape_res.get("csv_path") or scrape_res.get("csv_file", "")
             items = scrape_res.get("items") or scrape_res.get("results", [])
@@ -280,10 +342,12 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
                 shutil.copyfile(csv_path, dest_csv)
                 deliverable_file = dest_csv
 
-            top_items_text = "\n".join([
-                f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
-                for i, it in enumerate(items[:8])
-            ])
+            top_items_text = "\n".join(
+                [
+                    f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
+                    for i, it in enumerate(items[:8])
+                ]
+            )
 
             tool_output = f"✅ Scraping Berhasil: {total} data nyata berhasil ditarik!\n📁 File CSV: {deliverable_file}\n\nSampel Data Teratas:\n{top_items_text}"
             deliverable_data = items[:10]
@@ -322,7 +386,8 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
             f"kamu sendiri yang mengeksekusi lewat tool."
         )
         generated_content = await generate_agent_response(
-            work_agent, exec_prompt,
+            work_agent,
+            exec_prompt,
             "Kamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap giliranmu WAJIB "
             "memuat panggilan function call (read_local_file / edit_file_precise / "
             "write_local_file / execute_bash_command / web_search). Membalas teks saja "
@@ -333,39 +398,60 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
 
         if generated_content is None or str(generated_content).startswith("[Error:"):
             status = "error"
-            tool_output = "SEMUA provider gagal (kuota/kunci/jaringan) — langkah dibatalkan"
+            tool_output = (
+                "SEMUA provider gagal (kuota/kunci/jaringan) — langkah dibatalkan"
+            )
             generated_content = "(gagal: tidak ada respons dari provider mana pun)"
 
         post_hash = _hash_sandbox_projects()
-        changed_files = [p for p in set(pre_hash) | set(post_hash)
-                         if pre_hash.get(p) != post_hash.get(p)]
+        changed_files = [
+            p
+            for p in set(pre_hash) | set(post_hash)
+            if pre_hash.get(p) != post_hash.get(p)
+        ]
         step_fs_changed = len(changed_files)
         if step_fs_changed == 0 and status == "success":
-            log_live("EXEC", "🔄 Tidak ada file berubah -> beralih ke forced-JSON execution...")
+            log_live(
+                "EXEC",
+                "🔄 Tidak ada file berubah -> beralih ke forced-JSON execution...",
+            )
             generated_content = await _forced_json_execution(
-                work_agent, task_instruction)
+                work_agent, task_instruction
+            )
             post_hash = _hash_sandbox_projects()
-            changed_files = [p for p in set(pre_hash) | set(post_hash)
-                             if pre_hash.get(p) != post_hash.get(p)]
+            changed_files = [
+                p
+                for p in set(pre_hash) | set(post_hash)
+                if pre_hash.get(p) != post_hash.get(p)
+            ]
             step_fs_changed = len(changed_files)
         if step_fs_changed == 0 and status == "success":
             if target_folder and os.path.isdir(target_folder):
                 log_live("EXEC", "🛟 Single-shot edit fallback dijalankan...")
                 generated_content = await _single_shot_edit_fallback(
-                    work_agent, task_instruction, target_folder)
+                    work_agent, task_instruction, target_folder
+                )
                 post_hash = _hash_sandbox_projects()
-                changed_files = [p for p in set(pre_hash) | set(post_hash)
-                                 if pre_hash.get(p) != post_hash.get(p)]
+                changed_files = [
+                    p
+                    for p in set(pre_hash) | set(post_hash)
+                    if pre_hash.get(p) != post_hash.get(p)
+                ]
                 step_fs_changed = len(changed_files)
             else:
                 generated_content = await _forced_json_execution(
-                    work_agent, task_instruction)
+                    work_agent, task_instruction
+                )
         if changed_files:
             sample = "; ".join(os.path.basename(p) for p in changed_files[:3])
-            tool_output = (f"{len(generated_content or '')} char respons; "
-                           f"{step_fs_changed} file berubah: {sample}")
+            tool_output = (
+                f"{len(generated_content or '')} char respons; "
+                f"{step_fs_changed} file berubah: {sample}"
+            )
         else:
-            tool_output = f"{len(generated_content or '')} char respons; TIDAK ada file berubah"
+            tool_output = (
+                f"{len(generated_content or '')} char respons; TIDAK ada file berubah"
+            )
 
     duration_ms = round((time.time() - t0) * 1000, 2)
 
@@ -378,7 +464,7 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         tool_input=tool_input[:200],
         tool_output=tool_output[:300],
         status=status,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
     )
 
     return {
@@ -396,5 +482,5 @@ async def execute_swarm_task_step(agent: Dict[str, Any], task_instruction: str, 
         "status": status,
         "fs_changed": step_fs_changed,
         "changed_sample": [os.path.basename(p) for p in changed_files[:5]],
-        "timestamp": datetime.now().strftime("%H:%M:%S")
+        "timestamp": datetime.now().strftime("%H:%M:%S"),
     }

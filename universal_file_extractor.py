@@ -31,10 +31,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def process_uploaded_attachment(
-    filename: str,
-    mime_type: str,
-    raw_bytes: bytes,
-    save_disk: bool = True
+    filename: str, mime_type: str, raw_bytes: bytes, save_disk: bool = True
 ) -> Tuple[Optional[str], Optional[Any]]:
     """
     Process any uploaded file and return (text_context, multimodal_part).
@@ -44,8 +41,8 @@ def process_uploaded_attachment(
     """
     ext = os.path.splitext(filename)[1].lower()
     fname_clean = os.path.basename(filename)
-    safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', fname_clean)
-    
+    safe_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", fname_clean)
+
     file_disk_path = ""
     if save_disk:
         try:
@@ -55,15 +52,31 @@ def process_uploaded_attachment(
         except Exception as e:
             logger.warning(f"Gagal simpan upload ke disk: {e}")
 
-    path_header = f"[FILE TERSIMPAN DI DISK: {file_disk_path}]\n" if file_disk_path else ""
+    path_header = (
+        f"[FILE TERSIMPAN DI DISK: {file_disk_path}]\n" if file_disk_path else ""
+    )
     tool_hint = "*(Gunakan path file nyata di atas jika ada instruksi konversi seperti 'jadikan pdf', 'merge', 'kompres', 'ubah format', dll.)*\n"
 
     # 1. IMAGES (Vision + Real Tool Execution)
-    if mime_type.startswith("image/") or ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".ico"):
+    if mime_type.startswith("image/") or ext in (
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".ico",
+    ):
         multimodal_part = None
         try:
             from google.genai import types
-            img_mime = mime_type if mime_type.startswith("image/") else f"image/{ext.lstrip('.')}"
+
+            img_mime = (
+                mime_type
+                if mime_type.startswith("image/")
+                else f"image/{ext.lstrip('.')}"
+            )
             if img_mime == "image/jpg":
                 img_mime = "image/jpeg"
             multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=img_mime)
@@ -74,11 +87,23 @@ def process_uploaded_attachment(
         return text_ctx, multimodal_part
 
     # 2. AUDIO & VOICE (Native Audio + Real Tool Execution)
-    if mime_type.startswith("audio/") or ext in (".mp3", ".m4a", ".wav", ".ogg", ".aac", ".flac"):
+    if mime_type.startswith("audio/") or ext in (
+        ".mp3",
+        ".m4a",
+        ".wav",
+        ".ogg",
+        ".aac",
+        ".flac",
+    ):
         multimodal_part = None
         try:
             from google.genai import types
-            aud_mime = mime_type if mime_type.startswith("audio/") else f"audio/{ext.lstrip('.')}"
+
+            aud_mime = (
+                mime_type
+                if mime_type.startswith("audio/")
+                else f"audio/{ext.lstrip('.')}"
+            )
             multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=aud_mime)
         except Exception as e:
             logger.warning(f"Native audio part error: {e}")
@@ -92,36 +117,60 @@ def process_uploaded_attachment(
         multimodal_part = None
         try:
             from google.genai import types
-            multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type="application/pdf")
+
+            multimodal_part = types.Part.from_bytes(
+                data=raw_bytes, mime_type="application/pdf"
+            )
         except Exception:
             pass
-        return f"[DOKUMEN PDF: {fname_clean}]\n{path_header}{tool_hint}\n{pdf_text}", multimodal_part
+        return (
+            f"[DOKUMEN PDF: {fname_clean}]\n{path_header}{tool_hint}\n{pdf_text}",
+            multimodal_part,
+        )
 
     # 4. WORD DOCUMENTS (.docx, .doc)
     if ext in (".docx", ".doc"):
         doc_text = _extract_word(raw_bytes, fname_clean)
-        return f"[DOKUMEN WORD: {fname_clean}]\n{path_header}{tool_hint}\n{doc_text}", None
+        return (
+            f"[DOKUMEN WORD: {fname_clean}]\n{path_header}{tool_hint}\n{doc_text}",
+            None,
+        )
 
     # 5. POWERPOINT PRESENTATIONS (.pptx, .ppt)
     if ext in (".pptx", ".ppt"):
         pptx_text = _extract_powerpoint(raw_bytes, fname_clean)
-        return f"[PRESENTASI PPTX: {fname_clean}]\n{path_header}{tool_hint}\n{pptx_text}", None
+        return (
+            f"[PRESENTASI PPTX: {fname_clean}]\n{path_header}{tool_hint}\n{pptx_text}",
+            None,
+        )
 
     # 6. SPREADSHEETS (.xlsx, .xls, .xlsm, .ods)
     if ext in (".xlsx", ".xls", ".xlsm", ".xltx", ".ods"):
         sheet_text = _extract_excel(raw_bytes, fname_clean, ext)
-        return f"[SPREADSHEET EXCEL: {fname_clean}]\n{path_header}{tool_hint}\n{sheet_text}", None
+        return (
+            f"[SPREADSHEET EXCEL: {fname_clean}]\n{path_header}{tool_hint}\n{sheet_text}",
+            None,
+        )
 
     # 7. CSV / TSV / DELIMITED DATA
-    if ext in (".csv", ".tsv", ".dsv", ".txt") and ("," in raw_bytes[:1000].decode("utf-8", errors="ignore") or "\t" in raw_bytes[:1000].decode("utf-8", errors="ignore")):
+    if ext in (".csv", ".tsv", ".dsv", ".txt") and (
+        "," in raw_bytes[:1000].decode("utf-8", errors="ignore")
+        or "\t" in raw_bytes[:1000].decode("utf-8", errors="ignore")
+    ):
         csv_text = _extract_csv(raw_bytes, fname_clean)
         if csv_text:
-            return f"[DATA TABEL CSV: {fname_clean}]\n{path_header}{tool_hint}\n{csv_text}", None
+            return (
+                f"[DATA TABEL CSV: {fname_clean}]\n{path_header}{tool_hint}\n{csv_text}",
+                None,
+            )
 
     # 8. ARCHIVES (.zip, .tar, .tar.gz, .tgz)
     if ext in (".zip", ".tar", ".gz", ".tgz", ".bz2"):
         archive_text = _extract_archive(raw_bytes, fname_clean, ext)
-        return f"[ARSIP TERKOMPRESI: {fname_clean}]\n{path_header}{tool_hint}\n{archive_text}", None
+        return (
+            f"[ARSIP TERKOMPRESI: {fname_clean}]\n{path_header}{tool_hint}\n{archive_text}",
+            None,
+        )
 
     # 9. HTML / XML / SVG
     if ext in (".html", ".htm", ".xhtml", ".xml", ".svg"):
@@ -135,22 +184,53 @@ def process_uploaded_attachment(
 
     # 11. SOURCE CODE & SCRIPTS
     code_exts = {
-        ".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "tsx",
-        ".jsx": "jsx", ".java": "java", ".c": "c", ".cpp": "cpp", ".h": "c",
-        ".cs": "csharp", ".go": "go", ".rs": "rust", ".php": "php", ".rb": "ruby",
-        ".sh": "bash", ".bash": "bash", ".zsh": "bash", ".sql": "sql", ".css": "css",
-        ".scss": "scss", ".vue": "vue", ".svelte": "svelte", ".proto": "protobuf",
-        ".graphql": "graphql", ".dockerfile": "dockerfile", ".md": "markdown", ".txt": "text",
-        ".log": "log", ".env": "ini"
+        ".py": "python",
+        ".js": "javascript",
+        ".ts": "typescript",
+        ".tsx": "tsx",
+        ".jsx": "jsx",
+        ".java": "java",
+        ".c": "c",
+        ".cpp": "cpp",
+        ".h": "c",
+        ".cs": "csharp",
+        ".go": "go",
+        ".rs": "rust",
+        ".php": "php",
+        ".rb": "ruby",
+        ".sh": "bash",
+        ".bash": "bash",
+        ".zsh": "bash",
+        ".sql": "sql",
+        ".css": "css",
+        ".scss": "scss",
+        ".vue": "vue",
+        ".svelte": "svelte",
+        ".proto": "protobuf",
+        ".graphql": "graphql",
+        ".dockerfile": "dockerfile",
+        ".md": "markdown",
+        ".txt": "text",
+        ".log": "log",
+        ".env": "ini",
     }
     if ext in code_exts or mime_type.startswith("text/"):
         lang = code_exts.get(ext, "text")
         try:
             decoded = raw_bytes.decode("utf-8", errors="replace")
             lines = decoded.splitlines()
-            numbered = "\n".join([f"{i+1:4d} | {line}" for i, line in enumerate(lines[:1000])])
-            total_hint = f" (Menampilkan {min(len(lines), 1000)} dari total {len(lines)} baris)" if len(lines) > 1000 else ""
-            return f"[KODE SUMBER: {fname_clean}{total_hint}]\n{path_header}\n```{lang}\n{numbered}\n```", None
+            numbered = "\n".join(
+                [f"{i+1:4d} | {line}" for i, line in enumerate(lines[:1000])]
+            )
+            total_hint = (
+                f" (Menampilkan {min(len(lines), 1000)} dari total {len(lines)} baris)"
+                if len(lines) > 1000
+                else ""
+            )
+            return (
+                f"[KODE SUMBER: {fname_clean}{total_hint}]\n{path_header}\n```{lang}\n{numbered}\n```",
+                None,
+            )
         except Exception:
             pass
 
@@ -159,14 +239,19 @@ def process_uploaded_attachment(
         decoded = raw_bytes.decode("utf-8", errors="replace")
         return f"[BERKAS TEKS: {fname_clean}]\n{path_header}\n{decoded}", None
     except Exception:
-        return f"[BERKAS BINER: {fname_clean} ({len(raw_bytes)} bytes)]\n{path_header}", None
+        return (
+            f"[BERKAS BINER: {fname_clean} ({len(raw_bytes)} bytes)]\n{path_header}",
+            None,
+        )
 
 
 # ── EXTRACTOR IMPLEMENTATIONS ─────────────────────────────────────────────────
 
+
 def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
     try:
         import fitz
+
         doc = fitz.open(stream=raw_bytes, filetype="pdf")
         pages = []
         for i, page in enumerate(doc):
@@ -180,6 +265,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
 
     try:
         import pypdf
+
         reader = pypdf.PdfReader(io.BytesIO(raw_bytes))
         pages = []
         for i, page in enumerate(reader.pages):
@@ -197,6 +283,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
 def _extract_word(raw_bytes: bytes, fname: str) -> str:
     try:
         import docx
+
         doc = docx.Document(io.BytesIO(raw_bytes))
         out = []
         for p in doc.paragraphs:
@@ -228,6 +315,7 @@ def _extract_word(raw_bytes: bytes, fname: str) -> str:
 def _extract_powerpoint(raw_bytes: bytes, fname: str) -> str:
     try:
         import pptx
+
         prs = pptx.Presentation(io.BytesIO(raw_bytes))
         slides_out = []
         for i, slide in enumerate(prs.slides, 1):
@@ -244,7 +332,9 @@ def _extract_powerpoint(raw_bytes: bytes, fname: str) -> str:
                 slide_md += f"\n*Catatan Presenter:* {notes}"
             slides_out.append(slide_md)
 
-        return f"Total {len(prs.slides)} Slide Presentasi:\n\n" + "\n\n".join(slides_out)
+        return f"Total {len(prs.slides)} Slide Presentasi:\n\n" + "\n\n".join(
+            slides_out
+        )
     except Exception as e:
         logger.warning(f"pptx error: {e}")
         return f"Gagal membaca presentasi PPTX {fname}."
@@ -254,6 +344,7 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
     if ext in (".xlsx", ".xlsm", ".xltx"):
         try:
             import openpyxl
+
             wb = openpyxl.load_workbook(io.BytesIO(raw_bytes), data_only=True)
             sheets_out = []
             for sname in wb.sheetnames:
@@ -280,11 +371,16 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
 
     try:
         import pandas as pd
+
         if ext == ".ods":
             df = pd.read_excel(io.BytesIO(raw_bytes), engine="odf")
         else:
             df = pd.read_excel(io.BytesIO(raw_bytes))
-        return f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n" + df.head(150).to_markdown(index=False)
+        return f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n" + df.head(
+            150
+        ).to_markdown(
+            index=False
+        )
     except Exception as e:
         logger.warning(f"pandas excel error: {e}")
 
@@ -294,11 +390,16 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
 def _extract_csv(raw_bytes: bytes, fname: str) -> Optional[str]:
     try:
         import pandas as pd
+
         text_preview = raw_bytes[:4096].decode("utf-8", errors="replace")
         dialect = csv.Sniffer().sniff(text_preview)
         sep = dialect.delimiter
         df = pd.read_csv(io.BytesIO(raw_bytes), sep=sep)
-        return f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n" + df.head(150).to_markdown(index=False)
+        return f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n" + df.head(
+            150
+        ).to_markdown(
+            index=False
+        )
     except Exception:
         try:
             decoded = raw_bytes.decode("utf-8", errors="replace")
@@ -316,14 +417,29 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
                 info_list = zf.infolist()
                 out.append(f"Total {len(info_list)} item di dalam zip:\n")
                 for info in info_list[:60]:
-                    size_kb = f"{info.file_size / 1024:.1f} KB" if not info.is_dir() else "DIR"
+                    size_kb = (
+                        f"{info.file_size / 1024:.1f} KB"
+                        if not info.is_dir()
+                        else "DIR"
+                    )
                     out.append(f"- `/{info.filename}` ({size_kb})")
-                
+
                 for info in info_list[:10]:
-                    if not info.is_dir() and info.file_size < 30000 and any(info.filename.endswith(e) for e in (".txt", ".md", ".json", ".py", ".csv")):
+                    if (
+                        not info.is_dir()
+                        and info.file_size < 30000
+                        and any(
+                            info.filename.endswith(e)
+                            for e in (".txt", ".md", ".json", ".py", ".csv")
+                        )
+                    ):
                         try:
-                            content = zf.read(info.filename).decode("utf-8", errors="replace")
-                            out.append(f"\n#### 📄 Pratinjau Isi: `{info.filename}`\n```\n{content[:2000]}\n```")
+                            content = zf.read(info.filename).decode(
+                                "utf-8", errors="replace"
+                            )
+                            out.append(
+                                f"\n#### 📄 Pratinjau Isi: `{info.filename}`\n```\n{content[:2000]}\n```"
+                            )
                             break
                         except Exception:
                             pass
@@ -344,6 +460,7 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
 def _extract_html_xml(raw_bytes: bytes, fname: str, ext: str) -> str:
     try:
         from bs4 import BeautifulSoup
+
         decoded = raw_bytes.decode("utf-8", errors="replace")
         soup = BeautifulSoup(decoded, "html.parser")
         for tag in soup(["script", "style", "nav", "footer"]):
@@ -362,12 +479,21 @@ def _extract_data_formats(raw_bytes: bytes, fname: str, ext: str) -> str:
         if ext in (".json", ".jsonl", ".ndjson"):
             if ext == ".json":
                 parsed = json.loads(decoded)
-                return "```json\n" + json.dumps(parsed, indent=2, ensure_ascii=False)[:4000] + "\n```"
+                return (
+                    "```json\n"
+                    + json.dumps(parsed, indent=2, ensure_ascii=False)[:4000]
+                    + "\n```"
+                )
             else:
                 lines = decoded.splitlines()
-                return f"Total {len(lines)} baris JSONL:\n```json\n" + "\n".join(lines[:50]) + "\n```"
+                return (
+                    f"Total {len(lines)} baris JSONL:\n```json\n"
+                    + "\n".join(lines[:50])
+                    + "\n```"
+                )
         elif ext in (".yaml", ".yml"):
             import yaml
+
             parsed = yaml.safe_load(decoded)
             return "```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```"
         return "```\n" + decoded[:4000] + "\n```"

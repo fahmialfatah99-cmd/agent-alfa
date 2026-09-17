@@ -28,10 +28,7 @@ def _hash_password(password: str, salt: str = None) -> tuple:
     if salt is None:
         salt = secrets.token_hex(16)
     pwd_hash = hashlib.pbkdf2_hmac(
-        'sha256',
-        password.encode('utf-8'),
-        salt.encode('utf-8'),
-        100000  # iterations
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000  # iterations
     ).hex()
     return pwd_hash, salt
 
@@ -47,9 +44,7 @@ def _create_session_token(user_id: int, username: str) -> str:
     expiry = datetime.now() + timedelta(hours=SESSION_DURATION_HOURS)
     payload = f"{user_id}|||{username}|||{expiry.isoformat()}"
     signature = hmac.new(
-        SESSION_SECRET.encode('utf-8'),
-        payload.encode('utf-8'),
-        hashlib.sha256
+        SESSION_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
     ).hexdigest()
     return f"{payload}|||{signature}"
 
@@ -57,7 +52,7 @@ def _create_session_token(user_id: int, username: str) -> str:
 def _verify_session_token(token: str) -> Optional[Dict[str, Any]]:
     """Verifikasi dan decode session token."""
     try:
-        parts = token.split('|||')
+        parts = token.split("|||")
         if len(parts) != 4:
             return None
         user_id = int(parts[0])
@@ -71,9 +66,7 @@ def _verify_session_token(token: str) -> Optional[Dict[str, Any]]:
 
         payload = f"{user_id}|||{username}|||{expiry_str}"
         expected_sig = hmac.new(
-            SESSION_SECRET.encode('utf-8'),
-            payload.encode('utf-8'),
-            hashlib.sha256
+            SESSION_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
         ).hexdigest()
 
         if not secrets.compare_digest(signature, expected_sig):
@@ -93,6 +86,7 @@ def init_auth_db():
     if _auth_db_initialized:
         return
     from alfa.core import database as db
+
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
@@ -136,9 +130,12 @@ def init_auth_db():
         db.get_connection_pool().release(conn)
 
 
-def create_user(username: str, password: str, telegram_user_id: int = None, is_admin: bool = False) -> Dict[str, Any]:
+def create_user(
+    username: str, password: str, telegram_user_id: int = None, is_admin: bool = False
+) -> Dict[str, Any]:
     """Buat user baru di database."""
     import sqlite3
+
     from alfa.core import database as db
 
     if len(username) < 3:
@@ -151,10 +148,13 @@ def create_user(username: str, password: str, telegram_user_id: int = None, is_a
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO dashboard_users (username, password_hash, salt, telegram_user_id, is_admin)
             VALUES (?, ?, ?, ?, ?)
-        """, (username, pwd_hash, salt, telegram_user_id, 1 if is_admin else 0))
+        """,
+            (username, pwd_hash, salt, telegram_user_id, 1 if is_admin else 0),
+        )
         conn.commit()
         user_id = cursor.lastrowid
         logger.info(f"User '{username}' created with ID {user_id}")
@@ -172,11 +172,14 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, username, password_hash, salt, is_admin, is_active, last_login
             FROM dashboard_users
             WHERE username = ? AND is_active = 1
-        """, (username,))
+        """,
+            (username,),
+        )
         row = cursor.fetchone()
 
         if not row:
@@ -185,17 +188,16 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
         user_id, uname, stored_hash, salt, is_admin, is_active, last_login = row
 
         if _verify_password(password, stored_hash, salt):
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE dashboard_users SET last_login = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             conn.commit()
 
-            return {
-                "user_id": user_id,
-                "username": uname,
-                "is_admin": bool(is_admin)
-            }
+            return {"user_id": user_id, "username": uname, "is_admin": bool(is_admin)}
         return None
     finally:
         db.get_connection_pool().release(conn)
@@ -205,20 +207,26 @@ def store_session(user_id: int, token: str) -> None:
     """Simpan session token di database."""
     from alfa.core import database as db
 
-    token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     expires_at = datetime.now() + timedelta(hours=SESSION_DURATION_HOURS)
 
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE dashboard_sessions SET is_valid = 0
             WHERE user_id = ? AND is_valid = 1
-        """, (user_id,))
-        cursor.execute("""
+        """,
+            (user_id,),
+        )
+        cursor.execute(
+            """
             INSERT INTO dashboard_sessions (user_id, token_hash, expires_at)
             VALUES (?, ?, ?)
-        """, (user_id, token_hash, expires_at))
+        """,
+            (user_id, token_hash, expires_at),
+        )
         conn.commit()
     finally:
         db.get_connection_pool().release(conn)
@@ -232,17 +240,20 @@ def validate_session(token: str) -> Optional[Dict[str, Any]]:
     if not session_data:
         return None
 
-    token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT s.user_id, u.username, u.is_admin, s.expires_at
             FROM dashboard_sessions s
             JOIN dashboard_users u ON s.user_id = u.id
             WHERE s.token_hash = ? AND s.is_valid = 1 AND s.expires_at > CURRENT_TIMESTAMP
-        """, (token_hash,))
+        """,
+            (token_hash,),
+        )
         row = cursor.fetchone()
 
         if row:
@@ -250,7 +261,7 @@ def validate_session(token: str) -> Optional[Dict[str, Any]]:
                 "user_id": row[0],
                 "username": row[1],
                 "is_admin": bool(row[2]),
-                "expiry": datetime.fromisoformat(row[3])
+                "expiry": datetime.fromisoformat(row[3]),
             }
         return None
     finally:
@@ -261,15 +272,18 @@ def invalidate_session(token: str) -> bool:
     """Invalidate/logout session token."""
     from alfa.core import database as db
 
-    token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE dashboard_sessions SET is_valid = 0
             WHERE token_hash = ?
-        """, (token_hash,))
+        """,
+            (token_hash,),
+        )
         conn.commit()
         return cursor.rowcount > 0
     finally:
@@ -297,7 +311,7 @@ def get_all_users() -> List[Dict[str, Any]]:
                 "is_admin": bool(row[3]),
                 "created_at": row[4],
                 "last_login": row[5],
-                "is_active": bool(row[6])
+                "is_active": bool(row[6]),
             }
             for row in rows
         ]
@@ -312,9 +326,12 @@ def delete_user(user_id: int) -> bool:
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM dashboard_users WHERE id = ?
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
         conn.commit()
         return cursor.rowcount > 0
     finally:
@@ -331,12 +348,22 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
         if path == "/static" or path.startswith("/static/"):
             return await call_next(request)
 
-        public_paths = ["/", "/health", "/api/auth/login", "/api/auth/register", "/docs", "/redoc", "/openapi.json"]
+        public_paths = [
+            "/",
+            "/health",
+            "/api/auth/login",
+            "/api/auth/register",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+        ]
         if path == "/" or any(path.startswith(pp) for pp in public_paths if pp != "/"):
             return await call_next(request)
 
         # Cek session token dari cookie atau header
-        session_token = request.cookies.get("session_token") or request.headers.get("X-Session-Token", "")
+        session_token = request.cookies.get("session_token") or request.headers.get(
+            "X-Session-Token", ""
+        )
         auth_header = request.headers.get("Authorization", "")
         if not session_token and auth_header.startswith("Bearer "):
             candidate = auth_header[7:]
@@ -364,7 +391,11 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
                     authorized = False
 
             if authorized:
-                request.state.user = {"user_id": 0, "username": "admin_legacy", "is_admin": True}
+                request.state.user = {
+                    "user_id": 0,
+                    "username": "admin_legacy",
+                    "is_admin": True,
+                }
                 return await call_next(request)
 
         # Block akses ke API endpoints tanpa auth
@@ -373,7 +404,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
                 content='{"detail":"Unauthorized: login required"}',
                 status_code=401,
                 media_type="application/json",
-                headers={"WWW-Authenticate": 'Bearer realm="ALFA Dashboard Session"'}
+                headers={"WWW-Authenticate": 'Bearer realm="ALFA Dashboard Session"'},
             )
 
         return await call_next(request)
@@ -382,6 +413,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
 # ─────────────────────────────────────────────────────────────────────────────
 # AUTHENTICATION ENDPOINTS - Login, Register, Logout, User Management
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @auth_router.post("/api/auth/register")
 async def register_user(payload: Dict[str, Any]):
@@ -395,17 +427,22 @@ async def register_user(payload: Dict[str, Any]):
 
     try:
         from alfa.core import database as db
+
         conn = db.get_connection_pool().acquire()
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM dashboard_users")
             count = cursor.fetchone()[0]
-            is_admin = (count == 0)
+            is_admin = count == 0
         finally:
             db.get_connection_pool().release(conn)
 
         result = create_user(username, password, telegram_user_id, is_admin)
-        return {"status": "success", "message": "User berhasil didaftarkan", "user": result}
+        return {
+            "status": "success",
+            "message": "User berhasil didaftarkan",
+            "user": result,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -430,13 +467,15 @@ async def login_user(payload: Dict[str, Any]):
     store_session(user["user_id"], session_token)
 
     response = Response(
-        content=json.dumps({
-            "status": "success",
-            "message": "Login berhasil",
-            "token": session_token,
-            "user": user
-        }),
-        media_type="application/json"
+        content=json.dumps(
+            {
+                "status": "success",
+                "message": "Login berhasil",
+                "token": session_token,
+                "user": user,
+            }
+        ),
+        media_type="application/json",
     )
 
     response.set_cookie(
@@ -445,7 +484,7 @@ async def login_user(payload: Dict[str, Any]):
         max_age=SESSION_DURATION_HOURS * 3600,
         httponly=True,
         secure=False,
-        samesite="lax"
+        samesite="lax",
     )
 
     return response
@@ -454,14 +493,16 @@ async def login_user(payload: Dict[str, Any]):
 @auth_router.post("/api/auth/logout")
 async def logout_user(request: Request):
     """Logout user dan invalidate session."""
-    session_token = request.cookies.get("session_token") or request.headers.get("X-Session-Token", "")
+    session_token = request.cookies.get("session_token") or request.headers.get(
+        "X-Session-Token", ""
+    )
 
     if session_token:
         invalidate_session(session_token)
 
     response = Response(
         content=json.dumps({"status": "success", "message": "Logout berhasil"}),
-        media_type="application/json"
+        media_type="application/json",
     )
     response.delete_cookie(key="session_token")
     return response
@@ -480,7 +521,9 @@ async def get_current_user(request: Request):
                 request.state.user = user
 
     if not user:
-        raise HTTPException(status_code=401, detail="Tidak ada sesi aktif. Silakan login.")
+        raise HTTPException(
+            status_code=401, detail="Tidak ada sesi aktif. Silakan login."
+        )
 
     return {"status": "success", "user": user}
 
@@ -491,7 +534,10 @@ async def list_users(request: Request):
     user = getattr(request.state, "user", None)
 
     if not user or not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya admin yang bisa melihat daftar user.")
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak. Hanya admin yang bisa melihat daftar user.",
+        )
 
     users = get_all_users()
     return {"status": "success", "users": users}
@@ -503,7 +549,10 @@ async def remove_user(request: Request, user_id: int):
     user = getattr(request.state, "user", None)
 
     if not user or not user.get("is_admin"):
-        raise HTTPException(status_code=403, detail="Akses ditolak. Hanya admin yang bisa menghapus user.")
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak. Hanya admin yang bisa menghapus user.",
+        )
 
     if delete_user(user_id):
         return {"status": "success", "message": f"User {user_id} berhasil dihapus"}

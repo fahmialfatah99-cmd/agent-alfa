@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Sinkronisasi persona agen swarm ALFA dengan identitas otak utama (bagian 1: data)."""
+
 import os as _os
 
 # ── DNA identitas bersama: WAJIB identik di semua unit ──
@@ -137,8 +138,10 @@ First responder yang ramah-tajam: cepat memahami apa yang SEBENARNYA diminta Fah
 
 
 def build_prompts():
-    return {aid: data["system_instruction"].replace("{DNA}", DNA)
-            for aid, data in AGENTS.items()}
+    return {
+        aid: data["system_instruction"].replace("{DNA}", DNA)
+        for aid, data in AGENTS.items()
+    }
 
 
 # ── Personalisasi nama pemilik (untuk distribusi publik) ────────────────────
@@ -156,6 +159,7 @@ if _OWNER != "Fahmi":
 if __name__ == "__main__":
     import json
     import logging
+
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info(json.dumps(build_prompts(), ensure_ascii=False)[:300])

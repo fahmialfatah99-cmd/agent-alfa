@@ -17,6 +17,7 @@ all components from specialized submodules:
 import asyncio
 import logging
 import sys
+
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -25,26 +26,36 @@ from telegram.ext import (
     filters,
 )
 
-from alfa.core import database
-from alfa.core import brain as main_brain
-from alfa.core import permissions as permission_gate
 import plugins
 import token_usage
-from alfa import tools
-from alfa.tools import (
-    AVAILABLE_TOOLS,
-    SANDBOX_DIR,
-    current_chat_id_var,
-    current_user_id_var,
-    get_system_stats,
-)
 import tts_engine
+from alfa import tools
+from alfa.bot.commands import *  # noqa: F401, F403
+from alfa.bot.commands import (
+    agents_command,
+    cekagen_command,
+    clear_command,
+    cron_command,
+    dashboard_command,
+    id_command,
+    keys_command,
+    memory_command,
+    menu_command,
+    proactive_command,
+    rapat_command,
+    resume_swarm_command,
+    start_command,
+    stats_command,
+    swarm_command,
+    voice_command,
+    wa_command,
+)
 
 # Re-export all symbols from submodules for complete backward compatibility
 from alfa.bot.config import *  # noqa: F401, F403
 from alfa.bot.config import (
-    ALLOWED_USER_IDS,
     ALFA_PROMPT_PATH,
+    ALLOWED_USER_IDS,
     ANTIGRAVITY_WORKFLOW_BLOCK,
     AUDIT_CORRECTION_TEXT,
     BASE_SYSTEM_PROMPT,
@@ -68,7 +79,15 @@ from alfa.bot.config import (
     is_authorized,
     resolve_main_gemini,
 )
-
+from alfa.bot.handlers import *  # noqa: F401, F403
+from alfa.bot.handlers import (
+    check_and_send_media_artifacts,
+    handle_callback_query,
+    handle_document_message,
+    handle_photo_message,
+    handle_text_message,
+    handle_voice_message,
+)
 from alfa.bot.helpers import *  # noqa: F401, F403
 from alfa.bot.helpers import (
     ARTIFACT_DIRS,
@@ -81,42 +100,6 @@ from alfa.bot.helpers import (
     should_reply_with_text_instead_of_voice,
     split_message,
 )
-
-from alfa.bot.streamer import TelegramStreamer  # noqa: F401
-
-from alfa.bot.turn_executor import run_agent_turn  # noqa: F401
-
-from alfa.bot.handlers import *  # noqa: F401, F403
-from alfa.bot.handlers import (
-    check_and_send_media_artifacts,
-    handle_callback_query,
-    handle_document_message,
-    handle_photo_message,
-    handle_text_message,
-    handle_voice_message,
-)
-
-from alfa.bot.commands import *  # noqa: F401, F403
-from alfa.bot.commands import (
-    agents_command,
-    cekagen_command,
-    clear_command,
-    cron_command,
-    dashboard_command,
-    id_command,
-    keys_command,
-    memory_command,
-    menu_command,
-    proactive_command,
-    rapat_command,
-    resume_swarm_command,
-    start_command,
-    stats_command,
-    swarm_command,
-    voice_command,
-    wa_command,
-)
-
 from alfa.bot.proactive import *  # noqa: F401, F403
 from alfa.bot.proactive import (
     proactive_ambient_agent_loop,
@@ -125,6 +108,18 @@ from alfa.bot.proactive import (
     proactive_focus_session_loop,
     proactive_reminder_loop,
     proactive_system_guardian_loop,
+)
+from alfa.bot.streamer import TelegramStreamer  # noqa: F401
+from alfa.bot.turn_executor import run_agent_turn  # noqa: F401
+from alfa.core import brain as main_brain
+from alfa.core import database
+from alfa.core import permissions as permission_gate
+from alfa.tools import (
+    AVAILABLE_TOOLS,
+    SANDBOX_DIR,
+    current_chat_id_var,
+    current_user_id_var,
+    get_system_stats,
 )
 
 logger = logging.getLogger("TelegramAIAgent")
@@ -136,6 +131,7 @@ async def post_init(application: Application):
 
     # Connect Subagent swarm to Telegram app instance
     import subagents
+
     subagents.set_telegram_app(application)
 
     # Start background dispatchers
@@ -195,15 +191,24 @@ def main():
     application.add_handler(CommandHandler("help", start_command))
 
     # Callback Query (Buttons)
-    application.add_handler(CallbackQueryHandler(
-        permission_gate.handle_permission_callback, pattern=r"^perm(\|.*|_done)$"))
+    application.add_handler(
+        CallbackQueryHandler(
+            permission_gate.handle_permission_callback, pattern=r"^perm(\|.*|_done)$"
+        )
+    )
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     # Multimodal message handlers
-    application.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message))
+    application.add_handler(
+        MessageHandler(filters.VOICE | filters.AUDIO, handle_voice_message)
+    )
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo_message))
-    application.add_handler(MessageHandler(filters.Document.ALL, handle_document_message))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    application.add_handler(
+        MessageHandler(filters.Document.ALL, handle_document_message)
+    )
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message)
+    )
 
     logger.info("Bot Telegram Otonom siap melayani! Menunggu interaksi...")
     application.run_polling(drop_pending_updates=True)

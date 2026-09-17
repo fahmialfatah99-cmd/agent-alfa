@@ -4,6 +4,8 @@ import base64
 import json
 import logging
 import os
+import re
+import shutil
 import subprocess
 import time
 import urllib.error
@@ -11,6 +13,7 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 from alfa.video.audio import VIDEO_OUT_DIR, generate_voiceover, get_audio_duration
+from alfa.video.compositor import create_ui_overlay_layer
 
 logger = logging.getLogger("alfa.video.ai_engines")
 
@@ -29,8 +32,12 @@ OMNI_MODEL_MAP = {
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
-def _veo_api_request(url: str, payload: Optional[Dict[str, Any]] = None,
-                     api_key: str = "", method: str = "GET") -> Dict[str, Any]:
+def _veo_api_request(
+    url: str,
+    payload: Optional[Dict[str, Any]] = None,
+    api_key: str = "",
+    method: str = "GET",
+) -> Dict[str, Any]:
     """Helper request JSON ke Gemini API dgn auth header x-goog-api-key."""
     req = urllib.request.Request(
         url,
@@ -48,8 +55,10 @@ def _veo_api_request(url: str, payload: Optional[Dict[str, Any]] = None,
         except Exception:
             msg = str(e)
         if "RESOURCE_EXHAUSTED" in body or e.code == 429:
-            msg = ("Kuota Veo habis utk periode ini. Cek limit di https://ai.dev/rate-limit "
-                   "dan coba lagi setelah reset kuota.")
+            msg = (
+                "Kuota Veo habis utk periode ini. Cek limit di https://ai.dev/rate-limit "
+                "dan coba lagi setelah reset kuota."
+            )
         elif not api_key or e.code == 403:
             msg = f"Akses ditolak ({e.code}). Pastikan Gemini API Key valid & Veo aktif di akun Anda."
         raise RuntimeError(msg)
@@ -68,7 +77,7 @@ def _generate_google_veo_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate video AI dgn Google Veo 3.1 (Gemini API predictLongRunning),
@@ -98,7 +107,8 @@ def _generate_google_veo_video(
     prompt = (visual_prompt or "").strip() or (
         f"Cinematic 8K commercial studio video showcasing '{product_name}'. "
         f"Dramatic studio lighting, slow elegant camera push-in, premium product "
-        f"photography style, shallow depth of field, vertical 9:16 composition.")
+        f"photography style, shallow depth of field, vertical 9:16 composition."
+    )
     instance["prompt"] = prompt
 
     body = {
@@ -126,10 +136,15 @@ def _generate_google_veo_video(
         if not status.get("done"):
             continue
         resp = status.get("response", {})
-        samples = (resp.get("generateVideoResponse", {}).get("generatedSamples")
-                   or resp.get("videos") or [])
+        samples = (
+            resp.get("generateVideoResponse", {}).get("generatedSamples")
+            or resp.get("videos")
+            or []
+        )
         if samples:
-            video_uri = (samples[0].get("video", {}) or {}).get("uri") or samples[0].get("uri")
+            video_uri = (samples[0].get("video", {}) or {}).get("uri") or samples[
+                0
+            ].get("uri")
         if not video_uri:
             raise RuntimeError(f"Veo selesai tanpa video: {json.dumps(resp)[:400]}")
         break
@@ -152,11 +167,11 @@ def _generate_google_veo_video(
         badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
         call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_veo_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -166,16 +181,37 @@ def _generate_google_veo_video(
 
     veo_dur = get_audio_duration(raw_path)  # ffprobe; bekerja utk mp4 juga
     cmd = [
-        "ffmpeg", "-y",
-        "-i", raw_path,
-        "-loop", "1", "-i", overlay_out,
-        "-i", audio_path,
-        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
-        "-map", "[outv]", "-map", "2:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-        "-c:a", "aac", "-b:a", "192k",
-        "-t", str(round(veo_dur, 2)),
-        final_video_path
+        "ffmpeg",
+        "-y",
+        "-i",
+        raw_path,
+        "-loop",
+        "1",
+        "-i",
+        overlay_out,
+        "-i",
+        audio_path,
+        "-filter_complex",
+        "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map",
+        "[outv]",
+        "-map",
+        "2:a",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "medium",
+        "-crf",
+        "19",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        str(round(veo_dur, 2)),
+        final_video_path,
     ]
     subprocess.run(cmd, check=True, timeout=600)
     try:
@@ -200,7 +236,7 @@ def _generate_google_veo_video(
         "download_url": f"/api/artifacts/download?path={final_video_path}",
         "audio_voice": voice,
         "theme": theme,
-        "visual_prompt": prompt
+        "visual_prompt": prompt,
     }
 
 
@@ -215,9 +251,15 @@ def _find_video_payload(obj: Any, hint: str = "") -> Optional[Dict[str, Any]]:
         if "video" in mime and isinstance(data, str) and len(data) > 128:
             return {"inline": True, "data": data}
         uri = obj.get("uri") or obj.get("videoUri") or obj.get("file_uri")
-        if isinstance(uri, str) and uri.startswith("http") and (
-            "video" in mime or "video" in uri.lower()
-            or "video" in hint.lower() or obj.get("role") == "model"
+        if (
+            isinstance(uri, str)
+            and uri.startswith("http")
+            and (
+                "video" in mime
+                or "video" in uri.lower()
+                or "video" in hint.lower()
+                or obj.get("role") == "model"
+            )
         ):
             return {"inline": False, "uri": uri}
         for k, v in obj.items():
@@ -245,7 +287,7 @@ def _generate_gemini_omni_video(
     theme: str = "viral_tiktok",
     badge_text: str = "",
     call_to_action: str = "",
-    output_filename: Optional[str] = None
+    output_filename: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate video AI dengan Gemini Omni Flash (Interactions API).
@@ -277,7 +319,8 @@ def _generate_gemini_omni_video(
     prompt = (visual_prompt or "").strip() or (
         f"Cinematic commercial studio video showcasing '{product_name}'. "
         f"Dramatic lighting, slow elegant camera push-in, premium product "
-        f"photography style, vertical 9:16 composition.")
+        f"photography style, vertical 9:16 composition."
+    )
     parts.append({"type": "text", "text": prompt})
 
     body = {
@@ -293,7 +336,9 @@ def _generate_gemini_omni_video(
     op = _veo_api_request(submit_url, payload=body, api_key=api_key, method="POST")
     op_name = op.get("name") or op.get("id")
     if not op_name:
-        raise RuntimeError(f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}")
+        raise RuntimeError(
+            f"Omni Flash gagal membuat interaksi: {json.dumps(op)[:400]}"
+        )
 
     # 3. Polling status (maks ±10 menit; umumnya selesai ~45-90 detik)
     poll_url = f"{GEMINI_API_BASE}/{op_name}"
@@ -302,13 +347,19 @@ def _generate_gemini_omni_video(
         time.sleep(10)
         status = _veo_api_request(poll_url, api_key=api_key)
         if status.get("error"):
-            raise RuntimeError(f"Omni Flash error: {json.dumps(status.get('error'))[:400]}")
+            raise RuntimeError(
+                f"Omni Flash error: {json.dumps(status.get('error'))[:400]}"
+            )
         state = str(status.get("status") or "").lower()
         done = status.get("done")
         if done is False or state in ("pending", "running", "in_progress", "queued"):
             continue
         payload_found = _find_video_payload(status)
-        if payload_found or done is True or state in ("completed", "succeeded", "active", "finished"):
+        if (
+            payload_found
+            or done is True
+            or state in ("completed", "succeeded", "active", "finished")
+        ):
             break
     if not payload_found:
         raise RuntimeError("Omni Flash timeout: video tidak selesai dalam 10 menit.")
@@ -319,8 +370,13 @@ def _generate_gemini_omni_video(
         with open(raw_path, "wb") as f:
             f.write(base64.b64decode(payload_found["data"]))
     else:
-        req = urllib.request.Request(payload_found["uri"], headers={"x-goog-api-key": api_key})
-        with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:
+        req = urllib.request.Request(
+            payload_found["uri"], headers={"x-goog-api-key": api_key}
+        )
+        with (
+            urllib.request.urlopen(req, timeout=300) as resp,
+            open(raw_path, "wb") as f,
+        ):
             shutil.copyfileobj(resp, f)
 
     # 5. Dubbing voiceover + overlay UI promo (komposit lokal, sama dgn jalur Veo)
@@ -333,11 +389,11 @@ def _generate_gemini_omni_video(
         badge_text=badge_text or "FLASH SALE DISKON SPESIAL",
         call_to_action=call_to_action or "KLIK KERANJANG KUNING / LINK BIO",
         theme=theme,
-        output_path=overlay_out
+        output_path=overlay_out,
     )
 
     if not output_filename:
-        safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:25]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:25]
         output_filename = f"{safe_stem}_omni_{int(time.time())}.mp4"
     else:
         output_filename = os.path.basename(output_filename.strip())
@@ -347,16 +403,37 @@ def _generate_gemini_omni_video(
 
     omni_dur = get_audio_duration(raw_path)
     cmd = [
-        "ffmpeg", "-y",
-        "-i", raw_path,
-        "-loop", "1", "-i", overlay_out,
-        "-i", audio_path,
-        "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1[outv]",
-        "-map", "[outv]", "-map", "2:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "19",
-        "-c:a", "aac", "-b:a", "192k",
-        "-t", str(round(omni_dur, 2)),
-        final_video_path
+        "ffmpeg",
+        "-y",
+        "-i",
+        raw_path,
+        "-loop",
+        "1",
+        "-i",
+        overlay_out,
+        "-i",
+        audio_path,
+        "-filter_complex",
+        "[0:v][1:v]overlay=0:0:shortest=1[outv]",
+        "-map",
+        "[outv]",
+        "-map",
+        "2:a",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "medium",
+        "-crf",
+        "19",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-t",
+        str(round(omni_dur, 2)),
+        final_video_path,
     ]
     subprocess.run(cmd, check=True, timeout=600)
     try:
@@ -382,7 +459,7 @@ def _generate_gemini_omni_video(
         "download_url": f"/api/artifacts/download?path={final_video_path}",
         "audio_voice": voice,
         "theme": theme,
-        "visual_prompt": prompt
+        "visual_prompt": prompt,
     }
 
 
@@ -396,7 +473,7 @@ def _generate_cloud_ai_video(
     orig_price: str,
     disc_price: str,
     voice: str,
-    output_filename: Optional[str]
+    output_filename: Optional[str],
 ) -> Dict[str, Any]:
     """
     Dispatcher for Cloud AI Video Generation APIs (Kling, Luma, Runway, Fal.ai, Replicate).
@@ -408,5 +485,5 @@ def _generate_cloud_ai_video(
         "engine": engine,
         "product_name": product_name,
         "visual_prompt": visual_prompt,
-        "message": f"Konektor Cloud AI Video ({engine.upper()}) siap menerima API Key dan menghasilkan video generatif."
+        "message": f"Konektor Cloud AI Video ({engine.upper()}) siap menerima API Key dan menghasilkan video generatif.",
     }

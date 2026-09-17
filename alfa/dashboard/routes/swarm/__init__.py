@@ -4,18 +4,18 @@ from fastapi import APIRouter
 
 from alfa.dashboard.routes.swarm.affiliate_routes import (
     _parse_ai_sections,
-    router as affiliate_router,
 )
+from alfa.dashboard.routes.swarm.affiliate_routes import router as affiliate_router
 from alfa.dashboard.routes.swarm.agents_routes import router as agents_router
-from alfa.dashboard.routes.swarm.meetings_routes import router as meetings_router
 from alfa.dashboard.routes.swarm.live_routes import (
     compute_agent_states,
     compute_consensus_percent,
     detect_active_speaker,
     parse_arena_state,
     parse_swarm_stage,
-    router as live_router,
 )
+from alfa.dashboard.routes.swarm.live_routes import router as live_router
+from alfa.dashboard.routes.swarm.meetings_routes import router as meetings_router
 
 swarm_router = APIRouter(tags=["swarm"])
 

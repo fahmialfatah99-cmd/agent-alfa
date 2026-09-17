@@ -55,7 +55,10 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
 
     # Limit TTS length to first 850 characters to prevent overly long voice notes
     if len(clean_text) > 850:
-        clean_text = clean_text[:850] + " ...dan rincian selengkapnya telah saya sertakan dalam teks."
+        clean_text = (
+            clean_text[:850]
+            + " ...dan rincian selengkapnya telah saya sertakan dalam teks."
+        )
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     temp_path = temp_file.name
@@ -69,24 +72,31 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
         except Exception as e:
-            logger.warning(f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback...")
+            logger.warning(
+                f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback..."
+            )
 
         # 2. Try Secondary Edge-TTS voice
-        fallback_voice = "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
+        fallback_voice = (
+            "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
+        )
         try:
             communicate = edge_tts.Communicate(clean_text, fallback_voice)
             await communicate.save(temp_path)
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
         except Exception as e:
-            logger.warning(f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS...")
+            logger.warning(
+                f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS..."
+            )
     else:
         logger.debug("edge_tts module is not installed, skipping Edge-TTS.")
 
     # 3. Try gTTS (Google Translate TTS) as robust fallback
     try:
         import gtts
-        tts_obj = gtts.gTTS(text=clean_text, lang='id', slow=False)
+
+        tts_obj = gtts.gTTS(text=clean_text, lang="id", slow=False)
         tts_obj.save(temp_path)
         if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
             return temp_path
@@ -99,4 +109,3 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
         except OSError:
             pass
     raise RuntimeError("Semua engine TTS (Edge-TTS & gTTS) gagal memproduksi audio.")
-

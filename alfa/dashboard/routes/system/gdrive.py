@@ -15,13 +15,14 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from alfa.core import database
 from alfa import tools
+from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
 
 router = APIRouter()
 
 # ==================== GOOGLE DRIVE & CLOUD ====================
+
 
 @router.get("/api/gdrive/status")
 async def gdrive_status_endpoint():
@@ -50,10 +51,15 @@ async def gdrive_status_endpoint():
             "client_email": active_email or account_email,
             "project_id": project_id,
             "storage_quota": res.get("storage_quota", {}),
-            "default_folder_id": res.get("default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
+            "default_folder_id": res.get(
+                "default_folder_id", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"
+            ),
             "default_folder_name": res.get("default_folder_name", "alfa agent"),
-            "default_folder_url": res.get("default_folder_url", "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE"),
-            "error": res.get("message", "") if not res.get("connected") else ""
+            "default_folder_url": res.get(
+                "default_folder_url",
+                "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE",
+            ),
+            "error": res.get("message", "") if not res.get("connected") else "",
         }
     except Exception as e:
         return {"status": "error", "connected": False, "message": str(e)}
@@ -71,29 +77,28 @@ async def gdrive_set_default_folder(payload: Dict[str, Any]):
     with database.get_sync_db() as conn:
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (folder_id,)
+            (folder_id,),
         )
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (folder_name,)
+            (folder_name,),
         )
         conn.execute(
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (f"https://drive.google.com/drive/folders/{folder_id}",)
+            (f"https://drive.google.com/drive/folders/{folder_id}",),
         )
 
     return {
         "status": "success",
         "message": f"Folder default Google Drive berhasil disetel ke '{folder_name}' ({folder_id})",
         "folder_id": folder_id,
-        "folder_name": folder_name
+        "folder_name": folder_name,
     }
 
 
 @router.post("/api/gdrive/credentials")
 async def gdrive_save_credentials(
-    file: Optional[UploadFile] = File(None),
-    raw_json: Optional[str] = Form(None)
+    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
 ):
     """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
     cred_file = os.path.join(REPO_ROOT, "gdrive_credentials.json")
@@ -105,13 +110,19 @@ async def gdrive_save_credentials(
     elif raw_json:
         content = raw_json.strip()
     else:
-        raise HTTPException(status_code=400, detail="File JSON atau teks JSON Service Account wajib disediakan.")
+        raise HTTPException(
+            status_code=400,
+            detail="File JSON atau teks JSON Service Account wajib disediakan.",
+        )
 
     try:
         data = json.loads(content)
         if "type" not in data or data.get("type") != "service_account":
             if "client_email" not in data:
-                return {"status": "error", "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console."}
+                return {
+                    "status": "error",
+                    "message": "File JSON bukan merupakan Service Account Key yang valid dari Google Cloud Console.",
+                }
 
         with open(cred_file, "w", encoding="utf-8") as f:
             f.write(content)
@@ -119,7 +130,7 @@ async def gdrive_save_credentials(
         with database.get_sync_db() as conn:
             conn.execute(
                 "INSERT INTO system_settings (key, value) VALUES ('gdrive_credentials_json', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (content,)
+                (content,),
             )
 
         test_res = tools.gdrive_status()
@@ -128,10 +139,13 @@ async def gdrive_save_credentials(
             "message": "Kredensial Service Account Google Cloud berhasil disimpan dan diverifikasi!",
             "client_email": data.get("client_email", ""),
             "project_id": data.get("project_id", ""),
-            "connected": test_res.get("connected", False)
+            "connected": test_res.get("connected", False),
         }
     except Exception as e:
-        return {"status": "error", "message": f"Gagal memproses kredensial Google Cloud: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal memproses kredensial Google Cloud: {str(e)}",
+        }
 
 
 @router.delete("/api/gdrive/credentials")
@@ -141,7 +155,9 @@ async def gdrive_delete_credentials():
     if os.path.exists(cred_file):
         os.remove(cred_file)
     with database.get_sync_db() as conn:
-        conn.execute("DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'")
+        conn.execute(
+            "DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'"
+        )
     return {"status": "success", "message": "Kredensial Google Drive berhasil dihapus."}
 
 
@@ -172,8 +188,7 @@ async def gdrive_oauth_secret_check():
 
 @router.post("/api/gdrive/oauth/upload-secret")
 async def gdrive_oauth_upload_secret(
-    file: Optional[UploadFile] = File(None),
-    raw_json: Optional[str] = Form(None)
+    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
 ):
     """Upload OAuth Client Secret JSON (Desktop or Web App) or paste raw JSON."""
     content = ""
@@ -183,7 +198,10 @@ async def gdrive_oauth_upload_secret(
     elif raw_json:
         content = raw_json.strip()
     else:
-        raise HTTPException(status_code=400, detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.")
+        raise HTTPException(
+            status_code=400,
+            detail="File JSON atau teks JSON OAuth Client Secret wajib disediakan.",
+        )
 
     return tools.gdrive_save_oauth_client_secret(content)
 
@@ -197,7 +215,9 @@ async def gdrive_oauth_auth_url(request: Request):
 
 
 @router.get("/api/gdrive/oauth/callback")
-async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str] = None, request: Request = None):
+async def gdrive_oauth_callback(
+    code: Optional[str] = None, error: Optional[str] = None, request: Request = None
+):
     """Handle OAuth redirect callback from Google."""
     if error:
         return HTMLResponse(f"""
@@ -213,7 +233,10 @@ async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str]
         """)
 
     if not code:
-        raise HTTPException(status_code=400, detail="Authorization code tidak ditemukan dalam URL callback.")
+        raise HTTPException(
+            status_code=400,
+            detail="Authorization code tidak ditemukan dalam URL callback.",
+        )
 
     base_url = str(request.base_url).rstrip("/") if request else "http://localhost:8080"
     redirect_uri = f"{base_url}/api/gdrive/oauth/callback"
@@ -250,7 +273,9 @@ async def gdrive_oauth_callback(code: Optional[str] = None, error: Optional[str]
 
 
 @router.post("/api/gdrive/oauth/exchange-code")
-async def gdrive_oauth_exchange_code_endpoint(payload: Dict[str, Any], request: Request):
+async def gdrive_oauth_exchange_code_endpoint(
+    payload: Dict[str, Any], request: Request
+):
     """Exchange manually pasted authorization code for OAuth token."""
     code = payload.get("code", "").strip()
     if not code:
@@ -270,7 +295,10 @@ async def gdrive_oauth_start():
         )
         return res
     except asyncio.TimeoutError:
-        return {"status": "error", "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser."}
+        return {
+            "status": "error",
+            "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser.",
+        }
     except Exception as oauth_err:
         return {"status": "error", "message": f"OAuth error: {str(oauth_err)}"}
 
@@ -282,7 +310,9 @@ async def gdrive_oauth_logout_endpoint():
 
 
 @router.get("/api/gdrive/files")
-async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit: int = 30):
+async def gdrive_list_files_endpoint(
+    folder_id: str = "", query: str = "", limit: int = 30
+):
     """List and search files in Google Drive."""
     return tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
 
@@ -291,7 +321,7 @@ async def gdrive_list_files_endpoint(folder_id: str = "", query: str = "", limit
 async def gdrive_upload_endpoint(
     file: Optional[UploadFile] = File(None),
     filepath: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form("")
+    folder_id: Optional[str] = Form(""),
 ):
     """Upload a file to Google Drive."""
     if file:
@@ -304,7 +334,9 @@ async def gdrive_upload_endpoint(
     elif filepath:
         return tools.gdrive_upload_file(filepath=filepath, folder_id=folder_id or "")
     else:
-        raise HTTPException(status_code=400, detail="File atau path file wajib ditentukan.")
+        raise HTTPException(
+            status_code=400, detail="File atau path file wajib ditentukan."
+        )
 
 
 @router.post("/api/gdrive/create-folder")
@@ -314,7 +346,9 @@ async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
     parent_id = payload.get("parent_id", "")
     if not folder_name:
         raise HTTPException(status_code=400, detail="Nama folder wajib diisi.")
-    return tools.gdrive_create_folder(folder_name=folder_name, parent_folder_id=parent_id)
+    return tools.gdrive_create_folder(
+        folder_name=folder_name, parent_folder_id=parent_id
+    )
 
 
 @router.post("/api/gdrive/sync-brain")
@@ -323,5 +357,3 @@ async def gdrive_sync_brain_endpoint(payload: Dict[str, Any] = None):
     folder_id = (payload or {}).get("folder_id", "")
     limit = safe_int((payload or {}).get("limit", 10), 10, minimum=1, maximum=100)
     return tools.gdrive_sync_to_second_brain(folder_id=folder_id, limit=limit)
-
-

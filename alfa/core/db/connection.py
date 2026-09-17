@@ -3,13 +3,13 @@
 Database Connection Pooling, Session Context, and Schema Initialization for ALFA.
 """
 
-from collections import deque
 import contextlib
 import logging
 import os
 import sqlite3
 import sys
 import threading
+from collections import deque
 from typing import Dict, Optional
 
 logger = logging.getLogger("DB.Connection")
@@ -44,7 +44,9 @@ class ConnectionPool:
 
     def _create_connection(self) -> sqlite3.Connection:
         """Create a new optimized SQLite connection."""
-        conn = sqlite3.connect(self.db_path, timeout=self.timeout, check_same_thread=False)
+        conn = sqlite3.connect(
+            self.db_path, timeout=self.timeout, check_same_thread=False
+        )
         conn.execute("PRAGMA busy_timeout = 30000;")
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
@@ -67,6 +69,7 @@ class ConnectionPool:
                 return self._create_connection()
 
         import time
+
         start = time.time()
         while time.time() - start < self.timeout:
             with self._lock:
@@ -106,7 +109,7 @@ class ConnectionPool:
                 "created": self._created,
                 "in_use": self._in_use,
                 "available": len(self._pool),
-                "pool_size": self.pool_size
+                "pool_size": self.pool_size,
             }
 
 
@@ -305,18 +308,22 @@ def init_db_sync():
                     INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
                     VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.6-flash', 1)
                     """,
-                    (encrypt_key(env_gemini_key),)
+                    (encrypt_key(env_gemini_key),),
                 )
 
         # Seed default autonomous workforce agents if empty
-        agent_count = conn.execute("SELECT COUNT(*) as count FROM custom_agents").fetchone()
+        agent_count = conn.execute(
+            "SELECT COUNT(*) as count FROM custom_agents"
+        ).fetchone()
         if agent_count and agent_count[0] == 0:
             try:
                 from alfa.swarm.personas import AGENTS as _AG
                 from alfa.swarm.personas import DNA as _DNA
+
                 _seed_persona = {
                     aid: d["system_instruction"].replace("{DNA}", _DNA)
-                    for aid, d in _AG.items()}
+                    for aid, d in _AG.items()
+                }
                 _seed_meta = {aid: d["persona"] for aid, d in _AG.items()}
             except Exception:
                 _seed_persona, _seed_meta = {}, {}
@@ -325,82 +332,109 @@ def init_db_sync():
                     "Alpha Lead",
                     "Chief Orchestrator & War Room Conductor",
                     _seed_meta.get(1, "Koordinator tim ALFA."),
-                    _seed_persona.get(1, "Kamu adalah Alpha Lead, koordinator tim ALFA."),
+                    _seed_persona.get(
+                        1, "Kamu adalah Alpha Lead, koordinator tim ALFA."
+                    ),
                     "gemini",
                     "gemini-3.7-flash",
                     "👑",
-                    "cyan"
+                    "cyan",
                 ),
                 (
                     "Code Crafter",
                     "Principal Systems & Code Engineer",
                     _seed_meta.get(2, "Engineer kode ALFA."),
-                    _seed_persona.get(2, "Kamu adalah Code Crafter, engineer kode ALFA."),
+                    _seed_persona.get(
+                        2, "Kamu adalah Code Crafter, engineer kode ALFA."
+                    ),
                     "gemini",
                     "gemini-3.6-flash",
                     "⚡",
-                    "emerald"
+                    "emerald",
                 ),
                 (
                     "System Auditor",
                     "Security, Logic & Quality Critic",
                     _seed_meta.get(3, "Pengkritik kritis ALFA."),
-                    _seed_persona.get(3, "Kamu adalah System Auditor, penguji kritis ALFA."),
+                    _seed_persona.get(
+                        3, "Kamu adalah System Auditor, penguji kritis ALFA."
+                    ),
                     "gemini",
                     "gemini-3.6-flash",
                     "🛡️",
-                    "rose"
+                    "rose",
                 ),
                 (
                     "Researcher Prime",
                     "Deep Intel & Fact-Checking Specialist",
                     _seed_meta.get(4, "Intel riset ALFA."),
-                    _seed_persona.get(4, "Kamu adalah Researcher Prime, spesialis riset ALFA."),
+                    _seed_persona.get(
+                        4, "Kamu adalah Researcher Prime, spesialis riset ALFA."
+                    ),
                     "gemini",
                     "gemini-3.6-flash",
                     "🌐",
-                    "violet"
+                    "violet",
                 ),
                 (
                     "Strategic Planner",
                     "Product Strategist & UX Visionary",
                     _seed_meta.get(5, "Perancang strategi ALFA."),
-                    _seed_persona.get(5, "Kamu adalah Strategic Planner, perancang strategi ALFA."),
+                    _seed_persona.get(
+                        5, "Kamu adalah Strategic Planner, perancang strategi ALFA."
+                    ),
                     "gemini",
                     "gemini-3.6-flash",
                     "💡",
-                    "amber"
+                    "amber",
                 ),
                 (
                     "Laguna Co-Pilot",
                     "First-Response Co-Pilot & Triage Specialist",
                     _seed_meta.get(6, "Garda depan triase ALFA."),
-                    _seed_persona.get(6, "Kamu adalah Laguna Co-Pilot, triase cepat ALFA."),
+                    _seed_persona.get(
+                        6, "Kamu adalah Laguna Co-Pilot, triase cepat ALFA."
+                    ),
                     "gemini",
                     "gemini-3.6-flash",
                     "🚀",
-                    "teal"
-                )
+                    "teal",
+                ),
             ]
-            for name, role, persona, sys_inst, prov, model, emoji, color in default_agents:
+            for (
+                name,
+                role,
+                persona,
+                sys_inst,
+                prov,
+                model,
+                emoji,
+                color,
+            ) in default_agents:
                 conn.execute(
                     """
                     INSERT INTO custom_agents (name, role, persona, system_instruction, provider, model, avatar_emoji, color_theme, is_enabled)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
                     """,
-                    (name, role, persona, sys_inst, prov, model, emoji, color)
+                    (name, role, persona, sys_inst, prov, model, emoji, color),
                 )
 
         try:
-            conn.execute("ALTER TABLE agent_meetings ADD COLUMN mode TEXT DEFAULT 'plan'")
+            conn.execute(
+                "ALTER TABLE agent_meetings ADD COLUMN mode TEXT DEFAULT 'plan'"
+            )
         except Exception:
             pass
         try:
-            conn.execute("ALTER TABLE agent_meetings ADD COLUMN execution_results TEXT DEFAULT ''")
+            conn.execute(
+                "ALTER TABLE agent_meetings ADD COLUMN execution_results TEXT DEFAULT ''"
+            )
         except Exception:
             pass
         try:
-            conn.execute("ALTER TABLE custom_agents ADD COLUMN enable_tools INTEGER DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE custom_agents ADD COLUMN enable_tools INTEGER DEFAULT 0"
+            )
         except Exception:
             pass
 
@@ -417,5 +451,6 @@ def init_db_sync():
 async def init_db():
     """Initialize SQLite database tables and enable WAL mode (async wrapper)."""
     import asyncio
+
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, init_db_sync)

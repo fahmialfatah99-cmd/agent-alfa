@@ -1,21 +1,20 @@
 """Filesystem tools package re-exporting all submodules for modularity."""
 
-from alfa.tools.filesystem.core_file import (
-    _MAX_EDIT_FILE_BYTES,
-    _py_syntax_guard,
-    _resolve_host_path,
-    apply_unified_diff,
-    edit_file_precise,
-    read_local_file,
-    write_local_file,
-)
-from alfa.tools.filesystem.search import (
-    compress_folder_to_zip,
-    find_user_files,
-    git_operations,
-    grep_workspace,
-    search_workspace_files,
-    send_file_to_chat,
+from alfa.integrations.gdrive import (
+    _detect_gdrive_auth_mode,
+    _get_default_gdrive_folder_id,
+    _get_gdrive_service,
+    gdrive_create_folder,
+    gdrive_download_file,
+    gdrive_list_files,
+    gdrive_oauth_exchange_code,
+    gdrive_oauth_get_auth_url,
+    gdrive_oauth_login,
+    gdrive_oauth_logout,
+    gdrive_save_oauth_client_secret,
+    gdrive_status,
+    gdrive_sync_to_second_brain,
+    gdrive_upload_file,
 )
 from alfa.tools.filesystem.code_index import (
     _CODE_CHUNK_LINES,
@@ -30,12 +29,29 @@ from alfa.tools.filesystem.code_index import (
     index_codebase,
     search_codebase,
 )
+from alfa.tools.filesystem.core_file import (
+    _MAX_EDIT_FILE_BYTES,
+    _py_syntax_guard,
+    _resolve_host_path,
+    apply_unified_diff,
+    edit_file_precise,
+    read_local_file,
+    write_local_file,
+)
 from alfa.tools.filesystem.office_convert import (
     libreoffice_convert_document,
     libreoffice_create_document,
     libreoffice_extract_document_text,
     libreoffice_render_page_previews,
     markitdown_convert_document,
+)
+from alfa.tools.filesystem.search import (
+    compress_folder_to_zip,
+    find_user_files,
+    git_operations,
+    grep_workspace,
+    search_workspace_files,
+    send_file_to_chat,
 )
 from alfa.tools.filesystem.vault import (
     vault_delete_secret,
@@ -55,22 +71,6 @@ from lsp_code_intelligence import (
     lsp_analyze_module_hierarchy,
     lsp_find_symbol_definition,
     lsp_find_symbol_references,
-)
-from alfa.integrations.gdrive import (
-    _detect_gdrive_auth_mode,
-    _get_default_gdrive_folder_id,
-    _get_gdrive_service,
-    gdrive_create_folder,
-    gdrive_download_file,
-    gdrive_list_files,
-    gdrive_oauth_exchange_code,
-    gdrive_oauth_get_auth_url,
-    gdrive_oauth_login,
-    gdrive_oauth_logout,
-    gdrive_save_oauth_client_secret,
-    gdrive_status,
-    gdrive_sync_to_second_brain,
-    gdrive_upload_file,
 )
 
 __all__ = [

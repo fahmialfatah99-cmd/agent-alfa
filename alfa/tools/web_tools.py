@@ -3,6 +3,7 @@
 Facade re-exporting from modular subpackage alfa.tools.web.
 """
 
+from alfa.tools.web import *  # noqa: F401, F403
 from alfa.tools.web import (
     _ensure_camofox_server,
     _find_camofox_bin,
@@ -32,4 +33,3 @@ from alfa.tools.web import (
     universal_deep_scraper,
     web_search,
 )
-from alfa.tools.web import *  # noqa: F401, F403

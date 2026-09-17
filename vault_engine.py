@@ -29,11 +29,11 @@ def _get_or_create_master_key() -> bytes:
     """
     env_key = os.getenv("VAULT_MASTER_KEY", "").strip()
     if env_key:
-        if len(env_key) == 64: # 64 hex chars = 32 bytes
+        if len(env_key) == 64:  # 64 hex chars = 32 bytes
             return bytes.fromhex(env_key)
         # Derive 32 bytes via SHA-256
         return hashlib.sha256(env_key.encode("utf-8")).digest()
-        
+
     if os.path.exists(KEY_FILE):
         try:
             with open(KEY_FILE, "rb") as f:
@@ -57,7 +57,9 @@ def _get_or_create_master_key() -> bytes:
                 "Restore the backup file to recover them."
             )
         except Exception as backup_err:
-            logger.error(f"Could not back up corrupt vault master key file: {backup_err}")
+            logger.error(
+                f"Could not back up corrupt vault master key file: {backup_err}"
+            )
             raise RuntimeError(
                 "Vault master key file is corrupt and could not be backed up; "
                 "refusing to generate a new key (existing secrets would be lost)."
@@ -74,7 +76,7 @@ def _get_or_create_master_key() -> bytes:
         os.chmod(KEY_FILE, 0o600)
     except Exception as e:
         logger.error(f"Could not persist vault master key: {e}")
-        
+
     return new_key
 
 
@@ -107,7 +109,7 @@ class AlfaSecureVault:
     High-Performance AES-256-GCM Secret Store.
     Encrypts sensitive data with 96-bit unique nonces per entry and authenticated tags.
     """
-    
+
     def __init__(self):
         self.master_key = _get_or_create_master_key()
         self.aesgcm = AESGCM(self.master_key)
@@ -119,7 +121,7 @@ class AlfaSecureVault:
         ciphertext = self.aesgcm.encrypt(nonce, data_bytes, None)
         return {
             "ciphertext": base64.b64encode(ciphertext).decode("utf-8"),
-            "nonce": base64.b64encode(nonce).decode("utf-8")
+            "nonce": base64.b64encode(nonce).decode("utf-8"),
         }
 
     def decrypt_val(self, ciphertext_b64: str, nonce_b64: str) -> str:
@@ -129,20 +131,23 @@ class AlfaSecureVault:
         decrypted_bytes = self.aesgcm.decrypt(nonce, ciphertext, None)
         return decrypted_bytes.decode("utf-8")
 
-    def store_secret(self, name: str, value: str, category: str = "api_key", notes: str = "") -> Dict[str, Any]:
+    def store_secret(
+        self, name: str, value: str, category: str = "api_key", notes: str = ""
+    ) -> Dict[str, Any]:
         """Store or update an encrypted secret in the vault."""
         clean_name = name.strip()
         if not clean_name:
             raise ValueError("Secret name cannot be empty")
-            
+
         enc = self.encrypt_val(value)
         now = datetime.now().isoformat()
-        
+
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        
+
         # Upsert secret
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO vault_secrets (name, category, ciphertext, nonce, created_at, updated_at, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(name) DO UPDATE SET
@@ -151,18 +156,22 @@ class AlfaSecureVault:
                 nonce = excluded.nonce,
                 updated_at = excluded.updated_at,
                 notes = excluded.notes
-        """, (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes))
-        
+        """,
+            (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes),
+        )
+
         conn.commit()
         conn.close()
-        
-        logger.info(f"Secret '{clean_name}' successfully encrypted with AES-256-GCM into vault.")
+
+        logger.info(
+            f"Secret '{clean_name}' successfully encrypted with AES-256-GCM into vault."
+        )
         return {
             "status": "success",
             "name": clean_name,
             "category": category,
             "algorithm": "AES-256-GCM",
-            "message": f"Secret '{clean_name}' aman tersimpan dalam αlfa Secure Vault."
+            "message": f"Secret '{clean_name}' aman tersimpan dalam αlfa Secure Vault.",
         }
 
     def get_secret(self, name_or_id: str) -> Optional[Dict[str, Any]]:
@@ -170,30 +179,34 @@ class AlfaSecureVault:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         name_str = str(name_or_id).strip()
         if name_str.isdigit():
             # Try by id first, then fall back to literal numeric names
             cursor.execute("SELECT * FROM vault_secrets WHERE id = ?", (int(name_str),))
             row = cursor.fetchone()
             if not row:
-                cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (name_str,))
+                cursor.execute(
+                    "SELECT * FROM vault_secrets WHERE name = ?", (name_str,)
+                )
                 row = cursor.fetchone()
         else:
             cursor.execute("SELECT * FROM vault_secrets WHERE name = ?", (name_str,))
             row = cursor.fetchone()
-            
+
         if not row:
             conn.close()
             return None
-        
+
         row_data = dict(row)
         conn.close()
-            
+
         try:
             decrypted_val = self.decrypt_val(row_data["ciphertext"], row_data["nonce"])
         except Exception as decrypt_err:
-            logger.error(f"Failed to decrypt secret '{row_data['name']}': {decrypt_err}")
+            logger.error(
+                f"Failed to decrypt secret '{row_data['name']}': {decrypt_err}"
+            )
             raise ValueError(
                 f"Gagal mendekripsi secret '{row_data['name']}'. "
                 "Master key kemungkinan berubah sejak secret ini disimpan."
@@ -205,7 +218,7 @@ class AlfaSecureVault:
             "value": decrypted_val,
             "created_at": row_data["created_at"],
             "updated_at": row_data["updated_at"],
-            "notes": row_data["notes"]
+            "notes": row_data["notes"],
         }
 
     def list_secrets(self, category: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -213,26 +226,33 @@ class AlfaSecureVault:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         if category and category != "all":
-            cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets WHERE category = ? ORDER BY updated_at DESC", (category,))
+            cursor.execute(
+                "SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets WHERE category = ? ORDER BY updated_at DESC",
+                (category,),
+            )
         else:
-            cursor.execute("SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets ORDER BY updated_at DESC")
-            
+            cursor.execute(
+                "SELECT id, name, category, created_at, updated_at, notes FROM vault_secrets ORDER BY updated_at DESC"
+            )
+
         rows = cursor.fetchall()
         conn.close()
-        
+
         items = []
         for r in rows:
-            items.append({
-                "id": r["id"],
-                "name": r["name"],
-                "category": r["category"],
-                "created_at": r["created_at"],
-                "updated_at": r["updated_at"],
-                "notes": r["notes"] or "",
-                "masked_value": "••••••••••••••••"
-            })
+            items.append(
+                {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "category": r["category"],
+                    "created_at": r["created_at"],
+                    "updated_at": r["updated_at"],
+                    "notes": r["notes"] or "",
+                    "masked_value": "••••••••••••••••",
+                }
+            )
         return items
 
     def delete_secret(self, secret_id: int) -> bool:

@@ -15,6 +15,7 @@ router = APIRouter()
 
 # --- Multi-Agent Round-Table Meeting Endpoints ---
 
+
 @router.post("/api/meetings/start")
 async def start_agent_meeting(payload: Dict[str, Any]):
     """Launch direct swarm execution (mode rapat/diskusi sudah dihapus)."""
@@ -27,6 +28,7 @@ async def start_agent_meeting(payload: Dict[str, Any]):
     folder = payload.get("folder", "")
 
     from alfa.swarm import engine as swarm_engine
+
     result = await swarm_engine.conduct_multi_agent_meeting(
         topic=topic,
         participant_names=participants,
@@ -41,11 +43,14 @@ async def start_agent_meeting(payload: Dict[str, Any]):
 async def cancel_agent_meeting():
     """Minta pembatalan eksekusi swarm yang sedang berjalan (lintas proses)."""
     from alfa.swarm import engine as swarm_engine
+
     ok = swarm_engine.request_cancel_swarm()
     if ok:
-        return {"status": "success", "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai."}
+        return {
+            "status": "success",
+            "message": "Sinyal pembatalan terkirim — swarm berhenti setelah langkah berjalan selesai.",
+        }
     return {"status": "error", "message": "Tidak ada sesi swarm yang sedang berjalan."}
-
 
 
 @router.get("/api/meetings")
@@ -73,7 +78,7 @@ async def get_meeting_history(limit: int = 50):
                 """SELECT id, title, topic, mode, status, participants,
                           consensus, action_plan, created_at
                    FROM agent_meetings ORDER BY id DESC LIMIT ?""",
-                (limit,)
+                (limit,),
             ).fetchall()
         meetings = []
         for r in rows:
@@ -86,5 +91,3 @@ async def get_meeting_history(limit: int = 50):
         return {"status": "success", "total": len(meetings), "meetings": meetings}
     except Exception as e:
         return {"status": "error", "message": str(e), "meetings": []}
-
-

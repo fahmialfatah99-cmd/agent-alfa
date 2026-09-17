@@ -15,8 +15,8 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from alfa.core import database
 from alfa import tools
+from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
 
 router = APIRouter()
@@ -49,8 +49,14 @@ def _validate_media_rules(rules: Any) -> List[str]:
             errs.append(f"{tag}: nama '{name}' duplikat.")
         seen.add(name.lower())
         types = r.get("types")
-        if not isinstance(types, list) or not types or not all(t in _WA_MEDIA_TYPES for t in types):
-            errs.append(f"{tag} '{name}': pilih minimal satu jenis file ({', '.join(sorted(_WA_MEDIA_TYPES))}).")
+        if (
+            not isinstance(types, list)
+            or not types
+            or not all(t in _WA_MEDIA_TYPES for t in types)
+        ):
+            errs.append(
+                f"{tag} '{name}': pilih minimal satu jenis file ({', '.join(sorted(_WA_MEDIA_TYPES))})."
+            )
         pattern = str(r.get("naming", "")).strip()
         if not pattern:
             errs.append(f"{tag} '{name}': pola nama file kosong.")
@@ -83,8 +89,10 @@ def _validate_wa_formats(formats: Any) -> List[str]:
         if tab in seen_tabs:
             errs.append(f"{tag}: tab '{tab}' dipakai lebih dari satu format.")
         seen_tabs.add(tab)
-        if not isinstance(keywords, list) or not keywords or not all(
-            isinstance(k, str) and k.strip() for k in keywords
+        if (
+            not isinstance(keywords, list)
+            or not keywords
+            or not all(isinstance(k, str) and k.strip() for k in keywords)
         ):
             errs.append(f"{tag} '{name}': keywords wajib minimal 1 kata pemicu.")
         if not isinstance(columns, list) or not columns:
@@ -108,15 +116,26 @@ def _gdrive_ensure_subfolder(folder_name: str) -> str:
     q = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     if parent:
         q += f" and '{parent}' in parents"
-    found = service.files().list(q=q, fields="files(id, name)", spaces="drive",
-                                 supportsAllDrives=True, pageSize=5).execute()
+    found = (
+        service.files()
+        .list(
+            q=q,
+            fields="files(id, name)",
+            spaces="drive",
+            supportsAllDrives=True,
+            pageSize=5,
+        )
+        .execute()
+    )
     files = found.get("files", [])
     if files:
         return files[0]["id"]
     meta = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
     if parent:
         meta["parents"] = [parent]
-    created = service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+    created = (
+        service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+    )
     return created["id"]
 
 
@@ -145,6 +164,7 @@ async def get_wa_qr():
     """Fetch live WhatsApp QR code and authentication status."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/qr")
             if resp.status_code == 200:
@@ -162,7 +182,9 @@ async def get_wa_qr():
             if qr_str:
                 import base64
                 import io
+
                 import qrcode
+
                 img = qrcode.make(qr_str)
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
@@ -174,7 +196,7 @@ async def get_wa_qr():
                 "qr_available": bool(qr_str),
                 "qr_string": qr_str,
                 "qr_data_url": qr_data_url,
-                "timestamp": data.get("updated_at", "")
+                "timestamp": data.get("updated_at", ""),
             }
         except Exception:
             pass
@@ -185,7 +207,7 @@ async def get_wa_qr():
         "qr_available": False,
         "qr_string": "",
         "qr_data_url": None,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -194,13 +216,17 @@ async def logout_wa():
     """Trigger WhatsApp logout to force new QR generation."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post("http://localhost:3000/api/logout")
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
         pass
-    return {"status": "error", "message": "Failed to connect to WhatsApp bot server on port 3000"}
+    return {
+        "status": "error",
+        "message": "Failed to connect to WhatsApp bot server on port 3000",
+    }
 
 
 @router.get("/api/wa/reports")
@@ -208,6 +234,7 @@ async def get_wa_reports():
     """Fetch recorded WhatsApp Google Sheets reports and format definitions."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/reports")
             if resp.status_code == 200:
@@ -238,14 +265,19 @@ async def get_wa_reports():
         "formats": formats_data,
         "total_recorded": len(reports_data),
         "pending_queue_count": 0,
-        "reports": reports_data
+        "reports": reports_data,
     }
 
 
 @router.get("/api/wa/media-rules")
 async def get_wa_media_rules():
     """Read automatic media-saving rules for the Drive side of wa-sheets-bot."""
-    result = {"status": "success", "exists": False, "rules": [], "path": WA_BOT_MEDIA_RULES_FILE}
+    result = {
+        "status": "success",
+        "exists": False,
+        "rules": [],
+        "path": WA_BOT_MEDIA_RULES_FILE,
+    }
     try:
         if os.path.exists(WA_BOT_MEDIA_RULES_FILE):
             with open(WA_BOT_MEDIA_RULES_FILE, "r", encoding="utf-8") as f:
@@ -264,19 +296,24 @@ async def save_wa_media_rules(payload: Dict[str, Any]):
     rules = payload.get("rules")
     errors = _validate_media_rules(rules)
     if errors:
-        return {"status": "error", "validation_errors": errors,
-                "message": "; ".join(errors[:4])}
+        return {
+            "status": "error",
+            "validation_errors": errors,
+            "message": "; ".join(errors[:4]),
+        }
 
     clean = []
     for r in rules:
-        clean.append({
-            "name": str(r["name"]).strip(),
-            "enabled": bool(r.get("enabled", True)),
-            "types": [str(t).strip() for t in r["types"]],
-            "keyword": str(r.get("keyword", "")).strip(),
-            "folder": str(r.get("folder", "")).strip() or "Umum",
-            "naming": str(r["naming"]).strip(),
-        })
+        clean.append(
+            {
+                "name": str(r["name"]).strip(),
+                "enabled": bool(r.get("enabled", True)),
+                "types": [str(t).strip() for t in r["types"]],
+                "keyword": str(r.get("keyword", "")).strip(),
+                "folder": str(r.get("folder", "")).strip() or "Umum",
+                "naming": str(r["naming"]).strip(),
+            }
+        )
 
     try:
         os.makedirs(os.path.dirname(WA_BOT_MEDIA_RULES_FILE), exist_ok=True)
@@ -287,10 +324,16 @@ async def save_wa_media_rules(payload: Dict[str, Any]):
             json.dump({"rules": clean}, f, ensure_ascii=False, indent=2)
             f.write("\n")
         os.replace(tmp_path, WA_BOT_MEDIA_RULES_FILE)
-        return {"status": "success", "saved": len(clean),
-                "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya."}
+        return {
+            "status": "success",
+            "saved": len(clean),
+            "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya.",
+        }
     except Exception as e:
-        return {"status": "error", "message": f"Gagal menyimpan media_rules.json: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal menyimpan media_rules.json: {str(e)}",
+        }
 
 
 @router.get("/api/wa/drive-uploads")
@@ -328,27 +371,34 @@ async def wa_media_upload(
         with open(tmp_path, "wb") as out:
             out.write(await file.read())
 
-        target_sub = (subfolder.strip() or f"{(format_name or 'Lainnya').strip()[:40]}")
+        target_sub = subfolder.strip() or f"{(format_name or 'Lainnya').strip()[:40]}"
         subfolder_id = _gdrive_ensure_subfolder(f"WA Media / {target_sub}")
-        res = tools.gdrive_upload_file(filepath=tmp_path, folder_id=subfolder_id,
-                                       custom_filename=safe_name)
+        res = tools.gdrive_upload_file(
+            filepath=tmp_path, folder_id=subfolder_id, custom_filename=safe_name
+        )
         try:
             os.remove(tmp_path)
         except OSError:
             pass
         if res.get("status") == "success":
-            _log_wa_drive_upload({
-                "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "file_name": res.get("file_name"),
+            _log_wa_drive_upload(
+                {
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "file_name": res.get("file_name"),
+                    "web_link": res.get("web_link"),
+                    "folder": f"WA Media / {target_sub}",
+                    "format_name": format_name or "",
+                    "sender": sender or "",
+                    "group": group or "",
+                    "caption": (caption or "")[:300],
+                }
+            )
+            return {
+                "status": "success",
                 "web_link": res.get("web_link"),
+                "file_name": res.get("file_name"),
                 "folder": f"WA Media / {target_sub}",
-                "format_name": format_name or "",
-                "sender": sender or "",
-                "group": group or "",
-                "caption": (caption or "")[:300],
-            })
-            return {"status": "success", "web_link": res.get("web_link"),
-                    "file_name": res.get("file_name"), "folder": f"WA Media / {target_sub}"}
+            }
         return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -357,13 +407,20 @@ async def wa_media_upload(
 @router.get("/api/wa/formats")
 async def get_wa_formats():
     """Read the WhatsApp report format definitions consumed by wa-sheets-bot."""
-    result = {"status": "success", "exists": False, "formats": [], "path": WA_BOT_FORMATS_FILE}
+    result = {
+        "status": "success",
+        "exists": False,
+        "formats": [],
+        "path": WA_BOT_FORMATS_FILE,
+    }
     try:
         if os.path.exists(WA_BOT_FORMATS_FILE):
             with open(WA_BOT_FORMATS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             result["exists"] = True
-            result["formats"] = data.get("formats", []) if isinstance(data, dict) else []
+            result["formats"] = (
+                data.get("formats", []) if isinstance(data, dict) else []
+            )
     except Exception as e:
         result["status"] = "error"
         result["message"] = f"Gagal membaca formats.json: {e}"
@@ -376,19 +433,26 @@ async def save_wa_formats(payload: Dict[str, Any]):
     formats = payload.get("formats")
     errors = _validate_wa_formats(formats)
     if errors:
-        return {"status": "error", "validation_errors": errors,
-                "message": "; ".join(errors[:4])}
+        return {
+            "status": "error",
+            "validation_errors": errors,
+            "message": "; ".join(errors[:4]),
+        }
 
     clean = []
     for f in formats:
-        cols = [{"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
-                for c in f["columns"]]
-        clean.append({
-            "name": str(f["name"]).strip(),
-            "keywords": [str(k).strip() for k in f["keywords"]],
-            "tab": str(f["tab"]).strip(),
-            "columns": cols,
-        })
+        cols = [
+            {"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
+            for c in f["columns"]
+        ]
+        clean.append(
+            {
+                "name": str(f["name"]).strip(),
+                "keywords": [str(k).strip() for k in f["keywords"]],
+                "tab": str(f["tab"]).strip(),
+                "columns": cols,
+            }
+        )
 
     try:
         os.makedirs(os.path.dirname(WA_BOT_FORMATS_FILE), exist_ok=True)
@@ -404,9 +468,7 @@ async def save_wa_formats(payload: Dict[str, Any]):
             "status": "success",
             "saved": len(clean),
             "backup": WA_BOT_FORMATS_FILE + ".bak",
-            "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart)."
+            "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart).",
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal menyimpan formats.json: {str(e)}"}
-
-

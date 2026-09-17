@@ -20,8 +20,7 @@ import tools
 
 
 def try_execute_fast_path(
-    user_prompt: str,
-    saved_file_paths: List[str]
+    user_prompt: str, saved_file_paths: List[str]
 ) -> Optional[Dict[str, Any]]:
     """
     Check if the user prompt is a direct deterministic tool command on the uploaded files.
@@ -29,32 +28,89 @@ def try_execute_fast_path(
     """
     t0 = time.perf_counter()
     p_low = (user_prompt or "").lower().strip()
-    
+
     if not saved_file_paths:
         return None
 
-    image_paths = [p for p in saved_file_paths if os.path.splitext(p)[1].lower() in ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif')]
-    pdf_paths = [p for p in saved_file_paths if os.path.splitext(p)[1].lower() == '.pdf']
-    audio_video_paths = [p for p in saved_file_paths if os.path.splitext(p)[1].lower() in ('.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.mp3', '.m4a', '.wav', '.ogg', '.aac')]
+    image_paths = [
+        p
+        for p in saved_file_paths
+        if os.path.splitext(p)[1].lower()
+        in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
+    ]
+    pdf_paths = [
+        p for p in saved_file_paths if os.path.splitext(p)[1].lower() == ".pdf"
+    ]
+    audio_video_paths = [
+        p
+        for p in saved_file_paths
+        if os.path.splitext(p)[1].lower()
+        in (
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".mov",
+            ".webm",
+            ".flv",
+            ".mp3",
+            ".m4a",
+            ".wav",
+            ".ogg",
+            ".aac",
+        )
+    ]
 
     # 1. FAST-PATH: IMAGES TO PDF (< 50ms)
     is_image_to_pdf = image_paths and (
-        ('pdf' in p_low and any(k in p_low for k in ['jadikan', 'ubah', 'convert', 'buat', 'bikin', 'ganti', 'save', 'simpan', 'ekspor', 'export', 'satukan'])) or
-        any(k in p_low for k in ['to pdf', 'ke pdf', 'image to pdf', 'foto ke pdf', 'gambar ke pdf'])
+        (
+            "pdf" in p_low
+            and any(
+                k in p_low
+                for k in [
+                    "jadikan",
+                    "ubah",
+                    "convert",
+                    "buat",
+                    "bikin",
+                    "ganti",
+                    "save",
+                    "simpan",
+                    "ekspor",
+                    "export",
+                    "satukan",
+                ]
+            )
+        )
+        or any(
+            k in p_low
+            for k in [
+                "to pdf",
+                "ke pdf",
+                "image to pdf",
+                "foto ke pdf",
+                "gambar ke pdf",
+            ]
+        )
     )
     if is_image_to_pdf:
-        m = re.search(r'bernama\s+([a-zA-Z0-9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
+        m = re.search(r"bernama\s+([a-zA-Z0-9_\-.]+\.pdf)", user_prompt, re.IGNORECASE)
         custom_name = m.group(1) if m else f"album_dokumen_{int(time.time())}.pdf"
-        if not custom_name.endswith('.pdf'):
-            custom_name += '.pdf'
-            
-        res = tools.images_convert_to_pdf(image_paths=image_paths, output_filename=custom_name)
+        if not custom_name.endswith(".pdf"):
+            custom_name += ".pdf"
+
+        res = tools.images_convert_to_pdf(
+            image_paths=image_paths, output_filename=custom_name
+        )
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
             download_url = f"/api/artifacts/download?path={target_path}"
-            size_kb = os.path.getsize(target_path) / 1024 if os.path.exists(target_path) else 0
-            
+            size_kb = (
+                os.path.getsize(target_path) / 1024
+                if os.path.exists(target_path)
+                else 0
+            )
+
             md_reply = f"""⚡ **Konversi Berkas Selesai Instan ({dt_ms} ms via Native Engine)!**
 
 📄 **Dokumen PDF:** `{custom_name}`  
@@ -81,30 +137,45 @@ def try_execute_fast_path(
                 "reply": md_reply,
                 "tool_name": "images_convert_to_pdf",
                 "execution_time_ms": dt_ms,
-                "file_path": target_path
+                "file_path": target_path,
             }
 
     # 2. FAST-PATH: IMAGE SCALE / UPSCALING / WAIFU2X (< 100ms)
-    is_upscale = image_paths and any(k in p_low for k in [
-        'scale', 'upscale', 'waifu2x', 'perbesar resolusi', 'perbesar gambar', 'perbesar foto',
-        'hd kan', 'jernihkan', 'super resolution', 'tingkatkan resolusi', 'perjelas', 'rescale'
-    ])
+    is_upscale = image_paths and any(
+        k in p_low
+        for k in [
+            "scale",
+            "upscale",
+            "waifu2x",
+            "perbesar resolusi",
+            "perbesar gambar",
+            "perbesar foto",
+            "hd kan",
+            "jernihkan",
+            "super resolution",
+            "tingkatkan resolusi",
+            "perjelas",
+            "rescale",
+        ]
+    )
     if is_upscale:
         scale_val = 2
-        if '4x' in p_low or '4 kali' in p_low or 'empat kali' in p_low:
+        if "4x" in p_low or "4 kali" in p_low or "empat kali" in p_low:
             scale_val = 4
-        elif '8x' in p_low or '8 kali' in p_low or 'delapan kali' in p_low:
+        elif "8x" in p_low or "8 kali" in p_low or "delapan kali" in p_low:
             scale_val = 8
-        
+
         mode_val = "auto"
-        if 'anime' in p_low or 'kartun' in p_low or 'waifu' in p_low:
+        if "anime" in p_low or "kartun" in p_low or "waifu" in p_low:
             mode_val = "waifu2x_anime"
-        elif 'foto' in p_low or 'photo' in p_low or 'kamera' in p_low:
+        elif "foto" in p_low or "photo" in p_low or "kamera" in p_low:
             mode_val = "waifu2x_photo"
-        elif 'pixel' in p_low or 'retro' in p_low:
+        elif "pixel" in p_low or "retro" in p_low:
             mode_val = "pixel_art"
 
-        res = tools.upscale_image_hd(image_path=image_paths[0], scale=scale_val, mode=mode_val)
+        res = tools.upscale_image_hd(
+            image_path=image_paths[0], scale=scale_val, mode=mode_val
+        )
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
@@ -141,22 +212,38 @@ def try_execute_fast_path(
                 "reply": md_reply,
                 "tool_name": "upscale_image_hd",
                 "execution_time_ms": dt_ms,
-                "file_path": target_path
+                "file_path": target_path,
             }
 
     # 3. FAST-PATH: PDF MERGE (< 50ms)
-    is_pdf_merge = len(pdf_paths) >= 2 and any(k in p_low for k in ['gabung', 'merge', 'satukan', 'combine', 'jadikan satu', 'satukan pdf'])
+    is_pdf_merge = len(pdf_paths) >= 2 and any(
+        k in p_low
+        for k in [
+            "gabung",
+            "merge",
+            "satukan",
+            "combine",
+            "jadikan satu",
+            "satukan pdf",
+        ]
+    )
     if is_pdf_merge:
-        m = re.search(r'bernama\s+([a-zA-Z0-9_\-.]+\.pdf)', user_prompt, re.IGNORECASE)
+        m = re.search(r"bernama\s+([a-zA-Z0-9_\-.]+\.pdf)", user_prompt, re.IGNORECASE)
         custom_name = m.group(1) if m else f"merged_{int(time.time())}.pdf"
-        res = tools.pdf_merge_documents(pdf_paths=pdf_paths, output_filename=custom_name)
+        res = tools.pdf_merge_documents(
+            pdf_paths=pdf_paths, output_filename=custom_name
+        )
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
             download_url = f"/api/artifacts/download?path={target_path}"
-            size_kb = os.path.getsize(target_path) / 1024 if os.path.exists(target_path) else 0
+            size_kb = (
+                os.path.getsize(target_path) / 1024
+                if os.path.exists(target_path)
+                else 0
+            )
             fname = os.path.basename(target_path)
-            
+
             md_reply = f"""⚡ **Penggabungan PDF Selesai Instan ({dt_ms} ms via Native Engine)!**
 
 📄 **Dokumen:** `{fname}`  
@@ -182,18 +269,24 @@ def try_execute_fast_path(
                 "reply": md_reply,
                 "tool_name": "pdf_merge_documents",
                 "execution_time_ms": dt_ms,
-                "file_path": target_path
+                "file_path": target_path,
             }
 
     # 4. FAST-PATH: PDF ROTATE (< 30ms)
-    is_pdf_rotate = bool(pdf_paths) and any(k in p_low for k in ['putar', 'rotate', 'rotasi', 'miring'])
+    is_pdf_rotate = bool(pdf_paths) and any(
+        k in p_low for k in ["putar", "rotate", "rotasi", "miring"]
+    )
     if is_pdf_rotate:
         angle = 90
-        if '180' in p_low:
+        if "180" in p_low:
             angle = 180
-        elif '270' in p_low:
+        elif "270" in p_low:
             angle = 270
-        res = tools.pdf_rotate_pages(pdf_path=pdf_paths[0], angle=angle, output_filename=f"rotated_{int(time.time())}.pdf")
+        res = tools.pdf_rotate_pages(
+            pdf_path=pdf_paths[0],
+            angle=angle,
+            output_filename=f"rotated_{int(time.time())}.pdf",
+        )
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
@@ -211,12 +304,29 @@ def try_execute_fast_path(
     </a>
 </div>
 """
-            return {"status": "success", "reply": md_reply, "tool_name": "pdf_rotate_pages", "execution_time_ms": dt_ms}
+            return {
+                "status": "success",
+                "reply": md_reply,
+                "tool_name": "pdf_rotate_pages",
+                "execution_time_ms": dt_ms,
+            }
 
     # 5. FAST-PATH: MEDIA TO MP3 (< 150ms)
-    is_media_to_mp3 = bool(audio_video_paths) and any(k in p_low for k in ['mp3', 'ekstrak audio', 'ambil suara', 'ubah suara', 'convert audio', 'ke audio'])
+    is_media_to_mp3 = bool(audio_video_paths) and any(
+        k in p_low
+        for k in [
+            "mp3",
+            "ekstrak audio",
+            "ambil suara",
+            "ubah suara",
+            "convert audio",
+            "ke audio",
+        ]
+    )
     if is_media_to_mp3:
-        res = tools.convert_media_format(source_file=audio_video_paths[0], output_format="mp3")
+        res = tools.convert_media_format(
+            source_file=audio_video_paths[0], output_format="mp3"
+        )
         if res.get("status") == "success":
             dt_ms = int((time.perf_counter() - t0) * 1000)
             target_path = res.get("file_path", "")
@@ -234,6 +344,11 @@ def try_execute_fast_path(
     </a>
 </div>
 """
-            return {"status": "success", "reply": md_reply, "tool_name": "convert_media_format", "execution_time_ms": dt_ms}
+            return {
+                "status": "success",
+                "reply": md_reply,
+                "tool_name": "convert_media_format",
+                "execution_time_ms": dt_ms,
+            }
 
     return None

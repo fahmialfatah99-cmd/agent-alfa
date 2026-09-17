@@ -15,8 +15,8 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from alfa.core import database
 from alfa import tools
+from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
 
 router = APIRouter()
@@ -33,10 +33,18 @@ async def get_system_settings():
     env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
 
     bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", "")
-    masked_bot_token = (bot_token[:6] + "..." + bot_token[-4:]) if len(bot_token) > 10 else ("***" if bot_token else "")
+    masked_bot_token = (
+        (bot_token[:6] + "..." + bot_token[-4:])
+        if len(bot_token) > 10
+        else ("***" if bot_token else "")
+    )
 
     gemini_key = env_vals.get("GEMINI_API_KEY", "")
-    masked_gemini_key = (gemini_key[:6] + "..." + gemini_key[-4:]) if len(gemini_key) > 10 else ("***" if gemini_key else "")
+    masked_gemini_key = (
+        (gemini_key[:6] + "..." + gemini_key[-4:])
+        if len(gemini_key) > 10
+        else ("***" if gemini_key else "")
+    )
 
     with database.get_sync_db() as conn:
         c = conn.cursor()
@@ -56,6 +64,7 @@ async def get_system_settings():
 
     try:
         from alfa.core import brain as _mb
+
         brain = _mb.get_main_brain()
         main_brain_info = {
             "provider": brain["provider"],
@@ -73,15 +82,23 @@ async def get_system_settings():
         "main_brain": main_brain_info,
         "vault_keys": [
             {
-                "id": k["id"], "name": k["name"], "provider": k["provider"],
-                "model": k["default_model"], "masked_key": k["masked_key"],
+                "id": k["id"],
+                "name": k["name"],
+                "provider": k["provider"],
+                "model": k["default_model"],
+                "masked_key": k["masked_key"],
                 "is_active": bool(k.get("is_active")),
-            } for k in vault_keys
+            }
+            for k in vault_keys
         ],
         "env": {
-            "has_bot_token": bool(bot_token and bot_token != "your_telegram_bot_token_here"),
+            "has_bot_token": bool(
+                bot_token and bot_token != "your_telegram_bot_token_here"
+            ),
             "masked_bot_token": masked_bot_token,
-            "has_gemini_key": bool(gemini_key and gemini_key != "your_gemini_api_key_here"),
+            "has_gemini_key": bool(
+                gemini_key and gemini_key != "your_gemini_api_key_here"
+            ),
             "masked_gemini_key": masked_gemini_key,
             "gemini_model": env_vals.get("GEMINI_MODEL", "gemini-3.6-flash"),
             "allowed_user_ids": env_vals.get("ALLOWED_USER_IDS", ""),
@@ -89,7 +106,7 @@ async def get_system_settings():
             "system_instruction_source": prompt_source,
             "system_instruction_path": alfa_prompt_path,
         },
-        "db_settings": db_settings
+        "db_settings": db_settings,
     }
 
 
@@ -97,6 +114,7 @@ async def get_system_settings():
 async def models_for_key(key_id: int):
     """Fetch live model list dari provider kunci terpilih (60s cache)."""
     import httpx
+
     key_id = safe_int(key_id, 0)
     cached = _models_cache.get(key_id)
     if cached and (time.time() - cached[0]) < 60:
@@ -105,8 +123,8 @@ async def models_for_key(key_id: int):
     row = None
     with database.get_sync_db() as conn:
         r = conn.execute(
-            "SELECT provider, api_key, base_url FROM api_keys WHERE id = ?",
-            (key_id,))
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id = ?", (key_id,)
+        )
         row = r.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Key tidak ditemukan")
@@ -121,7 +139,8 @@ async def models_for_key(key_id: int):
                 async with httpx.AsyncClient(timeout=15) as cli:
                     res = await cli.get(
                         "https://generativelanguage.googleapis.com/v1beta/models",
-                        params={"key": api_key, "pageSize": 1000})
+                        params={"key": api_key, "pageSize": 1000},
+                    )
                 if res.status_code == 200:
                     for m in res.json().get("models", []):
                         methods = m.get("supportedGenerationMethods") or []
@@ -153,8 +172,10 @@ async def models_for_key(key_id: int):
             }.get(provider, "")
             if base:
                 async with httpx.AsyncClient(timeout=30) as cli:
-                    res = await cli.get(f"{base.rstrip('/')}/models",
-                                        headers={"Authorization": f"Bearer {api_key}"})
+                    res = await cli.get(
+                        f"{base.rstrip('/')}/models",
+                        headers={"Authorization": f"Bearer {api_key}"},
+                    )
                 if res.status_code == 200:
                     for m in res.json().get("data", []):
                         mid = m.get("id")
@@ -165,22 +186,36 @@ async def models_for_key(key_id: int):
         _models_cache[key_id] = (time.time(), provider, models)
         return {"status": "success", "provider": provider, "models": models}
     except Exception as e:
-        return {"status": "error", "message": str(e), "provider": provider, "models": []}
+        return {
+            "status": "error",
+            "message": str(e),
+            "provider": provider,
+            "models": [],
+        }
 
 
 async def antigravity_set_main_brain_impl(key_id: int, model: str):
     with database.get_sync_db() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_key_id', ?)",
-            (str(key_id),))
+            (str(key_id),),
+        )
         conn.execute(
             "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('main_brain_model', ?)",
-            (model,))
+            (model,),
+        )
         conn.commit()
     from alfa.core import brain as _mb
+
     brain = _mb.get_main_brain()
-    return {"main_brain": {"provider": brain["provider"], "model": brain["model"],
-                           "key_id": brain["key_id"], "label": brain["label"]}}
+    return {
+        "main_brain": {
+            "provider": brain["provider"],
+            "model": brain["model"],
+            "key_id": brain["key_id"],
+            "label": brain["label"],
+        }
+    }
 
 
 @router.post("/api/antigravity/apply")
@@ -196,11 +231,14 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
             target_key = k
             break
     if not target_key:
-        r = database.add_api_key_sync(name="Antigravity Multi-Account", provider="custom",
-                                      api_key="antigravity",
-                                      default_model=model or "gemini-3.6-flash",
-                                      base_url="http://127.0.0.1:8890/v1",
-                                      set_active=False)
+        r = database.add_api_key_sync(
+            name="Antigravity Multi-Account",
+            provider="custom",
+            api_key="antigravity",
+            default_model=model or "gemini-3.6-flash",
+            base_url="http://127.0.0.1:8890/v1",
+            set_active=False,
+        )
         key_id = r.get("id")
     else:
         key_id = target_key["id"]
@@ -210,23 +248,30 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
     if apply_all:
         for a in database.list_custom_agents_sync():
             if a.get("is_enabled", 1):
-                database.update_custom_agent_sync(a["id"], {
-                    "provider": "custom",
-                    "model": model or "gemini-3.6-flash",
-                    "api_key_id": key_id,
-                })
+                database.update_custom_agent_sync(
+                    a["id"],
+                    {
+                        "provider": "custom",
+                        "model": model or "gemini-3.6-flash",
+                        "api_key_id": key_id,
+                    },
+                )
                 updated.append(a["name"])
 
     brain_note = ""
     main_brain_info = None
 
     if as_main_brain:
-        brain_res = await antigravity_set_main_brain_impl(key_id, model or "gemini-3.6-flash")
+        brain_res = await antigravity_set_main_brain_impl(
+            key_id, model or "gemini-3.6-flash"
+        )
         main_brain_info = brain_res.get("main_brain")
         brain_note = " Otak utama dialihkan ke Antigravity."
     else:
-        brain_note = (" Mode cadangan: otak utama tidak berubah "
-                      "(aktifkan via kartu Otak Utama bila diperlukan).")
+        brain_note = (
+            " Mode cadangan: otak utama tidak berubah "
+            "(aktifkan via kartu Otak Utama bila diperlukan)."
+        )
 
     return {
         "status": "success",
@@ -236,8 +281,10 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
         "agents_count": len(updated),
         "as_main_brain": as_main_brain,
         "main_brain": main_brain_info,
-        "message": (f"Kunci cadangan '{model}' siap ({len(updated)} agen swarm ikut memakai)."
-                    f"{brain_note}")
+        "message": (
+            f"Kunci cadangan '{model}' siap ({len(updated)} agen swarm ikut memakai)."
+            f"{brain_note}"
+        ),
     }
 
 
@@ -254,8 +301,8 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
     row = None
     with database.get_sync_db() as conn:
         r = conn.execute(
-            "SELECT provider, api_key, base_url FROM api_keys WHERE id=?",
-            (key_id,)).fetchone()
+            "SELECT provider, api_key, base_url FROM api_keys WHERE id=?", (key_id,)
+        ).fetchone()
         row = dict(r) if r else None
     if not row:
         return {"status": "error", "message": "Key tidak ditemukan"}
@@ -267,36 +314,55 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
         if provider == "gemini":
             from google import genai as _genai
             from google.genai import types as _types
+
             client = _genai.Client(api_key=row["api_key"])
             resp = await client.aio.models.generate_content(
                 model=model or "gemini-3.6-flash",
                 contents="Balas satu kata: SIAP",
-                config=_types.GenerateContentConfig(max_output_tokens=100))
+                config=_types.GenerateContentConfig(max_output_tokens=100),
+            )
             text = (resp.text or "").strip()
             ok = bool(text)
             snippet = text[:80]
         else:
             base = (row["base_url"] or "").rstrip("/")
             async with _hx.AsyncClient(timeout=_hx.Timeout(60.0, connect=10.0)) as cli:
-                r2 = await cli.post(f"{base}/chat/completions",
-                    headers={"Authorization": f"Bearer {row['api_key']}",
-                             "Content-Type": "application/json"},
-                    json={"model": model or "all", "messages":
-                          [{"role":"user","content":"Balas satu kata: SIAP"}],
-                          "max_tokens": 50, "stream": False})
+                r2 = await cli.post(
+                    f"{base}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {row['api_key']}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model or "all",
+                        "messages": [
+                            {"role": "user", "content": "Balas satu kata: SIAP"}
+                        ],
+                        "max_tokens": 50,
+                        "stream": False,
+                    },
+                )
             ok = r2.status_code == 200
             if ok:
                 try:
-                    snippet = (r2.json().get("choices",[{}])[0].get("message",{})
-                               .get("content","") or "")[:80]
+                    snippet = (
+                        r2.json()
+                        .get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                        or ""
+                    )[:80]
                 except Exception:
                     snippet = r2.text[:80]
             else:
                 snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
-        ms = round((time.time()-t0)*1000)
-        return {"status": "success" if ok else "error", "latency_ms": ms,
-                "snippet": snippet,
-                "message": ("Koneksi OK" if ok else f"Gagal: {snippet}")}
+        ms = round((time.time() - t0) * 1000)
+        return {
+            "status": "success" if ok else "error",
+            "latency_ms": ms,
+            "snippet": snippet,
+            "message": ("Koneksi OK" if ok else f"Gagal: {snippet}"),
+        }
     except Exception as e:
         return {"status": "error", "message": f"Error: {str(e)[:200]}"}
 
@@ -316,22 +382,26 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
         key_row = None
         with database.get_sync_db() as conn:
             kr = conn.execute(
-                "SELECT provider, default_model FROM api_keys WHERE id = ?",
-                (key_id,)).fetchone()
+                "SELECT provider, default_model FROM api_keys WHERE id = ?", (key_id,)
+            ).fetchone()
             key_row = dict(kr) if kr else None
         if key_row:
             for a in database.list_custom_agents_sync():
                 if a["name"] == "Alpha Lead":
-                    database.update_custom_agent_sync(a["id"], {
-                        "provider": key_row["provider"],
-                        "model": model_override or key_row["default_model"],
-                        "api_key_id": key_id,
-                    })
+                    database.update_custom_agent_sync(
+                        a["id"],
+                        {
+                            "provider": key_row["provider"],
+                            "model": model_override or key_row["default_model"],
+                            "api_key_id": key_id,
+                        },
+                    )
                     res["synced_agents"] = ["Alpha Lead"]
                     res["message"] += " Alpha Lead ikut tersinkron."
                     break
 
         from alfa.core import brain as _mb
+
         brain = _mb.get_main_brain()
         res["main_brain"] = {
             "provider": brain["provider"],
@@ -371,13 +441,23 @@ async def update_system_settings(payload: Dict[str, Any]):
     for line in lines:
         if line.startswith("TELEGRAM_BOT_TOKEN="):
             keys_seen.add("TELEGRAM_BOT_TOKEN")
-            if bot_token is not None and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+            if (
+                bot_token is not None
+                and bot_token
+                and not bot_token.startswith("***")
+                and "..." not in bot_token
+            ):
                 new_lines.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
             else:
                 new_lines.append(line)
         elif line.startswith("GEMINI_API_KEY="):
             keys_seen.add("GEMINI_API_KEY")
-            if gemini_key is not None and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+            if (
+                gemini_key is not None
+                and gemini_key
+                and not gemini_key.startswith("***")
+                and "..." not in gemini_key
+            ):
                 new_lines.append(f"GEMINI_API_KEY={gemini_key}\n")
             else:
                 new_lines.append(line)
@@ -396,7 +476,11 @@ async def update_system_settings(payload: Dict[str, Any]):
         elif line.startswith("SYSTEM_INSTRUCTION="):
             keys_seen.add("SYSTEM_INSTRUCTION")
             if system_instruction is not None and system_instruction:
-                escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+                escaped_instr = (
+                    system_instruction.replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                    .replace("\n", "\\n")
+                )
                 new_lines.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
             else:
                 new_lines.append(line)
@@ -404,16 +488,30 @@ async def update_system_settings(payload: Dict[str, Any]):
             new_lines.append(line)
 
     pending = []
-    if "TELEGRAM_BOT_TOKEN" not in keys_seen and bot_token and not bot_token.startswith("***") and "..." not in bot_token:
+    if (
+        "TELEGRAM_BOT_TOKEN" not in keys_seen
+        and bot_token
+        and not bot_token.startswith("***")
+        and "..." not in bot_token
+    ):
         pending.append(f"TELEGRAM_BOT_TOKEN={bot_token}\n")
-    if "GEMINI_API_KEY" not in keys_seen and gemini_key and not gemini_key.startswith("***") and "..." not in gemini_key:
+    if (
+        "GEMINI_API_KEY" not in keys_seen
+        and gemini_key
+        and not gemini_key.startswith("***")
+        and "..." not in gemini_key
+    ):
         pending.append(f"GEMINI_API_KEY={gemini_key}\n")
     if "GEMINI_MODEL" not in keys_seen and gemini_model:
         pending.append(f"GEMINI_MODEL={gemini_model}\n")
     if "ALLOWED_USER_IDS" not in keys_seen and allowed_ids is not None:
         pending.append(f"ALLOWED_USER_IDS={allowed_ids}\n")
     if "SYSTEM_INSTRUCTION" not in keys_seen and system_instruction:
-        escaped_instr = system_instruction.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        escaped_instr = (
+            system_instruction.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+        )
         pending.append(f'SYSTEM_INSTRUCTION="{escaped_instr}"\n')
 
     if pending or new_lines != lines:
@@ -430,17 +528,26 @@ async def update_system_settings(payload: Dict[str, Any]):
             with open(alfa_prompt_path, "w", encoding="utf-8") as f:
                 f.write(system_instruction + "\n")
         except Exception as prompt_err:
-            return {"status": "error", "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}"}
+            return {
+                "status": "error",
+                "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}",
+            }
 
     db_updates = payload.get("db_settings", {})
     if db_updates:
         with database.get_sync_db() as conn:
             c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)")
+            c.execute(
+                "CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)"
+            )
             for k, v in db_updates.items():
-                c.execute("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)", (str(k), str(v)))
+                c.execute(
+                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)",
+                    (str(k), str(v)),
+                )
             conn.commit()
 
-    return {"status": "success", "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart."}
-
-
+    return {
+        "status": "success",
+        "message": "Konfigurasi tersimpan. Kepribadian agent langsung aktif (Telegram & Web) tanpa restart.",
+    }

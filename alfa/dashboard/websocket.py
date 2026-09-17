@@ -51,7 +51,9 @@ class ConnectionManager:
             if channel
             else list(self.active_connections)
         )
-        payload = json.dumps(message) if isinstance(message, (dict, list)) else str(message)
+        payload = (
+            json.dumps(message) if isinstance(message, (dict, list)) else str(message)
+        )
         for connection in target_connections:
             try:
                 await connection.send_text(payload)
@@ -66,10 +68,13 @@ def _is_ws_authorized(websocket: WebSocket) -> bool:
     """Verify WebSocket token if DASHBOARD_AUTH_TOKEN is configured."""
     if not DASHBOARD_AUTH_TOKEN:
         return True
-    token = websocket.query_params.get("token") or websocket.headers.get("X-Session-Token")
+    token = websocket.query_params.get("token") or websocket.headers.get(
+        "X-Session-Token"
+    )
     if token == DASHBOARD_AUTH_TOKEN:
         return True
     from alfa.dashboard.routes.auth import validate_session
+
     if token and validate_session(token):
         return True
     cookie_token = websocket.cookies.get("session_token")
@@ -86,10 +91,10 @@ async def ws_terminal_endpoint(websocket: WebSocket):
         return
 
     await ws_manager.connect(websocket, channel="terminal")
-    await ws_manager.send_personal_message({
-        "type": "output",
-        "data": "ALFA Sovereign Terminal Session Connected\r\n"
-    }, websocket)
+    await ws_manager.send_personal_message(
+        {"type": "output", "data": "ALFA Sovereign Terminal Session Connected\r\n"},
+        websocket,
+    )
 
     try:
         while True:
@@ -112,26 +117,28 @@ async def ws_terminal_endpoint(websocket: WebSocket):
                 proc = await asyncio.create_subprocess_shell(
                     command,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT
+                    stderr=asyncio.subprocess.STDOUT,
                 )
                 while True:
                     line = await proc.stdout.readline()
                     if not line:
                         break
-                    await ws_manager.send_personal_message({
-                        "type": "output",
-                        "data": line.decode("utf-8", errors="replace")
-                    }, websocket)
+                    await ws_manager.send_personal_message(
+                        {
+                            "type": "output",
+                            "data": line.decode("utf-8", errors="replace"),
+                        },
+                        websocket,
+                    )
                 await proc.wait()
-                await ws_manager.send_personal_message({
-                    "type": "exit",
-                    "code": proc.returncode
-                }, websocket)
+                await ws_manager.send_personal_message(
+                    {"type": "exit", "code": proc.returncode}, websocket
+                )
             except Exception as e:
-                await ws_manager.send_personal_message({
-                    "type": "error",
-                    "data": f"Execution error: {str(e)}\r\n"
-                }, websocket)
+                await ws_manager.send_personal_message(
+                    {"type": "error", "data": f"Execution error: {str(e)}\r\n"},
+                    websocket,
+                )
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, channel="terminal")
     except Exception as e:
@@ -153,20 +160,21 @@ async def ws_logs_endpoint(websocket: WebSocket):
         # Stream recent logs and follow
         cmd = ["journalctl", "--user", "-u", unit, "-n", "50", "-f", "--no-pager"]
         proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
         )
         try:
             while True:
                 line = await proc.stdout.readline()
                 if not line:
                     break
-                await ws_manager.send_personal_message({
-                    "type": "log",
-                    "unit": unit,
-                    "data": line.decode("utf-8", errors="replace")
-                }, websocket)
+                await ws_manager.send_personal_message(
+                    {
+                        "type": "log",
+                        "unit": unit,
+                        "data": line.decode("utf-8", errors="replace"),
+                    },
+                    websocket,
+                )
         finally:
             if proc.returncode is None:
                 try:

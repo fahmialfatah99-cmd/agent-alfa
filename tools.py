@@ -4,6 +4,7 @@ All tools are now organized in the modular package `alfa.tools`.
 """
 
 import sys
+
 import alfa.tools as _impl
 from alfa.tools import *  # noqa: F401, F403
 

@@ -27,7 +27,7 @@ def init_affiliate_tables():
     """Ensure affiliate database tables exist."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS affiliate_products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +45,7 @@ def init_affiliate_tables():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
-    
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS affiliate_campaigns (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +77,7 @@ init_affiliate_tables()
 #  1. RESEARCHER PRIME: TREND & PRODUCT SCOUTING
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def research_trending_niche(niche: str, platform: str = "shopee") -> Dict[str, Any]:
     """
     Riset tren produk dan kata kunci viral untuk niche affiliate tertentu.
@@ -84,25 +85,28 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> Dict[str, A
     """
     try:
         import tools
+
         query = f"produk viral terlaris {niche} {platform} diskon murah review rating tinggi 2026"
         search_res = tools.web_search(query)
-        
+
         results = search_res.get("results", [])
         top_insights = []
         for r in results[:5]:
-            top_insights.append({
-                "title": r.get("title", ""),
-                "snippet": r.get("snippet", ""),
-                "link": r.get("link", "")
-            })
-            
+            top_insights.append(
+                {
+                    "title": r.get("title", ""),
+                    "snippet": r.get("snippet", ""),
+                    "link": r.get("link", ""),
+                }
+            )
+
         return {
             "status": "success",
             "niche": niche,
             "platform": platform,
             "total_found": len(top_insights),
             "market_insights": top_insights,
-            "scouted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "scouted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
     except Exception as e:
         logger.error(f"Error researching niche: {e}")
@@ -113,6 +117,7 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> Dict[str, A
 #  2. STRATEGIC PLANNER: HIGH-CONVERTING COPYWRITING & TIKTOK SCRIPT
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def generate_affiliate_campaign_content(
     product_name: str,
     key_features: str,
@@ -120,7 +125,7 @@ def generate_affiliate_campaign_content(
     discount_price: str,
     affiliate_link: str,
     target_audience: str = "Pecinta Gadget & Lifestyle / Pemburu Diskon",
-    platform: str = "shopee_tiktok"
+    platform: str = "shopee_tiktok",
 ) -> Dict[str, Any]:
     """
     Menghasilkan paket konten lengkap penjualan affiliate:
@@ -209,7 +214,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         f"Halo kak! Ini link resminya yang lagi diskon {discount_price} + gratis ongkir ya 👉 {affiliate_link} 🥰",
         f"Spill link siap kak! Langsung checkout di sini sebelum flash sale selesai ya kak 👉 {affiliate_link} 🔥",
         f"Produk originalnya yang ini ya kak: {affiliate_link} . Jangan lupa klaim voucher tokonya ya kak! ✨",
-        f"Ada di link ini ya kak 👉 {affiliate_link} . Lagi promo hemat dari {original_price} jadi {discount_price} kak! 👍"
+        f"Ada di link ini ya kak 👉 {affiliate_link} . Lagi promo hemat dari {original_price} jadi {discount_price} kak! 👍",
     ]
 
     # 5. Master AI Video Generation Prompt (For Sora, Kling, Runway Gen-3, Luma Dream Machine, Pika)
@@ -230,7 +235,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
             "shot_type": "🔥 High-Impact Hook Shot",
             "camera_angle": "Fast macro push-in with speed ramp & dynamic camera roll",
             "lighting": "Dramatic neon cyan & magenta rim light, volumetric light flare",
-            "visual_prompt": f"Dynamic explosive product reveal of {product_name}, camera rapidly rushes forward into extreme macro close-up with light streaks and suspenseful energy, 9:16 vertical commercial."
+            "visual_prompt": f"Dynamic explosive product reveal of {product_name}, camera rapidly rushes forward into extreme macro close-up with light streaks and suspenseful energy, 9:16 vertical commercial.",
         },
         {
             "scene": 2,
@@ -238,7 +243,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
             "shot_type": "📦 Feature & Detail Showcase",
             "camera_angle": "Smooth 180-degree orbital rotation with shallow depth of field (f/1.4)",
             "lighting": "Soft warm studio diffusion with crisp specular highlights on edges",
-            "visual_prompt": f"Detailed cinematic slow-motion orbit around {product_name}, highlighting textures and {key_features}, ultra sharp 8k focus, elegant studio aesthetics, 9:16 vertical."
+            "visual_prompt": f"Detailed cinematic slow-motion orbit around {product_name}, highlighting textures and {key_features}, ultra sharp 8k focus, elegant studio aesthetics, 9:16 vertical.",
         },
         {
             "scene": 3,
@@ -246,7 +251,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
             "shot_type": "💡 Practical Lifestyle Demo",
             "camera_angle": "Eye-level tracking shot with smooth gimbal movement",
             "lighting": "Natural golden-hour window sunlight with ambient indoor warmth",
-            "visual_prompt": f"First-person aesthetic point-of-view using {product_name} seamlessly in a modern minimalist luxury room, practical smooth operation, high satisfying tactile feel, 9:16 vertical."
+            "visual_prompt": f"First-person aesthetic point-of-view using {product_name} seamlessly in a modern minimalist luxury room, practical smooth operation, high satisfying tactile feel, 9:16 vertical.",
         },
         {
             "scene": 4,
@@ -254,8 +259,8 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
             "shot_type": "🚀 Hero Closing & Flash Sale CTA",
             "camera_angle": "Low-angle heroic pedestal float with subtle glowing pulse",
             "lighting": "Intense golden luxury aura with floating ember particles and price drop flare",
-            "visual_prompt": f"Heroic floating presentation of {product_name} enveloped in a golden flash sale aura, dramatic low angle, ultra-premium commercial climax with pulsing urgency, 9:16 vertical."
-        }
+            "visual_prompt": f"Heroic floating presentation of {product_name} enveloped in a golden flash sale aura, dramatic low angle, ultra-premium commercial climax with pulsing urgency, 9:16 vertical.",
+        },
     ]
 
     negative_prompt = "blurry, low quality, deformed, distorted geometry, pixelated, jittery camera, watermark, text artifacts, bad render, oversaturated, low resolution"
@@ -297,9 +302,9 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 """
 
     # Save scripts to Dokumen/ALFA_AFFILIATE_TOOLS/Scripts/
-    safe_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', product_name)[:30]
+    safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:30]
     out_file = os.path.join(AFFILIATE_DIR, "Scripts", f"{safe_stem}_campaign.json")
-    
+
     campaign_data = {
         "product_name": product_name,
         "key_features": key_features,
@@ -316,9 +321,9 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         "scene_breakdown": scene_breakdown,
         "negative_prompt": negative_prompt,
         "visual_storyboard_text": visual_storyboard_text,
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
+
     with open(out_file, "w", encoding="utf-8") as f_out:
         json.dump(campaign_data, f_out, indent=2, ensure_ascii=False)
 
@@ -326,20 +331,23 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
     conn = sqlite3.connect(DB_PATH)
     try:
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
         INSERT INTO affiliate_campaigns 
         (product_name, platform, target_audience, tiktok_script, shopee_copy, wa_broadcast, telegram_card, spill_link_templates)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            product_name,
-            platform,
-            target_audience,
-            tiktok_script,
-            shopee_copy,
-            wa_broadcast,
-            telegram_card,
-            json.dumps(spill_replies)
-        ))
+        """,
+            (
+                product_name,
+                platform,
+                target_audience,
+                tiktok_script,
+                shopee_copy,
+                wa_broadcast,
+                telegram_card,
+                json.dumps(spill_replies),
+            ),
+        )
         campaign_id = cur.lastrowid
         conn.commit()
     finally:
@@ -354,7 +362,10 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 #  3. CODE CRAFTER: MULTI-CHANNEL BROADCASTER
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _deliver_telegram_broadcast(uid: int, message_text: str, reply_markup) -> Dict[str, Any]:
+
+def _deliver_telegram_broadcast(
+    uid: int, message_text: str, reply_markup
+) -> Dict[str, Any]:
     """Send a broadcast through the running Telegram bot application.
 
     Works both from the bot's own loop (tool execution) and from foreign
@@ -368,9 +379,14 @@ def _deliver_telegram_broadcast(uid: int, message_text: str, reply_markup) -> Di
     tg_app = subagents.get_telegram_app()
     tg_loop = subagents.get_telegram_loop()
     if not tg_app or not tg_loop or not tg_loop.is_running():
-        return {"status": "error", "message": "Telegram bot belum berjalan (application belum siap)."}
+        return {
+            "status": "error",
+            "message": "Telegram bot belum berjalan (application belum siap).",
+        }
 
-    coro = bot_module.safe_send_message(tg_app, uid, message_text, reply_markup=reply_markup)
+    coro = bot_module.safe_send_message(
+        tg_app, uid, message_text, reply_markup=reply_markup
+    )
     try:
         current_loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -386,14 +402,17 @@ def _deliver_telegram_broadcast(uid: int, message_text: str, reply_markup) -> Di
         future.result(timeout=45)
         return {"status": "success", "message": "Broadcast terkirim ke Telegram."}
     except Exception as send_err:
-        return {"status": "error", "message": f"Gagal mengirim broadcast: {str(send_err)}"}
+        return {
+            "status": "error",
+            "message": f"Gagal mengirim broadcast: {str(send_err)}",
+        }
 
 
 def broadcast_affiliate_deal(
     product_name: str,
     message_text: str,
     affiliate_link: str,
-    channels: List[str] = None
+    channels: List[str] = None,
 ) -> Dict[str, Any]:
     """
     Mengirimkan konten promosi affiliate secara otomatis ke Telegram Channel atau WhatsApp Broadcast.
@@ -401,22 +420,30 @@ def broadcast_affiliate_deal(
     if channels is None:
         channels = ["telegram", "whatsapp"]
     results = {}
-    
+
     # 1. Telegram
     if "telegram" in channels:
         try:
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            
+
             allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
             if not allowed_env:
                 raise ValueError("ALLOWED_USER_IDS belum diatur di .env")
             uid = int(allowed_env.split(",")[0].strip())
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🛒 Beli Sekarang / Cek Diskon", url=affiliate_link)]
-            ])
-            
-            results["telegram"] = _deliver_telegram_broadcast(uid, message_text, keyboard)
+
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "🛒 Beli Sekarang / Cek Diskon", url=affiliate_link
+                        )
+                    ]
+                ]
+            )
+
+            results["telegram"] = _deliver_telegram_broadcast(
+                uid, message_text, keyboard
+            )
         except Exception as e:
             results["telegram"] = {"status": "error", "message": str(e)}
 
@@ -424,11 +451,12 @@ def broadcast_affiliate_deal(
     if "whatsapp" in channels:
         try:
             import tools
+
             wa_status = tools.manage_wa_sheets_bot("status")
             results["whatsapp"] = {
                 "status": "ready",
                 "wa_bot_status": wa_status.get("status", "unknown"),
-                "message": "Broadcast template siap dikirim via WhatsApp bot."
+                "message": "Broadcast template siap dikirim via WhatsApp bot.",
             }
         except Exception as e:
             results["whatsapp"] = {"status": "error", "message": str(e)}
@@ -439,7 +467,7 @@ def broadcast_affiliate_deal(
         "product_name": product_name,
         "channels": channels,
         "results": results,
-        "broadcasted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "broadcasted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
 
@@ -447,17 +475,21 @@ def broadcast_affiliate_deal(
 #  4. ALPHA LEAD: CAMPAIGN RECAP & PERFORMANCE TRACKER
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def list_affiliate_campaigns(limit: int = 20) -> List[Dict[str, Any]]:
     """Ambil daftar seluruh campaign affiliate yang telah digenerate."""
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
         SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at 
         FROM affiliate_campaigns 
         ORDER BY id DESC LIMIT ?
-        """, (limit,))
+        """,
+            (limit,),
+        )
         return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
@@ -476,7 +508,9 @@ def get_affiliate_campaign_detail(campaign_id: int) -> Optional[Dict[str, Any]]:
     if row:
         data = dict(row)
         try:
-            data["spill_link_templates"] = json.loads(data.get("spill_link_templates", "[]"))
+            data["spill_link_templates"] = json.loads(
+                data.get("spill_link_templates", "[]")
+            )
         except Exception:
             pass
         return data

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -13,11 +14,11 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
-from alfa.core import database
 from alfa import tools
-from alfa.tools import get_system_stats
 from alfa.bot.config import is_authorized
 from alfa.bot.helpers import safe_send_message
+from alfa.core import database
+from alfa.tools import get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -67,11 +68,15 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🌐 Buka Web Dashboard", url="http://localhost:8080"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    auth_desc = "✅ Terhubung (Logged In)" if wa_auth_status == "READY" else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
+    auth_desc = (
+        "✅ Terhubung (Logged In)"
+        if wa_auth_status == "READY"
+        else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
+    )
 
     text = (
         f"📱 **Manajer WhatsApp Google Sheets Bot:**\n\n"
@@ -85,7 +90,9 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if wa_auth_status == "QR_READY" and qr_str:
         try:
             import io
+
             import qrcode
+
             img = qrcode.make(qr_str)
             buf = io.BytesIO()
             img.save(buf, format="PNG")
@@ -95,7 +102,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 photo=buf,
                 caption=f"📲 **SCAN QR CODE WHATSAPP SEKARANG**\n\n{text}",
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
+                parse_mode="Markdown",
             )
             return
         except Exception as e:
@@ -112,13 +119,28 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     res = tools.open_web_dashboard(port=8080)
-    tma_url = os.getenv("ALFA_WEBAPP_URL", res.get("network_url") or "http://127.0.0.1:8080")
+    tma_url = os.getenv(
+        "ALFA_WEBAPP_URL", res.get("network_url") or "http://127.0.0.1:8080"
+    )
 
     keyboard = []
     if tma_url and tma_url.startswith("https://"):
-        keyboard.append([InlineKeyboardButton("📱 Buka ALFA Mini App", web_app=WebAppInfo(url=tma_url))])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    "📱 Buka ALFA Mini App", web_app=WebAppInfo(url=tma_url)
+                )
+            ]
+        )
     else:
-        keyboard.append([InlineKeyboardButton("🌐 Buka Web Dashboard", url=res.get("local_url") or "http://127.0.0.1:8080")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    "🌐 Buka Web Dashboard",
+                    url=res.get("local_url") or "http://127.0.0.1:8080",
+                )
+            ]
+        )
 
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
@@ -201,15 +223,19 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id,
+        context,
+        chat_id,
         f"🏛️ **Membuka Rapat Perencanaan AI...**\n\n"
         f"📋 **Agenda:** _{topic}_\n"
-        f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu..."
+        f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu...",
     )
 
     try:
         from alfa.swarm import engine as swarm_engine
-        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=2, mode="plan")
+
+        result = await swarm_engine.conduct_multi_agent_meeting(
+            topic=topic, rounds=2, mode="plan"
+        )
 
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
@@ -230,7 +256,9 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error during Telegram /rapat meeting: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}"
+        )
 
 
 async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -255,20 +283,26 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await safe_send_message(
-        context, chat_id,
+        context,
+        chat_id,
         f"⚡ **Membangunkan AI Swarm & Mengeksekusi Tugas Nyata...**\n\n"
         f"📌 **Tugas:** _{topic}_\n"
-        f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu..."
+        f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu...",
     )
 
     try:
         from alfa.swarm import engine as swarm_engine
-        result = await swarm_engine.conduct_multi_agent_meeting(topic=topic, rounds=1, mode="execute")
+
+        result = await swarm_engine.conduct_multi_agent_meeting(
+            topic=topic, rounds=1, mode="execute"
+        )
 
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Laporan Eksekusi Tiap Agen:**\n\n"
         for s in steps:
-            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += (
+                f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            )
             steps_text += f"   • Tool: `{s['tool_used']}` ({s['duration_ms']}ms)\n"
             steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
 
@@ -291,14 +325,18 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             chat_id=chat_id,
                             document=f_doc,
                             filename=os.path.basename(fpath),
-                            caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`"
+                            caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`",
                         )
                 except Exception as file_err:
-                    logger.warning(f"Failed to send deliverable file to Telegram: {file_err}")
+                    logger.warning(
+                        f"Failed to send deliverable file to Telegram: {file_err}"
+                    )
 
     except Exception as e:
         logger.error(f"Error during Telegram /swarm execution: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}"
+        )
 
 
 async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -309,12 +347,17 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     from alfa.swarm.checkpoint import SwarmCheckpoint
+
     resumable = SwarmCheckpoint.list_resumable()
 
     session_id = (context.args[0].strip()) if context.args else ""
     if not session_id:
         if not resumable:
-            await safe_send_message(context, chat_id, "ℹ️ Tidak ada sesi swarm yang tertunda atau bisa dilanjutkan saat ini.")
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Tidak ada sesi swarm yang tertunda atau bisa dilanjutkan saat ini.",
+            )
             return
 
         text = "🔄 **Daftar Sesi Swarm yang Bisa Dilanjutkan (Checkpoints):**\n\n"
@@ -329,18 +372,29 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, text)
         return
 
-    await safe_send_message(context, chat_id, f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**")
+    await safe_send_message(
+        context,
+        chat_id,
+        f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**",
+    )
     try:
         from alfa.swarm import engine as swarm_engine
+
         result = await swarm_engine.resume_swarm_session(session_id)
         if result.get("status") == "error":
-            await safe_send_message(context, chat_id, f"❌ Gagal resume: {result.get('message', 'Unknown error')}")
+            await safe_send_message(
+                context,
+                chat_id,
+                f"❌ Gagal resume: {result.get('message', 'Unknown error')}",
+            )
             return
 
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Hasil Lanjutan Sesi Swarm:**\n\n"
         for s in steps:
-            steps_text += f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            steps_text += (
+                f"{s.get('avatar_emoji', '🤖')} **{s['agent_name']}** ({s['role']})\n"
+            )
             steps_text += f"   • Tool: `{s['tool_used']}`\n"
             steps_text += f"   • Output: _{s['execution_summary'][:200]}_\n\n"
         await safe_send_message(context, chat_id, steps_text)
@@ -352,4 +406,6 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, final_text)
     except Exception as e:
         logger.error(f"Error during /resume_swarm: {e}")
-        await safe_send_message(context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}"
+        )

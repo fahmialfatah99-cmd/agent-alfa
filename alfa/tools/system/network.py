@@ -19,17 +19,22 @@ def scan_local_network() -> Dict[str, Any]:
     Scan connected local LAN devices, IP neighbors, and active gateways.
     """
     try:
-        res = subprocess.run("ip neigh || arp -a", shell=True, capture_output=True, text=True, timeout=10)
+        res = subprocess.run(
+            "ip neigh || arp -a", shell=True, capture_output=True, text=True, timeout=10
+        )
         return {
             "status": "success",
-            "devices": res.stdout.strip() or "Tidak ada perangkat terdeteksi di tabel ARP/Neighbor."
+            "devices": res.stdout.strip()
+            or "Tidak ada perangkat terdeteksi di tabel ARP/Neighbor.",
         }
     except Exception as err:
         return {"status": "error", "message": str(err)}
 
 
 @register_tool(category="system")
-def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "quick_ports") -> Dict[str, Any]:
+def audit_network_security(
+    target_host: str = "127.0.0.1", scan_type: str = "quick_ports"
+) -> Dict[str, Any]:
     """
     GOD MODE: Network Security & Port Sentinel.
     """
@@ -37,12 +42,32 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
         result = {"target": target_host, "scan_type": scan_type}
 
         if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:
-            res_ss = subprocess.run("ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null", shell=True, capture_output=True, text=True, timeout=5)
-            listening_lines = [ln for ln in res_ss.stdout.strip().splitlines() if "LISTEN" in ln or "State" in ln][:20]
+            res_ss = subprocess.run(
+                "ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null",
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            listening_lines = [
+                ln
+                for ln in res_ss.stdout.strip().splitlines()
+                if "LISTEN" in ln or "State" in ln
+            ][:20]
             result["local_listening_sockets"] = "\n".join(listening_lines)
 
-            res_ufw = subprocess.run("sudo -n ufw status 2>/dev/null || ufw status 2>/dev/null", shell=True, capture_output=True, text=True, timeout=3)
-            result["firewall_status"] = res_ufw.stdout.strip() if res_ufw.stdout.strip() else "UFW status tidak memerlukan sudo / tidak aktif."
+            res_ufw = subprocess.run(
+                "sudo -n ufw status 2>/dev/null || ufw status 2>/dev/null",
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            result["firewall_status"] = (
+                res_ufw.stdout.strip()
+                if res_ufw.stdout.strip()
+                else "UFW status tidak memerlukan sudo / tidak aktif."
+            )
         else:
             common_ports = [21, 22, 25, 80, 443, 3000, 3306, 5432, 8000, 8080, 8443]
             open_ports = []
@@ -55,19 +80,25 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
                 s.close()
             result["open_ports_detected"] = open_ports
 
-            if 443 in open_ports or target_host.startswith("http") or "." in target_host:
+            if (
+                443 in open_ports
+                or target_host.startswith("http")
+                or "." in target_host
+            ):
                 try:
                     ctx = ssl.create_default_context()
-                    with ctx.wrap_socket(socket.socket(), server_hostname=target_host) as s:
+                    with ctx.wrap_socket(
+                        socket.socket(), server_hostname=target_host
+                    ) as s:
                         s.settimeout(5)
                         s.connect((target_host, 443))
                         cert = s.getpeercert()
-                        not_after = cert.get('notAfter', '')
+                        not_after = cert.get("notAfter", "")
                         result["ssl_certificate"] = {
-                            "subject": dict(x[0] for x in cert.get('subject', ())),
-                            "issuer": dict(x[0] for x in cert.get('issuer', ())),
+                            "subject": dict(x[0] for x in cert.get("subject", ())),
+                            "issuer": dict(x[0] for x in cert.get("issuer", ())),
                             "expires_at": not_after,
-                            "version": cert.get('version', '')
+                            "version": cert.get("version", ""),
                         }
                 except Exception as ssl_err:
                     result["ssl_error"] = str(ssl_err)
@@ -78,7 +109,9 @@ def audit_network_security(target_host: str = "127.0.0.1", scan_type: str = "qui
 
 
 @register_tool(category="system")
-def ssh_execute_command(host: str, command: str, username: str = "", port: int = 22, key_path: str = "") -> Dict[str, Any]:
+def ssh_execute_command(
+    host: str, command: str, username: str = "", port: int = 22, key_path: str = ""
+) -> Dict[str, Any]:
     """
     Execute a command on a remote Linux server via SSH and return the output.
     """
@@ -86,12 +119,21 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
         import paramiko
 
         ssh_user = username or os.environ.get("USER", "root")
-        ssh_key = os.path.expanduser(key_path) if key_path else os.path.expanduser("~/.ssh/id_rsa")
+        ssh_key = (
+            os.path.expanduser(key_path)
+            if key_path
+            else os.path.expanduser("~/.ssh/id_rsa")
+        )
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        connect_kwargs = {"hostname": host, "port": port, "username": ssh_user, "timeout": 10}
+        connect_kwargs = {
+            "hostname": host,
+            "port": port,
+            "username": ssh_user,
+            "timeout": 10,
+        }
         if os.path.exists(ssh_key):
             connect_kwargs["key_filename"] = ssh_key
 
@@ -108,14 +150,16 @@ def ssh_execute_command(host: str, command: str, username: str = "", port: int =
             "host": host,
             "exit_code": exit_code,
             "stdout": out[:8000],
-            "stderr": err[:2000] if err else ""
+            "stderr": err[:2000] if err else "",
         }
     except Exception as e:
         return {"status": "error", "message": f"SSH error: {str(e)}"}
 
 
 @register_tool(category="system")
-def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> Dict[str, Any]:
+def send_email(
+    to: str, subject: str, body: str, attachment_path: str = ""
+) -> Dict[str, Any]:
     """
     Send an email via SMTP (supports Gmail, Outlook, custom SMTP servers).
     """
@@ -132,7 +176,10 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
         smtp_port = int(os.environ.get("SMTP_PORT", "587"))
 
         if not smtp_email or not smtp_password:
-            return {"status": "error", "message": "SMTP_EMAIL dan SMTP_PASSWORD belum dikonfigurasi di file .env."}
+            return {
+                "status": "error",
+                "message": "SMTP_EMAIL dan SMTP_PASSWORD belum dikonfigurasi di file .env.",
+            }
 
         msg = MIMEMultipart()
         msg["From"] = smtp_email
@@ -147,7 +194,10 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
                     part = MIMEBase("application", "octet-stream")
                     part.set_payload(f.read())
                     encoders.encode_base64(part)
-                    part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(expanded)}")
+                    part.add_header(
+                        "Content-Disposition",
+                        f"attachment; filename={os.path.basename(expanded)}",
+                    )
                     msg.attach(part)
 
         server = smtplib.SMTP(smtp_host, smtp_port)
@@ -156,7 +206,10 @@ def send_email(to: str, subject: str, body: str, attachment_path: str = "") -> D
         server.sendmail(smtp_email, to, msg.as_string())
         server.quit()
 
-        return {"status": "success", "message": f"Email berhasil dikirim ke {to} dengan subjek '{subject}'."}
+        return {
+            "status": "success",
+            "message": f"Email berhasil dikirim ke {to} dengan subjek '{subject}'.",
+        }
     except Exception as e:
         return {"status": "error", "message": f"Gagal mengirim email: {str(e)}"}
 
@@ -171,6 +224,7 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
 
         if not filename:
             from urllib.parse import urlparse
+
             parsed = urlparse(url)
             filename = os.path.basename(parsed.path) or "downloaded_file"
 
@@ -189,14 +243,14 @@ def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
                 "status": "success",
                 "message": f"File '{filename}' ({round(size_mb, 2)} MB) berhasil diunduh ke {dest_path}. Terlalu besar untuk dikirim via Telegram (>50MB), tetapi tersedia di disk lokal.",
                 "file_path": dest_path,
-                "sent_to_telegram": False
+                "sent_to_telegram": False,
             }
 
         return {
             "status": "success",
             "message": f"File '{filename}' ({round(size_mb, 2)} MB) berhasil diunduh dan akan dikirim ke Telegram.",
             "file_path": dest_path,
-            "sent_to_telegram": True
+            "sent_to_telegram": True,
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal mengunduh: {str(e)}"}
