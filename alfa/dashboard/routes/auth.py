@@ -349,6 +349,8 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
         public_paths = [
             "/",
             "/health",
+            "/healthz",
+            "/api/metrics",
             "/api/auth/login",
             "/api/auth/register",
             "/docs",

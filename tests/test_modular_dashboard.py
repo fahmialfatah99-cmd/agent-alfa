@@ -50,6 +50,8 @@ def test_dashboard_routes_parity():
     expected_routes = [
         "/",
         "/health",
+        "/healthz",
+        "/api/metrics",
         "/api/stats",
         "/api/chat",
         "/api/chat/stream",
@@ -66,3 +68,27 @@ def test_dashboard_routes_parity():
 
     for expected in expected_routes:
         assert expected in routes, f"Missing route: {expected}"
+
+
+def test_health_and_metrics_endpoints():
+    """Verify /health, /healthz and /api/metrics respond with 200 OK and valid telemetry."""
+    from fastapi.testclient import TestClient
+    from alfa.dashboard.app import app
+
+    client = TestClient(app)
+
+    r_health = client.get("/health")
+    assert r_health.status_code == 200
+    data = r_health.json()
+    assert data["status"] in ("healthy", "degraded")
+    assert "version" in data
+    assert "database" in data
+
+    r_healthz = client.get("/healthz")
+    assert r_healthz.status_code == 200
+
+    r_metrics = client.get("/api/metrics")
+    assert r_metrics.status_code == 200
+    mdata = r_metrics.json()
+    assert "system" in mdata
+    assert "process" in mdata

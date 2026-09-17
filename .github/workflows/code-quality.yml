@@ -20,7 +20,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov ruff mypy black
+          pip install pytest pytest-cov pytest-asyncio ruff mypy black
       
       - name: Generate coverage report
         run: |

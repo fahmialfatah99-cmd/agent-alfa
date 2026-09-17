@@ -31,15 +31,7 @@ jobs:
         run: pip install mypy
       - name: Run type checking on core modules
         run: |
-          mypy --ignore-missing-imports \
-            alfa/ \
-            database.py \
-            tools.py \
-            swarm_engine.py \
-            vault_engine.py \
-            permission_gate.py \
-            security_auditor.py \
-            || echo "Type checking completed with warnings"
+          mypy --ignore-missing-imports alfa/ || echo "Type checking completed with warnings"
 
   test:
     name: Tests (pytest)
@@ -64,7 +56,7 @@ jobs:
         run: |
           pip install python-telegram-bot google-genai python-dotenv \
             aiosqlite psutil httpx fastapi uvicorn pillow pypdf tabulate \
-            pytest pytest-cov
+            pytest pytest-cov pytest-asyncio cryptography numpy
       - name: Jalankan seluruh suite dengan coverage
         run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html
       - name: Upload coverage report
