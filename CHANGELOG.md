@@ -5,6 +5,34 @@ All notable changes to the ALFA Agent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2024-12-XX
+
+### Added
+- Comprehensive test suite with conftest fixtures
+- Code quality metrics and reporting
+- Enhanced CI/CD with security scanning
+- Bandit security scan integration
+- Dependency vulnerability checking with Safety
+- Black code formatting checks
+- Custom pytest markers (slow, integration, security, rag, swarm)
+- Test coverage reporting to Codecov
+- HTML coverage artifacts
+
+### Changed
+- Updated pyproject.toml with complete tool configurations
+- Enhanced pytest configuration with better coverage tracking
+- Improved GitHub Actions workflows for code quality
+
+### Fixed
+- Missing conftest.py for shared test fixtures
+- Incomplete test coverage reporting
+- Limited security scanning in CI/CD
+
+### Security
+- Added automated security scanning with Bandit
+- Integrated dependency vulnerability checks
+- Enhanced whitelist enforcement testing
+
 ## [Unreleased]
 
 ### Added
