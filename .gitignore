@@ -30,6 +30,19 @@ requirements.txt.bak
 poetry.lock
 Pipfile.lock
 
+# Storage and data files
+storage/pipelines/*.json
+storage/runs/*.jsonl
+storage/traces/*.jsonl
+
+# Dependencies and virtual environments
+.venv/
+venv/
+env/
+.env
+.env.local
+.env.*
+
 # Logs
 *.log
 
