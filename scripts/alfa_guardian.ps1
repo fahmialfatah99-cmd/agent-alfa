@@ -1,0 +1,98 @@
+# ALFA Guardian — auto-heal bot & dashboard + alarm Telegram + rotasi log + cleanup disk
+$scriptsDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$dir = Split-Path -Parent $scriptsDir
+$env:PYTHONUTF8 = "1"
+
+# ── Baca .env minimal ──
+$envMap = @{}
+Get-Content "$dir\.env" -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($_ -match '^\s*([A-Z_]+)\s*=\s*(.*)\s*$') { $envMap[$Matches[1]] = $Matches[2].Trim() }
+}
+$token = $envMap["TELEGRAM_BOT_TOKEN"]
+$chat  = ($envMap["ALLOWED_USER_IDS"] -split ",")[0].Trim()
+
+function Send-Alert($msg) {
+    if (-not $token -or -not $chat) { return }
+    try {
+        Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/sendMessage" -Method Post `
+            -Body (@{ chat_id = $chat; text = $msg } | ConvertTo-Json) `
+            -ContentType "application/json" -TimeoutSec 10 | Out-Null
+    } catch {}
+}
+
+function Test-Proc($hint) {
+    return [bool](Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match $hint } | Select-Object -First 1)
+}
+
+function Test-PortListening($port) {
+    return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
+$prevBot = $true
+$prevDash = $true
+$prevRouter = $true
+$lastCleanupDay = (Get-Date).Date
+
+while ($true) {
+    try {
+        $botUp    = Test-Proc 'bot\.py'
+        $dashUp   = Test-Proc 'web_dashboard\.py'
+        $routerUp = Test-PortListening 20128
+
+        if (-not $botUp -or -not $dashUp -or -not $routerUp) {
+            # Konfirmasi 5 detik (hindari false positive saat restart manual)
+            Start-Sleep -Seconds 5
+            $botUp    = Test-Proc 'bot\.py'
+            $dashUp   = Test-Proc 'web_dashboard\.py'
+            $routerUp = Test-PortListening 20128
+        }
+
+        if (-not $botUp -or -not $dashUp -or -not $routerUp) {
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$scriptsDir\start_alfa.ps1"
+            Start-Sleep -Seconds 15
+            $botNew    = Test-Proc 'bot\.py'
+            $dashNew   = Test-Proc 'web_dashboard\.py'
+            $routerNew = Test-PortListening 20128
+
+            if (($prevBot -and -not $botNew) -or ($prevDash -and -not $dashNew) -or ($prevRouter -and -not $routerNew)) {
+                Send-Alert ("🛡️ ALFA GUARDIAN`n`nDeteksi layanan mati -> auto-restart dijalankan.`n🤖 Bot: " +
+                    $(if ($botNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }) +
+                    "`n🌐 Dashboard: " +
+                    $(if ($dashNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }) +
+                    "`n🔀 9Router: " +
+                    $(if ($routerNew) { "✅ hidup kembali" } else { "❌ gagal bangkit" }))
+            }
+            $prevBot    = $botNew
+            $prevDash   = $dashNew
+            $prevRouter = $routerNew
+        }
+        else {
+            $prevBot    = $true
+            $prevDash   = $true
+            $prevRouter = $true
+        }
+
+        # ── Rotasi log >20MB (simpan 500 baris terakhir) ──
+        foreach ($log in @("bot_err.log", "bot_out.log", "dash_out.log", "dash_err.log")) {
+            $p = Join-Path $dir $log
+            if ((Test-Path $p) -and ((Get-Item $p).Length -gt 20MB)) {
+                $tail = Get-Content $p -Tail 500 -ErrorAction SilentlyContinue
+                Set-Content -Path $p -Value $tail -Encoding UTF8
+            }
+        }
+
+        # ── Cleanup harian: node_modules proyek mati (>7 hari) di sandbox ──
+        if ((Get-Date).Hour -ge 13 -and $lastCleanupDay -ne (Get-Date).Date) {
+            $lastCleanupDay = (Get-Date).Date
+            Get-ChildItem "C:\dev\shm\alfa_sandbox" -Directory -Recurse -Filter "node_modules" -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
+                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } catch {
+        $timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        "[$timestamp] Guardian error: $_" | Out-File -Append -FilePath "$dir\guardian_err.log" -Encoding UTF8
+    }
+
+    Start-Sleep -Seconds 60
+}

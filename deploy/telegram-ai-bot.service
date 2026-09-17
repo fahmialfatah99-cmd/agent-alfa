@@ -1,0 +1,17 @@
+[Unit]
+Description=ALFA Sovereign Telegram AI Bot
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# %h = home directory user (systemd user service)
+WorkingDirectory=%h/telegram-ai-bot
+ExecStart=%h/telegram-ai-bot/venv/bin/python3 %h/telegram-ai-bot/bot.py
+Restart=always
+RestartSec=5
+# Naikkan bila sandbox Docker sering dipakai paralel
+MemoryMax=2G
+
+[Install]
+WantedBy=default.target

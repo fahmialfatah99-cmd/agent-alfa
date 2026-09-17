@@ -1,0 +1,158 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alfa-ai"
+version = "2.5.0"
+description = "ALFA Sovereign AI Agent - Unified, Modular AI Agent Architecture"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Fahmi Alfatah", email = "fahmialfatah99@example.com"}
+]
+keywords = ["ai", "agent", "llm", "automation", "cli", "swarm", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.10"
+dependencies = [
+    "python-telegram-bot>=20.0",
+    "google-genai",
+    "python-dotenv",
+    "aiosqlite",
+    "psutil",
+    "httpx",
+    "fastapi",
+    "uvicorn",
+    "pillow",
+    "pypdf",
+    "tabulate",
+    "numpy",
+    "scikit-learn",
+    "sentence-transformers",
+    "faiss-cpu",
+    "pydantic",
+    "click",
+    "rich",
+    "pyyaml",
+    "jinja2",
+    "aiofiles",
+    "websockets",
+    "passlib",
+    "cryptography",
+    "gitpython",
+    "pygments"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio",
+    "black",
+    "ruff",
+    "mypy",
+    "flake8",
+    "pre-commit"
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings"
+]
+
+[project.scripts]
+alfa = "cli:main"
+alfa-agent = "bot:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["alfa*", "plugins*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+exclude = [".git", ".venv", "venv", "__pycache__", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "W", "I", "N", "UP", "YTT"]
+ignore = ["E501", "B006"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004"]
+"*_test.py" = ["S101"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+exclude = ["tests/", "venv/", ".venv/", "build/", "dist/"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["alfa", "."]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "test_*.py",
+    "*_test.py",
+    "conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "@overload"
+]
+show_missing = true
+precision = 2
+
