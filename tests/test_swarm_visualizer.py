@@ -16,7 +16,6 @@ from alfa.dashboard.routes.swarm import (
     compute_agent_states,
     compute_consensus_percent,
     detect_active_speaker,
-    parse_arena_state,
     parse_swarm_stage,
 )
 

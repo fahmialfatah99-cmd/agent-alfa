@@ -1,6 +1,12 @@
 """
-ALFA Security Module - Centralized security utilities and configurations.
+ALFA Security Module - Centralized security utilities, vault, and configurations.
 """
+
+from alfa.security import vault as vault_module
+from alfa.security.vault import AlfaSecureVault, vault
+
+# Aliases for convenience
+Vault = AlfaSecureVault
 
 # Security constants and utilities (lazy import to avoid missing modules)
 BASH_DESTRUCTIVE_PATTERNS = []
@@ -33,6 +39,10 @@ def setup_vault_encryption():
 
 
 __all__ = [
+    "vault",
+    "Vault",
+    "AlfaSecureVault",
+    "vault_module",
     # Bash blacklist
     "BASH_DESTRUCTIVE_PATTERNS",
     "is_command_blocked",

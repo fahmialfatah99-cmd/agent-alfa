@@ -5,21 +5,21 @@ metadata and JSON/OpenAI schema inspection, plus backward-compatible domain
 lookups and global AVAILABLE_TOOLS list.
 """
 
-import functools
 import inspect
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("AgentTools.Registry")
 
 # Registry catalog mapping tool name -> metadata dict
-TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {}
+TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
 
 # Canonical list of all available tool callables
-AVAILABLE_TOOLS: List[Callable] = []
+AVAILABLE_TOOLS: list[Callable] = []
 
 # Canonical domain grouping
-TOOL_DOMAINS: Dict[str, List[str]] = {
+TOOL_DOMAINS: dict[str, list[str]] = {
     "system": [
         "get_system_stats",
         "execute_bash_command",
@@ -108,21 +108,21 @@ TOOL_DOMAINS: Dict[str, List[str]] = {
     ],
 }
 
-ALL_TOOL_NAMES: List[str] = sorted(
+ALL_TOOL_NAMES: list[str] = sorted(
     {name for names in TOOL_DOMAINS.values() for name in names}
 )
 
-TOOL_DOMAIN_MAP: Dict[str, str] = {
+TOOL_DOMAIN_MAP: dict[str, str] = {
     name: domain for domain, names in TOOL_DOMAINS.items() for name in names
 }
 
 
-def get_tools_by_domain(domain: str) -> List[str]:
+def get_tools_by_domain(domain: str) -> list[str]:
     """Mengembalikan daftar tool untuk domain tertentu."""
     return list(TOOL_DOMAINS.get(domain, []))
 
 
-def get_domain_for_tool(tool_name: str) -> Optional[str]:
+def get_domain_for_tool(tool_name: str) -> str | None:
     """Mengembalikan domain untuk tool tertentu."""
     return TOOL_DOMAIN_MAP.get(tool_name)
 
@@ -130,8 +130,8 @@ def get_domain_for_tool(tool_name: str) -> Optional[str]:
 _JSON_TYPES = {int: "integer", float: "number", bool: "boolean"}
 
 
-def _parse_docstring_params(doc: str) -> Dict[str, str]:
-    out: Dict[str, str] = {}
+def _parse_docstring_params(doc: str) -> dict[str, str]:
+    out: dict[str, str] = {}
     in_args = False
     for line in (doc or "").splitlines():
         stripped = line.strip()
@@ -155,15 +155,15 @@ def _parse_docstring_params(doc: str) -> Dict[str, str]:
     return out
 
 
-def _fn_to_schema(fn: Callable) -> Dict[str, Any]:
+def _fn_to_schema(fn: Callable) -> dict[str, Any]:
     sig = inspect.signature(fn)
     doc = (inspect.getdoc(fn) or "").strip()
     desc_line = doc.splitlines()[0][:300] if doc else getattr(fn, "__name__", "tool")
     argdocs = _parse_docstring_params(doc)
 
-    props: Dict[str, Any] = {}
-    required: List[str] = []
-    parameters: List[Dict[str, Any]] = []
+    props: dict[str, Any] = {}
+    required: list[str] = []
+    parameters: list[dict[str, Any]] = []
 
     for pname, p in sig.parameters.items():
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
@@ -212,10 +212,10 @@ def _fn_to_schema(fn: Callable) -> Dict[str, Any]:
 
 
 def register_tool(
-    name: Optional[Any] = None,
-    category: Optional[str] = None,
-    description: Optional[str] = None,
-    tags: Optional[List[str]] = None,
+    name: Any | None = None,
+    category: str | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
 ):
     """Decorator to register a tool function into TOOL_REGISTRY and AVAILABLE_TOOLS.
 
@@ -259,10 +259,10 @@ def register_tool(
         }
         TOOL_REGISTRY[actual_name] = entry
 
-        setattr(fn, "_tool_name", actual_name)
-        setattr(fn, "_tool_category", actual_cat)
-        setattr(fn, "_tool_description", actual_desc)
-        setattr(fn, "_tool_tags", tags or [])
+        fn._tool_name = actual_name
+        fn._tool_category = actual_cat
+        fn._tool_description = actual_desc
+        fn._tool_tags = tags or []
 
         # Add to AVAILABLE_TOOLS if not present
         if all(getattr(t, "__name__", None) != actual_name for t in AVAILABLE_TOOLS):
@@ -277,7 +277,7 @@ def register_tool(
     return decorator
 
 
-def get_tool(name: str) -> Optional[Callable]:
+def get_tool(name: str) -> Callable | None:
     """Retrieve a tool callable by name from TOOL_REGISTRY or AVAILABLE_TOOLS."""
     if name in TOOL_REGISTRY:
         return TOOL_REGISTRY[name]["func"]
@@ -288,8 +288,8 @@ def get_tool(name: str) -> Optional[Callable]:
 
 
 def get_tool_definitions(
-    category: Optional[str] = None, format: str = "dict"
-) -> List[Dict[str, Any]]:
+    category: str | None = None, format: str = "dict"
+) -> list[dict[str, Any]]:
     """Return tool definitions, optionally filtered by category.
 
     format: 'dict' (rich metadata dicts) or 'openai' (OpenAI function calling schemas).

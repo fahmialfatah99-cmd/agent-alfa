@@ -1,23 +1,15 @@
-import asyncio
 import json
-import logging
 import os
-import shutil
 import sqlite3
-import subprocess
-import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import REPO_ROOT
 
 router = APIRouter()
 
@@ -63,7 +55,7 @@ _WS_SKIP_DIRS = {
 _WS_MAX_FILE_BYTES = 300_000
 
 
-def _ws_real_path(path: str) -> Optional[str]:
+def _ws_real_path(path: str) -> str | None:
     """Resolve path & pastikan berada di dalam salah satu workspace root."""
     real = os.path.realpath(os.path.expanduser(path))
     for r in WORKSPACE_ROOTS:
@@ -255,7 +247,7 @@ async def get_guardian_config():
 
 
 @router.post("/api/guardian/config")
-async def update_guardian_config(payload: Dict[str, Any]):
+async def update_guardian_config(payload: dict[str, Any]):
     """Update guardian & proactive configurations."""
     if "guardian" in payload:
         g = payload["guardian"]
@@ -287,7 +279,7 @@ async def update_guardian_config(payload: Dict[str, Any]):
 @router.get("/api/vault/list")
 async def list_vault_secrets(category: str = "all"):
     """List metadata for secrets stored in the AES-256-GCM vault."""
-    import vault_engine
+    from alfa.security import vault as vault_engine
 
     return {
         "status": "success",
@@ -296,9 +288,9 @@ async def list_vault_secrets(category: str = "all"):
 
 
 @router.post("/api/vault/store")
-async def store_vault_secret(payload: Dict[str, Any]):
+async def store_vault_secret(payload: dict[str, Any]):
     """Encrypt and store secret into AES-256-GCM vault."""
-    import vault_engine
+    from alfa.security import vault as vault_engine
 
     name = payload.get("name", "").strip()
     value = payload.get("value", "").strip()
@@ -315,9 +307,9 @@ async def store_vault_secret(payload: Dict[str, Any]):
 
 
 @router.post("/api/vault/reveal")
-async def reveal_vault_secret(payload: Dict[str, Any]):
+async def reveal_vault_secret(payload: dict[str, Any]):
     """Decrypt and reveal a secret value for authorized viewing."""
-    import vault_engine
+    from alfa.security import vault as vault_engine
 
     secret_id = payload.get("id") or payload.get("name")
     if not secret_id:
@@ -338,7 +330,7 @@ async def reveal_vault_secret(payload: Dict[str, Any]):
 @router.delete("/api/vault/{secret_id}")
 async def delete_vault_secret(secret_id: int):
     """Delete a secret permanently from the vault."""
-    import vault_engine
+    from alfa.security import vault as vault_engine
 
     deleted = vault_engine.vault.delete_secret(int(secret_id))
     if deleted:
@@ -350,7 +342,7 @@ async def delete_vault_secret(secret_id: int):
 
 
 @router.post("/api/security/audit")
-async def audit_target_security(payload: Dict[str, Any]):
+async def audit_target_security(payload: dict[str, Any]):
     """Perform comprehensive defensive cybersecurity audit on a target URL."""
     from alfa.core import permissions as security_auditor
 
@@ -363,7 +355,7 @@ async def audit_target_security(payload: Dict[str, Any]):
 
 
 @router.get("/api/security/permission-audit")
-async def get_permission_audit_log(chat_id: Optional[int] = None, limit: int = 50):
+async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
     """Get permission audit trail log."""
     db_path = os.path.join(REPO_ROOT, "agent_data.db")
     conn = sqlite3.connect(db_path, timeout=30)
@@ -454,7 +446,7 @@ async def get_passkey_status():
 
 
 @router.post("/api/vault/passkey/toggle")
-async def toggle_passkey_lock(payload: Dict[str, Any]):
+async def toggle_passkey_lock(payload: dict[str, Any]):
     """Toggle biometric/passkey lock for the dashboard."""
     enabled = bool(payload.get("enabled", False))
     with database.get_sync_db() as conn:

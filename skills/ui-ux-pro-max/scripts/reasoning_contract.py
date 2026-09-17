@@ -58,7 +58,7 @@ def _object_without_duplicates(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError("duplicate decision-rule key: {}".format(key))
+            raise ValueError(f"duplicate decision-rule key: {key}")
         result[key] = value
     return result
 
@@ -68,31 +68,31 @@ def parse_decision_rules(raw):
     try:
         rules = json.loads(raw or "{}", object_pairs_hook=_object_without_duplicates)
     except json.JSONDecodeError as error:
-        raise ValueError("invalid decision-rule JSON: {}".format(error)) from error
+        raise ValueError(f"invalid decision-rule JSON: {error}") from error
     if not isinstance(rules, dict):
         raise ValueError("decision rules must be a JSON object")
     for condition, actions in rules.items():
         if condition not in ALLOWED_CONDITIONS:
-            raise ValueError("unknown decision-rule condition: {}".format(condition))
+            raise ValueError(f"unknown decision-rule condition: {condition}")
         if not isinstance(actions, list) or not actions:
             raise ValueError(
-                "{} must map to a non-empty action array".format(condition)
+                f"{condition} must map to a non-empty action array"
             )
         for action in actions:
             _validate_action(action)
         if len(actions) != len(set(actions)):
-            raise ValueError("{} contains duplicate actions".format(condition))
+            raise ValueError(f"{condition} contains duplicate actions")
     return rules
 
 
 def _validate_action(action):
     if not isinstance(action, str) or ":" not in action:
-        raise ValueError("action must use a known prefix: {}".format(action))
+        raise ValueError(f"action must use a known prefix: {action}")
     prefix, value = action.split(":", 1)
     if prefix not in ACTION_PREFIXES:
-        raise ValueError("unknown decision-rule action: {}".format(action))
+        raise ValueError(f"unknown decision-rule action: {action}")
     if prefix in TOKEN_ACTION_PREFIXES and not TOKEN_RE.fullmatch(value):
-        raise ValueError("invalid {} action value: {}".format(prefix, value))
+        raise ValueError(f"invalid {prefix} action value: {value}")
     if prefix == "pattern" and not value.strip():
         raise ValueError("pattern action must name a pattern")
     if prefix == "mode" and value not in {"dark", "light"}:

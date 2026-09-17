@@ -5,7 +5,7 @@ import os
 import re
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.video.ai_engines import (
     OMNI_MODEL_MAP,
@@ -21,7 +21,7 @@ logger = logging.getLogger("alfa.video.orchestrator")
 
 
 def generate_video_from_images(
-    image_paths: List[str],
+    image_paths: list[str],
     product_name: str,
     voiceover_text: str,
     orig_price: str = "Rp 149.000",
@@ -31,11 +31,11 @@ def generate_video_from_images(
     motion_style: str = "zoom_in",
     badge_text: str = "FLASH SALE DISKON SPESIAL",
     call_to_action: str = "KLIK KERANJANG KUNING / BIO SEBELUM HABIS",
-    visual_prompt: Optional[str] = None,
+    visual_prompt: str | None = None,
     engine: str = "local_pro",
-    api_key: Optional[str] = None,
-    output_filename: Optional[str] = None,
-) -> Dict[str, Any]:
+    api_key: str | None = None,
+    output_filename: str | None = None,
+) -> dict[str, Any]:
     """
     Renders ultra-sharp 9:16 (1080x1920) promotional video with Two-Layer Compositor:
     - Layer 0: Smooth Slow Ken Burns Motion (1.00x -> 1.05x) on Product Stage

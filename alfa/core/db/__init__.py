@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Database Package for ALFA.
 Modular structure:

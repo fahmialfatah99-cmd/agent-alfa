@@ -13,15 +13,16 @@ import logging
 import os
 import sqlite3
 import sys
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("PluginsLoader")
 PLUGINS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(os.path.dirname(PLUGINS_DIR), "agent_data.db")
 
 # In-memory registry of hot-loaded dynamic plugin callables
-_RUNTIME_PLUGIN_REGISTRY: Dict[str, Callable] = {}
+_RUNTIME_PLUGIN_REGISTRY: dict[str, Callable] = {}
 
 
 def _init_plugin_db():
@@ -50,7 +51,7 @@ def _init_plugin_db():
 _init_plugin_db()
 
 
-def load_all_plugin_tools() -> List[Callable]:
+def load_all_plugin_tools() -> list[Callable]:
     """
     Dynamically discovers and loads all callable tool functions from Python files in plugins/.
     Returns a list of functions ready to be passed to Gemini API tools.
@@ -102,8 +103,8 @@ def create_and_register_plugin(
     tool_name: str,
     tool_description: str,
     tool_code: str,
-    test_kwargs: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    test_kwargs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Saves a self-evolved tool as an isolated Python module in plugins/<tool_name>.py,
     validates AST syntax, runs sandbox testing, hot-loads into runtime memory, and registers in DB.
@@ -276,7 +277,7 @@ def create_and_register_plugin(
         return {"status": "error", "message": f"Failed to create plugin: {str(e)}"}
 
 
-def list_all_plugins() -> List[Dict[str, Any]]:
+def list_all_plugins() -> list[dict[str, Any]]:
     """Retrieve all active dynamic plugins with their status and code."""
     plugins_list = []
     conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -310,7 +311,7 @@ def list_all_plugins() -> List[Dict[str, Any]]:
     return plugins_list
 
 
-def delete_plugin(tool_name: str) -> Dict[str, Any]:
+def delete_plugin(tool_name: str) -> dict[str, Any]:
     """Permanently delete a dynamic plugin and unregister from memory."""
     clean_name = tool_name.strip().lower()
     plugin_path = os.path.join(PLUGINS_DIR, f"{clean_name}.py")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Real-time logging, live feed streaming, QA evaluation, and intent detection for ALFA Swarm.
 """
@@ -9,7 +8,7 @@ import logging
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.swarm.workspace_hygiene import (
     LIVE_FEED_FILE,
@@ -35,7 +34,7 @@ def _load_last_seq() -> int:
         feed_file = os.path.join(output_dir, "live_meeting_feed.jsonl")
         if not os.path.exists(feed_file):
             feed_file = LIVE_FEED_FILE
-        with open(feed_file, "r", encoding="utf-8") as f:
+        with open(feed_file, encoding="utf-8") as f:
             lines = f.read().strip().splitlines()
         if lines:
             return int(json.loads(lines[-1]).get("i", 0))
@@ -47,13 +46,13 @@ def _load_last_seq() -> int:
 _live_seq = itertools.count(_load_last_seq() + 1)
 
 
-def _append_feed_file(entry: Dict[str, Any]) -> None:
+def _append_feed_file(entry: dict[str, Any]) -> None:
     """Append satu baris JSONL; rotasi sederhana bila >300KB."""
     try:
         output_dir = _get_swarm_output_dir()
         feed_file = os.path.join(output_dir, "live_meeting_feed.jsonl")
         if os.path.exists(feed_file) and os.path.getsize(feed_file) > 300_000:
-            with open(feed_file, "r", encoding="utf-8") as f:
+            with open(feed_file, encoding="utf-8") as f:
                 lines = f.readlines()[-150:]
             tmp = feed_file + ".tmp"
             with open(tmp, "w", encoding="utf-8") as f:
@@ -122,7 +121,7 @@ def qa_verdict_passed(text: str) -> bool:
     return bool(re.search(r"QA_VERDICT\s*:\s*PASS", text or "", re.IGNORECASE))
 
 
-def detect_task_intent(topic: str) -> Dict[str, Any]:
+def detect_task_intent(topic: str) -> dict[str, Any]:
     """Analyze the user's topic/command to determine tool strategy, categories, and limits."""
     low = (topic or "").lower()
 

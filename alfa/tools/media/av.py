@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Audio, Video, TTS, Upscaling, and Image manipulation tools for ALFA.
 """
@@ -8,7 +7,7 @@ import concurrent.futures
 import logging
 import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -23,7 +22,7 @@ def upscale_image_hd(
     mode: str = "auto",
     denoise: int = 1,
     output_filename: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Perbesar (scale / upscale / super-resolution) resolusi gambar/foto 2x, 4x, atau 8x dengan AI Waifu2x Engine atau Lanczos HD Enhancement.
 
@@ -140,7 +139,7 @@ def upscale_image_hd(
 
 @register_tool(category="media")
 def generate_promo_video_from_images(
-    image_paths: List[str],
+    image_paths: list[str],
     product_name: str,
     voiceover_text: str,
     orig_price: str = "Rp 149.000",
@@ -152,7 +151,7 @@ def generate_promo_video_from_images(
     call_to_action: str = "👉 KLIK KERANJANG KUNING / BIO SEBELUM HABIS 🛒",
     visual_prompt: str = "",
     output_filename: str = "promo_video.mp4",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate video promosi produk otomatis format 9:16 (1080x1920) untuk TikTok / Reels / Shorts hanya dari foto produk.
     """
@@ -181,7 +180,7 @@ def generate_promo_video_from_images(
 @register_tool(category="media")
 def extract_audio_from_video(
     video_path: str, output_filename: str = "extracted_audio.mp3"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Extract the audio track from a video file (.mp4, .mkv, .webm, .avi) into an MP3 file and send to Telegram.
     """
@@ -220,7 +219,7 @@ def extract_audio_from_video(
 @register_tool(category="media")
 def text_to_audio_file(
     text: str, filename: str = "audio_speech.mp3", voice: str = "id-ID-GadisNeural"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a high-fidelity natural speech audio file (.mp3) from any long text or script
     using Microsoft Edge Neural TTS and send it as an audio file directly to Telegram.
@@ -263,7 +262,7 @@ def text_to_audio_file(
 @register_tool(category="media")
 def convert_media_format(
     source_file: str, output_format: str = "mp3", extra_params: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Convert any video or audio file to another format using ffmpeg.
     """
@@ -301,7 +300,7 @@ def convert_media_format(
 
 
 @register_tool(category="media")
-def edit_image(file_path: str, action: str, params: str = "") -> Dict[str, Any]:
+def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
     """
     Edit, convert, or transform an image file using Pillow and send the result to Telegram.
     """

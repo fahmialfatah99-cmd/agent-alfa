@@ -5,7 +5,7 @@ import os
 import socket
 import ssl
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system.constants import SANDBOX_DIR
@@ -14,7 +14,7 @@ logger = logging.getLogger("AgentTools.System")
 
 
 @register_tool(category="system")
-def scan_local_network() -> Dict[str, Any]:
+def scan_local_network() -> dict[str, Any]:
     """
     Scan connected local LAN devices, IP neighbors, and active gateways.
     """
@@ -34,7 +34,7 @@ def scan_local_network() -> Dict[str, Any]:
 @register_tool(category="system")
 def audit_network_security(
     target_host: str = "127.0.0.1", scan_type: str = "quick_ports"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Network Security & Port Sentinel.
     """
@@ -111,7 +111,7 @@ def audit_network_security(
 @register_tool(category="system")
 def ssh_execute_command(
     host: str, command: str, username: str = "", port: int = 22, key_path: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute a command on a remote Linux server via SSH and return the output.
     """
@@ -159,7 +159,7 @@ def ssh_execute_command(
 @register_tool(category="system")
 def send_email(
     to: str, subject: str, body: str, attachment_path: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Send an email via SMTP (supports Gmail, Outlook, custom SMTP servers).
     """
@@ -215,7 +215,7 @@ def send_email(
 
 
 @register_tool(category="system")
-def download_file_from_url(url: str, filename: str = "") -> Dict[str, Any]:
+def download_file_from_url(url: str, filename: str = "") -> dict[str, Any]:
     """
     Download a file from a URL on the internet to the local computer and optionally send it to Telegram.
     """

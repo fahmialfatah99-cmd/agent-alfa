@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Database Connection Pooling, Session Context, and Schema Initialization for ALFA.
 """
@@ -10,7 +9,6 @@ import sqlite3
 import sys
 import threading
 from collections import deque
-from typing import Dict, Optional
 
 logger = logging.getLogger("DB.Connection")
 
@@ -26,7 +24,7 @@ def _get_db_path() -> str:
     for mod_name in ("database", "alfa.core.database"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "DB_PATH"):
-            return getattr(mod, "DB_PATH")
+            return mod.DB_PATH
     return DB_PATH
 
 
@@ -102,7 +100,7 @@ class ConnectionPool:
                 conn.close()
 
     @property
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> dict[str, int]:
         """Return pool statistics."""
         with self._lock:
             return {
@@ -113,7 +111,7 @@ class ConnectionPool:
             }
 
 
-_db_pool: Optional[ConnectionPool] = None
+_db_pool: ConnectionPool | None = None
 _pool_lock = threading.Lock()
 
 

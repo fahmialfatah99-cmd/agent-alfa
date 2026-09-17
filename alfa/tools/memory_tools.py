@@ -1,20 +1,12 @@
 """Knowledge memory, vector search, and second brain indexing tools."""
 
-import datetime
-import json
 import logging
 import os
-import re
-import subprocess
-import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core import database
 from alfa.core.runtime_ctx import (
-    current_chat_id_var,
     current_user_id_var,
-    get_current_chat_id,
     get_current_user_id,
 )
 from alfa.tools.registry import register_tool
@@ -26,7 +18,7 @@ logger = logging.getLogger("AgentTools.Memory")
 @register_tool(category="memory")
 def save_knowledge_memory(
     key_topic: str, content: str, category: str = "general"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Save or update an important fact, user preference, project detail, or note into persistent long-term memory.
     Use this tool whenever the user tells you to remember something, or when important facts about the user/project are shared.
@@ -47,7 +39,7 @@ def save_knowledge_memory(
 
 
 @register_tool(category="memory")
-def search_knowledge_memory(query: str) -> Dict[str, Any]:
+def search_knowledge_memory(query: str) -> dict[str, Any]:
     """
     Search the persistent long-term memory for previously saved facts, user preferences, or notes.
     Use this tool when answering questions about user preferences, stored projects, or past instructions.
@@ -65,8 +57,8 @@ def search_knowledge_memory(query: str) -> Dict[str, Any]:
 
 @register_tool(category="memory")
 def semantic_search_vector_brain(
-    query: str, top_k: int = 5, category: str = "", db_path: Optional[str] = None
-) -> Dict[str, Any]:
+    query: str, top_k: int = 5, category: str = "", db_path: str | None = None
+) -> dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: Performs semantic similarity search (Hybrid RAG) across all permanent
     knowledge embeddings, documents, research reports, and notes based on meaning/context.
@@ -78,7 +70,7 @@ def semantic_search_vector_brain(
         db_path: Optional custom sqlite DB path for isolated environments.
     """
     try:
-        import vector_memory
+        from alfa.memory import vector as vector_memory
 
         user_id = current_user_id_var.get() or 0
         results = vector_memory.semantic_search(
@@ -100,8 +92,8 @@ def semantic_search_vector_brain(
 
 @register_tool(category="memory")
 def search_vector_memory(
-    query: str, top_k: int = 5, category: str = "", db_path: Optional[str] = None
-) -> Dict[str, Any]:
+    query: str, top_k: int = 5, category: str = "", db_path: str | None = None
+) -> dict[str, Any]:
     """
     Search vector memory using semantic similarity search.
 
@@ -121,8 +113,8 @@ def ingest_document_to_vector_brain(
     title: str,
     content_or_file_path: str,
     category: str = "general",
-    db_path: Optional[str] = None,
-) -> Dict[str, Any]:
+    db_path: str | None = None,
+) -> dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: Ingests, chunks, embeds, and indexes a document or local file
     (.txt, .md, .pdf, .py, .csv, .json, or raw text) into the permanent Vector Brain database.
@@ -134,7 +126,7 @@ def ingest_document_to_vector_brain(
         db_path: Optional custom sqlite DB path for isolated environments.
     """
     try:
-        import vector_memory
+        from alfa.memory import vector as vector_memory
 
         user_id = current_user_id_var.get() or 0
         return vector_memory.ingest_document(
@@ -150,8 +142,8 @@ def ingest_document_to_vector_brain(
 
 @register_tool(category="memory")
 def save_to_vector_memory(
-    title: str, content: str, category: str = "general", db_path: Optional[str] = None
-) -> Dict[str, Any]:
+    title: str, content: str, category: str = "general", db_path: str | None = None
+) -> dict[str, Any]:
     """
     Save or ingest text, notes, or document into persistent vector memory for semantic search.
 
@@ -167,12 +159,12 @@ def save_to_vector_memory(
 
 
 @register_tool(category="memory")
-def list_vector_brain_documents(db_path: Optional[str] = None) -> Dict[str, Any]:
+def list_vector_brain_documents(db_path: str | None = None) -> dict[str, Any]:
     """
     NEURAL VECTOR BRAIN: List all documents and files currently indexed in the Semantic Vector Brain.
     """
     try:
-        import vector_memory
+        from alfa.memory import vector as vector_memory
 
         user_id = current_user_id_var.get() or 0
         docs = vector_memory.list_ingested_documents(user_id=user_id, db_path=db_path)
@@ -188,7 +180,7 @@ def extract_and_link_knowledge(
     target_value: str,
     category: str = "general",
     tags: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Semantic Knowledge Graph & Second Brain Linker.
     Stores structured knowledge facts as subject-predicate-object triples
@@ -210,7 +202,7 @@ def extract_and_link_knowledge(
 
 
 @register_tool(category="memory")
-def export_knowledge_base(format: str = "markdown") -> Dict[str, Any]:
+def export_knowledge_base(format: str = "markdown") -> dict[str, Any]:
     """
     GOD MODE: Export Second Brain Knowledge Base.
     Exports all persistent user memories and semantic knowledge graph relations

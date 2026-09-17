@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Ecosystem and productivity integration tools for ALFA.
 Includes reminders, focus sessions, password generation, WhatsApp bot, Android (ADB/scrcpy), and database queries.
@@ -12,9 +11,8 @@ import shutil
 import sqlite3
 import string
 import subprocess
-import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core import database
 from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
@@ -22,7 +20,7 @@ from alfa.tools.registry import register_tool
 
 
 @register_tool(category="system")
-def schedule_reminder(reminder_time_iso: str, message: str) -> Dict[str, Any]:
+def schedule_reminder(reminder_time_iso: str, message: str) -> dict[str, Any]:
     """
     Schedule a future proactive reminder or alert that the bot will send directly to Telegram.
 
@@ -55,7 +53,7 @@ def generate_secure_password(
     include_digits: bool = True,
     include_special: bool = True,
     count: int = 1,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate one or more cryptographically secure random passwords.
 
@@ -110,7 +108,7 @@ def generate_secure_password(
 @register_tool(category="system")
 def start_focus_session(
     title: str, duration_minutes: int = 25, notes: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Focus & Pomodoro Productivity Session.
     Starts a deep work focus session with automatic timer, records target end time,
@@ -134,7 +132,7 @@ def start_focus_session(
 
 
 @register_tool(category="system")
-def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
+def manage_wa_sheets_bot(action: str = "status") -> dict[str, Any]:
     """
     ECOSYSTEM INTEGRATION: WhatsApp Google Sheets Bot Controller.
     Controls and monitors the wa-sheets-bot systemd user service.
@@ -216,7 +214,7 @@ def manage_wa_sheets_bot(action: str = "status") -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def list_wa_drive_uploads(limit: int = 20) -> Dict[str, Any]:
+def list_wa_drive_uploads(limit: int = 20) -> dict[str, Any]:
     """
     Daftar berkas (foto/PDF/dokumen) yang otomatis diunggah dari WhatsApp ke Google Drive.
 
@@ -232,7 +230,7 @@ def list_wa_drive_uploads(limit: int = 20) -> Dict[str, Any]:
                 "message": "Belum ada berkas WA yang terunggah ke Drive.",
                 "uploads": [],
             }
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         uploads = (data.get("uploads") or [])[: max(1, min(int(limit), 100))]
         compact = [
@@ -262,7 +260,7 @@ def scrcpy_android_control(
     device_id: str = "",
     command_or_key: str = "",
     capture_screenshot: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     SCRCPY & ADB ANDROID ENGINE: Control Android smartphones/tablets via USB or Wi-Fi.
     Allows screen capture, sending keyevents, touch taps, app launches, and desktop screen mirroring.
@@ -393,7 +391,7 @@ def scrcpy_android_control(
 
 
 @register_tool(category="system")
-def query_database(db_path: str, sql_query: str) -> Dict[str, Any]:
+def query_database(db_path: str, sql_query: str) -> dict[str, Any]:
     """
     Execute a SQL query on a local SQLite database file and return the results as a table.
 

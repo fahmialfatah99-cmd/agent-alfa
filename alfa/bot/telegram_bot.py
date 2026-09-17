@@ -27,8 +27,8 @@ from telegram.ext import (
 )
 
 import plugins
-import token_usage
-import tts_engine
+from alfa.core import token_usage as token_usage
+from alfa.media import tts_engine as tts_engine
 from alfa import tools
 from alfa.bot.commands import *  # noqa: F401, F403
 from alfa.bot.commands import (
@@ -130,7 +130,7 @@ async def post_init(application: Application):
     await database.init_db()
 
     # Connect Subagent swarm to Telegram app instance
-    import subagents
+    from alfa.swarm import subagents as subagents
 
     subagents.set_telegram_app(application)
 

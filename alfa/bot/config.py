@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -29,7 +29,7 @@ ALFA_PROMPT_PATH = os.path.expanduser("~/.alfa/system_prompt.txt")
 ENV_SYSTEM_INSTRUCTION = os.getenv("SYSTEM_INSTRUCTION", "").strip()
 
 if os.path.exists(ALFA_PROMPT_PATH):
-    with open(ALFA_PROMPT_PATH, "r", encoding="utf-8") as f:
+    with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
         BASE_SYSTEM_PROMPT = f.read().strip()
 elif ENV_SYSTEM_INSTRUCTION:
     BASE_SYSTEM_PROMPT = ENV_SYSTEM_INSTRUCTION
@@ -59,7 +59,7 @@ if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
     except Exception as e:
         logger.error(f"Failed to initialize GenAI client: {e}")
 
-_gemini_client_cache: Dict[str, Any] = {}
+_gemini_client_cache: dict[str, Any] = {}
 
 ENFORCEMENT_BLOCK = (
     "\n\n### ⛔ HUKUM EKSEKUSI NYATA — ANTI-BOHONG (PALING TINGGI, MELAMPAUI SEMUA ATURAN)\n"
@@ -237,7 +237,7 @@ def _main_brain_gemini_model() -> str:
     return GEMINI_MODEL
 
 
-def resolve_main_gemini(key_id: Optional[int] = None):
+def resolve_main_gemini(key_id: int | None = None):
     """Return (client, key_id, key_label) for the MAIN agent."""
     active = None
     if key_id:

@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 Cron, Reminders, Focus Sessions, Subagents, and API Token Telemetry Database Functions.
 """
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
 
@@ -38,7 +37,7 @@ def add_cron_job_sync(
         return cursor.lastrowid
 
 
-def list_cron_jobs_sync(user_id: int) -> List[Dict[str, Any]]:
+def list_cron_jobs_sync(user_id: int) -> list[dict[str, Any]]:
     """List all recurring cron jobs for a user."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -65,7 +64,7 @@ def delete_cron_job_sync(user_id: int, job_id: int) -> bool:
         return cursor.rowcount > 0
 
 
-async def get_due_cron_jobs() -> List[Dict[str, Any]]:
+async def get_due_cron_jobs() -> list[dict[str, Any]]:
     """Get all active recurring cron jobs whose next_run is due."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(_get_db_path()) as db:
@@ -126,7 +125,7 @@ def update_subagent_task_sync(task_id: str, status: str, result: str):
         conn.commit()
 
 
-def get_subagent_task_sync(task_id: str) -> Optional[Dict[str, Any]]:
+def get_subagent_task_sync(task_id: str) -> dict[str, Any] | None:
     """Retrieve subagent task status."""
     with get_sync_db() as conn:
         cursor = conn.execute("SELECT * FROM subagent_tasks WHERE id = ?", (task_id,))
@@ -134,7 +133,7 @@ def get_subagent_task_sync(task_id: str) -> Optional[Dict[str, Any]]:
         return dict(row) if row else None
 
 
-def list_subagent_tasks_sync(limit: int = 20) -> List[Dict[str, Any]]:
+def list_subagent_tasks_sync(limit: int = 20) -> list[dict[str, Any]]:
     """List recent subagent autonomous background tasks."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -149,13 +148,13 @@ def list_subagent_tasks_sync(limit: int = 20) -> List[Dict[str, Any]]:
 
 
 def log_agent_activity_sync(
-    agent_id: Optional[int],
+    agent_id: int | None,
     agent_name: str,
     action_type: str,
     description: str,
-    tool_name: Optional[str] = None,
-    tool_input: Optional[str] = None,
-    tool_output: Optional[str] = None,
+    tool_name: str | None = None,
+    tool_input: str | None = None,
+    tool_output: str | None = None,
     status: str = "success",
     duration_ms: float = 0.0,
 ) -> int:
@@ -182,7 +181,7 @@ def log_agent_activity_sync(
         return cursor.lastrowid
 
 
-def list_agent_activities_sync(limit: int = 30) -> List[Dict[str, Any]]:
+def list_agent_activities_sync(limit: int = 30) -> list[dict[str, Any]]:
     """List recent agent activity logs and tool executions."""
     with get_sync_db() as conn:
         cursor = conn.execute(
@@ -229,7 +228,7 @@ async def add_reminder(
         return cursor.lastrowid
 
 
-async def get_due_reminders() -> List[Dict[str, Any]]:
+async def get_due_reminders() -> list[dict[str, Any]]:
     """Get all pending reminders that are due now."""
     now_iso = datetime.now().isoformat()
     async with aiosqlite.connect(_get_db_path()) as db:
@@ -258,7 +257,7 @@ async def mark_reminder_executed(reminder_id: int):
 # --- Focus & Productivity Sessions (Pomodoro) ---
 def start_focus_session_sync(
     user_id: int, chat_id: int, title: str, duration_minutes: int, notes: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Synchronously create and start a focus session."""
     start_dt = datetime.now()
     end_dt = start_dt + timedelta(minutes=duration_minutes)
@@ -284,7 +283,7 @@ def start_focus_session_sync(
     }
 
 
-async def get_due_focus_sessions() -> List[Dict[str, Any]]:
+async def get_due_focus_sessions() -> list[dict[str, Any]]:
     """Retrieve active focus sessions that have reached their end_time."""
     now_iso = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(_get_db_path()) as db:
@@ -347,7 +346,7 @@ def record_api_usage_sync(
         return False
 
 
-def get_api_usage_summary_sync(hours: int = 24) -> Dict[str, Any]:
+def get_api_usage_summary_sync(hours: int = 24) -> dict[str, Any]:
     """
     Aggregate token usage for the dashboard:
     - per key/provider totals within the window (and today separately)

@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi import FastAPI
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -9,7 +8,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def test_dashboard_package_import():
     """Verify alfa.dashboard imports and exposes FastAPI app."""
-    import alfa.dashboard
     from alfa.dashboard import app as app_from_pkg
     from alfa.dashboard import create_app, get_app
     from alfa.dashboard.app import app as app_from_mod

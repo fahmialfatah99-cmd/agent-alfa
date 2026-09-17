@@ -71,8 +71,8 @@ docs = [
 ]
 
 [project.scripts]
-alfa = "cli:main"
-alfa-agent = "bot:main"
+alfa = "alfa.cli:main"
+alfa-agent = "alfa.bot.telegram_bot:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

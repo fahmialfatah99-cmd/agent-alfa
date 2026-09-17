@@ -21,7 +21,7 @@ import json
 import os
 import re
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
@@ -45,13 +45,13 @@ _REFUSAL_MARKERS = (
 )
 
 
-def load_scenarios() -> List[Dict[str, Any]]:
-    with open(SCENARIOS_PATH, "r", encoding="utf-8") as f:
+def load_scenarios() -> list[dict[str, Any]]:
+    with open(SCENARIOS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
 # ── Checks ────────────────────────────────────────────────────────────────
-def run_check(check: Dict[str, Any], output: str) -> bool:
+def run_check(check: dict[str, Any], output: str) -> bool:
     ctype = check.get("type")
     val = check.get("value")
     out = output or ""
@@ -72,7 +72,7 @@ def run_check(check: Dict[str, Any], output: str) -> bool:
     return False
 
 
-def check_tool_routing(scenario: Dict[str, Any]) -> Dict[str, Any]:
+def check_tool_routing(scenario: dict[str, Any]) -> dict[str, Any]:
     """Offline: pastikan Tool-RAG menyuntikkan minimal satu tool yang diharapkan."""
     expect = scenario.get("expect_tools_any") or []
     if not expect:
@@ -92,7 +92,7 @@ def check_tool_routing(scenario: Dict[str, Any]) -> Dict[str, Any]:
         return {"ok": False, "detail": f"error: {e}"}
 
 
-async def run_live_scenario(scn: Dict[str, Any]) -> Dict[str, Any]:
+async def run_live_scenario(scn: dict[str, Any]) -> dict[str, Any]:
     """Eksekusi nyata via jalur agent resmi (bot.run_agent_turn)."""
     import bot as bot_mod
 
@@ -115,7 +115,7 @@ async def run_live_scenario(scn: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def main_async(argv: List[str]) -> int:
+async def main_async(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="ALFA Evals Harness")
     ap.add_argument("--live", action="store_true", help="eksekusi prompt nyata via LLM")
     ap.add_argument("--filter", default="", help="substring id skenario")

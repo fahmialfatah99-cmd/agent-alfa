@@ -5,7 +5,6 @@ import os
 import re
 import subprocess
 import sys
-from typing import Optional
 
 logger = logging.getLogger("AgentTools.System")
 
@@ -51,7 +50,7 @@ _RM_DANGER_TARGETS = (
     r"|(?:\.\./)+(?:home|etc|usr))?(?:\s|$|/)"
 )
 
-_DOCKER_AVAILABLE_CACHE: Optional[bool] = None
+_DOCKER_AVAILABLE_CACHE: bool | None = None
 _SANDBOX_IMAGE = "alfa-sandbox:latest"
 
 _SOURCE_CODE_EXTS = {
@@ -101,7 +100,7 @@ def _check_docker_available() -> bool:
     for mod_name in ("tools", "alfa.tools", "alfa.tools.system_tools"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "_docker_available"):
-            fn = getattr(mod, "_docker_available")
+            fn = mod._docker_available
             if fn is not _docker_available and callable(fn):
                 return fn()
     return _docker_available()
@@ -122,7 +121,7 @@ def normalize_path(p: str) -> str:
     return os.path.normpath(q) if os.name == "nt" else p
 
 
-def _bash_blocked_reason(command: str) -> Optional[str]:
+def _bash_blocked_reason(command: str) -> str | None:
     """Kembalikan alasan pemblokiran bila perintah cocok pola berbahaya."""
     cmd = command or ""
 
@@ -167,7 +166,7 @@ def _clean_code_snippet(code: str) -> str:
 
 def generate_self_heal_hint(
     tool_name: str, error_msg: str, stdout: str = "", stderr: str = ""
-) -> Optional[str]:
+) -> str | None:
     """Analisis kegagalan eksekusi tool & hasilkan petunjuk pemulihan otomatis cerdas (Self-Heal Hint) bagi agen LLM."""
     combined = f"{error_msg} {stderr} {stdout}".lower()
 

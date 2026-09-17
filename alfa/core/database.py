@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Database module for Telegram AI Bot.
 Handles persistent chat history, long-term knowledge memory, reminders, and settings.
@@ -10,7 +9,6 @@ the modular `alfa.core.db.*` packages.
 
 import logging
 import os
-import sys
 
 logger = logging.getLogger("DB")
 

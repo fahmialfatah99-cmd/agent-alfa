@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system.constants import (
@@ -31,7 +31,7 @@ def _get_subprocess():
 @register_tool(category="system")
 def execute_bash_command(
     command: str, working_dir: str = "", backend: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
     default (resource-limited, no privileges). Falls back to a direct host run
@@ -180,7 +180,7 @@ def execute_bash_command(
                 res = sub.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
                 result = res
             else:
-                popen_kwargs: Dict[str, Any] = {
+                popen_kwargs: dict[str, Any] = {
                     "stdout": subprocess.PIPE,
                     "stderr": subprocess.PIPE,
                     "text": True,
@@ -278,7 +278,7 @@ def execute_bash_command(
 
 
 @register_tool(category="system")
-def execute_python_sandbox(code: str) -> Dict[str, Any]:
+def execute_python_sandbox(code: str) -> dict[str, Any]:
     """
     Execute a Python script in an ISOLATED Docker container (default) with
     resource limits and no privileges. Falls back to a local subprocess only

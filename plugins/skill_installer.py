@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 SKILLS_DIR = os.path.expanduser("~/.alfa/skills")
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +39,7 @@ INDEXABLE_EXT = {
 }
 
 
-def _run(cmd: List[str], timeout: int = 120, cwd: str = None) -> str:
+def _run(cmd: list[str], timeout: int = 120, cwd: str = None) -> str:
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
     if res.returncode != 0:
         raise RuntimeError((res.stderr or res.stdout or "perintah gagal").strip()[:300])
@@ -67,7 +67,7 @@ def _gh_fetch_file(repo: str, path: str, ref: str = "") -> str:
     )
 
 
-def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> Dict[str, Any]:
+def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> dict[str, Any]:
     """Indeks semua file teks skill ke Vector Brain milik primary user."""
     try:
         import vector_memory
@@ -85,7 +85,7 @@ def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> Dict[str, Any]:
                 if ext not in INDEXABLE_EXT or os.path.getsize(p) > MAX_FILE_BYTES:
                     continue
                 try:
-                    with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                    with open(p, encoding="utf-8", errors="ignore") as fh:
                         content = fh.read(MAX_FILE_BYTES)
                     if len(content.strip()) < 30:
                         continue

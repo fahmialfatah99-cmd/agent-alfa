@@ -5,12 +5,10 @@ import io
 import logging
 import os
 import sys
-from typing import Optional
 
 from telegram import Update, constants
 from telegram.ext import ContextTypes
 
-import tts_engine
 from alfa import tools
 from alfa.bot.config import (
     GEMINI_MODEL,
@@ -26,6 +24,7 @@ from alfa.bot.helpers import (
 from alfa.bot.streamer import TelegramStreamer
 from alfa.bot.turn_executor import run_agent_turn
 from alfa.core import database
+from alfa.media import tts_engine
 from alfa.tools import SANDBOX_DIR, get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
@@ -532,7 +531,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         await doc_file.download_to_memory(doc_bytes_io)
         doc_bytes = doc_bytes_io.getvalue()
 
-        import universal_file_extractor as ufe
+        from alfa.tools.filesystem import universal_file_extractor as ufe
 
         txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
 

@@ -1,23 +1,11 @@
-import asyncio
 import json
-import logging
-import os
-import shutil
-import sqlite3
-import subprocess
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter
 
 from alfa import tools
-from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import get_primary_user_id, safe_int
 
 router = APIRouter()
 
@@ -25,7 +13,7 @@ router = APIRouter()
 
 
 @router.post("/api/scraper/universal")
-async def api_universal_scrape(payload: Dict[str, Any]):
+async def api_universal_scrape(payload: dict[str, Any]):
     """Execute high-yield universal keyword scraper across specialized platforms."""
     from alfa.scrapers import universal as universal_scraper
 
@@ -42,7 +30,7 @@ async def api_universal_scrape(payload: Dict[str, Any]):
 
 
 @router.post("/api/scraper/custom-batch")
-async def api_custom_batch_scrape(payload: Dict[str, Any]):
+async def api_custom_batch_scrape(payload: dict[str, Any]):
     """Execute custom multi-URL batch scraper."""
     from alfa.scrapers import universal as universal_scraper
 
@@ -68,7 +56,7 @@ async def api_list_scraper_batches(limit: int = 15):
 
 
 @router.post("/api/scraper/modern-lab")
-async def api_modern_scraper_lab(payload: Dict[str, Any]):
+async def api_modern_scraper_lab(payload: dict[str, Any]):
     """Unified Next-Gen Scraper Lab combining multiple scraping engines."""
     url = payload.get("url", "").strip()
     engine = payload.get("engine", "auto_hybrid")
@@ -163,7 +151,7 @@ async def api_modern_scraper_lab(payload: Dict[str, Any]):
 
         vector_status = None
         if auto_ingest and extracted_text.strip():
-            import vector_memory
+            from alfa.memory import vector as vector_memory
 
             uid = get_primary_user_id()
             v_res = vector_memory.ingest_document(

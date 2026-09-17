@@ -1,23 +1,13 @@
 import asyncio
-import json
-import logging
 import os
-import shutil
-import sqlite3
-import subprocess
-import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import aiosqlite
-import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, HTTPException, Request
 
-from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, safe_int
 
 router = APIRouter()
 
@@ -27,14 +17,14 @@ router = APIRouter()
 @router.get("/api/pipelines")
 async def list_pipelines_endpoint():
     """Daftar pipeline workflow yang tersedia."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     return {"status": "success", "pipelines": pl.list_pipelines()}
 
 
 @router.get("/api/pipelines/{pid}")
 async def get_pipeline_endpoint(pid: str):
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     try:
         return {"status": "success", "pipeline": pl.load_pipeline(pid)}
@@ -45,7 +35,7 @@ async def get_pipeline_endpoint(pid: str):
 @router.post("/api/pipelines/{pid}/run")
 async def run_pipeline_endpoint(pid: str, request: Request):
     """Jalankan pipeline; body JSON opsional: overrides variabel {"vars": {...}}."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     try:
         overrides = {}
@@ -66,7 +56,7 @@ async def run_pipeline_endpoint(pid: str, request: Request):
 @router.post("/api/pipelines/{pid}")
 async def save_pipeline_endpoint(pid: str, request: Request):
     """Simpan/overwrite definisi pipeline dari Canvas Studio."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     try:
         data = await request.json()
@@ -85,7 +75,7 @@ async def save_pipeline_endpoint(pid: str, request: Request):
 @router.post("/api/pipelines/{pid}/webhook")
 async def pipeline_webhook_endpoint(pid: str, request: Request):
     """Trigger webhook ala n8n: POST di sini menjalankan pipeline."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     try:
         data = pl.load_pipeline(pid)
@@ -116,7 +106,7 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
 @router.get("/api/pipelines/{pid}/runs")
 async def pipeline_runs_endpoint(pid: str, limit: int = 10):
     """Riwayat eksekusi pipeline terakhir."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     return {"status": "success", "pid": pid, "runs": pl.list_runs(pid, limit)}
 
@@ -124,7 +114,7 @@ async def pipeline_runs_endpoint(pid: str, limit: int = 10):
 @router.post("/api/pipelines/{pid}/enable")
 async def pipeline_trigger_toggle_endpoint(pid: str, request: Request):
     """Aktif/matikan trigger jadwal: body {"enabled": true/false}."""
-    import pipelines as pl
+    from alfa.pipelines import engine as pl
 
     try:
         data = pl.load_pipeline(pid)
@@ -163,7 +153,7 @@ async def get_memory_data():
 
 
 @router.post("/api/memory/add")
-async def add_memory(payload: Dict[str, Any]):
+async def add_memory(payload: dict[str, Any]):
     """Add a new memory fact or knowledge graph relation."""
     uid = get_primary_user_id()
     m_type = payload.get("type", "fact")
@@ -195,7 +185,7 @@ async def add_memory(payload: Dict[str, Any]):
 
 
 @router.post("/api/memory/delete")
-async def delete_memory(payload: Dict[str, Any]):
+async def delete_memory(payload: dict[str, Any]):
     """Delete a memory fact by key."""
     uid = get_primary_user_id()
     key_topic = payload.get("key_topic")
@@ -248,9 +238,9 @@ async def export_brain():
 
 
 @router.post("/api/brain/vector/search")
-async def api_vector_search(payload: Dict[str, Any]):
+async def api_vector_search(payload: dict[str, Any]):
     """Execute cosine semantic similarity search on permanent Vector Brain embeddings."""
-    import vector_memory
+    from alfa.memory import vector as vector_memory
 
     query = payload.get("query", "").strip()
     top_k = safe_int(payload.get("top_k", 5), 5, minimum=1, maximum=50)
@@ -272,9 +262,9 @@ async def api_vector_search(payload: Dict[str, Any]):
 
 
 @router.post("/api/brain/vector/ingest")
-async def api_vector_ingest(payload: Dict[str, Any]):
+async def api_vector_ingest(payload: dict[str, Any]):
     """Ingest, chunk, and embed a document or file into permanent Vector Brain."""
-    import vector_memory
+    from alfa.memory import vector as vector_memory
 
     title = payload.get("title", "").strip()
     content = payload.get("content", "").strip()
@@ -293,7 +283,7 @@ async def api_vector_ingest(payload: Dict[str, Any]):
 @router.get("/api/brain/vector/list")
 async def api_vector_list():
     """List all ingested documents currently in Vector Brain."""
-    import vector_memory
+    from alfa.memory import vector as vector_memory
 
     uid = get_primary_user_id()
     docs = vector_memory.list_ingested_documents(user_id=uid)
@@ -301,9 +291,9 @@ async def api_vector_list():
 
 
 @router.post("/api/brain/vector/delete")
-async def api_vector_delete(payload: Dict[str, Any]):
+async def api_vector_delete(payload: dict[str, Any]):
     """Delete a document and its embedding chunks from Vector Brain."""
-    import vector_memory
+    from alfa.memory import vector as vector_memory
 
     doc_title = payload.get("doc_title", "").strip()
     uid = get_primary_user_id()

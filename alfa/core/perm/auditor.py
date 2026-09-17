@@ -1,25 +1,21 @@
 """Host system and target website security auditing tools."""
 
 import datetime
-import json
-import logging
 import os
-import re
-import shutil
 import socket
 import ssl
 import stat
 import subprocess
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from alfa.core.perm.constants import PROJECT_DIR, logger
+from alfa.core.perm.constants import PROJECT_DIR
 
 
-def audit_local_host_security() -> Dict[str, Any]:
+def audit_local_host_security() -> dict[str, Any]:
     """
     Real defensive security audit of THIS machine (no root required):
     - Listening network sockets (flags publicly-bound listeners)
@@ -31,8 +27,8 @@ def audit_local_host_security() -> Dict[str, Any]:
     """
     import psutil
 
-    checks: Dict[str, Dict[str, Any]] = []
-    critical_findings: List[str] = []
+    checks: dict[str, dict[str, Any]] = []
+    critical_findings: list[str] = []
 
     def add_check(name: str, passed: bool, detail: str, severity: str = "LOW"):
         checks.append(
@@ -204,7 +200,7 @@ def audit_local_host_security() -> Dict[str, Any]:
     }
 
 
-def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:
+def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
     """
     Performs comprehensive defensive security audit of a website or web API:
     - HTTP Security Headers (CSP, HSTS, X-Frame-Options, X-Content-Type, etc.)
@@ -286,8 +282,8 @@ def audit_website_security(target_url: str, timeout: int = 8) -> Dict[str, Any]:
 
     # 3. Security Header Analysis
     score = 100
-    findings: List[Dict[str, Any]] = []
-    checks: Dict[str, Dict[str, Any]] = {}
+    findings: list[dict[str, Any]] = []
+    checks: dict[str, dict[str, Any]] = {}
 
     # Check CSP (Content Security Policy)
     csp = headers_dict.get("content-security-policy")

@@ -2,11 +2,9 @@
 
 import logging
 import os
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core import database
-from alfa.core.runtime_ctx import current_user_id_var
 
 logger = logging.getLogger("AgentTools.GDrive")
 
@@ -59,7 +57,7 @@ def _get_gdrive_service():
             # Honor the scopes actually granted during consent - forcing extra
             # scopes here makes Google reject the refresh with invalid_scope.
             try:
-                with open(oauth_file, "r", encoding="utf-8") as f:
+                with open(oauth_file, encoding="utf-8") as f:
                     stored_scopes = json.load(f).get("scopes") or scopes
             except Exception:
                 stored_scopes = scopes
@@ -159,7 +157,7 @@ def _detect_gdrive_auth_mode() -> str:
     return "none"
 
 
-def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, Any]:
+def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> dict[str, Any]:
     """
     Run the OAuth 2.0 consent flow so uploads use YOUR personal Drive quota.
 
@@ -201,7 +199,7 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, A
     # Detect the classic mix-up: renaming a SERVICE ACCOUNT key instead of
     # downloading an OAuth client ID (they are different credential types).
     try:
-        with open(secret_path, "r", encoding="utf-8") as f:
+        with open(secret_path, encoding="utf-8") as f:
             probe = _json.load(f)
         if isinstance(probe, dict) and "installed" not in probe and "web" not in probe:
             if probe.get("type") == "service_account" or "private_key" in probe:
@@ -279,7 +277,7 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> Dict[str, A
         return {"status": "error", "message": f"OAuth login gagal/dibatalkan: {str(e)}"}
 
 
-def gdrive_save_oauth_client_secret(raw_content: Any) -> Dict[str, Any]:
+def gdrive_save_oauth_client_secret(raw_content: Any) -> dict[str, Any]:
     """Save uploaded or pasted OAuth Client Secret JSON (Desktop or Web App)."""
     import json as _json
 
@@ -336,7 +334,7 @@ def gdrive_save_oauth_client_secret(raw_content: Any) -> Dict[str, Any]:
 
 def gdrive_oauth_get_auth_url(
     redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate Google OAuth 2.0 authorization URL for 1-click browser login."""
     from google_auth_oauthlib.flow import Flow
 
@@ -394,7 +392,7 @@ def gdrive_oauth_get_auth_url(
 def gdrive_oauth_exchange_code(
     auth_code: str,
     redirect_uri: str = "http://localhost:8080/api/gdrive/oauth/callback",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Exchange authorization code for OAuth credentials and store token permanently."""
     import json as _json
 
@@ -452,7 +450,7 @@ def gdrive_oauth_exchange_code(
         }
 
 
-def gdrive_oauth_logout() -> Dict[str, Any]:
+def gdrive_oauth_logout() -> dict[str, Any]:
     """Remove stored OAuth tokens (falls back to service account auth)."""
     removed = False
     token_file = os.path.join(PROJECT_DIR, "gdrive_oauth_token.json")
@@ -473,7 +471,7 @@ def gdrive_oauth_logout() -> Dict[str, Any]:
     return {"status": "success", "removed": removed, "message": "Token OAuth dihapus."}
 
 
-def gdrive_status() -> Dict[str, Any]:
+def gdrive_status() -> dict[str, Any]:
     """
     Check the connection status of Google Drive Integration, storage quota, and default folder info.
     """

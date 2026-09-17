@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Step executor, task decomposition, and verification logic for ALFA Swarm agents.
 """
@@ -10,10 +9,9 @@ import logging
 import os
 import re
 import shutil
-import sys
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa import tools
 from alfa.core import database
@@ -58,8 +56,8 @@ def validate_python_code(code: str) -> str:
 
 
 async def _decompose_task(
-    topic: str, participants: List[Dict[str, Any]]
-) -> Dict[str, str]:
+    topic: str, participants: list[dict[str, Any]]
+) -> dict[str, str]:
     """Ask the planner to break the topic into one concrete subtask per agent."""
     roster = ", ".join(f"{a['name']} ({a.get('role','')})" for a in participants)
     prompt = (
@@ -93,7 +91,7 @@ async def _decompose_task(
         return {}
 
 
-async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
+async def _verify_step_result(task: str, step_result: dict[str, Any]) -> tuple:
     """LLM judge for a swarm execution step. Returns (passed: bool, feedback: str)."""
     low_task = (task or "").lower()
     claims_file_work = any(
@@ -116,7 +114,7 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
     )
 
     fs_changed = None
-    changed_sample: List[str] = []
+    changed_sample: list[str] = []
     if claims_file_work and step_result.get("status") == "success":
         fs_changed = step_result.get("fs_changed")
         if fs_changed is None and _EXEC_FS_SNAPSHOT:
@@ -165,7 +163,7 @@ async def _verify_step_result(task: str, step_result: Dict[str, Any]) -> tuple:
 
 
 async def _single_shot_edit_fallback(
-    agent: Dict[str, Any], task_instruction: str, target_folder: str
+    agent: dict[str, Any], task_instruction: str, target_folder: str
 ) -> str:
     """Penyelesai pamungkas: minta KONTEN PENUH satu file utama dari model,
     lalu engine menulisnya sendiri (tanpa bergantung tool-call model)."""
@@ -229,7 +227,7 @@ async def _single_shot_edit_fallback(
         return f"(single-shot) gagal tulis: {w_err}"
 
 
-async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -> str:
+async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -> str:
     """Eksekusi deterministik: model hanya menyusun rencana JSON aksi tool,
     engine-lah yang menjalankannya."""
     plan_sys = (
@@ -290,11 +288,11 @@ async def _forced_json_execution(agent: Dict[str, Any], task_instruction: str) -
 
 
 async def execute_swarm_task_step(
-    agent: Dict[str, Any],
+    agent: dict[str, Any],
     task_instruction: str,
     topic: str,
-    intent_info: Dict[str, Any],
-) -> Dict[str, Any]:
+    intent_info: dict[str, Any],
+) -> dict[str, Any]:
     """
     Executes a real action for an agent in Swarm Live Execution mode.
     Calls appropriate system tools, writes files, scrapes data, or tests code.

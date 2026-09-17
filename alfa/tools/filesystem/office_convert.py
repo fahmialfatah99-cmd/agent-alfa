@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -17,7 +17,7 @@ logger = logging.getLogger("AgentTools.Filesystem.OfficeConvert")
 @register_tool(category="file")
 def markitdown_convert_document(
     source_path_or_url: str, output_filename: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     MARKITDOWN SUITE: Convert any document (Office Word/PowerPoint/Excel, PDF, HTML, CSV, JSON, Audio)
     or public URL into clean, structured LLM-ready Markdown text.
@@ -66,7 +66,7 @@ def markitdown_convert_document(
 @register_tool(category="file")
 def libreoffice_convert_document(
     source_file: str, output_format: str = "pdf"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     LIBREOFFICE SUITE: Universal Document Converter.
     Converts any document between formats using LibreOffice Headless engine.
@@ -134,7 +134,7 @@ def libreoffice_convert_document(
 @register_tool(category="file")
 def libreoffice_render_page_previews(
     document_path: str, max_pages: int = 3, dpi: int = 150
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     LIBREOFFICE SUITE: Document High-Res Page Preview Renderer.
     Converts any office document (DOCX, ODT, XLSX, ODS, PPTX, ODP, PDF, RTF) into
@@ -231,7 +231,7 @@ def libreoffice_create_document(
     content_html_or_text: str,
     filename: str = "",
     export_format: str = "odt",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     LIBREOFFICE SUITE: Create Professional Office Documents (Writer, Calc, Impress).
     Generates rich formatted LibreOffice documents (.odt, .ods, .odp) or Microsoft Office (.docx, .xlsx, .pptx)
@@ -332,7 +332,7 @@ li {{ margin-bottom: 6px; }}
 
 
 @register_tool(category="file")
-def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
+def libreoffice_extract_document_text(document_path: str) -> dict[str, Any]:
     """
     LIBREOFFICE SUITE: Extract Text & Structure from Any Document.
     Extracts complete clean text from complex binary files (ODT, DOCX, DOC, RTF, ODS, ODP, EPUB, PDF)
@@ -365,7 +365,7 @@ def libreoffice_extract_document_text(document_path: str) -> Dict[str, Any]:
 
         txt_files = glob.glob(os.path.join(temp_dir, "*.txt"))
         if txt_files:
-            with open(txt_files[0], "r", encoding="utf-8", errors="replace") as f:
+            with open(txt_files[0], encoding="utf-8", errors="replace") as f:
                 extracted_text = f.read().strip()
 
             # Cleanup temp dir

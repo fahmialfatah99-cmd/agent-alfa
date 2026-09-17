@@ -1,14 +1,11 @@
 """Workspace searching, file grepping, user file finder, compression, and git tools."""
 
-import datetime
 import glob
 import logging
 import os
-import shutil
 import subprocess
-from typing import Any, Dict, List
+from typing import Any
 
-from alfa.tools.filesystem.core_file import _MAX_EDIT_FILE_BYTES
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR, normalize_path
 
@@ -36,7 +33,7 @@ _CODE_INDEX_SKIP_DIRS = {
 @register_tool(category="file")
 def search_workspace_files(
     pattern: str, base_dir: str = "~", max_results: int = 30
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Search for files and directories matching a glob pattern (e.g. '*.py', '*.json', 'bot*').
 
@@ -81,7 +78,7 @@ def search_workspace_files(
 @register_tool(category="file")
 def grep_workspace(
     query: str, base_dir: str = "~", file_pattern: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Search for text or regex pattern inside files across workspace.
 
@@ -111,7 +108,7 @@ def grep_workspace(
                     try:
                         if os.path.getsize(fpath) > 2 * 1024 * 1024:
                             continue
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                        with open(fpath, encoding="utf-8", errors="ignore") as fh:
                             for i, ln in enumerate(fh, 1):
                                 ok = (
                                     rx.search(ln)
@@ -147,7 +144,7 @@ def grep_workspace(
 @register_tool(category="file")
 def find_user_files(
     pattern: str = "", file_types: str = "all", folder: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Cari file/aset ASLI yang disediakan pengguna di folder-folder umum
     (Downloads, Documents, Desktop, Pictures). WAJIB dipanggil sebelum
@@ -261,7 +258,7 @@ def find_user_files(
 @register_tool(category="file")
 def compress_folder_to_zip(
     folder_path: str, output_filename: str = "archive.zip"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Compress an entire folder/directory into a ZIP archive and send it to Telegram.
     Use this when the user wants to send a whole folder, backup a project, or archive files.
@@ -302,7 +299,7 @@ def compress_folder_to_zip(
 
 
 @register_tool(category="file")
-def send_file_to_chat(file_path: str, caption: str = "") -> Dict[str, Any]:
+def send_file_to_chat(file_path: str, caption: str = "") -> dict[str, Any]:
     """
     Send an existing file (document, PDF, photo, video, audio, ZIP, code script, data file)
     from the computer filesystem directly to the Telegram user chat.
@@ -353,7 +350,7 @@ def git_operations(
     message: str = "",
     remote: str = "origin",
     branch: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Perform Git operations on a local repository directly from Telegram.
 

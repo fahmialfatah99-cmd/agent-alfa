@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Stdlib-only regression tests for core.py / design_system.py (unittest, not
 pytest -- this project ships with zero external dependencies and the tests

@@ -21,7 +21,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("MainBrain")
 
@@ -40,8 +40,8 @@ _TOOL_KEEP_RECENT = 6  # jumlah pesan tool terakhir yang dijaga utuh
 
 # ── Resolusi otak utama ──────────────────────────────────────────────────────
 def get_main_brain(
-    override_key_id: Optional[int] = None, override_model: Optional[str] = None
-) -> Dict[str, Any]:
+    override_key_id: int | None = None, override_model: str | None = None
+) -> dict[str, Any]:
     """
     Return dict: {provider, api_key, model, base_url, key_id, label}
     Prioritas: ALFA_OFFLINE_MODE -> override_key_id -> pointer main_brain_key_id -> kunci aktif di vault -> .env
@@ -118,9 +118,9 @@ def get_main_brain(
 _JSON_TYPES = {int: "integer", float: "number", bool: "boolean"}
 
 
-def _parse_args_docstring(doc: str) -> Dict[str, str]:
+def _parse_args_docstring(doc: str) -> dict[str, str]:
     """Ambil deskripsi argumen dari bagian 'Args:' docstring."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     in_args = False
     for line in (doc or "").splitlines():
         stripped = line.strip()
@@ -144,14 +144,14 @@ def _parse_args_docstring(doc: str) -> Dict[str, str]:
     return out
 
 
-def _fn_to_openai_tool(fn) -> Dict[str, Any]:
+def _fn_to_openai_tool(fn) -> dict[str, Any]:
     sig = inspect.signature(fn)
     doc = inspect.getdoc(fn) or ""
     desc_line = doc.split("\n")[0][:300] if doc else fn.__name__
     argdocs = _parse_args_docstring(doc)
 
-    props: Dict[str, Any] = {}
-    required: List[str] = []
+    props: dict[str, Any] = {}
+    required: list[str] = []
     for pname, p in sig.parameters.items():
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
@@ -179,7 +179,7 @@ def _fn_to_openai_tool(fn) -> Dict[str, Any]:
     }
 
 
-def build_openai_tools(safe_only: bool = False) -> List[Dict[str, Any]]:
+def build_openai_tools(safe_only: bool = False) -> list[dict[str, Any]]:
     """Konversi AVAILABLE_TOOLS ke skema tools OpenAI.
 
     safe_only=True membatasi ke subset aman utk agen swarm: riset web, baca
@@ -234,7 +234,7 @@ def _find_tool(name: str):
     return None
 
 
-def _clean_json_args(raw_json: str) -> Dict[str, Any]:
+def _clean_json_args(raw_json: str) -> dict[str, Any]:
     """Parsing argumen JSON dari model dengan auto-sanitasi agresif bila ada karakter escape/markdown."""
     if not raw_json or not str(raw_json).strip():
         return {}
@@ -298,7 +298,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         pass
 
     try:
-        import tracing as _tr
+        from alfa.core import tracing as _tr
 
         _span = _tr.new_span(f"tool:{name}", tool=name)
     except Exception:
@@ -359,13 +359,13 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
 
 # ── Kompaksi konteks agentic loop ────────────────────────────────────────────
-def _convo_size(convo: List[Dict[str, Any]]) -> int:
+def _convo_size(convo: list[dict[str, Any]]) -> int:
     return sum(
         len(m.get("content") or "") + len(str(m.get("tool_calls") or "")) for m in convo
     )
 
 
-def _compact_convo(convo: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _compact_convo(convo: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Pangkas output tool LAMA saat total konteks melewati budget.
 
     Pesan 'tool' terakhir dijaga utuh; yang lebih tua dipotong menjadi
@@ -400,13 +400,13 @@ async def run_openai_agentic_turn(
     model: str,
     system_instruction: str,
     user_text: str,
-    history: Optional[List[Dict[str, str]]] = None,
+    history: list[dict[str, str]] | None = None,
     key_id=None,
     key_label: str = "",
     context: str = "telegram_chat",
-    tools_schema: Optional[List[Dict[str, Any]]] = None,
+    tools_schema: list[dict[str, Any]] | None = None,
     approval_gate=None,
-) -> Optional[str]:
+) -> str | None:
     """
     Satu turn agentik penuh di provider OpenAI-compatible:
     kirim pesan + tools -> eksekusi tool_calls -> ulangi sampai jawaban final.
@@ -418,7 +418,7 @@ async def run_openai_agentic_turn(
     try:
         import httpx
 
-        import token_usage
+        from alfa.core import token_usage
 
         if tools_schema is None:
             txt_low = (user_text or "").lower().strip()
@@ -511,7 +511,7 @@ async def run_openai_agentic_turn(
                 tools_schema = build_openai_tools()
                 # TOOL-RAG: suntikkan hanya tool relevan (hemat token, cegah confusion)
                 try:
-                    from tool_rag import select_relevant_tools
+                    from alfa.tools.rag import select_relevant_tools
 
                     tools_schema = select_relevant_tools(
                         tools_schema, user_text, history=history
@@ -519,7 +519,7 @@ async def run_openai_agentic_turn(
                 except Exception:
                     pass  # fail-open: set lengkap
 
-        messages: List[Dict[str, Any]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_instruction}
         ]
         for h in (history or [])[-10:]:

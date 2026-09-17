@@ -1,23 +1,14 @@
-import asyncio
 import json
-import logging
 import os
 import shutil
-import sqlite3
-import subprocess
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, File, Form, UploadFile
 
 from alfa import tools
-from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import logger
 
 router = APIRouter()
 
@@ -30,7 +21,7 @@ _WA_DYNAMIC_SOURCES = {"timestamp", "sender", "group", "body"}
 _WA_MEDIA_TYPES = {"foto", "video", "pdf", "excel", "dokumen", "audio"}
 
 
-def _validate_media_rules(rules: Any) -> List[str]:
+def _validate_media_rules(rules: Any) -> list[str]:
     errs = []
     if not isinstance(rules, list):
         return ["Field 'rules' harus berupa array."]
@@ -63,7 +54,7 @@ def _validate_media_rules(rules: Any) -> List[str]:
     return errs
 
 
-def _validate_wa_formats(formats: Any) -> List[str]:
+def _validate_wa_formats(formats: Any) -> list[str]:
     errs = []
     if not isinstance(formats, list):
         return ["Field 'formats' harus berupa array."]
@@ -139,12 +130,12 @@ def _gdrive_ensure_subfolder(folder_name: str) -> str:
     return created["id"]
 
 
-def _log_wa_drive_upload(entry: Dict[str, Any]):
+def _log_wa_drive_upload(entry: dict[str, Any]):
     try:
         data = {"uploads": []}
         if os.path.exists(WA_DRIVE_UPLOADS_FILE):
             try:
-                with open(WA_DRIVE_UPLOADS_FILE, "r", encoding="utf-8") as f:
+                with open(WA_DRIVE_UPLOADS_FILE, encoding="utf-8") as f:
                     data = json.load(f) or data
             except Exception:
                 pass
@@ -175,7 +166,7 @@ async def get_wa_qr():
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     if os.path.exists(status_file):
         try:
-            with open(status_file, "r") as f:
+            with open(status_file) as f:
                 data = json.load(f)
             qr_str = data.get("qr", "")
             qr_data_url = None
@@ -248,13 +239,13 @@ async def get_wa_reports():
     formats_data = []
     if os.path.exists(reports_file):
         try:
-            with open(reports_file, "r") as f:
+            with open(reports_file) as f:
                 reports_data = json.load(f)
         except Exception:
             pass
     if os.path.exists(formats_file):
         try:
-            with open(formats_file, "r") as f:
+            with open(formats_file) as f:
                 formats_data = json.load(f).get("formats", [])
         except Exception:
             pass
@@ -280,7 +271,7 @@ async def get_wa_media_rules():
     }
     try:
         if os.path.exists(WA_BOT_MEDIA_RULES_FILE):
-            with open(WA_BOT_MEDIA_RULES_FILE, "r", encoding="utf-8") as f:
+            with open(WA_BOT_MEDIA_RULES_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             result["exists"] = True
             result["rules"] = data.get("rules", []) if isinstance(data, dict) else []
@@ -291,7 +282,7 @@ async def get_wa_media_rules():
 
 
 @router.post("/api/wa/media-rules")
-async def save_wa_media_rules(payload: Dict[str, Any]):
+async def save_wa_media_rules(payload: dict[str, Any]):
     """Save media auto-save rules."""
     rules = payload.get("rules")
     errors = _validate_media_rules(rules)
@@ -342,7 +333,7 @@ async def get_wa_drive_uploads():
     result = {"status": "success", "uploads": [], "total": 0}
     try:
         if os.path.exists(WA_DRIVE_UPLOADS_FILE):
-            with open(WA_DRIVE_UPLOADS_FILE, "r", encoding="utf-8") as f:
+            with open(WA_DRIVE_UPLOADS_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             ups = data.get("uploads", []) if isinstance(data, dict) else []
             result["uploads"] = ups
@@ -415,7 +406,7 @@ async def get_wa_formats():
     }
     try:
         if os.path.exists(WA_BOT_FORMATS_FILE):
-            with open(WA_BOT_FORMATS_FILE, "r", encoding="utf-8") as f:
+            with open(WA_BOT_FORMATS_FILE, encoding="utf-8") as f:
                 data = json.load(f)
             result["exists"] = True
             result["formats"] = (
@@ -428,7 +419,7 @@ async def get_wa_formats():
 
 
 @router.post("/api/wa/formats")
-async def save_wa_formats(payload: Dict[str, Any]):
+async def save_wa_formats(payload: dict[str, Any]):
     """Save report formats."""
     formats = payload.get("formats")
     errors = _validate_wa_formats(formats)

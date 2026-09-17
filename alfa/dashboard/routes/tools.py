@@ -4,7 +4,7 @@ import inspect
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -175,7 +175,7 @@ async def get_tools_list():
 
 
 @tools_router.post("/api/tools/execute")
-async def execute_tool(payload: Dict[str, Any]):
+async def execute_tool(payload: dict[str, Any]):
     """Execute any tool directly with supplied arguments."""
     tool_name = payload.get("tool_name")
     args = payload.get("args", {})
@@ -212,7 +212,7 @@ async def execute_tool(payload: Dict[str, Any]):
 
 
 @tools_router.post("/api/tools/upload")
-async def upload_files_for_tools(files: List[UploadFile] = File(...)):
+async def upload_files_for_tools(files: list[UploadFile] = File(...)):
     """Upload one or more files from user computer for tool processing."""
     upload_dir = tools.get_pdf_output_dir("Uploads")
     saved_files = []
@@ -267,7 +267,7 @@ async def api_plugins_list():
 
 
 @tools_router.post("/api/plugins/create")
-async def api_plugins_create(payload: Dict[str, Any]):
+async def api_plugins_create(payload: dict[str, Any]):
     """Compile, sandbox-test, and hot-load a new dynamic plugin tool."""
     import plugins
 
@@ -288,7 +288,7 @@ async def api_plugins_create(payload: Dict[str, Any]):
 
 
 @tools_router.post("/api/plugins/delete")
-async def api_plugins_delete(payload: Dict[str, Any]):
+async def api_plugins_delete(payload: dict[str, Any]):
     """Permanently remove a dynamic plugin tool."""
     import plugins
 
@@ -299,7 +299,7 @@ async def api_plugins_delete(payload: Dict[str, Any]):
 
 
 @tools_router.post("/api/plugins/execute")
-async def api_plugins_execute(payload: Dict[str, Any]):
+async def api_plugins_execute(payload: dict[str, Any]):
     """Execute a dynamic plugin tool directly."""
     import plugins
 
@@ -417,7 +417,7 @@ async def api_superpowers_list():
             desc = ""
             if os.path.isfile(skill_md):
                 try:
-                    with open(skill_md, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(skill_md, encoding="utf-8", errors="ignore") as f:
                         text = f.read(1500)
                     m = re.search(r"description:\s*([^\n]+)", text)
                     if m:
@@ -473,7 +473,7 @@ async def api_superpowers_detail(skill_id: str):
     skill_md = os.path.join(target_skill, "SKILL.md")
     content = ""
     if os.path.isfile(skill_md):
-        with open(skill_md, "r", encoding="utf-8", errors="ignore") as f:
+        with open(skill_md, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
     ref_files = []
@@ -507,7 +507,7 @@ def api_ui_ux_search(q: str = "", domain: str = "auto"):
 
 
 @tools_router.post("/api/skills/ui-ux-pro-max/design-system")
-def api_ui_ux_design_system(payload: Dict[str, Any]):
+def api_ui_ux_design_system(payload: dict[str, Any]):
     """Generate comprehensive Design System for any product or niche."""
     from plugins.ui_ux_pro_max import ui_ux_pro_max_search
 

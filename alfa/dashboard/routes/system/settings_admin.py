@@ -1,29 +1,19 @@
-import asyncio
-import json
-import logging
 import os
 import shutil
-import sqlite3
-import subprocess
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
 from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, HTTPException
 
-from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import REPO_ROOT, safe_int
 
 router = APIRouter()
 
 # ==================== SETTINGS & ANTIGRAVITY ====================
 
-_models_cache: Dict[int, tuple] = {}
+_models_cache: dict[int, tuple] = {}
 
 
 @router.get("/api/settings")
@@ -56,7 +46,7 @@ async def get_system_settings():
     active_instruction = env_vals.get("SYSTEM_INSTRUCTION", "")
     if os.path.exists(alfa_prompt_path):
         try:
-            with open(alfa_prompt_path, "r", encoding="utf-8") as f:
+            with open(alfa_prompt_path, encoding="utf-8") as f:
                 active_instruction = f.read().strip()
             prompt_source = "file"
         except Exception:
@@ -132,7 +122,7 @@ async def models_for_key(key_id: int):
     provider = (row["provider"] or "").lower()
     api_key = database.decrypt_key(row["api_key"] or "")
     base_url = (row["base_url"] or "").strip()
-    models: List[str] = []
+    models: list[str] = []
     try:
         if provider == "gemini":
             try:
@@ -219,7 +209,7 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
 
 
 @router.post("/api/antigravity/apply")
-async def antigravity_apply_model(payload: Dict[str, Any]):
+async def antigravity_apply_model(payload: dict[str, Any]):
     """Terapkan model Antigravity sebagai KUNCI CADANGAN (+ opsional semua agen)."""
     model = str(payload.get("model", "")).strip()
     apply_all = bool(payload.get("apply_all_agents", True))
@@ -289,7 +279,7 @@ async def antigravity_apply_model(payload: Dict[str, Any]):
 
 
 @router.post("/api/main-brain/test")
-async def test_main_brain_combo(payload: Dict[str, Any]):
+async def test_main_brain_combo(payload: dict[str, Any]):
     """Tes koneksi kombinasi kunci + model sebelum diterapkan."""
     import httpx as _hx
 
@@ -368,7 +358,7 @@ async def test_main_brain_combo(payload: Dict[str, Any]):
 
 
 @router.post("/api/settings/main-brain")
-async def set_main_brain_endpoint(payload: Dict[str, Any]):
+async def set_main_brain_endpoint(payload: dict[str, Any]):
     """Set the agent's MAIN BRAIN by activating a specific vault key."""
     key_id = payload.get("key_id")
     model_override = str(payload.get("model", "") or "").strip()
@@ -414,11 +404,11 @@ async def set_main_brain_endpoint(payload: Dict[str, Any]):
 
 
 @router.post("/api/settings")
-async def update_system_settings(payload: Dict[str, Any]):
+async def update_system_settings(payload: dict[str, Any]):
     """Update system configuration (.env and database settings)."""
     env_path = os.path.join(REPO_ROOT, ".env")
 
-    def _get(field: str) -> Optional[str]:
+    def _get(field: str) -> str | None:
         if field in payload and isinstance(payload[field], str):
             return payload[field].strip()
         return None
@@ -430,7 +420,7 @@ async def update_system_settings(payload: Dict[str, Any]):
     system_instruction = _get("system_instruction")
 
     if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
+        with open(env_path, encoding="utf-8") as f:
             lines = f.readlines()
     else:
         lines = []

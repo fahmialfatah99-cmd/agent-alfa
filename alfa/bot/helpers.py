@@ -3,12 +3,10 @@
 import asyncio
 import logging
 import os
-from typing import List, Optional
 
 from telegram import InlineKeyboardMarkup, constants
 from telegram.ext import ContextTypes
 
-from alfa.bot.config import OWNER_NAME
 from alfa.core import database
 from alfa.tools import SANDBOX_DIR
 
@@ -70,7 +68,7 @@ def _artifact_signature() -> list:
     return sorted(sig)
 
 
-def split_message(text: str, max_length: int = 3900) -> List[str]:
+def split_message(text: str, max_length: int = 3900) -> list[str]:
     """Split long response into safe Telegram message chunks without breaking code fences."""
     if len(text) <= max_length:
         return [text]
@@ -116,8 +114,8 @@ async def safe_send_message(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     text: str,
-    reply_to_message_id: Optional[int] = None,
-    reply_markup: Optional[InlineKeyboardMarkup] = None,
+    reply_to_message_id: int | None = None,
+    reply_markup: InlineKeyboardMarkup | None = None,
 ):
     """
     Safely send message to Telegram with automatic chunking and fallback to plain text

@@ -1,6 +1,5 @@
 """CLI constants, terminal colors, and status helpers."""
 
-import os
 import platform
 import sys
 from pathlib import Path

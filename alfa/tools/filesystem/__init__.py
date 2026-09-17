@@ -38,6 +38,19 @@ from alfa.tools.filesystem.core_file import (
     read_local_file,
     write_local_file,
 )
+
+# Re-export git worktrees, LSP, and Google Drive integrations
+from alfa.tools.filesystem.git_sandbox import (
+    git_worktree_sandbox_create,
+    git_worktree_sandbox_list,
+    git_worktree_sandbox_rollback,
+    git_worktree_sandbox_verify_and_merge,
+)
+from alfa.tools.filesystem.lsp_code_intelligence import (
+    lsp_analyze_module_hierarchy,
+    lsp_find_symbol_definition,
+    lsp_find_symbol_references,
+)
 from alfa.tools.filesystem.office_convert import (
     libreoffice_convert_document,
     libreoffice_create_document,
@@ -58,19 +71,6 @@ from alfa.tools.filesystem.vault import (
     vault_get_secret,
     vault_list_secrets,
     vault_store_secret,
-)
-
-# Re-export git worktrees, LSP, and Google Drive integrations
-from git_sandbox import (
-    git_worktree_sandbox_create,
-    git_worktree_sandbox_list,
-    git_worktree_sandbox_rollback,
-    git_worktree_sandbox_verify_and_merge,
-)
-from lsp_code_intelligence import (
-    lsp_analyze_module_hierarchy,
-    lsp_find_symbol_definition,
-    lsp_find_symbol_references,
 )
 
 __all__ = [

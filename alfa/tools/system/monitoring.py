@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import psutil
 
@@ -17,7 +17,7 @@ logger = logging.getLogger("AgentTools.System")
 
 
 @register_tool(category="system")
-def get_system_stats() -> Dict[str, Any]:
+def get_system_stats() -> dict[str, Any]:
     """
     Get real-time Linux system health metrics including CPU cores/frequencies, RAM, Swap,
     Disk usage, Network interfaces, Battery/Thermal status, Uptime, and Top Processes.
@@ -100,7 +100,7 @@ def get_system_stats() -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def control_linux_hardware(action: str, value: str = "") -> Dict[str, Any]:
+def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
     """
     Control Linux laptop/server hardware, audio, screen lock, power, Wi-Fi, and media from Telegram.
     """
@@ -222,7 +222,7 @@ def control_linux_hardware(action: str, value: str = "") -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
+def list_running_processes(filter_name: str = "") -> dict[str, Any]:
     """
     List currently running processes on the system, sorted by memory usage.
     """
@@ -271,7 +271,7 @@ def list_running_processes(filter_name: str = "") -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def kill_process(pid_or_name: str) -> Dict[str, Any]:
+def kill_process(pid_or_name: str) -> dict[str, Any]:
     """
     Terminate/kill a running process by PID number or process name.
     """
@@ -316,7 +316,7 @@ def kill_process(pid_or_name: str) -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def clean_system_storage(dry_run: bool = True) -> Dict[str, Any]:
+def clean_system_storage(dry_run: bool = True) -> dict[str, Any]:
     """
     GOD MODE: Smart Linux Storage Cleaner & Optimizer.
     """
@@ -369,7 +369,7 @@ def clean_system_storage(dry_run: bool = True) -> Dict[str, Any]:
 @register_tool(category="system")
 def manage_system_services(
     service_name: str, action: str = "status", scope: str = "user"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Linux Systemd Services Controller.
     """
@@ -444,7 +444,7 @@ def manage_system_services(
 @register_tool(category="system")
 def manage_crontab_jobs(
     action: str = "list", cron_line: str = "", search_pattern: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Real Linux OS Crontab Manager.
     """
@@ -521,7 +521,7 @@ def manage_crontab_jobs(
 
 
 @register_tool(category="system")
-def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
+def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
     """
     GOD MODE: Autonomous System Diagnostic & Self-Healing Engine.
     """
@@ -600,7 +600,7 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def self_restart_service() -> Dict[str, Any]:
+def self_restart_service() -> dict[str, Any]:
     """
     GOD MODE: Self-Restart the bot service to apply code changes.
     """
@@ -654,7 +654,7 @@ def proactive_system_guardian_config(
     disk_threshold: int = 90,
     battery_critical: int = 10,
     auto_kill_ram_hogs: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Configure the Proactive System Guardian daemon.
     """
@@ -666,7 +666,7 @@ def proactive_system_guardian_config(
 
         if action == "status":
             if os.path.exists(config_path):
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     config = json.load(f)
                 return {"status": "success", "guardian": config}
             return {
@@ -718,7 +718,7 @@ def proactive_ambient_agent_config(
     min_hours_between_pings: int = 3,
     quiet_hours_start: int = 23,
     quiet_hours_end: int = 7,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Configure Ambient Proactive Autonomous Engagement.
     """
@@ -730,7 +730,7 @@ def proactive_ambient_agent_config(
 
         if action == "status":
             if os.path.exists(config_path):
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     config = json.load(f)
                 return {"status": "success", "proactive_config": config}
             return {

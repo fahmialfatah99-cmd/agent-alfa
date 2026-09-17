@@ -7,7 +7,7 @@ import os
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -20,10 +20,10 @@ chat_router = APIRouter(tags=["chat"])
 
 
 @chat_router.post("/api/chat")
-async def chat_with_agent(payload: Dict[str, Any]):
+async def chat_with_agent(payload: dict[str, Any]):
     """Send a message directly to the ALFA Agent with optional multimodal attachments and sub-second Fast-Path tool execution."""
-    import fast_path_executor as fpe
-    import universal_file_extractor as ufe
+    from alfa.core import fast_path_executor as fpe
+    from alfa.tools.filesystem import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []
@@ -111,10 +111,10 @@ async def chat_with_agent(payload: Dict[str, Any]):
 
 
 @chat_router.post("/api/chat/stream")
-async def chat_with_agent_stream(payload: Dict[str, Any]):
+async def chat_with_agent_stream(payload: dict[str, Any]):
     """Server-Sent Events (SSE) streaming endpoint for real-time token delivery and live reasoning steps."""
-    import fast_path_executor as fpe
-    import universal_file_extractor as ufe
+    from alfa.core import fast_path_executor as fpe
+    from alfa.tools.filesystem import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or payload.get("files") or []
@@ -392,7 +392,7 @@ async def get_chat_available_models():
 
 
 @chat_router.post("/api/chat/model")
-async def set_chat_active_model(payload: Dict[str, Any]):
+async def set_chat_active_model(payload: dict[str, Any]):
     """Set and persist default active model."""
     model = (payload.get("model") or "").strip()
     key_id = payload.get("key_id")
@@ -429,7 +429,7 @@ async def clear_chat_history_api():
 
 
 @chat_router.post("/api/chat/execute-code")
-async def execute_chat_code_block(payload: Dict[str, Any]):
+async def execute_chat_code_block(payload: dict[str, Any]):
     """Live Interactive Code Sandbox Execution right from Chat Code Blocks."""
     language = (payload.get("language") or "python").lower().strip()
     raw_code = (payload.get("code") or "").strip()
@@ -562,9 +562,9 @@ async def get_chat_expert_modes():
 
 
 @chat_router.post("/api/chat/async")
-async def chat_with_agent_async(payload: Dict[str, Any]):
+async def chat_with_agent_async(payload: dict[str, Any]):
     """Kirim tugas ke agent secara LATAR BELAKANG (fire-and-forget)."""
-    import universal_file_extractor as ufe
+    from alfa.tools.filesystem import universal_file_extractor as ufe
 
     message = (payload.get("message") or "").strip()
     attachments = payload.get("attachments") or []

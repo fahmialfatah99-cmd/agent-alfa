@@ -1,23 +1,14 @@
 import asyncio
 import json
-import logging
 import os
-import shutil
-import sqlite3
-import subprocess
-import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
-from dotenv import dotenv_values
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import HTMLResponse
 
 from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import REPO_ROOT, safe_int
 
 router = APIRouter()
 
@@ -36,7 +27,7 @@ async def gdrive_status_endpoint():
         project_id = ""
         if has_file:
             try:
-                with open(cred_file, "r", encoding="utf-8") as f:
+                with open(cred_file, encoding="utf-8") as f:
                     cdata = json.load(f)
                     account_email = cdata.get("client_email", "")
                     project_id = cdata.get("project_id", "")
@@ -66,7 +57,7 @@ async def gdrive_status_endpoint():
 
 
 @router.post("/api/gdrive/folder")
-async def gdrive_set_default_folder(payload: Dict[str, Any]):
+async def gdrive_set_default_folder(payload: dict[str, Any]):
     """Set default Google Drive folder ID and name."""
     folder_id = payload.get("folder_id", "").strip()
     folder_name = payload.get("folder_name", "alfa agent").strip()
@@ -98,7 +89,7 @@ async def gdrive_set_default_folder(payload: Dict[str, Any]):
 
 @router.post("/api/gdrive/credentials")
 async def gdrive_save_credentials(
-    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
+    file: UploadFile | None = File(None), raw_json: str | None = Form(None)
 ):
     """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
     cred_file = os.path.join(REPO_ROOT, "gdrive_credentials.json")
@@ -173,7 +164,7 @@ async def gdrive_oauth_secret_check():
     }
     if result["exists"]:
         try:
-            with open(secret_path, "r", encoding="utf-8") as f:
+            with open(secret_path, encoding="utf-8") as f:
                 probe = json.load(f)
             if isinstance(probe, dict) and ("installed" in probe or "web" in probe):
                 result["kind"] = "oauth_client"
@@ -188,7 +179,7 @@ async def gdrive_oauth_secret_check():
 
 @router.post("/api/gdrive/oauth/upload-secret")
 async def gdrive_oauth_upload_secret(
-    file: Optional[UploadFile] = File(None), raw_json: Optional[str] = Form(None)
+    file: UploadFile | None = File(None), raw_json: str | None = Form(None)
 ):
     """Upload OAuth Client Secret JSON (Desktop or Web App) or paste raw JSON."""
     content = ""
@@ -216,7 +207,7 @@ async def gdrive_oauth_auth_url(request: Request):
 
 @router.get("/api/gdrive/oauth/callback")
 async def gdrive_oauth_callback(
-    code: Optional[str] = None, error: Optional[str] = None, request: Request = None
+    code: str | None = None, error: str | None = None, request: Request = None
 ):
     """Handle OAuth redirect callback from Google."""
     if error:
@@ -274,7 +265,7 @@ async def gdrive_oauth_callback(
 
 @router.post("/api/gdrive/oauth/exchange-code")
 async def gdrive_oauth_exchange_code_endpoint(
-    payload: Dict[str, Any], request: Request
+    payload: dict[str, Any], request: Request
 ):
     """Exchange manually pasted authorization code for OAuth token."""
     code = payload.get("code", "").strip()
@@ -319,9 +310,9 @@ async def gdrive_list_files_endpoint(
 
 @router.post("/api/gdrive/upload")
 async def gdrive_upload_endpoint(
-    file: Optional[UploadFile] = File(None),
-    filepath: Optional[str] = Form(None),
-    folder_id: Optional[str] = Form(""),
+    file: UploadFile | None = File(None),
+    filepath: str | None = Form(None),
+    folder_id: str | None = Form(""),
 ):
     """Upload a file to Google Drive."""
     if file:
@@ -340,7 +331,7 @@ async def gdrive_upload_endpoint(
 
 
 @router.post("/api/gdrive/create-folder")
-async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
+async def gdrive_create_folder_endpoint(payload: dict[str, Any]):
     """Create a folder in Google Drive."""
     folder_name = payload.get("name")
     parent_id = payload.get("parent_id", "")
@@ -352,7 +343,7 @@ async def gdrive_create_folder_endpoint(payload: Dict[str, Any]):
 
 
 @router.post("/api/gdrive/sync-brain")
-async def gdrive_sync_brain_endpoint(payload: Dict[str, Any] = None):
+async def gdrive_sync_brain_endpoint(payload: dict[str, Any] = None):
     """Sync Google Drive documents to Neural Vector Brain."""
     folder_id = (payload or {}).get("folder_id", "")
     limit = safe_int((payload or {}).get("limit", 10), 10, minimum=1, maximum=100)

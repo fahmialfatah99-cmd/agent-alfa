@@ -1,12 +1,8 @@
 """Web search, page fetching, and security audit tools."""
 
-import datetime
-import json
 import logging
-import os
 import re
-import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 
@@ -19,7 +15,7 @@ logger = logging.getLogger("AgentTools.Web.Search")
 
 
 @register_tool(category="web")
-def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
+def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
     """
     Perform a live web search using DuckDuckGo to get up-to-date real-time information, news, or facts.
     Use this tool whenever the user asks about current events, stock prices, weather, documentation, or recent news.
@@ -63,7 +59,7 @@ def web_search(query: str, max_results: int = 5) -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def fetch_web_page_content(url: str, max_length: int = 5000) -> Dict[str, Any]:
+def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
     """
     Fetch and extract clean text and structured content from any website or article URL.
     Uses multi-tier stealth engine (Fast TLS -> Stealthy Scrapling -> MarkItDown) to bypass anti-bot protections.
@@ -172,7 +168,7 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> Dict[str, Any]:
 
 
 @register_tool(category="web")
-def audit_website_security(target_url: str) -> Dict[str, Any]:
+def audit_website_security(target_url: str) -> dict[str, Any]:
     """
     Conduct a Defensive Cybersecurity Audit on a website or API endpoint (Cyber Sentry):
     Audits SSL/TLS certificate, Security Headers (CSP, HSTS, X-Frame-Options, XSS, etc.),

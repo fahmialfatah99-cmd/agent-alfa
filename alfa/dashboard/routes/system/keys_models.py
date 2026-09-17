@@ -1,23 +1,10 @@
-import asyncio
-import json
-import logging
-import os
-import shutil
-import sqlite3
-import subprocess
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import aiosqlite
-import psutil
-from dotenv import dotenv_values
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import APIRouter, HTTPException
 
-from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger, safe_int
+from alfa.dashboard.common import safe_int
 
 router = APIRouter()
 
@@ -46,7 +33,7 @@ async def get_api_keys_usage(hours: int = 24):
 
 
 @router.post("/api/keys")
-async def add_api_key_endpoint(payload: Dict[str, Any]):
+async def add_api_key_endpoint(payload: dict[str, Any]):
     """Add a new API key to the vault."""
     name = payload.get("name")
     provider = payload.get("provider", "gemini")
@@ -719,7 +706,7 @@ async def get_available_models():
 
 
 @router.post("/api/keys/validate")
-async def validate_raw_api_key(payload: Dict[str, Any]):
+async def validate_raw_api_key(payload: dict[str, Any]):
     """Test ping connection for unsaved raw credentials before saving."""
     provider = payload.get("provider", "gemini")
     api_key = payload.get("api_key", "").strip()
@@ -870,9 +857,9 @@ async def validate_raw_api_key(payload: Dict[str, Any]):
 
 
 @router.post("/api/antigravity/login/start")
-async def antigravity_login_start(payload: Dict[str, Any]):
+async def antigravity_login_start(payload: dict[str, Any]):
     """Mulai sesi login Google utk akun Antigravity baru."""
-    import antigravity_login as agy_oauth
+    from alfa.integrations import antigravity_login as agy_oauth
 
     name = payload.get("name", "").strip().lower()
     if not name:
@@ -883,21 +870,21 @@ async def antigravity_login_start(payload: Dict[str, Any]):
 
 @router.get("/api/antigravity/login/status")
 async def antigravity_login_status(name: str = ""):
-    import antigravity_login as agy_oauth
+    from alfa.integrations import antigravity_login as agy_oauth
 
     return agy_oauth.login_status(name)
 
 
 @router.get("/api/antigravity/accounts")
 async def antigravity_accounts():
-    import antigravity_login as agy_oauth
+    from alfa.integrations import antigravity_login as agy_oauth
 
     return {"status": "success", "accounts": agy_oauth.list_accounts()}
 
 
 @router.post("/api/antigravity/logout")
-async def antigravity_logout_endpoint(payload: Dict[str, Any]):
-    import antigravity_login as agy_oauth
+async def antigravity_logout_endpoint(payload: dict[str, Any]):
+    from alfa.integrations import antigravity_login as agy_oauth
 
     return agy_oauth.remove_account(payload.get("name", ""))
 
@@ -909,7 +896,7 @@ async def antigravity_logout_endpoint(payload: Dict[str, Any]):
 async def get_traces_endpoint(limit: int = 50):
     """Ambil riwayat trace observability terbaru."""
     try:
-        import tracing
+        from alfa.core import tracing
 
         traces = tracing.get_recent_traces(n=min(200, max(1, limit)))
         return {"status": "success", "total": len(traces), "traces": traces}
@@ -921,7 +908,7 @@ async def get_traces_endpoint(limit: int = 50):
 async def get_trace_detail_endpoint(trace_id: str):
     """Ambil detail span dari satu trace ID tertentu."""
     try:
-        import tracing
+        from alfa.core import tracing
 
         spans = tracing.get_trace_by_id(trace_id)
         return {"status": "success", "trace_id": trace_id, "spans": spans}

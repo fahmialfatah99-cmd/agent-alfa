@@ -5,10 +5,8 @@ import json
 import logging
 import os
 import sys
-from typing import Any, Dict, List, Optional
 
 import plugins
-import token_usage
 from alfa.bot.config import (
     ALFA_PROMPT_PATH,
     ANTIGRAVITY_WORKFLOW_BLOCK,
@@ -24,7 +22,6 @@ from alfa.bot.config import (
     SUPERPOWERS_SKILLS_BLOCK,
     TOOL_FIRST_EXECUTION_BLOCK,
     UI_UX_PRO_MAX_BLOCK,
-    gemini_client,
     resolve_main_gemini,
 )
 from alfa.bot.helpers import (
@@ -35,11 +32,10 @@ from alfa.bot.helpers import (
 )
 from alfa.bot.streamer import TelegramStreamer
 from alfa.core import brain as main_brain
-from alfa.core import database
+from alfa.core import database, token_usage
 from alfa.core import permissions as permission_gate
 from alfa.tools import (
     AVAILABLE_TOOLS,
-    SANDBOX_DIR,
     current_chat_id_var,
     current_user_id_var,
 )
@@ -54,11 +50,11 @@ def _get_bot():
 async def run_agent_turn(
     user_id: int,
     user_prompt: str,
-    multimodal_parts: Optional[list] = None,
-    chat_id: Optional[int] = None,
-    override_model: Optional[str] = None,
-    override_key_id: Optional[int] = None,
-    streamer: Optional[TelegramStreamer] = None,
+    multimodal_parts: list | None = None,
+    chat_id: int | None = None,
+    override_model: str | None = None,
+    override_key_id: int | None = None,
+    streamer: TelegramStreamer | None = None,
 ) -> str:
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
@@ -190,7 +186,7 @@ async def run_agent_turn(
 
     if should_search_rag:
         try:
-            import vector_memory
+            from alfa.memory import vector as vector_memory
 
             brain_hits = vector_memory.semantic_search(
                 user_id=user_id, query=user_prompt or "", top_k=4
@@ -227,7 +223,7 @@ async def run_agent_turn(
     active_base_prompt = BASE_SYSTEM_PROMPT
     if os.path.exists(ALFA_PROMPT_PATH):
         try:
-            with open(ALFA_PROMPT_PATH, "r", encoding="utf-8") as f:
+            with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
                 active_base_prompt = f.read().strip()
         except Exception:
             pass
@@ -337,7 +333,7 @@ async def run_agent_turn(
         if reply_text:
             await _db.save_chat_message(user_id, "model", reply_text)
             try:
-                import memory_reflection
+                from alfa.memory import reflection as memory_reflection
 
                 refl_history = list(history_rows) + [
                     {"role": "user", "content": display_user_text},
@@ -383,7 +379,7 @@ async def run_agent_turn(
 
             gemini_tools = all_tools
             try:
-                from tool_rag import select_relevant_functions
+                from alfa.tools.rag import select_relevant_functions
 
                 gemini_tools = select_relevant_functions(
                     all_tools, user_prompt or "", history=history_msgs

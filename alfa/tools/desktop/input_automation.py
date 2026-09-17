@@ -1,14 +1,10 @@
 """Desktop GUI automation, vision, screenshot, and webcam tools."""
 
-import datetime
-import json
 import logging
 import os
 import re
 import subprocess
-import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -20,7 +16,7 @@ from alfa.tools.desktop.capture import capture_desktop_screenshot
 
 def desktop_click_coordinate(
     x: int, y: int, button: str = "left", clicks: int = 1
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Simulate a hardware mouse click on specific pixel coordinates (X, Y) on the Linux desktop screen.
     Use this tool for GUI desktop automation (e.g. clicking buttons, icons, or menus on active windows).
@@ -77,7 +73,7 @@ def desktop_click_coordinate(
 
 
 @register_tool(category="media")
-def desktop_type_keys(text: str = "", hotkey: str = "") -> Dict[str, Any]:
+def desktop_type_keys(text: str = "", hotkey: str = "") -> dict[str, Any]:
     """
     Type text or press keyboard shortcuts/hotkeys on the active Linux desktop window.
 
@@ -120,7 +116,7 @@ def desktop_type_keys(text: str = "", hotkey: str = "") -> Dict[str, Any]:
 
 
 @register_tool(category="media")
-def desktop_launch_app(app_name_or_command: str) -> Dict[str, Any]:
+def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
     """
     Launch a Linux GUI software application in the background (e.g. 'code', 'brave-browser', 'spotify', 'nautilus').
 
@@ -145,7 +141,7 @@ def desktop_launch_app(app_name_or_command: str) -> Dict[str, Any]:
 @register_tool(category="media")
 def vision_click_target(
     target_description: str, max_attempts: int = 3, action: str = "click"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Vision-guided autonomous computer use loop.
     Takes a screenshot of the desktop, sends it to Gemini Vision AI to locate a target

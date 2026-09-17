@@ -4,11 +4,9 @@ import base64
 import hashlib
 import hmac
 import json
-import logging
-import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -49,7 +47,7 @@ def _create_session_token(user_id: int, username: str) -> str:
     return f"{payload}|||{signature}"
 
 
-def _verify_session_token(token: str) -> Optional[Dict[str, Any]]:
+def _verify_session_token(token: str) -> dict[str, Any] | None:
     """Verifikasi dan decode session token."""
     try:
         parts = token.split("|||")
@@ -132,7 +130,7 @@ def init_auth_db():
 
 def create_user(
     username: str, password: str, telegram_user_id: int = None, is_admin: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Buat user baru di database."""
     import sqlite3
 
@@ -165,7 +163,7 @@ def create_user(
         db.get_connection_pool().release(conn)
 
 
-def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
+def authenticate_user(username: str, password: str) -> dict[str, Any] | None:
     """Autentikasi user dan return info user jika berhasil."""
     from alfa.core import database as db
 
@@ -232,7 +230,7 @@ def store_session(user_id: int, token: str) -> None:
         db.get_connection_pool().release(conn)
 
 
-def validate_session(token: str) -> Optional[Dict[str, Any]]:
+def validate_session(token: str) -> dict[str, Any] | None:
     """Validasi session token dari database."""
     from alfa.core import database as db
 
@@ -290,7 +288,7 @@ def invalidate_session(token: str) -> bool:
         db.get_connection_pool().release(conn)
 
 
-def get_all_users() -> List[Dict[str, Any]]:
+def get_all_users() -> list[dict[str, Any]]:
     """Dapatkan daftar semua users (hanya admin)."""
     from alfa.core import database as db
 
@@ -416,7 +414,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
 
 
 @auth_router.post("/api/auth/register")
-async def register_user(payload: Dict[str, Any]):
+async def register_user(payload: dict[str, Any]):
     """Register user baru untuk akses dashboard."""
     username = payload.get("username", "").strip()
     password = payload.get("password", "")
@@ -451,7 +449,7 @@ async def register_user(payload: Dict[str, Any]):
 
 
 @auth_router.post("/api/auth/login")
-async def login_user(payload: Dict[str, Any]):
+async def login_user(payload: dict[str, Any]):
     """Login user dan buat session token."""
     username = payload.get("username", "").strip()
     password = payload.get("password", "")

@@ -4,9 +4,8 @@ import asyncio
 import concurrent.futures
 import json
 import logging
-import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.core import database
 from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
@@ -21,7 +20,7 @@ def self_add_new_tool(
     tool_description: str,
     tool_code: str,
     test_arguments_json: str = "{}",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     GOD MODE: Self-Evolution Engine — dynamically writes, compiles, sandbox-tests, and hot-loads
     a brand new Python tool into the plugins/ directory.
@@ -43,7 +42,7 @@ def self_add_new_tool(
 
 
 @register_tool(category="system")
-def list_dynamic_plugins() -> Dict[str, Any]:
+def list_dynamic_plugins() -> dict[str, Any]:
     """
     List all dynamically created and hot-loaded plugin tools currently available in the system.
     """
@@ -61,7 +60,7 @@ def list_dynamic_plugins() -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def delete_dynamic_plugin(tool_name: str) -> Dict[str, Any]:
+def delete_dynamic_plugin(tool_name: str) -> dict[str, Any]:
     """
     Permanently delete a dynamic plugin tool from disk and unregister from memory.
     """
@@ -74,7 +73,7 @@ def delete_dynamic_plugin(tool_name: str) -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def query_token_usage(hours: int = 24) -> Dict[str, Any]:
+def query_token_usage(hours: int = 24) -> dict[str, Any]:
     """
     Laporan pemakaian token AI per API key (realtime dari dashboard vault).
     """
@@ -105,7 +104,7 @@ def query_token_usage(hours: int = 24) -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def open_web_dashboard(port: int = 8080) -> Dict[str, Any]:
+def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
     """
     ALFA OS: Web Command Center Dashboard Controller.
     """
@@ -162,7 +161,7 @@ def manage_api_keys(
     default_model: str = "gemini-3.6-flash",
     base_url: str = "",
     key_id: int = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Manage API keys and multi-provider endpoints.
     """
@@ -216,7 +215,7 @@ def manage_custom_agents(
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",
     agent_id: int = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Manage the Autonomous AI Agent Workforce (Society of Agents).
     """
@@ -279,7 +278,7 @@ def conduct_ai_meeting(
     rounds: int = 2,
     mode: str = "execute",
     folder: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Jalankan SWARM EKSEKUSI LANGSUNG: agen bekerja nyata memakai tool.
     """
@@ -328,12 +327,12 @@ def conduct_ai_meeting(
 @register_tool(category="system")
 def spawn_background_subagent(
     task_description: str, agent_role: str = "Researcher & Coder"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Spawn an autonomous background subagent worker to solve a complex task.
     """
     try:
-        import subagents
+        from alfa.swarm import subagents
 
         user_id = get_current_user_id()
         chat_id = get_current_chat_id()
@@ -348,7 +347,7 @@ def spawn_background_subagent(
 
 
 @register_tool(category="system")
-def check_subagent_status(subagent_id: str) -> Dict[str, Any]:
+def check_subagent_status(subagent_id: str) -> dict[str, Any]:
     """
     Check execution status and report of a background subagent by task ID.
     """
@@ -367,7 +366,7 @@ def check_subagent_status(subagent_id: str) -> Dict[str, Any]:
 @register_tool(category="system")
 def add_recurring_task(
     title: str, prompt_instruction: str, interval_minutes: int = 60
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Schedule an autonomous recurring task or proactive watchdog.
     """
@@ -391,7 +390,7 @@ def add_recurring_task(
 
 
 @register_tool(category="system")
-def list_recurring_tasks() -> Dict[str, Any]:
+def list_recurring_tasks() -> dict[str, Any]:
     """
     List all active recurring tasks and watchdogs scheduled for the user.
     """
@@ -404,7 +403,7 @@ def list_recurring_tasks() -> Dict[str, Any]:
 
 
 @register_tool(category="system")
-def cancel_recurring_task(task_id: int) -> Dict[str, Any]:
+def cancel_recurring_task(task_id: int) -> dict[str, Any]:
     """
     Cancel and delete a scheduled recurring task or watchdog by its ID.
     """

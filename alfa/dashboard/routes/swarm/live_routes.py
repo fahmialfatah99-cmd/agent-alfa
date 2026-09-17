@@ -1,15 +1,11 @@
-import asyncio
 import json
-import logging
 import os
 import re
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from alfa.core import database
-from alfa.dashboard.common import logger, safe_int
+from alfa.dashboard.common import safe_int
 
 router = APIRouter()
 
@@ -30,7 +26,7 @@ PERSONA_ID_MAP = {
 }
 
 
-def _resolve_persona_id(name: Optional[str]) -> Optional[str]:
+def _resolve_persona_id(name: str | None) -> str | None:
     """Map human or role string to one of the 4 canonical persona IDs."""
     if not name:
         return None
@@ -41,7 +37,7 @@ def _resolve_persona_id(name: Optional[str]) -> Optional[str]:
     return None
 
 
-def _extract_speaker_from_entry(e: Dict[str, Any]) -> Optional[str]:
+def _extract_speaker_from_entry(e: dict[str, Any]) -> str | None:
     """Extract persona/speaker name from a live feed entry."""
     if not isinstance(e, dict):
         return None
@@ -84,7 +80,7 @@ def _extract_speaker_from_entry(e: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def detect_active_speaker(entries: List[Dict[str, Any]]) -> Optional[str]:
+def detect_active_speaker(entries: list[dict[str, Any]]) -> str | None:
     """Detect the current speaking or executing agent from recent events."""
     if not entries:
         return None
@@ -95,7 +91,7 @@ def detect_active_speaker(entries: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
-def parse_swarm_stage(entries: List[Dict[str, Any]], running: bool = False) -> str:
+def parse_swarm_stage(entries: list[dict[str, Any]], running: bool = False) -> str:
     """Determine the current stage of the Swarm session: idle, plan, debate, vote, consensus, execute."""
     if not running:
         return "idle"
@@ -150,8 +146,8 @@ def parse_swarm_stage(entries: List[Dict[str, Any]], running: bool = False) -> s
 
 
 def compute_agent_states(
-    entries: List[Dict[str, Any]], running: bool = False
-) -> Dict[str, str]:
+    entries: list[dict[str, Any]], running: bool = False
+) -> dict[str, str]:
     """Compute status for each persona (commander, researcher, critic, executor): speaking, waiting, idle."""
     base_states = {
         "commander": "idle",
@@ -172,7 +168,7 @@ def compute_agent_states(
     return states
 
 
-def compute_consensus_percent(stage: str, entries: List[Dict[str, Any]]) -> int:
+def compute_consensus_percent(stage: str, entries: list[dict[str, Any]]) -> int:
     """Compute consensus agreement percentage (0 to 100) based on stage and progress."""
     if stage == "idle":
         if entries and str(entries[-1].get("tag", "")).upper() == "DONE":
@@ -194,8 +190,8 @@ def compute_consensus_percent(stage: str, entries: List[Dict[str, Any]]) -> int:
 
 
 def parse_arena_state(
-    entries: List[Dict[str, Any]], running: bool = False
-) -> Dict[str, Any]:
+    entries: list[dict[str, Any]], running: bool = False
+) -> dict[str, Any]:
     """Compile structured arena state for visualization."""
     stage = parse_swarm_stage(entries, running=running)
     active_speaker = detect_active_speaker(entries) if running else None
@@ -221,7 +217,7 @@ async def swarm_live_feed(since: int = 0):
     is_running = bool(getattr(_se, "MEETING_RUNNING", False))
     try:
         if os.path.exists(_se.LIVE_FEED_FILE):
-            with open(_se.LIVE_FEED_FILE, "r", encoding="utf-8") as f:
+            with open(_se.LIVE_FEED_FILE, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:

@@ -1,22 +1,18 @@
 import asyncio
-import json
-import logging
-import os
 import re
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 from alfa.core import database
-from alfa.dashboard.common import logger, safe_int
+from alfa.dashboard.common import logger
 
 router = APIRouter()
 
 
-def _parse_ai_sections(text: str) -> Dict[str, str]:
+def _parse_ai_sections(text: str) -> dict[str, str]:
     """Pecah output AI bertanda ===NAMA_SEKSI=== menjadi dict."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     parts = re.split(r"={3,}\s*([A-Za-z_]+)\s*={3,}", text or "")
     for i in range(1, len(parts) - 1, 2):
         out[parts[i].strip().lower()] = parts[i + 1].strip()
@@ -29,7 +25,7 @@ def _parse_ai_sections(text: str) -> Dict[str, str]:
 @router.get("/api/affiliate/campaigns")
 async def get_affiliate_campaigns(limit: int = 20):
     """Get list of active affiliate campaigns and scripts."""
-    import affiliate_engine
+    from alfa.tools.web import affiliate_engine
 
     campaigns = affiliate_engine.list_affiliate_campaigns(limit=limit)
     return {"status": "success", "total": len(campaigns), "campaigns": campaigns}
@@ -38,7 +34,7 @@ async def get_affiliate_campaigns(limit: int = 20):
 @router.get("/api/affiliate/campaigns/{campaign_id}")
 async def get_affiliate_campaign_detail(campaign_id: int):
     """Get full details of a specific affiliate campaign."""
-    import affiliate_engine
+    from alfa.tools.web import affiliate_engine
 
     data = affiliate_engine.get_affiliate_campaign_detail(campaign_id)
     if not data:
@@ -47,9 +43,9 @@ async def get_affiliate_campaign_detail(campaign_id: int):
 
 
 @router.post("/api/affiliate/generate")
-async def generate_affiliate_campaign(payload: Dict[str, Any]):
+async def generate_affiliate_campaign(payload: dict[str, Any]):
     """Generate viral affiliate campaign: template engine + personalisasi AI oleh agen Content Alchemist."""
-    import affiliate_engine
+    from alfa.tools.web import affiliate_engine
 
     product_name = payload.get("product_name", "").strip()
     key_features = payload.get("key_features", "").strip()
@@ -141,9 +137,9 @@ async def generate_affiliate_campaign(payload: Dict[str, Any]):
 
 
 @router.post("/api/affiliate/broadcast")
-async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
+async def broadcast_affiliate_campaign(payload: dict[str, Any]):
     """Broadcast an affiliate deal to Telegram / WhatsApp."""
-    import affiliate_engine
+    from alfa.tools.web import affiliate_engine
 
     product_name = payload.get("product_name", "")
     message_text = payload.get("message_text", "")
@@ -160,7 +156,7 @@ async def broadcast_affiliate_campaign(payload: Dict[str, Any]):
 
 
 @router.post("/api/video/generate")
-async def generate_promo_video(payload: Dict[str, Any]):
+async def generate_promo_video(payload: dict[str, Any]):
     """Generate 9:16 vertical promo video from images and script."""
     import video_generator
 

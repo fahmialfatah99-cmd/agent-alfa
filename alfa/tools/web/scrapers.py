@@ -1,14 +1,10 @@
 """Multi-engine scraping tools (Scrapling, Scrapy, Crawlee, Crawl4AI, Firecrawl, and Universal Scrapers)."""
 
-import json
 import logging
 import os
-import subprocess
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from alfa.tools.registry import register_tool
-from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Web.Scrapers")
 
@@ -18,7 +14,7 @@ def scrapling_stealth_fetch(
     css_selector: str = "",
     extract_type: str = "text",
     bypass_anti_bot: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     SCRAPLING STEALTH SUITE: Ultra-fast stealth web scraper engineered to bypass Cloudflare,
     Akamai, and anti-bot systems to extract structured web elements.
@@ -91,7 +87,7 @@ def scrapling_stealth_fetch(
 @register_tool(category="web")
 def scrapy_spider_quick_scrape(
     url: str, item_selectors_json: str = "{}", max_items: int = 20
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     SCRAPY FAST ENGINE: High-throughput web crawler and structured item extractor.
 
@@ -157,7 +153,7 @@ def scrapy_spider_quick_scrape(
 
 
 @register_tool(category="web")
-def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any]:
+def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> dict[str, Any]:
     """
     CRAWLEE SUITE: Industrial-grade web crawler pipeline with automatic request queueing,
     retry handling, and content aggregation.
@@ -211,7 +207,7 @@ def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> Dict[str, Any
 @register_tool(category="web")
 def crawl4ai_web_crawler(
     url: str, extract_markdown: bool = True, wait_for_selector: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     CRAWL4AI ENGINE: Asynchronous LLM-first web crawler that converts complex web pages
     into clean Markdown, fit-markdown, internal/external links, and media metadata.
@@ -264,7 +260,7 @@ def crawl4ai_web_crawler(
 
 def firecrawl_scrape_and_crawl(
     url: str, mode: str = "scrape", extract_markdown: bool = True, api_key: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     FIRECRAWL SUITE: Intelligent web scraper and crawler optimized for LLM RAG pipelines.
     Supports Firecrawl API with automatic local fallback to MarkItDown / Crawl4AI engine.
@@ -312,7 +308,7 @@ def firecrawl_scrape_and_crawl(
 @register_tool(category="web")
 def universal_deep_scraper(
     query: str, category: str = "all_marketplace", limit: int = 50
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     High-Volume Universal Pro Web Scraper:
     Scrapes large volumes (20 - 200+ results) of rich data across various categories:
@@ -342,8 +338,8 @@ def universal_deep_scraper(
 
 @register_tool(category="web")
 def scrape_custom_urls_batch(
-    urls: List[str], concurrency: int = 15, use_camoufox: bool = False
-) -> Dict[str, Any]:
+    urls: list[str], concurrency: int = 15, use_camoufox: bool = False
+) -> dict[str, Any]:
     """
     Scrape any custom list of URLs with high-speed multi-threaded workers or Camoufox stealth browser.
     Extracts page titles, meta info, prices, images, and descriptions into CSV and JSON.
@@ -367,7 +363,7 @@ def scrape_custom_urls_batch(
 
 
 @register_tool(category="web")
-def scrape_real_product_data(url: str, engine: str = "auto") -> Dict[str, Any]:
+def scrape_real_product_data(url: str, engine: str = "auto") -> dict[str, Any]:
     """
     Scrape data produk real dari Shopee, TikTok Shop, Tokopedia, atau website manapun menggunakan Camoufox Anti-Detect Browser atau Fast TLS.
     Bypass proteksi Cloudflare, bot detector, dan dynamic javascript rendering.
@@ -396,11 +392,11 @@ def scrape_real_product_data(url: str, engine: str = "auto") -> Dict[str, Any]:
 
 @register_tool(category="web")
 def scrape_large_scale_batch(
-    urls: List[str],
+    urls: list[str],
     batch_name: str = "batch_products",
     max_concurrency: int = 15,
     use_camoufox: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Scraping paralel skala besar untuk puluhan hingga ribuan URL sekaligus dengan kecepatan sangat tinggi.
     Hasil otomatis diekspor ke file JSON dan CSV di ~/Dokumen/ALFA_SCRAPER_DATA/.

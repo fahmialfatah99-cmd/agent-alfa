@@ -7,8 +7,6 @@ Uses web scraping (no API key required) or WebFetch tool integration.
 
 import csv
 import json
-import re
-import sys
 from pathlib import Path
 
 # Project root relative to this script
@@ -132,8 +130,8 @@ def get_overlay_css(style: str, brand_colors: dict) -> str:
         "gradient-dark": f"linear-gradient(135deg, {brand_colors['background']}E6, {brand_colors['background']}B3)",
         "gradient-brand": f"linear-gradient(135deg, {brand_colors['primary']}CC, {brand_colors['secondary']}99)",
         "gradient-accent": f"linear-gradient(135deg, {brand_colors['accent']}99, transparent)",
-        "blur-dark": f"rgba(13,13,13,0.8)",
-        "desaturate-dark": f"rgba(13,13,13,0.7)",
+        "blur-dark": "rgba(13,13,13,0.8)",
+        "desaturate-dark": "rgba(13,13,13,0.7)",
     }
     return overlays.get(style, overlays["gradient-dark"])
 
