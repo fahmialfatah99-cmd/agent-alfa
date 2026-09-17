@@ -1,70 +1,87 @@
-# Dependencies
+```
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-.coveragerc
-
-# Databases & Runtime storage
-*.db
-*.db-shm
-*.db-wal
-agent_data.db.bak
-agent_data.db.local_backup
-storage/
-guardian_err.log
-bot_err.log
-bot_out.log
-dash_err.log
-dash_out.log
-
-# Node dependencies
-node_modules/
-devcli/node_modules/
-package-lock.json
-alfa/package-lock.json
-alfa-cli/
+.Python
+*.so
+*.egg-info/
+.eggs/
 
 # Virtual environments
-.venv/
 venv/
+.venv/
 env/
+ENV/
+.ENV/
 
 # Build artifacts
 build/
 dist/
+*.egg
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
 *.egg-info/
+.eggs/
+
+# Testing
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.hypothesis/
 
 # Logs
 *.log
 
-# Environment variables & Keys
+# Environment variables
 .env
 .env.local
+*.env
 *.env.*
-*.key
-.alfa_vault_master.key
-gdrive_oauth_client_secret.json
-gdrive_oauth_token.json
 
-# Editors
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
-
-# OS generated files
+*~
 .DS_Store
 Thumbs.db
 
-# Coverage
-coverage/
+# Distribution / packaging
+.Python
+__pycache__/
+*.py[cod]
+*$py.class
+*$pyc.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Scratch & Worktrees
-.superpowers/
-.alfa_worktrees/
+# System files
+.DS_Store
+Thumbs.db
+```
