@@ -1,0 +1,39 @@
+{
+  "id": "riset_dan_ringkas",
+  "name": "Riset lalu Ringkas",
+  "description": "Cari topik di web -> rangkum 3 poin -> simpan ke sandbox.",
+  "vars": {
+    "topik": "AI Indonesia",
+    "out_dir": "/dev/shm/alfa_sandbox/pipeline_out"
+  },
+  "steps": [
+    {
+      "id": "cari",
+      "type": "tool",
+      "tool": "web_search",
+      "args": {
+        "query": "berita {{topik}} terbaru"
+      }
+    },
+    {
+      "id": "rangkum",
+      "type": "prompt",
+      "text": "Ringkas hasil pencarian ini menjadi 3 poin utama:\n{{cari}}",
+      "depends_on": [
+        "cari"
+      ]
+    },
+    {
+      "id": "simpan",
+      "type": "tool",
+      "tool": "write_local_file",
+      "args": {
+        "file_path": "{{out_dir}}/ringkasan_{{topik}}.md",
+        "content": "# Ringkasan {{topik}}\n\n{{rangkum}}"
+      },
+      "depends_on": [
+        "rangkum"
+      ]
+    }
+  ]
+}
