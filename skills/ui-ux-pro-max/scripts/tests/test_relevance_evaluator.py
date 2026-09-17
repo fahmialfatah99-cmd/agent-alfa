@@ -6,8 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = next(parent for parent in Path(__file__).resolve().parents
-            if (parent / "scripts/evaluate-relevance.py").exists())
+ROOT = next(
+    parent
+    for parent in Path(__file__).resolve().parents
+    if (parent / "scripts/evaluate-relevance.py").exists()
+)
 MODULE_PATH = ROOT / "scripts/evaluate-relevance.py"
 SPEC = importlib.util.spec_from_file_location("evaluate_relevance", MODULE_PATH)
 evaluator = importlib.util.module_from_spec(SPEC)
@@ -61,7 +64,9 @@ class TestFixtureValidation(unittest.TestCase):
         }
 
     def test_valid_schema(self):
-        self.assertEqual(evaluator.validate_fixture(self.valid_fixture(), {"style": {}}, []), [])
+        self.assertEqual(
+            evaluator.validate_fixture(self.valid_fixture(), {"style": {}}, []), []
+        )
 
     def test_rejects_bad_count_duplicate_id_and_grade(self):
         fixture = self.valid_fixture()
@@ -86,10 +91,16 @@ class TestThresholdGate(unittest.TestCase):
             for name in ("core.py", "design_system.py", "reasoning_contract.py"):
                 (runtime / name).write_text(name, encoding="utf-8")
             (data / "styles.csv").write_text("No,Style\n1,Test\n", encoding="utf-8")
-            evaluator.ROOT, evaluator.RUNTIME_DIR, evaluator.DATA_DIR = root, runtime, data
+            evaluator.ROOT, evaluator.RUNTIME_DIR, evaluator.DATA_DIR = (
+                root,
+                runtime,
+                data,
+            )
             try:
                 before = evaluator.runtime_fingerprint()
-                (runtime / "reasoning_contract.py").write_text("changed", encoding="utf-8")
+                (runtime / "reasoning_contract.py").write_text(
+                    "changed", encoding="utf-8"
+                )
                 self.assertNotEqual(before, evaluator.runtime_fingerprint())
             finally:
                 evaluator.ROOT, evaluator.RUNTIME_DIR, evaluator.DATA_DIR = original
@@ -100,26 +111,36 @@ class TestThresholdGate(unittest.TestCase):
             selected = Path(tmp) / "cases.json"
             selected.write_bytes(canonical.read_bytes())
             self.assertEqual(
-                evaluator.oracle_fingerprint(selected), evaluator.oracle_fingerprint(canonical))
+                evaluator.oracle_fingerprint(selected),
+                evaluator.oracle_fingerprint(canonical),
+            )
             selected.write_bytes(canonical.read_bytes() + b" ")
             self.assertNotEqual(
-                evaluator.oracle_fingerprint(selected), evaluator.oracle_fingerprint(canonical))
+                evaluator.oracle_fingerprint(selected),
+                evaluator.oracle_fingerprint(canonical),
+            )
 
     def test_metric_sample_and_locked_case_failures_are_actionable(self):
         report = {
             "metrics": {"precisionAt1": 0.5},
             "samples": {"retrieval": 1},
-            "cases": [{"id": "locked", "grades": [0], "actual": [{"Style Category": "Wrong"}]}],
+            "cases": [
+                {"id": "locked", "grades": [0], "actual": [{"Style Category": "Wrong"}]}
+            ],
         }
         manifest = {
             "metrics": {"precisionAt1": {"floor": 0.8, "tolerance": 0.01}},
             "sampleMinimums": {"retrieval": 2},
             "lockedCases": {"locked": {"withinTop": 1, "minimumGrade": 2}},
         }
-        manifest["splits"] = {"calibration": {"metrics": {}, "sampleMinimums": {}},
-                              "held_out": {"metrics": {}, "sampleMinimums": {}}}
-        report["splits"] = {"calibration": {"metrics": {}, "samples": {}},
-                            "held_out": {"metrics": {}, "samples": {}}}
+        manifest["splits"] = {
+            "calibration": {"metrics": {}, "sampleMinimums": {}},
+            "held_out": {"metrics": {}, "sampleMinimums": {}},
+        }
+        report["splits"] = {
+            "calibration": {"metrics": {}, "samples": {}},
+            "held_out": {"metrics": {}, "samples": {}},
+        }
         failures = evaluator.check_thresholds(report, manifest)
         self.assertEqual(len(failures), 3)
         self.assertTrue(any("Wrong" in failure for failure in failures))
@@ -139,14 +160,19 @@ class TestThresholdGate(unittest.TestCase):
             "runtimeFingerprint": "fingerprint",
             "oracleFingerprint": "oracle",
             "baselineRevision": "97eb2a2",
-            "metrics": {name: {"floor": float("nan")} for name in evaluator.REQUIRED_METRICS},
+            "metrics": {
+                name: {"floor": float("nan")} for name in evaluator.REQUIRED_METRICS
+            },
             "sampleMinimums": {"cases": True},
             "lockedCases": {"case": {}},
             "splits": {
                 split: {
-                    "metrics": {name: {"floor": 0.0} for name in evaluator.REQUIRED_METRICS},
+                    "metrics": {
+                        name: {"floor": 0.0} for name in evaluator.REQUIRED_METRICS
+                    },
                     "sampleMinimums": {"cases": 1},
-                } for split in ("calibration", "held_out")
+                }
+                for split in ("calibration", "held_out")
             },
         }
         errors = evaluator.validate_manifest(manifest, "fingerprint", "oracle")
@@ -168,9 +194,12 @@ class TestThresholdGate(unittest.TestCase):
             "lockedCases": {"case": {}},
             "splits": {
                 split: {
-                    "metrics": {name: {"floor": 0.0} for name in evaluator.REQUIRED_METRICS},
+                    "metrics": {
+                        name: {"floor": 0.0} for name in evaluator.REQUIRED_METRICS
+                    },
                     "sampleMinimums": {"cases": 1},
-                } for split in ("calibration", "held_out")
+                }
+                for split in ("calibration", "held_out")
             },
         }
         errors = evaluator.validate_manifest(manifest, "runtime", "expected")

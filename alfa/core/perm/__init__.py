@@ -1,6 +1,11 @@
 """Permission gate package: risk classifications, store, human-in-the-loop gate, and auditor."""
 
+from alfa.core.perm.auditor import (
+    audit_local_host_security,
+    audit_website_security,
+)
 from alfa.core.perm.constants import (
+    _LABELS,
     APPROVAL_TIMEOUT,
     DB_PATH,
     DEFAULT_TIER,
@@ -8,20 +13,10 @@ from alfa.core.perm.constants import (
     PERMISSION_GATE_ENABLED,
     PROJECT_DIR,
     REPO_ROOT,
-    RiskTier,
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
-    _LABELS,
-)
-from alfa.core.perm.store import (
-    _connect,
-    get_trust_score,
-    is_always_allowed,
-    list_always_allowed,
-    log_permission_decision,
-    save_always_allow,
-    update_trust_score,
+    RiskTier,
 )
 from alfa.core.perm.gate import (
     get_tool_tier,
@@ -32,9 +27,14 @@ from alfa.core.perm.gate import (
     should_auto_approve,
     wrap_tool_for_afc,
 )
-from alfa.core.perm.auditor import (
-    audit_local_host_security,
-    audit_website_security,
+from alfa.core.perm.store import (
+    _connect,
+    get_trust_score,
+    is_always_allowed,
+    list_always_allowed,
+    log_permission_decision,
+    save_always_allow,
+    update_trust_score,
 )
 
 __all__ = [

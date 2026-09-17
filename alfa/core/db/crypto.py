@@ -18,6 +18,7 @@ def _get_aesgcm():
     """Kembalikan objek AESGCM dari vault; None bila vault tak tersedia."""
     try:
         from vault_engine import vault
+
         return vault.aesgcm
     except Exception:
         return None
@@ -32,7 +33,12 @@ def encrypt_key(plain: str) -> str:
         return plain  # degradasi anggun bila kripto tak tersedia
     nonce = os.urandom(12)
     ct = aes.encrypt(nonce, plain.encode("utf-8"), None)
-    return _ENC_PREFIX + base64.b64encode(nonce).decode("ascii") + ":" + base64.b64encode(ct).decode("ascii")
+    return (
+        _ENC_PREFIX
+        + base64.b64encode(nonce).decode("ascii")
+        + ":"
+        + base64.b64encode(ct).decode("ascii")
+    )
 
 
 def decrypt_key(stored: str) -> str:
@@ -44,7 +50,9 @@ def decrypt_key(stored: str) -> str:
         aes = _get_aesgcm()
         if aes is None:
             return ""
-        return aes.decrypt(base64.b64decode(nonce_b64), base64.b64decode(ct_b64), None).decode("utf-8")
+        return aes.decrypt(
+            base64.b64decode(nonce_b64), base64.b64decode(ct_b64), None
+        ).decode("utf-8")
     except Exception:
         return ""
 
@@ -59,6 +67,7 @@ def mask_key(k: str) -> str:
 def migrate_encrypt_api_keys() -> Dict[str, int]:
     """Enkripsi satu kali seluruh api_key yang masih plaintext. Idempoten."""
     from alfa.core.db.connection import _get_db_path
+
     db_path = _get_db_path()
     changed, total = 0, 0
     conn = sqlite3.connect(db_path, timeout=10)
@@ -74,8 +83,15 @@ def migrate_encrypt_api_keys() -> Dict[str, int]:
                     break
                 nonce = os.urandom(12)
                 ct = aes.encrypt(nonce, val.encode("utf-8"), None)
-                stored = _ENC_PREFIX + base64.b64encode(nonce).decode("ascii") + ":" + base64.b64encode(ct).decode("ascii")
-                conn.execute("UPDATE api_keys SET api_key = ? WHERE id = ?", (stored, r["id"]))
+                stored = (
+                    _ENC_PREFIX
+                    + base64.b64encode(nonce).decode("ascii")
+                    + ":"
+                    + base64.b64encode(ct).decode("ascii")
+                )
+                conn.execute(
+                    "UPDATE api_keys SET api_key = ? WHERE id = ?", (stored, r["id"])
+                )
                 changed += 1
         conn.commit()
     finally:

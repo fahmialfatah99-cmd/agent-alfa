@@ -13,20 +13,20 @@ Modularized structure:
 """
 
 import asyncio
-from datetime import datetime
 import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from alfa import tools
 from alfa.core import database
 from alfa.swarm.live_logger import (
+    _CHECKPOINT_AVAILABLE,
     _append_feed_file,
     _build_error_context,
-    _CHECKPOINT_AVAILABLE,
     _load_last_seq,
     _record_step_error,
     _SwarmCheckpoint,
@@ -36,12 +36,12 @@ from alfa.swarm.live_logger import (
     qa_verdict_passed,
 )
 from alfa.swarm.llm_client import (
+    KNOWN_OPENAI_PROVIDERS,
     _default_gemini_model,
     _generate_with_gemini,
     _generate_with_openai_compat,
     generate_agent_response,
     get_agent_api_client,
-    KNOWN_OPENAI_PROVIDERS,
 )
 from alfa.swarm.step_executor import (
     _decompose_task,
@@ -53,16 +53,10 @@ from alfa.swarm.step_executor import (
     validate_python_code,
 )
 from alfa.swarm.workspace_hygiene import (
-    _cancel_requested,
-    _clear_cancel_flag,
     _EXEC_FS_SNAPSHOT,
-    _fs_changed_since_snapshot,
-    _harvest_new_sandbox_projects,
     _HARVEST_EXCLUDE,
-    _hash_sandbox_projects,
     _JUNK_FILE_PATTERNS,
     _SANDBOX_SNAPSHOT,
-    _sandbox_project_dirs,
     _TARGET_FOLDER,
     CANCEL_FLAG_FILE,
     LIVE_FEED_FILE,
@@ -70,9 +64,15 @@ from alfa.swarm.workspace_hygiene import (
     MAX_QA_ROUNDS,
     MAX_SWARM_AGENTS,
     MEETING_RUNNING,
+    SWARM_OUTPUT_DIR,
+    _cancel_requested,
+    _clear_cancel_flag,
+    _fs_changed_since_snapshot,
+    _harvest_new_sandbox_projects,
+    _hash_sandbox_projects,
+    _sandbox_project_dirs,
     request_cancel_swarm,
     sanitize_project_directory,
-    SWARM_OUTPUT_DIR,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,6 +94,7 @@ async def conduct_multi_agent_meeting(
     valid), SEMUA agen wajib mengedit di dalam folder tersebut.
     """
     from alfa.swarm import workspace_hygiene
+
     mode = "execute"
     session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
 
@@ -108,17 +109,36 @@ async def conduct_multi_agent_meeting(
             workspace_hygiene._TARGET_FOLDER = tf
             log_live("TARGET", f"📁 Folder kerja agen: {_TARGET_FOLDER}")
         else:
-            log_live("TARGET", f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.")
+            log_live(
+                "TARGET",
+                f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.",
+            )
 
     # AUTO-CREATE: prompt bertema membangun tapi tanpa folder pilihan
     if not _TARGET_FOLDER:
         build_kw = (
-            "buat", "bangun", "rancang", "bikin", "website", "web ",
-            "aplikasi", "landing", "dashboard", "desain", "design",
-            "script", "skrip", "program", "refactor", "perbaiki tampilan"
+            "buat",
+            "bangun",
+            "rancang",
+            "bikin",
+            "website",
+            "web ",
+            "aplikasi",
+            "landing",
+            "dashboard",
+            "desain",
+            "design",
+            "script",
+            "skrip",
+            "program",
+            "refactor",
+            "perbaiki tampilan",
         )
         if any(k in topic.lower() for k in build_kw):
-            slug = re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-") or "proyek-baru"
+            slug = (
+                re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-")
+                or "proyek-baru"
+            )
             nf = os.path.join(tools.SANDBOX_DIR, f"{slug}_{int(time.time()) % 100000}")
             try:
                 os.makedirs(nf, exist_ok=True)
@@ -136,9 +156,15 @@ async def conduct_multi_agent_meeting(
         all_agents = database.list_custom_agents_sync()
 
     if participant_names:
-        participants = [a for a in all_agents if a["name"] in participant_names and a.get("is_enabled", 1)]
+        participants = [
+            a
+            for a in all_agents
+            if a["name"] in participant_names and a.get("is_enabled", 1)
+        ]
     else:
-        participants = [a for a in all_agents if a.get("is_enabled", 1)][:MAX_SWARM_AGENTS]
+        participants = [a for a in all_agents if a.get("is_enabled", 1)][
+            :MAX_SWARM_AGENTS
+        ]
 
     if not participants:
         participants = all_agents[:3]
@@ -152,7 +178,7 @@ async def conduct_multi_agent_meeting(
                 participants=participants,
                 steps=[],
                 steps_done=0,
-                status="running"
+                status="running",
             )
         except Exception:
             pass
@@ -161,13 +187,22 @@ async def conduct_multi_agent_meeting(
     history_summary = []
     execution_steps = []
 
-    meeting_type_label = "⚡ SWARM EKSEKUSI LANGSUNG" if mode in ["execute", "plan_and_execute"] else "📋 RAPAT STRATEGIS & PLAN"
+    meeting_type_label = (
+        "⚡ SWARM EKSEKUSI LANGSUNG"
+        if mode in ["execute", "plan_and_execute"]
+        else "📋 RAPAT STRATEGIS & PLAN"
+    )
     meeting_title = f"{meeting_type_label}: {topic[:60]}"
 
-    logger.info(f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id}).")
+    logger.info(
+        f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id})."
+    )
     workspace_hygiene.MEETING_RUNNING = True
     _clear_cancel_flag()
-    log_live("SESSION", f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)")
+    log_live(
+        "SESSION",
+        f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)",
+    )
 
     _SANDBOX_SNAPSHOT.clear()
     _SANDBOX_SNAPSHOT.update(_sandbox_project_dirs())
@@ -187,7 +222,11 @@ async def conduct_multi_agent_meeting(
     actual_rounds = 0
     for r in range(1, actual_rounds + 1):
         for agent in participants:
-            context_text = "\n".join(history_summary) if history_summary else "(Sesi baru saja dibuka oleh Alpha Lead)"
+            context_text = (
+                "\n".join(history_summary)
+                if history_summary
+                else "(Sesi baru saja dibuka oleh Alpha Lead)"
+            )
             if mode in ["execute", "plan_and_execute"]:
                 prompt = (
                     f"=== PERINTAH EKSEKUSI LANGSUNG SWARM ===\n"
@@ -215,11 +254,17 @@ async def conduct_multi_agent_meeting(
                     f"3. HEMAT TOKEN & ON-POINT: Tulis 2 sampai 4 kalimat padat saja."
                 )
 
-            response_text = await generate_agent_response(
-                agent=agent,
-                prompt=prompt,
-                system_instruction=agent.get("system_instruction", "Kamu adalah anggota tim AI otonom profesional.")
-            ) or "(tidak merespons — semua provider gagal)"
+            response_text = (
+                await generate_agent_response(
+                    agent=agent,
+                    prompt=prompt,
+                    system_instruction=agent.get(
+                        "system_instruction",
+                        "Kamu adalah anggota tim AI otonom profesional.",
+                    ),
+                )
+                or "(tidak merespons — semua provider gagal)"
+            )
 
             entry = {
                 "round": r,
@@ -228,15 +273,19 @@ async def conduct_multi_agent_meeting(
                 "avatar_emoji": agent.get("avatar_emoji", "🤖"),
                 "color_theme": agent.get("color_theme", "cyan"),
                 "message": response_text,
-                "timestamp": datetime.now().strftime("%H:%M:%S")
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
             }
             dialogue_transcript.append(entry)
-            history_summary.append(f"[{agent['name']} - {agent['role']}]:\n{response_text}\n")
+            history_summary.append(
+                f"[{agent['name']} - {agent['role']}]:\n{response_text}\n"
+            )
             log_live("DIALOG", f"💬 {entry['agent_name']}: {response_text[:140]}")
 
     swarm_cancelled = False
     if mode in ["execute", "plan_and_execute"]:
-        logger.info(f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents...")
+        logger.info(
+            f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents..."
+        )
 
         subtask_map = await _decompose_task(topic, participants)
         if subtask_map:
@@ -256,8 +305,10 @@ async def conduct_multi_agent_meeting(
             _wave_size = 1
 
         def _build_task_desc(agent: Dict[str, Any], err_ctx: str) -> str:
-            td = subtask_map.get(agent["name"]) or \
-                f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            td = (
+                subtask_map.get(agent["name"])
+                or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
+            )
             if err_ctx:
                 td += f"\n\n{err_ctx}"
             target_fol = workspace_hygiene._get_target_folder()
@@ -280,9 +331,14 @@ async def conduct_multi_agent_meeting(
 
         async def _execute_agent_step(agent: Dict[str, Any], task_desc: str):
             log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
-            step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
+            step_result = await execute_swarm_task_step(
+                agent, task_desc, topic, intent_info
+            )
             if step_result.get("deliverable_file"):
-                log_live("FILE", f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}")
+                log_live(
+                    "FILE",
+                    f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}",
+                )
 
             passed, feedback = await _verify_step_result(task_desc, step_result)
             attempts = 0
@@ -293,21 +349,28 @@ async def conduct_multi_agent_meeting(
                 and not _cancel_requested()
             ):
                 attempts += 1
-                logger.warning(f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections...")
+                logger.warning(
+                    f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections..."
+                )
                 retry_desc = (
                     f"{task_desc}\n"
                     f"PERCOBAAN SEBELUMNYA DITOLAK VERIFIKATOR: {feedback}\n"
                     f"Kerjakan ulang dan pastikan menghasilkan bukti nyata (file/data/output)."
                 )
-                step_result = await execute_swarm_task_step(agent, retry_desc, topic, intent_info)
+                step_result = await execute_swarm_task_step(
+                    agent, retry_desc, topic, intent_info
+                )
                 step_result["retry_count"] = attempts
                 passed, feedback = await _verify_step_result(retry_desc, step_result)
             return step_result, passed, feedback
 
         for wave_start in range(0, len(participants), _wave_size):
-            wave = participants[wave_start:wave_start + _wave_size]
+            wave = participants[wave_start : wave_start + _wave_size]
             if _cancel_requested():
-                log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.")
+                log_live(
+                    "CANCEL",
+                    f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.",
+                )
                 swarm_cancelled = True
                 if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
                     try:
@@ -320,7 +383,10 @@ async def conduct_multi_agent_meeting(
 
             try:
                 wave_results = await asyncio.gather(
-                    *[_execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot)) for a in wave],
+                    *[
+                        _execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot))
+                        for a in wave
+                    ],
                     return_exceptions=True,
                 )
             except Exception as wave_err:
@@ -339,17 +405,35 @@ async def conduct_multi_agent_meeting(
                 else:
                     step_result, passed, feedback = res
 
-                if not passed and step_result.get("tool_used") != "strategic_orchestration":
-                    failed_steps.append({
-                        "agent_name": agent["name"],
-                        "tool_used": step_result.get("tool_used"),
-                        "feedback": feedback,
-                        "execution_summary": step_result.get("execution_summary", ""),
-                    })
+                if (
+                    not passed
+                    and step_result.get("tool_used") != "strategic_orchestration"
+                ):
+                    failed_steps.append(
+                        {
+                            "agent_name": agent["name"],
+                            "tool_used": step_result.get("tool_used"),
+                            "feedback": feedback,
+                            "execution_summary": step_result.get(
+                                "execution_summary", ""
+                            ),
+                        }
+                    )
                     _record_step_error(session_id, step_result, feedback)
 
-                step_result["verification"] = "PASS" if passed else ("FAIL" if step_result.get("tool_used") != "strategic_orchestration" else "N/A")
-                log_live("VERIFY", f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}")
+                step_result["verification"] = (
+                    "PASS"
+                    if passed
+                    else (
+                        "FAIL"
+                        if step_result.get("tool_used") != "strategic_orchestration"
+                        else "N/A"
+                    )
+                )
+                log_live(
+                    "VERIFY",
+                    f"{'✅ PASS' if passed else '❌ FAIL'} — {agent['name']} ({step_result.get('tool_used')}){(': ' + feedback[:80]) if not passed and feedback else ''}",
+                )
                 execution_steps.append(step_result)
 
                 if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
@@ -361,47 +445,84 @@ async def conduct_multi_agent_meeting(
                             participants=participants,
                             steps=execution_steps,
                             steps_done=len(execution_steps),
-                            status="cancelled" if swarm_cancelled else "running"
+                            status="cancelled" if swarm_cancelled else "running",
                         )
                     except Exception:
                         pass
 
-                brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
+                brief = (step_result.get("execution_summary") or "")[:180].replace(
+                    "\n", " "
+                )
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
 
     # Sentinel QA Loop
-    if mode == "execute" and not swarm_cancelled and not _cancel_requested() \
-            and execution_steps and MAX_QA_ROUNDS > 0:
+    if (
+        mode == "execute"
+        and not swarm_cancelled
+        and not _cancel_requested()
+        and execution_steps
+        and MAX_QA_ROUNDS > 0
+    ):
         qa_agent = next(
-            (a for a in all_agents
-             if a.get("name") == "Sentinel QA" and a.get("is_enabled", 1)),
-            None)
+            (
+                a
+                for a in all_agents
+                if a.get("name") == "Sentinel QA" and a.get("is_enabled", 1)
+            ),
+            None,
+        )
         if not qa_agent:
             _qa_kw = ("qa", "audit", "sentinel", "quality", "tester", "uji")
             qa_agent = next(
-                (a for a in all_agents
-                 if a.get("is_enabled", 1) and (
-                     any(k in a.get("name", "").lower() for k in _qa_kw)
-                     or any(k in a.get("role", "").lower() for k in _qa_kw))),
-                None)
+                (
+                    a
+                    for a in all_agents
+                    if a.get("is_enabled", 1)
+                    and (
+                        any(k in a.get("name", "").lower() for k in _qa_kw)
+                        or any(k in a.get("role", "").lower() for k in _qa_kw)
+                    )
+                ),
+                None,
+            )
         if qa_agent:
             fix_feedback = ""
             zero_bug = False
             for qa_round in range(1, MAX_QA_ROUNDS + 1):
                 if _cancel_requested():
                     break
-                deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+                deliverables = [
+                    s["deliverable_file"]
+                    for s in execution_steps
+                    if s.get("deliverable_file")
+                ]
                 work_summary = "\n".join(
                     f"- {s['agent_name']} ({s.get('tool_used','?')}): {(s.get('execution_summary') or '')[:220]}"
-                    for s in execution_steps)
+                    for s in execution_steps
+                )
                 target_fol = workspace_hygiene._get_target_folder()
-                log_live("QA", f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...")
+                log_live(
+                    "QA",
+                    f"🛡️ Sentinel QA putaran {qa_round}/{MAX_QA_ROUNDS}: menguji hasil kerja tim...",
+                )
                 qa_task = (
                     f"=== MISI TIM YANG HARUS KAMU UJI ===\n{topic[:120]}\n\n"
                     f"=== HASIL KERJA AGEN (JANGAN DIPERCAYA — BUKTIKAN SENDIRI) ===\n{work_summary}\n"
-                    + (f"=== FILE DELIVERABLE ===\n{chr(10).join(deliverables)}\n" if deliverables else "")
-                    + (f"\nFOLDER KERJA: {target_fol} — jalankan file/kode dari sini.\n" if target_fol else "")
-                    + (f"\n=== BUG PUTARAN SEBELUMNYA (diklaim sudah diperbaiki — VERIFIKASI ULANG) ===\n{fix_feedback}\n" if fix_feedback else "")
+                    + (
+                        f"=== FILE DELIVERABLE ===\n{chr(10).join(deliverables)}\n"
+                        if deliverables
+                        else ""
+                    )
+                    + (
+                        f"\nFOLDER KERJA: {target_fol} — jalankan file/kode dari sini.\n"
+                        if target_fol
+                        else ""
+                    )
+                    + (
+                        f"\n=== BUG PUTARAN SEBELUMNYA (diklaim sudah diperbaiki — VERIFIKASI ULANG) ===\n{fix_feedback}\n"
+                        if fix_feedback
+                        else ""
+                    )
                     + "\n=== ATURAN QA ===\n"
                     "1. JALANKAN sendiri kode/file hasil tim via tool (execute_bash_command / read_local_file / sandbox).\n"
                     "2. Catat tiap bug dengan bukti: command + output error.\n"
@@ -409,19 +530,31 @@ async def conduct_multi_agent_meeting(
                     "   QA_VERDICT: PASS   (terbukti nol bug)\n"
                     "   QA_VERDICT: FAIL - <daftar bug bernomor + file penyebab>"
                 )
-                qa_step = await execute_swarm_task_step(qa_agent, qa_task, topic, intent_info)
+                qa_step = await execute_swarm_task_step(
+                    qa_agent, qa_task, topic, intent_info
+                )
                 qa_step["phase"] = f"qa_round_{qa_round}"
                 execution_steps.append(qa_step)
-                qa_text = str(qa_step.get("generated_content")
-                              or qa_step.get("execution_summary") or "")
+                qa_text = str(
+                    qa_step.get("generated_content")
+                    or qa_step.get("execution_summary")
+                    or ""
+                )
                 if qa_verdict_passed(qa_text):
                     zero_bug = True
-                    log_live("QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}.")
+                    log_live(
+                        "QA", f"✅ ZERO BUG terverifikasi pada putaran {qa_round}."
+                    )
                     break
 
                 fix_feedback = qa_text[-1500:]
-                log_live("QA", f"🐞 Bug terdeteksi (putaran {qa_round}) — dikembalikan ke tim pelaksana.")
-                fixers = [a for a in participants if a.get("name") != qa_agent.get("name")] or participants
+                log_live(
+                    "QA",
+                    f"🐞 Bug terdeteksi (putaran {qa_round}) — dikembalikan ke tim pelaksana.",
+                )
+                fixers = [
+                    a for a in participants if a.get("name") != qa_agent.get("name")
+                ] or participants
                 for fa in fixers:
                     if _cancel_requested():
                         break
@@ -431,17 +564,24 @@ async def conduct_multi_agent_meeting(
                         f"LAPORAN QA (bukti + daftar bug):\n{fix_feedback}\n\n"
                         f"ATURAN PERBAIKAN:\n"
                         f"1. Perbaiki HANYA file/kode yang kamu buat"
-                        + (f" (folder {target_fol})." if target_fol else ".") + "\n"
+                        + (f" (folder {target_fol})." if target_fol else ".")
+                        + "\n"
                         "2. Jalankan ulang untuk MEMBUKTIKAN fix bekerja.\n"
                         "3. Laporkan apa yang diubah + bukti hasil uji ulang."
                     )
-                    fix_step = await execute_swarm_task_step(fa, fix_task, topic, intent_info)
+                    fix_step = await execute_swarm_task_step(
+                        fa, fix_task, topic, intent_info
+                    )
                     fix_step["phase"] = f"qa_fix_round_{qa_round}"
                     execution_steps.append(fix_step)
                     ctx_lines.append(
-                        f"[QA-FIX r{qa_round}] {fa['name']} -> {(fix_step.get('execution_summary') or '')[:150]}")
+                        f"[QA-FIX r{qa_round}] {fa['name']} -> {(fix_step.get('execution_summary') or '')[:150]}"
+                    )
             if not zero_bug:
-                log_live("QA", "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.")
+                log_live(
+                    "QA",
+                    "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.",
+                )
 
     if not participants:
         error_msg = (
@@ -458,7 +598,7 @@ async def conduct_multi_agent_meeting(
             "dialogue_transcript": [],
             "execution_steps": [],
             "consensus": "",
-            "action_plan": ""
+            "action_plan": "",
         }
 
     lead_agent = participants[0]
@@ -467,7 +607,10 @@ async def conduct_multi_agent_meeting(
     if swarm_cancelled or _cancel_requested():
         workspace_hygiene.MEETING_RUNNING = False
         _clear_cancel_flag()
-        log_live("DONE", f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.")
+        log_live(
+            "DONE",
+            f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.",
+        )
         return {
             "status": "cancelled",
             "meeting_id": None,
@@ -483,16 +626,20 @@ async def conduct_multi_agent_meeting(
                 f"{len(participants)} agen tuntas dieksekusi sebelum berhenti. "
                 "File/hasil yang sudah dibuat tetap tersimpan."
             ),
-            "action_plan": ""
+            "action_plan": "",
         }
 
     out_dir = workspace_hygiene._get_swarm_output_dir()
     if mode in ["execute", "plan_and_execute"]:
-        real_files = [s['deliverable_file'] for s in execution_steps if s.get('deliverable_file')]
-        real_summaries = "\n".join([
-            f"• **{s['agent_name']} ({s['role']})** [Tool: `{s['tool_used']}` | {s['duration_ms']}ms]:\n  {s['execution_summary']}"
-            for s in execution_steps
-        ])
+        real_files = [
+            s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")
+        ]
+        real_summaries = "\n".join(
+            [
+                f"• **{s['agent_name']} ({s['role']})** [Tool: `{s['tool_used']}` | {s['duration_ms']}ms]:\n  {s['execution_summary']}"
+                for s in execution_steps
+            ]
+        )
 
         consensus_prompt = (
             f"=== TARGET PERINTAH DARI USER ===\n{topic}\n\n"
@@ -508,25 +655,30 @@ async def conduct_multi_agent_meeting(
     else:
         consensus_prompt = (
             f"=== TOPIK RAPAT ===\n{topic}\n\n"
-            f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n" + "\n".join(history_summary) + "\n\n"
+            f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n"
+            + "\n".join(history_summary)
+            + "\n\n"
             f"Sebagai kapten rapat ({lead_agent['name']}), buatlah rangkuman KONSENSUS & ACTION PLAN yang ON-POINT:\n"
             f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2-3 poin ringkas).\n"
             f"2. ACTION PLAN (Tabel tugas terstruktur: No, Modul/Tugas, Penanggung Jawab, Target).\n"
             f"Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
         )
 
-    consensus_text = await generate_agent_response(
-        agent=lead_agent,
-        prompt=consensus_prompt,
-        system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir dan pelaporan hasil eksekusi nyata."
-    ) or "(laporan gagal: semua provider tidak merespons)"
+    consensus_text = (
+        await generate_agent_response(
+            agent=lead_agent,
+            prompt=consensus_prompt,
+            system_instruction="Kamu adalah kapten tim AI yang memimpin perumusan keputusan akhir dan pelaporan hasil eksekusi nyata.",
+        )
+        or "(laporan gagal: semua provider tidak merespons)"
+    )
 
     action_plan_text = ""
     marker = "ACTION PLAN"
     marker_idx = consensus_text.upper().find(marker)
     if marker_idx != -1:
         consensus_text_clean = consensus_text[:marker_idx].strip()
-        action_plan_text = marker + consensus_text[marker_idx + len(marker):]
+        action_plan_text = marker + consensus_text[marker_idx + len(marker) :]
     else:
         consensus_text_clean = consensus_text
 
@@ -538,7 +690,11 @@ async def conduct_multi_agent_meeting(
 
     if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
         try:
-            _deliverables = [s["deliverable_file"] for s in execution_steps if s.get("deliverable_file")]
+            _deliverables = [
+                s["deliverable_file"]
+                for s in execution_steps
+                if s.get("deliverable_file")
+            ]
             _SwarmCheckpoint.mark_completed(session_id, deliverables=_deliverables)
         except Exception:
             pass
@@ -558,7 +714,7 @@ async def conduct_multi_agent_meeting(
         "dialogue_transcript": dialogue_transcript,
         "execution_results": execution_steps,
         "consensus": consensus_text_clean,
-        "action_plan": action_plan_text
+        "action_plan": action_plan_text,
     }
 
 
@@ -571,11 +727,18 @@ async def resume_swarm_session(session_id: str) -> Dict[str, Any]:
 
     ckpt = _SwarmCheckpoint.load(session_id)
     if not ckpt:
-        return {"status": "error", "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan."}
+        return {
+            "status": "error",
+            "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan.",
+        }
 
     topic = ckpt.get("topic", "")
     mode = ckpt.get("mode", "execute")
-    participant_names = [a["name"] for a in ckpt.get("participants", []) if isinstance(a, dict) and "name" in a]
+    participant_names = [
+        a["name"]
+        for a in ckpt.get("participants", [])
+        if isinstance(a, dict) and "name" in a
+    ]
 
     log_live("RESUME", f"🔄 Melanjutkan sesi {session_id} (Topik: {topic[:60]})...")
 

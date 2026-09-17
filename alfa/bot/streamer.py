@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 from typing import Any, Optional
+
 from telegram import constants
 from telegram.error import BadRequest, RetryAfter
 
@@ -48,7 +49,12 @@ class TelegramStreamer:
         if self._typing_task is None or self._typing_task.done():
             self._stop_typing.clear()
             self._typing_task = asyncio.create_task(
-                send_typing_loop(self.chat_id, self.context, self._stop_typing, constants.ChatAction.TYPING)
+                send_typing_loop(
+                    self.chat_id,
+                    self.context,
+                    self._stop_typing,
+                    constants.ChatAction.TYPING,
+                )
             )
 
         if self.message_id is not None:
@@ -87,7 +93,9 @@ class TelegramStreamer:
         except RetryAfter as e:
             retry_secs = float(getattr(e, "retry_after", 1.0) or 1.0)
             self.backoff_until = time.monotonic() + retry_secs
-            logger.warning(f"[TelegramStreamer] Rate limited (RetryAfter): backoff {retry_secs}s")
+            logger.warning(
+                f"[TelegramStreamer] Rate limited (RetryAfter): backoff {retry_secs}s"
+            )
         except BadRequest as e:
             err_msg = str(e).lower()
             if "message is not modified" in err_msg:
@@ -117,7 +125,9 @@ class TelegramStreamer:
 
         # If no message sent yet, send the first draft message once text is present
         if not self.message_id:
-            if (now - self.last_edit) >= self.min_edit_interval and len(self.buffer.strip()) >= 1:
+            if (now - self.last_edit) >= self.min_edit_interval and len(
+                self.buffer.strip()
+            ) >= 1:
                 self._stop_typing.set()
                 self.last_edit = now
                 draft_text = self.buffer + self.cursor
@@ -128,7 +138,9 @@ class TelegramStreamer:
                     )
                     self.message_id = getattr(msg, "message_id", None)
                 except Exception as e:
-                    logger.warning(f"[TelegramStreamer] Gagal mengirim initial streaming message: {e}")
+                    logger.warning(
+                        f"[TelegramStreamer] Gagal mengirim initial streaming message: {e}"
+                    )
             return
 
         if (now - self.last_edit) >= self.min_edit_interval:

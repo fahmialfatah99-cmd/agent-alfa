@@ -1,5 +1,6 @@
 """Unit tests untuk fitur generasi baru: Tool-RAG, Pipeline Engine,
 Memory Reflection, dan helper indexer paralel."""
+
 import asyncio
 import json
 import os
@@ -16,8 +17,9 @@ def test_toolrag_memperkecil_set_tools():
     import tools as t
     from tool_rag import select_relevant_functions
 
-    sel = select_relevant_functions(t.AVAILABLE_TOOLS,
-                                    "buat website landing page dengan python")
+    sel = select_relevant_functions(
+        t.AVAILABLE_TOOLS, "buat website landing page dengan python"
+    )
     assert 0 < len(sel) < len(t.AVAILABLE_TOOLS)
 
 
@@ -35,21 +37,26 @@ def test_toolrag_routing_bahasa_indonesia():
     import tools as t
     from tool_rag import select_relevant_functions
 
-    sel = select_relevant_functions(t.AVAILABLE_TOOLS,
-                                    "rekam layar laptop saya 10 detik")
+    sel = select_relevant_functions(
+        t.AVAILABLE_TOOLS, "rekam layar laptop saya 10 detik"
+    )
     names = {getattr(f, "__name__", "") for f in sel}
     assert "record_desktop_screen" in names
 
 
 def test_toolrag_failopen_input_kosong():
     from tool_rag import select_relevant_functions
+
     assert select_relevant_functions([], "apapun") == []
 
 
 def test_toolrag_off_via_env(monkeypatch):
     import tool_rag
+
     monkeypatch.setattr(tool_rag, "_ENABLED", False)
-    dummy = [{"function": {"name": f"t{i}", "description": f"tool {i}"}} for i in range(60)]
+    dummy = [
+        {"function": {"name": f"t{i}", "description": f"tool {i}"}} for i in range(60)
+    ]
     assert tool_rag.select_relevant_tools(dummy, "query") is dummy
 
 
@@ -60,10 +67,15 @@ def test_pipeline_topological_waves_paralel():
     steps = [
         {"id": "a", "type": "set", "value": "1"},
         {"id": "b", "type": "set", "value": "2"},
-        {"id": "c", "type": "template", "text": "{{a}}-{{b}}", "depends_on": ["a", "b"]},
+        {
+            "id": "c",
+            "type": "template",
+            "text": "{{a}}-{{b}}",
+            "depends_on": ["a", "b"],
+        },
     ]
     waves = pl._topological_waves(steps)
-    assert len(waves) == 2                      # [a,b] paralel lalu [c]
+    assert len(waves) == 2  # [a,b] paralel lalu [c]
     assert {s["id"] for s in waves[0]} == {"a", "b"}
     assert waves[1][0]["id"] == "c"
 
@@ -95,9 +107,13 @@ def test_pipeline_run_end_to_end(tmp_path):
         "vars": {"sapaan": "Hai"},
         "steps": [
             {"id": "satu", "type": "template", "text": "{{sapaan}} dunia"},
-            {"id": "dua", "type": "tool", "tool": "write_local_file",
-             "args": {"file_path": str(tmp_path / "pl.txt"), "content": "{{satu}}"},
-             "depends_on": ["satu"]},
+            {
+                "id": "dua",
+                "type": "tool",
+                "tool": "write_local_file",
+                "args": {"file_path": str(tmp_path / "pl.txt"), "content": "{{satu}}"},
+                "depends_on": ["satu"],
+            },
         ],
     }
     pl.save_pipeline(data)
@@ -139,10 +155,20 @@ def test_pipeline_if_skip_dan_foreach(tmp_path):
         "id": "_test_cond",
         "vars": {"flag": "tidak_ada"},
         "steps": [
-            {"id": "cabang", "type": "template", "text": "harusnya dilewati",
-             "if": {"left": "{{flag}}", "op": "contains", "right": "ADA_YA"}},
-            {"id": "loop", "type": "foreach", "over": "a,b,c", "item_var": "it",
-             "inner_type": "template", "text": "{{it}}!"},
+            {
+                "id": "cabang",
+                "type": "template",
+                "text": "harusnya dilewati",
+                "if": {"left": "{{flag}}", "op": "contains", "right": "ADA_YA"},
+            },
+            {
+                "id": "loop",
+                "type": "foreach",
+                "over": "a,b,c",
+                "item_var": "it",
+                "inner_type": "template",
+                "text": "{{it}}!",
+            },
         ],
     }
     pl.save_pipeline(data)
@@ -179,8 +205,13 @@ def test_pipeline_http_step_local():
     data = {
         "id": "_test_http",
         "steps": [
-            {"id": "req", "type": "http", "method": "GET",
-             "url": "http://127.0.0.1:8080/openapi.json", "timeout": 10},
+            {
+                "id": "req",
+                "type": "http",
+                "method": "GET",
+                "url": "http://127.0.0.1:8080/openapi.json",
+                "timeout": 10,
+            },
         ],
     }
     pl.save_pipeline(data)
@@ -193,12 +224,13 @@ def test_pipeline_http_step_local():
 # ── Memory Reflection ─────────────────────────────────────────────────────
 def test_reflect_interval_counter():
     from memory_reflection import EVERY, should_reflect
+
     uid = 987654321
     hits = []
     for i in range(1, EVERY * 2 + 2):
         if should_reflect(uid):
             hits.append(i)
-    assert hits == [EVERY, EVERY * 2]           # tepat setiap N giliran
+    assert hits == [EVERY, EVERY * 2]  # tepat setiap N giliran
 
 
 def test_reflect_parse_json_fenced():
@@ -210,7 +242,7 @@ def test_reflect_parse_json_fenced():
         if txt.startswith("json"):
             txt = txt[4:]
     start, end = txt.find("["), txt.rfind("]")
-    facts = json.loads(txt[start:end + 1])
+    facts = json.loads(txt[start : end + 1])
     assert facts[0]["key_topic"] == "projek"
 
 
@@ -218,15 +250,16 @@ def test_reflect_parse_json_fenced():
 def test_index_one_file_chunking():
     import tools
 
-    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
-                                     encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".py", delete=False, encoding="utf-8"
+    ) as f:
         f.write("\n".join(f"# baris {i}" for i in range(120)))
         path = f.name
     try:
         result = tools._index_one_file(path, os.path.dirname(path))
         assert result is not None
         fpath, rows = result
-        assert len(rows) >= 1                   # file terchunk minimal 1
+        assert len(rows) >= 1  # file terchunk minimal 1
         assert all(r[0].endswith(".py") for r in rows)
     finally:
         os.remove(path)
@@ -239,7 +272,10 @@ def test_chat_execute_code_sandbox():
 
     client = TestClient(web_dashboard.app)
     # Test Python with markdown code fences
-    r = client.post("/api/chat/execute-code", json={"language": "python", "code": "```python\nprint(12 + 34)\n```"})
+    r = client.post(
+        "/api/chat/execute-code",
+        json={"language": "python", "code": "```python\nprint(12 + 34)\n```"},
+    )
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "success"

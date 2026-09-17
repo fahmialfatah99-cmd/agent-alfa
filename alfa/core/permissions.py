@@ -3,6 +3,7 @@
 Facade re-exporting from modular subpackage alfa.core.perm.
 """
 
+from alfa.core.perm import *  # noqa: F401, F403
 from alfa.core.perm import (
     APPROVAL_TIMEOUT,
     DB_PATH,
@@ -11,10 +12,10 @@ from alfa.core.perm import (
     PERMISSION_GATE_ENABLED,
     PROJECT_DIR,
     REPO_ROOT,
-    RiskTier,
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
+    RiskTier,
     _connect,
     audit_local_host_security,
     audit_website_security,
@@ -32,4 +33,3 @@ from alfa.core.perm import (
     update_trust_score,
     wrap_tool_for_afc,
 )
-from alfa.core.perm import *  # noqa: F401, F403

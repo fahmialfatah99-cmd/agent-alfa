@@ -7,17 +7,8 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-from alfa.core import brain as main_brain
-from alfa.core import database
-from alfa.core import permissions as permission_gate
 import plugins
 import token_usage
-from alfa.tools import (
-    AVAILABLE_TOOLS,
-    SANDBOX_DIR,
-    current_chat_id_var,
-    current_user_id_var,
-)
 from alfa.bot.config import (
     ALFA_PROMPT_PATH,
     ANTIGRAVITY_WORKFLOW_BLOCK,
@@ -43,6 +34,15 @@ from alfa.bot.helpers import (
     _meetings_count,
 )
 from alfa.bot.streamer import TelegramStreamer
+from alfa.core import brain as main_brain
+from alfa.core import database
+from alfa.core import permissions as permission_gate
+from alfa.tools import (
+    AVAILABLE_TOOLS,
+    SANDBOX_DIR,
+    current_chat_id_var,
+    current_user_id_var,
+)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -58,7 +58,7 @@ async def run_agent_turn(
     chat_id: Optional[int] = None,
     override_model: Optional[str] = None,
     override_key_id: Optional[int] = None,
-    streamer: Optional[TelegramStreamer] = None
+    streamer: Optional[TelegramStreamer] = None,
 ) -> str:
     """
     Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
@@ -71,9 +71,15 @@ async def run_agent_turn(
     _db = getattr(bot, "database", database) if bot else database
     _mb = getattr(bot, "main_brain", main_brain) if bot else main_brain
     _pg = getattr(bot, "permission_gate", permission_gate) if bot else permission_gate
-    _resolve = getattr(bot, "resolve_main_gemini", resolve_main_gemini) if bot else resolve_main_gemini
+    _resolve = (
+        getattr(bot, "resolve_main_gemini", resolve_main_gemini)
+        if bot
+        else resolve_main_gemini
+    )
 
-    brain = _mb.get_main_brain(override_key_id=override_key_id, override_model=override_model)
+    brain = _mb.get_main_brain(
+        override_key_id=override_key_id, override_model=override_model
+    )
     if brain["provider"] == "gemini":
         gemini_client, gkey_id, gkey_label = _resolve(key_id=override_key_id)
         if not gemini_client:
@@ -101,15 +107,13 @@ async def run_agent_turn(
 
     # 2. Build contents payload
     from google.genai import types
+
     contents = []
 
     for row in history_rows:
         role = "user" if row["role"] == "user" else "model"
         contents.append(
-            types.Content(
-                role=role,
-                parts=[types.Part.from_text(text=row["content"])]
-            )
+            types.Content(role=role, parts=[types.Part.from_text(text=row["content"])])
         )
 
     # 3. Add current turn with any multimodal attachments
@@ -133,29 +137,71 @@ async def run_agent_turn(
     if user_memories:
         memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
         for m in user_memories:
-            memory_context_parts.append(f"- [{m['category']}] {m['key_topic']}: {m['content']}")
+            memory_context_parts.append(
+                f"- [{m['category']}] {m['key_topic']}: {m['content']}"
+            )
 
     if kg_triples:
         memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
         for k in kg_triples:
-            tag_str = f" ({k['tags']})" if k.get('tags') else ""
-            memory_context_parts.append(f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}")
+            tag_str = f" ({k['tags']})" if k.get("tags") else ""
+            memory_context_parts.append(
+                f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}"
+            )
 
     # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan (hanya saat relevan)
     p_check = (user_prompt or "").lower().strip()
-    should_search_rag = len(p_check) > 15 and not any(
-        p_check == g or p_check.startswith(g + " ") for g in ["halo", "hai", "pagi", "siang", "malam", "apa kabar", "siapa kamu", "tes", "ping"]
-    ) and any(k in p_check for k in ["dokumen", "drive", "file", "catatan", "ingat", "materi", "referensi", "data", "info", "tentang", "jelaskan", "bagaimana", "apa itu", "siapa"])
+    should_search_rag = (
+        len(p_check) > 15
+        and not any(
+            p_check == g or p_check.startswith(g + " ")
+            for g in [
+                "halo",
+                "hai",
+                "pagi",
+                "siang",
+                "malam",
+                "apa kabar",
+                "siapa kamu",
+                "tes",
+                "ping",
+            ]
+        )
+        and any(
+            k in p_check
+            for k in [
+                "dokumen",
+                "drive",
+                "file",
+                "catatan",
+                "ingat",
+                "materi",
+                "referensi",
+                "data",
+                "info",
+                "tentang",
+                "jelaskan",
+                "bagaimana",
+                "apa itu",
+                "siapa",
+            ]
+        )
+    )
 
     if should_search_rag:
         try:
             import vector_memory
+
             brain_hits = vector_memory.semantic_search(
                 user_id=user_id, query=user_prompt or "", top_k=4
             )
-            relevant = [h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25]
+            relevant = [
+                h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25
+            ]
             if relevant:
-                memory_context_parts.append("📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):")
+                memory_context_parts.append(
+                    "📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):"
+                )
                 for h in relevant:
                     memory_context_parts.append(
                         f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
@@ -170,8 +216,8 @@ async def run_agent_turn(
             "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
             f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
             "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
-            + "\n".join(memory_context_parts) +
-            "\n======================================================\n"
+            + "\n".join(memory_context_parts)
+            + "\n======================================================\n"
         )
 
     # 6. Fetch user settings for prompt override / preferred model
@@ -188,7 +234,9 @@ async def run_agent_turn(
 
     brain_model_override = _db.get_main_brain_model()
     preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
-    current_active_model = override_model or brain.get("model") or brain_model_override or preferred_model
+    current_active_model = (
+        override_model or brain.get("model") or brain_model_override or preferred_model
+    )
     current_active_provider = brain.get("provider", "gemini").upper()
     current_key_label = brain.get("label", "")
 
@@ -203,20 +251,38 @@ async def run_agent_turn(
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
     full_system_instruction = (
-        base_instruction + active_identity_block + memory_block + ENFORCEMENT_BLOCK + CODING_DELIVERY_BLOCK +
-        CAPABILITIES_BLOCK + ANTIGRAVITY_WORKFLOW_BLOCK + TOOL_FIRST_EXECUTION_BLOCK + SUPERPOWERS_SKILLS_BLOCK + UI_UX_PRO_MAX_BLOCK
+        base_instruction
+        + active_identity_block
+        + memory_block
+        + ENFORCEMENT_BLOCK
+        + CODING_DELIVERY_BLOCK
+        + CAPABILITIES_BLOCK
+        + ANTIGRAVITY_WORKFLOW_BLOCK
+        + TOOL_FIRST_EXECUTION_BLOCK
+        + SUPERPOWERS_SKILLS_BLOCK
+        + UI_UX_PRO_MAX_BLOCK
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
-    fallback_chain = [m.strip() for m in os.getenv(
-        "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest"
-    ).split(",") if m.strip()]
+    fallback_chain = [
+        m.strip()
+        for m in os.getenv(
+            "GEMINI_FALLBACK_MODELS",
+            "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
+        ).split(",")
+        if m.strip()
+    ]
 
     base_model = current_active_model
-    candidate_models = [base_model] + (
-        [preferred_model] if preferred_model and preferred_model != base_model else []
-    ) + fallback_chain
+    candidate_models = (
+        [base_model]
+        + (
+            [preferred_model]
+            if preferred_model and preferred_model != base_model
+            else []
+        )
+        + fallback_chain
+    )
     models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
@@ -231,7 +297,10 @@ async def run_agent_turn(
     if brain["provider"] != "gemini":
         compat_text = user_prompt or ""
         if multimodal_parts:
-            compat_text = (compat_text + "\n[Lampiran media tidak didukung provider otak utama saat ini]").strip()
+            compat_text = (
+                compat_text
+                + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
+            ).strip()
         reply_text = await _mb.run_openai_agentic_turn(
             provider=brain["provider"],
             base_url=brain["base_url"],
@@ -247,23 +316,29 @@ async def run_agent_turn(
         new_meetings = _meetings_count() - meetings_before
         if meeting_intent and new_meetings == 0 and reply_text:
             low = reply_text.lower()
-            if ('rapat' in low or 'meeting' in low) and \
-               any(mk in low for mk in MEETING_FABRICATION_MARKERS):
+            if ("rapat" in low or "meeting" in low) and any(
+                mk in low for mk in MEETING_FABRICATION_MARKERS
+            ):
                 logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
                 corrected = await _mb.run_openai_agentic_turn(
-                    provider=brain["provider"], base_url=brain["base_url"],
+                    provider=brain["provider"],
+                    base_url=brain["base_url"],
                     api_key=brain["api_key"],
                     model=brain["model"] or preferred_model,
                     system_instruction=full_system_instruction,
                     user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
-                    history=history_msgs, key_id=brain["key_id"],
-                    key_label=brain["label"], approval_gate=approval_gate)
+                    history=history_msgs,
+                    key_id=brain["key_id"],
+                    key_label=brain["label"],
+                    approval_gate=approval_gate,
+                )
                 if corrected:
                     reply_text = corrected
         if reply_text:
             await _db.save_chat_message(user_id, "model", reply_text)
             try:
                 import memory_reflection
+
                 refl_history = list(history_rows) + [
                     {"role": "user", "content": display_user_text},
                     {"role": "model", "content": reply_text},
@@ -272,7 +347,9 @@ async def run_agent_turn(
             except Exception:
                 pass
             return reply_text
-        logger.warning(f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini")
+        logger.warning(
+            f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
+        )
 
     if gemini_client is None:
         gemini_client, gkey_id, gkey_label = _resolve()
@@ -307,8 +384,10 @@ async def run_agent_turn(
             gemini_tools = all_tools
             try:
                 from tool_rag import select_relevant_functions
+
                 gemini_tools = select_relevant_functions(
-                    all_tools, user_prompt or "", history=history_msgs)
+                    all_tools, user_prompt or "", history=history_msgs
+                )
             except Exception:
                 pass
             config = types.GenerateContentConfig(
@@ -317,16 +396,21 @@ async def run_agent_turn(
                 tools=gemini_tools,
                 automatic_function_calling=(
                     types.AutomaticFunctionCallingConfig(disable=True)
-                    if gate_on else None
+                    if gate_on
+                    else None
                 ),
             )
 
-            if streamer and not gate_on and hasattr(gemini_client.aio.models, "generate_content_stream"):
+            if (
+                streamer
+                and not gate_on
+                and hasattr(gemini_client.aio.models, "generate_content_stream")
+            ):
                 try:
-                    response_stream = await gemini_client.aio.models.generate_content_stream(
-                        model=model_name,
-                        contents=contents,
-                        config=config
+                    response_stream = (
+                        await gemini_client.aio.models.generate_content_stream(
+                            model=model_name, contents=contents, config=config
+                        )
                     )
                     streamed_text = ""
                     last_chunk = None
@@ -343,37 +427,45 @@ async def run_agent_turn(
                                 model=model_name,
                                 key_id=gkey_id,
                                 key_label=gkey_label or "gemini-env",
-                                context="telegram_chat:stream"
+                                context="telegram_chat:stream",
                             )
                         except Exception:
                             pass
                     response = last_chunk
-                    reply_text = streamed_text or (last_chunk.text if last_chunk else "") or "✅ Permintaan selesai diproses."
-                except Exception as stream_err:
-                    logger.warning(f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content.")
-                    response = await gemini_client.aio.models.generate_content(
-                        model=model_name,
-                        contents=contents,
-                        config=config
+                    reply_text = (
+                        streamed_text
+                        or (last_chunk.text if last_chunk else "")
+                        or "✅ Permintaan selesai diproses."
                     )
-                    token_usage.from_gemini_response(response, model=model_name,
-                                                     key_id=gkey_id,
-                                                     key_label=gkey_label or "gemini-env",
-                                                     context="telegram_chat")
+                except Exception as stream_err:
+                    logger.warning(
+                        f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content."
+                    )
+                    response = await gemini_client.aio.models.generate_content(
+                        model=model_name, contents=contents, config=config
+                    )
+                    token_usage.from_gemini_response(
+                        response,
+                        model=model_name,
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat",
+                    )
                     try:
                         reply_text = response.text or "✅ Permintaan selesai diproses."
                     except Exception:
                         reply_text = "✅ Permintaan selesai diproses."
             else:
                 response = await gemini_client.aio.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=config
+                    model=model_name, contents=contents, config=config
                 )
-                token_usage.from_gemini_response(response, model=model_name,
-                                                 key_id=gkey_id,
-                                                 key_label=gkey_label or "gemini-env",
-                                                 context="telegram_chat")
+                token_usage.from_gemini_response(
+                    response,
+                    model=model_name,
+                    key_id=gkey_id,
+                    key_label=gkey_label or "gemini-env",
+                    context="telegram_chat",
+                )
 
             if gate_on:
                 _turn_contents = list(contents or [])
@@ -388,25 +480,40 @@ async def run_agent_turn(
                     except Exception:
                         pass
                     for fc in fcs:
-                        args_json = json.dumps(dict(fc.args or {}),
-                                               ensure_ascii=False, default=str)
+                        args_json = json.dumps(
+                            dict(fc.args or {}), ensure_ascii=False, default=str
+                        )
                         denial = await approval_gate(fc.name, args_json)
                         if denial:
                             out = denial
                         else:
                             out = await asyncio.to_thread(
-                                _mb._execute_tool, fc.name, args_json)
+                                _mb._execute_tool, fc.name, args_json
+                            )
                         logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
-                        _turn_contents.append(types.Content(role="user", parts=[
-                            types.Part(function_response=types.FunctionResponse(
-                                name=fc.name,
-                                response={"result": str(out)[:4000]}))]))
+                        _turn_contents.append(
+                            types.Content(
+                                role="user",
+                                parts=[
+                                    types.Part(
+                                        function_response=types.FunctionResponse(
+                                            name=fc.name,
+                                            response={"result": str(out)[:4000]},
+                                        )
+                                    )
+                                ],
+                            )
+                        )
                     response = await gemini_client.aio.models.generate_content(
-                        model=model_name, contents=_turn_contents, config=config)
-                    token_usage.from_gemini_response(response, model=model_name,
-                                                     key_id=gkey_id,
-                                                     key_label=gkey_label or "gemini-env",
-                                                     context="telegram_chat:gate")
+                        model=model_name, contents=_turn_contents, config=config
+                    )
+                    token_usage.from_gemini_response(
+                        response,
+                        model=model_name,
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat:gate",
+                    )
 
             if "reply_text" not in locals() or not reply_text:
                 try:
@@ -418,8 +525,9 @@ async def run_agent_turn(
             reply_low = reply_text.lower()
 
             need_meeting_audit = (
-                meeting_intent and new_meetings == 0
-                and ('rapat' in reply_low or 'meeting' in reply_low)
+                meeting_intent
+                and new_meetings == 0
+                and ("rapat" in reply_low or "meeting" in reply_low)
                 and any(mk in reply_low for mk in MEETING_FABRICATION_MARKERS)
             )
             need_artifact_audit = (
@@ -431,39 +539,50 @@ async def run_agent_turn(
             )
 
             if need_meeting_audit or need_artifact_audit:
-                audit_kind = "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
-                logger.warning(f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})")
+                audit_kind = (
+                    "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
+                )
+                logger.warning(
+                    f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})"
+                )
                 audit_parts = ["⛔ SISTEM AUDIT KEBENARAN:"]
                 if need_meeting_audit:
                     audit_parts.append(
-                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil).")
+                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil)."
+                    )
                 if need_artifact_audit:
                     audit_parts.append(
-                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai.")
+                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai."
+                    )
                 audit_parts.append(
                     "Perbaiki SEKARANG: panggil tool pembuatnya secara nyata "
                     "(conduct_ai_meeting / execute_python_sandbox / generate_pdf_report / "
                     "generate_excel_spreadsheet / universal_deep_scraper) ATAU jawab jujur "
                     "bahwa belum dieksekusi. Dilarang klaim palsu."
                 )
-                contents.append(types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text="\n".join(audit_parts))]
-                ))
-                response2 = await gemini_client.aio.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=config
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text="\n".join(audit_parts))],
+                    )
                 )
-                token_usage.from_gemini_response(response2, model=f"{model_name}:audit",
-                                                 key_id=gkey_id,
-                                                 key_label=gkey_label or "gemini-env",
-                                                 context="telegram_chat")
+                response2 = await gemini_client.aio.models.generate_content(
+                    model=model_name, contents=contents, config=config
+                )
+                token_usage.from_gemini_response(
+                    response2,
+                    model=f"{model_name}:audit",
+                    key_id=gkey_id,
+                    key_label=gkey_label or "gemini-env",
+                    context="telegram_chat",
+                )
                 if response2.text and response2.text.strip():
                     reply_text = response2.text
-                logger.warning(f"[AUDIT] Koreksi selesai ({audit_kind}); "
-                               f"rapat baru: {_meetings_count() - meetings_before}; "
-                               f"artefak berubah: {_artifact_signature() != art_before}")
+                logger.warning(
+                    f"[AUDIT] Koreksi selesai ({audit_kind}); "
+                    f"rapat baru: {_meetings_count() - meetings_before}; "
+                    f"artefak berubah: {_artifact_signature() != art_before}"
+                )
 
             await _db.save_chat_message(user_id, "model", reply_text)
             return reply_text
@@ -472,7 +591,9 @@ async def run_agent_turn(
             logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
             last_error = e
 
-    logger.error(f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain...")
+    logger.error(
+        f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain..."
+    )
     try:
         alt_keys = _db.list_active_keys_sync(exclude_provider="gemini")
     except Exception:
@@ -482,8 +603,10 @@ async def run_agent_turn(
         if not (key.get("api_key") or "").strip():
             continue
         try:
-            logger.info(f"[Fallback] mencoba {prov} ({key.get('name')}) model "
-                        f"{key.get('default_model')}")
+            logger.info(
+                f"[Fallback] mencoba {prov} ({key.get('name')}) model "
+                f"{key.get('default_model')}"
+            )
             reply_text = await _mb.run_openai_agentic_turn(
                 provider=prov,
                 base_url=key.get("base_url") or "",

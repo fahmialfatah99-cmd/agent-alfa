@@ -6,13 +6,12 @@ import logging
 import os
 import sys
 from typing import Optional
+
 from telegram import Update, constants
 from telegram.ext import ContextTypes
 
-from alfa.core import database
-from alfa import tools
-from alfa.tools import SANDBOX_DIR, get_system_stats
 import tts_engine
+from alfa import tools
 from alfa.bot.config import (
     GEMINI_MODEL,
     _main_brain_gemini_model,
@@ -26,6 +25,8 @@ from alfa.bot.helpers import (
 )
 from alfa.bot.streamer import TelegramStreamer
 from alfa.bot.turn_executor import run_agent_turn
+from alfa.core import database
+from alfa.tools import SANDBOX_DIR, get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -49,9 +50,15 @@ async def _run_agent_turn(*args, **kwargs):
     return await run_agent_turn(*args, **kwargs)
 
 
-async def _check_and_send_media_artifacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _check_and_send_media_artifacts(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
     mod = _get_bot_module()
-    if mod and hasattr(mod, "check_and_send_media_artifacts") and mod.check_and_send_media_artifacts is not check_and_send_media_artifacts:
+    if (
+        mod
+        and hasattr(mod, "check_and_send_media_artifacts")
+        and mod.check_and_send_media_artifacts is not check_and_send_media_artifacts
+    ):
         return await mod.check_and_send_media_artifacts(update, context)
     return await check_and_send_media_artifacts(update, context)
 
@@ -86,14 +93,17 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             f"• **Power:** `{stats.get('battery')}`\n"
             f"• **IP:** `{stats.get('ip_addresses')}`\n"
             f"• **Uptime:** `{stats.get('uptime')}`\n\n"
-            f"🔥 **Top RAM:**\n" + "\n".join([f"  - {p}" for p in stats.get('top_ram_processes', [])])
+            f"🔥 **Top RAM:**\n"
+            + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
         )
         await safe_send_message(context, chat_id, text)
 
     elif data == "btn_memory":
         memories = await database.get_all_memories(user_id)
         if not memories:
-            await safe_send_message(context, chat_id, "🧠 Memori jangka panjang masih kosong.")
+            await safe_send_message(
+                context, chat_id, "🧠 Memori jangka panjang masih kosong."
+            )
         else:
             text = f"🧠 **Memori Tersimpan ({len(memories)} item):**\n\n"
             for m in memories:
@@ -103,7 +113,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "btn_toggle_voice":
         is_on = await database.toggle_voice_setting(user_id)
         status_str = "AKTIF 🔊" if is_on else "NONAKTIF 🔇"
-        await safe_send_message(context, chat_id, f"🎙️ Mode Balasan Suara sekarang: **{status_str}**")
+        await safe_send_message(
+            context, chat_id, f"🎙️ Mode Balasan Suara sekarang: **{status_str}**"
+        )
 
     elif data == "btn_python_info":
         info_text = (
@@ -118,7 +130,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif data == "btn_clear":
         await database.clear_user_chat_history(user_id)
-        await safe_send_message(context, chat_id, "🧹 Konteks percakapan telah direset.")
+        await safe_send_message(
+            context, chat_id, "🧹 Konteks percakapan telah direset."
+        )
 
     elif data == "btn_help":
         help_text = (
@@ -145,22 +159,34 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     elif data == "btn_wa_status":
         res = tools.manage_wa_sheets_bot("status")
         st = "🟢 RUNNING (Aktif)" if res.get("is_running") else "🔴 STOPPED (Mati)"
-        await safe_send_message(context, chat_id, f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```")
+        await safe_send_message(
+            context,
+            chat_id,
+            f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```",
+        )
 
     elif data == "btn_wa_restart":
         res = tools.manage_wa_sheets_bot("restart")
-        await safe_send_message(context, chat_id, f"🔄 {res.get('message', 'Restart diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"🔄 {res.get('message', 'Restart diproses.')}"
+        )
 
     elif data == "btn_wa_start":
         res = tools.manage_wa_sheets_bot("start")
-        await safe_send_message(context, chat_id, f"▶️ {res.get('message', 'Start diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"▶️ {res.get('message', 'Start diproses.')}"
+        )
 
     elif data == "btn_wa_stop":
         res = tools.manage_wa_sheets_bot("stop")
-        await safe_send_message(context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}")
+        await safe_send_message(
+            context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}"
+        )
 
 
-async def check_and_send_media_artifacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_and_send_media_artifacts(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
     """
     Checks if any screenshot, webcam frame, Python chart, or document (PDF, Excel, PPTX, ZIP)
     was created and dispatches it directly to the Telegram user.
@@ -182,9 +208,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
             try:
                 with open(full_path, "rb") as photo_file:
                     await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=photo_file,
-                        caption=caption
+                        chat_id=chat_id, photo=photo_file, caption=caption
                     )
             except Exception as send_err:
                 logger.error(f"Failed to send media artifact {filename}: {send_err}")
@@ -203,13 +227,11 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
         ext = os.path.splitext(fname)[1].lower()
-        if ext in ['.png', '.jpg', '.jpeg', '.webp']:
+        if ext in [".png", ".jpg", ".jpeg", ".webp"]:
             try:
                 with open(fpath, "rb") as pf:
                     await context.bot.send_photo(
-                        chat_id=chat_id,
-                        photo=pf,
-                        caption=f"📸 Berkas Gambar: {fname}"
+                        chat_id=chat_id, photo=pf, caption=f"📸 Berkas Gambar: {fname}"
                     )
             except Exception as img_err:
                 logger.error(f"Failed to send image {fname}: {img_err}")
@@ -222,9 +244,7 @@ async def check_and_send_media_artifacts(update: Update, context: ContextTypes.D
             try:
                 with open(fpath, "rb") as df:
                     await context.bot.send_document(
-                        chat_id=chat_id,
-                        document=df,
-                        caption=f"📄 Berkas: {fname}"
+                        chat_id=chat_id, document=df, caption=f"📄 Berkas: {fname}"
                     )
             except Exception as doc_err:
                 logger.error(f"Failed to send document {fname}: {doc_err}")
@@ -242,7 +262,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not _is_authorized(user_id):
-        await safe_send_message(context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist.")
+        await safe_send_message(
+            context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist."
+        )
         return
 
     user_text = update.message.text.strip()
@@ -259,7 +281,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not streamer:
         stop_typing = asyncio.Event()
-        typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING))
+        typing_task = asyncio.create_task(
+            send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING)
+        )
 
     try:
         reply = await _run_agent_turn(
@@ -277,7 +301,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await streamer.finalize(reply)
         except Exception as fe:
-            logger.error(f"[TelegramStreamer] Finalize failed: {fe}, fallback to safe_send_message")
+            logger.error(
+                f"[TelegramStreamer] Finalize failed: {fe}, fallback to safe_send_message"
+            )
             await safe_send_message(context, chat_id, reply)
     else:
         await safe_send_message(context, chat_id, reply)
@@ -288,10 +314,14 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     mod = _get_bot_module()
     db_mod = getattr(mod, "database", database) if mod else database
     settings = await db_mod.get_user_settings(user_id)
-    if settings.get("voice_reply") and not should_reply_with_text_instead_of_voice(reply):
+    if settings.get("voice_reply") and not should_reply_with_text_instead_of_voice(
+        reply
+    ):
         voice_path = None
         try:
-            await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
+            await context.bot.send_chat_action(
+                chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE
+            )
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as voice_file:
                 await update.message.reply_voice(voice=voice_file)
@@ -323,7 +353,11 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE
+        )
+    )
     try:
         file_obj = await context.bot.get_file(voice.file_id)
         voice_bytes_io = io.BytesIO()
@@ -331,6 +365,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         voice_bytes = voice_bytes_io.getvalue()
 
         from google.genai import types
+
         mime = getattr(voice, "mime_type", None) or "audio/ogg"
         audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
@@ -363,17 +398,24 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
                     if tr_resp and tr_resp.text:
                         transcription_text = tr_resp.text.strip()
-                        logger.info(f"Transkripsi pesan suara ({model_id}): {transcription_text}")
+                        logger.info(
+                            f"Transkripsi pesan suara ({model_id}): {transcription_text}"
+                        )
                         break
                 except Exception as tr_err:
                     logger.debug(f"Fast transcription skipped ({model_id}): {tr_err}")
 
         if transcription_text:
-            prompt = f"[PESAN SUARA PENGGUNA (Transkripsi): \"{transcription_text}\"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat."
+            prompt = f'[PESAN SUARA PENGGUNA (Transkripsi): "{transcription_text}"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat.'
         else:
             prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
 
-        reply = await _run_agent_turn(user_id=user_id, user_prompt=prompt, multimodal_parts=[audio_part], chat_id=chat_id)
+        reply = await _run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            multimodal_parts=[audio_part],
+            chat_id=chat_id,
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -386,7 +428,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     if not prefer_text:
         voice_path = None
         try:
-            await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE)
+            await context.bot.send_chat_action(
+                chat_id=chat_id, action=constants.ChatAction.RECORD_VOICE
+            )
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as vf:
                 await update.message.reply_voice(voice=vf)
@@ -423,7 +467,11 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     best_photo = photos[-1]
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO
+        )
+    )
     reply = "❌ Maaf, terjadi kesalahan saat memproses gambarmu."
 
     try:
@@ -433,9 +481,15 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
         photo_bytes = photo_bytes_io.getvalue()
 
         from google.genai import types
+
         image_part = types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg")
 
-        reply = await _run_agent_turn(user_id=user_id, user_prompt=caption, multimodal_parts=[image_part], chat_id=chat_id)
+        reply = await _run_agent_turn(
+            user_id=user_id,
+            user_prompt=caption,
+            multimodal_parts=[image_part],
+            chat_id=chat_id,
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -465,7 +519,11 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     mime_type = doc.mime_type or "application/octet-stream"
 
     stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT))
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_DOCUMENT
+        )
+    )
     reply = "❌ Maaf, terjadi kesalahan saat memproses dokumenmu."
 
     try:
@@ -488,7 +546,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
             user_id=user_id,
             user_prompt=prompt,
             multimodal_parts=multimodal_parts,
-            chat_id=chat_id
+            chat_id=chat_id,
         )
 
     finally:

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 import pytest
 from fastapi import FastAPI
 
@@ -9,7 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 def test_dashboard_package_import():
     """Verify alfa.dashboard imports and exposes FastAPI app."""
     import alfa.dashboard
-    from alfa.dashboard import app as app_from_pkg, get_app, create_app
+    from alfa.dashboard import app as app_from_pkg
+    from alfa.dashboard import create_app, get_app
     from alfa.dashboard.app import app as app_from_mod
 
     assert isinstance(app_from_pkg, FastAPI)
@@ -41,7 +43,11 @@ def test_dashboard_routes_parity():
     routes = {r.path for r in app.routes if hasattr(r, "path")}
     for r in app.routes:
         if hasattr(r, "original_router"):
-            routes.update(sub_r.path for sub_r in r.original_router.routes if hasattr(sub_r, "path"))
+            routes.update(
+                sub_r.path
+                for sub_r in r.original_router.routes
+                if hasattr(sub_r, "path")
+            )
 
     expected_routes = [
         "/",

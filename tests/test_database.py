@@ -2,6 +2,7 @@
 Unit test untuk database, enkripsi AES-256-GCM, dan pengaturan user.
 Menggunakan database SQLite temporer agar database produksi tidak tersentuh.
 """
+
 import sys
 from pathlib import Path
 
@@ -55,9 +56,12 @@ def temp_db(tmp_path, monkeypatch):
 class TestDatabaseOperations:
     def test_init_db_creates_tables(self, temp_db):
         with database.get_sync_db() as conn:
-            tables = [row[0] for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()]
+            tables = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            ]
             assert "api_keys" in tables
             assert "custom_agents" in tables
             assert "user_settings" in tables
@@ -78,7 +82,7 @@ class TestDatabaseOperations:
             persona="Teliti",
             system_instruction="Audit semua",
             provider="gemini",
-            model="gemini-3.6-flash"
+            model="gemini-3.6-flash",
         )
         assert res["status"] == "success"
         agent_id = res["id"]
@@ -98,14 +102,16 @@ class TestDatabaseOperations:
             name="Test Gemini Vault",
             provider="gemini",
             api_key="AIzaSyTestSecret12345",
-            default_model="gemini-3.6-flash"
+            default_model="gemini-3.6-flash",
         )
         assert res["status"] == "success"
         key_id = res["id"]
 
         # Cek raw storage di sqlite
         with database.get_sync_db() as conn:
-            raw_val = conn.execute("SELECT api_key FROM api_keys WHERE id=?", (key_id,)).fetchone()[0]
+            raw_val = conn.execute(
+                "SELECT api_key FROM api_keys WHERE id=?", (key_id,)
+            ).fetchone()[0]
             assert raw_val.startswith("enc1:")
             assert raw_val != "AIzaSyTestSecret12345"
 

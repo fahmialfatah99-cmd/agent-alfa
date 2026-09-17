@@ -3,8 +3,8 @@
 Long-Term Knowledge Memory, Semantic Knowledge Graph, Chat History & Settings.
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import aiosqlite
@@ -20,12 +20,14 @@ async def save_chat_message(user_id: int, role: str, content: str):
     async with aiosqlite.connect(_get_db_path()) as db:
         await db.execute(
             "INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)",
-            (user_id, role, content)
+            (user_id, role, content),
         )
         await db.commit()
 
 
-async def get_recent_chat_history(user_id: int, limit: int = 15) -> List[Dict[str, str]]:
+async def get_recent_chat_history(
+    user_id: int, limit: int = 15
+) -> List[Dict[str, str]]:
     """Get the most recent messages for a user in chronological order."""
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
@@ -35,10 +37,13 @@ async def get_recent_chat_history(user_id: int, limit: int = 15) -> List[Dict[st
             WHERE user_id = ? 
             ORDER BY id DESC LIMIT ?
             """,
-            (user_id, limit)
+            (user_id, limit),
         ) as cursor:
             rows = await cursor.fetchall()
-            return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
+            return [
+                {"role": row["role"], "content": row["content"]}
+                for row in reversed(rows)
+            ]
 
 
 async def clear_user_chat_history(user_id: int):
@@ -49,7 +54,9 @@ async def clear_user_chat_history(user_id: int):
 
 
 # --- Long-Term Knowledge Memory Functions ---
-def save_memory_fact_sync(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
+def save_memory_fact_sync(
+    user_id: int, key_topic: str, content: str, category: str = "general"
+) -> str:
     """Synchronously save or update a persistent memory fact (for tools)."""
     with get_sync_db() as conn:
         conn.execute(
@@ -61,13 +68,20 @@ def save_memory_fact_sync(user_id: int, key_topic: str, content: str, category: 
                 category = excluded.category,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (user_id, category.strip().lower(), key_topic.strip().lower(), content.strip())
+            (
+                user_id,
+                category.strip().lower(),
+                key_topic.strip().lower(),
+                content.strip(),
+            ),
         )
         conn.commit()
     return f"Memori '{key_topic}' berhasil disimpan dalam kategori '{category}'."
 
 
-async def save_memory_fact(user_id: int, key_topic: str, content: str, category: str = "general") -> str:
+async def save_memory_fact(
+    user_id: int, key_topic: str, content: str, category: str = "general"
+) -> str:
     """Async save or update a persistent fact/memory."""
     async with aiosqlite.connect(_get_db_path()) as db:
         await db.execute(
@@ -79,7 +93,12 @@ async def save_memory_fact(user_id: int, key_topic: str, content: str, category:
                 category = excluded.category,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (user_id, category.strip().lower(), key_topic.strip().lower(), content.strip())
+            (
+                user_id,
+                category.strip().lower(),
+                key_topic.strip().lower(),
+                content.strip(),
+            ),
         )
         await db.commit()
         return f"Memori '{key_topic}' berhasil disimpan."
@@ -95,10 +114,17 @@ def search_memories_sync(user_id: int, query: str) -> List[Dict[str, Any]]:
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
-            (user_id, pattern, pattern)
+            (user_id, pattern, pattern),
         )
         rows = cursor.fetchall()
-        return [{"category": r["category"], "key_topic": r["key_topic"], "content": r["content"]} for r in rows]
+        return [
+            {
+                "category": r["category"],
+                "key_topic": r["key_topic"],
+                "content": r["content"],
+            }
+            for r in rows
+        ]
 
 
 async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
@@ -107,7 +133,7 @@ async def get_all_memories(user_id: int) -> List[Dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT category, key_topic, content, updated_at FROM knowledge_memory WHERE user_id = ? ORDER BY category, key_topic",
-            (user_id,)
+            (user_id,),
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
@@ -124,7 +150,7 @@ async def search_memories(user_id: int, query: str) -> List[Dict[str, Any]]:
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
-            (user_id, search_pattern, search_pattern)
+            (user_id, search_pattern, search_pattern),
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
@@ -135,14 +161,21 @@ async def delete_memory(user_id: int, key_topic: str) -> bool:
     async with aiosqlite.connect(_get_db_path()) as db:
         cursor = await db.execute(
             "DELETE FROM knowledge_memory WHERE user_id = ? AND LOWER(key_topic) = ?",
-            (user_id, key_topic.strip().lower())
+            (user_id, key_topic.strip().lower()),
         )
         await db.commit()
         return cursor.rowcount > 0
 
 
 # --- Knowledge Graph (Semantic Relations & Second Brain) ---
-def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target_value: str, category: str = "general", tags: str = "") -> Dict[str, Any]:
+def add_knowledge_relation_sync(
+    user_id: int,
+    entity: str,
+    relation: str,
+    target_value: str,
+    category: str = "general",
+    tags: str = "",
+) -> Dict[str, Any]:
     """Synchronously insert or update a semantic relation in the knowledge graph."""
     with get_sync_db() as conn:
         conn.execute(
@@ -155,7 +188,7 @@ def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target
                 tags = excluded.tags,
                 created_at = CURRENT_TIMESTAMP
             """,
-            (user_id, entity, relation, target_value, category, tags)
+            (user_id, entity, relation, target_value, category, tags),
         )
         conn.commit()
     return {
@@ -164,7 +197,7 @@ def add_knowledge_relation_sync(user_id: int, entity: str, relation: str, target
         "relation": relation,
         "target_value": target_value,
         "category": category,
-        "tags": tags
+        "tags": tags,
     }
 
 
@@ -179,7 +212,7 @@ def search_knowledge_graph_sync(user_id: int, query: str) -> List[Dict[str, Any]
             WHERE user_id = ? AND (entity LIKE ? OR relation LIKE ? OR target_value LIKE ? OR tags LIKE ?)
             ORDER BY created_at DESC LIMIT 25
             """,
-            (user_id, pattern, pattern, pattern, pattern)
+            (user_id, pattern, pattern, pattern, pattern),
         )
         rows = cursor.fetchall()
         return [dict(r) for r in rows]
@@ -195,7 +228,7 @@ def get_all_knowledge_graph_sync(user_id: int) -> List[Dict[str, Any]]:
             WHERE user_id = ?
             ORDER BY category, entity
             """,
-            (user_id,)
+            (user_id,),
         )
         rows = cursor.fetchall()
         return [dict(r) for r in rows]
@@ -204,18 +237,24 @@ def get_all_knowledge_graph_sync(user_id: int) -> List[Dict[str, Any]]:
 def export_full_second_brain_sync(user_id: int) -> Dict[str, Any]:
     """Export complete user knowledge base: facts + semantic knowledge graph."""
     with get_sync_db() as conn:
-        c1 = conn.execute("SELECT category, key_topic, content, updated_at FROM knowledge_memory WHERE user_id = ?", (user_id,))
+        c1 = conn.execute(
+            "SELECT category, key_topic, content, updated_at FROM knowledge_memory WHERE user_id = ?",
+            (user_id,),
+        )
         facts = [dict(r) for r in c1.fetchall()]
-        c2 = conn.execute("SELECT entity, relation, target_value, category, tags, created_at FROM knowledge_graph WHERE user_id = ?", (user_id,))
+        c2 = conn.execute(
+            "SELECT entity, relation, target_value, category, tags, created_at FROM knowledge_graph WHERE user_id = ?",
+            (user_id,),
+        )
         relations = [dict(r) for r in c2.fetchall()]
-        
+
         return {
             "user_id": user_id,
             "exported_at": datetime.now().isoformat(),
             "total_facts": len(facts),
             "total_relations": len(relations),
             "facts": facts,
-            "knowledge_graph": relations
+            "knowledge_graph": relations,
         }
 
 
@@ -226,12 +265,16 @@ async def get_user_settings(user_id: int) -> Dict[str, Any]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT voice_reply, system_prompt_override, model_name FROM user_settings WHERE user_id = ?",
-            (user_id,)
+            (user_id,),
         ) as cursor:
             row = await cursor.fetchone()
             if row:
                 return dict(row)
-            return {"voice_reply": 0, "system_prompt_override": None, "model_name": "gemini-3.6-flash"}
+            return {
+                "voice_reply": 0,
+                "system_prompt_override": None,
+                "model_name": "gemini-3.6-flash",
+            }
 
 
 async def toggle_voice_setting(user_id: int) -> bool:
@@ -243,9 +286,11 @@ async def toggle_voice_setting(user_id: int) -> bool:
             VALUES (?, 1)
             ON CONFLICT(user_id) DO UPDATE SET voice_reply = 1 - voice_reply
             """,
-            (user_id,)
+            (user_id,),
         )
         await db.commit()
-        cursor = await db.execute("SELECT voice_reply FROM user_settings WHERE user_id = ?", (user_id,))
+        cursor = await db.execute(
+            "SELECT voice_reply FROM user_settings WHERE user_id = ?", (user_id,)
+        )
         row = await cursor.fetchone()
     return bool(row and row[0])

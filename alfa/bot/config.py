@@ -3,7 +3,9 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
+
 from dotenv import load_dotenv
+
 from alfa.core import database
 
 load_dotenv()
@@ -51,6 +53,7 @@ gemini_client = None
 if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
     try:
         from google import genai
+
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
         logger.info("Google GenAI client initialized successfully.")
     except Exception as e:
@@ -183,9 +186,23 @@ UI_UX_PRO_MAX_BLOCK = (
     "(g) Spacing teratur (4px, 8px, 12px, 16px, 24px, 32px), (h) Hindari anti-pattern (neon mencolok atau gradasi AI ungu generik tanpa konsep).\n"
 )
 
-MEETING_INTENT_KEYWORDS = ('rapat', 'meeting', 'swarm', 'diskusi tim', 'round-table', 'roundtable')
-MEETING_FABRICATION_MARKERS = ('konsensus', 'transkrip', 'action plan', 'peserta',
-                               'putaran', 'hasil rapat', 'kesimpulan rapat')
+MEETING_INTENT_KEYWORDS = (
+    "rapat",
+    "meeting",
+    "swarm",
+    "diskusi tim",
+    "round-table",
+    "roundtable",
+)
+MEETING_FABRICATION_MARKERS = (
+    "konsensus",
+    "transkrip",
+    "action plan",
+    "peserta",
+    "putaran",
+    "hasil rapat",
+    "kesimpulan rapat",
+)
 
 AUDIT_CORRECTION_TEXT = (
     "⛔ SISTEM AUDIT KEBENARAN:\n"
@@ -250,6 +267,7 @@ def resolve_main_gemini(key_id: Optional[int] = None):
     cli = _gemini_client_cache.get(api_key)
     if cli is None:
         from google import genai as _genai
+
         cli = _genai.Client(api_key=api_key)
         _gemini_client_cache[api_key] = cli
     return cli, key_id, label

@@ -2,6 +2,7 @@
 ALFA Tools Registry — daftar canonical semua tool publik.
 Dipisahkan dari implementasi agar mudah di-audit, di-test, dan di-organisir.
 """
+
 from typing import Dict, List, Optional
 
 TOOL_DOMAINS: Dict[str, List[str]] = {
@@ -94,13 +95,13 @@ TOOL_DOMAINS: Dict[str, List[str]] = {
 }
 
 # Flat list untuk quick lookup
-ALL_TOOL_NAMES: List[str] = sorted({name for names in TOOL_DOMAINS.values() for name in names})
+ALL_TOOL_NAMES: List[str] = sorted(
+    {name for names in TOOL_DOMAINS.values() for name in names}
+)
 
 # Reverse mapping: name -> domain
 TOOL_DOMAIN_MAP: Dict[str, str] = {
-    name: domain
-    for domain, names in TOOL_DOMAINS.items()
-    for name in names
+    name: domain for domain, names in TOOL_DOMAINS.items() for name in names
 }
 
 

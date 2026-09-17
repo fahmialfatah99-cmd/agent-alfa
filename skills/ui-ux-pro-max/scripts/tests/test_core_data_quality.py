@@ -41,15 +41,18 @@ class TestSemanticColors(unittest.TestCase):
         for row in read_rows("colors.csv"):
             for foreground, (background, role, minimum) in COLOR_CONTRAST_PAIRS.items():
                 with self.subTest(
-                        product=row["Product Type"], pair=foreground, role=role):
+                    product=row["Product Type"], pair=foreground, role=role
+                ):
                     self.assertGreaterEqual(
-                        contrast_ratio(row[foreground], row[background]), minimum)
+                        contrast_ratio(row[foreground], row[background]), minimum
+                    )
 
     def test_destructive_tokens_are_not_success_green(self):
         for row in read_rows("colors.csv"):
             value = row["Destructive"].lstrip("#")
-            red, green, blue = (int(value[index:index + 2], 16)
-                                for index in (0, 2, 4))
+            red, green, blue = (
+                int(value[index : index + 2], 16) for index in (0, 2, 4)
+            )
             with self.subTest(product=row["Product Type"]):
                 self.assertFalse(green > red * 1.1 and green > blue * 1.1)
 
@@ -77,13 +80,21 @@ class TestAccessibilityGuidance(unittest.TestCase):
                 self.assertIn(row["Severity"], {"Medium", "High", "Critical"})
                 self.assertNotEqual(row["Do"], row["Description"])
                 result = search(issue, domain="ux", max_results=3)
-                self.assertTrue(any(row.get("Issue") == issue for row in result["results"]))
+                self.assertTrue(
+                    any(row.get("Issue") == issue for row in result["results"])
+                )
 
     def test_native_and_web_target_sizes_remain_distinct(self):
-        native = next(row for row in read_rows("app-interface.csv")
-                      if row["Issue"] == "Touch Target Size")
-        web = next(row for row in read_rows("ux-guidelines.csv")
-                   if row["Issue"] == "Target Size (Minimum)")
+        native = next(
+            row
+            for row in read_rows("app-interface.csv")
+            if row["Issue"] == "Touch Target Size"
+        )
+        web = next(
+            row
+            for row in read_rows("ux-guidelines.csv")
+            if row["Issue"] == "Target Size (Minimum)"
+        )
         native_text = " ".join(native.values())
         web_text = " ".join(web.values())
         self.assertIn("44pt", native_text)
@@ -134,9 +145,7 @@ class TestChartsTypographyAndIcons(unittest.TestCase):
                 text = " ".join((row["Accessibility Notes"], row["A11y Fallback"]))
                 self.assertIsNone(WCAG_GRADE.search(text))
                 self.assertIsNotNone(CHART_TEXT_FALLBACK.search(text.casefold()))
-                self.assertIsNotNone(
-                    CHART_NON_COLOR_GUIDANCE.search(text.casefold())
-                )
+                self.assertIsNotNone(CHART_NON_COLOR_GUIDANCE.search(text.casefold()))
                 self.assertIn("keyboard", text.casefold())
 
     def test_named_fonts_match_google_import_css_import_and_tailwind_config(self):
@@ -179,7 +188,9 @@ class TestChartsTypographyAndIcons(unittest.TestCase):
                 self.assertGreater(result["count"], 0)
                 self.assertIn(
                     expected.casefold(),
-                    " ".join(str(value) for value in result["results"][0].values()).casefold(),
+                    " ".join(
+                        str(value) for value in result["results"][0].values()
+                    ).casefold(),
                 )
 
 
@@ -190,8 +201,9 @@ class TestCurrentReactGuidance(unittest.TestCase):
         text = " ".join(effect_event.values()).casefold()
         self.assertIn("inside effects", text)
         self.assertIn("dependencies", text)
-        self.assertFalse(any("uselatest" in " ".join(row.values()).casefold()
-                             for row in rows))
+        self.assertFalse(
+            any("uselatest" in " ".join(row.values()).casefold() for row in rows)
+        )
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 Facade re-exporting from modular subpackage alfa.tools.filesystem.
 """
 
+from alfa.tools.filesystem import *  # noqa: F401, F403
 from alfa.tools.filesystem import (
     _CODE_CHUNK_LINES,
     _CODE_INDEX_DB,
@@ -59,4 +60,3 @@ from alfa.tools.filesystem import (
     vault_store_secret,
     write_local_file,
 )
-from alfa.tools.filesystem import *  # noqa: F401, F403

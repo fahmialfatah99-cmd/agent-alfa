@@ -20,11 +20,11 @@ def sanitize_display_text(text: str) -> str:
     if not text:
         return ""
     # Strip high-plane emojis & dingbats that trigger missing glyph boxes
-    cleaned = re.sub(r'[\U00010000-\U0010ffff]', '', text)
-    cleaned = re.sub(r'[\u2600-\u27ff]', '', cleaned)
-    cleaned = re.sub(r'[\u2300-\u23ff]', '', cleaned)
-    cleaned = re.sub(r'[\u200d\ufe0f\ufe0e]', '', cleaned)
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    cleaned = re.sub(r"[\U00010000-\U0010ffff]", "", text)
+    cleaned = re.sub(r"[\u2600-\u27ff]", "", cleaned)
+    cleaned = re.sub(r"[\u2300-\u23ff]", "", cleaned)
+    cleaned = re.sub(r"[\u200d\ufe0f\ufe0e]", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
 
 
@@ -32,8 +32,14 @@ def get_audio_duration(audio_path: str) -> float:
     """Get exact duration of audio file in seconds using ffprobe."""
     try:
         cmd = [
-            "ffprobe", "-v", "error", "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1", audio_path
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            audio_path,
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
         return max(3.0, float(res.stdout.strip()))
@@ -46,18 +52,25 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
     """Generate natural Indonesian voiceover from text."""
     safe_stem = f"voice_{int(time.time() * 1000)}"
     audio_path = os.path.join(VIDEO_OUT_DIR, "Audio", f"{safe_stem}.mp3")
-    
+
     edge_tts_bin = None
     if os.name == "nt":
         candidates = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "Scripts", "edge-tts.exe"),
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "venv",
+                "Scripts",
+                "edge-tts.exe",
+            ),
             shutil.which("edge-tts.exe"),
             shutil.which("edge-tts"),
             "edge-tts",
         ]
     else:
         candidates = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts"),
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "edge-tts"
+            ),
             shutil.which("edge-tts"),
             "edge-tts",
         ]
@@ -67,7 +80,7 @@ def generate_voiceover(text: str, voice: str = "id-ID-GadisNeural") -> str:
             break
     if not edge_tts_bin:
         edge_tts_bin = "edge-tts"
-        
+
     cmd = [edge_tts_bin, "--voice", voice, "-f", "-", "--write-media", audio_path]
     # Teks dikirim via stdin ("-f -") agar tidak muncul di process list (ps aux)
     # dan tidak kena batas ARG_MAX pada voiceover panjang.

@@ -8,25 +8,26 @@ NO hardcoded colors, fonts, or spacing allowed
 
 import argparse
 import json
+from datetime import datetime
 from html import escape
 from pathlib import Path
-from datetime import datetime
 
 
-def _e(value, default=''):
+def _e(value, default=""):
     """HTML-escape a user-supplied value for safe embedding in HTML content."""
     return escape(str(value if value is not None else default))
 
 
-def _safe_url(url, default='#'):
+def _safe_url(url, default="#"):
     """Validate and escape a URL for use in href attributes.
 
     Only allows http://, https://, #, and / schemes to prevent
     javascript: URI injection (CWE-79).
     """
-    if url and str(url).strip().lower().startswith(('http://', 'https://', '#', '/')):
+    if url and str(url).strip().lower().startswith(("http://", "https://", "#", "/")):
         return escape(str(url), quote=True)
     return default
+
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
@@ -38,7 +39,7 @@ OUTPUT_DIR = Path(__file__).resolve().parents[4] / "assets" / "designs" / "slide
 # ============ BRAND-COMPLIANT SLIDE TEMPLATE ============
 # ALL values reference CSS variables from design-tokens.css
 
-SLIDE_TEMPLATE = '''<!DOCTYPE html>
+SLIDE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -420,14 +421,15 @@ SLIDE_TEMPLATE = '''<!DOCTYPE html>
     </div>
 </body>
 </html>
-'''
+"""
 
 
 # ============ SLIDE GENERATORS ============
 
+
 def generate_title_slide(data):
     """Title slide with gradient headline"""
-    return f'''
+    return f"""
     <section class="slide slide--glow flex flex-col items-center justify-center text-center">
         <div class="badge mb-6">{_e(data.get('badge', 'Pitch Deck'))}</div>
         <h1 class="slide-title mb-6">{_e(data.get('title', 'Your Title Here'))}</h1>
@@ -441,12 +443,12 @@ def generate_title_slide(data):
             <span>{_e(data.get('date', datetime.now().strftime('%B %Y')))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_problem_slide(data):
     """Problem statement slide using PAS formula"""
-    return f'''
+    return f"""
     <section class="slide slide--surface">
         <div class="badge mb-6">The Problem</div>
         <h2 class="slide-heading mb-8">{_e(data.get('headline', 'The problem your audience faces'))}</h2>
@@ -472,12 +474,12 @@ def generate_problem_slide(data):
             <span>{_e(data.get('page', '2'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_solution_slide(data):
     """Solution slide with feature highlights"""
-    return f'''
+    return f"""
     <section class="slide">
         <div class="badge mb-6">The Solution</div>
         <h2 class="slide-heading mb-8">{_e(data.get('headline', 'How we solve this'))}</h2>
@@ -517,26 +519,29 @@ def generate_solution_slide(data):
             <span>{_e(data.get('page', '3'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_metrics_slide(data):
     """Traction/metrics slide with large numbers"""
-    metrics = data.get('metrics', [
-        {'value': '10K+', 'label': 'Active Users'},
-        {'value': '95%', 'label': 'Retention Rate'},
-        {'value': '3x', 'label': 'Revenue Growth'},
-        {'value': '$2M', 'label': 'ARR'}
-    ])
+    metrics = data.get(
+        "metrics",
+        [
+            {"value": "10K+", "label": "Active Users"},
+            {"value": "95%", "label": "Retention Rate"},
+            {"value": "3x", "label": "Revenue Growth"},
+            {"value": "$2M", "label": "ARR"},
+        ],
+    )
 
-    metrics_html = ''.join([f'''
+    metrics_html = "".join([f"""
         <div class="card metric">
             <div class="metric-value">{_e(m.get('value', ''))}</div>
             <div class="metric-label">{_e(m.get('label', ''))}</div>
         </div>
-    ''' for m in metrics[:4]])
+    """ for m in metrics[:4]])
 
-    return f'''
+    return f"""
     <section class="slide slide--surface slide--glow">
         <div class="badge mb-6">Traction</div>
         <h2 class="slide-heading mb-8 text-center">{_e(data.get('headline', 'Our Growth'))}</h2>
@@ -548,26 +553,29 @@ def generate_metrics_slide(data):
             <span>{_e(data.get('page', '4'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_chart_slide(data):
     """Chart slide with CSS bar chart"""
-    bars = data.get('bars', [
-        {'label': 'Q1', 'value': 40},
-        {'label': 'Q2', 'value': 60},
-        {'label': 'Q3', 'value': 80},
-        {'label': 'Q4', 'value': 100}
-    ])
+    bars = data.get(
+        "bars",
+        [
+            {"label": "Q1", "value": 40},
+            {"label": "Q2", "value": 60},
+            {"label": "Q3", "value": 80},
+            {"label": "Q4", "value": 100},
+        ],
+    )
 
-    bars_html = ''.join([f'''
+    bars_html = "".join([f"""
         <div class="bar" style="height: {int(b.get('value', 0))}%;">
             <span class="bar-value">{_e(b.get('display', str(b.get('value', 0)) + '%'))}</span>
             <span class="bar-label">{_e(b.get('label', ''))}</span>
         </div>
-    ''' for b in bars])
+    """ for b in bars])
 
-    return f'''
+    return f"""
     <section class="slide">
         <div class="badge mb-6">{_e(data.get('badge', 'Growth'))}</div>
         <h2 class="slide-heading mb-8">{_e(data.get('headline', 'Revenue Growth'))}</h2>
@@ -582,12 +590,12 @@ def generate_chart_slide(data):
             <span>{_e(data.get('page', '5'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_testimonial_slide(data):
     """Social proof slide"""
-    return f'''
+    return f"""
     <section class="slide slide--surface flex flex-col justify-center">
         <div class="badge mb-6">What They Say</div>
         <div class="testimonial" style="max-width: 900px;">
@@ -600,12 +608,12 @@ def generate_testimonial_slide(data):
             <span>{_e(data.get('page', '6'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 def generate_cta_slide(data):
     """Closing CTA slide"""
-    return f'''
+    return f"""
     <section class="slide slide--gradient flex flex-col items-center justify-center text-center">
         <h2 class="slide-heading mb-6" style="color: var(--color-foreground);">{_e(data.get('headline', 'Ready to get started?'))}</h2>
         <p class="slide-body mb-8" style="color: rgba(255,255,255,0.8);">{_e(data.get('subheadline', 'Join thousands of teams already using our solution.'))}</p>
@@ -617,20 +625,20 @@ def generate_cta_slide(data):
             <span>{_e(data.get('website', 'www.example.com'))}</span>
         </div>
     </section>
-    '''
+    """
 
 
 # Slide type mapping
 SLIDE_GENERATORS = {
-    'title': generate_title_slide,
-    'problem': generate_problem_slide,
-    'solution': generate_solution_slide,
-    'metrics': generate_metrics_slide,
-    'traction': generate_metrics_slide,
-    'chart': generate_chart_slide,
-    'testimonial': generate_testimonial_slide,
-    'cta': generate_cta_slide,
-    'closing': generate_cta_slide
+    "title": generate_title_slide,
+    "problem": generate_problem_slide,
+    "solution": generate_solution_slide,
+    "metrics": generate_metrics_slide,
+    "traction": generate_metrics_slide,
+    "chart": generate_chart_slide,
+    "testimonial": generate_testimonial_slide,
+    "cta": generate_cta_slide,
+    "closing": generate_cta_slide,
 }
 
 
@@ -638,7 +646,7 @@ def generate_deck(slides_data, title="Pitch Deck"):
     """Generate complete deck from slide data list"""
     slides_html = ""
     for slide in slides_data:
-        slide_type = slide.get('type', 'title')
+        slide_type = slide.get("type", "title")
         generator = SLIDE_GENERATORS.get(slide_type)
         if generator:
             slides_html += generator(slide)
@@ -651,7 +659,7 @@ def generate_deck(slides_data, title="Pitch Deck"):
     return SLIDE_TEMPLATE.format(
         title=escape(str(title)),
         tokens_css_path=tokens_rel_path,
-        slides_content=slides_html
+        slides_content=slides_html,
     )
 
 
@@ -667,99 +675,105 @@ def main():
         # Demo deck showcasing all slide types
         demo_slides = [
             {
-                'type': 'title',
-                'badge': 'Investor Deck 2024',
-                'title': 'ClaudeKit Marketing',
-                'subtitle': 'Your AI marketing team. Always on.',
-                'cta': 'Join Waitlist',
-                'secondary_cta': 'See Demo',
-                'company': 'ClaudeKit',
-                'date': 'December 2024'
+                "type": "title",
+                "badge": "Investor Deck 2024",
+                "title": "ClaudeKit Marketing",
+                "subtitle": "Your AI marketing team. Always on.",
+                "cta": "Join Waitlist",
+                "secondary_cta": "See Demo",
+                "company": "ClaudeKit",
+                "date": "December 2024",
             },
             {
-                'type': 'problem',
-                'headline': 'Marketing teams are drowning',
-                'pain_1_title': 'Content Overload',
-                'pain_1_desc': 'Need to produce 10x content with same headcount',
-                'pain_2_title': 'Tool Fatigue',
-                'pain_2_desc': '15+ tools that don\'t talk to each other',
-                'pain_3_title': 'No Time to Think',
-                'pain_3_desc': 'Strategy suffers when execution consumes all hours',
-                'company': 'ClaudeKit',
-                'page': '2'
+                "type": "problem",
+                "headline": "Marketing teams are drowning",
+                "pain_1_title": "Content Overload",
+                "pain_1_desc": "Need to produce 10x content with same headcount",
+                "pain_2_title": "Tool Fatigue",
+                "pain_2_desc": "15+ tools that don't talk to each other",
+                "pain_3_title": "No Time to Think",
+                "pain_3_desc": "Strategy suffers when execution consumes all hours",
+                "company": "ClaudeKit",
+                "page": "2",
             },
             {
-                'type': 'solution',
-                'headline': 'AI agents that actually get marketing',
-                'feature_1_title': 'Content Creation',
-                'feature_1_desc': 'Blog posts, social, email - all on brand, all on time',
-                'feature_2_title': 'Campaign Management',
-                'feature_2_desc': 'Multi-channel orchestration with one command',
-                'feature_3_title': 'Analytics & Insights',
-                'feature_3_desc': 'Real-time optimization without the spreadsheets',
-                'company': 'ClaudeKit',
-                'page': '3'
+                "type": "solution",
+                "headline": "AI agents that actually get marketing",
+                "feature_1_title": "Content Creation",
+                "feature_1_desc": "Blog posts, social, email - all on brand, all on time",
+                "feature_2_title": "Campaign Management",
+                "feature_2_desc": "Multi-channel orchestration with one command",
+                "feature_3_title": "Analytics & Insights",
+                "feature_3_desc": "Real-time optimization without the spreadsheets",
+                "company": "ClaudeKit",
+                "page": "3",
             },
             {
-                'type': 'metrics',
-                'headline': 'Early traction speaks volumes',
-                'metrics': [
-                    {'value': '500+', 'label': 'Beta Users'},
-                    {'value': '85%', 'label': 'Weekly Active'},
-                    {'value': '4.9', 'label': 'NPS Score'},
-                    {'value': '50hrs', 'label': 'Saved/Week'}
+                "type": "metrics",
+                "headline": "Early traction speaks volumes",
+                "metrics": [
+                    {"value": "500+", "label": "Beta Users"},
+                    {"value": "85%", "label": "Weekly Active"},
+                    {"value": "4.9", "label": "NPS Score"},
+                    {"value": "50hrs", "label": "Saved/Week"},
                 ],
-                'company': 'ClaudeKit',
-                'page': '4'
+                "company": "ClaudeKit",
+                "page": "4",
             },
             {
-                'type': 'chart',
-                'badge': 'Revenue',
-                'headline': 'Growing month over month',
-                'chart_title': 'MRR Growth ($K)',
-                'bars': [
-                    {'label': 'Sep', 'value': 20, 'display': '$5K'},
-                    {'label': 'Oct', 'value': 40, 'display': '$12K'},
-                    {'label': 'Nov', 'value': 70, 'display': '$28K'},
-                    {'label': 'Dec', 'value': 100, 'display': '$45K'}
+                "type": "chart",
+                "badge": "Revenue",
+                "headline": "Growing month over month",
+                "chart_title": "MRR Growth ($K)",
+                "bars": [
+                    {"label": "Sep", "value": 20, "display": "$5K"},
+                    {"label": "Oct", "value": 40, "display": "$12K"},
+                    {"label": "Nov", "value": 70, "display": "$28K"},
+                    {"label": "Dec", "value": 100, "display": "$45K"},
                 ],
-                'company': 'ClaudeKit',
-                'page': '5'
+                "company": "ClaudeKit",
+                "page": "5",
             },
             {
-                'type': 'testimonial',
-                'quote': 'ClaudeKit replaced 3 tools and 2 contractors. Our content output tripled while costs dropped 60%.',
-                'author': 'Sarah Chen',
-                'role': 'Head of Marketing, TechStartup',
-                'company': 'ClaudeKit',
-                'page': '6'
+                "type": "testimonial",
+                "quote": "ClaudeKit replaced 3 tools and 2 contractors. Our content output tripled while costs dropped 60%.",
+                "author": "Sarah Chen",
+                "role": "Head of Marketing, TechStartup",
+                "company": "ClaudeKit",
+                "page": "6",
             },
             {
-                'type': 'cta',
-                'headline': 'Ship campaigns while you sleep',
-                'subheadline': 'Early access available. Limited spots.',
-                'cta': 'Join the Waitlist',
-                'contact': 'hello@claudekit.ai',
-                'website': 'claudekit.ai'
-            }
+                "type": "cta",
+                "headline": "Ship campaigns while you sleep",
+                "subheadline": "Early access available. Limited spots.",
+                "cta": "Join the Waitlist",
+                "contact": "hello@claudekit.ai",
+                "website": "claudekit.ai",
+            },
         ]
 
         html = generate_deck(demo_slides, "ClaudeKit Marketing - Pitch Deck")
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        output_path = OUTPUT_DIR / f"demo-pitch-{datetime.now().strftime('%y%m%d')}.html"
-        output_path.write_text(html, encoding='utf-8')
+        output_path = (
+            OUTPUT_DIR / f"demo-pitch-{datetime.now().strftime('%y%m%d')}.html"
+        )
+        output_path.write_text(html, encoding="utf-8")
         print(f"Demo deck generated: {output_path}")
 
     elif args.json:
-        with open(args.json, 'r') as f:
+        with open(args.json, "r") as f:
             data = json.load(f)
 
-        html = generate_deck(data.get('slides', []), data.get('title', 'Presentation'))
+        html = generate_deck(data.get("slides", []), data.get("title", "Presentation"))
 
-        output_path = Path(args.output) if args.output else OUTPUT_DIR / f"deck-{datetime.now().strftime('%y%m%d-%H%M')}.html"
+        output_path = (
+            Path(args.output)
+            if args.output
+            else OUTPUT_DIR / f"deck-{datetime.now().strftime('%y%m%d-%H%M')}.html"
+        )
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html, encoding='utf-8')
+        output_path.write_text(html, encoding="utf-8")
         print(f"Deck generated: {output_path}")
 
     else:

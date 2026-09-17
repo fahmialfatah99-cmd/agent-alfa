@@ -28,7 +28,10 @@ UX_PHRASES = {
     "Compact Label Overflow": ("stay whole on one line", "keyboard pointer and touch"),
     "Compact Control Semantics": ("native role", "pressed or selected state"),
     "Contextual Live Badge Updates": ("meaningful contextual status", "atomic status"),
-    "Cancellable State Transitions": ("interrupt an in-flight transition", "final semantic state"),
+    "Cancellable State Transitions": (
+        "interrupt an in-flight transition",
+        "final semantic state",
+    ),
 }
 
 TAILWIND_PHRASES = {
@@ -57,8 +60,10 @@ class TestTextLayoutRetrieval(unittest.TestCase):
 
     def test_tailwind_query_returns_compact_label_layout_first(self):
         result = search_stack(
-            "chip badge overflow nowrap", "html-tailwind",
-            max_results=3, diagnostics=True,
+            "chip badge overflow nowrap",
+            "html-tailwind",
+            max_results=3,
+            diagnostics=True,
         )
         actual = [row.get("Guideline") for row in result["results"]]
         self.assertTrue(actual, result.get("diagnostics"))
@@ -100,11 +105,21 @@ class TestTextLayoutDataContracts(unittest.TestCase):
     def test_refined_rows_are_context_sensitive_not_universal_recipes(self):
         expected = {
             "8": ("depends on distance complexity platform", "shared motion tokens"),
-            "14": ("match how an element changes speed", "linear for constant-rate progress"),
+            "14": (
+                "match how an element changes speed",
+                "linear for constant-rate progress",
+            ),
             "19": ("badges validation text", "stable content-driven container"),
-            "78": ("avoid flashing for near-instant work", "platform and component guidance"),
+            "78": (
+                "avoid flashing for near-instant work",
+                "platform and component guidance",
+            ),
         }
-        forbidden = ("use 150-300ms", "operations > 300ms", "linear motion feels robotic")
+        forbidden = (
+            "use 150-300ms",
+            "operations > 300ms",
+            "linear motion feels robotic",
+        )
         by_number = {row["No"]: row for row in self.ux}
         for number, phrases in expected.items():
             with self.subTest(row=number):

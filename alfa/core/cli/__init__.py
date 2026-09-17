@@ -1,8 +1,8 @@
 """ALFA Sovereign AI - Advanced Command Line Interface (CLI) Package."""
 
+from alfa.core.cli.app import AlfaCLI, main
 from alfa.core.cli.constants import (
     CONFIG_FILE,
-    Colors,
     DEFAULT_SERVER,
     HISTORY_FILE,
     MAX_HISTORY_LENGTH,
@@ -11,10 +11,10 @@ from alfa.core.cli.constants import (
     SESSION_FILE,
     TIMEOUT,
     VERSION,
+    Colors,
     print_banner,
     print_status,
 )
-from alfa.core.cli.app import AlfaCLI, main
 
 __all__ = [
     "AlfaCLI",

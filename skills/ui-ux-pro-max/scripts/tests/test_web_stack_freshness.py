@@ -96,10 +96,12 @@ class TestWebStackFreshness(unittest.TestCase):
     def test_shadcn_named_base_excludes_incompatible_composition_apis(self):
         result = search_stack("shadcn Base UI asChild composition", "shadcn")
         self.assertGreater(result["count"], 0)
-        self.assertEqual(result["results"][0]["Guideline"],
-                         "Use render for Base UI composition")
-        self.assertTrue(all("base=radix" not in row["Applies To"]
-                            for row in result["results"]))
+        self.assertEqual(
+            result["results"][0]["Guideline"], "Use render for Base UI composition"
+        )
+        self.assertTrue(
+            all("base=radix" not in row["Applies To"] for row in result["results"])
+        )
 
     def test_common_old_major_syntaxes_select_legacy_guidance(self):
         cases = {
@@ -125,7 +127,10 @@ class TestWebStackFreshness(unittest.TestCase):
         cases = {
             ("nextjs", "Next.js 16 request interception proxy"): "proxy",
             ("html-tailwind", "Tailwind 4 CSS-first source detection"): "source",
-            ("react", "React Effect Event latest values inside an Effect"): "effect event",
+            (
+                "react",
+                "React Effect Event latest values inside an Effect",
+            ): "effect event",
         }
         for (stack, query), expected in cases.items():
             with self.subTest(stack=stack):
@@ -147,12 +152,16 @@ class TestWebStackFreshness(unittest.TestCase):
             "svelte": ("$: ", "export let ", "on:click", "createeventdispatcher"),
             "nextjs": ("middleware.ts", "function middleware", "skipmiddleware"),
             "html-tailwind": (
-                "content: [", "mode: 'jit'", "@tailwindcss/aspect-ratio",
+                "content: [",
+                "mode: 'jit'",
+                "@tailwindcss/aspect-ratio",
                 "tailwindcss-container-queries",
             ),
             "nuxt-ui": ("#cell-status", "sortable: true", "v-model:content"),
             "astro": (
-                "output: 'hybrid'", "viewtransitions", "@astrojs/tailwind",
+                "output: 'hybrid'",
+                "viewtransitions",
+                "@astrojs/tailwind",
                 "astro add prefetch",
             ),
         }
@@ -167,9 +176,7 @@ class TestWebStackFreshness(unittest.TestCase):
                     with self.subTest(stack=stack, row=row["No"], token=token):
                         self.assertNotIn(token, recommended)
 
-        self.assertNotIn(
-            "fetch(url {", _rows("nextjs")[12]["Code Good"].casefold()
-        )
+        self.assertNotIn("fetch(url {", _rows("nextjs")[12]["Code Good"].casefold())
         self.assertNotIn("catch(e) {}", _rows("react")[39]["Code Good"].casefold())
 
 

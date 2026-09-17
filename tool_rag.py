@@ -41,10 +41,45 @@ CORE_ALWAYS: Set[str] = {
 }
 
 _STOPWORDS = {
-    "yang", "dan", "atau", "di", "ke", "dari", "untuk", "dengan", "pada", "adalah",
-    "itu", "ini", "the", "a", "an", "of", "to", "in", "on", "for", "with", "and",
-    "or", "is", "are", "be", "please", "coba", "tolong", "buatkan", "bikin",
-    "saya", "kamu", "dia", "mereka", "bagaimana", "apa", "kenapa", "gimana",
+    "yang",
+    "dan",
+    "atau",
+    "di",
+    "ke",
+    "dari",
+    "untuk",
+    "dengan",
+    "pada",
+    "adalah",
+    "itu",
+    "ini",
+    "the",
+    "a",
+    "an",
+    "of",
+    "to",
+    "in",
+    "on",
+    "for",
+    "with",
+    "and",
+    "or",
+    "is",
+    "are",
+    "be",
+    "please",
+    "coba",
+    "tolong",
+    "buatkan",
+    "bikin",
+    "saya",
+    "kamu",
+    "dia",
+    "mereka",
+    "bagaimana",
+    "apa",
+    "kenapa",
+    "gimana",
 }
 
 # Sinonim ID->EN dan istilah teknis operasional untuk menjembatani prompt
@@ -54,21 +89,27 @@ _SYNONYMS = {
     "screenshot": "capture desktop screenshot display monitor screen",
     "screnshoot": "capture desktop screenshot display monitor screen",
     "ss": "capture desktop screenshot display monitor screen",
-    "rekam": "record screen video capture", "perekam": "record screen video",
-    "layar": "screen desktop display monitor", "tangkap": "capture screenshot snapshot",
-    "layanan": "service systemd daemon manage status restart", "servis": "service systemctl",
-    "restart": "restart reboot service reload", "matikan": "stop kill shutdown terminate",
-    "bunuh": "kill terminate process", "proses": "process running pid htop ps",
+    "rekam": "record screen video capture",
+    "perekam": "record screen video",
+    "layar": "screen desktop display monitor",
+    "tangkap": "capture screenshot snapshot",
+    "layanan": "service systemd daemon manage status restart",
+    "servis": "service systemctl",
+    "restart": "restart reboot service reload",
+    "matikan": "stop kill shutdown terminate",
+    "bunuh": "kill terminate process",
+    "proses": "process running pid htop ps",
     "penjaga": "guardian proactive threshold health monitor heal",
-    "terminal": "bash shell command cli execute exec", "perintah": "command bash execute cli",
+    "terminal": "bash shell command cli execute exec",
+    "perintah": "command bash execute cli",
     "jadwal": "cron crontab schedule reminder recurring timer",
     "pengingat": "reminder schedule notify alarm",
     "suhu": "hardware battery wifi bluetooth volume system",
-    "bersih": "clean storage disk free space", "kapasitas": "storage disk df du usage",
+    "bersih": "clean storage disk free space",
+    "kapasitas": "storage disk df du usage",
     "jaringan": "network scan wifi ip port devices ping benchmark speedtest",
     "keamanan": "security audit password ssl vulnerability hash",
     "sandi": "password secure generate token credential",
-
     # Web, Scraper, & Browser
     "cari": "search web query duckduckgo find google",
     "telusuri": "search research explore web",
@@ -80,7 +121,6 @@ _SYNONYMS = {
     "rayap": "crawler crawlee crawl4ai spider scrape",
     "jelajah": "browser open click type navigate visual",
     "otomatisasi": "browser_use autonomous robot task web",
-
     # Files, Documents & Code
     "berkas": "file local read write edit modify document",
     "baca": "read local file view cat head",
@@ -91,7 +131,6 @@ _SYNONYMS = {
     "koding": "code python execute sandbox program script",
     "git": "git commit push pull branch worktree diff status repository repo",
     "pustaka": "codebase search index grep symbol lsp",
-
     # Media, Audio, Video & PDF
     "gambar": "image photo picture edit upscale crop rotate watermark",
     "foto": "image photo picture vision camera frame webcam",
@@ -100,7 +139,6 @@ _SYNONYMS = {
     "dokumen": "document pdf docx odt writer libreoffice markitdown text",
     "presentasi": "presentation pptx powerpoint slides impress",
     "tabel": "excel spreadsheet xlsx csv dataset analyze chart data",
-
     # PDF Specific Operations
     "pdf": "pdf merge split extract encrypt decrypt rotate watermark report compress",
     "gabung": "merge combine pdf documents",
@@ -108,7 +146,6 @@ _SYNONYMS = {
     "kunci": "encrypt password protect secure pdf vault",
     "buka": "decrypt unlock password open",
     "putar": "rotate angle pdf page",
-
     # Memory, Brain & Agents
     "ingat": "memory remember save knowledge fact store",
     "simpan": "save store write memory ingest vector vault secret",
@@ -125,20 +162,69 @@ _SYNONYMS = {
 
 # Domain Category Keywords untuk Intent Boosting
 _CATEGORY_BOOSTS = {
-    "pdf": ["generate_pdf_report", "pdf_merge_documents", "pdf_split_document", "pdf_extract_full_text",
-            "pdf_encrypt_password", "pdf_decrypt_password", "pdf_rotate_pages", "images_convert_to_pdf",
-            "pdf_apply_watermark_text", "pdf_compress_and_optimize"],
-    "system": ["get_system_stats", "execute_bash_command", "manage_system_services", "list_running_processes",
-               "kill_process", "clean_system_storage", "auto_diagnose_and_heal_system", "manage_crontab_jobs"],
-    "code": ["execute_python_sandbox", "read_local_file", "write_local_file", "edit_file_precise",
-             "search_codebase", "index_codebase", "git_operations", "grep_workspace"],
-    "web": ["web_search", "fetch_web_page_content", "deep_research_topic", "browser_open_url",
-            "scrapling_stealth_fetch", "crawl4ai_web_crawler", "universal_deep_scraper"],
-    "media": ["edit_image", "text_to_audio_file", "extract_audio_from_video", "convert_media_format",
-              "generate_promo_video_from_images", "analyze_dataset_csv_json"],
-    "memory": ["save_knowledge_memory", "search_knowledge_memory", "semantic_search_vector_brain",
-               "ingest_document_to_vector_brain", "list_vector_brain_documents", "export_knowledge_base"],
-    "agent": ["spawn_background_subagent", "check_subagent_status", "conduct_ai_meeting", "manage_custom_agents"]
+    "pdf": [
+        "generate_pdf_report",
+        "pdf_merge_documents",
+        "pdf_split_document",
+        "pdf_extract_full_text",
+        "pdf_encrypt_password",
+        "pdf_decrypt_password",
+        "pdf_rotate_pages",
+        "images_convert_to_pdf",
+        "pdf_apply_watermark_text",
+        "pdf_compress_and_optimize",
+    ],
+    "system": [
+        "get_system_stats",
+        "execute_bash_command",
+        "manage_system_services",
+        "list_running_processes",
+        "kill_process",
+        "clean_system_storage",
+        "auto_diagnose_and_heal_system",
+        "manage_crontab_jobs",
+    ],
+    "code": [
+        "execute_python_sandbox",
+        "read_local_file",
+        "write_local_file",
+        "edit_file_precise",
+        "search_codebase",
+        "index_codebase",
+        "git_operations",
+        "grep_workspace",
+    ],
+    "web": [
+        "web_search",
+        "fetch_web_page_content",
+        "deep_research_topic",
+        "browser_open_url",
+        "scrapling_stealth_fetch",
+        "crawl4ai_web_crawler",
+        "universal_deep_scraper",
+    ],
+    "media": [
+        "edit_image",
+        "text_to_audio_file",
+        "extract_audio_from_video",
+        "convert_media_format",
+        "generate_promo_video_from_images",
+        "analyze_dataset_csv_json",
+    ],
+    "memory": [
+        "save_knowledge_memory",
+        "search_knowledge_memory",
+        "semantic_search_vector_brain",
+        "ingest_document_to_vector_brain",
+        "list_vector_brain_documents",
+        "export_knowledge_base",
+    ],
+    "agent": [
+        "spawn_background_subagent",
+        "check_subagent_status",
+        "conduct_ai_meeting",
+        "manage_custom_agents",
+    ],
 }
 
 
@@ -169,7 +255,7 @@ def _schema_to_text(schema: Dict[str, Any]) -> str:
         parts = [fn.get("name", "")]
         desc = fn.get("description", "") or ""
         parts.append(desc[:600])
-        params = ((fn.get("parameters") or {}).get("properties") or {})
+        params = (fn.get("parameters") or {}).get("properties") or {}
         parts.extend(params.keys())
         return " ".join(str(p) for p in parts)
     except Exception:
@@ -297,15 +383,17 @@ def select_relevant_functions(
         if not filtered:
             return unique_funcs
 
-        logger.info(f"[ToolRAG] {len(unique_funcs)} -> {len(filtered)} fungsi unik "
-                    f"(hemat ~{(len(unique_funcs) - len(filtered)) * 90} token/turn)")
+        logger.info(
+            f"[ToolRAG] {len(unique_funcs)} -> {len(filtered)} fungsi unik "
+            f"(hemat ~{(len(unique_funcs) - len(filtered)) * 90} token/turn)"
+        )
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
         # Tetap deduplikasi saat fallback error
         seen_fallback = set()
         fallback_funcs = []
-        for f in (functions or []):
+        for f in functions or []:
             nm = getattr(f, "__name__", "")
             if nm and nm not in seen_fallback:
                 seen_fallback.add(nm)
@@ -374,12 +462,16 @@ def select_relevant_tools(
             if core in name_to_schema:
                 selected.append(core)
 
-        filtered = [name_to_schema[nm] for nm in dict.fromkeys(selected) if nm in name_to_schema]
+        filtered = [
+            name_to_schema[nm] for nm in dict.fromkeys(selected) if nm in name_to_schema
+        ]
         if not filtered:  # safety net: jangan pernah kosongkan tools
             return tools_schema
         dropped = len(tools_schema) - len(filtered)
-        logger.info(f"[ToolRAG] {len(tools_schema)} -> {len(filtered)} tool "
-                    f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)")
+        logger.info(
+            f"[ToolRAG] {len(tools_schema)} -> {len(filtered)} tool "
+            f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)"
+        )
         return filtered
     except Exception as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")

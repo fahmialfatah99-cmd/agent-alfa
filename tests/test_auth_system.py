@@ -1,17 +1,27 @@
 """Test sistem autentikasi dashboard."""
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import importlib
+
 import web_dashboard
+
 importlib.reload(web_dashboard)
 
 from web_dashboard import (
-    create_user, authenticate_user, _create_session_token,
-    validate_session, invalidate_session, get_all_users, delete_user,
-    _hash_password, _verify_password, store_session
+    _create_session_token,
+    _hash_password,
+    _verify_password,
+    authenticate_user,
+    create_user,
+    delete_user,
+    get_all_users,
+    invalidate_session,
+    store_session,
+    validate_session,
 )
 
 
@@ -32,7 +42,9 @@ def test_auth_system():
     # Test 2: Verify password
     print("\n[TEST 2] Verify Password")
     assert _verify_password("testpassword123", pwd_hash, salt), "Password harus match"
-    assert not _verify_password("wrongpassword", pwd_hash, salt), "Password salah harus reject"
+    assert not _verify_password(
+        "wrongpassword", pwd_hash, salt
+    ), "Password salah harus reject"
     print("  ✓ PASS")
 
     # Test 3: Create user

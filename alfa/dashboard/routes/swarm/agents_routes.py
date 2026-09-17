@@ -15,6 +15,7 @@ router = APIRouter()
 
 # --- Autonomous AI Workforce & Custom Agent Endpoints ---
 
+
 @router.get("/api/agents")
 async def get_custom_agents():
     """List all custom agents in the workforce."""
@@ -47,7 +48,7 @@ async def create_custom_agent(payload: Dict[str, Any]):
         model=model,
         api_key_id=api_key_id,
         avatar_emoji=avatar_emoji,
-        color_theme=color_theme
+        color_theme=color_theme,
     )
     return res
 
@@ -74,17 +75,21 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="message is required")
 
     with database.get_sync_db() as conn:
-        row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM custom_agents WHERE id = ?", (agent_id,)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
     from alfa.swarm import engine as swarm_engine
+
     start_t = time.time()
     resp = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=prompt,
-        system_instruction=agent_data.get("system_instruction") or f"Kamu adalah {agent_data['name']}, {agent_data['role']}."
+        system_instruction=agent_data.get("system_instruction")
+        or f"Kamu adalah {agent_data['name']}, {agent_data['role']}.",
     )
     duration_ms = round((time.time() - start_t) * 1000, 1)
 
@@ -94,12 +99,12 @@ async def chat_with_custom_agent(agent_id: int, payload: Dict[str, Any]):
         "model": agent_data["model"],
         "provider": agent_data["provider"],
         "duration_ms": duration_ms,
-        "reply": resp
+        "reply": resp,
     }
 
 
-
 # --- Live Agent Activity & Real-Time Autonomous Execution ---
+
 
 @router.get("/api/agent-activity")
 async def get_agent_activity():
@@ -110,28 +115,47 @@ async def get_agent_activity():
 
     agent_states = []
     for a in agents:
-        last_act = next((act for act in activities if act.get("agent_id") == a["id"] or act.get("agent_name") == a["name"]), None)
-        agent_states.append({
-            "id": a["id"],
-            "name": a["name"],
-            "role": a["role"],
-            "avatar_emoji": a.get("avatar_emoji", "🤖"),
-            "color_theme": a.get("color_theme", "cyan"),
-            "provider": a["provider"],
-            "model": a["model"],
-            "status": "active" if a.get("is_enabled", 1) else "disabled",
-            "current_state": "🟢 STANDBY" if not last_act else f"⚙️ {last_act.get('action_type', 'ACTIVE').upper()}",
-            "last_action": last_act.get("description", "Menunggu instruksi tugas") if last_act else "Siap eksekusi tugas otonom",
-            "last_tool": last_act.get("tool_name") if last_act else None,
-            "last_updated": last_act.get("created_at") if last_act else a.get("created_at")
-        })
+        last_act = next(
+            (
+                act
+                for act in activities
+                if act.get("agent_id") == a["id"] or act.get("agent_name") == a["name"]
+            ),
+            None,
+        )
+        agent_states.append(
+            {
+                "id": a["id"],
+                "name": a["name"],
+                "role": a["role"],
+                "avatar_emoji": a.get("avatar_emoji", "🤖"),
+                "color_theme": a.get("color_theme", "cyan"),
+                "provider": a["provider"],
+                "model": a["model"],
+                "status": "active" if a.get("is_enabled", 1) else "disabled",
+                "current_state": (
+                    "🟢 STANDBY"
+                    if not last_act
+                    else f"⚙️ {last_act.get('action_type', 'ACTIVE').upper()}"
+                ),
+                "last_action": (
+                    last_act.get("description", "Menunggu instruksi tugas")
+                    if last_act
+                    else "Siap eksekusi tugas otonom"
+                ),
+                "last_tool": last_act.get("tool_name") if last_act else None,
+                "last_updated": (
+                    last_act.get("created_at") if last_act else a.get("created_at")
+                ),
+            }
+        )
 
     return {
         "status": "success",
         "total_activities": len(activities),
         "activities": activities,
         "subagent_tasks": subagent_tasks,
-        "agent_states": agent_states
+        "agent_states": agent_states,
     }
 
 
@@ -143,13 +167,16 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         raise HTTPException(status_code=400, detail="instruction is required")
 
     with database.get_sync_db() as conn:
-        row = conn.execute("SELECT * FROM custom_agents WHERE id = ?", (agent_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM custom_agents WHERE id = ?", (agent_id,)
+        ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Agent tidak ditemukan")
         agent_data = dict(row)
 
-    from alfa.swarm import engine as swarm_engine
     from alfa import tools
+    from alfa.swarm import engine as swarm_engine
+
     start_t = time.time()
 
     tool_router_prompt = (
@@ -168,7 +195,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
     decision = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=tool_router_prompt,
-        system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem."
+        system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem.",
     )
 
     tool_called = None
@@ -182,7 +209,13 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         tool_input = cmd
         action_type = "bash_exec"
         res = tools.execute_bash_command(cmd)
-        tool_output_str = res.get("stdout") or res.get("output") or res.get("message") or res.get("stderr") or "Done (exit code 0)"
+        tool_output_str = (
+            res.get("stdout")
+            or res.get("output")
+            or res.get("message")
+            or res.get("stderr")
+            or "Done (exit code 0)"
+        )
     elif "TOOL: SYSTEM_STATS" in decision:
         tool_called = "get_system_stats"
         tool_input = "metrics"
@@ -204,12 +237,32 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         res = tools.web_search(q)
         tool_output_str = json.dumps(res, indent=2, default=str)
     else:
-        if any(kw in instruction.lower() for kw in ["git", "ps", "top", "ram", "cpu", "disk", "ls", "systemctl", "curl", "free"]):
+        if any(
+            kw in instruction.lower()
+            for kw in [
+                "git",
+                "ps",
+                "top",
+                "ram",
+                "cpu",
+                "disk",
+                "ls",
+                "systemctl",
+                "curl",
+                "free",
+            ]
+        ):
             tool_called = "execute_bash_command"
             tool_input = instruction
             action_type = "bash_exec"
             res = tools.execute_bash_command(instruction)
-            tool_output_str = res.get("stdout") or res.get("output") or res.get("message") or res.get("stderr") or "Done (exit code 0)"
+            tool_output_str = (
+                res.get("stdout")
+                or res.get("output")
+                or res.get("message")
+                or res.get("stderr")
+                or "Done (exit code 0)"
+            )
 
     synth_prompt = (
         f"TUGAS AWAL: {instruction}\n\n"
@@ -222,7 +275,8 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
     final_report = await swarm_engine.generate_agent_response(
         agent=agent_data,
         prompt=synth_prompt,
-        system_instruction=agent_data.get("system_instruction") or "Kamu adalah engineer spesialis AI."
+        system_instruction=agent_data.get("system_instruction")
+        or "Kamu adalah engineer spesialis AI.",
     )
 
     duration_ms = round((time.time() - start_t) * 1000, 1)
@@ -236,7 +290,7 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         tool_input=tool_input,
         tool_output=tool_output_str[:1500] if tool_output_str else None,
         status="success",
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
     )
 
     return {
@@ -250,5 +304,5 @@ async def execute_agent_task(agent_id: int, payload: Dict[str, Any]):
         "tool_input": tool_input,
         "tool_output": tool_output_str,
         "agent_report": final_report,
-        "duration_ms": duration_ms
+        "duration_ms": duration_ms,
     }
