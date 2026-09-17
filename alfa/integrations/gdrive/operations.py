@@ -5,6 +5,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from alfa.core import database
+from alfa.core.runtime_ctx import current_user_id_var
 from alfa.integrations.gdrive.auth import (
     PROJECT_DIR,
     SANDBOX_DIR,
