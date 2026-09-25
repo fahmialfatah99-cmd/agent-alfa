@@ -16,7 +16,7 @@ import re
 import time
 from typing import Any
 
-import tools
+from alfa import tools
 
 
 def try_execute_fast_path(

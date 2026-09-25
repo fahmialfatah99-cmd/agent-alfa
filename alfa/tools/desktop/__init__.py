@@ -9,6 +9,8 @@ from alfa.tools.desktop.input_automation import (
     desktop_click_coordinate,
     desktop_launch_app,
     desktop_type_keys,
+    open_url_in_default_browser,
+    open_url_in_system_browser,
     vision_click_target,
 )
 from alfa.tools.desktop.system_ui import (
@@ -25,6 +27,8 @@ __all__ = [
     "desktop_type_keys",
     "desktop_launch_app",
     "vision_click_target",
+    "open_url_in_system_browser",
+    "open_url_in_default_browser",
     "read_clipboard",
     "write_to_clipboard",
     "show_desktop_notification",

@@ -85,7 +85,7 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> dict[str, A
     Menggunakan web search untuk mengidentifikasi produk yang paling dicari.
     """
     try:
-        import tools
+        from alfa import tools
 
         query = f"produk viral terlaris {niche} {platform} diskon murah review rating tinggi 2026"
         search_res = tools.web_search(query)
@@ -374,7 +374,7 @@ def _deliver_telegram_broadcast(
     """
     import asyncio
 
-    import bot as bot_module
+    from alfa.bot import telegram_bot as bot_module
     from alfa.swarm import subagents
 
     tg_app = subagents.get_telegram_app()
@@ -451,7 +451,7 @@ def broadcast_affiliate_deal(
     # 2. WhatsApp
     if "whatsapp" in channels:
         try:
-            import tools
+            from alfa import tools
 
             wa_status = tools.manage_wa_sheets_bot("status")
             results["whatsapp"] = {

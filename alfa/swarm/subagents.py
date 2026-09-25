@@ -10,7 +10,7 @@ import os
 import uuid
 from typing import Any
 
-import database
+from alfa.core import database
 
 logger = logging.getLogger("SubagentSwarm")
 
@@ -76,7 +76,7 @@ async def _run_subagent_worker(
             )
             await safe_send_message(app, chat_id, completion_msg)
 
-            from tools import (
+            from alfa.tools import (
                 SANDBOX_DIR,
                 is_internal_sandbox_artifact,
                 is_source_code_file,

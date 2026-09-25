@@ -9,6 +9,7 @@ from alfa.core.perm.constants import (
     _LABELS,
     APPROVAL_TIMEOUT,
     DEFAULT_TIER,
+    NO_CHANNEL_POLICY,
     PERMISSION_GATE_ENABLED,
     SAFE_TOOLS,
     TOOL_CLASSIFICATION,
@@ -19,7 +20,9 @@ from alfa.core.perm.constants import (
 from alfa.core.perm.store import (
     get_trust_score,
     is_always_allowed,
+    log_permission_decision,
     save_always_allow,
+    update_trust_score,
 )
 
 
@@ -73,6 +76,47 @@ def make_gate(chat_id: int | None):
     return gate
 
 
+def _no_channel_allows(tier: RiskTier) -> bool:
+    """Bolehkan tool saat tidak ada kanal approval (dashboard tanpa Telegram)."""
+    if NO_CHANNEL_POLICY == "allow_all":
+        return True
+    if NO_CHANNEL_POLICY in {"allow_low_medium", "allow_low_medium_only"}:
+        return tier in (RiskTier.LOW, RiskTier.MEDIUM)
+    return False
+
+
+def _record(
+    chat_id: int,
+    tool_name: str,
+    tier: RiskTier,
+    decision: str,
+    args_json: str,
+    started: float,
+) -> None:
+    """Simpan audit trail + update trust score (skor naik saat user mengizinkan)."""
+    import time as _time
+
+    rt = max(0.0, _time.time() - started)
+    try:
+        log_permission_decision(
+            int(chat_id),
+            tool_name,
+            tier.value,
+            decision,
+            args_json,
+            rt,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    if decision in ("once", "always", "auto_approved"):
+        try:
+            update_trust_score(
+                int(chat_id), was_safe=(tier == RiskTier.LOW), response_time=rt
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+
 async def request_approval(
     tool_name: str, arguments_json: str = "{}", chat_id: int = None
 ) -> str | None:
@@ -83,6 +127,17 @@ async def request_approval(
     if tool_name in SAFE_TOOLS:
         return None
     if is_always_allowed(chat_id, tool_name):
+        return None
+
+    import time as _time
+
+    tier = get_tool_tier(tool_name)
+    started = _time.time()
+
+    # 1) Skor kepercayaan: tool LOW selalu lolos, MEDIUM lolos bila trust cukup
+    auto_ok, auto_reason = should_auto_approve(chat_id, tool_name)
+    if auto_ok:
+        _record(chat_id, tool_name, tier, auto_reason or "auto_approved", arguments_json, started)
         return None
 
     # Ringkas argumen agar enak dibaca di tombol/pesan
@@ -137,13 +192,25 @@ async def request_approval(
             reply_markup=markup,
         )
     except Exception as e:
+        _PENDING.pop(req_id, None)
+        # 2) Tidak ada kanal approval (mis. Web Dashboard tanpa bot Telegram).
+        #    Dulu selalu fail-closed -> agent benar-benar tidak bisa bergerak.
+        if _no_channel_allows(tier):
+            _record(chat_id, tool_name, tier, "auto_approved:no_channel", arguments_json, started)
+            logger.warning(
+                f"[Gate] Tidak ada kanal izin untuk {tool_name}; "
+                f"tier {tier.value} diizinkan otomatis (NO_CHANNEL_POLICY="
+                f"{NO_CHANNEL_POLICY}). Alasan: {e}"
+            )
+            return None
         logger.warning(
             f"Gagal kirim keyboard izin ({e}) -> penolakan aman (fail-closed)."
         )
-        _PENDING.pop(req_id, None)
         fail_mode = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
         if fail_mode == "allow":
+            _record(chat_id, tool_name, tier, "auto_approved:fail_open", arguments_json, started)
             return None
+        _record(chat_id, tool_name, tier, "deny:no_channel", arguments_json, started)
         return (
             f"[IZIN DITOLAK] Tool '{tool_name}' tergolong sensitif dan membutuhkan "
             f"konfirmasi izin langsung dari pemilik, tetapi notifikasi Telegram tidak dapat dikirim ({e}). "
@@ -206,12 +273,15 @@ async def request_approval(
 
     if decision == "always":
         save_always_allow(int(chat_id), tool_name)
+        _record(chat_id, tool_name, tier, "always", arguments_json, started)
         logger.info(f"[Gate] {tool_name} -> ALWAYS ALLOW utk chat {chat_id}")
         return None
     if decision == "once":
+        _record(chat_id, tool_name, tier, "once", arguments_json, started)
         logger.info(f"[Gate] {tool_name} -> allow sekali (chat {chat_id})")
         return None
 
+    _record(chat_id, tool_name, tier, decision or "deny", arguments_json, started)
     logger.info(f"[Gate] {tool_name} -> DENIED ({decision}, chat {chat_id})")
     return (
         f"[DITOLAK USER] Pengguna menolak eksekusi tool '{tool_name}' "
