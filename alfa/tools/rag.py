@@ -132,11 +132,23 @@ _SYNONYMS = {
     "koding": "code python execute sandbox program script",
     "git": "git commit push pull branch worktree diff status repository repo",
     "pustaka": "codebase search index grep symbol lsp",
-    # Media, Audio, Video & PDF
+    # Media, Audio, Video & Music
     "gambar": "image photo picture edit upscale crop rotate watermark",
     "foto": "image photo picture vision camera frame webcam",
-    "video": "video promo tiktok generate extract audio mp4 ffmpeg",
-    "suara": "voice audio speech tts edge mp3 synthesize speech",
+    "video": "video promo youtube watch media play mp4 stream screen record extract",
+    "suara": "voice audio speech sound tts edge mp3 volume synthesize speech",
+    "audio": "audio voice sound speech music song mp3 stream play media",
+    "lagu": "song music audio track mp3 sound media spotify youtube play stream",
+    "musik": "music song audio sound track spotify youtube media play stream",
+    "youtube": "youtube video audio music play stream media browser open url desktop launch app watch",
+    "yt": "youtube video play stream music media watch",
+    "spotify": "spotify music song audio play track media desktop launch app",
+    "tonton": "watch video youtube movie play stream browser",
+    "nyalakan": "play start launch open enable power turn on",
+    "setel": "play set configure tune music video volume audio",
+    "putar": "play media song video audio music track stream rotate angle",
+    "aplikasi": "application app software desktop launch run start program",
+    "browser": "browser brave chrome firefox web internet navigate open url",
     "dokumen": "document pdf docx odt writer libreoffice markitdown text",
     "presentasi": "presentation pptx powerpoint slides impress",
     "tabel": "excel spreadsheet xlsx csv dataset analyze chart data",
@@ -145,8 +157,9 @@ _SYNONYMS = {
     "gabung": "merge combine pdf documents",
     "pisah": "split divide extract page range",
     "kunci": "encrypt password protect secure pdf vault",
-    "buka": "decrypt unlock password open",
-    "putar": "rotate angle pdf page",
+    "buka": "open launch browser desktop app url website window document file start view",
+    "dekripsi": "decrypt unlock password open protected",
+    "rotasi": "rotate angle pdf page orientation",
     # Memory, Brain & Agents
     "ingat": "memory remember save knowledge fact store",
     "simpan": "save store write memory ingest vector vault secret",
@@ -159,6 +172,7 @@ _SYNONYMS = {
     "kirim": "send deliver broadcast telegram chat email message",
     "terjemah": "translate translation language convert text",
     "fokus": "focus session pomodoro timer work",
+    "download": "download fetch save file url",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -205,12 +219,30 @@ _CATEGORY_BOOSTS = {
         "universal_deep_scraper",
     ],
     "media": [
+        "desktop_launch_app",
+        "control_linux_hardware",
+        "browser_open_url",
         "edit_image",
         "text_to_audio_file",
         "extract_audio_from_video",
         "convert_media_format",
         "generate_promo_video_from_images",
         "analyze_dataset_csv_json",
+        "record_desktop_screen",
+    ],
+    "desktop": [
+        "desktop_launch_app",
+        "control_linux_hardware",
+        "browser_open_url",
+        "browser_click_element",
+        "browser_type_text",
+        "browser_capture_screenshot",
+        "capture_desktop_screenshot",
+        "record_desktop_screen",
+        "show_desktop_notification",
+        "desktop_type_keys",
+        "desktop_click_coordinate",
+        "vision_click_target",
     ],
     "memory": [
         "save_knowledge_memory",
@@ -227,6 +259,165 @@ _CATEGORY_BOOSTS = {
         "manage_custom_agents",
     ],
 }
+
+_CATEGORY_TRIGGERS = {
+    "pdf": {"pdf", "dokumen_pdf"},
+    "system": {"system", "hardware", "service", "proses", "layanan", "server", "linux"},
+    "code": {"code", "kode", "koding", "script", "program", "git", "repo", "python"},
+    "web": {"web", "search", "cari", "browse", "scrape", "crawler", "internet", "link", "url"},
+    "media": {
+        "media", "lagu", "musik", "music", "song", "audio", "video", "youtube", "yt",
+        "spotify", "sound", "suara", "mp3", "mp4", "player", "stream", "tonton", "putar",
+        "play", "setel", "nyalakan"
+    },
+    "desktop": {
+        "desktop", "aplikasi", "app", "browser", "brave", "chrome", "firefox", "buka",
+        "open", "launch", "layar", "screen", "screenshot", "window", "youtube", "spotify",
+        "putar", "play", "notifikasi", "klik", "click"
+    },
+    "memory": {"memory", "ingat", "catat", "simpan", "vektor", "knowledge"},
+    "agent": {"agent", "agen", "swarm", "rapat", "subagent", "workforce"},
+}
+
+_ACTION_TRIGGERS = {
+    "buat",
+    "bikin",
+    "tulis",
+    "cari",
+    "search",
+    "googling",
+    "browse",
+    "web",
+    "scrape",
+    "jalankan",
+    "run",
+    "eksekusi",
+    "hitung",
+    "baca",
+    "cek",
+    "analisis",
+    "pdf",
+    "excel",
+    "gambar",
+    "foto",
+    "drive",
+    "email",
+    "rapat",
+    "meeting",
+    "jadwal",
+    "ingat",
+    "catat",
+    "simpan",
+    "hapus",
+    "file",
+    "folder",
+    "kode",
+    "code",
+    "python",
+    "bash",
+    "curl",
+    "swarm",
+    "screenshot",
+    "screnshoot",
+    "ss",
+    "layar",
+    "desktop",
+    "tangkap",
+    "capture",
+    "kamera",
+    "webcam",
+    "putar",
+    "play",
+    "setel",
+    "nyalakan",
+    "lagu",
+    "musik",
+    "music",
+    "song",
+    "youtube",
+    "yt",
+    "spotify",
+    "video",
+    "audio",
+    "suara",
+    "buka",
+    "open",
+    "launch",
+    "tonton",
+    "watch",
+    "volume",
+    "notifikasi",
+    "aplikasi",
+    "app",
+    "unduh",
+    "download",
+    "perintah",
+    "terminal",
+    "kirim",
+}
+
+
+def is_action_request(user_text: str) -> bool:
+    if not user_text:
+        return False
+    txt_low = user_text.lower().strip()
+    return any(k in txt_low for k in _ACTION_TRIGGERS)
+
+
+def get_required_action_tools(user_text: str) -> set[str]:
+    if not user_text:
+        return set()
+    txt_low = user_text.lower().strip()
+    required = set()
+    if any(
+        k in txt_low
+        for k in [
+            "youtube",
+            "yt",
+            "spotify",
+            "lagu",
+            "musik",
+            "music",
+            "song",
+            "putar",
+            "play",
+            "setel",
+            "tonton",
+            "video",
+            "aplikasi",
+            "app",
+            "buka",
+            "launch",
+        ]
+    ):
+        required.update(
+            [
+                "desktop_launch_app",
+                "control_linux_hardware",
+                "browser_open_url",
+                "web_search",
+                "execute_bash_command",
+            ]
+        )
+    if any(k in txt_low for k in ["pdf", "dokumen", "laporan"]):
+        required.update(
+            [
+                "generate_pdf_report",
+                "pdf_merge_documents",
+                "pdf_split_document",
+                "pdf_extract_full_text",
+            ]
+        )
+    if any(k in txt_low for k in ["code", "kode", "koding", "script", "python", "file"]):
+        required.update(
+            [
+                "read_local_file",
+                "write_local_file",
+                "edit_file_precise",
+                "execute_python_sandbox",
+            ]
+        )
+    return required
 
 
 def _tokenize(text: str) -> list[str]:
@@ -315,12 +506,15 @@ def _rank_names(
     scores = list(index.scores(q_tokens))
     q_set = set(q_tokens)
     for cat_name, cat_tools in _CATEGORY_BOOSTS.items():
-        if cat_name in q_set or any(cat_name in t for t in q_tokens):
+        triggers = _CATEGORY_TRIGGERS.get(cat_name, {cat_name})
+        if any(tr in q_set for tr in triggers):
             for i, nm in enumerate(names):
                 if nm in cat_tools:
-                    scores[i] += 2.5
+                    scores[i] += 3.0
 
-    ranked = sorted(zip(names, scores), key=lambda x: x[1], reverse=True)
+    ranked = sorted(
+        zip(names, scores, strict=False), key=lambda x: x[1], reverse=True
+    )
 
     selected: list[str] = []
     for nm, _sc in ranked:
@@ -373,6 +567,7 @@ def select_relevant_functions(
             docs.append(f"{nm} {(getattr(f, '__doc__', '') or '')[:600]}")
 
         keep = set(_rank_names(docs, names, user_text, history, k))
+        keep.update(get_required_action_tools(user_text))
         filtered = []
         seen_filtered = set()
         for f in unique_funcs:
@@ -438,7 +633,7 @@ def select_relevant_tools(
 
         name_to_schema: dict[str, dict[str, Any]] = {}
         doc_names: list[str] = []
-        for s, doc in zip(tools_schema, corpus_docs):
+        for s in tools_schema:
             nm = ((s.get("function") or {}).get("name")) or ""
             name_to_schema[nm] = s
             doc_names.append(nm)
@@ -446,12 +641,15 @@ def select_relevant_tools(
         scores = list(index.scores(q_tokens))
         q_set = set(q_tokens)
         for cat_name, cat_tools in _CATEGORY_BOOSTS.items():
-            if cat_name in q_set or any(cat_name in t for t in q_tokens):
+            triggers = _CATEGORY_TRIGGERS.get(cat_name, {cat_name})
+            if any(tr in q_set for tr in triggers):
                 for i, nm in enumerate(doc_names):
                     if nm in cat_tools:
-                        scores[i] += 2.5
+                        scores[i] += 3.0
 
-        ranked = sorted(zip(doc_names, scores), key=lambda x: x[1], reverse=True)
+        ranked = sorted(
+            zip(doc_names, scores, strict=False), key=lambda x: x[1], reverse=True
+        )
 
         selected: list[str] = []
         for nm, _sc in ranked:
@@ -462,6 +660,9 @@ def select_relevant_tools(
         for core in CORE_ALWAYS:
             if core in name_to_schema:
                 selected.append(core)
+        for required in get_required_action_tools(user_text):
+            if required in name_to_schema:
+                selected.append(required)
 
         filtered = [
             name_to_schema[nm] for nm in dict.fromkeys(selected) if nm in name_to_schema

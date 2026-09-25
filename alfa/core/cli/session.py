@@ -63,11 +63,22 @@ class CliSessionMixin:
             "/download",
             "/models",
             "/agents",
+            "/swarm",
+            "/persona",
+            "/servers",
+            "/menu",
+            "/undo",
+            "/repomap",
+            "/keys",
+            "/agent",
             "/stream",
             "/theme",
             "/provider",
             "/settings",
             "/switch",
+            "/mode",
+            "/file",
+            "/run",
         ]
 
         if text.startswith("/"):
@@ -93,7 +104,13 @@ class CliSessionMixin:
                     return json.load(f)
             except Exception:
                 pass
-        return {"theme": "default", "streaming": False, "markdown": True}
+        return {
+            "theme": "default",
+            "streaming": False,
+            "markdown": True,
+            "mode": "auto",
+            "provider": "google",
+        }
 
     def _save_config(self):
         """Save current configuration to file."""
@@ -158,11 +175,21 @@ class CliSessionMixin:
                 pass
 
     def _update_prompt(self):
+        mode = getattr(self, "mode", "auto")
+        direct = getattr(self, "direct_ai", None)
+        prov_label = direct.provider if direct else "ai"
+        persona = getattr(self, "active_persona_name", None)
+        persona_prefix = f"[{persona}] " if persona else ""
+        exec_mode = getattr(self, "agent_execution_mode", "single")
+
+        tag = "swarm" if exec_mode == "swarm" else f"single:{prov_label}"
+        icon = "🐝" if exec_mode == "swarm" else "⚡"
+
         if self.username:
             role = "👑" if self.is_admin else "👤"
-            self.prompt = f"{Colors.BOLD}{role} {self.username} >{Colors.ENDC} "
+            self.prompt = f"{Colors.BOLD}{role} {persona_prefix}{self.username} [{tag}]>{Colors.ENDC} "
         else:
-            self.prompt = f"{Colors.BOLD}alfa (guest)>{Colors.ENDC} "
+            self.prompt = f"{Colors.BOLD}{icon} {persona_prefix}alfa [{tag}]>{Colors.ENDC} "
 
     def _request(self, method, endpoint, data=None, headers=None):
         url = f"{self.server_url}{endpoint}"

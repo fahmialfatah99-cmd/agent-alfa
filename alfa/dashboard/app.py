@@ -60,6 +60,9 @@ from alfa.dashboard.websocket import ConnectionManager, websocket_router, ws_man
 
 load_dotenv()
 
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
+
 
 async def _pipeline_trigger_scheduler():
     """Background loop: eksekusi pipeline ber-trigger interval tiap 60 detik cek."""

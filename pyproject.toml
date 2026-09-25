@@ -72,6 +72,7 @@ docs = [
 
 [project.scripts]
 alfa = "alfa.cli:main"
+alfa-cli = "alfa.cli:main"
 alfa-agent = "alfa.bot.telegram_bot:main"
 alfa-mcp = "alfa.mcp.server:main"
 

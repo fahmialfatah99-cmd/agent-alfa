@@ -31,8 +31,9 @@ except ImportError:
     RICH_AVAILABLE = False
     Console = None
 
-VERSION = "3.0.0"
+VERSION = "3.5.0"
 DEFAULT_SERVER = "http://localhost:8080"
+DEFAULT_MODE = "auto"
 SESSION_FILE = Path.home() / ".alfa_cli_session.json"
 CONFIG_FILE = Path.home() / ".alfa_cli_config.json"
 HISTORY_FILE = Path.home() / ".alfa_cli_history"
@@ -78,9 +79,9 @@ if not sys.stdout.isatty():
 def print_banner():
     banner = f"""
 {Colors.CYAN}╔═══════════════════════════════════════════════════════════╗
-║           ALFA Sovereign AI - CLI Client v{VERSION:<3}         ║
-║                  Secure Terminal Interface                    ║
-║     Type '/help' for commands or just start chatting!         ║
+║     ALFA Sovereign AI & Developer CLI v{VERSION:<6}         ║
+║         Unified Server & Standalone Coding Engine         ║
+║     Type '/help' for commands or '@file.py' in chat!      ║
 ╚═══════════════════════════════════════════════════════════╝{Colors.ENDC}
     """
     print(banner)
