@@ -285,6 +285,9 @@ async def run_agent_turn(
     meetings_before = _meetings_count()
     art_before = _artifact_signature()
     prompt_low = (user_prompt or "").lower()
+    from alfa.tools.rag import is_action_request
+
+    action_intent = is_action_request(user_prompt or "")
     meeting_intent = any(k in prompt_low for k in MEETING_INTENT_KEYWORDS)
 
     history_msgs = [{"role": r["role"], "content": r["content"]} for r in history_rows]
@@ -390,9 +393,23 @@ async def run_agent_turn(
                 system_instruction=full_system_instruction,
                 temperature=0.75,
                 tools=gemini_tools,
-                automatic_function_calling=(
-                    types.AutomaticFunctionCallingConfig(disable=True)
-                    if gate_on
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+                tool_config=(
+                    types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(
+                            mode=types.FunctionCallingConfigMode.ANY,
+                            allowed_function_names=sorted(
+                                {
+                                    getattr(f, "__name__", "")
+                                    for f in gemini_tools
+                                    if getattr(f, "__name__", "")
+                                }
+                            ),
+                        )
+                    )
+                    if action_intent
                     else None
                 ),
             )
@@ -400,6 +417,7 @@ async def run_agent_turn(
             if (
                 streamer
                 and not gate_on
+                and not action_intent
                 and hasattr(gemini_client.aio.models, "generate_content_stream")
             ):
                 try:
@@ -428,11 +446,8 @@ async def run_agent_turn(
                         except Exception:
                             pass
                     response = last_chunk
-                    reply_text = (
-                        streamed_text
-                        or (last_chunk.text if last_chunk else "")
-                        or "✅ Permintaan selesai diproses."
-                    )
+                    reply_text = streamed_text
+
                 except Exception as stream_err:
                     logger.warning(
                         f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content."
@@ -448,9 +463,9 @@ async def run_agent_turn(
                         context="telegram_chat",
                     )
                     try:
-                        reply_text = response.text or "✅ Permintaan selesai diproses."
+                        reply_text = response.text or ""
                     except Exception:
-                        reply_text = "✅ Permintaan selesai diproses."
+                        reply_text = ""
             else:
                 response = await gemini_client.aio.models.generate_content(
                     model=model_name, contents=contents, config=config
@@ -462,56 +477,65 @@ async def run_agent_turn(
                     key_label=gkey_label or "gemini-env",
                     context="telegram_chat",
                 )
+                try:
+                    reply_text = response.text or ""
+                except Exception:
+                    reply_text = ""
 
-            if gate_on:
-                _turn_contents = list(contents or [])
-                for _iter in range(_mb.MAX_ITERATIONS):
-                    fcs = list(getattr(response, "function_calls", None) or [])
-                    if not fcs:
-                        break
-                    try:
-                        model_content = response.candidates[0].content
-                        if model_content is not None:
-                            _turn_contents.append(model_content)
-                    except Exception:
-                        pass
-                    for fc in fcs:
-                        args_json = json.dumps(
-                            dict(fc.args or {}), ensure_ascii=False, default=str
+            executed_tool_names: list[str] = []
+            _turn_contents = list(contents or [])
+            for _iter in range(_mb.MAX_ITERATIONS):
+                fcs = list(getattr(response, "function_calls", None) or [])
+                if not fcs:
+                    break
+                try:
+                    model_content = response.candidates[0].content
+                    if model_content is not None:
+                        _turn_contents.append(model_content)
+                except Exception:
+                    pass
+                for fc in fcs:
+                    executed_tool_names.append(fc.name)
+                    args_json = json.dumps(
+                        dict(fc.args or {}), ensure_ascii=False, default=str
+                    )
+                    denial = await approval_gate(fc.name, args_json) if approval_gate else None
+                    if denial:
+                        out = denial
+                    else:
+                        out = await asyncio.to_thread(
+                            _mb._execute_tool, fc.name, args_json
                         )
-                        denial = await approval_gate(fc.name, args_json)
-                        if denial:
-                            out = denial
-                        else:
-                            out = await asyncio.to_thread(
-                                _mb._execute_tool, fc.name, args_json
-                            )
-                        logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
-                        _turn_contents.append(
-                            types.Content(
-                                role="user",
-                                parts=[
-                                    types.Part(
-                                        function_response=types.FunctionResponse(
-                                            name=fc.name,
-                                            response={"result": str(out)[:4000]},
-                                        )
+                    logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
+                    _turn_contents.append(
+                        types.Content(
+                            role="user",
+                            parts=[
+                                types.Part(
+                                    function_response=types.FunctionResponse(
+                                        name=fc.name,
+                                        response={"result": str(out)[:4000]},
                                     )
-                                ],
-                            )
+                                )
+                            ],
                         )
-                    response = await gemini_client.aio.models.generate_content(
-                        model=model_name, contents=_turn_contents, config=config
                     )
-                    token_usage.from_gemini_response(
-                        response,
-                        model=model_name,
-                        key_id=gkey_id,
-                        key_label=gkey_label or "gemini-env",
-                        context="telegram_chat:gate",
-                    )
+                response = await gemini_client.aio.models.generate_content(
+                    model=model_name, contents=_turn_contents, config=config
+                )
+                token_usage.from_gemini_response(
+                    response,
+                    model=model_name,
+                    key_id=gkey_id,
+                    key_label=gkey_label or "gemini-env",
+                    context="telegram_chat:gate",
+                )
+                try:
+                    reply_text = response.text or ""
+                except Exception:
+                    pass
 
-            if "reply_text" not in locals() or not reply_text:
+            if not reply_text:
                 try:
                     reply_text = response.text or "✅ Permintaan selesai diproses."
                 except Exception:
@@ -533,10 +557,39 @@ async def run_agent_turn(
                 and any(v in reply_low for v in COMPLETION_VERBS)
                 and any(n in reply_low for n in ARTIFACT_NOUNS)
             )
+            action_claim_markers = (
+                "sudah",
+                "berhasil",
+                "selesai",
+                "diputar",
+                "memutar",
+                "playing",
+                "dibuka",
+                "membuka",
+                "terbuka",
+                "sudah kubuka",
+                "sudah ku",
+            )
+            action_tools = {
+                "browser_open_url",
+                "desktop_launch_app",
+                "control_linux_hardware",
+                "execute_bash_command",
+                "web_search",
+            }
+            need_action_audit = (
+                action_intent
+                and not action_tools.intersection(executed_tool_names)
+                and any(marker in reply_low for marker in action_claim_markers)
+            )
 
-            if need_meeting_audit or need_artifact_audit:
+            if need_meeting_audit or need_artifact_audit or need_action_audit:
                 audit_kind = (
-                    "RAPAT FIKTIF" if need_meeting_audit else "ARTEFAK BELUM DIBUAT"
+                    "RAPAT FIKTIF"
+                    if need_meeting_audit
+                    else "ARTEFAK BELUM DIBUAT"
+                    if need_artifact_audit
+                    else "AKSI BELUM DIJALANKAN"
                 )
                 logger.warning(
                     f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})"
@@ -550,11 +603,15 @@ async def run_agent_turn(
                     audit_parts.append(
                         "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai."
                     )
+                if need_action_audit:
+                    audit_parts.append(
+                        "TIDAK ADA tool aksi nyata yang dipanggil untuk membuka/memutar/menjalankan perintah."
+                    )
                 audit_parts.append(
-                    "Perbaiki SEKARANG: panggil tool pembuatnya secara nyata "
-                    "(conduct_ai_meeting / execute_python_sandbox / generate_pdf_report / "
-                    "generate_excel_spreadsheet / universal_deep_scraper) ATAU jawab jujur "
-                    "bahwa belum dieksekusi. Dilarang klaim palsu."
+                    "Perbaiki SEKARANG: panggil tool yang sesuai secara nyata "
+                    "(desktop_launch_app / browser_open_url / execute_bash_command / conduct_ai_meeting / "
+                    "execute_python_sandbox / generate_pdf_report / generate_excel_spreadsheet) "
+                    "ATAU jawab jujur bahwa belum dieksekusi. Dilarang klaim palsu."
                 )
                 contents.append(
                     types.Content(

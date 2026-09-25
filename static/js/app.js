@@ -1993,7 +1993,8 @@ function renderAgentsGrid() {
         groq: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
         openrouter: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
         anthropic: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-        ollama: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+        ollama: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        '9router': 'bg-teal-500/10 text-teal-400 border-teal-500/20'
     };
 
     grid.innerHTML = allAgentsData.map(a => {
@@ -3294,7 +3295,8 @@ function renderKeysGrid(keys) {
         groq: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
         openrouter: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
         anthropic: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-        ollama: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+        ollama: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        '9router': 'bg-teal-500/20 text-teal-400 border-teal-500/30'
     };
 
     grid.innerHTML = keys.map(k => {

@@ -115,6 +115,8 @@ class CliBasicCommandsMixin:
     def do_tools(self, arg):
         """Melihat daftar tools yang tersedia."""
         if not self.session_token:
+            if hasattr(self, "do_slash_tools"):
+                return self.do_slash_tools(arg)
             print_status("Anda harus login terlebih dahulu.", "warning")
             return
 
@@ -161,42 +163,46 @@ class CliBasicCommandsMixin:
     def do_slash_help(self, arg):
         """Tampilkan bantuan lengkap. Usage: /help"""
         help_text = f"""
-{Colors.BOLD}📚 ALFA CLI - Daftar Perintah Lengkap{Colors.ENDC}
-{'='*50}
+{Colors.BOLD}📚 ALFA CLI - Unified Sovereign & Developer Commands{Colors.ENDC}
+{'='*55}
 
-{Colors.CYAN}🔐 Authentication:{Colors.ENDC}
-  /login     - Login ke akun Anda
+{Colors.CYAN}🎯 Interactive Menu & Palette:{Colors.ENDC}
+  /menu      - Buka menu interaktif TUI (pilih model, file, preset via panah ↑/↓)
+
+{Colors.CYAN}🚀 Execution Mode & AI Provider:{Colors.ENDC}
+  /mode      - Beralih mode: auto | server | standalone
+  /provider  - Ganti provider: google | nvidia | openai | anthropic | groq | ollama
+  /switch    - Switch preset: fast | smart | creative | precise | coding
+  /settings  - Atur temperature, max_tokens
+  /models    - Lihat daftar katalog model yang didukung
+
+{Colors.CYAN}📁 Developer & Context Tools:{Colors.ENDC}
+  @file.py   - Ketik '@nama_file' di pesan untuk otomatis lampirkan konteks file
+  /file      - Kelola file terlampir: /file add | list | clear | remove
+  !command   - Jalankan shell langsung, contoh: !ls -la atau !git status
+  /run <cmd> - Alias untuk eksekusi shell command
+
+{Colors.CYAN}🔐 Authentication (Server Mode):{Colors.ENDC}
+  /login     - Login ke backend server ALFA
   /logout    - Logout dari sesi saat ini
   /register  - Daftar akun baru
 
 {Colors.CYAN}💬 Chat & Interaction:{Colors.ENDC}
-  [pesan]    - Langsung ketik pesan untuk chatting
+  [pesan]    - Langsung ketik pesan untuk chatting/coding
   /clear     - Bersihkan layar terminal
-  /history   - Lihat riwayat chat
-  /stream on|off - Toggle streaming mode
+  /history   - Lihat riwayat percakapan
+  /stream    - Toggle streaming: /stream on | off
 
-{Colors.CYAN}🛠️ System & Tools:{Colors.ENDC}
-  /tools     - Lihat daftar tools AI yang tersedia
-  /stats     - Tampilkan statistik sistem
-  /models    - Lihat model AI yang aktif
-  /agents    - Lihat status swarm agents
-
-{Colors.CYAN}⚙️ Configuration:{Colors.ENDC}
-  /config    - Lihat/ubah konfigurasi CLI
-  /theme     - Ubah tema warna
-  /upload    - Upload file ke server
-  /download  - Download file dari server
-
-{Colors.CYAN}🤖 AI Provider Settings:{Colors.ENDC}
-  /provider  - Set provider AI (openai/anthropic/google/ollama/etc)
-  /settings  - Advanced AI settings (temperature, max_tokens, etc)
-  /switch    - Quick switch presets (fast/smart/creative/precise/coding)
+{Colors.CYAN}🛠️ Sovereign Swarm & System:{Colors.ENDC}
+  /agents    - Pantau status swarm agents (Server Mode)
+  /tools     - Lihat daftar tools backend yang tersedia
+  /stats     - Tampilkan statistik sistem server ALFA
+  /config    - Lihat/ubah konfigurasi atau jalankan '/config setup'
 
 {Colors.CYAN}❌ Exit:{Colors.ENDC}
-  /exit      - Keluar dari aplikasi
-  /quit      - Alias untuk exit
+  /exit      - Keluar dari aplikasi (alias: /quit, /q)
 
-{Colors.GRAY}Tips: Tekan TAB untuk auto-complete perintah!{Colors.ENDC}
+{Colors.GRAY}Tips: Tekan TAB untuk auto-complete perintah slash!{Colors.ENDC}
 """
         print(help_text)
 

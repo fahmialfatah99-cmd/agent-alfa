@@ -51,6 +51,7 @@ from alfa.core.db.keys import (
     list_active_keys_sync,
     list_api_keys_sync,
     set_main_brain_model,
+    sync_external_api_keys_sync,
     update_api_key_model,
 )
 from alfa.core.db.memory import (

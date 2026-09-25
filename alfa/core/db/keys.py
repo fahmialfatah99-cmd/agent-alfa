@@ -11,8 +11,169 @@ from alfa.core.db.crypto import decrypt_key, encrypt_key, mask_key
 logger = logging.getLogger("DB.Keys")
 
 
-def list_api_keys_sync() -> list[dict[str, Any]]:
-    """List all configured API keys with masked key values."""
+def sync_external_api_keys_sync() -> list[dict[str, Any]]:
+    """Automatically discover and synchronize API keys from external sources:
+    1. 9Router Gateway local SQLite (~/.9router/db/data.sqlite)
+    2. CLI configuration file (~/.alfa_cli_config.json)
+    3. Environment variables (.env or os.environ)
+    into the SQLite Database Vault (agent_data.db).
+    """
+    import glob
+    import json
+    import os
+    import sqlite3
+    from pathlib import Path
+
+    synced: list[dict[str, Any]] = []
+
+    try:
+        # Check existing keys in agent_data.db to avoid duplicates
+        existing_keys: set[str] = set()
+        with get_sync_db() as conn:
+            rows = conn.execute("SELECT provider, api_key FROM api_keys").fetchall()
+            for r in rows:
+                p = (r["provider"] or "").lower().strip()
+                try:
+                    dec = decrypt_key(r["api_key"]).strip()
+                except Exception:
+                    dec = (r["api_key"] or "").strip()
+                if dec:
+                    existing_keys.add(f"{p}:{dec}")
+
+        # 1. 9Router Auto-Discovery from local SQLite
+        paths = glob.glob(os.path.expanduser("~/.9router/db/data.sqlite")) + glob.glob(
+            os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite")
+        )
+        for dbp in paths:
+            if os.path.exists(dbp):
+                try:
+                    with sqlite3.connect(dbp) as rconn:
+                        r_rows = rconn.execute(
+                            "SELECT key, name, isActive FROM apiKeys"
+                        ).fetchall()
+                        for rk, rname, ris_active in r_rows:
+                            if not rk:
+                                continue
+                            rk = rk.strip()
+                            ident = f"9router:{rk}"
+                            if ident not in existing_keys:
+                                with get_sync_db() as conn:
+                                    conn.execute(
+                                        """
+                                        INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
+                                        VALUES (?, ?, ?, ?, ?, ?)
+                                        """,
+                                        (
+                                            f"9Router ({rname or 'Gateway'})",
+                                            "9router",
+                                            encrypt_key(rk),
+                                            "http://127.0.0.1:20128/v1",
+                                            "antigravity",
+                                            1 if ris_active else 0,
+                                        ),
+                                    )
+                                    conn.commit()
+                                existing_keys.add(ident)
+                                synced.append({"provider": "9router", "name": rname, "key": rk})
+                except Exception as e:
+                    logger.debug(f"9router sqlite sync check error: {e}")
+
+        # 2. CLI Configuration (~/.alfa_cli_config.json)
+        cfg_paths = [
+            Path.home() / ".alfa_cli_config.json",
+            Path.home() / ".alfa" / "config.json",
+        ]
+        for cfg_p in cfg_paths:
+            if cfg_p.exists():
+                try:
+                    cfg_data = json.loads(cfg_p.read_text(encoding="utf-8"))
+                    api_keys = cfg_data.get("api_keys", {})
+                    for prov, k_val in api_keys.items():
+                        if not k_val:
+                            continue
+                        k_val = k_val.strip()
+                        p_norm = prov.lower().strip()
+                        if p_norm == "google":
+                            p_norm = "gemini"
+                        ident = f"{p_norm}:{k_val}"
+                        if ident not in existing_keys:
+                            base_url = None
+                            def_model = "default"
+                            if p_norm == "9router":
+                                base_url = "http://127.0.0.1:20128/v1"
+                                def_model = "antigravity"
+                            elif p_norm == "nvidia":
+                                base_url = "https://integrate.api.nvidia.com/v1"
+                                def_model = "nvidia/llama-3.1-nemotron-70b-instruct"
+
+                            with get_sync_db() as conn:
+                                conn.execute(
+                                    """
+                                    INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
+                                    VALUES (?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        f"{prov.upper()} Key (CLI Config)",
+                                        p_norm,
+                                        encrypt_key(k_val),
+                                        base_url,
+                                        def_model,
+                                        1,
+                                    ),
+                                )
+                                conn.commit()
+                            existing_keys.add(ident)
+                            synced.append({"provider": p_norm, "name": "CLI Config", "key": k_val})
+                except Exception as e:
+                    logger.debug(f"CLI config sync error: {e}")
+
+        # 3. Environment Variables (NINEROUTER_API_KEY, ROUTER_API_KEY, etc.)
+        env_mappings = [
+            ("9router", "NINEROUTER_API_KEY", "http://127.0.0.1:20128/v1", "antigravity"),
+            ("9router", "ROUTER_API_KEY", "http://127.0.0.1:20128/v1", "antigravity"),
+            ("nvidia", "NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "nvidia/llama-3.1-nemotron-70b-instruct"),
+        ]
+        for p_norm, env_var, b_url, d_mod in env_mappings:
+            e_val = os.getenv(env_var)
+            if e_val:
+                e_val = e_val.strip()
+                ident = f"{p_norm}:{e_val}"
+                if ident not in existing_keys:
+                    with get_sync_db() as conn:
+                        conn.execute(
+                            """
+                            INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                f"{p_norm.upper()} ({env_var})",
+                                p_norm,
+                                encrypt_key(e_val),
+                                b_url,
+                                d_mod,
+                                1,
+                            ),
+                        )
+                        conn.commit()
+                    existing_keys.add(ident)
+                    synced.append({"provider": p_norm, "name": env_var, "key": e_val})
+
+    except Exception as exc:
+        logger.warning(f"Error in sync_external_api_keys_sync: {exc}")
+
+    return synced
+
+
+def list_api_keys_sync(auto_sync: bool = True) -> list[dict[str, Any]]:
+    """List all configured API keys with masked key values.
+    Automatically syncs external keys from 9Router, CLI config, and .env if auto_sync is True.
+    """
+    if auto_sync:
+        try:
+            sync_external_api_keys_sync()
+        except Exception:
+            pass
+
     with get_sync_db() as conn:
         cursor = conn.execute(
             "SELECT id, name, provider, api_key, base_url, default_model, is_active, created_at FROM api_keys ORDER BY id ASC"
@@ -33,6 +194,7 @@ def list_api_keys_sync() -> list[dict[str, Any]]:
                 }
             )
         return results
+
 
 
 def add_api_key_sync(

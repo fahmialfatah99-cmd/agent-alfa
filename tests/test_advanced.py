@@ -33,6 +33,17 @@ def test_toolrag_core_selalu_ada():
         assert core in names
 
 
+def test_toolrag_mempertahankan_tool_aksi_youtube():
+    import tools as t
+    from tool_rag import select_relevant_functions
+
+    sel = select_relevant_functions(
+        t.AVAILABLE_TOOLS, "buka YouTube putar lagu dari utopia"
+    )
+    names = {getattr(f, "__name__", "") for f in sel}
+    assert {"desktop_launch_app", "browser_open_url", "control_linux_hardware"} <= names
+
+
 def test_toolrag_routing_bahasa_indonesia():
     import tools as t
     from tool_rag import select_relevant_functions

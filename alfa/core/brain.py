@@ -114,6 +114,9 @@ def get_main_brain(
     }
 
 
+get_brain = get_main_brain
+
+
 # ── Konversi tool Python -> skema OpenAI function ────────────────────────────
 _JSON_TYPES = {int: "integer", float: "number", bool: "boolean"}
 
@@ -422,37 +425,38 @@ async def run_openai_agentic_turn(
 
         if tools_schema is None:
             txt_low = (user_text or "").lower().strip()
-            # Fast check: apakah pertanyaan sederhana/percakapan yang tidak membutuhkan tool?
-            is_simple_chat = len(txt_low) <= 40 and any(
-                txt_low == g
-                or txt_low.startswith(g + " ")
-                or txt_low.startswith(g + ",")
-                for g in [
-                    "halo",
-                    "hai",
-                    "hei",
-                    "pagi",
-                    "siang",
-                    "sore",
-                    "malam",
-                    "selamat",
-                    "apa kabar",
-                    "siapa kamu",
-                    "tes",
-                    "ping",
-                    "test",
-                    "makasih",
-                    "terima kasih",
-                    "thanks",
-                    "ok",
-                    "oke",
-                    "siap",
-                    "siap bos",
-                    "mantap",
-                    "sip",
-                    "yoi",
-                ]
-            )
+            # Fast check: apakah pertanyaan sederhana/percakapan yang benar-benar tidak membutuhkan tool?
+            # Hanya nonaktifkan tools jika pesan murni salam/basa-basi pendek tanpa kata aksi
+            pure_greetings = {
+                "halo",
+                "hai",
+                "hei",
+                "pagi",
+                "siang",
+                "sore",
+                "malam",
+                "selamat pagi",
+                "selamat siang",
+                "selamat sore",
+                "selamat malam",
+                "apa kabar",
+                "siapa kamu",
+                "tes",
+                "ping",
+                "test",
+                "makasih",
+                "terima kasih",
+                "thanks",
+                "thank you",
+                "ok",
+                "oke",
+                "siap",
+                "siap bos",
+                "mantap",
+                "sip",
+                "yoi",
+            }
+            is_simple_chat = txt_low in pure_greetings
             has_action_trigger = any(
                 k in txt_low
                 for k in [
@@ -502,6 +506,34 @@ async def run_openai_agentic_turn(
                     "capture",
                     "kamera",
                     "webcam",
+                    "putar",
+                    "play",
+                    "setel",
+                    "nyalakan",
+                    "lagu",
+                    "musik",
+                    "music",
+                    "song",
+                    "youtube",
+                    "yt",
+                    "spotify",
+                    "video",
+                    "audio",
+                    "suara",
+                    "buka",
+                    "open",
+                    "launch",
+                    "tonton",
+                    "watch",
+                    "volume",
+                    "notifikasi",
+                    "aplikasi",
+                    "app",
+                    "unduh",
+                    "download",
+                    "perintah",
+                    "terminal",
+                    "kirim",
                 ]
             )
 
@@ -544,7 +576,7 @@ async def run_openai_agentic_turn(
             timeout=httpx.Timeout(180.0, connect=15.0)
         ) as client:
             convo = list(messages)
-            for iteration in range(MAX_ITERATIONS):
+            for _iteration in range(MAX_ITERATIONS):
                 _compact_convo(convo)
                 payload = dict(payload_base, messages=convo)
                 if tools_schema:

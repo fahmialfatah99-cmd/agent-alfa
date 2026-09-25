@@ -60,6 +60,28 @@ class TestConvoCompaction:
         assert convo[4]["content"] == "W" * 300
 
 
+class TestActionToolRouting:
+    def test_action_prompt_keeps_browser_and_desktop_tools(self):
+        from alfa.tools import AVAILABLE_TOOLS
+        from alfa.tools.rag import select_relevant_functions
+
+        selected = select_relevant_functions(
+            AVAILABLE_TOOLS, "buka YouTube putar lagu dari utopia"
+        )
+        names = {getattr(fn, "__name__", "") for fn in selected}
+        assert {
+            "desktop_launch_app",
+            "browser_open_url",
+            "control_linux_hardware",
+        }.issubset(names)
+
+    def test_pure_greeting_is_not_action(self):
+        from alfa.tools.rag import is_action_request
+
+        assert is_action_request("halo apa kabar") is False
+        assert is_action_request("buka youtube putar lagu") is True
+
+
 class TestDocstringParser:
     def test_parse_args_docstring(self):
         doc = """

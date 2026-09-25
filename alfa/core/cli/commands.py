@@ -4,7 +4,7 @@ from alfa.core.cli.basic_commands import CliBasicCommandsMixin
 from alfa.core.cli.slash_commands import CliSlashCommandsMixin
 
 
-class CliCommandsMixin(CliBasicCommandsMixin, CliSlashCommandsMixin):
-    """Aggregates basic commands and advanced slash commands."""
+class CliCommandsMixin(CliSlashCommandsMixin, CliBasicCommandsMixin):
+    """Aggregates advanced slash commands and basic server commands."""
 
     pass
