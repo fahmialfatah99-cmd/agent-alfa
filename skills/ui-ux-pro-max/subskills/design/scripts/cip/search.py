@@ -20,7 +20,7 @@ def format_results(results, domain):
 
     output = []
     for i, item in enumerate(results, 1):
-        output.append(f"\n{'='*60}")
+        output.append(f"\n{'=' * 60}")
         output.append(f"Result {i}:")
         for key, value in item.items():
             if value:
@@ -31,9 +31,9 @@ def format_results(results, domain):
 def format_brief(brief):
     """Format CIP brief for display"""
     output = []
-    output.append(f"\n{'='*60}")
+    output.append(f"\n{'=' * 60}")
     output.append(f"CIP DESIGN BRIEF: {brief['brand_name']}")
-    output.append(f"{'='*60}")
+    output.append(f"{'=' * 60}")
 
     if brief.get("industry"):
         output.append(f"\n📊 INDUSTRY: {brief['industry'].get('Industry', 'N/A')}")
@@ -120,7 +120,7 @@ Examples:
             print(json.dumps(results, indent=2))
         else:
             for domain, items in results.items():
-                print(f"\n{'#'*60}")
+                print(f"\n{'#' * 60}")
                 print(f"# {domain.upper()}")
                 print(format_results(items, domain))
     else:

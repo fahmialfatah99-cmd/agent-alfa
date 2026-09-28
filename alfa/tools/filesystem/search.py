@@ -56,10 +56,7 @@ def search_workspace_files(
                 and d not in ("node_modules", "venv", "__pycache__", "dist", "build")
             ]
             for name in files:
-                if (
-                    fnmatch.fnmatch(name, pattern)
-                    or pattern.lower() in name.lower()
-                ):
+                if fnmatch.fnmatch(name, pattern) or pattern.lower() in name.lower():
                     rel = os.path.relpath(os.path.join(root, name), root_dir)
                     matches.append(rel)
                     if len(matches) >= max_results:
@@ -411,7 +408,12 @@ def git_operations(
             }
 
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30  # nosec B602 - fixed allowlist map; user args validated+quoted above
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=expanded,
+            timeout=30,  # nosec B602 - fixed allowlist map; user args validated+quoted above
         )
         output = res.stdout.strip() or res.stderr.strip()
 

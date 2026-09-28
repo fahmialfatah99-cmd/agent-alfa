@@ -29,7 +29,9 @@ async def get_pipeline_endpoint(pid: str):
     try:
         return {"status": "success", "pipeline": pl.load_pipeline(pid)}
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.") from None
+        raise HTTPException(
+            status_code=404, detail="Pipeline tidak ditemukan."
+        ) from None
 
 
 @router.post("/api/pipelines/{pid}/run")
@@ -48,7 +50,9 @@ async def run_pipeline_endpoint(pid: str, request: Request):
         result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)
         return result
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.") from None
+        raise HTTPException(
+            status_code=404, detail="Pipeline tidak ditemukan."
+        ) from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -80,7 +84,9 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
     try:
         data = pl.load_pipeline(pid)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.") from None
+        raise HTTPException(
+            status_code=404, detail="Pipeline tidak ditemukan."
+        ) from None
     secret = ((data.get("trigger") or {}).get("secret") or "").strip()
     if secret:
         provided = (
@@ -127,7 +133,9 @@ async def pipeline_trigger_toggle_endpoint(pid: str, request: Request):
         pl.save_pipeline(data)
         return {"status": "success", "trigger": trig}
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Pipeline tidak ditemukan.") from None
+        raise HTTPException(
+            status_code=404, detail="Pipeline tidak ditemukan."
+        ) from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

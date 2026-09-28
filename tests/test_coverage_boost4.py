@@ -73,9 +73,7 @@ class TestHandlers:
 
         _allow(monkeypatch, 123)
         monkeypatch.setattr(h, "_get_bot_module", lambda: None)
-        monkeypatch.setattr(
-            h, "run_agent_turn", AsyncMock(return_value="jawaban mock")
-        )
+        monkeypatch.setattr(h, "run_agent_turn", AsyncMock(return_value="jawaban mock"))
         monkeypatch.setattr(
             bot_mod, "run_agent_turn", AsyncMock(return_value="jawaban mock")
         )
@@ -160,9 +158,7 @@ class TestProactiveLoops:
 
         t.add_reminder_sync(4242401, 4242401, "2020-01-01T00:00:00", "waktunya")
         app = MagicMock()
-        monkeypatch.setattr(
-            pro, "safe_send_message", AsyncMock(return_value=True)
-        )
+        monkeypatch.setattr(pro, "safe_send_message", AsyncMock(return_value=True))
         await _run_two_iterations(pro.proactive_reminder_loop, app)
         assert len(await t.get_due_reminders()) == 0 or True
 
@@ -170,7 +166,5 @@ class TestProactiveLoops:
         import alfa.bot.proactive as pro
 
         app = MagicMock()
-        monkeypatch.setattr(
-            pro, "safe_send_message", AsyncMock(return_value=True)
-        )
+        monkeypatch.setattr(pro, "safe_send_message", AsyncMock(return_value=True))
         await _run_two_iterations(pro.proactive_cron_watchdog_loop, app)

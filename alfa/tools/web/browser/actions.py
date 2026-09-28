@@ -30,6 +30,7 @@ from alfa.tools.web.visual_tester import (
 
 logger = logging.getLogger("AgentTools.Web.Browser")
 
+
 # ── tools ───────────────────────────────────────────────────────────────────
 @register_tool(category="web")
 @_on_browser_thread
@@ -245,7 +246,11 @@ def browser_use_autonomous_task(
                 return _research_fallback(task, start_url)
 
             try:
-                page.goto(_normalize_url(start_url), wait_until="domcontentloaded", timeout=45000)
+                page.goto(
+                    _normalize_url(start_url),
+                    wait_until="domcontentloaded",
+                    timeout=45000,
+                )
                 page.wait_for_timeout(800)
             except Exception as ge:  # noqa: BLE001
                 history.append(f"goto gagal: {ge}")
@@ -258,9 +263,7 @@ def browser_use_autonomous_task(
                 elements, snap_text = _snapshot(page)
                 _STATE["elements"] = elements
                 try:
-                    plan = _plan_next_action(
-                        task, page.url, snap_text, history, i, cap
-                    )
+                    plan = _plan_next_action(task, page.url, snap_text, history, i, cap)
                 except Exception as pe:  # noqa: BLE001
                     note = f"planner LLM gagal -> heuristik: {str(pe)[:140]}"
                     logger.warning("%s", note)
@@ -268,7 +271,11 @@ def browser_use_autonomous_task(
 
                 action = plan["action"]
                 reason = str(plan.get("reason") or "")[:160]
-                entry: dict[str, Any] = {"step": i + 1, "action": action, "reason": reason}
+                entry: dict[str, Any] = {
+                    "step": i + 1,
+                    "action": action,
+                    "reason": reason,
+                }
                 try:
                     if action == "done":
                         done = True
@@ -325,8 +332,9 @@ def browser_use_autonomous_task(
                 "page_text_preview": body_preview,
                 "final_summary": (
                     f"Otomasi browser '{task}' selesai dalam {len(steps)} langkah "
-                    f"pada {page.url}." if done else
-                    f"Otomasi browser '{task}' berhenti setelah {len(steps)} langkah "
+                    f"pada {page.url}."
+                    if done
+                    else f"Otomasi browser '{task}' berhenti setelah {len(steps)} langkah "
                     f"(target belum pasti tercapai).{(' ' + note) if note else ''}"
                 ),
             }
@@ -369,8 +377,10 @@ def _research_fallback(task: str, start_url: str) -> dict[str, Any]:
         "task": task,
         "start_url": start_url,
         "steps_completed": len(insights),
-        "steps": [{"step": i + 1, "action": "fetch", "ref": it.get("link")}
-                  for i, it in enumerate(insights)],
+        "steps": [
+            {"step": i + 1, "action": "fetch", "ref": it.get("link")}
+            for i, it in enumerate(insights)
+        ],
         "insights_gathered": insights,
         "final_summary": (
             "Engine browser visual TIDAK aktif, jadi tugas dijalankan lewat riset "

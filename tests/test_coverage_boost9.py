@@ -45,9 +45,7 @@ class TestValidateMediaRules:
         assert "harus berupa array" in errs[0]
 
     def test_caps_at_30(self, wa):
-        rules = [
-            {"name": f"r{i}", "types": ["foto"], "naming": "x"} for i in range(31)
-        ]
+        rules = [{"name": f"r{i}", "types": ["foto"], "naming": "x"} for i in range(31)]
         assert wa._validate_media_rules(rules) == ["Maksimal 30 aturan."]
 
     def test_accepts_valid(self, wa):
@@ -81,9 +79,7 @@ class TestValidateMediaRules:
         assert any("minimal satu jenis file" in e for e in errs)
 
     def test_rejects_non_list_types(self, wa):
-        errs = wa._validate_media_rules(
-            [{"name": "a", "types": "foto", "naming": "x"}]
-        )
+        errs = wa._validate_media_rules([{"name": "a", "types": "foto", "naming": "x"}])
         assert any("minimal satu jenis file" in e for e in errs)
 
     def test_rejects_empty_naming(self, wa):
@@ -127,7 +123,12 @@ class TestValidateFormats:
 
     def test_rejects_empty_name(self, wa):
         fmts = [
-            {"name": " ", "tab": "T", "keywords": ["k"], "columns": [{"title": "a", "source": "b"}]}
+            {
+                "name": " ",
+                "tab": "T",
+                "keywords": ["k"],
+                "columns": [{"title": "a", "source": "b"}],
+            }
         ]
         assert any("nama kosong" in e for e in wa._validate_wa_formats(fmts))
 
@@ -141,7 +142,12 @@ class TestValidateFormats:
 
     def test_rejects_empty_tab(self, wa):
         fmts = [
-            {"name": "X", "tab": "", "keywords": ["k"], "columns": [{"title": "a", "source": "b"}]}
+            {
+                "name": "X",
+                "tab": "",
+                "keywords": ["k"],
+                "columns": [{"title": "a", "source": "b"}],
+            }
         ]
         assert any("tab Sheets kosong" in e for e in wa._validate_wa_formats(fmts))
 
@@ -155,13 +161,23 @@ class TestValidateFormats:
 
     def test_rejects_missing_keywords(self, wa):
         fmts = [
-            {"name": "X", "tab": "T", "keywords": [], "columns": [{"title": "a", "source": "b"}]}
+            {
+                "name": "X",
+                "tab": "T",
+                "keywords": [],
+                "columns": [{"title": "a", "source": "b"}],
+            }
         ]
         assert any("keywords wajib" in e for e in wa._validate_wa_formats(fmts))
 
     def test_rejects_blank_keyword(self, wa):
         fmts = [
-            {"name": "X", "tab": "T", "keywords": ["  "], "columns": [{"title": "a", "source": "b"}]}
+            {
+                "name": "X",
+                "tab": "T",
+                "keywords": ["  "],
+                "columns": [{"title": "a", "source": "b"}],
+            }
         ]
         assert any("keywords wajib" in e for e in wa._validate_wa_formats(fmts))
 
@@ -266,6 +282,8 @@ class TestUploadLog:
 
     def test_never_raises(self, wa, monkeypatch):
         monkeypatch.setattr(
-            wa.os, "replace", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full"))
+            wa.os,
+            "replace",
+            lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")),
         )
         wa._log_wa_drive_upload({"n": 1})  # must swallow

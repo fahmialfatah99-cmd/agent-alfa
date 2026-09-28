@@ -325,13 +325,13 @@ def generate_batch(
         color_instructions=color_instructions,
     )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  BATCH ICON GENERATION")
     print(f"  Model: {MODEL}")
     print(f"  Prompt: {prompt}")
     print(f"  Variants: {count}")
     print(f"  Output: {output_dir}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     try:
         response = client.models.generate_content(
@@ -362,18 +362,18 @@ def generate_batch(
 
         for i, svg_code in enumerate(svgs[:count]):
             svg_code = apply_color(svg_code, color)
-            filename = f"{slug}{style_suffix}_{i+1:02d}.svg"
+            filename = f"{slug}{style_suffix}_{i + 1:02d}.svg"
             filepath = os.path.join(output_dir, filename)
 
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(svg_code)
 
             results.append(filepath)
-            print(f"  [{i+1}/{len(svgs[:count])}] Saved: {filename}")
+            print(f"  [{i + 1}/{len(svgs[:count])}] Saved: {filename}")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  BATCH COMPLETE: {len(results)}/{count} icons generated")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         return results
 

@@ -184,8 +184,8 @@ async def proactive_system_guardian_loop(application: Application):
                     procs = sorted(
                         psutil.process_iter(["pid", "name", "memory_info"]),
                         key=lambda p: (
-                            p.info.get("memory_info") or type("", (), {"rss": 0})
-                        ).rss,
+                            (p.info.get("memory_info") or type("", (), {"rss": 0})).rss
+                        ),
                         reverse=True,
                     )
                     for p in procs[:5]:

@@ -65,7 +65,9 @@ class AutonomousAgentRunner:
 
         # Convert single quotes around keys and values
         try:
-            sq_fixed = re.sub(r"(?<=[{,\s])'([^']+)'(?=\s*:)", r'"\1"', cleaned_no_trailing)
+            sq_fixed = re.sub(
+                r"(?<=[{,\s])'([^']+)'(?=\s*:)", r'"\1"', cleaned_no_trailing
+            )
             sq_fixed = re.sub(r":\s*'([^']*)'(?=[,}\s])", r': "\1"', sq_fixed)
             val = json.loads(sq_fixed)
             if isinstance(val, dict):
@@ -135,7 +137,8 @@ class AutonomousAgentRunner:
                     parsed = self._parse_relaxed_json(json_candidate)
                     if parsed and "tool" in parsed:
                         if not any(
-                            c.get("tool") == parsed.get("tool") and c.get("args") == parsed.get("args")
+                            c.get("tool") == parsed.get("tool")
+                            and c.get("args") == parsed.get("args")
                             for c in calls
                         ):
                             calls.append(parsed)
@@ -146,7 +149,8 @@ class AutonomousAgentRunner:
                 parsed = self._parse_relaxed_json(json_candidate)
                 if parsed and "tool" in parsed:
                     if not any(
-                        c.get("tool") == parsed.get("tool") and c.get("args") == parsed.get("args")
+                        c.get("tool") == parsed.get("tool")
+                        and c.get("args") == parsed.get("args")
                         for c in calls
                     ):
                         calls.append(parsed)
@@ -155,11 +159,21 @@ class AutonomousAgentRunner:
         if not calls:
             fn_pat = r"\b([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\)"
             known_simple = {
-                "list_directory", "read_file", "find_files", "search_code",
-                "write_file", "patch_file", "run_command", "web_search",
-                "fetch_web_page_content", "universal_deep_scraper",
-                "audit_website_security", "get_system_stats",
-                "vault_get_secret", "vault_store_secret", "vault_list_secrets",
+                "list_directory",
+                "read_file",
+                "find_files",
+                "search_code",
+                "write_file",
+                "patch_file",
+                "run_command",
+                "web_search",
+                "fetch_web_page_content",
+                "universal_deep_scraper",
+                "audit_website_security",
+                "get_system_stats",
+                "vault_get_secret",
+                "vault_store_secret",
+                "vault_list_secrets",
             }
             for m in re.finditer(fn_pat, search_text):
                 t_name = m.group(1)
@@ -183,7 +197,11 @@ class AutonomousAgentRunner:
                     if t_name == "list_directory":
                         parsed_args = {"path": clean_single or "."}
                     elif t_name == "read_file":
-                        parsed_args = {"path": clean_single, "start_line": 1, "end_line": 200}
+                        parsed_args = {
+                            "path": clean_single,
+                            "start_line": 1,
+                            "end_line": 200,
+                        }
                     elif t_name == "find_files":
                         parsed_args = {"pattern": clean_single or "*"}
                     elif t_name == "search_code":
@@ -212,7 +230,9 @@ class AutonomousAgentRunner:
         if tool_name == "search_code":
             return self.tools.search_code(args.get("query", ""), args.get("path", "."))
         elif tool_name == "find_files":
-            return self.tools.find_files(args.get("pattern", "*"), args.get("path", "."))
+            return self.tools.find_files(
+                args.get("pattern", "*"), args.get("path", ".")
+            )
         elif tool_name == "read_file":
             return self.tools.read_file(
                 args.get("path", ""),
@@ -248,7 +268,10 @@ class AutonomousAgentRunner:
                         valid_args[param_name] = args[param_name]
 
                 # Fallback if function accepts arbitrary kwargs
-                if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                if any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD
+                    for p in sig.parameters.values()
+                ):
                     valid_args = args
 
                 if inspect.iscoroutinefunction(fn):
@@ -281,7 +304,11 @@ class AutonomousAgentRunner:
             content = msg.get("content", "")
             role = msg.get("role", "user")
             # If older user observation is very long, summarize it
-            if role == "user" and content.startswith("Observation from ") and len(content) > 500:
+            if (
+                role == "user"
+                and content.startswith("Observation from ")
+                and len(content) > 500
+            ):
                 header = content.split("\n", 1)[0]
                 lines = content.splitlines()
                 first_part = "\n".join(lines[1:4])
@@ -303,7 +330,9 @@ class AutonomousAgentRunner:
     def run(self, user_prompt: str) -> str:
         """Run the full Autonomous ReAct Loop with real-time live display."""
         # 1. Build repomap
-        with self.console.status("[bold cyan]🔍 Memindai arsitektur dan repomap proyek...[/bold cyan]"):
+        with self.console.status(
+            "[bold cyan]🔍 Memindai arsitektur dan repomap proyek...[/bold cyan]"
+        ):
             repomap = self.repomap_gen.generate_repomap()
 
         system_instruction = AGENT_SYSTEM_PROMPT_TEMPLATE.format(
@@ -329,33 +358,62 @@ class AutonomousAgentRunner:
         # Proactive Local Directory & Key File Context Injection (AGY-grade Deep Inspection)
         user_lower = user_prompt.lower()
         folder_check_kws = [
-            "cek folder", "lihat folder", "isi folder", "periksa folder",
-            "struktur folder", "cek direktori", "list directory", "baca folder",
-            "folder ini", "direktori ini", "ada file apa"
+            "cek folder",
+            "lihat folder",
+            "isi folder",
+            "periksa folder",
+            "struktur folder",
+            "cek direktori",
+            "list directory",
+            "baca folder",
+            "folder ini",
+            "direktori ini",
+            "ada file apa",
         ]
         if any(w in user_lower for w in folder_check_kws):
             dir_listing = self.tools.list_directory(".")
-            self.console.print(f"[bold blue]📁 [REAL-TIME PERIKSA FOLDER][/bold blue] Memeriksa direktori root: [yellow]{self.root.name}[/yellow]")
-            self.console.print(Panel(dir_listing, title=f"📁 Isi Direktori ({self.root.name})", border_style="blue", padding=(0, 1)))
+            self.console.print(
+                f"[bold blue]📁 [REAL-TIME PERIKSA FOLDER][/bold blue] Memeriksa direktori root: [yellow]{self.root.name}[/yellow]"
+            )
+            self.console.print(
+                Panel(
+                    dir_listing,
+                    title=f"📁 Isi Direktori ({self.root.name})",
+                    border_style="blue",
+                    padding=(0, 1),
+                )
+            )
 
             # Deep inspection: Read key files automatically (up to 3 files under 50KB)
             file_previews = []
             try:
                 root_files = [
-                    p for p in sorted(self.root.iterdir())
-                    if p.is_file() and not p.name.startswith(".") and p.name not in RepomapGenerator.IGNORE_DIRS
+                    p
+                    for p in sorted(self.root.iterdir())
+                    if p.is_file()
+                    and not p.name.startswith(".")
+                    and p.name not in RepomapGenerator.IGNORE_DIRS
                 ]
                 for f in root_files[:3]:
                     if f.stat().st_size <= 50000:
                         content_snip = self.tools.read_file(f.name, 1, 150)
-                        self.console.print(f"[bold cyan]📖 [REAL-TIME INSPEKSI KONTEN][/bold cyan] Membaca berkas: [yellow]{f.name}[/yellow] ({f.stat().st_size} bytes)")
-                        file_previews.append(f"--- BERKAS: {f.name} ({f.stat().st_size} bytes) ---\n{content_snip}")
+                        self.console.print(
+                            f"[bold cyan]📖 [REAL-TIME INSPEKSI KONTEN][/bold cyan] Membaca berkas: [yellow]{f.name}[/yellow] ({f.stat().st_size} bytes)"
+                        )
+                        file_previews.append(
+                            f"--- BERKAS: {f.name} ({f.stat().st_size} bytes) ---\n{content_snip}"
+                        )
             except Exception:
                 pass
 
-            proactive_info = f"[Sistem Lokal: Output real-time list_directory('.')]:\n{dir_listing}"
+            proactive_info = (
+                f"[Sistem Lokal: Output real-time list_directory('.')]:\n{dir_listing}"
+            )
             if file_previews:
-                proactive_info += "\n\n[Sistem Lokal: Isi Berkas Penting yang Ditemukan]:\n" + "\n\n".join(file_previews)
+                proactive_info += (
+                    "\n\n[Sistem Lokal: Isi Berkas Penting yang Ditemukan]:\n"
+                    + "\n\n".join(file_previews)
+                )
 
             conversation_history[0]["content"] += (
                 f"\n\n{proactive_info}\n\n"
@@ -377,7 +435,9 @@ class AutonomousAgentRunner:
                     role_prefix = "User" if msg["role"] == "user" else "Assistant"
                     prompt_text += f"{role_prefix}: {msg['content']}\n\n"
 
-                with self.console.status(f"[bold yellow]🧠 Turn #{turn}: AI sedang menganalisis & merencanakan tindakan...[/bold yellow]"):
+                with self.console.status(
+                    f"[bold yellow]🧠 Turn #{turn}: AI sedang menganalisis & merencanakan tindakan...[/bold yellow]"
+                ):
                     response = self.direct_ai.generate(prompt_text, stream=False)
 
                 # Anti-Refusal Intervention:
@@ -391,13 +451,29 @@ class AutonomousAgentRunner:
                 ]
                 if any(rp in response.lower() for rp in refusal_phrases):
                     dir_info = self.tools.list_directory(".")
-                    self.console.print("[bold yellow]⚡ [REAL-TIME AUTO-OBSERVE][/bold yellow] Menginspeksi direktori lokal...")
-                    self.console.print(Panel(dir_info, title="📁 [REAL-TIME] Isi Folder Lokal", border_style="blue", padding=(0, 1)))
-                    conversation_history.append({"role": "assistant", "content": "Saya akan memeriksa isi folder lokal."})
-                    conversation_history.append({
-                        "role": "user",
-                        "content": f"Anda memiliki akses lokal penuh di komputer ini. Berikut adalah isi folder proyek saat ini:\n{dir_info}\nSilakan langsung analisis folder ini dan berikan Final Answer secara lengkap.",
-                    })
+                    self.console.print(
+                        "[bold yellow]⚡ [REAL-TIME AUTO-OBSERVE][/bold yellow] Menginspeksi direktori lokal..."
+                    )
+                    self.console.print(
+                        Panel(
+                            dir_info,
+                            title="📁 [REAL-TIME] Isi Folder Lokal",
+                            border_style="blue",
+                            padding=(0, 1),
+                        )
+                    )
+                    conversation_history.append(
+                        {
+                            "role": "assistant",
+                            "content": "Saya akan memeriksa isi folder lokal.",
+                        }
+                    )
+                    conversation_history.append(
+                        {
+                            "role": "user",
+                            "content": f"Anda memiliki akses lokal penuh di komputer ini. Berikut adalah isi folder proyek saat ini:\n{dir_info}\nSilakan langsung analisis folder ini dan berikan Final Answer secara lengkap.",
+                        }
+                    )
                     continue
 
                 # Check for tool calls
@@ -411,7 +487,10 @@ class AutonomousAgentRunner:
                 # Filter out redundant tool calls that were already executed with exact same arguments
                 filtered_calls = []
                 for call in tool_calls:
-                    call_sig = (call.get("tool", ""), json.dumps(call.get("args", {}), sort_keys=True))
+                    call_sig = (
+                        call.get("tool", ""),
+                        json.dumps(call.get("args", {}), sort_keys=True),
+                    )
                     if call_sig in executed_calls_history:
                         continue
                     executed_calls_history.add(call_sig)
@@ -434,16 +513,30 @@ class AutonomousAgentRunner:
                     args_str = json.dumps(args)
 
                     # Confirmation barrier only for modifying commands
-                    if not self.auto_approve and tool_name in ("run_command", "write_file", "patch_file"):
-                        ans = input(f"\n   [Konfirmasi] Eksekusi {tool_name}({args_str[:80]}...)? [Y/n]: ").strip().lower()
+                    if not self.auto_approve and tool_name in (
+                        "run_command",
+                        "write_file",
+                        "patch_file",
+                    ):
+                        ans = (
+                            input(
+                                f"\n   [Konfirmasi] Eksekusi {tool_name}({args_str[:80]}...)? [Y/n]: "
+                            )
+                            .strip()
+                            .lower()
+                        )
                         if ans in ("n", "no"):
                             tool_result = "Eksekusi dibatalkan oleh pengguna."
                             self.console.print("   [dim]Dibatalkan oleh user.[/dim]")
                         else:
-                            with self.console.status(f"[cyan]Menjalankan {tool_name}...[/cyan]"):
+                            with self.console.status(
+                                f"[cyan]Menjalankan {tool_name}...[/cyan]"
+                            ):
                                 tool_result = self._execute_tool(tool_name, args)
                     else:
-                        with self.console.status(f"[cyan]Menjalankan {tool_name}...[/cyan]"):
+                        with self.console.status(
+                            f"[cyan]Menjalankan {tool_name}...[/cyan]"
+                        ):
                             tool_result = self._execute_tool(tool_name, args)
 
                     # Real-time live display based on tool type:
@@ -451,23 +544,55 @@ class AutonomousAgentRunner:
                         file_p = args.get("path", "")
                         st = args.get("start_line", 1)
                         en = args.get("end_line", 200)
-                        self.console.print(f"\n[bold cyan]📖 [REAL-TIME BACA FILE][/bold cyan] Membaca: [yellow]{file_p}[/yellow] (Baris {st}-{en})")
+                        self.console.print(
+                            f"\n[bold cyan]📖 [REAL-TIME BACA FILE][/bold cyan] Membaca: [yellow]{file_p}[/yellow] (Baris {st}-{en})"
+                        )
                         lines = tool_result.splitlines()
-                        display_text = "\n".join(lines[:35]) + (f"\n... [{len(lines) - 35} baris lainnya]" if len(lines) > 35 else "")
-                        self.console.print(Panel(display_text, title=f"📄 {file_p}", border_style="cyan", padding=(0, 1)))
+                        display_text = "\n".join(lines[:35]) + (
+                            f"\n... [{len(lines) - 35} baris lainnya]"
+                            if len(lines) > 35
+                            else ""
+                        )
+                        self.console.print(
+                            Panel(
+                                display_text,
+                                title=f"📄 {file_p}",
+                                border_style="cyan",
+                                padding=(0, 1),
+                            )
+                        )
 
                     elif tool_name == "write_file":
                         file_p = args.get("path", "")
-                        self.console.print(f"\n[bold green]✍️ [REAL-TIME TULIS FILE][/bold green] Menulis: [yellow]{file_p}[/yellow]")
+                        self.console.print(
+                            f"\n[bold green]✍️ [REAL-TIME TULIS FILE][/bold green] Menulis: [yellow]{file_p}[/yellow]"
+                        )
                         content = args.get("content", "")
                         ext = Path(file_p).suffix.lstrip(".")
-                        lang = "python" if ext in ("py", "pyw") else "javascript" if ext in ("js", "ts", "jsx", "tsx") else ext or "text"
-                        syntax = Syntax(content[:1500], lang, theme="monokai", line_numbers=True)
-                        self.console.print(Panel(syntax, title=f"✨ {file_p}", border_style="green", padding=(0, 1)))
+                        lang = (
+                            "python"
+                            if ext in ("py", "pyw")
+                            else "javascript"
+                            if ext in ("js", "ts", "jsx", "tsx")
+                            else ext or "text"
+                        )
+                        syntax = Syntax(
+                            content[:1500], lang, theme="monokai", line_numbers=True
+                        )
+                        self.console.print(
+                            Panel(
+                                syntax,
+                                title=f"✨ {file_p}",
+                                border_style="green",
+                                padding=(0, 1),
+                            )
+                        )
 
                     elif tool_name == "patch_file":
                         file_p = args.get("path", "")
-                        self.console.print(f"\n[bold yellow]📝 [REAL-TIME PATCH FILE][/bold yellow] Menerapkan patch pada: [yellow]{file_p}[/yellow]")
+                        self.console.print(
+                            f"\n[bold yellow]📝 [REAL-TIME PATCH FILE][/bold yellow] Menerapkan patch pada: [yellow]{file_p}[/yellow]"
+                        )
                         target_c = args.get("target_content", "")
                         repl_c = args.get("replacement_content", "")
                         diff = difflib.unified_diff(
@@ -479,28 +604,70 @@ class AutonomousAgentRunner:
                         diff_text = "".join(diff)
                         if diff_text:
                             syntax = Syntax(diff_text, "diff", theme="monokai")
-                            self.console.print(Panel(syntax, title=f"📝 Diff Patch: {file_p}", border_style="yellow", padding=(0, 1)))
+                            self.console.print(
+                                Panel(
+                                    syntax,
+                                    title=f"📝 Diff Patch: {file_p}",
+                                    border_style="yellow",
+                                    padding=(0, 1),
+                                )
+                            )
 
                     elif tool_name == "list_directory":
                         dir_p = args.get("path", ".")
-                        self.console.print(f"\n[bold blue]📁 [REAL-TIME PERIKSA FOLDER][/bold blue] Memindai: [yellow]{dir_p}[/yellow]")
-                        self.console.print(Panel(tool_result, title=f"📁 Isi Direktori ({dir_p})", border_style="blue", padding=(0, 1)))
+                        self.console.print(
+                            f"\n[bold blue]📁 [REAL-TIME PERIKSA FOLDER][/bold blue] Memindai: [yellow]{dir_p}[/yellow]"
+                        )
+                        self.console.print(
+                            Panel(
+                                tool_result,
+                                title=f"📁 Isi Direktori ({dir_p})",
+                                border_style="blue",
+                                padding=(0, 1),
+                            )
+                        )
 
                     elif tool_name in ("search_code", "find_files"):
                         q = args.get("query") or args.get("pattern", "")
-                        self.console.print(f"\n[bold magenta]🔍 [REAL-TIME PENCARIAN][/bold magenta] Query: [yellow]'{q}'[/yellow]")
-                        self.console.print(Panel(tool_result[:1500], title=f"🔍 Hasil Temuan ({q})", border_style="magenta", padding=(0, 1)))
+                        self.console.print(
+                            f"\n[bold magenta]🔍 [REAL-TIME PENCARIAN][/bold magenta] Query: [yellow]'{q}'[/yellow]"
+                        )
+                        self.console.print(
+                            Panel(
+                                tool_result[:1500],
+                                title=f"🔍 Hasil Temuan ({q})",
+                                border_style="magenta",
+                                padding=(0, 1),
+                            )
+                        )
 
                     elif tool_name == "run_command":
                         cmd_p = args.get("command", "")
-                        self.console.print(f"\n[bold red]⚡ [REAL-TIME TERMINAL SHELL][/bold red] `$ {cmd_p}`")
-                        self.console.print(Panel(tool_result[:2000], title="⚡ Output Shell", border_style="red", padding=(0, 1)))
+                        self.console.print(
+                            f"\n[bold red]⚡ [REAL-TIME TERMINAL SHELL][/bold red] `$ {cmd_p}`"
+                        )
+                        self.console.print(
+                            Panel(
+                                tool_result[:2000],
+                                title="⚡ Output Shell",
+                                border_style="red",
+                                padding=(0, 1),
+                            )
+                        )
 
                     else:
                         preview = tool_result.strip()[:400]
-                        self.console.print(Panel(preview, title=f"📋 Observation ({tool_name})", border_style="dim"))
+                        self.console.print(
+                            Panel(
+                                preview,
+                                title=f"📋 Observation ({tool_name})",
+                                border_style="dim",
+                            )
+                        )
 
-                    conversation_history.append({"role": "assistant", "content": response})
+                    conversation_history.append(
+                        {"role": "assistant", "content": response}
+                    )
                     conversation_history.append(
                         {
                             "role": "user",
@@ -512,7 +679,11 @@ class AutonomousAgentRunner:
                 # 1. Recover last substantial assistant message
                 for msg in reversed(conversation_history):
                     content = msg.get("content", "").strip()
-                    if msg.get("role") == "assistant" and len(content) > 100 and "```tool_call" not in content:
+                    if (
+                        msg.get("role") == "assistant"
+                        and len(content) > 100
+                        and "```tool_call" not in content
+                    ):
                         if "Final Answer:" in content:
                             final_answer = content.split("Final Answer:", 1)[1].strip()
                         else:

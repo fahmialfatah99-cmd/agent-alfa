@@ -448,7 +448,7 @@ async def execute_chat_code_block(payload: dict[str, Any]):
     elif language in ("bash", "sh", "shell", "zsh"):
         result = tools.execute_bash_command(command=clean_code)
     elif language in ("js", "javascript", "node"):
-        tmp_js = os.path.join(tools.SANDBOX_DIR, f"script_{int(time.time()*1000)}.js")
+        tmp_js = os.path.join(tools.SANDBOX_DIR, f"script_{int(time.time() * 1000)}.js")
         os.makedirs(tools.SANDBOX_DIR, exist_ok=True)
         with open(tmp_js, "w", encoding="utf-8") as f:
             f.write(clean_code)

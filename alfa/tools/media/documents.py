@@ -281,7 +281,10 @@ def translate_text(
         resp = client.models.generate_content(model=model, contents=prompt)
         translated = (getattr(resp, "text", "") or "").strip()
         if not translated:
-            return {"status": "error", "message": "Model tidak mengembalikan terjemahan."}
+            return {
+                "status": "error",
+                "message": "Model tidak mengembalikan terjemahan.",
+            }
         return {
             "status": "success",
             "original": text[:500],

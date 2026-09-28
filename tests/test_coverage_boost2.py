@@ -171,12 +171,26 @@ class TestSlashMore:
 
 
 @pytest.fixture(scope="module")
-def dashboard_client():
+def dashboard_client(tmp_path_factory):
+    import os
     from fastapi.testclient import TestClient
+
+    test_db = str(tmp_path_factory.mktemp("db") / "test_boost2.db")
+    orig = os.environ.get("ALFA_DB_PATH")
+    os.environ["ALFA_DB_PATH"] = test_db
+    from alfa.core.db import connection as _conn
+
+    _conn.init_db_sync()
 
     import web_dashboard
 
-    return TestClient(web_dashboard.app)
+    client = TestClient(web_dashboard.app)
+    yield client
+
+    if orig is not None:
+        os.environ["ALFA_DB_PATH"] = orig
+    else:
+        os.environ.pop("ALFA_DB_PATH", None)
 
 
 class TestDashboardReads:

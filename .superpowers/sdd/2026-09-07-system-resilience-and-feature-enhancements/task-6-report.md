@@ -102,8 +102,9 @@ Task 6 concluded the end-to-end system verification and health check across all 
 - **Command**:
   ```python
   import sqlite3
-  conn = sqlite3.connect('agent_data.db')
-  res = conn.execute('PRAGMA integrity_check;').fetchall()
+
+  conn = sqlite3.connect("agent_data.db")
+  res = conn.execute("PRAGMA integrity_check;").fetchall()
   print(res)
   conn.close()
   ```

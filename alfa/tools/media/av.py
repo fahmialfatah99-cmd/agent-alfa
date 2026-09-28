@@ -197,10 +197,19 @@ def extract_audio_from_video(
             output_filename += ".mp3"
 
         dest_path = os.path.join(SANDBOX_DIR, os.path.basename(output_filename))
-        cmd = ["ffmpeg", "-y", "-i", expanded, "-vn", "-acodec", "libmp3lame", "-q:a", "2", dest_path]
-        res = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=60
-        )
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            expanded,
+            "-vn",
+            "-acodec",
+            "libmp3lame",
+            "-q:a",
+            "2",
+            dest_path,
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
             size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)
@@ -281,9 +290,7 @@ def convert_media_format(
         dest_path = os.path.join(SANDBOX_DIR, out_name)
 
         cmd = ["ffmpeg", "-y", "-i", expanded, *shlex.split(extra_params), dest_path]
-        res = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=60
-        )
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
             size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 2)

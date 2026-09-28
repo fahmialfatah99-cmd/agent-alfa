@@ -75,9 +75,7 @@ def parse_decision_rules(raw):
         if condition not in ALLOWED_CONDITIONS:
             raise ValueError(f"unknown decision-rule condition: {condition}")
         if not isinstance(actions, list) or not actions:
-            raise ValueError(
-                f"{condition} must map to a non-empty action array"
-            )
+            raise ValueError(f"{condition} must map to a non-empty action array")
         for action in actions:
             _validate_action(action)
         if len(actions) != len(set(actions)):

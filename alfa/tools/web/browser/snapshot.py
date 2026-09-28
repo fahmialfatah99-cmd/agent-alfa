@@ -10,6 +10,7 @@ from alfa.tools.web.browser.state import _INTERACTIVE_SEL, _MAX_REFS
 
 logger = logging.getLogger("AgentTools.Web.Browser")
 
+
 def _normalize_url(url: str) -> str:
     u = (url or "").strip()
     if not u:
@@ -84,5 +85,3 @@ def _ref_index(element_ref: str) -> int | None:
 
 def _index_ok(idx: int | None, elements: list) -> bool:
     return idx is not None and 0 <= idx < len(elements)
-
-

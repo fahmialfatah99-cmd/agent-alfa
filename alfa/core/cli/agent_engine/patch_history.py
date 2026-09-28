@@ -51,7 +51,9 @@ class PatchHistoryManager:
 
     def _save_journal(self, entries: list[dict[str, Any]]) -> None:
         try:
-            self.journal_file.write_text(json.dumps(entries, indent=2), encoding="utf-8")
+            self.journal_file.write_text(
+                json.dumps(entries, indent=2), encoding="utf-8"
+            )
         except Exception:
             pass
 
@@ -112,7 +114,10 @@ class PatchHistoryManager:
         dest_file = self.workspace_root / target["filepath"]
         try:
             shutil.copy2(backup_file, dest_file)
-            return True, f"File '{target['filepath']}' berhasil di-rollback ke versi Patch #{patch_id}."
+            return (
+                True,
+                f"File '{target['filepath']}' berhasil di-rollback ke versi Patch #{patch_id}.",
+            )
         except Exception as e:
             return False, f"Error saat rollback: {e}"
 
@@ -123,5 +128,3 @@ class PatchHistoryManager:
             return False, "Belum ada riwayat patch untuk dibatalkan."
         latest_id = journal[-1]["id"]
         return self.rollback_patch(latest_id)
-
-

@@ -96,8 +96,8 @@ def _build_error_context(failed_steps: list) -> str:
     lines = ["⚠️ KEGAGALAN AGEN SEBELUMNYA (jangan ulangi — selesaikan yang belum):"]
     for fs in failed_steps[-3:]:
         lines.append(
-            f"  • {fs.get('agent_name','?')} [{fs.get('tool_used','?')}]: "
-            f"{(fs.get('feedback') or fs.get('execution_summary',''))[:120]}"
+            f"  • {fs.get('agent_name', '?')} [{fs.get('tool_used', '?')}]: "
+            f"{(fs.get('feedback') or fs.get('execution_summary', ''))[:120]}"
         )
     return "\n".join(lines)
 

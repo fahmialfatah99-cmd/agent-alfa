@@ -89,7 +89,9 @@ def generate_secure_password(
             else (
                 "Kuat 🔵"
                 if entropy > 60
-                else "Cukup 🟡" if entropy > 40 else "Lemah 🔴"
+                else "Cukup 🟡"
+                if entropy > 40
+                else "Lemah 🔴"
             )
         )
 

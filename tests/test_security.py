@@ -38,9 +38,9 @@ class TestKeyEncryption:
     def test_nonce_unik(self):
         from database import encrypt_key
 
-        assert encrypt_key("sama") != encrypt_key(
-            "sama"
-        ), "nonce harus acak per enkripsi"
+        assert encrypt_key("sama") != encrypt_key("sama"), (
+            "nonce harus acak per enkripsi"
+        )
 
     def test_idempoten_pada_nilai_terenkripsi(self):
         from database import encrypt_key
@@ -64,9 +64,9 @@ class TestKeyEncryption:
         from database import migrate_encrypt_api_keys
 
         stats = migrate_encrypt_api_keys()
-        assert (
-            stats["encrypted"] == 0
-        ), "migrasi idempoten: tidak ada sisa plaintext setelah auto-init"
+        assert stats["encrypted"] == 0, (
+            "migrasi idempoten: tidak ada sisa plaintext setelah auto-init"
+        )
 
 
 # ── 2. Blacklist bash berbahaya ──────────────────────────────────────────────
@@ -188,9 +188,9 @@ class TestSafeToolsSubset:
         names = {
             t["function"]["name"] for t in main_brain.build_openai_tools(safe_only=True)
         }
-        assert not (
-            names & FORBIDDEN_IN_SAFE
-        ), f"tools berisiko bocor: {names & FORBIDDEN_IN_SAFE}"
+        assert not (names & FORBIDDEN_IN_SAFE), (
+            f"tools berisiko bocor: {names & FORBIDDEN_IN_SAFE}"
+        )
 
     def test_tools_esensial_ada(self):
         import main_brain

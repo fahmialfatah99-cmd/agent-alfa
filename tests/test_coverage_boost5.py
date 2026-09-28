@@ -69,7 +69,7 @@ class TestBrainHelpers:
         from alfa.core import brain as br
 
         assert br._clean_json_args('{"a": 1}') == {"a": 1}
-        assert isinstance(br._clean_json_args("```json\n{\"a\": 1}\n```"), dict)
+        assert isinstance(br._clean_json_args('```json\n{"a": 1}\n```'), dict)
         with pytest.raises(ValueError):
             br._clean_json_args("bukan json{{{")
 

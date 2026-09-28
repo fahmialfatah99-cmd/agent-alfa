@@ -13,11 +13,7 @@ def run_command(cmd):
     """Run a shell command and return output."""
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=60
+            cmd, shell=True, capture_output=True, text=True, timeout=60
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
@@ -43,7 +39,7 @@ def check_code_metrics():
 
     for py_file in py_files[:50]:  # Sample first 50 files
         try:
-            with open(py_file, encoding='utf-8', errors='ignore') as f:
+            with open(py_file, encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()
                 total_lines += len(lines)
 
@@ -51,7 +47,7 @@ def check_code_metrics():
                     stripped = line.strip()
                     if not stripped:
                         blank_lines += 1
-                    elif stripped.startswith('#'):
+                    elif stripped.startswith("#"):
                         comment_lines += 1
                     else:
                         code_lines += 1
@@ -74,7 +70,9 @@ def check_code_metrics():
     if returncode == 0 or "coverage" in stdout.lower():
         print(stdout[:2000])
     else:
-        print("Coverage report not available. Run: pytest --cov=alfa --cov=. --cov-report=html")
+        print(
+            "Coverage report not available. Run: pytest --cov=alfa --cov=. --cov-report=html"
+        )
 
     # Check linting status
     print("\n" + "=" * 70)
@@ -114,7 +112,7 @@ def check_code_metrics():
     test_count = 0
     for test_file in test_files:
         try:
-            with open(test_file, encoding='utf-8') as f:
+            with open(test_file, encoding="utf-8") as f:
                 content = f.read()
                 test_count += content.count("def test_")
         except Exception:

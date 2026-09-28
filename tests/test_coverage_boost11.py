@@ -331,7 +331,9 @@ class TestInputAutomation:
         from alfa.tools.desktop import input_automation as ia
 
         calls = []
-        monkeypatch.setattr(ia.subprocess, "Popen", lambda *a, **k: calls.append(a) or MagicMock())
+        monkeypatch.setattr(
+            ia.subprocess, "Popen", lambda *a, **k: calls.append(a) or MagicMock()
+        )
         out = ia.open_url_in_system_browser("https://contoh.id")
         assert out["status"] in ("success", "error")
 
@@ -344,9 +346,7 @@ class TestInputAutomation:
     def test_click_success_via_xdotool(self, monkeypatch):
         from alfa.tools.desktop import input_automation as ia
 
-        monkeypatch.setattr(
-            ia.subprocess, "run", lambda *a, **k: _run_ok()
-        )
+        monkeypatch.setattr(ia.subprocess, "run", lambda *a, **k: _run_ok())
         out = ia.desktop_click_coordinate(10, 20)
         assert out["status"] == "success"
 

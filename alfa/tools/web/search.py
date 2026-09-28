@@ -99,7 +99,9 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
             "Sec-Fetch-Site": "none",
             "Upgrade-Insecure-Requests": "1",
         }
-        with httpx.Client(timeout=12.0, follow_redirects=True, verify=_ssl_verify()) as client:
+        with httpx.Client(
+            timeout=12.0, follow_redirects=True, verify=_ssl_verify()
+        ) as client:
             resp = client.get(url, headers=headers)
             status_code = resp.status_code
             if resp.status_code == 200:

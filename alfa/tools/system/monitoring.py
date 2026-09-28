@@ -163,7 +163,9 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
             cmd = (
                 "playerctl play-pause"
                 if act == "media_play_pause"
-                else "playerctl next" if act == "media_next" else "playerctl previous"
+                else "playerctl next"
+                if act == "media_next"
+                else "playerctl previous"
             )
             subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)  # nosec B602 - cmd from fixed allowlist map above
             return {
@@ -354,7 +356,9 @@ def clean_system_storage(dry_run: bool = True) -> dict[str, Any]:
 
         if not dry_run:
             subprocess.run(
-                "journalctl --user --vacuum-time=2d 2>/dev/null", shell=True, timeout=10  # nosec B602 - fixed string
+                "journalctl --user --vacuum-time=2d 2>/dev/null",
+                shell=True,
+                timeout=10,  # nosec B602 - fixed string
             )
 
         action_msg = "ANALISIS (Dry Run)" if dry_run else "PEMBERSIHAN SELESAI"
@@ -439,7 +443,11 @@ def manage_system_services(
 
         cmd = f"systemctl {flag} {act} {service_name}"  # nosec B602 - act allowlisted, service_name charset-validated above
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=15  # nosec B602 - act allowlisted, service_name charset-validated above
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=15,  # nosec B602 - act allowlisted, service_name charset-validated above
         )
         output = (res.stdout.strip() or res.stderr.strip())[:2500]
 

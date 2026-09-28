@@ -121,21 +121,25 @@ Copy and adjust internal package imports:
 In `database.py`:
 ```python
 """Backward-compatibility shim for alfa.core.database."""
+
 from alfa.core.database import *  # noqa: F403
 ```
 In `main_brain.py`:
 ```python
 """Backward-compatibility shim for alfa.core.brain."""
+
 from alfa.core.brain import *  # noqa: F403
 ```
 In `permission_gate.py`:
 ```python
 """Backward-compatibility shim for alfa.core.permissions."""
+
 from alfa.core.permissions import *  # noqa: F403
 ```
 In `cli.py`:
 ```python
 """Backward-compatibility shim for alfa.core.cli."""
+
 from alfa.core.cli import main
 
 if __name__ == "__main__":
@@ -213,6 +217,7 @@ Import all functions from the submodules and export via `__all__`.
 
 All tools are now organized in the modular package `alfa.tools`.
 """
+
 from alfa.tools import *  # noqa: F401, F403
 ```
 
@@ -262,6 +267,7 @@ git commit -m "refactor(tools): decompose monolithic tools.py into modular alfa.
 - Replace root `swarm_engine.py` with compatibility shim:
   ```python
   """Backward-compatibility shim for alfa.swarm.engine."""
+
   from alfa.swarm.engine import *  # noqa: F403
   ```
 
@@ -271,10 +277,12 @@ git commit -m "refactor(tools): decompose monolithic tools.py into modular alfa.
 - Replace root `bot.py` with compatibility shim:
   ```python
   """Backward-compatibility shim for alfa.bot."""
+
   from alfa.bot.telegram_bot import *  # noqa: F403
 
   if __name__ == "__main__":
       from alfa.bot.telegram_bot import main
+
       main()
   ```
 
@@ -328,6 +336,7 @@ git commit -m "refactor(swarm,bot): modularize swarm engine and telegram bot int
 
 Used directly by systemd service alfa-dashboard.service.
 """
+
 import os
 import uvicorn
 from alfa.dashboard.app import app

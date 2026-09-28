@@ -23,12 +23,8 @@ from typing import Any
 logger = logging.getLogger("AntigravityLogin")
 
 BASE = os.path.expanduser("~/antigravity-gateway")
-CLIENT_ID = os.getenv("ANTIGRAVITY_CLIENT_ID", "").strip() or (
-    "1071006060591-tmhssin2h21lcre2" "35vtolojh4g403ep.apps.googleusercontent.com"
-)
-CLIENT_SECRET = os.getenv("ANTIGRAVITY_CLIENT_SECRET", "").strip() or (
-    "GOCSPX-K58FWR486LdL" "J1mLB8sXC4z6qDAf"
-)
+CLIENT_ID = os.getenv("ANTIGRAVITY_CLIENT_ID", "").strip()
+CLIENT_SECRET = os.getenv("ANTIGRAVITY_CLIENT_SECRET", "").strip()
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 USERINFO_EP = "https://openidconnect.googleapis.com/v1/userinfo"

@@ -81,8 +81,8 @@ class TestDatabaseOperations:
     def test_database_connection_mock(self, mock_database_connection):
         """Test database connection mocking."""
         assert mock_database_connection is not None
-        assert hasattr(mock_database_connection, 'execute')
-        assert hasattr(mock_database_connection, 'commit')
+        assert hasattr(mock_database_connection, "execute")
+        assert hasattr(mock_database_connection, "commit")
 
     def test_database_transaction(self, mock_database_connection):
         """Test database transaction handling."""
@@ -237,12 +237,14 @@ class TestEnvironmentConfiguration:
     def test_env_variables_set(self, test_env):
         """Test environment variables are set correctly."""
         import os
+
         assert os.environ.get("TELEGRAM_BOT_TOKEN") == "test_bot_token_12345"
         assert os.environ.get("GEMINI_API_KEY") == "test_api_key_67890"
 
     def test_env_allowed_users(self, test_env):
         """Test allowed user IDs configuration."""
         import os
+
         allowed_ids = os.environ.get("ALLOWED_USER_IDS")
         assert allowed_ids is not None
         assert "123456789" in allowed_ids
@@ -301,7 +303,10 @@ class TestIntegrationScenarios:
         tool_name = sample_tool_config["name"]
 
         # Verify agent can access tools
-        assert tool_name in sample_agent_config["tools"] or len(sample_agent_config["tools"]) > 0
+        assert (
+            tool_name in sample_agent_config["tools"]
+            or len(sample_agent_config["tools"]) > 0
+        )
 
     @pytest.mark.slow
     @pytest.mark.security
@@ -320,8 +325,7 @@ class TestIntegrationScenarios:
         # Simulate finding relevant documents
         query = "programming"
         relevant_docs = [
-            doc for doc in sample_vector_data
-            if query.lower() in doc["content"].lower()
+            doc for doc in sample_vector_data if query.lower() in doc["content"].lower()
         ]
 
         assert len(relevant_docs) > 0

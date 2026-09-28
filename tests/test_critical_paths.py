@@ -456,9 +456,7 @@ class TestInteractiveApproval:
 
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(
-            "alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp()
-        )
+        monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp())
         task = asyncio.create_task(
             g.request_approval("execute_bash_command", '{"cmd": "ls"}', 4242301)
         )
@@ -477,9 +475,7 @@ class TestInteractiveApproval:
 
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(
-            "alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp()
-        )
+        monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp())
         task = asyncio.create_task(
             g.request_approval("execute_bash_command", '{"cmd": "ls"}', 4242302)
         )
@@ -497,25 +493,19 @@ class TestInteractiveApproval:
 
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(
-            "alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp()
-        )
+        monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp())
         monkeypatch.setattr(g, "APPROVAL_TIMEOUT", 0.05)
         result = await g.request_approval("execute_bash_command", "{}", 4242303)
         assert result is not None
 
-    async def test_no_channel_low_allowed_high_denied(
-        self, isolated_db, monkeypatch
-    ):
+    async def test_no_channel_low_allowed_high_denied(self, isolated_db, monkeypatch):
         from alfa.core.perm import gate as g
 
         def _boom():
             raise RuntimeError("no telegram here")
 
         monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", _boom)
-        assert (
-            await g.request_approval("web_search", "{}", 4242304)
-        ) is None
+        assert (await g.request_approval("web_search", "{}", 4242304)) is None
         denied = await g.request_approval("execute_bash_command", "{}", 4242304)
         assert denied is not None
 
@@ -525,9 +515,7 @@ class TestInteractiveApproval:
 
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(
-            "alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp()
-        )
+        monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp())
         task = asyncio.create_task(
             g.request_approval("execute_bash_command", "{}", 4242305)
         )

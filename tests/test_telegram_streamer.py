@@ -350,7 +350,6 @@ class TestHandleTextMessageStreamingIntegration:
                 return_value={"voice_reply": False},
             ),
         ):
-
             mock_agent_turn.return_value = "Sistem berjalan normal tanpa streaming."
 
             _run(handle_text_message(update, mock_context))
@@ -388,7 +387,6 @@ class TestHandleTextMessageStreamingIntegration:
                 return_value={"voice_reply": False},
             ),
         ):
-
             mock_agent_turn.return_value = "Jawaban berhasil via jalur fallback."
 
             _run(handle_text_message(update, mock_context))
@@ -459,7 +457,6 @@ class TestRunAgentTurnStreaming:
             ),
             patch("alfa.bot.telegram_bot.permission_gate.make_gate", return_value=None),
         ):
-
             result = _run(
                 run_agent_turn(
                     user_id=101, user_prompt="Halo bot", streamer=mock_streamer
@@ -524,7 +521,6 @@ class TestRunAgentTurnStreaming:
             ),
             patch("alfa.bot.telegram_bot.permission_gate.make_gate", return_value=None),
         ):
-
             result = _run(
                 run_agent_turn(
                     user_id=101, user_prompt="Halo bot", streamer=mock_streamer

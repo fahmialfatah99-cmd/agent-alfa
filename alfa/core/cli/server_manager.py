@@ -109,7 +109,10 @@ def start_dashboard_server(
 
         if check_http_health(health_url):
             return True, "http://localhost:8080"
-        return False, "Server dinyalakan namun melebihi batas waktu inisialisasi (cek ~/.alfa/logs/dashboard.log)"
+        return (
+            False,
+            "Server dinyalakan namun melebihi batas waktu inisialisasi (cek ~/.alfa/logs/dashboard.log)",
+        )
     except Exception as e:
         return False, f"Gagal menyalakan dashboard server: {e}"
 
@@ -172,7 +175,12 @@ def check_9router_gateway() -> tuple[bool, str]:
     router_bin = shutil.which("9router")
     if router_bin:
         try:
-            subprocess.Popen([router_bin, "start"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(
+                [router_bin, "start"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
             time.sleep(1.5)
             if check_http_health(models_url):
                 return True, "http://127.0.0.1:20128 (Dinyalakan Otomatis)"
@@ -203,7 +211,11 @@ def get_servers_status() -> dict[str, Any]:
         pass
 
     return {
-        "dashboard": {"ok": dash_ok, "status": dash_msg, "url": "http://localhost:8080"},
+        "dashboard": {
+            "ok": dash_ok,
+            "status": dash_msg,
+            "url": "http://localhost:8080",
+        },
         "9router": {"ok": r9_ok, "status": r9_msg, "url": "http://127.0.0.1:20128"},
         "bot": {"ok": bot_ok, "status": bot_msg},
     }
@@ -214,7 +226,9 @@ def stop_all_servers() -> dict[str, bool]:
     results = {}
     # Stop web dashboard
     try:
-        res = subprocess.run(["pkill", "-f", "web_dashboard.py"], capture_output=True, text=True)
+        res = subprocess.run(
+            ["pkill", "-f", "web_dashboard.py"], capture_output=True, text=True
+        )
         results["dashboard"] = res.returncode == 0
     except Exception:
         results["dashboard"] = False
@@ -251,9 +265,12 @@ def auto_start_all_servers(verbose: bool = True) -> dict[str, Any]:
         bot_icon = "🤖" if bot_ok else "⚪"
 
         print(f"\n{Colors.BOLD}🚀 ALFA Ecosystem Server Autostart:{Colors.ENDC}")
-        print(f"  {dash_icon} Web Command Center : {Colors.CYAN}{dash_msg}{Colors.ENDC}")
+        print(
+            f"  {dash_icon} Web Command Center : {Colors.CYAN}{dash_msg}{Colors.ENDC}"
+        )
         print(f"  {r9_icon} 9Router AI Gateway : {Colors.CYAN}{r9_msg}{Colors.ENDC}")
-        print(f"  {bot_icon} Telegram AI Bot    : {Colors.CYAN}{bot_msg}{Colors.ENDC}\n")
+        print(
+            f"  {bot_icon} Telegram AI Bot    : {Colors.CYAN}{bot_msg}{Colors.ENDC}\n"
+        )
 
     return results
-

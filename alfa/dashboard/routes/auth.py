@@ -26,7 +26,10 @@ def _hash_password(password: str, salt: str | None = None) -> tuple:
     if salt is None:
         salt = secrets.token_hex(16)
     pwd_hash = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000  # iterations
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100000,  # iterations
     ).hex()
     return pwd_hash, salt
 

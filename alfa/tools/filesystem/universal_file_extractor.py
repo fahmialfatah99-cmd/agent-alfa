@@ -220,7 +220,7 @@ def process_uploaded_attachment(
             decoded = raw_bytes.decode("utf-8", errors="replace")
             lines = decoded.splitlines()
             numbered = "\n".join(
-                [f"{i+1:4d} | {line}" for i, line in enumerate(lines[:1000])]
+                [f"{i + 1:4d} | {line}" for i, line in enumerate(lines[:1000])]
             )
             total_hint = (
                 f" (Menampilkan {min(len(lines), 1000)} dari total {len(lines)} baris)"
@@ -257,7 +257,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
         for i, page in enumerate(doc):
             text = page.get_text("text").strip()
             if text:
-                pages.append(f"--- Halaman {i+1} ---\n{text}")
+                pages.append(f"--- Halaman {i + 1} ---\n{text}")
         if pages:
             return f"Total {len(doc)} halaman:\n\n" + "\n\n".join(pages[:50])
     except Exception as e:
@@ -271,7 +271,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
         for i, page in enumerate(reader.pages):
             txt = page.extract_text()
             if txt:
-                pages.append(f"--- Halaman {i+1} ---\n{txt}")
+                pages.append(f"--- Halaman {i + 1} ---\n{txt}")
         if pages:
             return f"Total {len(reader.pages)} halaman:\n\n" + "\n\n".join(pages[:50])
     except Exception as e:
@@ -493,7 +493,9 @@ def _extract_data_formats(raw_bytes: bytes, fname: str, ext: str) -> str:
             import yaml
 
             parsed = yaml.safe_load(decoded)
-            return str("```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```")
+            return str(
+                "```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```"
+            )
         return "```\n" + decoded[:4000] + "\n```"
     except Exception:
         return raw_bytes.decode("utf-8", errors="replace")[:4000]

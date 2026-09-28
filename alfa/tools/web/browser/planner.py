@@ -128,9 +128,33 @@ def _parse_json_obj(text: str) -> dict[str, Any] | None:
 
 
 _STOPWORDS = {
-    "the", "and", "for", "with", "please", "open", "go", "find", "search",
-    "look", "page", "website", "site", "web", "into", "from", "that", "this",
-    "guna", "yang", "untuk", "dari", "dan", "atau", "buka", "cari", "halaman",
+    "the",
+    "and",
+    "for",
+    "with",
+    "please",
+    "open",
+    "go",
+    "find",
+    "search",
+    "look",
+    "page",
+    "website",
+    "site",
+    "web",
+    "into",
+    "from",
+    "that",
+    "this",
+    "guna",
+    "yang",
+    "untuk",
+    "dari",
+    "dan",
+    "atau",
+    "buka",
+    "cari",
+    "halaman",
 }
 
 
@@ -150,8 +174,10 @@ def _heuristic_plan(
         ).lower()
         score = sum(1 for w in words if w in hay)
         if score > best_score:
-            best_i, best_score, best_word = i, score, next(
-                (w for w in words if w in hay), ""
+            best_i, best_score, best_word = (
+                i,
+                score,
+                next((w for w in words if w in hay), ""),
             )
     if best_i >= 0 and best_score > 0:
         return {
@@ -191,5 +217,3 @@ def _plan_next_action(
     if action not in ("click", "type", "scroll", "goto", "done"):
         raise RuntimeError(f"aksi tidak dikenal: {action!r}")
     return plan
-
-

@@ -80,14 +80,18 @@ class LocalToolRegistry:
         try:
             pattern = re.compile(query, re.IGNORECASE)
             for dirpath, dirnames, filenames in os.walk(target_dir):
-                dirnames[:] = [d for d in dirnames if d not in RepomapGenerator.IGNORE_DIRS]
+                dirnames[:] = [
+                    d for d in dirnames if d not in RepomapGenerator.IGNORE_DIRS
+                ]
                 for f in filenames:
                     fp = Path(dirpath) / f
                     if fp.suffix.lower() in RepomapGenerator.IGNORE_EXTS:
                         continue
                     try:
                         rel = fp.relative_to(self.root)
-                        lines = fp.read_text(encoding="utf-8", errors="ignore").splitlines()
+                        lines = fp.read_text(
+                            encoding="utf-8", errors="ignore"
+                        ).splitlines()
                         for i, line in enumerate(lines, 1):
                             if pattern.search(line):
                                 results.append(f"{rel}:{i}: {line.strip()[:150]}")
@@ -98,7 +102,11 @@ class LocalToolRegistry:
         except Exception as e:
             return f"Error pencarian: {e}"
 
-        return "\n".join(results) if results else f"Tidak ditemukan kecocokan untuk: '{query}'"
+        return (
+            "\n".join(results)
+            if results
+            else f"Tidak ditemukan kecocokan untuk: '{query}'"
+        )
 
     def find_files(self, pattern: str, path: str = ".") -> str:
         """Find files matching name glob pattern using fd or os.walk."""
@@ -107,8 +115,16 @@ class LocalToolRegistry:
             return f"Error: Path '{path}' tidak ditemukan."
 
         # Try fd
-        fd_bin = shutil.which("fd") or shutil.which("fdfind") or os.path.expanduser("~/.cargo/bin/fd")
-        if os.path.exists(fd_bin) if not (shutil.which("fd") or shutil.which("fdfind")) else True:
+        fd_bin = (
+            shutil.which("fd")
+            or shutil.which("fdfind")
+            or os.path.expanduser("~/.cargo/bin/fd")
+        )
+        if (
+            os.path.exists(fd_bin)
+            if not (shutil.which("fd") or shutil.which("fdfind"))
+            else True
+        ):
             try:
                 cmd = [
                     fd_bin if not shutil.which("fd") else "fd",
@@ -142,7 +158,11 @@ class LocalToolRegistry:
                     matches.append(str(rel))
                     if len(matches) >= 50:
                         break
-        return "\n".join(matches) if matches else f"Tidak ada file yang cocok dengan '{pattern}'"
+        return (
+            "\n".join(matches)
+            if matches
+            else f"Tidak ada file yang cocok dengan '{pattern}'"
+        )
 
     def read_file(self, path: str, start_line: int = 1, end_line: int = 200) -> str:
         """Read content of a file with line numbers."""
@@ -159,7 +179,9 @@ class LocalToolRegistry:
             end = min(total, end_line)
 
             selected = lines[start - 1 : end]
-            numbered = [f"{i:>4} │ {line}" for i, line in enumerate(selected, start=start)]
+            numbered = [
+                f"{i:>4} │ {line}" for i, line in enumerate(selected, start=start)
+            ]
             header = f"--- {path} (Baris {start}-{end} dari {total}) ---"
             return f"{header}\n" + "\n".join(numbered)
         except Exception as e:
@@ -230,10 +252,14 @@ class LocalToolRegistry:
             best_idx = -1
             best_span = target_len
 
-            for span in range(max(1, target_len - 1), min(len(old_lines_raw), target_len + 2)):
+            for span in range(
+                max(1, target_len - 1), min(len(old_lines_raw), target_len + 2)
+            ):
                 for i in range(len(old_lines_raw) - span + 1):
                     window_text = "".join(old_lines_raw[i : i + span])
-                    ratio = difflib.SequenceMatcher(None, target_content, window_text).ratio()
+                    ratio = difflib.SequenceMatcher(
+                        None, target_content, window_text
+                    ).ratio()
                     if ratio > best_ratio:
                         best_ratio = ratio
                         best_idx = i
@@ -247,11 +273,21 @@ class LocalToolRegistry:
                     repl += newline_char
                 suffix = "".join(old_lines_raw[best_idx + best_span :])
                 new_content = prefix + repl + suffix
-                return True, new_content, f"fuzzy-matched ({int(best_ratio * 100)}% similarity)"
+                return (
+                    True,
+                    new_content,
+                    f"fuzzy-matched ({int(best_ratio * 100)}% similarity)",
+                )
 
-        return False, old_content, "Blok target tidak cocok secara exact, normalized, maupun fuzzy."
+        return (
+            False,
+            old_content,
+            "Blok target tidak cocok secara exact, normalized, maupun fuzzy.",
+        )
 
-    def patch_file(self, path: str, target_content: str, replacement_content: str) -> str:
+    def patch_file(
+        self, path: str, target_content: str, replacement_content: str
+    ) -> str:
         """Replace a specific substring / block of code in a file with resilient 3-layer matching."""
         p = self._resolve(path)
         if not p.exists():
@@ -295,9 +331,20 @@ class LocalToolRegistry:
         if effective_timeout is None:
             cmd_lower = command.lower()
             heavy_keywords = [
-                "npm install", "npm i", "yarn", "pnpm", "pip install",
-                "poetry install", "cargo build", "cargo test", "go build",
-                "pytest", "gradle", "mvn", "flutter pub", "docker build",
+                "npm install",
+                "npm i",
+                "yarn",
+                "pnpm",
+                "pip install",
+                "poetry install",
+                "cargo build",
+                "cargo test",
+                "go build",
+                "pytest",
+                "gradle",
+                "mvn",
+                "flutter pub",
+                "docker build",
             ]
             if any(k in cmd_lower for k in heavy_keywords):
                 effective_timeout = 180
@@ -350,7 +397,10 @@ class LocalToolRegistry:
         items = []
         try:
             for item in sorted(p.iterdir()):
-                if item.name.startswith(".") or item.name in RepomapGenerator.IGNORE_DIRS:
+                if (
+                    item.name.startswith(".")
+                    or item.name in RepomapGenerator.IGNORE_DIRS
+                ):
                     continue
                 type_mark = "📁 DIR " if item.is_dir() else "📄 FILE"
                 size = f"({item.stat().st_size} B)" if item.is_file() else ""
@@ -358,5 +408,3 @@ class LocalToolRegistry:
             return "\n".join(items) if items else "(Direktori kosong)"
         except Exception as e:
             return f"Error membaca direktori: {e}"
-
-

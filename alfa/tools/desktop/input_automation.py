@@ -26,9 +26,7 @@ def _normalize_url(url: str) -> str:
     if not host:
         return ""
     hostname = host.rsplit(":", 1)[0]
-    is_local = hostname == "localhost" or re.match(
-        r"^\d{1,3}(\.\d{1,3}){3}$", hostname
-    )
+    is_local = hostname == "localhost" or re.match(r"^\d{1,3}(\.\d{1,3}){3}$", hostname)
     if not is_local and (
         not re.match(r"^[A-Za-z0-9.-]+$", hostname) or "." not in hostname
     ):
@@ -98,7 +96,10 @@ def open_url_in_default_browser(url: str) -> tuple[bool, str]:
             continue
         except Exception as e:  # noqa: BLE001 - lanjut ke opener berikutnya
             logger.info(f"Opener '{opener}' error: {e}")
-    return False, f"Tidak ada opener browser yang berhasil. Dicoba: {', '.join(tried) or '-'}"
+    return (
+        False,
+        f"Tidak ada opener browser yang berhasil. Dicoba: {', '.join(tried) or '-'}",
+    )
 
 
 @register_tool(category="media")

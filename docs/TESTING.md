@@ -169,13 +169,14 @@ Tests are automatically run on GitHub Actions:
 import pytest
 from unittest.mock import MagicMock
 
+
 @pytest.mark.security
 def test_tool_whitelist_enforcement(sample_tool_config, security_context):
     """Test that tools are properly whitelisted."""
     # Arrange
     tool = sample_tool_config
     context = security_context
-    
+
     # Act & Assert
     assert tool["whitelisted"] is True
     assert context["whitelist_status"] is True

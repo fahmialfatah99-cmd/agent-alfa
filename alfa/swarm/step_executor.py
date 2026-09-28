@@ -59,7 +59,7 @@ async def _decompose_task(
     topic: str, participants: list[dict[str, Any]]
 ) -> dict[str, str]:
     """Ask the planner to break the topic into one concrete subtask per agent."""
-    roster = ", ".join(f"{a['name']} ({a.get('role','')})" for a in participants)
+    roster = ", ".join(f"{a['name']} ({a.get('role', '')})" for a in participants)
     prompt = (
         f"Anda misi planner swarm. TOPIK: {topic}\n"
         f"TIM: {roster}\n\n"
@@ -162,7 +162,9 @@ async def _verify_step_result(task: str, step_result: dict[str, Any]) -> tuple:
         # Judge tidak bisa dihubungi. Dulu selalu return True (fail-open) sehingga
         # step gagal pun lolos begitu saja. Sekarang pakai bukti mekanis yang sudah
         # dikumpulkan di atas, dan hanya PASS bila memang ada tanda eksekusi nyata.
-        logger.warning("Verification call failed (using mechanical fallback): %r", ver_err)
+        logger.warning(
+            "Verification call failed (using mechanical fallback): %r", ver_err
+        )
         if claims_file_work and fs_changed:
             return True, ""
         status_ok = step_result.get("status") == "success"
@@ -289,10 +291,10 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
             res = fn(**kwargs)
             st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"
             hint = str(act.get("command") or act.get("path") or "")[:80]
-            logs.append(f"{i+1}. {tool_nm} -> {st}")
+            logs.append(f"{i + 1}. {tool_nm} -> {st}")
             log_live("TOOL", f"⚙️ forced-exec {tool_nm} -> {st} | {hint}")
         except Exception as ex:
-            logs.append(f"{i+1}. {tool_nm} -> EXC {str(ex)[:80]}")
+            logs.append(f"{i + 1}. {tool_nm} -> EXC {str(ex)[:80]}")
             log_live("TOOL", f"⚠️ forced-exec {tool_nm} error: {str(ex)[:80]}")
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
 
@@ -352,7 +354,7 @@ async def execute_swarm_task_step(
 
             top_items_text = "\n".join(
                 [
-                    f"{i+1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
+                    f"{i + 1}. {it.get('title', '')[:50]} | {it.get('price') or it.get('price_tag', 'N/A')} ({it.get('domain') or it.get('source_domain', 'Market')})"
                     for i, it in enumerate(items[:8])
                 ]
             )

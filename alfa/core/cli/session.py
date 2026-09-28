@@ -194,7 +194,9 @@ class CliSessionMixin:
             role = "👑" if self.is_admin else "👤"
             self.prompt = f"{Colors.BOLD}{role} {persona_prefix}{self.username} [{tag}]>{Colors.ENDC} "
         else:
-            self.prompt = f"{Colors.BOLD}{icon} {persona_prefix}alfa [{tag}]>{Colors.ENDC} "
+            self.prompt = (
+                f"{Colors.BOLD}{icon} {persona_prefix}alfa [{tag}]>{Colors.ENDC} "
+            )
 
     def _request(self, method, endpoint, data=None, headers=None):
         url = f"{self.server_url}{endpoint}"

@@ -70,7 +70,7 @@ def execute_bash_command(
     script_path = None
     try:
         if use_docker:
-            stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+            stamp = f"{os.getpid()}_{int(time.time() * 1000) % 10**9}"
             script_name = f"sandbox_sh_{stamp}.sh"
             script_path = os.path.join(SANDBOX_DIR, script_name)
             with open(script_path, "w", encoding="utf-8") as f:
@@ -316,7 +316,7 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
         and _ensure_sandbox_image()
     )
 
-    stamp = f"{os.getpid()}_{int(time.time()*1000)%10**9}"
+    stamp = f"{os.getpid()}_{int(time.time() * 1000) % 10**9}"
     script_name = f"sandbox_run_{stamp}.py"
     plot_name = f"generated_plot_{stamp}.png"
     script_path = os.path.join(SANDBOX_DIR, script_name)

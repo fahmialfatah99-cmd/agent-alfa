@@ -83,14 +83,17 @@ def read_local_file(
         selected_lines = lines[start_idx:end_idx]
 
         numbered_content = "".join(
-            [f"{i+1}: {line}" for i, line in enumerate(selected_lines, start=start_idx)]
+            [
+                f"{i + 1}: {line}"
+                for i, line in enumerate(selected_lines, start=start_idx)
+            ]
         )
 
         return {
             "status": "success",
             "file_path": expanded_path,
             "total_lines": total_lines,
-            "showing_lines": f"{start_idx+1} to {end_idx}",
+            "showing_lines": f"{start_idx + 1} to {end_idx}",
             "content": numbered_content,
         }
     except Exception as e:
