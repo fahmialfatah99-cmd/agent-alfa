@@ -393,7 +393,7 @@ def _deliver_telegram_broadcast(
     except RuntimeError:
         current_loop = None
 
-    if current_loop is tg_loop:
+    if current_loop is not None and current_loop is tg_loop:
         # Already on the bot's event loop: schedule and return immediately.
         tg_loop.create_task(coro)
         return {"status": "success", "message": "Broadcast dijadwalkan ke Telegram."}

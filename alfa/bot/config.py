@@ -230,8 +230,8 @@ def _main_brain_gemini_model() -> str:
     try:
         active = database.get_active_api_key_sync("gemini")
         m = (active or {}).get("default_model")
-        if m and m.strip():
-            return m.strip()
+        if m and str(m).strip():
+            return str(m).strip()
     except Exception:
         pass
     return GEMINI_MODEL

@@ -102,7 +102,7 @@ def generate_video_from_images(
             api_key=api_key,
             image_paths=image_paths,
             product_name=product_name,
-            visual_prompt=visual_prompt,
+            visual_prompt=visual_prompt or "",
             voiceover_text=voiceover_text,
             orig_price=orig_price,
             disc_price=disc_price,

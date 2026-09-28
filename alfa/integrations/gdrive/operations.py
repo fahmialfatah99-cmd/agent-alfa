@@ -96,7 +96,7 @@ def gdrive_upload_file(
         if not mime_type:
             mime_type = "application/octet-stream"
 
-        file_metadata = {"name": upload_name}
+        file_metadata: dict[str, Any] = {"name": upload_name}
         if target_folder:
             file_metadata["parents"] = [target_folder]
 
@@ -209,7 +209,7 @@ def gdrive_create_folder(
             if parent_folder_id
             else _get_default_gdrive_folder_id()
         )
-        file_metadata = {
+        file_metadata: dict[str, Any] = {
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
         }
@@ -288,7 +288,7 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> dict[st
                 v_res = vector_memory.ingest_document(
                     user_id=uid,
                     title=f"GDrive: {fname}",
-                    content_or_path=local_f,
+                    content_or_path=local_f or "",
                     category="Google Drive Sync",
                 )
                 ingested.append(

@@ -265,7 +265,8 @@ def _play_audio_streaming(watch_url: str) -> tuple[bool, str, str]:
     if proc.poll() is not None:
         err = ""
         try:
-            err = (proc.stderr.read() or b"").decode("utf-8", "replace").strip()
+            _raw = proc.stderr.read() if proc.stderr else b""
+            err = (_raw or b"").decode("utf-8", "replace").strip()
         except Exception:  # noqa: BLE001
             err = ""
         return False, (err[-400:] or "Pipeline audio berhenti segera."), ""
