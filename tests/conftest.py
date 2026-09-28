@@ -25,11 +25,13 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 
-@pytest.fixture(scope="session")
-def test_env():
-    """Set up test environment variables."""
-    original_env = os.environ.copy()
+@pytest.fixture
+def test_env(monkeypatch):
+    """Set up test environment variables (function-scoped, auto-restored).
 
+    NOTE: must NOT be session-scoped — leaked DATABASE_URL would silently
+    redirect every DB layer to ./test_alfa.db for the rest of the session.
+    """
     test_vars = {
         "TELEGRAM_BOT_TOKEN": "test_bot_token_12345",
         "GEMINI_API_KEY": "test_api_key_67890",
@@ -42,13 +44,9 @@ def test_env():
     }
 
     for key, value in test_vars.items():
-        os.environ[key] = value
+        monkeypatch.setenv(key, value)
 
     yield test_vars
-
-    # Restore original environment
-    os.environ.clear()
-    os.environ.update(original_env)
 
 
 @pytest.fixture

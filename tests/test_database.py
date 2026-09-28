@@ -48,7 +48,8 @@ class TestKeyEncryption:
 def temp_db(tmp_path, monkeypatch):
     """Fixture untuk database SQLite baru dan bersih di direktori temp."""
     db_file = str(tmp_path / "test_agent_data.db")
-    monkeypatch.setattr(database, "DB_PATH", db_file)
+    monkeypatch.setenv("ALFA_DB_PATH", db_file)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     database.init_db_sync()
     return db_file
 
