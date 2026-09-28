@@ -32,6 +32,38 @@ jobs:
       - name: Run type checking on core modules
         run: |
           mypy --ignore-missing-imports alfa/ || echo "Type checking completed with warnings"
+      - name: Enforce mypy error budget (must not grow)
+        run: |
+          count=$(mypy --ignore-missing-imports alfa/ 2>&1 | grep -c ": error:" || true)
+          baseline=$(cat .github/mypy-baseline.txt)
+          echo "mypy errors: $count (budget: $baseline)"
+          test "$count" -le "$baseline"
+
+  security:
+    name: Security (pip-audit, bandit, gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependency vulnerability scan
+        # PYSEC-2026-3740 (nltk, unpatched upstream) is an unused transitive
+        # dep of Crawl4AI; everything else must be clean or this job fails.
+        run: |
+          pip install pip-audit
+          pip install -r requirements.txt || true
+          pip-audit --ignore-vuln PYSEC-2026-3740
+      - name: Static security scan (bandit, medium+)
+        run: |
+          pip install bandit
+          bandit -r alfa plugins -ll
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     name: Tests (pytest)
