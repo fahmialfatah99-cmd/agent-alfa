@@ -31,7 +31,7 @@ def _get_db_path() -> str:
     for mod_name in ("database", "alfa.core.database"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "DB_PATH"):
-            return mod.DB_PATH
+            return str(mod.DB_PATH)
     return DB_PATH
 
 

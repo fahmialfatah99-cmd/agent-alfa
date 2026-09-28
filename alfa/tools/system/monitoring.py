@@ -540,8 +540,8 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
     GOD MODE: Autonomous System Diagnostic & Self-Healing Engine.
     """
     try:
-        diagnosis = {}
-        healing_actions = []
+        diagnosis: dict[str, Any] = {}
+        healing_actions: list[str] = []
 
         res_failed = subprocess.run(
             "systemctl --user list-units --failed --no-legend 2>/dev/null",

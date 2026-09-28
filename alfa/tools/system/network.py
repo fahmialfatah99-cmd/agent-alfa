@@ -39,7 +39,7 @@ def audit_network_security(
     GOD MODE: Network Security & Port Sentinel.
     """
     try:
-        result = {"target": target_host, "scan_type": scan_type}
+        result: dict[str, Any] = {"target": target_host, "scan_type": scan_type}
 
         if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:  # nosec B104 - string comparison, not a bind
             res_ss = subprocess.run(
@@ -93,6 +93,8 @@ def audit_network_security(
                         s.settimeout(5)
                         s.connect((target_host, 443))
                         cert = s.getpeercert()
+                        if not cert:
+                            raise ValueError("No peer certificate presented")
                         not_after = cert.get("notAfter", "")
                         result["ssl_certificate"] = {
                             "subject": dict(x[0] for x in cert.get("subject", ())),

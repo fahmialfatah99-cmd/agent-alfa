@@ -314,7 +314,7 @@ async def mark_focus_session_completed(session_id: int):
 def record_api_usage_sync(
     provider: str,
     model: str = "",
-    key_id: int = None,
+    key_id: int | None = None,
     key_label: str = "",
     context: str = "",
     prompt_tokens: int = 0,
