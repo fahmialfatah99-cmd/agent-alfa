@@ -27,7 +27,11 @@ STATIC_DIR = str(REPO_ROOT / "static")
 
 DASHBOARD_AUTH_TOKEN = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
 SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_hex(32))
-SESSION_DURATION_HOURS = int(os.getenv("SESSION_DURATION_HOURS", "24"))
+try:
+    SESSION_DURATION_HOURS = int(os.getenv("SESSION_DURATION_HOURS", "24"))
+except (TypeError, ValueError):
+    logger.warning("Env SESSION_DURATION_HOURS tidak valid; pakai default 24")
+    SESSION_DURATION_HOURS = 24
 
 # Lazy bot module reference
 bot = None

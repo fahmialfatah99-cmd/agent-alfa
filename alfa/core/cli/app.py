@@ -317,12 +317,16 @@ def handle_run_command(args: argparse.Namespace) -> None:
             shell=True,
             text=True,
             capture_output=True,
+            timeout=120,
         )
         if res.stdout:
             print(res.stdout, end="" if res.stdout.endswith("\n") else "\n")
         if res.stderr:
             print(f"{Colors.FAIL}{res.stderr}{Colors.ENDC}", end="")
         sys.exit(res.returncode)
+    except subprocess.TimeoutExpired:
+        print_status("Perintah timeout setelah 120 detik.", "error")
+        sys.exit(124)
     except Exception as e:
         print_status(f"Error eksekusi: {e}", "error")
         sys.exit(1)

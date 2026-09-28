@@ -56,6 +56,43 @@ def should_auto_approve(chat_id: int, tool_name: str) -> tuple[bool, str]:
     return False, ""
 
 
+def check_headless_approval(
+    chat_id: int | None, tool_name: str, arguments_json: str = "{}"
+) -> str | None:
+    """Persetujuan non-interaktif untuk eksekusi dashboard-direct dan MCP.
+
+    Tidak ada prompt Telegram; hanya memakai kebijakan trust-based
+    auto-approval yang sama (should_auto_approve) + audit trail.
+    Return None bila diizinkan; pesan penolakan bila ditolak.
+    """
+    import time as _time
+
+    if not PERMISSION_GATE_ENABLED:
+        return None
+    if chat_id is None:
+        chat_id = 0
+    tier = get_tool_tier(tool_name)
+    auto_ok, auto_reason = should_auto_approve(chat_id, tool_name)
+    started = _time.time()
+    if auto_ok:
+        _record(
+            chat_id,
+            tool_name,
+            tier,
+            (auto_reason or "auto_approved") + ":headless",
+            arguments_json,
+            started,
+        )
+        return None
+    _record(chat_id, tool_name, tier, "deny:headless_tier", arguments_json, started)
+    return (
+        f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) membutuhkan trust "
+        f"score ≥ {TRUST_THRESHOLD} atau persetujuan interaktif via Telegram. "
+        f"Jalankan melalui bot Telegram, atau naikkan trust dengan penggunaan "
+        f"tool risiko rendah terlebih dahulu."
+    )
+
+
 # ── Registry permintaan yang menunggu keputusan ──────────────────────────────
 _PENDING: dict[str, dict] = {}
 
@@ -85,6 +122,49 @@ def _no_channel_allows(tier: RiskTier) -> bool:
     return False
 
 
+# Kunci argumen yang nilainya tidak boleh tersimpan mentah di audit trail.
+_SECRET_KEY_HINTS = (
+    "password",
+    "passwd",
+    "api_key",
+    "apikey",
+    "secret",
+    "token",
+    "private_key",
+    "client_secret",
+    "access_key",
+)
+
+_REDACTED = "***REDACTED***"
+
+
+def _redact_args_json(args_json: str) -> str:
+    """Mask secret values in tool arguments before persisting to audit trail."""
+    if not args_json:
+        return args_json
+    try:
+        data = json.loads(args_json)
+        if isinstance(data, dict):
+            redacted = {
+                k: (_REDACTED if any(h in k.lower() for h in _SECRET_KEY_HINTS) else v)
+                for k, v in data.items()
+            }
+            return json.dumps(redacted, ensure_ascii=False, default=str)
+    except Exception:
+        pass
+    import re as _re
+
+    try:
+        return _re.sub(
+            r'("(?:[^"\\]|\\.)*(?:password|passwd|api_key|apikey|secret|token|private_key|client_secret|access_key)(?:[^"\\]|\\.)*"\s*:\s*)"(?:[^"\\]|\\.)*"',
+            r"\1" + f'"{_REDACTED}"',
+            args_json,
+            flags=_re.IGNORECASE,
+        )
+    except Exception:
+        return args_json
+
+
 def _record(
     chat_id: int,
     tool_name: str,
@@ -96,6 +176,7 @@ def _record(
     """Simpan audit trail + update trust score (skor naik saat user mengizinkan)."""
     import time as _time
 
+    args_json = _redact_args_json(args_json)
     rt = max(0.0, _time.time() - started)
     try:
         log_permission_decision(

@@ -61,7 +61,7 @@ from alfa.dashboard.websocket import ConnectionManager, websocket_router, ws_man
 load_dotenv()
 
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
-DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
+DASHBOARD_PORT = safe_int(os.getenv("DASHBOARD_PORT", "8080"), 8080, minimum=1, maximum=65535)
 
 
 async def _pipeline_trigger_scheduler():

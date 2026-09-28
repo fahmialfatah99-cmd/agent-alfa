@@ -1,6 +1,7 @@
 """Web search, page fetching, and security audit tools."""
 
 import logging
+import os
 import re
 from typing import Any
 
@@ -12,6 +13,16 @@ except ImportError:
     DDGS = None
 
 logger = logging.getLogger("AgentTools.Web.Search")
+
+
+def _ssl_verify() -> bool:
+    """TLS verification for outbound web traffic (set ALFA_VERIFY_SSL=false only behind a MITM proxy)."""
+    return os.getenv("ALFA_VERIFY_SSL", "true").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
 
 
 @register_tool(category="web")
@@ -31,7 +42,7 @@ def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
                 "message": "Paket pencarian web (ddgs) belum terpasang. Jalankan: pip install ddgs",
             }
         logger.info(f"Searching web for: {query}")
-        results = list(DDGS(verify=False).text(query, max_results=max_results))
+        results = list(DDGS(verify=_ssl_verify()).text(query, max_results=max_results))
         if not results:
             return {
                 "status": "success",
@@ -88,7 +99,7 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
             "Sec-Fetch-Site": "none",
             "Upgrade-Insecure-Requests": "1",
         }
-        with httpx.Client(timeout=12.0, follow_redirects=True, verify=False) as client:
+        with httpx.Client(timeout=12.0, follow_redirects=True, verify=_ssl_verify()) as client:
             resp = client.get(url, headers=headers)
             status_code = resp.status_code
             if resp.status_code == 200:

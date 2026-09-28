@@ -1,6 +1,7 @@
 """Academic literature research, arXiv, and deep research tools."""
 
 import logging
+import os
 import re
 from typing import Any
 
@@ -10,6 +11,16 @@ from alfa.tools.academic_researcher import (
 from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Academic")
+
+
+def _ssl_verify() -> bool:
+    """TLS verification for outbound web traffic (set ALFA_VERIFY_SSL=false only behind a MITM proxy)."""
+    return os.getenv("ALFA_VERIFY_SSL", "true").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
 
 
 @register_tool(category="academic")
@@ -39,7 +50,7 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> dict[str, Any]:
         seen_urls = set()
         sources_data = []
 
-        with DDGS(verify=False) as ddgs:
+        with DDGS(verify=_ssl_verify()) as ddgs:
             for q in queries:
                 try:
                     results = list(ddgs.text(q, max_results=3))

@@ -7,6 +7,7 @@ import asyncio
 import inspect
 import json
 import logging
+import os
 from typing import Any
 
 # Ensure tools are loaded
@@ -82,6 +83,22 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
 
         args = arguments or {}
         try:
+            from alfa.core.perm import gate as _perm_gate
+
+            mcp_uid = int(os.getenv("ALFA_MCP_USER_ID", "0") or 0)
+            denial = _perm_gate.check_headless_approval(
+                mcp_uid, name, json.dumps(args, ensure_ascii=False, default=str)
+            )
+            if denial:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps(
+                            {"status": "error", "message": denial},
+                            ensure_ascii=False,
+                        ),
+                    )
+                ]
             if inspect.iscoroutinefunction(fn):
                 result = await fn(**args)
             else:
