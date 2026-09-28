@@ -347,6 +347,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
         elif act == "watermark":
             draw = ImageDraw.Draw(img)
             text = params or "AI Agent Watermark"
+            font: Any
             try:
                 font = ImageFont.truetype(
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24

@@ -391,7 +391,7 @@ async def conduct_multi_agent_meeting(
             err_ctx_snapshot = _build_error_context(failed_steps)
 
             try:
-                wave_results = await asyncio.gather(
+                wave_results: list[Any] = await asyncio.gather(
                     *[
                         _execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot))
                         for a in wave

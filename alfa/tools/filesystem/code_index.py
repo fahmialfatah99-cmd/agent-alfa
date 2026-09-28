@@ -288,7 +288,7 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> dict[st
                 "snippet(code_fts, 1, '>>>', '<<<', ' … ', 12) AS snip "
                 "FROM code_fts WHERE code_fts MATCH ? "
             )
-            params = [query.strip()]
+            params: list[Any] = [query.strip()]
             if repo_path.strip():
                 sql += "AND repo_root = ? "
                 params.append(_resolve_host_path(repo_path))

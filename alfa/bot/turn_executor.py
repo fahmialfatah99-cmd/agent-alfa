@@ -349,7 +349,7 @@ async def run_agent_turn(
                 memory_reflection.maybe_schedule_reflection(user_id, refl_history)
             except Exception:
                 pass
-            return reply_text
+            return str(reply_text)
         logger.warning(
             f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
         )
@@ -375,13 +375,13 @@ async def run_agent_turn(
 
             seen_fn_names = set()
             deduped_tools = []
-            for f in all_tools:
-                nm = getattr(f, "__name__", "")
+            for tool_fn in all_tools:
+                nm = getattr(tool_fn, "__name__", "")
                 if nm and nm not in seen_fn_names:
                     seen_fn_names.add(nm)
-                    deduped_tools.append(f)
-                elif not nm and f not in deduped_tools:
-                    deduped_tools.append(f)
+                    deduped_tools.append(tool_fn)
+                elif not nm and tool_fn not in deduped_tools:
+                    deduped_tools.append(tool_fn)
             all_tools = deduped_tools
 
             gemini_tools = all_tools
@@ -409,9 +409,9 @@ async def run_agent_turn(
             if action_intent:
                 _allowed = sorted(
                     {
-                        getattr(f, "__name__", "")
-                        for f in gemini_tools
-                        if getattr(f, "__name__", "")
+                        getattr(t, "__name__", "")
+                        for t in gemini_tools
+                        if getattr(t, "__name__", "")
                     }
                 )
                 config_force = types.GenerateContentConfig(
@@ -742,7 +742,7 @@ async def run_agent_turn(
                 )
 
             await _db.save_chat_message(user_id, "model", reply_text)
-            return reply_text
+            return str(reply_text)
 
         except Exception as e:
             logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
@@ -779,7 +779,7 @@ async def run_agent_turn(
             if reply_text:
                 logger.info(f"[Fallback] sukses via {prov}/{key.get('default_model')}")
                 await _db.save_chat_message(user_id, "model", reply_text)
-                return reply_text
+                return str(reply_text)
         except Exception as fe:
             logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
 
