@@ -239,7 +239,7 @@ def find_user_files(
                     except OSError:
                         continue
         # terbaru dulu, batasi 25
-        results.sort(key=lambda x: x["modified"], reverse=True)
+        results.sort(key=lambda x: str(x["modified"]), reverse=True)
         return {
             "status": "success",
             "total": len(results),

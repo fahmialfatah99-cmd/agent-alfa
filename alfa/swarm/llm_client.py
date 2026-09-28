@@ -147,7 +147,7 @@ async def _generate_with_gemini(
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
 
-    last_err = None
+    last_err: BaseException | None = None
     try:
         client = genai.Client(api_key=api_key)
     except Exception as client_err:
@@ -519,7 +519,7 @@ async def generate_agent_response(
 
                 result = await _mb.run_openai_agentic_turn(
                     provider=provider,
-                    base_url=base_url,
+                    base_url=base_url or "",
                     api_key=api_key,
                     model=model,
                     system_instruction=final_instruction,

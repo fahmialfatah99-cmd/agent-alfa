@@ -349,7 +349,7 @@ def libreoffice_extract_document_text(document_path: str) -> dict[str, Any]:
                 "message": f"File tidak ditemukan: {document_path}",
             }
 
-            temp_dir = f"/tmp/lo_txt_{os.getpid()}"  # nosec B108 - pid-unique dir
+            temp_dir: str = f"/tmp/lo_txt_{os.getpid()}"  # nosec B108 - pid-unique dir
         os.makedirs(temp_dir, exist_ok=True)
 
         cmd = [

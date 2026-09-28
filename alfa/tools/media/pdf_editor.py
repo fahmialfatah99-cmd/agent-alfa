@@ -420,7 +420,7 @@ def pdf_inspect_metadata(pdf_path: str) -> dict[str, Any]:
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
 
         reader = PdfReader(exp_p)
-        meta: dict[str, Any] = reader.metadata or {}
+        meta: Any = reader.metadata or {}
 
         first_page = reader.pages[0] if reader.pages else None
         width_pt = float(first_page.mediabox.width) if first_page else 0
