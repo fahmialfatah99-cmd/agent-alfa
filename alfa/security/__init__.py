@@ -23,12 +23,12 @@ def get_block_reason(cmd: str) -> str:
     return ""
 
 
-def encrypt_api_key(key: str, password: str = None) -> bytes:
+def encrypt_api_key(key: str, password: str | None = None) -> bytes:
     """Encrypt an API key."""
     return key.encode()
 
 
-def decrypt_api_key(encrypted: bytes, password: str = None) -> str:
+def decrypt_api_key(encrypted: bytes, password: str | None = None) -> str:
     """Decrypt an API key."""
     return encrypted.decode() if isinstance(encrypted, bytes) else encrypted
 

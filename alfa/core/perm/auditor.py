@@ -27,7 +27,7 @@ def audit_local_host_security() -> dict[str, Any]:
     """
     import psutil
 
-    checks: dict[str, dict[str, Any]] = []
+    checks: list[dict[str, Any]] = []
     critical_findings: list[str] = []
 
     def add_check(name: str, passed: bool, detail: str, severity: str = "LOW"):
@@ -229,6 +229,8 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
             with socket.create_connection((hostname, port), timeout=timeout) as sock:
                 with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
                     cert = ssock.getpeercert()
+                    if not cert:
+                        raise ValueError("No peer certificate presented")
                     cipher = ssock.cipher()
                     version = ssock.version()
 

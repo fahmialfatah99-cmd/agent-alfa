@@ -3,6 +3,7 @@
 import platform
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 try:
     import readline as readline  # noqa: F401 - availability probe, re-exported as flag READLINE_AVAILABLE
@@ -39,7 +40,7 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-    Console = None
+    Console = cast(Any, None)  # optional dependency fallback
 
 VERSION = "3.5.0"
 DEFAULT_SERVER = "http://localhost:8080"
