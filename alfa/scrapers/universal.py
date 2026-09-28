@@ -398,7 +398,7 @@ def scrape_custom_urls_or_selectors(
             if use_camoufox:
                 return fast_scraper.scrape_with_camoufox(url)
             else:
-                return fast_scraper.scrape_with_tls_client(url)
+                return fast_scraper.scrape_with_fast_tls(url)
         except Exception as e:
             return {"status": "error", "url": url, "error": str(e)}
 
