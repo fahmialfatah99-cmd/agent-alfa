@@ -85,3 +85,10 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+# ALFA runtime / local artefacts
+.alfa_backups/
+.alfa_worktrees/
+htmlcov/
+node_modules/
+devcli/node_modules/
