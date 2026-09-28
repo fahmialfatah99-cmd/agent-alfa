@@ -135,7 +135,6 @@ def build_cip_prompt(
     # Build prompt components
     deliverable_name = deliverable_data.get("Deliverable", deliverable)
     description = deliverable_data.get("Description", "")
-    dimensions = deliverable_data.get("Dimensions", "")
     logo_placement = deliverable_data.get("Logo Placement", "center")
 
     style_name = style_data.get("Style Name", style or "corporate")

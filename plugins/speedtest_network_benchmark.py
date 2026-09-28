@@ -23,7 +23,7 @@ def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
     ping_hosts = [("Cloudflare", "1.1.1.1", 53), ("Google", "8.8.8.8", 53)]
     latencies = []
 
-    for label, host, port in ping_hosts:
+    for _label, host, port in ping_hosts:
         try:
             s_time = time.time()
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

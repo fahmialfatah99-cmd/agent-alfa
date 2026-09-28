@@ -42,7 +42,7 @@ def git_repo_health_analyzer(repo_path: str = "") -> dict:
 
         # Check large files (>10MB) in working tree
         large_files = []
-        for root, dirs, files in os.walk(repo_path):
+        for root, _dirs, files in os.walk(repo_path):
             if ".git" in root or "venv" in root or "node_modules" in root:
                 continue
             for f in files:

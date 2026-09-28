@@ -154,7 +154,7 @@ async def workspace_tree(path: str):
             os.scandir(real), key=lambda e: (not e.is_dir(), e.name.lower())
         )
     except PermissionError:
-        raise HTTPException(status_code=403, detail="Izin dibatalkan")
+        raise HTTPException(status_code=403, detail="Izin dibatalkan") from None
     for e in entries[:400]:
         if e.name in _WS_SKIP_DIRS or e.name.startswith("."):
             continue

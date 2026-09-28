@@ -3,7 +3,6 @@ Backward-compatibility facade for web_dashboard.
 Directs all imports to the modular alfa.dashboard subpackage.
 """
 
-import sys
 import uvicorn
 
 # Re-export all symbols from alfa.dashboard.app (using 'as X' for explicit re-export)

@@ -150,13 +150,13 @@ def test_pipeline_eval_condition_ops():
     import pipelines as pl
 
     v = {"cari": "Ada Berita AI Terbaru", "kosong": "", "angka": "5"}
-    C = pl._eval_condition
-    assert C({"left": "{{cari}}", "op": "contains", "right": "ai"}, v) is True
-    assert C({"left": "{{cari}}", "op": "not_contains", "right": "bola"}, v) is True
-    assert C({"left": "{{kosong}}", "op": "empty"}, v) is True
-    assert C({"left": "{{cari}}", "op": "not_empty"}, v) is True
-    assert C({"left": "{{angka}}", "op": "gt", "right": "3"}, v) is True
-    assert C({"left": "{{cari}}", "op": "regex", "right": r"\d+"}, v) is False
+    eval_cond = pl._eval_condition
+    assert eval_cond({"left": "{{cari}}", "op": "contains", "right": "ai"}, v) is True
+    assert eval_cond({"left": "{{cari}}", "op": "not_contains", "right": "bola"}, v) is True
+    assert eval_cond({"left": "{{kosong}}", "op": "empty"}, v) is True
+    assert eval_cond({"left": "{{cari}}", "op": "not_empty"}, v) is True
+    assert eval_cond({"left": "{{angka}}", "op": "gt", "right": "3"}, v) is True
+    assert eval_cond({"left": "{{cari}}", "op": "regex", "right": r"\d+"}, v) is False
 
 
 def test_pipeline_if_skip_dan_foreach(tmp_path):

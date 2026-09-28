@@ -184,7 +184,6 @@ def check_9router_gateway() -> tuple[bool, str]:
 
 def get_servers_status() -> dict[str, Any]:
     """Get status of all background services without starting them."""
-    root = get_repo_root()
     dash_url = "http://127.0.0.1:8080/health"
     dash_ok = check_http_health(dash_url)
     dash_msg = "http://localhost:8080 (Aktif & Sehat)" if dash_ok else "Offline (Mati)"

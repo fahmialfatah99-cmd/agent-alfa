@@ -29,7 +29,7 @@ def test_dashboard_auth_requirement():
             import web_dashboard
 
             importlib.reload(web_dashboard)
-            assert False, "Seharusnya raise RuntimeError"
+            raise AssertionError("Seharusnya raise RuntimeError")
         except RuntimeError as e:
             assert (
                 "tanpa autentikasi" in str(e).lower()

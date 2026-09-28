@@ -27,8 +27,6 @@ from telegram.ext import (
 )
 
 import plugins
-from alfa.core import token_usage as token_usage
-from alfa.media import tts_engine as tts_engine
 from alfa import tools
 from alfa.bot.commands import *  # noqa: F401, F403
 from alfa.bot.commands import (
@@ -114,6 +112,8 @@ from alfa.bot.turn_executor import run_agent_turn  # noqa: F401
 from alfa.core import brain as main_brain
 from alfa.core import database
 from alfa.core import permissions as permission_gate
+from alfa.core import token_usage as token_usage
+from alfa.media import tts_engine as tts_engine
 from alfa.tools import (
     AVAILABLE_TOOLS,
     SANDBOX_DIR,

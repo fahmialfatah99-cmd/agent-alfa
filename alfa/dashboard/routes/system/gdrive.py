@@ -89,7 +89,8 @@ async def gdrive_set_default_folder(payload: dict[str, Any]):
 
 @router.post("/api/gdrive/credentials")
 async def gdrive_save_credentials(
-    file: UploadFile | None = File(None), raw_json: str | None = Form(None)
+    file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
+    raw_json: str | None = Form(None),
 ):
     """Upload Service Account JSON file or paste raw JSON for Google Drive / Google Cloud."""
     cred_file = os.path.join(REPO_ROOT, "gdrive_credentials.json")
@@ -179,7 +180,8 @@ async def gdrive_oauth_secret_check():
 
 @router.post("/api/gdrive/oauth/upload-secret")
 async def gdrive_oauth_upload_secret(
-    file: UploadFile | None = File(None), raw_json: str | None = Form(None)
+    file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
+    raw_json: str | None = Form(None),
 ):
     """Upload OAuth Client Secret JSON (Desktop or Web App) or paste raw JSON."""
     content = ""
@@ -310,7 +312,7 @@ async def gdrive_list_files_endpoint(
 
 @router.post("/api/gdrive/upload")
 async def gdrive_upload_endpoint(
-    file: UploadFile | None = File(None),
+    file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
     filepath: str | None = Form(None),
     folder_id: str | None = Form(""),
 ):

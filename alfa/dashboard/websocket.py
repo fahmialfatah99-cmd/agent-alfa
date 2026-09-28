@@ -30,7 +30,7 @@ class ConnectionManager:
         self.active_connections.discard(websocket)
         if channel and channel in self.channel_subscribers:
             self.channel_subscribers[channel].discard(websocket)
-        for ch, conns in list(self.channel_subscribers.items()):
+        for _ch, conns in list(self.channel_subscribers.items()):
             conns.discard(websocket)
 
     async def send_personal_message(self, message: Any, websocket: WebSocket):

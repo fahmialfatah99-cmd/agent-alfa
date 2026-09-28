@@ -9,10 +9,10 @@ import json
 import logging
 from typing import Any
 
-logger = logging.getLogger("alfa.mcp")
-
 # Ensure tools are loaded
 from alfa.tools.registry import TOOL_REGISTRY, get_tool
+
+logger = logging.getLogger("alfa.mcp")
 
 try:
     import mcp.types as types

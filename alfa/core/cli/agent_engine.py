@@ -412,9 +412,9 @@ class LocalToolRegistry:
                     try:
                         rel = fp.relative_to(self.root)
                         lines = fp.read_text(encoding="utf-8", errors="ignore").splitlines()
-                        for i, l in enumerate(lines, 1):
-                            if pattern.search(l):
-                                results.append(f"{rel}:{i}: {l.strip()[:150]}")
+                        for i, line in enumerate(lines, 1):
+                            if pattern.search(line):
+                                results.append(f"{rel}:{i}: {line.strip()[:150]}")
                                 if len(results) >= 30:
                                     return "\n".join(results)
                     except Exception:
@@ -448,8 +448,8 @@ class LocalToolRegistry:
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=8)
                 if res.stdout.strip():
                     lines = [
-                        l.replace(str(self.root) + "/", "")
-                        for l in res.stdout.strip().splitlines()[:50]
+                        line.replace(str(self.root) + "/", "")
+                        for line in res.stdout.strip().splitlines()[:50]
                     ]
                     return "\n".join(lines)
             except Exception:
@@ -528,8 +528,8 @@ class LocalToolRegistry:
             return False, old_content, "Blok target kosong."
 
         old_lines_raw = old_content.splitlines(keepends=True)
-        old_lines_stripped = [l.strip() for l in old_lines_raw]
-        target_stripped = [l.strip() for l in target_lines]
+        old_lines_stripped = [line.strip() for line in old_lines_raw]
+        target_stripped = [line.strip() for line in target_lines]
 
         target_len = len(target_stripped)
         matched_idx = -1
@@ -973,7 +973,7 @@ class AutonomousAgentRunner:
 
                 sig = inspect.signature(fn)
                 valid_args = {}
-                for param_name, param in sig.parameters.items():
+                for param_name, _param in sig.parameters.items():
                     if param_name in args:
                         valid_args[param_name] = args[param_name]
 

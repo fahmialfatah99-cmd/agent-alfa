@@ -15,7 +15,7 @@ import sqlite3
 import sys
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("PluginsLoader")
 PLUGINS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -235,7 +235,7 @@ def create_and_register_plugin(
         try:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO dynamic_plugins 
+                INSERT OR REPLACE INTO dynamic_plugins
                 (tool_name, description, code, parameters_json, status, last_test_output, updated_at)
                 VALUES (?, ?, ?, ?, 'active', ?, CURRENT_TIMESTAMP)
             """,

@@ -92,8 +92,8 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
     Creates Layer 0: Ambient blurred background + centered crisp product image.
     This layer will be animated with gentle Ken Burns motion.
     """
-    WIDTH, HEIGHT = 1080, 1920
-    bg = Image.new("RGBA", (WIDTH, HEIGHT), (10, 15, 29, 255))
+    width, height = 1080, 1920
+    bg = Image.new("RGBA", (width, height), (10, 15, 29, 255))
 
     # Load product image or create high-end mock placeholder
     has_real_image = False
@@ -132,28 +132,28 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
         )
 
     # 1. Ambient Blurred Backdrop
-    blur_bg = prod_img.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+    blur_bg = prod_img.resize((width, height), Image.Resampling.LANCZOS)
     blur_bg = blur_bg.filter(ImageFilter.GaussianBlur(radius=60))
     enhancer = ImageEnhance.Brightness(blur_bg)
     blur_bg = enhancer.enhance(0.25)
     bg.paste(blur_bg, (0, 0))
 
     # 2. Main Product Image (Centered in Golden Ratio Stage)
-    STAGE_TOP = 420
-    STAGE_HEIGHT = 980
-    STAGE_WIDTH = 900
+    stage_top = 420
+    stage_height = 980
+    stage_width = 900
 
     aspect = prod_img.height / prod_img.width
-    pw = STAGE_WIDTH
+    pw = stage_width
     ph = int(pw * aspect)
-    if ph > STAGE_HEIGHT:
-        ph = STAGE_HEIGHT
+    if ph > stage_height:
+        ph = stage_height
         pw = int(ph / aspect)
 
     prod_resized = prod_img.resize((pw, ph), Image.Resampling.LANCZOS)
 
-    px = (WIDTH - pw) // 2
-    py = STAGE_TOP + (STAGE_HEIGHT - ph) // 2
+    px = (width - pw) // 2
+    py = stage_top + (stage_height - ph) // 2
 
     draw = ImageDraw.Draw(bg)
     # Stage Card backdrop
@@ -185,8 +185,8 @@ def create_ui_overlay_layer(
     Creates Layer 1: Transparent PNG with Pin-Sharp Typography, Vector Gold Stars,
     Vector Lightning Icon, and Unclipped Banners. Overlaid ON TOP of the video stream.
     """
-    WIDTH, HEIGHT = 1080, 1920
-    overlay = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    width, height = 1080, 1920
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
     # Sanitize text to remove emoji glyphs that cause square [?] boxes
@@ -235,16 +235,16 @@ def create_ui_overlay_layer(
         drop_color = (52, 211, 153, 255)
 
     # 1. TOP FLASH SALE BADGE (Safe Y: 120 - 195)
-    badge_rect = [80, 120, WIDTH - 80, 195]
+    badge_rect = [80, 120, width - 80, 195]
     draw.rounded_rectangle(
         badge_rect, radius=20, fill=badge_bg, outline=badge_border, width=3
     )
 
     # Draw vector lightning bolt on left of badge
     draw_lightning_icon(draw, 110, 138, size=24, fill=(255, 255, 255, 255))
-    draw_lightning_icon(draw, WIDTH - 134, 138, size=24, fill=(255, 255, 255, 255))
+    draw_lightning_icon(draw, width - 134, 138, size=24, fill=(255, 255, 255, 255))
     draw.text(
-        (WIDTH // 2, 157),
+        (width // 2, 157),
         clean_badge,
         fill=(255, 255, 255, 255),
         font=font_badge,
@@ -260,14 +260,14 @@ def create_ui_overlay_layer(
     cur_y = 240
     for line in lines:
         draw.text(
-            (WIDTH // 2 + 2, cur_y + 2),
+            (width // 2 + 2, cur_y + 2),
             line,
             fill=(0, 0, 0, 200),
             font=font_title,
             anchor="mm",
         )
         draw.text(
-            (WIDTH // 2, cur_y),
+            (width // 2, cur_y),
             line,
             fill=(255, 255, 255, 255),
             font=font_title,
@@ -276,14 +276,14 @@ def create_ui_overlay_layer(
         cur_y += 44
 
     # 3. 5 VECTOR GOLD STARS & TRUST BADGE (Safe Y: 350)
-    star_start_x = WIDTH // 2 - 120
+    star_start_x = width // 2 - 120
     for i in range(5):
         draw_star(
             draw, star_start_x + (i * 26), 350, radius=11, fill=(251, 191, 36, 255)
         )
 
     draw.text(
-        (WIDTH // 2 + 65, 350),
+        (width // 2 + 65, 350),
         f"Rating {rating} • Terlaris",
         fill=(251, 191, 36, 255),
         font=font_sub,
@@ -291,7 +291,7 @@ def create_ui_overlay_layer(
     )
 
     # 4. BOTTOM PRICE COMPARISON CONTAINER (Safe Y: 1450 - 1590)
-    price_rect = [60, 1450, WIDTH - 60, 1590]
+    price_rect = [60, 1450, width - 60, 1590]
     draw.rounded_rectangle(
         price_rect, radius=24, fill=(15, 23, 42, 245), outline=box_border, width=4
     )
@@ -325,11 +325,11 @@ def create_ui_overlay_layer(
     draw.text((680, 1520), clean_disc, fill=drop_color, font=font_price, anchor="mm")
 
     # 5. BOTTOM STICKY CALL TO ACTION (Safe Y: 1640 - 1750)
-    cta_rect = [50, 1640, WIDTH - 50, 1750]
+    cta_rect = [50, 1640, width - 50, 1750]
     draw.rounded_rectangle(
         cta_rect, radius=20, fill=cta_bg, outline=(254, 240, 138, 255), width=3
     )
-    draw.text((WIDTH // 2, 1695), clean_cta, fill=cta_fg, font=font_cta, anchor="mm")
+    draw.text((width // 2, 1695), clean_cta, fill=cta_fg, font=font_cta, anchor="mm")
 
     if not output_path:
         output_path = os.path.join(

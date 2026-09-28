@@ -7,12 +7,11 @@ import shutil
 import subprocess
 from typing import Any
 
+from alfa.tools.desktop.capture import capture_desktop_screenshot
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Desktop")
-
-from alfa.tools.desktop.capture import capture_desktop_screenshot
 
 
 def _normalize_url(url: str) -> str:

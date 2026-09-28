@@ -11,13 +11,15 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import (
+from core import (  # noqa: E402 - sys.path setup above is intentional
     DATA_DIR,
     STACK_CONFIG,
     STACK_CURRENT_APPLICABILITY,
-    search_stack,  # noqa: E402
+    search_stack,
 )
-from validate_data import STACK_OFFICIAL_HOSTS  # noqa: E402
+from validate_data import (  # noqa: E402 - sys.path setup above is intentional
+    STACK_OFFICIAL_HOSTS,
+)
 
 STACKS = {
     "react-native",

@@ -111,8 +111,12 @@ ignore = ["E501", "B006"]
 "alfa/tools/__init__.py" = ["F405"]
 # Compat facades: imports are re-exported for attribute access from other modules/tests
 "alfa/tools/system_tools.py" = ["F401"]
-"alfa/core/database.py" = ["F401"]
+"alfa/core/database.py" = ["F401", "E402"]
 "alfa/bot/telegram_bot.py" = ["F401"]
+# App factory reads env (load_dotenv) before importing env-dependent routers — order is intentional
+"alfa/dashboard/app.py" = ["E402"]
+# Hand-maintained re-export facade — member order is intentional
+"web_dashboard.py" = ["I001"]
 
 [tool.mypy]
 python_version = "3.10"

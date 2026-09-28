@@ -196,7 +196,6 @@ def menu_manage_context_files(cli: Any) -> None:
 
 def menu_switch_preset(cli: Any) -> None:
     """Interactive preset switcher."""
-    direct = cli.direct_ai
     preset_choices = []
     for name, p in PRESETS.items():
         preset_choices.append(
@@ -287,7 +286,7 @@ def menu_setup_api_keys(cli: Any) -> None:
             ).execute()
 
             if chosen_id:
-                res = database.activate_api_key_sync(chosen_id)
+                database.activate_api_key_sync(chosen_id)
                 print_status(f"API Key #{chosen_id} berhasil diaktifkan di Web Vault & CLI!", "success")
         except Exception as e:
             print_status(f"Gagal mengaktifkan kunci: {e}", "error")

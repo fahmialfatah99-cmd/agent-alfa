@@ -175,7 +175,6 @@ class CliSessionMixin:
                 pass
 
     def _update_prompt(self):
-        mode = getattr(self, "mode", "auto")
         direct = getattr(self, "direct_ai", None)
         prov_label = direct.provider if direct else "ai"
         persona = getattr(self, "active_persona_name", None)

@@ -29,12 +29,12 @@ def github_assistant(
         query: Kata kunci pencarian (untuk search) atau 'Judul | Deskripsi' (untuk create_issue).
         limit: Jumlah maksimal hasil (1-50, default 10).
     """
-    ACTIONS = {"repos", "info", "issues", "create_issue", "search", "prs", "notifikasi"}
+    actions = {"repos", "info", "issues", "create_issue", "search", "prs", "notifikasi"}
     action = (action or "repos").strip().lower()
-    if action not in ACTIONS:
+    if action not in actions:
         return {
             "status": "error",
-            "message": f"Aksi '{action}' tidak dikenal. Pilihan: {', '.join(sorted(ACTIONS))}.",
+            "message": f"Aksi '{action}' tidak dikenal. Pilihan: {', '.join(sorted(actions))}.",
         }
 
     limit = max(1, min(int(limit or 10), 50))

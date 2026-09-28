@@ -402,7 +402,7 @@ async def conduct_multi_agent_meeting(
                 logger.error(f"Wave execution error: {wave_err}")
                 wave_results = [wave_err] * len(wave)
 
-            for agent, res in zip(wave, wave_results):
+            for agent, res in zip(wave, wave_results, strict=True):
                 if isinstance(res, Exception):
                     step_result = {
                         "agent_name": agent["name"],

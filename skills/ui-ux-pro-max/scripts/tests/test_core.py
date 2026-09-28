@@ -22,9 +22,19 @@ from unittest.mock import patch
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-import core
-from core import AVAILABLE_STACKS, BM25, CSV_CONFIG, detect_domain, search, search_stack
-from design_system import DesignSystemGenerator, generate_design_system
+import core  # noqa: E402 - sys.path setup above is intentional
+from core import (  # noqa: E402 - sys.path setup above is intentional
+    AVAILABLE_STACKS,
+    BM25,
+    CSV_CONFIG,
+    detect_domain,
+    search,
+    search_stack,
+)
+from design_system import (  # noqa: E402 - sys.path setup above is intentional
+    DesignSystemGenerator,
+    generate_design_system,
+)
 
 
 class TestTokenizer(unittest.TestCase):
@@ -205,7 +215,7 @@ class TestSearchDomains(unittest.TestCase):
         self.assertEqual(result["diagnostics"]["reason"], "unsupported-library")
 
     def test_every_configured_domain_file_exists_and_is_searchable(self):
-        for domain, config in CSV_CONFIG.items():
+        for domain, _config in CSV_CONFIG.items():
             with self.subTest(domain=domain):
                 result = search("design", domain=domain, max_results=1)
                 self.assertNotIn(

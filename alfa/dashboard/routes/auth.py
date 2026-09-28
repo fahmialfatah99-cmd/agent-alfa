@@ -158,7 +158,7 @@ def create_user(
         logger.info(f"User '{username}' created with ID {user_id}")
         return {"user_id": user_id, "username": username, "is_admin": is_admin}
     except sqlite3.IntegrityError:
-        raise ValueError(f"Username '{username}' sudah terdaftar")
+        raise ValueError(f"Username '{username}' sudah terdaftar") from None
     finally:
         db.get_connection_pool().release(conn)
 
@@ -444,10 +444,10 @@ async def register_user(payload: dict[str, Any]):
             "user": result,
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Registration error: {e}")
-        raise HTTPException(status_code=500, detail="Gagal mendaftar user")
+        raise HTTPException(status_code=500, detail="Gagal mendaftar user") from e
 
 
 @auth_router.post("/api/auth/login")

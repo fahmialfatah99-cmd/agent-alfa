@@ -11,7 +11,8 @@ import web_dashboard
 
 importlib.reload(web_dashboard)
 
-from web_dashboard import (
+# NOTE: import order is intentional — names must bind after the reload above.
+from web_dashboard import (  # noqa: E402
     _create_session_token,
     _hash_password,
     _verify_password,

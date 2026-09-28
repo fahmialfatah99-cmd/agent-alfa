@@ -64,7 +64,7 @@ def _get_or_create_master_key() -> bytes:
             raise RuntimeError(
                 "Vault master key file is corrupt and could not be backed up; "
                 "refusing to generate a new key (existing secrets would be lost)."
-            )
+            ) from backup_err
 
     # Generate new random 256-bit key
     new_key = AESGCM.generate_key(bit_length=256)
@@ -211,7 +211,7 @@ class AlfaSecureVault:
             raise ValueError(
                 f"Gagal mendekripsi secret '{row_data['name']}'. "
                 "Master key kemungkinan berubah sejak secret ini disimpan."
-            )
+            ) from decrypt_err
         return {
             "id": row_data["id"],
             "name": row_data["name"],

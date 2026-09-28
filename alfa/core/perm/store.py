@@ -74,9 +74,9 @@ def update_trust_score(chat_id: int, was_safe: bool, response_time: float) -> No
             ).fetchone()
 
             if row:
-                trust_score, total, safe, risky = row
+                _, total, safe, risky = row
             else:
-                trust_score, total, safe, risky = 0.5, 0, 0, 0
+                _, total, safe, risky = 0.5, 0, 0, 0
 
             # Update counters
             total += 1

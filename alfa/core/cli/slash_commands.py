@@ -577,7 +577,7 @@ class CliSlashCommandsMixin:
 
         elif sub == "stop":
             print_status("Menghentikan server latar belakang...", "warning")
-            res = stop_all_servers()
+            stop_all_servers()
             self.server_reachable = False
             print_status("Server berhasil dihentikan.", "success")
 
