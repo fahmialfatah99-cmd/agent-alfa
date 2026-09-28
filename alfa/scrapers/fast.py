@@ -178,15 +178,24 @@ def scrape_with_fast_tls(url: str) -> dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def _attr_str(value: Any) -> str:
+    """Flatten a BeautifulSoup attribute (str or list) into a plain string."""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(v) for v in value).strip()
+    return ""
+
+
 def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> dict[str, Any]:
     """Ekstraksi field produk secara otomatis dari HTML (Shopee, Tokopedia, TikTok, generic e-commerce)."""
     # Title
     title = ""
     og_title = soup.find("meta", property="og:title")
     if og_title and og_title.get("content"):
-        title = og_title["content"].strip()
-    elif soup.find("h1"):
-        title = soup.find("h1").get_text().strip()
+        title = _attr_str(og_title["content"])
+    elif (h1_tag := soup.find("h1")) is not None:
+        title = h1_tag.get_text().strip()
     elif soup.title:
         title = soup.title.get_text().strip()
 
@@ -194,7 +203,7 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> dict[str,
     image_url = ""
     og_img = soup.find("meta", property="og:image")
     if og_img and og_img.get("content"):
-        image_url = og_img["content"]
+        image_url = _attr_str(og_img["content"])
 
     # Price heuristics
     price = ""
@@ -202,13 +211,13 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> dict[str,
         "meta", property="og:price:amount"
     )
     if og_price and og_price.get("content"):
-        price = f"Rp {og_price['content']}"
+        price = f"Rp {_attr_str(og_price['content'])}"
     else:
         # Search price patterns
         price_tags = soup.find_all(text=re.compile(r"Rp\s?[\d\.,]+", re.IGNORECASE))
         if price_tags:
             for pt in price_tags:
-                match = re.search(r"Rp\s?[\d\.,]+", pt)
+                match = re.search(r"Rp\s?[\d\.,]+", str(pt))
                 if match and len(match.group(0)) > 4:
                     price = match.group(0).strip()
                     break
@@ -217,11 +226,11 @@ def extract_product_fields_from_soup(soup: BeautifulSoup, url: str) -> dict[str,
     desc = ""
     og_desc = soup.find("meta", property="og:description")
     if og_desc and og_desc.get("content"):
-        desc = og_desc["content"].strip()
+        desc = _attr_str(og_desc["content"])
     else:
         meta_desc = soup.find("meta", attrs={"name": "description"})
         if meta_desc and meta_desc.get("content"):
-            desc = meta_desc["content"].strip()
+            desc = _attr_str(meta_desc["content"])
 
     # Platform detection
     domain = urlparse(url).netloc.lower()
