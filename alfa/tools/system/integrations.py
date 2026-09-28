@@ -272,7 +272,7 @@ def scrcpy_android_control(
         command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
         capture_screenshot: If True, takes a fresh screenshot after performing the action.
     """
-    adb_bin = shutil.which("adb")
+    adb_bin = shutil.which("adb") or "adb"
     scrcpy_bin = shutil.which("scrcpy")
 
     if not adb_bin and not scrcpy_bin:
@@ -281,7 +281,7 @@ def scrcpy_android_control(
             "message": "ADB / Scrcpy belum terpasang di sistem. Untuk mengaktifkan kontrol Android, jalankan: 'sudo apt install -y scrcpy adb' (Linux), 'brew install scrcpy' (macOS), atau 'winget install scrcpy' (Windows).",
         }
 
-    dev_flag = ["-s", device_id] if device_id else []
+    dev_flag: list[str] = ["-s", device_id] if device_id else []
 
     try:
         if action == "status":

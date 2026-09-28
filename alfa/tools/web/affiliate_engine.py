@@ -306,7 +306,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
     safe_stem = re.sub(r"[^a-zA-Z0-9_-]", "_", product_name)[:30]
     out_file = os.path.join(AFFILIATE_DIR, "Scripts", f"{safe_stem}_campaign.json")
 
-    campaign_data = {
+    campaign_data: dict[str, Any] = {
         "product_name": product_name,
         "key_features": key_features,
         "original_price": original_price,

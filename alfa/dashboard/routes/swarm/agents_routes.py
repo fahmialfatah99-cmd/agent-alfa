@@ -192,6 +192,7 @@ async def execute_agent_task(agent_id: int, payload: dict[str, Any]):
         prompt=tool_router_prompt,
         system_instruction="Kamu adalah engine otonom yang mengeksekusi tool sistem.",
     )
+    decision = decision or ""
 
     tool_called = None
     tool_input = None

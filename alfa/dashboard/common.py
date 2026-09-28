@@ -70,7 +70,9 @@ def get_primary_user_id(request: Request | None = None) -> int:
     return 0
 
 
-def safe_int(value, default: int, minimum: int = None, maximum: int = None) -> int:
+def safe_int(
+    value, default: int, minimum: int | None = None, maximum: int | None = None
+) -> int:
     """Convert payload value to int with fallback and optional bounds."""
     try:
         result = int(value)

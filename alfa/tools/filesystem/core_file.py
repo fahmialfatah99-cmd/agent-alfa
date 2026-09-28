@@ -258,7 +258,8 @@ def apply_unified_diff(file_path: str, diff_text: str) -> dict[str, Any]:
             orig_lines = f.read().split("\n")
 
         # Parse hunks
-        hunks, cur = [], None
+        hunks: list[dict[str, Any]] = []
+        cur: dict[str, Any] | None = None
         for raw in diff_text.split("\n"):
             if raw.startswith("@@"):
                 m = _re.match(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", raw)
@@ -304,7 +305,7 @@ def apply_unified_diff(file_path: str, diff_text: str) -> dict[str, Any]:
                         candidates.append(i - h["old"].index(anchor))
                         if len(candidates) >= 3:
                             break
-            chosen = None
+            chosen: int | None = None
             for base in candidates + [h["new_start"] - 1]:
                 if base is None or base < 0:
                     continue
