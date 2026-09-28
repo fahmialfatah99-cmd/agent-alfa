@@ -307,7 +307,7 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 50) -> list[str]
         return []
 
     chunks = []
-    current_chunk = []
+    current_chunk: list[str] = []
     current_len = 0
 
     for p in paragraphs:

@@ -105,7 +105,7 @@ def pdf_split_document(
         reader = PdfReader(exp_p)
         total = len(reader.pages)
 
-        indices = []
+        indices: list[int] = []
         if page_ranges:
             for part in page_ranges.split(","):
                 part = part.strip()
@@ -166,7 +166,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, An
             total_pages = len(pdf.pages)
             indices = list(range(total_pages))
             if page_numbers:
-                req_indices = []
+                req_indices: list[int] = []
                 for p in page_numbers.split(","):
                     p = p.strip()
                     if "-" in p:
@@ -374,7 +374,7 @@ def pdf_rotate_pages(
 
         target_indices = list(range(total))
         if page_numbers:
-            req = []
+            req: list[int] = []
             for p in page_numbers.split(","):
                 p = p.strip()
                 if "-" in p:
@@ -420,7 +420,7 @@ def pdf_inspect_metadata(pdf_path: str) -> dict[str, Any]:
             return {"status": "error", "message": f"File '{pdf_path}' tidak ditemukan."}
 
         reader = PdfReader(exp_p)
-        meta = reader.metadata or {}
+        meta: dict[str, Any] = reader.metadata or {}
 
         first_page = reader.pages[0] if reader.pages else None
         width_pt = float(first_page.mediabox.width) if first_page else 0

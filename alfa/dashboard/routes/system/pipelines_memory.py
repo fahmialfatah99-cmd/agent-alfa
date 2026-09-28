@@ -38,7 +38,7 @@ async def run_pipeline_endpoint(pid: str, request: Request):
     from alfa.pipelines import engine as pl
 
     try:
-        overrides = {}
+        overrides: dict[str, Any] = {}
         try:
             body = await request.json()
             if isinstance(body, dict):

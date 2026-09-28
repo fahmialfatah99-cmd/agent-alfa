@@ -9,8 +9,8 @@ from alfa.security.vault import AlfaSecureVault, vault
 Vault = AlfaSecureVault
 
 # Security constants and utilities (lazy import to avoid missing modules)
-BASH_DESTRUCTIVE_PATTERNS = []
-BASH_BLOCKED_COMMANDS = {}
+BASH_DESTRUCTIVE_PATTERNS: list[str] = []
+BASH_BLOCKED_COMMANDS: dict[str, str] = {}
 
 
 def is_command_blocked(cmd: str) -> bool:
