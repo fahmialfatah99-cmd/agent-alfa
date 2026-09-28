@@ -46,7 +46,7 @@ def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
         req = urllib.request.Request(
             test_url, headers={"User-Agent": "ALFA-Speedtest/1.0"}
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - fixed Cloudflare speedtest URL
             data = resp.read()
             bytes_received = len(data)
         dl_time = time.time() - start_dl

@@ -63,7 +63,7 @@ def whois_dns_domain_lookup(domain: str) -> dict:
         req = urllib.request.Request(
             f"https://{clean_domain}", headers={"User-Agent": "ALFA-DomainAudit/1.0"}
         )
-        with urllib.request.urlopen(req, timeout=5.0) as resp:
+        with urllib.request.urlopen(req, timeout=5.0) as resp:  # nosec B310 - https scheme forced; domain-audit purpose
             headers = dict(resp.getheaders())
             results["http_status"] = resp.status
             results["server"] = headers.get("Server", headers.get("server", "Hidden"))

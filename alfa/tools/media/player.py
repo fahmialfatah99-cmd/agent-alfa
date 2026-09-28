@@ -143,7 +143,7 @@ def _cache_dir() -> str:
     try:
         os.makedirs(d, exist_ok=True)
     except OSError:
-        d = "/tmp"
+        d = "/tmp"  # nosec B108 - last-resort fallback dir
     return d
 
 
@@ -252,7 +252,7 @@ def _play_audio_streaming(watch_url: str) -> tuple[bool, str, str]:
     )
     try:
         proc = subprocess.Popen(
-            pipeline,
+            pipeline,  # nosec B602 - watch_url constrained to YouTube IDs/URLs by _YT_URL_RE
             shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,

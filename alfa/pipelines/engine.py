@@ -463,7 +463,7 @@ _DEFAULT_PIPELINES = [
         "description": "Cari topik di web -> rangkum 3 poin -> simpan ke sandbox.",
         "vars": {
             "topik": "AI Indonesia",
-            "out_dir": "/dev/shm/alfa_sandbox/pipeline_out",
+            "out_dir": "/dev/shm/alfa_sandbox/pipeline_out",  # nosec B108 - example data string
         },
         "steps": [
             {

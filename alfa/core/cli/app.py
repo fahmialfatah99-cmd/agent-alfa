@@ -314,7 +314,7 @@ def handle_run_command(args: argparse.Namespace) -> None:
     try:
         res = subprocess.run(
             cmd_str,
-            shell=True,
+            shell=True,  # nosec B602 - local CLI `run`: operator's own shell, with timeout
             text=True,
             capture_output=True,
             timeout=120,

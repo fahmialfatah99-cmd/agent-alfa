@@ -119,7 +119,7 @@ def git_worktree_sandbox_verify_and_merge(
         if run_tests_cmd:
             test_res = subprocess.run(
                 run_tests_cmd,
-                shell=True,
+                shell=True,  # nosec B602 - user test command executed in isolated worktree, permission-gated
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,

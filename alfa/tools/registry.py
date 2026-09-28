@@ -280,7 +280,9 @@ def register_tool(
 def get_tool(name: str) -> Callable | None:
     """Retrieve a tool callable by name from TOOL_REGISTRY or AVAILABLE_TOOLS."""
     if name in TOOL_REGISTRY:
-        return TOOL_REGISTRY[name]["func"]
+        func = TOOL_REGISTRY[name]["func"]
+        assert callable(func)
+        return func
     for t in AVAILABLE_TOOLS:
         if getattr(t, "__name__", None) == name:
             return t

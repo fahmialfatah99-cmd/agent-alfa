@@ -47,7 +47,7 @@ def crypto_forex_live_rates(
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ALFA-Agent/1.0"
             },
         )
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:  # nosec B310 - fixed CoinGecko API host
             raw_c = json.loads(resp.read().decode())
             for sym in input_syms:
                 cg_id = symbol_map.get(sym, sym.lower())
@@ -66,7 +66,7 @@ def crypto_forex_live_rates(
     try:
         f_url = "https://open.er-api.com/v6/latest/USD"
         req2 = urllib.request.Request(f_url, headers={"User-Agent": "ALFA-Agent/1.0"})
-        with urllib.request.urlopen(req2, timeout=6) as resp2:
+        with urllib.request.urlopen(req2, timeout=6) as resp2:  # nosec B310 - fixed open.er-api.com host
             fd = json.loads(resp2.read().decode())
             rates = fd.get("rates", {})
             usd_idr = rates.get("IDR", 16200.0)

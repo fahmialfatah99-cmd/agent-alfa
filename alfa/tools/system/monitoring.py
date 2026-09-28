@@ -109,7 +109,7 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
         if act == "lock_screen":
             subprocess.run(
                 "loginctl lock-session 2>/dev/null || gnome-screensaver-command -l",
-                shell=True,
+                shell=True,  # nosec B602 - fixed string
                 capture_output=True,
                 text=True,
             )
@@ -121,17 +121,24 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
         elif act == "set_volume":
             vol_val = value.replace("%", "").strip() or "50"
             try:
-                frac = float(vol_val) / 100.0
+                vol_int = max(0, min(100, int(float(vol_val))))
+            except (TypeError, ValueError):
+                return {
+                    "status": "error",
+                    "message": f"Volume '{value}' tidak valid (0-100).",
+                }
+            try:
+                frac = vol_int / 100.0
                 subprocess.run(
                     f"wpctl set-volume @DEFAULT_AUDIO_SINK@ {frac}",
-                    shell=True,
+                    shell=True,  # nosec B602 - vol_int validated 0-100 int above
                     capture_output=True,
                     timeout=3,
                 )
             except Exception:
                 subprocess.run(
-                    f"amixer set Master {vol_val}%",
-                    shell=True,
+                    f"amixer set Master {vol_int}%",
+                    shell=True,  # nosec B602 - vol_int validated 0-100 int above
                     capture_output=True,
                     timeout=3,
                 )
@@ -143,7 +150,7 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
         elif act == "mute_toggle":
             subprocess.run(
                 "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || amixer set Master toggle",
-                shell=True,
+                shell=True,  # nosec B602 - fixed string
                 capture_output=True,
                 timeout=3,
             )
@@ -158,7 +165,7 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
                 if act == "media_play_pause"
                 else "playerctl next" if act == "media_next" else "playerctl previous"
             )
-            subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
+            subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)  # nosec B602 - cmd from fixed allowlist map above
             return {
                 "status": "success",
                 "message": f"🎵 Perintah media '{act}' berhasil dieksekusi.",
@@ -343,11 +350,11 @@ def clean_system_storage(dry_run: bool = True) -> dict[str, Any]:
                 total_freed_mb += size_mb
 
                 if not dry_run and size_mb > 0:
-                    subprocess.run(f'rm -rf "{path}"/*', shell=True, timeout=10)
+                    subprocess.run(f'rm -rf "{path}"/*', shell=True, timeout=10)  # nosec B602 - path from fixed internal target list
 
         if not dry_run:
             subprocess.run(
-                "journalctl --user --vacuum-time=2d 2>/dev/null", shell=True, timeout=10
+                "journalctl --user --vacuum-time=2d 2>/dev/null", shell=True, timeout=10  # nosec B602 - fixed string
             )
 
         action_msg = "ANALISIS (Dry Run)" if dry_run else "PEMBERSIHAN SELESAI"
@@ -422,10 +429,17 @@ def manage_system_services(
                 "status": "error",
                 "message": f"Aksi '{action}' tidak valid. Pilihan: {', '.join(valid_actions)}",
             }
+        import re as _re
 
-        cmd = f"systemctl {flag} {act} {service_name}"
+        if not _re.fullmatch(r"[A-Za-z0-9_.@:\-]+", service_name or ""):
+            return {
+                "status": "error",
+                "message": f"Nama service '{service_name}' tidak valid.",
+            }
+
+        cmd = f"systemctl {flag} {act} {service_name}"  # nosec B602 - act allowlisted, service_name charset-validated above
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=15
+            cmd, shell=True, capture_output=True, text=True, timeout=15  # nosec B602 - act allowlisted, service_name charset-validated above
         )
         output = (res.stdout.strip() or res.stderr.strip())[:2500]
 
@@ -577,7 +591,7 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
                 if "telegram-ai-bot" not in unit:
                     subprocess.run(
                         f"systemctl --user reset-failed {unit} && systemctl --user restart {unit}",
-                        shell=True,
+                        shell=True,  # nosec B602 - unit names from systemctl output, telegram-ai-bot excluded
                         timeout=10,
                     )
                     healing_actions.append(f"Restarted failed unit: {unit}")

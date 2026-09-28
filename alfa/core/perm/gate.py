@@ -61,8 +61,9 @@ def check_headless_approval(
 ) -> str | None:
     """Persetujuan non-interaktif untuk eksekusi dashboard-direct dan MCP.
 
-    Tidak ada prompt Telegram; hanya memakai kebijakan trust-based
-    auto-approval yang sama (should_auto_approve) + audit trail.
+    Tidak ada prompt Telegram, jadi berlaku kebijakan NO_CHANNEL_POLICY yang
+    sama seperti cabang tanpa-kanal di request_approval (bukan trust score):
+    batas keamanannya adalah auth dashboard / operator lokal.
     Return None bila diizinkan; pesan penolakan bila ditolak.
     """
     import time as _time
@@ -72,24 +73,22 @@ def check_headless_approval(
     if chat_id is None:
         chat_id = 0
     tier = get_tool_tier(tool_name)
-    auto_ok, auto_reason = should_auto_approve(chat_id, tool_name)
     started = _time.time()
-    if auto_ok:
+    if _no_channel_allows(tier):
         _record(
             chat_id,
             tool_name,
             tier,
-            (auto_reason or "auto_approved") + ":headless",
+            "auto_approved:headless",
             arguments_json,
             started,
         )
         return None
     _record(chat_id, tool_name, tier, "deny:headless_tier", arguments_json, started)
     return (
-        f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) membutuhkan trust "
-        f"score ≥ {TRUST_THRESHOLD} atau persetujuan interaktif via Telegram. "
-        f"Jalankan melalui bot Telegram, atau naikkan trust dengan penggunaan "
-        f"tool risiko rendah terlebih dahulu."
+        f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) tidak diizinkan tanpa "
+        f"kanal approval (kebijakan NO_CHANNEL_POLICY={NO_CHANNEL_POLICY}). "
+        f"Jalankan melalui bot Telegram dengan approval interaktif."
     )
 
 

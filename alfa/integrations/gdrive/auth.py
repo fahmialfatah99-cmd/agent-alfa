@@ -15,7 +15,7 @@ if os.name == "nt":
     _drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
     SANDBOX_DIR = os.path.join(_drive + os.sep, "dev", "shm", "alfa_sandbox")
 else:
-    SANDBOX_DIR = "/dev/shm/alfa_sandbox"
+    SANDBOX_DIR = "/dev/shm/alfa_sandbox"  # nosec B108 - fixed sandbox dir
 os.makedirs(SANDBOX_DIR, exist_ok=True)
 
 

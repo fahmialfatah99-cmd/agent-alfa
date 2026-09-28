@@ -3,6 +3,8 @@
 import glob
 import logging
 import os
+import re
+import shlex
 import subprocess
 from typing import Any
 
@@ -374,13 +376,22 @@ def git_operations(
     try:
         expanded = os.path.expanduser(repo_path)
 
+        # Cegah shell injection: remote/branch/message berasal dari argumen tool.
+        if not re.fullmatch(r"[A-Za-z0-9_.\-/]+", remote or "origin"):
+            return {"status": "error", "message": f"Remote '{remote}' tidak valid."}
+        if branch and not re.fullmatch(r"[A-Za-z0-9_.\-/]+", branch):
+            return {"status": "error", "message": f"Branch '{branch}' tidak valid."}
+        remote = shlex.quote(remote or "origin")
+        branch = shlex.quote(branch) if branch else ""
+        message = shlex.quote(message) if message else ""
+
         cmd_map = {
             "status": "git status --porcelain -b",
             "log": "git log --oneline --graph -n 15",
             "pull": f"git pull {remote} {branch}".strip(),
             "add_all": "git add -A",
             "commit": (
-                f'git commit -m "{message}"'
+                f"git commit -m {message}"
                 if message
                 else 'echo "ERROR: commit message required"'
             ),
@@ -400,7 +411,7 @@ def git_operations(
             }
 
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30
+            cmd, shell=True, capture_output=True, text=True, cwd=expanded, timeout=30  # nosec B602 - fixed allowlist map; user args validated+quoted above
         )
         output = res.stdout.strip() or res.stderr.strip()
 

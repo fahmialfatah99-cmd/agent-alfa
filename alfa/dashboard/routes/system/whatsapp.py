@@ -355,7 +355,7 @@ async def wa_media_upload(
 ):
     """Receive media from wa-sheets-bot and upload to Google Drive."""
     try:
-        upload_dir = os.path.join("/dev/shm", "alfa_wa_media")
+        upload_dir = os.path.join("/dev/shm", "alfa_wa_media")  # nosec B108 - fixed sandbox dir with timestamped names
         os.makedirs(upload_dir, exist_ok=True)
         safe_name = os.path.basename(file.filename or "media.bin") or "media.bin"
         tmp_path = os.path.join(upload_dir, f"{int(time.time()*1000)}_{safe_name}")

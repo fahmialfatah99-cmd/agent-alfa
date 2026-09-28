@@ -118,7 +118,7 @@ def _local_subword_embedding(text: str, dim: int = 768) -> list[float]:
         word_len_weight = math.log(max(1, len(w)) + 1.0)
         combined_weight = tf_weight * pos_weight * word_len_weight
 
-        h = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16)
+        h = int(hashlib.md5(w.encode("utf-8")).hexdigest(), 16)  # nosec B324 - feature hashing for embeddings, not security
         bucket = h % dim
         sign = 1.0 if ((h >> 8) % 2 == 0) else -1.0
         vec[bucket] += sign * combined_weight

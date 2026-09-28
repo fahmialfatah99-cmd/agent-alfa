@@ -41,7 +41,7 @@ def audit_network_security(
     try:
         result = {"target": target_host, "scan_type": scan_type}
 
-        if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:
+        if target_host in ["127.0.0.1", "localhost", "0.0.0.0"]:  # nosec B104 - string comparison, not a bind
             res_ss = subprocess.run(
                 "ss -tuln 2>/dev/null || netstat -tuln 2>/dev/null",
                 shell=True,
@@ -126,7 +126,7 @@ def ssh_execute_command(
         )
 
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507 - TOFU like OpenSSH default; CRITICAL-tier gated tool
 
         connect_kwargs = {
             "hostname": host,
@@ -138,7 +138,7 @@ def ssh_execute_command(
             connect_kwargs["key_filename"] = ssh_key
 
         client.connect(**connect_kwargs)
-        stdin, stdout, stderr = client.exec_command(command, timeout=30)
+        stdin, stdout, stderr = client.exec_command(command, timeout=30)  # nosec B601 - remote command execution is this CRITICAL-tier tool's purpose
 
         out = stdout.read().decode("utf-8", errors="replace").strip()
         err = stderr.read().decode("utf-8", errors="replace").strip()

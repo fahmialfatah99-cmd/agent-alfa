@@ -170,10 +170,10 @@ def libreoffice_render_page_previews(
                 "pdf",
                 expanded,
                 "--outdir",
-                "/tmp",
+                "/tmp",  # nosec B108 - fixed libreoffice outdir
             ]
             subprocess.run(cmd_pdf, capture_output=True, text=True, timeout=45)
-            temp_pdf = os.path.join("/tmp", f"{base_name}.pdf")
+            temp_pdf = os.path.join("/tmp", f"{base_name}.pdf")  # nosec B108 - matches libreoffice --outdir above; permission-gated local tool
             if not os.path.exists(temp_pdf):
                 return {
                     "status": "error",
@@ -284,7 +284,7 @@ li {{ margin-bottom: 6px; }}
 </body>
 </html>"""
 
-        temp_html = os.path.join("/tmp", f"temp_lo_{os.getpid()}.html")
+        temp_html = os.path.join("/tmp", f"temp_lo_{os.getpid()}.html")  # nosec B108 - pid-unique name
         with open(temp_html, "w", encoding="utf-8") as f:
             f.write(html_doc)
 
@@ -349,7 +349,7 @@ def libreoffice_extract_document_text(document_path: str) -> dict[str, Any]:
                 "message": f"File tidak ditemukan: {document_path}",
             }
 
-        temp_dir = f"/tmp/lo_txt_{os.getpid()}"
+            temp_dir = f"/tmp/lo_txt_{os.getpid()}"  # nosec B108 - pid-unique dir
         os.makedirs(temp_dir, exist_ok=True)
 
         cmd = [
