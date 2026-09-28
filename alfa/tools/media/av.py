@@ -332,7 +332,12 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
             img = img.resize((w, h), Image.Resampling.LANCZOS)
         elif act == "crop":
             coords = [int(x.strip()) for x in params.split(",")]
-            img = img.crop(tuple(coords))
+            if len(coords) != 4:
+                return {
+                    "status": "error",
+                    "message": "Format crop harus x,y,w,h (4 angka).",
+                }
+            img = img.crop((coords[0], coords[1], coords[2], coords[3]))
         elif act == "rotate":
             degrees = int(params)
             img = img.rotate(degrees, expand=True)

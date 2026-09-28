@@ -41,7 +41,6 @@ class CliChatMixin:
     def _save_session(self) -> None: ...
     def _clear_session(self) -> None: ...
     def _save_history(self) -> None: ...
-    def _run_swarm_execution(self, *args: Any, **kwargs: Any) -> Any: ...
 
     def default(self, line: str) -> None:
         """Menangani input chat biasa, perintah shell (!cmd), atau slash commands (/cmd)."""
@@ -63,8 +62,8 @@ class CliChatMixin:
 
             method_name = f"do_slash_{cmd}"
             if hasattr(self, method_name):
-                getattr(self, method_name)(args)
-                return
+                getattr(self, method_name)(args)  # type: ignore[attr-defined]
+                return None
             else:
                 print_status(f"Perintah tidak dikenal: {line_str}", "error")
                 print("Ketik /help untuk daftar perintah.", "info")

@@ -491,7 +491,7 @@ def list_all_scrape_batches(limit: int = 20) -> list[dict[str, Any]]:
     rows = cur.fetchall()
     conn.close()
 
-    items = []
+    items: list[dict[str, Any]] = []
     for r in rows:
         items.append(
             {

@@ -111,7 +111,9 @@ def _iter_code_files(root: str, extensions: str):
 
 def _chunk_code_lines(lines):
     """Pecah file jadi chunk ~_CODE_CHUNK_LINES di batas baris kosong."""
-    chunks, cur, sym = [], [], None
+    chunks: list[tuple[list[str], str | None]] = []
+    cur: list[str] = []
+    sym: str | None = None
     import re as _re
 
     sym_re = _re.compile(

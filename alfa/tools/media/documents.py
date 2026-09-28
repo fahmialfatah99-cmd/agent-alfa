@@ -168,7 +168,7 @@ def analyze_dataset_csv_json(
         if ext == ".csv":
             with open(expanded, encoding="utf-8", errors="replace") as f:
                 reader = csv.DictReader(f)
-                headers = reader.fieldnames or []
+                headers = list(reader.fieldnames or [])
                 data_rows = list(reader)
         elif ext == ".json":
             with open(expanded, encoding="utf-8") as f:

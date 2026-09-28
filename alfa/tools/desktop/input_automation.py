@@ -289,7 +289,8 @@ def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
         stderr_txt = ""
         if rc is not None:
             try:
-                stderr_txt = (proc.stderr.read() or b"").decode("utf-8", "replace").strip()
+                _raw = proc.stderr.read() if proc.stderr else b""
+                stderr_txt = (_raw or b"").decode("utf-8", "replace").strip()
             except Exception:
                 stderr_txt = ""
             if rc != 0:
