@@ -1,7 +1,6 @@
 """Workspace searching, file grepping, user file finder, compression, and git tools."""
 
 import fnmatch
-import glob
 import logging
 import os
 import re
