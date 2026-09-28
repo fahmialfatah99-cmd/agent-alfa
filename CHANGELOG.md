@@ -5,6 +5,26 @@ All notable changes to the ALFA Agent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- Enforce permission gate on dashboard-direct `/api/tools/execute` (403) and MCP `call_tool`
+- Remove compromised `deep-translator` dependency; translate via Gemini
+- Patch 19 dependency CVEs (anyio, click, mcp 1.30, pypdf 6.19)
+- Close shell-injection vectors (git tool args, volume, service names, ffmpeg argv)
+- SSRF scheme guard on urllib scrapers; TLS verify on by default
+- Redact secret-valued args in permission audit trail; bandit medium/high clean
+
+### Added
+- `requirements-lock.txt`, Dependabot, CI security job (pip-audit, bandit, gitleaks)
+- 46 critical-path tests (gate, trust math, vault, MCP, localhost audit)
+- `ALFA_VERIFY_SSL`, `ALFA_MCP_USER_ID`, permission-gate env options
+
+### Changed
+- Split `agent_engine` and `browser` into focused subpackages
+- Trust-score speed bonus now decays instead of a constant
+- Test suite fully hermetic (isolated DB, no env leakage)
+
 ## [2.5.0] - 2024-12-XX
 
 ### Added

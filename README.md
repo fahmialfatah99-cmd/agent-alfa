@@ -11,7 +11,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 112+ Sovereign Tools, Master Scraper, Passkey Vault, dan Web Command Center.**
+**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 140+ Sovereign Tools, Master Scraper, Passkey Vault, dan Web Command Center.**
 
 [Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
 
@@ -39,7 +39,7 @@
 * **1-Click Sync ke Second Brain:** Mengunduh dan mengindeks dokumen dari folder Google Drive langsung ke Neural Vector Brain untuk pencarian semantik instan.
 * **Web Drive Explorer:** File manager interaktif di dashboard untuk membuat folder, mengunggah file langsung dari browser, dan mengelola izin berbagi.
 
-### 5. 🛠️ 126+ Real Sovereign Tools & Interactive Workbench
+### 5. 🛠️ 140+ Real Sovereign Tools & Interactive Workbench
 * **Scraping & Modern Web Intelligence:**
   * 📄 **MarkItDown (Microsoft):** Konversi dokumen Word/PowerPoint/Excel, PDF, Audio, HTML ke Markdown LLM.
   * 🛡️ **Scrapling:** Stealth scraper anti-deteksi untuk bypass Cloudflare & Akamai.
