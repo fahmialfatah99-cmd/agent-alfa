@@ -27,7 +27,7 @@ def _get_bot_module():
 def _is_authorized(user_id: int) -> bool:
     mod = _get_bot_module()
     if mod and hasattr(mod, "is_authorized"):
-        return mod.is_authorized(user_id)
+        return bool(mod.is_authorized(user_id))
     return is_authorized(user_id)
 
 

@@ -36,8 +36,11 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
 
                 from PIL import Image
 
-                user32 = ctypes.windll.user32
-                gdi32 = ctypes.windll.gdi32
+                windll = getattr(ctypes, "windll", None)
+                if windll is None:
+                    raise RuntimeError("windll unavailable (bukan Windows)")
+                user32 = windll.user32
+                gdi32 = windll.gdi32
                 user32.SetProcessDPIAware()
 
                 left = user32.GetSystemMetrics(76)  # SM_XVIRTUALSCREEN

@@ -1,5 +1,6 @@
 """Workspace searching, file grepping, user file finder, compression, and git tools."""
 
+import fnmatch
 import glob
 import logging
 import os
@@ -57,7 +58,7 @@ def search_workspace_files(
             ]
             for name in files:
                 if (
-                    glob.fnmatch.fnmatch(name, pattern)
+                    fnmatch.fnmatch(name, pattern)
                     or pattern.lower() in name.lower()
                 ):
                     rel = os.path.relpath(os.path.join(root, name), root_dir)
@@ -104,7 +105,7 @@ def grep_workspace(
             for r, dirs, files in os.walk(root_dir):
                 dirs[:] = [d for d in dirs if d not in _CODE_INDEX_SKIP_DIRS]
                 for fn in files:
-                    if file_pattern and not glob.fnmatch.fnmatch(fn, file_pattern):
+                    if file_pattern and not fnmatch.fnmatch(fn, file_pattern):
                         continue
                     fpath = os.path.join(r, fn)
                     try:

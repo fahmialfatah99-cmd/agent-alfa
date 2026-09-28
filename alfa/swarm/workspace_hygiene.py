@@ -89,7 +89,7 @@ def _get_swarm_output_dir() -> str:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "SWARM_OUTPUT_DIR"):
-            return mod.SWARM_OUTPUT_DIR
+            return str(mod.SWARM_OUTPUT_DIR)
     return SWARM_OUTPUT_DIR
 
 
@@ -97,7 +97,7 @@ def _get_target_folder() -> str:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "_TARGET_FOLDER"):
-            return mod._TARGET_FOLDER
+            return str(mod._TARGET_FOLDER)
     return _TARGET_FOLDER
 
 
@@ -105,7 +105,7 @@ def _get_sandbox_snapshot() -> set[str]:
     for mod_name in ("swarm_engine", "alfa.swarm.engine"):
         mod = sys.modules.get(mod_name)
         if mod and hasattr(mod, "_SANDBOX_SNAPSHOT"):
-            return mod._SANDBOX_SNAPSHOT
+            return set(mod._SANDBOX_SNAPSHOT)
     return _SANDBOX_SNAPSHOT
 
 
