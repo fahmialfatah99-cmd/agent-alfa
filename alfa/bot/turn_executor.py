@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 import plugins
 from alfa.bot.config import (
@@ -41,6 +42,9 @@ from alfa.tools import (
 )
 
 logger = logging.getLogger("TelegramAIAgent")
+
+# Lazily-initialized shared Gemini client (set on first turn via _resolve).
+gemini_client: Any = None
 
 
 def _get_bot():

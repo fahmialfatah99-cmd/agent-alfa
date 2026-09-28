@@ -63,7 +63,7 @@ def _llm_complete(prompt: str, system: str, timeout: float = 25.0) -> str:
                 )
                 if resp.text:
                     _remember_model(model)
-                    return resp.text.strip()
+                    return str(resp.text).strip()
             except Exception as e:  # noqa: BLE001
                 last_err = e
                 logger.info("planner model %s gagal (%s) -> coba cadangan", model, e)

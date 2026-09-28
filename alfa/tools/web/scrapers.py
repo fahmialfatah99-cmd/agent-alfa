@@ -48,6 +48,7 @@ def scrapling_stealth_fetch(
 
         if css_selector:
             elements = page.css(css_selector)
+            extracted: list[str] | str
             if extract_type == "html":
                 extracted = [
                     el.get_attribute("outerHTML") or str(el) for el in elements[:50]
