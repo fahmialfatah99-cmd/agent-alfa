@@ -9,6 +9,16 @@ from alfa.tools.registry import register_tool
 logger = logging.getLogger("AgentTools.Web.Scrapers")
 
 
+def _require_http_url(url: str) -> dict[str, Any] | None:
+    """Reject non-http(s) URLs (urllib would otherwise honor file:// etc.)."""
+    if not isinstance(url, str) or not url.lower().startswith(("http://", "https://")):
+        return {
+            "status": "error",
+            "message": f"URL '{url}' ditolak: hanya http:// dan https:// yang diizinkan.",
+        }
+    return None
+
+
 def scrapling_stealth_fetch(
     url: str,
     css_selector: str = "",
@@ -103,13 +113,16 @@ def scrapy_spider_quick_scrape(
 
         from parsel import Selector
 
+        blocked = _require_http_url(url)
+        if blocked:
+            return blocked
         req = urllib.request.Request(
             url,
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ScrapyCrawler/2.0"
             },
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - scheme enforced by _require_http_url above
             html_content = resp.read().decode("utf-8", errors="ignore")
             status_code = resp.status
 
@@ -223,13 +236,16 @@ def crawl4ai_web_crawler(
         import markdownify
         from bs4 import BeautifulSoup
 
+        blocked = _require_http_url(url)
+        if blocked:
+            return blocked
         req = urllib.request.Request(
             url,
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawl4AI/1.0"
             },
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - scheme enforced by _require_http_url above
             html = resp.read().decode("utf-8", errors="ignore")
             status_code = resp.status
 

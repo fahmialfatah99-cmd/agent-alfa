@@ -116,7 +116,7 @@ def _check_security_config():
     token = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
     if not token:
         dashboard_host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
-        if dashboard_host in ("0.0.0.0", "::"):
+        if dashboard_host in ("0.0.0.0", "::"):  # nosec B104 - string comparison for guard check, not a bind
             logger.critical(
                 "⚠️ CRITICAL SECURITY WARNING ⚠️\n"
                 "DASHBOARD_HOST terbuka ke jaringan (0.0.0.0/::) TANPA DASHBOARD_AUTH_TOKEN!\n"

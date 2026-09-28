@@ -56,7 +56,7 @@ def audit_local_host_security() -> dict[str, Any]:
             if key in seen:
                 continue
             seen.add(key)
-            if laddr_ip in ("0.0.0.0", "::"):
+            if laddr_ip in ("0.0.0.0", "::"):  # nosec B104 - string comparison for audit check, not a bind
                 proc_name = "?"
                 if pid:
                     try:
@@ -196,7 +196,7 @@ def audit_local_host_security() -> dict[str, Any]:
         "checks": checks,
         "passed": passed,
         "total_checks": total,
-        "audit_timestamp": datetime.now().isoformat(),
+        "audit_timestamp": datetime.datetime.now().isoformat(),
     }
 
 
@@ -263,7 +263,7 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 - scheme forced to http/https above; audit-purpose fetch
             status_code = resp.getcode()
             for k, v in resp.headers.items():
                 headers_dict[k.lower()] = v
@@ -470,5 +470,5 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
         "checks": checks,
         "findings": findings,
         "raw_headers_count": len(headers_dict),
-        "audit_timestamp": datetime.now().isoformat(),
+        "audit_timestamp": datetime.datetime.now().isoformat(),
     }

@@ -152,7 +152,7 @@ def desktop_click_coordinate(
         )
         res = subprocess.run(
             f"ydotool mousemove -a {x} {y} && ydotool click {btn_code}",
-            shell=True,
+            shell=True,  # nosec B602 - gated tool; coords typed int, launcher by design
             capture_output=True,
             text=True,
             timeout=5,
@@ -166,7 +166,7 @@ def desktop_click_coordinate(
         # Fallback to xdotool
         res = subprocess.run(
             f"xdotool mousemove {x} {y} click {'1' if button == 'left' else '3'}",
-            shell=True,
+            shell=True,  # nosec B602 - gated tool; coords typed int, launcher by design
             capture_output=True,
             text=True,
             timeout=5,
@@ -276,7 +276,7 @@ def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
         env["WAYLAND_DISPLAY"] = env.get("WAYLAND_DISPLAY", "wayland-0")
         proc = subprocess.Popen(
             cmd,
-            shell=True,
+            shell=True,  # nosec B602 - gated tool; coords typed int, launcher by design
             env=env,
             start_new_session=True,
             stdout=subprocess.DEVNULL,

@@ -256,14 +256,32 @@ def translate_text(
     text: str, target_lang: str = "en", source_lang: str = "auto"
 ) -> dict[str, Any]:
     """
-    Translate text between languages using Google Translate.
+    Translate text between languages using the configured Gemini model.
+    (Previously Google Translate via deep-translator, removed: upstream
+    package was compromised — see pip-audit PYSEC-2022-252.)
     """
     try:
-        from deep_translator import GoogleTranslator
+        from google import genai
 
-        translated = GoogleTranslator(source=source_lang, target=target_lang).translate(
-            text[:4500]
+        from alfa.swarm.llm_client import get_agent_api_client
+
+        _provider, api_key, model, _base, _kid = get_agent_api_client(
+            {"provider": "gemini"}
         )
+        if not api_key:
+            return {
+                "status": "error",
+                "message": "Tidak ada Gemini API key aktif untuk penerjemah.",
+            }
+        client = genai.Client(api_key=api_key, http_options={"timeout": 30000})
+        prompt = (
+            f"Translate the following text from {source_lang} to {target_lang}. "
+            f"Return ONLY the translation, no explanations:\n\n{text[:4500]}"
+        )
+        resp = client.models.generate_content(model=model, contents=prompt)
+        translated = (getattr(resp, "text", "") or "").strip()
+        if not translated:
+            return {"status": "error", "message": "Model tidak mengembalikan terjemahan."}
         return {
             "status": "success",
             "original": text[:500],

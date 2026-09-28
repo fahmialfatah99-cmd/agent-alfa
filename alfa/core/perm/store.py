@@ -9,10 +9,15 @@ from alfa.core.perm.constants import DB_PATH, logger
 
 
 def _get_db_path() -> str:
+    # Explicit env override wins: sys.modules attributes may hold stale copies
+    # bound at import time (e.g. facade re-exports), so they are only fallback.
+    db_env = os.getenv("ALFA_DB_PATH")
+    if db_env:
+        return db_env
     mod = sys.modules.get("permission_gate") or sys.modules.get("alfa.core.permissions")
     if mod and hasattr(mod, "DB_PATH"):
-        return mod.DB_PATH
-    return os.getenv("ALFA_DB_PATH", DB_PATH)
+        return str(mod.DB_PATH)
+    return DB_PATH
 
 
 def _connect() -> sqlite3.Connection:

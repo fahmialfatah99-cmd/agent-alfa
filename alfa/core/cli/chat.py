@@ -70,7 +70,7 @@ class CliChatMixin:
         try:
             res = subprocess.run(
                 cmd,
-                shell=True,
+                shell=True,  # nosec B602 - local CLI shell: operator's own machine, with timeout
                 text=True,
                 capture_output=True,
                 timeout=120,

@@ -278,7 +278,7 @@ async def swarm_list_folders():
         except Exception:
             pass
 
-    _add("/dev/shm/alfa_sandbox", "sandbox")
+    _add("/dev/shm/alfa_sandbox", "sandbox")  # nosec B108 - fixed sandbox dir, not a tempfile
     _add(
         os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites"), "outputs/websites"
     )

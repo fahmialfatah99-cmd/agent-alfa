@@ -144,7 +144,7 @@ class CliBasicCommandsMixin:
 
     def do_clear(self, arg):
         """Membersihkan layar terminal."""
-        os.system("cls" if platform.system() == "Windows" else "clear")
+        os.system("cls" if platform.system() == "Windows" else "clear")  # nosec B605 - fixed string, no user input
         print_banner()
 
     def do_exit(self, arg):
@@ -208,7 +208,7 @@ class CliBasicCommandsMixin:
 
     def do_slash_clear(self, arg):
         """Bersihkan layar. Usage: /clear"""
-        os.system("cls" if platform.system() == "Windows" else "clear")
+        os.system("cls" if platform.system() == "Windows" else "clear")  # nosec B605 - fixed string, no user input
         print_banner()
 
     def do_slash_exit(self, arg):

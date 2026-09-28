@@ -53,7 +53,8 @@ def _instances_path() -> str:
 def _load_instances() -> dict[str, Any]:
     try:
         with open(_instances_path(), encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -100,7 +101,7 @@ def _exchange_code(code: str, redirect_uri: str) -> dict[str, Any]:
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 - fixed Google OAuth endpoint
         payload = json.loads(resp.read().decode())
     if "access_token" not in payload:
         raise RuntimeError(f"Token exchange gagal: {str(payload)[:200]}")
@@ -118,8 +119,8 @@ def _fetch_email(access_token: str) -> str:
         req = urllib.request.Request(
             USERINFO_EP, headers={"Authorization": f"Bearer {access_token}"}
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode()).get("email", "")
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - fixed Google userinfo endpoint
+            return str(json.loads(resp.read().decode()).get("email", "") or "")
     except Exception:
         return ""
 

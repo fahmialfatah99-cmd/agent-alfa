@@ -10,9 +10,9 @@ logger = logging.getLogger("AgentTools.System")
 
 if os.name == "nt":
     _drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
-    _sandbox_base = os.path.join(_drive + os.sep, "dev", "shm", "alfa_sandbox")
+    _sandbox_base = os.path.join(_drive + os.sep, "dev", "shm", "alfa_sandbox")  # nosec B108 - fixed sandbox dir
 else:
-    _sandbox_base = "/dev/shm/alfa_sandbox"
+    _sandbox_base = "/dev/shm/alfa_sandbox"  # nosec B108 - fixed sandbox dir
 SANDBOX_DIR = _sandbox_base
 os.makedirs(SANDBOX_DIR, exist_ok=True)
 
@@ -102,7 +102,7 @@ def _check_docker_available() -> bool:
         if mod and hasattr(mod, "_docker_available"):
             fn = mod._docker_available
             if fn is not _docker_available and callable(fn):
-                return fn()
+                return bool(fn())
     return _docker_available()
 
 
@@ -113,7 +113,7 @@ def normalize_path(p: str) -> str:
         return p
     q = p.replace("\\", "/")
     if os.name == "nt":
-        if q.startswith("/dev/shm"):
+        if q.startswith("/dev/shm"):  # nosec B108 - path prefix comparison, not a tempfile
             drive = os.path.splitdrive(os.path.abspath("."))[0] or "C:"
             q = drive + q
         elif q[1:3] not in (":/", ":\\"):

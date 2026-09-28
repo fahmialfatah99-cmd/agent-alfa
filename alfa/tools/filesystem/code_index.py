@@ -11,8 +11,8 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Filesystem.CodeIndex")
 
-_CODE_INDEX_DB = os.path.join(
-    tempfile.gettempdir() if os.name == "nt" else "/dev/shm",
+_CODE_INDEX_DB = os.path.join(  # nosec B108 - fixed app-data path, not a tempfile
+    tempfile.gettempdir() if os.name == "nt" else "/dev/shm",  # nosec B108 - fixed app-data dir
     "alfa_code_index.db",
 )
 _CODE_INDEX_MAX_CHUNKS = 10_000

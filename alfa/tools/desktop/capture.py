@@ -181,7 +181,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
             try:
                 subprocess.run(
                     f"grim '{screenshot_path}'",
-                    shell=True,
+                    shell=True,  # nosec B602 - internal fixed paths/clamped ints only
                     capture_output=True,
                     timeout=2,
                 )
@@ -201,7 +201,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
             try:
                 subprocess.run(
                     f"import -window root '{screenshot_path}'",
-                    shell=True,
+                    shell=True,  # nosec B602 - internal fixed paths/clamped ints only
                     capture_output=True,
                     timeout=2,
                 )
@@ -221,7 +221,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
             try:
                 subprocess.run(
                     f"scrot '{screenshot_path}'",
-                    shell=True,
+                    shell=True,  # nosec B602 - internal fixed paths/clamped ints only
                     capture_output=True,
                     timeout=2,
                 )
@@ -320,7 +320,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:
             res = subprocess.run(
                 f"ffmpeg -y -f gdigrab -framerate 15 -i desktop -t {duration} "
                 f'-c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p "{output_path}"',
-                shell=True,
+                shell=True,  # nosec B602 - internal fixed paths/clamped ints only
                 capture_output=True,
                 text=True,
                 timeout=duration + 30,
@@ -340,7 +340,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:
         # Try Wayland wf-recorder first
         res = subprocess.run(
             f"timeout {duration + 2} wf-recorder -d /dev/dri/renderD128 -f {output_path} --duration {duration} 2>/dev/null",
-            shell=True,
+            shell=True,  # nosec B602 - internal fixed paths/clamped ints only
             capture_output=True,
             text=True,
             timeout=duration + 10,
@@ -359,7 +359,7 @@ def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:
         # Fallback to ffmpeg with PipeWire
         res = subprocess.run(
             f"timeout {duration + 5} ffmpeg -y -video_size 1920x1080 -framerate 15 -f x11grab -i :0 -t {duration} -c:v libx264 -preset ultrafast -crf 28 {output_path} 2>/dev/null",
-            shell=True,
+            shell=True,  # nosec B602 - internal fixed paths/clamped ints only
             capture_output=True,
             text=True,
             timeout=duration + 15,

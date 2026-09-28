@@ -48,9 +48,11 @@ def decrypt_key(stored: str) -> str:
         aes = _get_aesgcm()
         if aes is None:
             return ""
-        return aes.decrypt(
-            base64.b64decode(nonce_b64), base64.b64decode(ct_b64), None
-        ).decode("utf-8")
+        return str(
+            aes.decrypt(base64.b64decode(nonce_b64), base64.b64decode(ct_b64), None).decode(
+                "utf-8"
+            )
+        )
     except Exception:
         return ""
 

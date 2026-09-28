@@ -46,7 +46,7 @@ def _veo_api_request(
         method=method,
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310 - fixed Google Gemini API endpoint
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         try:
@@ -154,7 +154,7 @@ def _generate_google_veo_video(
     # 5. Unduh hasil MP4 mentah dari Veo
     raw_path = os.path.join(VIDEO_OUT_DIR, f"veo_raw_{ts}.mp4")
     req = urllib.request.Request(video_uri, headers={"x-goog-api-key": api_key})
-    with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:
+    with urllib.request.urlopen(req, timeout=300) as resp, open(raw_path, "wb") as f:  # nosec B310 - download URI returned by Google Veo API
         shutil.copyfileobj(resp, f)
 
     # 6. Dubbing voiceover + overlay UI promo (komposit lokal)
@@ -374,7 +374,7 @@ def _generate_gemini_omni_video(
             payload_found["uri"], headers={"x-goog-api-key": api_key}
         )
         with (
-            urllib.request.urlopen(req, timeout=300) as resp,
+            urllib.request.urlopen(req, timeout=300) as resp,  # nosec B310 - media URI returned by Google Gemini API
             open(raw_path, "wb") as f,
         ):
             shutil.copyfileobj(resp, f)

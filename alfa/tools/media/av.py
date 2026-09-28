@@ -6,6 +6,7 @@ import asyncio
 import concurrent.futures
 import logging
 import os
+import shlex
 import subprocess
 from typing import Any
 
@@ -195,10 +196,10 @@ def extract_audio_from_video(
         if not output_filename.endswith(".mp3"):
             output_filename += ".mp3"
 
-        dest_path = os.path.join(SANDBOX_DIR, output_filename)
-        cmd = f'ffmpeg -y -i "{expanded}" -vn -acodec libmp3lame -q:a 2 "{dest_path}"'
+        dest_path = os.path.join(SANDBOX_DIR, os.path.basename(output_filename))
+        cmd = ["ffmpeg", "-y", "-i", expanded, "-vn", "-acodec", "libmp3lame", "-q:a", "2", dest_path]
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=60
+            cmd, capture_output=True, text=True, timeout=60
         )
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:
@@ -279,9 +280,9 @@ def convert_media_format(
         out_name = f"{base_name}_converted.{out_format}"
         dest_path = os.path.join(SANDBOX_DIR, out_name)
 
-        cmd = f'ffmpeg -y -i "{expanded}" {extra_params} "{dest_path}"'
+        cmd = ["ffmpeg", "-y", "-i", expanded, *shlex.split(extra_params), dest_path]
         res = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=60
+            cmd, capture_output=True, text=True, timeout=60
         )
 
         if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0:

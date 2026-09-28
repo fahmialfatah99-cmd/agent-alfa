@@ -45,10 +45,10 @@ def academic_deep_research_paper(
         req = urllib.request.Request(
             arxiv_url, headers={"User-Agent": "ALFA-AcademicResearcher/2.0"}
         )
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with urllib.request.urlopen(req, timeout=20) as resp:  # nosec B310 B314 - fixed arXiv API host, response is data-only XML
             xml_data = resp.read()
 
-        root = ET.fromstring(xml_data)
+        root = ET.fromstring(xml_data)  # nosec B314 - fixed arXiv API host over TLS, data-only feed
         ns = {
             "atom": "http://www.w3.org/2005/Atom",
             "arxiv": "http://arxiv.org/schemas/atom",
