@@ -21,7 +21,7 @@ from alfa.dashboard.common import (
 auth_router = APIRouter(tags=["auth"])
 
 
-def _hash_password(password: str, salt: str = None) -> tuple:
+def _hash_password(password: str, salt: str | None = None) -> tuple:
     """Hash password dengan salt menggunakan PBKDF2-HMAC-SHA256."""
     if salt is None:
         salt = secrets.token_hex(16)
@@ -129,7 +129,10 @@ def init_auth_db():
 
 
 def create_user(
-    username: str, password: str, telegram_user_id: int = None, is_admin: bool = False
+    username: str,
+    password: str,
+    telegram_user_id: int | None = None,
+    is_admin: bool = False,
 ) -> dict[str, Any]:
     """Buat user baru di database."""
     import sqlite3
