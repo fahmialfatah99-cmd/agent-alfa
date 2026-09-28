@@ -147,7 +147,7 @@ def sanitize_project_directory(dir_path: str) -> dict[str, int]:
                     pass
 
     # 3. Pangkas habis seluruh folder kosong secara rekursif (bottom-up)
-    for root, dirs, _ in os.walk(dir_path, topdown=False):
+    for root, _dirs, _ in os.walk(dir_path, topdown=False):
         if os.path.abspath(root) == os.path.abspath(dir_path):
             continue
         try:

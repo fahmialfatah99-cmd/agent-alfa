@@ -61,7 +61,7 @@ def _veo_api_request(
             )
         elif not api_key or e.code == 403:
             msg = f"Akses ditolak ({e.code}). Pastikan Gemini API Key valid & Veo aktif di akun Anda."
-        raise RuntimeError(msg)
+        raise RuntimeError(msg) from e
 
 
 def _generate_google_veo_video(

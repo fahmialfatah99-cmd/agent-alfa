@@ -7,7 +7,7 @@ import pytest
 
 try:
     import mcp.types as types
-    from mcp.server import Server
+    from mcp.server import Server as Server
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False

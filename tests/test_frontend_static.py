@@ -104,13 +104,7 @@ def test_static_files_accessible_with_auth_token():
 
 def test_static_boundary_check():
     """Verify paths like /statistics or /static_analysis do not bypass auth."""
-    from unittest.mock import AsyncMock
-
     from starlette.requests import Request
-
-    from alfa.dashboard.routes.auth import DashboardAuthMiddleware
-
-    middleware = DashboardAuthMiddleware(app=AsyncMock())
 
     # Helper mock request
     def make_req(path: str):

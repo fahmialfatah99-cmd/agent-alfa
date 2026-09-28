@@ -9,7 +9,12 @@ import logging
 import os  # noqa: F401 - re-exported for backward-compat attribute access (e.g. system_tools.subprocess)
 import subprocess  # noqa: F401 - re-exported for backward-compat (tests monkeypatch system_tools.subprocess)
 import sys  # noqa: F401 - re-exported for backward compatibility
-from typing import Any, Dict, List, Optional  # noqa: F401 - re-exported for backward compatibility
+from typing import (  # noqa: F401, UP035 - re-exported for backward compatibility
+    Any,
+    Dict,
+    List,
+    Optional,
+)
 
 from dotenv import load_dotenv  # noqa: F401 - re-exported for backward compatibility
 
@@ -20,7 +25,9 @@ from alfa.core.runtime_ctx import (  # noqa: F401 - re-exported for backward com
     get_current_chat_id,
     get_current_user_id,
 )
-from alfa.tools.registry import register_tool  # noqa: F401 - re-exported for backward compatibility
+from alfa.tools.registry import (
+    register_tool,  # noqa: F401 - re-exported for backward compatibility
+)
 
 # Import all submodules from modular alfa.tools.system package
 from alfa.tools.system.constants import (

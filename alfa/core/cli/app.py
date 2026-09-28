@@ -466,8 +466,6 @@ Examples:
         if cli.attached_files:
             print_status(f"Konteks file aktif ({len(cli.attached_files)} file): {', '.join(cli.attached_files)}", "info")
 
-        direct = cli.direct_ai
-
         # Launch modern Cursor-style interactive loop if running in a TTY
         if sys.stdin.isatty() and sys.stdout.isatty():
             from alfa.core.cli.cursor_ui import run_cursor_loop

@@ -340,7 +340,7 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
 """]
 
     # Add each deliverable
-    for i, image_path in enumerate(images):
+    for _i, image_path in enumerate(images):
         info = get_deliverable_info(image_path.stem)
         img_base64 = get_image_base64(image_path)
 

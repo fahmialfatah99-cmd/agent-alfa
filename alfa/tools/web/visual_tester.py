@@ -70,29 +70,29 @@ def browser_visual_test_page(
                 )
                 page = context.new_page()
 
-                # Listen to console
-                def _handle_console(msg):
+                # Listen to console (bind loop var: callbacks may fire after iteration advances)
+                def _handle_console(msg, _view=view_name):
                     if msg.type == "error":
                         console_errors.append(
-                            f"[{view_name}] [CONSOLE ERROR] {msg.text}"
+                            f"[{_view}] [CONSOLE ERROR] {msg.text}"
                         )
                     elif msg.type in ("warn", "warning"):
-                        console_logs.append(f"[{view_name}] [WARN] {msg.text}")
+                        console_logs.append(f"[{_view}] [WARN] {msg.text}")
 
                 page.on("console", _handle_console)
                 page.on(
                     "pageerror",
-                    lambda err: console_errors.append(
-                        f"[{view_name}] [PAGE EXCEPTION] {str(err)}"
+                    lambda err, _view=view_name: console_errors.append(
+                        f"[{_view}] [PAGE EXCEPTION] {str(err)}"
                     ),
                 )
 
                 # Listen to failed network requests
-                def _handle_response(resp):
+                def _handle_response(resp, _view=view_name):
                     if resp.status >= 400:
                         failed_requests.append(
                             {
-                                "view": view_name,
+                                "view": _view,
                                 "url": resp.url[:120],
                                 "status": resp.status,
                                 "status_text": resp.status_text,

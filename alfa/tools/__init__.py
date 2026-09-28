@@ -5,12 +5,10 @@ utilities previously located directly in tools.py.
 """
 
 import logging
-import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import plugins
-from alfa.core import database
 from alfa.core.runtime_ctx import current_chat_id_var as current_chat_id_var
 from alfa.core.runtime_ctx import current_user_id_var as current_user_id_var
 from alfa.core.runtime_ctx import get_current_chat_id as get_current_chat_id

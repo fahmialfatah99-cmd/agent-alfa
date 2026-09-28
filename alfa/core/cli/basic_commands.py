@@ -44,7 +44,7 @@ class CliBasicCommandsMixin:
             else:
                 try:
                     msg = res.json().get("detail", "Registrasi gagal")
-                except:
+                except Exception:
                     msg = res.text
                 print_status(msg, "error")
 
@@ -83,7 +83,7 @@ class CliBasicCommandsMixin:
             else:
                 try:
                     msg = res.json().get("detail", "Login gagal")
-                except:
+                except Exception:
                     msg = "Username atau password salah."
                 print_status(msg, "error")
 

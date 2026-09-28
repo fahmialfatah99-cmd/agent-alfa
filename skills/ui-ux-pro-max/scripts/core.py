@@ -1393,15 +1393,21 @@ def _stack_row_filter(rows, query, stack):
     has_legacy = "deprecated" in statuses
     requests_legacy = _stack_query_requests_legacy(query, stack)
     if has_legacy and requests_legacy:
-        status_filter = lambda row: row.get("Status") == "deprecated"
+        def status_filter(row):
+            return row.get("Status") == "deprecated"
+
         variant = "legacy-only"
     elif requests_legacy and stack in STACK_CURRENT_VERSIONS:
         return lambda row: False, "legacy-unavailable"
     elif "active" in statuses:
-        status_filter = lambda row: row.get("Status") == "active"
+        def status_filter(row):
+            return row.get("Status") == "active"
+
         variant = "current-only"
     else:
-        status_filter = lambda row: row.get("Status", "unverified") != "deprecated"
+        def status_filter(row):
+            return row.get("Status", "unverified") != "deprecated"
+
         variant = "non-legacy"
 
     if stack != "shadcn":

@@ -22,7 +22,7 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from design_system import (  # noqa: E402; noqa: I001 - private helpers first, public class last
+from design_system import (  # noqa: E402 - sys.path setup above is intentional
     DesignSystemGenerator,
     _contrast_ratio,
     _filter_anti_patterns_for_mode,

@@ -642,7 +642,7 @@ class DirectAIClient:
             }
             res = requests.post(url, headers=headers, json=payload, timeout=120)
             if res.status_code != 200:
-                raise RuntimeError(f"Google API Error ({res.status_code}): {res.text}")
+                raise RuntimeError(f"Google API Error ({res.status_code}): {res.text}") from None
             data = res.json()
             candidates = data.get("candidates", [])
             if candidates and "content" in candidates[0]:
@@ -735,7 +735,7 @@ class DirectAIClient:
                 if res.status_code != 200:
                     raise RuntimeError(
                         f"{self.provider.upper()} API Error ({res.status_code}): {res.text}"
-                    )
+                    ) from None
                 full_text = ""
                 for line in res.iter_lines():
                     if line:
@@ -764,7 +764,7 @@ class DirectAIClient:
                 if res.status_code != 200:
                     raise RuntimeError(
                         f"{self.provider.upper()} API Error ({res.status_code}): {res.text}"
-                    )
+                    ) from None
                 data = res.json()
                 text = data["choices"][0]["message"]["content"]
                 if callback:
@@ -835,7 +835,7 @@ class DirectAIClient:
             if res.status_code != 200:
                 raise RuntimeError(
                     f"Anthropic API Error ({res.status_code}): {res.text}"
-                )
+                ) from None
             data = res.json()
             text = data["content"][0]["text"]
             if callback:
@@ -895,7 +895,7 @@ class DirectAIClient:
             raise ConnectionError(
                 f"Tidak dapat terhubung ke Ollama di {self.base_url}. "
                 "Pastikan service Ollama aktif ('ollama serve')."
-            )
+            ) from None
 
     def _record_history(self, prompt: str, response: str) -> None:
         self.history.append({"role": "user", "content": prompt})

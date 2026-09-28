@@ -313,7 +313,7 @@ async def run_pipeline(
                 *[_run_step(s, variables, sid=s["id"]) for s in wave],
                 return_exceptions=True,
             )
-            for s, res in zip(wave, results):
+            for s, res in zip(wave, results, strict=True):
                 # Kondisi n8n-style: skip bila "if" tidak terpenuhi
                 cond = s.get("if")
                 if isinstance(res, Exception) and cond:

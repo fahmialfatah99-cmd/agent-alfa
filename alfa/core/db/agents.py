@@ -64,7 +64,7 @@ def add_custom_agent_sync(
 
 def update_custom_agent_sync(agent_id: int, updates: dict[str, Any]) -> dict[str, Any]:
     """Update custom agent configuration."""
-    ALLOWED_COLUMNS = frozenset(
+    allowed_columns = frozenset(
         [
             "name",
             "role",
@@ -83,7 +83,7 @@ def update_custom_agent_sync(agent_id: int, updates: dict[str, Any]) -> dict[str
     fields = []
     values = []
     for k, v in updates.items():
-        if k not in ALLOWED_COLUMNS:
+        if k not in allowed_columns:
             logger.warning(
                 f"update_custom_agent: kolom '{k}' ditolak (tidak ada di whitelist)"
             )

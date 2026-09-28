@@ -27,10 +27,6 @@ from alfa.tools.system.constants import (
     is_source_code_file,
     normalize_path,
 )
-
-# Alias for convenience if needed
-SYSTEM_SANDBOX_DIR = SANDBOX_DIR
-
 from alfa.tools.system.execution import (
     execute_bash_command,
     execute_python_sandbox,
@@ -79,6 +75,9 @@ from alfa.tools.system.network import (
     send_email,
     ssh_execute_command,
 )
+
+# Alias for convenience if needed
+SYSTEM_SANDBOX_DIR = SANDBOX_DIR
 
 __all__ = [
     # constants

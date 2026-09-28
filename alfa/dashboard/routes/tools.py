@@ -212,7 +212,7 @@ async def execute_tool(payload: dict[str, Any]):
 
 
 @tools_router.post("/api/tools/upload")
-async def upload_files_for_tools(files: list[UploadFile] = File(...)):
+async def upload_files_for_tools(files: list[UploadFile] = File(...)):  # noqa: B008 - canonical FastAPI upload pattern
     """Upload one or more files from user computer for tool processing."""
     upload_dir = tools.get_pdf_output_dir("Uploads")
     saved_files = []

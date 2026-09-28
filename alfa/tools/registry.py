@@ -295,7 +295,7 @@ def get_tool_definitions(
     format: 'dict' (rich metadata dicts) or 'openai' (OpenAI function calling schemas).
     """
     results = []
-    for t_name, info in TOOL_REGISTRY.items():
+    for _t_name, info in TOOL_REGISTRY.items():
         if category and info.get("category") != category:
             continue
         if format == "openai":

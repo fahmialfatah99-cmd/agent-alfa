@@ -5,14 +5,14 @@ import sys
 from pathlib import Path
 
 try:
-    import readline
+    import readline as readline  # noqa: F401 - availability probe, re-exported as flag READLINE_AVAILABLE
 
     READLINE_AVAILABLE = True
 except ImportError:
     READLINE_AVAILABLE = False
 
 try:
-    import requests
+    import requests as requests  # noqa: F401 - required dependency, imported here for availability check
 except ImportError:
     print("❌ Error: Library 'requests' tidak ditemukan.")
     print("   Silakan install dengan: pip install requests")
@@ -20,11 +20,21 @@ except ImportError:
 
 try:
     from rich.console import Console
-    from rich.live import Live
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.spinner import Spinner
-    from rich.text import Text
+    from rich.live import (
+        Live as Live,  # noqa: F401 - availability probe for optional UI features
+    )
+    from rich.markdown import (
+        Markdown as Markdown,  # noqa: F401 - availability probe for optional UI features
+    )
+    from rich.panel import (
+        Panel as Panel,  # noqa: F401 - availability probe for optional UI features
+    )
+    from rich.spinner import (
+        Spinner as Spinner,  # noqa: F401 - availability probe for optional UI features
+    )
+    from rich.text import (
+        Text as Text,  # noqa: F401 - availability probe for optional UI features
+    )
 
     RICH_AVAILABLE = True
 except ImportError:

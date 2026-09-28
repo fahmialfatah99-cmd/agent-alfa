@@ -346,7 +346,7 @@ async def get_wa_drive_uploads():
 
 @router.post("/api/wa/media-upload")
 async def wa_media_upload(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...),  # noqa: B008 - canonical FastAPI upload pattern
     format_name: str = Form("Lainnya"),
     subfolder: str = Form(""),
     sender: str = Form(""),
