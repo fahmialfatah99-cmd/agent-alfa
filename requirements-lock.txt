@@ -282,7 +282,7 @@ uuid7==0.1.0
 uvicorn==0.52.4
 w3lib==2.4.1
 wcwidth==0.8.2
-websockets==15.0.1
+websockets==16.1.1
 xlrd==2.0.2
 xlsxwriter==3.2.9
 xmod==1.10.0
