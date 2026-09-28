@@ -315,7 +315,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
                 "message": f"File gambar tidak ditemukan: {file_path}",
             }
 
-        img = Image.open(expanded)
+        img: Image.Image = Image.open(expanded)
         base_name = os.path.splitext(os.path.basename(expanded))[0]
         act = action.strip().lower()
 
@@ -329,7 +329,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
             }
         elif act == "resize":
             w, h = [int(x) for x in params.lower().split("x")]
-            img = img.resize((w, h), Image.LANCZOS)
+            img = img.resize((w, h), Image.Resampling.LANCZOS)
         elif act == "crop":
             coords = [int(x.strip()) for x in params.split(",")]
             img = img.crop(tuple(coords))
@@ -339,9 +339,9 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
         elif act == "grayscale":
             img = img.convert("L")
         elif act == "flip_horizontal":
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            img = img.transpose(getattr(Image, "FLIP_LEFT_RIGHT"))  # noqa: B009 - Pillow stubs lack FLIP_*; present at runtime
         elif act == "flip_vertical":
-            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+            img = img.transpose(getattr(Image, "FLIP_TOP_BOTTOM"))  # noqa: B009 - Pillow stubs lack FLIP_*; present at runtime
         elif act == "convert":
             pass
         elif act == "watermark":
@@ -360,7 +360,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
             draw.text((x, y), text, fill=(255, 255, 255, 180), font=font)
         elif act == "thumbnail":
             w, h = [int(x) for x in params.lower().split("x")]
-            img.thumbnail((w, h), Image.LANCZOS)
+            img.thumbnail((w, h), Image.Resampling.LANCZOS)
         elif act == "blur":
             img = img.filter(ImageFilter.GaussianBlur(radius=5))
         elif act == "sharpen":

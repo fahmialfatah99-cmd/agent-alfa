@@ -40,7 +40,7 @@ def normalize_provider(name: str | None) -> str:
     return p
 
 
-PROVIDERS_CATALOG = {
+PROVIDERS_CATALOG: dict[str, Any] = {
     "9router": {
         "name": "9Router AI Gateway (Local)",
         "models": [
@@ -264,7 +264,7 @@ def sync_providers_catalog() -> dict[str, Any]:
 
     return PROVIDERS_CATALOG
 
-PRESETS = {
+PRESETS: dict[str, Any] = {
     "fast": {
         "temperature": 0.2,
         "max_tokens": 1024,
@@ -333,11 +333,11 @@ class DirectAIClient:
             and self.config.get("model")
             and self.config.get("model") in catalog["models"]
         ):
-            self.model = self.config.get("model")
+            self.model = str(self.config.get("model"))
         elif os.getenv("AI_MODEL"):
-            self.model = os.getenv("AI_MODEL")
+            self.model = str(os.getenv("AI_MODEL"))
         else:
-            self.model = catalog["default_model"]
+            self.model = str(catalog["default_model"])
 
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         self.temperature = float(self.config.get("temperature", 0.7))
@@ -376,7 +376,8 @@ class DirectAIClient:
         if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, encoding="utf-8") as f:
-                    return json.load(f)
+                    _data = json.load(f)
+                    return _data if isinstance(_data, dict) else {}
             except Exception:
                 pass
         return {}
@@ -395,9 +396,9 @@ class DirectAIClient:
         # 2. Check CLI config file
         api_keys_cfg = self.config.get("api_keys", {})
         if self.provider in api_keys_cfg and api_keys_cfg[self.provider]:
-            return api_keys_cfg[self.provider]
+            return str(api_keys_cfg[self.provider])
         if norm_prov in api_keys_cfg and api_keys_cfg[norm_prov]:
-            return api_keys_cfg[norm_prov]
+            return str(api_keys_cfg[norm_prov])
 
         # 3. Check SQLite Database Vault (Synchronized with Web Dashboard)
         try:
@@ -416,7 +417,7 @@ class DirectAIClient:
             for cand in db_candidates:
                 key_row = database.get_active_api_key_sync(cand)
                 if key_row and key_row.get("api_key"):
-                    return key_row["api_key"].strip()
+                    return str(key_row["api_key"]).strip()
         except Exception:
             pass
 
@@ -438,13 +439,13 @@ class DirectAIClient:
                                     "SELECT key FROM apiKeys WHERE isActive = 1 LIMIT 1"
                                 ).fetchone()
                                 if rk and rk[0]:
-                                    return rk[0].strip()
+                                    return str(rk[0]).strip()
                             except Exception:
                                 pass
                             # Otherwise first key
                             rk = conn.execute("SELECT key FROM apiKeys LIMIT 1").fetchone()
                             if rk and rk[0]:
-                                return rk[0].strip()
+                                return str(rk[0]).strip()
             except Exception:
                 pass
             # Fallback dummy key for local 9router proxy
@@ -476,7 +477,7 @@ class DirectAIClient:
             except Exception:
                 pass
 
-        self.model = model or cat["default_model"]
+        self.model = model or str(cat["default_model"])
         return True
 
     def apply_preset(self, preset_name: str) -> bool:
@@ -484,8 +485,8 @@ class DirectAIClient:
         if name not in PRESETS:
             return False
         p = PRESETS[name]
-        self.temperature = p["temperature"]
-        self.max_tokens = p["max_tokens"]
+        self.temperature = float(p["temperature"])
+        self.max_tokens = int(p["max_tokens"])
         return True
 
     def read_file_content(self, filepath: str) -> str:
@@ -628,7 +629,7 @@ class DirectAIClient:
             # REST Fallback via HTTP
             url = f"{self.base_url}/models/{self.model}:generateContent?key={api_key}"
             headers = {"Content-Type": "application/json"}
-            payload = {
+            payload: dict[str, Any] = {
                 "system_instruction": {
                     "parts": [{"text": self.system_prompt}]
                 },
@@ -711,18 +712,18 @@ class DirectAIClient:
                     max_tokens=self.max_tokens,
                     stream=False,
                 )
-                text = resp.choices[0].message.content or ""
+                text: str = resp.choices[0].message.content or ""
                 self._record_history(prompt, text)
                 return text
         except Exception:
             # REST Fallback
-            url = f"{self.base_url.rstrip('/')}/chat/completions"
+            url = f"{str(self.base_url).rstrip('/')}/chat/completions"
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
                 **extra_headers,
             }
-            body = {
+            body: dict[str, Any] = {
                 "model": self.model,
                 "messages": messages,
                 "temperature": self.temperature,
@@ -813,18 +814,18 @@ class DirectAIClient:
                     model=self.model,
                     temperature=self.temperature,
                 )
-                text = resp.content[0].text
+                text: str = resp.content[0].text
                 self._record_history(prompt, text)
                 return text
         except Exception:
             # REST Fallback
-            url = f"{self.base_url.rstrip('/')}/v1/messages"
+            url = f"{str(self.base_url).rstrip('/')}/v1/messages"
             headers = {
                 "Content-Type": "application/json",
                 "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
             }
-            body = {
+            body: dict[str, Any] = {
                 "model": self.model,
                 "max_tokens": self.max_tokens,
                 "system": self.system_prompt,
@@ -856,7 +857,7 @@ class DirectAIClient:
 
         url = f"{self.base_url.rstrip('/')}/api/chat"
         headers = {"Content-Type": "application/json"}
-        body = {
+        body: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
             "stream": stream and callback is not None,
@@ -888,7 +889,7 @@ class DirectAIClient:
                         f"Ollama Error ({res.status_code}): {res.text}"
                     )
                 data = res.json()
-                text = data.get("message", {}).get("content", "")
+                text: str = data.get("message", {}).get("content", "")
                 self._record_history(prompt, text)
                 return text
         except requests.exceptions.ConnectionError:
