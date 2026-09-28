@@ -115,9 +115,7 @@ class TestGetSystemSettings:
 
         repo = tmp_path / "repo"
         repo.mkdir()
-        (repo / ".env").write_text(
-            "SYSTEM_INSTRUCTION=Dari env\n", encoding="utf-8"
-        )
+        (repo / ".env").write_text("SYSTEM_INSTRUCTION=Dari env\n", encoding="utf-8")
         monkeypatch.setattr(sa, "REPO_ROOT", str(repo))
         monkeypatch.setenv("HOME", str(tmp_path / "empty-home"))
         out = self._call(sa)

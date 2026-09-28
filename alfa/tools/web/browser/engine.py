@@ -15,11 +15,14 @@ from alfa.tools.web.browser.state import _AT_EXIT_DONE, _LOCK, _STATE
 
 logger = logging.getLogger("AgentTools.Web.Browser")
 
+
 # ── engine ──────────────────────────────────────────────────────────────────
 def _headless() -> bool:
-    return (
-        os.getenv("ALFA_BROWSER_HEADLESS", "true").strip().lower()
-        not in ("0", "false", "off", "no")
+    return os.getenv("ALFA_BROWSER_HEADLESS", "true").strip().lower() not in (
+        "0",
+        "false",
+        "off",
+        "no",
     )
 
 
@@ -124,5 +127,3 @@ def _ensure_page():
             _STATE["ctx"] = None
             _STATE["page"] = None
             return None
-
-

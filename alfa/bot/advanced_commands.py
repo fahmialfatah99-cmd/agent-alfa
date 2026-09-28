@@ -398,8 +398,7 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, steps_text)
 
         final_text = (
-            f"🏆 **LAPORAN HASIL LANJUTAN EKSEKUSI:**\n\n"
-            f"{result.get('consensus', '')}"
+            f"🏆 **LAPORAN HASIL LANJUTAN EKSEKUSI:**\n\n{result.get('consensus', '')}"
         )
         await safe_send_message(context, chat_id, final_text)
     except Exception as e:

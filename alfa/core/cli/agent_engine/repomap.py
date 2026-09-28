@@ -69,7 +69,11 @@ class RepomapGenerator:
                         if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))
                         and not m.name.startswith("__")
                     ]
-                    meth_str = f"({', '.join(methods[:4])}{'...' if len(methods) > 4 else ''})" if methods else ""
+                    meth_str = (
+                        f"({', '.join(methods[:4])}{'...' if len(methods) > 4 else ''})"
+                        if methods
+                        else ""
+                    )
                     symbols.append(f"class {node.name}{meth_str}")
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     symbols.append(f"def {node.name}()")
@@ -85,11 +89,14 @@ class RepomapGenerator:
             content = file_path.read_text(encoding="utf-8", errors="ignore")[:40000]
 
             if ext in (".ts", ".tsx", ".js", ".jsx"):
-                interfaces = re.findall(r"(?:export\s+)?interface\s+([A-Za-z0-9_]+)", content)
+                interfaces = re.findall(
+                    r"(?:export\s+)?interface\s+([A-Za-z0-9_]+)", content
+                )
                 types = re.findall(r"(?:export\s+)?type\s+([A-Za-z0-9_]+)\s*=", content)
                 classes = re.findall(r"(?:export\s+)?class\s+([A-Za-z0-9_]+)", content)
                 functions = re.findall(
-                    r"(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\s*\(", content
+                    r"(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\s*\(",
+                    content,
                 )
                 const_fns = re.findall(
                     r"(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>",
@@ -106,9 +113,12 @@ class RepomapGenerator:
 
             elif ext == ".go":
                 structs = re.findall(r"type\s+([A-Za-z0-9_]+)\s+struct\b", content)
-                interfaces = re.findall(r"type\s+([A-Za-z0-9_]+)\s+interface\b", content)
+                interfaces = re.findall(
+                    r"type\s+([A-Za-z0-9_]+)\s+interface\b", content
+                )
                 methods = re.findall(
-                    r"func\s+\(\w+\s+\*?([A-Za-z0-9_]+)\)\s+([A-Za-z0-9_]+)\s*\(", content
+                    r"func\s+\(\w+\s+\*?([A-Za-z0-9_]+)\)\s+([A-Za-z0-9_]+)\s*\(",
+                    content,
                 )
                 funcs = re.findall(r"func\s+([A-Za-z0-9_]+)\s*\(", content)
                 for s in structs[:3]:
@@ -125,7 +135,9 @@ class RepomapGenerator:
                 structs = re.findall(r"(?:pub\s+)?struct\s+([A-Za-z0-9_]+)", content)
                 enums = re.findall(r"(?:pub\s+)?enum\s+([A-Za-z0-9_]+)", content)
                 traits = re.findall(r"(?:pub\s+)?trait\s+([A-Za-z0-9_]+)", content)
-                funcs = re.findall(r"(?:pub\s+)?(?:async\s+)?fn\s+([A-Za-z0-9_]+)\s*\(", content)
+                funcs = re.findall(
+                    r"(?:pub\s+)?(?:async\s+)?fn\s+([A-Za-z0-9_]+)\s*\(", content
+                )
                 for s in structs[:3]:
                     symbols.append(f"struct {s}")
                 for e in enums[:2]:
@@ -136,7 +148,9 @@ class RepomapGenerator:
                     symbols.append(f"{f}()")
 
             elif ext == ".dart":
-                classes = re.findall(r"(?:abstract\s+)?class\s+([A-Za-z0-9_]+)", content)
+                classes = re.findall(
+                    r"(?:abstract\s+)?class\s+([A-Za-z0-9_]+)", content
+                )
                 mixins = re.findall(r"mixin\s+([A-Za-z0-9_]+)", content)
                 enums = re.findall(r"enum\s+([A-Za-z0-9_]+)", content)
                 funcs = re.findall(
@@ -155,7 +169,9 @@ class RepomapGenerator:
 
             else:
                 cls_matches = re.findall(r"class\s+([a-zA-Z0-9_]+)", content)
-                fn_matches = re.findall(r"(?:function|def|func|fn)\s+([a-zA-Z0-9_]+)\s*\(", content)
+                fn_matches = re.findall(
+                    r"(?:function|def|func|fn)\s+([a-zA-Z0-9_]+)\s*\(", content
+                )
                 for c in cls_matches[:4]:
                     symbols.append(f"class {c}")
                 for f in fn_matches[:6]:
@@ -171,7 +187,11 @@ class RepomapGenerator:
         count = 0
 
         for dirpath, dirnames, filenames in os.walk(self.root):
-            dirnames[:] = [d for d in dirnames if d not in self.IGNORE_DIRS and not d.startswith(".")]
+            dirnames[:] = [
+                d
+                for d in dirnames
+                if d not in self.IGNORE_DIRS and not d.startswith(".")
+            ]
             rel_dir = Path(dirpath).relative_to(self.root)
             dir_str = "" if str(rel_dir) == "." else f"{rel_dir}/"
 
@@ -200,5 +220,3 @@ class RepomapGenerator:
                     return "\n".join(lines)
 
         return "\n".join(lines) if lines else "(Proyek kosong)"
-
-

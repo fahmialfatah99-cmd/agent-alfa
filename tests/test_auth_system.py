@@ -42,9 +42,9 @@ def test_auth_system():
     # Test 2: Verify password
     print("\n[TEST 2] Verify Password")
     assert _verify_password("testpassword123", pwd_hash, salt), "Password harus match"
-    assert not _verify_password(
-        "wrongpassword", pwd_hash, salt
-    ), "Password salah harus reject"
+    assert not _verify_password("wrongpassword", pwd_hash, salt), (
+        "Password salah harus reject"
+    )
     print("  ✓ PASS")
 
     # Test 3: Create user

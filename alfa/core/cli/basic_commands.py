@@ -15,7 +15,6 @@ from alfa.core.cli.constants import (
 
 
 class CliBasicCommandsMixin:
-
     # Attributes provided by AlfaCLI composition (declared for type checkers).
     config: dict[str, Any]
     console: Any
@@ -38,6 +37,7 @@ class CliBasicCommandsMixin:
     def _clear_session(self) -> None: ...
     def _save_history(self) -> None: ...
     def _run_swarm_execution(self, *args: Any, **kwargs: Any) -> Any: ...
+
     """Implements basic command handlers (register, login, stats, etc.)."""
 
     def do_register(self, arg):
@@ -161,7 +161,7 @@ class CliBasicCommandsMixin:
                 if desc:
                     print(f"   {Colors.WARNING}{desc}{Colors.ENDC}")
             if len(tools) > 20:
-                print(f"... dan {len(tools)-20} tools lainnya.")
+                print(f"... dan {len(tools) - 20} tools lainnya.")
             print()
         else:
             print_status(
@@ -190,7 +190,7 @@ class CliBasicCommandsMixin:
         """Tampilkan bantuan lengkap. Usage: /help"""
         help_text = f"""
 {Colors.BOLD}📚 ALFA CLI - Unified Sovereign & Developer Commands{Colors.ENDC}
-{'='*55}
+{"=" * 55}
 
 {Colors.CYAN}🎯 Interactive Menu & Palette:{Colors.ENDC}
   /menu      - Buka menu interaktif TUI (pilih model, file, preset via panah ↑/↓)
@@ -259,7 +259,7 @@ class CliBasicCommandsMixin:
         recent = self.chat_history[-limit * 2 :]  # User + assistant pairs
 
         print(
-            f"\n{Colors.BOLD}📜 Riwayat Chat ({len(recent)//2} percakapan):{Colors.ENDC}\n"
+            f"\n{Colors.BOLD}📜 Riwayat Chat ({len(recent) // 2} percakapan):{Colors.ENDC}\n"
         )
         for i in range(0, len(recent), 2):
             user_msg = recent[i].get("content", "")[:100]

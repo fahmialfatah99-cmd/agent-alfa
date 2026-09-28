@@ -74,7 +74,9 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                                     )
                                     conn.commit()
                                 existing_keys.add(ident)
-                                synced.append({"provider": "9router", "name": rname, "key": rk})
+                                synced.append(
+                                    {"provider": "9router", "name": rname, "key": rk}
+                                )
                 except Exception as e:
                     logger.debug(f"9router sqlite sync check error: {e}")
 
@@ -123,15 +125,27 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                                 )
                                 conn.commit()
                             existing_keys.add(ident)
-                            synced.append({"provider": p_norm, "name": "CLI Config", "key": k_val})
+                            synced.append(
+                                {"provider": p_norm, "name": "CLI Config", "key": k_val}
+                            )
                 except Exception as e:
                     logger.debug(f"CLI config sync error: {e}")
 
         # 3. Environment Variables (NINEROUTER_API_KEY, ROUTER_API_KEY, etc.)
         env_mappings = [
-            ("9router", "NINEROUTER_API_KEY", "http://127.0.0.1:20128/v1", "antigravity"),
+            (
+                "9router",
+                "NINEROUTER_API_KEY",
+                "http://127.0.0.1:20128/v1",
+                "antigravity",
+            ),
             ("9router", "ROUTER_API_KEY", "http://127.0.0.1:20128/v1", "antigravity"),
-            ("nvidia", "NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "nvidia/llama-3.1-nemotron-70b-instruct"),
+            (
+                "nvidia",
+                "NVIDIA_API_KEY",
+                "https://integrate.api.nvidia.com/v1",
+                "nvidia/llama-3.1-nemotron-70b-instruct",
+            ),
         ]
         for p_norm, env_var, b_url, d_mod in env_mappings:
             e_val = os.getenv(env_var)
@@ -194,7 +208,6 @@ def list_api_keys_sync(auto_sync: bool = True) -> list[dict[str, Any]]:
                 }
             )
         return results
-
 
 
 def add_api_key_sync(

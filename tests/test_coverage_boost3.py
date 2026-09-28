@@ -14,12 +14,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 @pytest.fixture(scope="module")
-def dashboard_client():
+def dashboard_client(tmp_path_factory):
+    import os
     from fastapi.testclient import TestClient
+
+    test_db = str(tmp_path_factory.mktemp("db") / "test_boost3.db")
+    orig = os.environ.get("ALFA_DB_PATH")
+    os.environ["ALFA_DB_PATH"] = test_db
+    from alfa.core.db import connection as _conn
+
+    _conn.init_db_sync()
 
     import web_dashboard
 
-    return TestClient(web_dashboard.app)
+    client = TestClient(web_dashboard.app)
+    yield client
+
+    if orig is not None:
+        os.environ["ALFA_DB_PATH"] = orig
+    else:
+        os.environ.pop("ALFA_DB_PATH", None)
 
 
 def _fake_bot():
@@ -35,15 +49,18 @@ class TestChatRoutes:
     def test_chat_models(self, dashboard_client, monkeypatch):
         import alfa.dashboard.routes.chat as chat_mod
 
-        monkeypatch.setattr(
-            chat_mod.database, "list_api_keys_sync", lambda *a, **k: []
-        )
+        monkeypatch.setattr(chat_mod.database, "list_api_keys_sync", lambda *a, **k: [])
         res = dashboard_client.get("/api/chat/models")
         assert res.status_code in (200, 400, 401, 404, 422, 500)
 
     def test_chat_modes(self, dashboard_client):
         assert dashboard_client.get("/api/chat/modes").status_code in (
-            200, 400, 401, 404, 422, 500,
+            200,
+            400,
+            401,
+            404,
+            422,
+            500,
         )
 
     def test_chat_post(self, dashboard_client, monkeypatch):
@@ -177,8 +194,12 @@ class TestSwarmDispatch:
             llc.database, "get_active_api_key_sync", lambda *a, **k: None
         )
         for var in (
-            "GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY",
-            "NVIDIA_API_KEY", "NINEROUTER_API_KEY", "ROUTER_API_KEY",
+            "GEMINI_API_KEY",
+            "OPENAI_API_KEY",
+            "GROQ_API_KEY",
+            "NVIDIA_API_KEY",
+            "NINEROUTER_API_KEY",
+            "ROUTER_API_KEY",
         ):
             monkeypatch.delenv(var, raising=False)
         out = await llc.generate_agent_response(

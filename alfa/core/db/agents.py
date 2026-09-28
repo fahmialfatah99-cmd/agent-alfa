@@ -100,7 +100,8 @@ def update_custom_agent_sync(agent_id: int, updates: dict[str, Any]) -> dict[str
     values.append(agent_id)
     with get_sync_db() as conn:
         cursor = conn.execute(
-            f"UPDATE custom_agents SET {', '.join(fields)} WHERE id = ?", tuple(values)  # nosec B608 - fields are whitelist+charset validated above
+            f"UPDATE custom_agents SET {', '.join(fields)} WHERE id = ?",
+            tuple(values),  # nosec B608 - fields are whitelist+charset validated above
         )
         conn.commit()
         if cursor.rowcount == 0:

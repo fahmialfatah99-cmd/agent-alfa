@@ -38,9 +38,7 @@ class TestBasicAuth:
     def test_register_mismatch(self, monkeypatch, capsys):
         cli = _make_cli()
         monkeypatch.setattr("getpass.getpass", lambda *a, **k: "pw-berbeda")
-        monkeypatch.setattr(
-            "builtins.input", lambda *a, **k: "userbaru"
-        )
+        monkeypatch.setattr("builtins.input", lambda *a, **k: "userbaru")
         # getpass mock returns same value twice -> need differing values
         calls = iter(["pw1", "pw2"])
         monkeypatch.setattr("getpass.getpass", lambda *a, **k: next(calls))
@@ -114,9 +112,11 @@ class TestSession:
     def test_request_helpers(self, monkeypatch):
         cli = _make_cli()
         cli._request = MagicMock(return_value=_resp(200, {"ok": True}))
-        assert cli._request("GET", "/x")["ok"] is True if isinstance(
-            cli._request("GET", "/x"), dict
-        ) else True
+        assert (
+            cli._request("GET", "/x")["ok"] is True
+            if isinstance(cli._request("GET", "/x"), dict)
+            else True
+        )
 
     def test_completer(self):
         cli = _make_cli()

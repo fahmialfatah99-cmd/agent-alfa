@@ -217,7 +217,14 @@ async def request_approval(
     # 1) Skor kepercayaan: tool LOW selalu lolos, MEDIUM lolos bila trust cukup
     auto_ok, auto_reason = should_auto_approve(chat_id, tool_name)
     if auto_ok:
-        _record(chat_id, tool_name, tier, auto_reason or "auto_approved", arguments_json, started)
+        _record(
+            chat_id,
+            tool_name,
+            tier,
+            auto_reason or "auto_approved",
+            arguments_json,
+            started,
+        )
         return None
 
     # Ringkas argumen agar enak dibaca di tombol/pesan
@@ -276,7 +283,14 @@ async def request_approval(
         # 2) Tidak ada kanal approval (mis. Web Dashboard tanpa bot Telegram).
         #    Dulu selalu fail-closed -> agent benar-benar tidak bisa bergerak.
         if _no_channel_allows(tier):
-            _record(chat_id, tool_name, tier, "auto_approved:no_channel", arguments_json, started)
+            _record(
+                chat_id,
+                tool_name,
+                tier,
+                "auto_approved:no_channel",
+                arguments_json,
+                started,
+            )
             logger.warning(
                 f"[Gate] Tidak ada kanal izin untuk {tool_name}; "
                 f"tier {tier.value} diizinkan otomatis (NO_CHANNEL_POLICY="
@@ -288,7 +302,14 @@ async def request_approval(
         )
         fail_mode = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
         if fail_mode == "allow":
-            _record(chat_id, tool_name, tier, "auto_approved:fail_open", arguments_json, started)
+            _record(
+                chat_id,
+                tool_name,
+                tier,
+                "auto_approved:fail_open",
+                arguments_json,
+                started,
+            )
             return None
         _record(chat_id, tool_name, tier, "deny:no_channel", arguments_json, started)
         return (

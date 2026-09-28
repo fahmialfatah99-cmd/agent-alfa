@@ -104,7 +104,9 @@ class AlfaCursorCompleter(Completer):
             for f in files:
                 if prefix.lower() in f.lower():
                     # Replace after the @ symbol
-                    display_meta = f"{os.path.getsize(f)} B" if os.path.exists(f) else "file"
+                    display_meta = (
+                        f"{os.path.getsize(f)} B" if os.path.exists(f) else "file"
+                    )
                     yield Completion(
                         f,
                         start_position=-len(prefix),
@@ -190,7 +192,9 @@ class FilePatcher:
 
             if file_exists:
                 try:
-                    old_content = target_path.read_text(encoding="utf-8", errors="replace")
+                    old_content = target_path.read_text(
+                        encoding="utf-8", errors="replace"
+                    )
                 except Exception:
                     old_content = ""
 
@@ -213,7 +217,9 @@ class FilePatcher:
 
                 # Render preview panel
                 if RICH_AVAILABLE and self.console:
-                    syntax = Syntax(diff_text, "diff", theme="monokai", line_numbers=False)
+                    syntax = Syntax(
+                        diff_text, "diff", theme="monokai", line_numbers=False
+                    )
                     self.console.print(
                         Panel(
                             syntax,
@@ -226,19 +232,27 @@ class FilePatcher:
                     print(f"\n--- Usulan Perubahan File: {filepath_str} ---")
                     print(diff_text)
 
-                ans = input(
-                    f"\n{Colors.BOLD}{Colors.CYAN}⚡ Terapkan perubahan ke '{filepath_str}'? [y/N]: {Colors.ENDC}"
-                ).strip().lower()
+                ans = (
+                    input(
+                        f"\n{Colors.BOLD}{Colors.CYAN}⚡ Terapkan perubahan ke '{filepath_str}'? [y/N]: {Colors.ENDC}"
+                    )
+                    .strip()
+                    .lower()
+                )
 
                 if ans in ["y", "yes"]:
-                    self._apply_write(target_path, old_content, new_content, filepath_str)
+                    self._apply_write(
+                        target_path, old_content, new_content, filepath_str
+                    )
                 else:
                     print_status(f"Perubahan pada '{filepath_str}' dilewati.", "info")
 
             else:
                 # New file creation
                 if RICH_AVAILABLE and self.console:
-                    syntax = Syntax(new_content[:500], "python", theme="monokai", line_numbers=True)
+                    syntax = Syntax(
+                        new_content[:500], "python", theme="monokai", line_numbers=True
+                    )
                     self.console.print(
                         Panel(
                             syntax,
@@ -247,9 +261,13 @@ class FilePatcher:
                         )
                     )
 
-                ans = input(
-                    f"\n{Colors.BOLD}{Colors.GREEN}✨ Buat file baru '{filepath_str}'? [y/N]: {Colors.ENDC}"
-                ).strip().lower()
+                ans = (
+                    input(
+                        f"\n{Colors.BOLD}{Colors.GREEN}✨ Buat file baru '{filepath_str}'? [y/N]: {Colors.ENDC}"
+                    )
+                    .strip()
+                    .lower()
+                )
 
                 if ans in ["y", "yes"]:
                     self._apply_write(target_path, None, new_content, filepath_str)
@@ -272,7 +290,10 @@ class FilePatcher:
                 backup_file.write_text(old_content, encoding="utf-8")
 
             target_path.write_text(new_content, encoding="utf-8")
-            print_status(f"Berhasil menerapkan perubahan ke '{display_name}'! (Backup tersimpan di .alfa_backups/)", "success")
+            print_status(
+                f"Berhasil menerapkan perubahan ke '{display_name}'! (Backup tersimpan di .alfa_backups/)",
+                "success",
+            )
         except Exception as e:
             print_status(f"Gagal menulis ke '{display_name}': {e}", "error")
 
@@ -292,7 +313,9 @@ def render_cursor_banner(cli: Any) -> None:
         )
         cli.console.print(Panel(panel_content, border_style="cyan", padding=(0, 2)))
     else:
-        print(f"\n--- ALFA AI Code Assistant v{VERSION} [{direct.provider}/{direct.model}] ---")
+        print(
+            f"\n--- ALFA AI Code Assistant v{VERSION} [{direct.provider}/{direct.model}] ---"
+        )
         print("Ketik /menu untuk menu interaktif, @file untuk konteks.\n")
 
 
@@ -370,6 +393,7 @@ def run_cursor_loop(cli: Any) -> None:
             # Handle interactive menu palette
             if line.lower() in ["/menu", "menu", "/m", "m", "/palette"]:
                 from alfa.core.cli.interactive_menu import open_interactive_menu
+
                 open_interactive_menu(cli)
                 continue
 
@@ -379,17 +403,23 @@ def run_cursor_loop(cli: Any) -> None:
                 if res.stdout:
                     if RICH_AVAILABLE and cli.console:
                         syntax = Syntax(res.stdout, "diff", theme="monokai")
-                        cli.console.print(Panel(syntax, title="Git Diff", border_style="yellow"))
+                        cli.console.print(
+                            Panel(syntax, title="Git Diff", border_style="yellow")
+                        )
                     else:
                         print(res.stdout)
                 else:
-                    print_status("Tidak ada perubahan git yang belum di-commit.", "info")
+                    print_status(
+                        "Tidak ada perubahan git yang belum di-commit.", "info"
+                    )
                 continue
 
             if line.startswith("/commit"):
                 parts = line.split(maxsplit=1)
                 msg = parts[1] if len(parts) > 1 else "Updates via ALFA CLI"
-                res = subprocess.run(["git", "commit", "-am", msg], capture_output=True, text=True)
+                res = subprocess.run(
+                    ["git", "commit", "-am", msg], capture_output=True, text=True
+                )
                 print(res.stdout if res.stdout else res.stderr)
                 continue
 

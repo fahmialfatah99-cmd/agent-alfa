@@ -221,7 +221,9 @@ class TestStepExecutorHelpers:
     def test_extract_html_from_fence(self):
         from alfa.swarm.step_executor import _extract_html_doc
 
-        got = _extract_html_doc("tadi ini:\n```html\n<html><body>Hi</body></html>\n```\nselesai")
+        got = _extract_html_doc(
+            "tadi ini:\n```html\n<html><body>Hi</body></html>\n```\nselesai"
+        )
         assert got == "<html><body>Hi</body></html>"
 
     def test_extract_html_from_doctype(self):

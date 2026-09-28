@@ -85,10 +85,8 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 ```python
 from typing import Optional, List, Dict, Any
 
-def process_data(
-    items: List[str],
-    config: Optional[Dict[str, Any]] = None
-) -> bool:
+
+def process_data(items: List[str], config: Optional[Dict[str, Any]] = None) -> bool:
     """Process a list of items with optional configuration."""
     pass
 ```

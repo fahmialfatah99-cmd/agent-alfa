@@ -72,7 +72,9 @@ def speedtest_network_benchmark(test_size_mb: int = 5) -> dict:
             else (
                 "Cepat ⚡"
                 if (mbps and mbps > 20)
-                else "Standar 📶" if (mbps and mbps > 5) else "Lambat 🐢"
+                else "Standar 📶"
+                if (mbps and mbps > 5)
+                else "Lambat 🐢"
             )
         ),
     }

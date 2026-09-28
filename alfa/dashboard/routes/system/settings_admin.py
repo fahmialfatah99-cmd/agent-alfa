@@ -365,7 +365,9 @@ async def set_main_brain_endpoint(payload: dict[str, Any]):
     try:
         key_id = int(key_id)
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="key_id wajib berupa angka.") from None
+        raise HTTPException(
+            status_code=400, detail="key_id wajib berupa angka."
+        ) from None
     res = database.activate_api_key_sync(key_id)
     database.set_main_brain_model(model_override)
     if res.get("status") == "success":

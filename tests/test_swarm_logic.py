@@ -402,21 +402,21 @@ class TestDockerMountHygiene:
         for i, arg in enumerate(captured_cmd):
             if arg == "-v" and i + 1 < len(captured_cmd):
                 mount_spec = captured_cmd[i + 1]
-                assert not mount_spec.endswith(
-                    ":/workspace/alfa_projects"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/workspace/ALFA_WORKSPACE"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/workspace/ALFA_SWARM_OUTPUTS"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/workspace/output"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/sandbox/alfa_projects"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/workspace/alfa_projects"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/workspace/ALFA_WORKSPACE"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/workspace/ALFA_SWARM_OUTPUTS"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/workspace/output"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/sandbox/alfa_projects"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
 
     def test_python_docker_cmd_no_inner_sandbox_mounts(self, monkeypatch, tmp_path):
         """Memastikan execute_python_sandbox tidak me-mount subfolder ke dalam /sandbox/<basename>."""
@@ -442,15 +442,15 @@ class TestDockerMountHygiene:
         for i, arg in enumerate(captured_cmd):
             if arg == "-v" and i + 1 < len(captured_cmd):
                 mount_spec = captured_cmd[i + 1]
-                assert not mount_spec.endswith(
-                    ":/sandbox/alfa_projects"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/sandbox/ALFA_WORKSPACE"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/sandbox/ALFA_SWARM_OUTPUTS"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
-                assert not mount_spec.endswith(
-                    ":/sandbox/output"
-                ), f"Bocoran mount terdeteksi: {mount_spec}"
+                assert not mount_spec.endswith(":/sandbox/alfa_projects"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/sandbox/ALFA_WORKSPACE"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/sandbox/ALFA_SWARM_OUTPUTS"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )
+                assert not mount_spec.endswith(":/sandbox/output"), (
+                    f"Bocoran mount terdeteksi: {mount_spec}"
+                )

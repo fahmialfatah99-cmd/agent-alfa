@@ -264,6 +264,7 @@ def sync_providers_catalog() -> dict[str, Any]:
 
     return PROVIDERS_CATALOG
 
+
 PRESETS: dict[str, Any] = {
     "fast": {
         "temperature": 0.2,
@@ -427,9 +428,9 @@ class DirectAIClient:
                 import glob
                 import sqlite3
 
-                paths = glob.glob(os.path.expanduser("~/.9router/db/data.sqlite")) + glob.glob(
-                    os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite")
-                )
+                paths = glob.glob(
+                    os.path.expanduser("~/.9router/db/data.sqlite")
+                ) + glob.glob(os.path.expandvars(r"%APPDATA%\9router\db\data.sqlite"))
                 for dbp in paths:
                     if os.path.exists(dbp):
                         with sqlite3.connect(dbp) as conn:
@@ -443,7 +444,9 @@ class DirectAIClient:
                             except Exception:
                                 pass
                             # Otherwise first key
-                            rk = conn.execute("SELECT key FROM apiKeys LIMIT 1").fetchone()
+                            rk = conn.execute(
+                                "SELECT key FROM apiKeys LIMIT 1"
+                            ).fetchone()
                             if rk and rk[0]:
                                 return str(rk[0]).strip()
             except Exception:
@@ -630,12 +633,8 @@ class DirectAIClient:
             url = f"{self.base_url}/models/{self.model}:generateContent?key={api_key}"
             headers = {"Content-Type": "application/json"}
             payload: dict[str, Any] = {
-                "system_instruction": {
-                    "parts": [{"text": self.system_prompt}]
-                },
-                "contents": [
-                    {"role": "user", "parts": [{"text": prompt}]}
-                ],
+                "system_instruction": {"parts": [{"text": self.system_prompt}]},
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                 "generationConfig": {
                     "temperature": self.temperature,
                     "maxOutputTokens": self.max_tokens,
@@ -643,7 +642,9 @@ class DirectAIClient:
             }
             res = requests.post(url, headers=headers, json=payload, timeout=120)
             if res.status_code != 200:
-                raise RuntimeError(f"Google API Error ({res.status_code}): {res.text}") from None
+                raise RuntimeError(
+                    f"Google API Error ({res.status_code}): {res.text}"
+                ) from None
             data = res.json()
             candidates = data.get("candidates", [])
             if candidates and "content" in candidates[0]:
@@ -732,7 +733,9 @@ class DirectAIClient:
             }
 
             if stream and callback:
-                res = requests.post(url, headers=headers, json=body, stream=True, timeout=120)
+                res = requests.post(
+                    url, headers=headers, json=body, stream=True, timeout=120
+                )
                 if res.status_code != 200:
                     raise RuntimeError(
                         f"{self.provider.upper()} API Error ({res.status_code}): {res.text}"
@@ -870,9 +873,7 @@ class DirectAIClient:
                     url, headers=headers, json=body, stream=True, timeout=120
                 )
                 if res.status_code != 200:
-                    raise RuntimeError(
-                        f"Ollama Error ({res.status_code}): {res.text}"
-                    )
+                    raise RuntimeError(f"Ollama Error ({res.status_code}): {res.text}")
                 full_text = ""
                 for line in res.iter_lines():
                     if line:
@@ -885,9 +886,7 @@ class DirectAIClient:
             else:
                 res = requests.post(url, headers=headers, json=body, timeout=120)
                 if res.status_code != 200:
-                    raise RuntimeError(
-                        f"Ollama Error ({res.status_code}): {res.text}"
-                    )
+                    raise RuntimeError(f"Ollama Error ({res.status_code}): {res.text}")
                 data = res.json()
                 text: str = data.get("message", {}).get("content", "")
                 self._record_history(prompt, text)

@@ -258,7 +258,7 @@ async def gdrive_oauth_callback(
         <head><title>Otentikasi Gagal</title></head>
         <body style="font-family: sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 50px;">
             <h2 style="color: #f43f5e;">❌ Gagal Menyimpan Token</h2>
-            <p style="color: #94a3b8;">{res.get('message')}</p>
+            <p style="color: #94a3b8;">{res.get("message")}</p>
             <p><a href="/#view-gdrive" style="color: #38bdf8; text-decoration: none; font-weight: bold;">← Kembali ke Dashboard</a></p>
         </body>
         </html>

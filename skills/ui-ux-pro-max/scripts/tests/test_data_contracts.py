@@ -418,9 +418,9 @@ class TestGeneratedCatalogContract(unittest.TestCase):
         self.assertTrue(any("invalid active family" in problem for problem in problems))
 
         missing_font = copy.deepcopy(read_rows("typography.csv"))
-        missing_font[0][
-            "Google Fonts URL"
-        ] = "https://fonts.googleapis.com/css2?family=Invented+Sans:wght@400"
+        missing_font[0]["Google Fonts URL"] = (
+            "https://fonts.googleapis.com/css2?family=Invented+Sans:wght@400"
+        )
         problems = []
         validate_data._check_font_catalog(
             fonts, self.load_json("google-font-licenses.json"), missing_font, problems
@@ -449,9 +449,9 @@ class TestGeneratedCatalogContract(unittest.TestCase):
 
     def test_curated_icon_and_summary_drift_fail_closed(self):
         manifest = self.load_json("phosphor-icons-upstream.json")
-        manifest["icons"][0][
-            "clientImport"
-        ] = 'import { Wrong } from "@phosphor-icons/react"'
+        manifest["icons"][0]["clientImport"] = (
+            'import { Wrong } from "@phosphor-icons/react"'
+        )
         problems = []
         validate_data._check_phosphor_catalog(
             read_rows("icons.csv"), manifest, problems

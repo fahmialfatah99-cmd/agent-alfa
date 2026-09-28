@@ -141,7 +141,8 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
     industry_info = brief.get("industry", {})
 
     # Build HTML
-    html_parts = [f"""<!DOCTYPE html>
+    html_parts = [
+        f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -337,7 +338,8 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
             Comprehensive identity system designed to maintain consistency
             across all brand touchpoints and communications.
         </p>
-"""]
+"""
+    ]
 
     # Add each deliverable
     for _i, image_path in enumerate(images):
@@ -352,13 +354,13 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
         html_parts.append(f"""
         <div class="deliverable">
             <div class="deliverable-image">
-                <img src="{img_src}" alt="{info['title']}" loading="lazy">
+                <img src="{img_src}" alt="{info["title"]}" loading="lazy">
             </div>
             <div class="deliverable-content">
-                <h3 class="deliverable-title">{info['title']}</h3>
-                <p class="deliverable-concept">{info['concept']}</p>
-                <p class="deliverable-purpose">{info['purpose']}</p>
-                <span class="deliverable-specs">{info['specs']}</span>
+                <h3 class="deliverable-title">{info["title"]}</h3>
+                <p class="deliverable-concept">{info["concept"]}</p>
+                <p class="deliverable-purpose">{info["purpose"]}</p>
+                <span class="deliverable-specs">{info["specs"]}</span>
             </div>
         </div>
 """)

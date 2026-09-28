@@ -126,7 +126,9 @@ class TestTokenHelpers:
 
     def test_exchange_code_defaults(self, ag, monkeypatch):
         monkeypatch.setattr(
-            urllib.request, "urlopen", lambda r, timeout=30: _Resp({"access_token": "A"})
+            urllib.request,
+            "urlopen",
+            lambda r, timeout=30: _Resp({"access_token": "A"}),
         )
         out = ag._exchange_code("C", "http://x")
         assert out["refresh_token"] == ""
@@ -185,9 +187,7 @@ class TestSystemdUnits:
 
     def test_unregister_removes_unit(self, ag, monkeypatch, tmp_path):
         monkeypatch.setattr(ag.shutil, "which", lambda n: "/usr/bin/systemctl")
-        monkeypatch.setattr(
-            ag.subprocess, "run", lambda *a, **k: MagicMock()
-        )
+        monkeypatch.setattr(ag.subprocess, "run", lambda *a, **k: MagicMock())
         monkeypatch.setenv("HOME", str(tmp_path / "home"))
         unit_dir = tmp_path / "home" / ".config" / "systemd" / "user"
         unit_dir.mkdir(parents=True)

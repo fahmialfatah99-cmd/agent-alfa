@@ -7,6 +7,7 @@ from typing import Any
 
 logger = logging.getLogger("AgentTools.Web.Browser")
 
+
 # ── scrapling fallback (browser tak bisa diluncurkan) ───────────────────────
 def _scrapling_snapshot(url: str) -> dict[str, Any]:
     from scrapling import Fetcher, StealthyFetcher
@@ -41,5 +42,3 @@ def _scrapling_snapshot(url: str) -> dict[str, Any]:
         or "(tidak ada elemen interaktif)",
         "page_content_preview": body_text[:2500],
     }
-
-

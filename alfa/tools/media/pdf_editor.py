@@ -126,7 +126,7 @@ def pdf_split_document(
         for idx in indices:
             writer = PdfWriter()
             writer.add_page(reader.pages[idx])
-            out_file = os.path.join(target_dir, f"{base_stem}_page_{idx+1:03d}.pdf")
+            out_file = os.path.join(target_dir, f"{base_stem}_page_{idx + 1:03d}.pdf")
             with open(out_file, "wb") as f_out:
                 writer.write(f_out)
             output_files.append(out_file)
@@ -183,7 +183,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, An
             for idx in indices:
                 t = pdf.pages[idx].extract_text() or ""
                 extracted_pages.append(
-                    f"--- [Halaman {idx+1}/{total_pages}] ---\n{t.strip()}"
+                    f"--- [Halaman {idx + 1}/{total_pages}] ---\n{t.strip()}"
                 )
 
         full_text = "\n\n".join(extracted_pages)
@@ -211,7 +211,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, An
 
             reader = PdfReader(exp_p)
             texts = [
-                f"--- [Halaman {i+1}] ---\n{p.extract_text() or ''}"
+                f"--- [Halaman {i + 1}] ---\n{p.extract_text() or ''}"
                 for i, p in enumerate(reader.pages)
             ]
             full = "\n\n".join(texts)

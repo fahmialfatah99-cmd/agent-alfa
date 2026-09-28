@@ -43,9 +43,9 @@ def test_static_files_exist():
 
     for f in expected_files:
         assert f.exists(), f"Missing static asset file: {f}"
-        assert (
-            f.stat().st_size > 1000
-        ), f"Static asset {f} is suspiciously small ({f.stat().st_size} bytes)"
+        assert f.stat().st_size > 1000, (
+            f"Static asset {f} is suspiciously small ({f.stat().st_size} bytes)"
+        )
 
 
 def test_static_files_served_via_fastapi():
@@ -68,9 +68,9 @@ def test_static_files_served_via_fastapi():
         "/static/js/chat.js",
     ]:
         res = client.get(asset)
-        assert (
-            res.status_code == 200
-        ), f"Failed serving {asset}: status {res.status_code}"
+        assert res.status_code == 200, (
+            f"Failed serving {asset}: status {res.status_code}"
+        )
         assert len(res.content) > 0
 
 
@@ -92,9 +92,9 @@ def test_static_files_accessible_with_auth_token():
             "/static/js/chat.js",
         ]:
             res = client.get(asset)
-            assert (
-                res.status_code == 200
-            ), f"Asset {asset} blocked by auth: status {res.status_code}"
+            assert res.status_code == 200, (
+                f"Asset {asset} blocked by auth: status {res.status_code}"
+            )
     finally:
         if orig_token is not None:
             os.environ["DASHBOARD_AUTH_TOKEN"] = orig_token
@@ -125,6 +125,6 @@ def test_static_boundary_check():
     bad_paths = ["/statistics", "/static_data", "/staticanalysis"]
     for bp in bad_paths:
         req = make_req(bp)
-        assert req.url.path != "/static" and not req.url.path.startswith(
-            "/static/"
-        ), f"{bp} should not match /static boundary"
+        assert req.url.path != "/static" and not req.url.path.startswith("/static/"), (
+            f"{bp} should not match /static boundary"
+        )

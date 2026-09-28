@@ -31,9 +31,9 @@ def test_dashboard_auth_requirement():
             importlib.reload(web_dashboard)
             raise AssertionError("Seharusnya raise RuntimeError")
         except RuntimeError as e:
-            assert (
-                "tanpa autentikasi" in str(e).lower()
-            ), f"Pesan error tidak sesuai: {e}"
+            assert "tanpa autentikasi" in str(e).lower(), (
+                f"Pesan error tidak sesuai: {e}"
+            )
             print("  PASS: RuntimeError raised dengan pesan yang tepat")
 
         os.environ["DASHBOARD_AUTH_TOKEN"] = "testtoken123"
@@ -93,9 +93,9 @@ def test_sql_column_whitelist():
 
         try:
             result = update_custom_agent_sync(1, {"name": "New Name", "role": "coder"})
-            assert (
-                result.get("status") == "success"
-            ), f"Update kolom valid gagal: {result}"
+            assert result.get("status") == "success", (
+                f"Update kolom valid gagal: {result}"
+            )
             print("  PASS: Update kolom valid berhasil")
 
             malicious_key = "name; DROP TABLE custom_agents; --"
@@ -108,9 +108,9 @@ def test_sql_column_whitelist():
                 print(f"  WARNING: Kolom berbahaya mungkin diproses: {result}")
 
             result = update_custom_agent_sync(1, {"name; DELETE FROM": "bad"})
-            assert (
-                result.get("status") == "error"
-            ), f"Kolom dengan karakter spesial diterima: {result}"
+            assert result.get("status") == "error", (
+                f"Kolom dengan karakter spesial diterima: {result}"
+            )
             print("  PASS: Kolom dengan karakter spesial ditolak")
 
             conn = sqlite3.connect(tmp_db)

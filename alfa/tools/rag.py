@@ -268,16 +268,62 @@ _CATEGORY_TRIGGERS = {
     "pdf": {"pdf", "dokumen_pdf"},
     "system": {"system", "hardware", "service", "proses", "layanan", "server", "linux"},
     "code": {"code", "kode", "koding", "script", "program", "git", "repo", "python"},
-    "web": {"web", "search", "cari", "browse", "scrape", "crawler", "internet", "link", "url"},
+    "web": {
+        "web",
+        "search",
+        "cari",
+        "browse",
+        "scrape",
+        "crawler",
+        "internet",
+        "link",
+        "url",
+    },
     "media": {
-        "media", "lagu", "musik", "music", "song", "audio", "video", "youtube", "yt",
-        "spotify", "sound", "suara", "mp3", "mp4", "player", "stream", "tonton", "putar",
-        "play", "setel", "nyalakan"
+        "media",
+        "lagu",
+        "musik",
+        "music",
+        "song",
+        "audio",
+        "video",
+        "youtube",
+        "yt",
+        "spotify",
+        "sound",
+        "suara",
+        "mp3",
+        "mp4",
+        "player",
+        "stream",
+        "tonton",
+        "putar",
+        "play",
+        "setel",
+        "nyalakan",
     },
     "desktop": {
-        "desktop", "aplikasi", "app", "browser", "brave", "chrome", "firefox", "buka",
-        "open", "launch", "layar", "screen", "screenshot", "window", "youtube", "spotify",
-        "putar", "play", "notifikasi", "klik", "click"
+        "desktop",
+        "aplikasi",
+        "app",
+        "browser",
+        "brave",
+        "chrome",
+        "firefox",
+        "buka",
+        "open",
+        "launch",
+        "layar",
+        "screen",
+        "screenshot",
+        "window",
+        "youtube",
+        "spotify",
+        "putar",
+        "play",
+        "notifikasi",
+        "klik",
+        "click",
     },
     "memory": {"memory", "ingat", "catat", "simpan", "vektor", "knowledge"},
     "agent": {"agent", "agen", "swarm", "rapat", "subagent", "workforce"},
@@ -492,7 +538,9 @@ def get_required_action_tools(user_text: str) -> set[str]:
                 "pdf_extract_full_text",
             ]
         )
-    if any(k in txt_low for k in ["code", "kode", "koding", "script", "python", "file"]):
+    if any(
+        k in txt_low for k in ["code", "kode", "koding", "script", "python", "file"]
+    ):
         required.update(
             [
                 "read_local_file",
@@ -596,9 +644,7 @@ def _rank_names(
                 if nm in cat_tools:
                     scores[i] += 3.0
 
-    ranked = sorted(
-        zip(names, scores, strict=False), key=lambda x: x[1], reverse=True
-    )
+    ranked = sorted(zip(names, scores, strict=False), key=lambda x: x[1], reverse=True)
 
     selected: list[str] = []
     for nm, _sc in ranked:

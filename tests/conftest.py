@@ -60,10 +60,12 @@ def temp_dir():
 @pytest.fixture
 def temp_file(temp_dir):
     """Create a temporary file with optional content."""
+
     def _create_file(content="", name="test_file.txt"):
         file_path = temp_dir / name
         file_path.write_text(content)
         return file_path
+
     return _create_file
 
 
@@ -90,13 +92,11 @@ def sample_tool_config():
         "description": "A test tool for unit testing",
         "parameters": {
             "type": "object",
-            "properties": {
-                "input": {"type": "string", "description": "Test input"}
-            },
-            "required": ["input"]
+            "properties": {"input": {"type": "string", "description": "Test input"}},
+            "required": ["input"],
         },
         "enabled": True,
-        "whitelisted": True
+        "whitelisted": True,
     }
 
 
@@ -110,7 +110,7 @@ def sample_agent_config():
         "backstory": "A test agent created for testing purposes",
         "tools": ["test_tool"],
         "verbose": False,
-        "allow_delegation": False
+        "allow_delegation": False,
     }
 
 
@@ -121,18 +121,18 @@ def sample_vector_data():
         {
             "id": "doc_1",
             "content": "Python is a programming language.",
-            "metadata": {"source": "test", "type": "code"}
+            "metadata": {"source": "test", "type": "code"},
         },
         {
             "id": "doc_2",
             "content": "Machine learning is a subset of AI.",
-            "metadata": {"source": "test", "type": "ml"}
+            "metadata": {"source": "test", "type": "ml"},
         },
         {
             "id": "doc_3",
             "content": "FastAPI is a modern web framework.",
-            "metadata": {"source": "test", "type": "web"}
-        }
+            "metadata": {"source": "test", "type": "web"},
+        },
     ]
 
 
@@ -152,24 +152,9 @@ def mock_database_connection():
 def sample_swarm_agents():
     """Sample swarm agents configuration."""
     return [
-        {
-            "id": "agent_1",
-            "role": "researcher",
-            "status": "idle",
-            "tasks_completed": 0
-        },
-        {
-            "id": "agent_2",
-            "role": "writer",
-            "status": "busy",
-            "tasks_completed": 5
-        },
-        {
-            "id": "agent_3",
-            "role": "reviewer",
-            "status": "idle",
-            "tasks_completed": 3
-        }
+        {"id": "agent_1", "role": "researcher", "status": "idle", "tasks_completed": 0},
+        {"id": "agent_2", "role": "writer", "status": "busy", "tasks_completed": 5},
+        {"id": "agent_3", "role": "reviewer", "status": "idle", "tasks_completed": 3},
     ]
 
 
@@ -181,7 +166,7 @@ def security_context():
         "permissions": ["read", "write", "execute"],
         "whitelist_status": True,
         "sandbox_enabled": True,
-        "audit_logging": True
+        "audit_logging": True,
     }
 
 
@@ -189,30 +174,22 @@ def security_context():
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line(
-        "markers",
-        "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line(
-        "markers",
-        "integration: marks tests as integration tests"
+        "markers", "security: marks tests related to security features"
     )
+    config.addinivalue_line("markers", "rag: marks tests related to RAG functionality")
     config.addinivalue_line(
-        "markers",
-        "security: marks tests related to security features"
-    )
-    config.addinivalue_line(
-        "markers",
-        "rag: marks tests related to RAG functionality"
-    )
-    config.addinivalue_line(
-        "markers",
-        "swarm: marks tests related to swarm intelligence"
+        "markers", "swarm: marks tests related to swarm intelligence"
     )
 
 
 @pytest.fixture
 def rate_limiter():
     """Rate limiter fixture for API testing."""
+
     class RateLimiter:
         def __init__(self, max_calls=10, period=1.0):
             self.max_calls = max_calls

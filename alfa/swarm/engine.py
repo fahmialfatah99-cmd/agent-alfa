@@ -506,7 +506,7 @@ async def conduct_multi_agent_meeting(
                     if s.get("deliverable_file")
                 ]
                 work_summary = "\n".join(
-                    f"- {s['agent_name']} ({s.get('tool_used','?')}): {(s.get('execution_summary') or '')[:220]}"
+                    f"- {s['agent_name']} ({s.get('tool_used', '?')}): {(s.get('execution_summary') or '')[:220]}"
                     for s in execution_steps
                 )
                 target_fol = workspace_hygiene._get_target_folder()

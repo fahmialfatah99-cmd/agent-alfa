@@ -412,7 +412,9 @@ def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
     elif md == "auto" and not opened and not played:
         result["status"] = "error"
 
-    result["message"] = f"🎵 {label}." + ("".join(notes) or " Tidak ada aksi yang berhasil.")
+    result["message"] = f"🎵 {label}." + (
+        "".join(notes) or " Tidak ada aksi yang berhasil."
+    )
     result["evidence"] = {
         "video_id": video_id,
         "url": watch_url,

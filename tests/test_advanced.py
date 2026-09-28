@@ -152,7 +152,10 @@ def test_pipeline_eval_condition_ops():
     v = {"cari": "Ada Berita AI Terbaru", "kosong": "", "angka": "5"}
     eval_cond = pl._eval_condition
     assert eval_cond({"left": "{{cari}}", "op": "contains", "right": "ai"}, v) is True
-    assert eval_cond({"left": "{{cari}}", "op": "not_contains", "right": "bola"}, v) is True
+    assert (
+        eval_cond({"left": "{{cari}}", "op": "not_contains", "right": "bola"}, v)
+        is True
+    )
     assert eval_cond({"left": "{{kosong}}", "op": "empty"}, v) is True
     assert eval_cond({"left": "{{cari}}", "op": "not_empty"}, v) is True
     assert eval_cond({"left": "{{angka}}", "op": "gt", "right": "3"}, v) is True

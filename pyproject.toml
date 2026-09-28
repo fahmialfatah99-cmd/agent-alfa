@@ -37,9 +37,6 @@ dependencies = [
     "pypdf",
     "tabulate",
     "numpy",
-    "scikit-learn",
-    "sentence-transformers",
-    "faiss-cpu",
     "pydantic",
     "click",
     "rich",
@@ -47,13 +44,14 @@ dependencies = [
     "jinja2",
     "aiofiles",
     "websockets",
-    "passlib",
     "cryptography",
-    "gitpython",
     "pygments"
 ]
 
 [project.optional-dependencies]
+ml = [
+    "sentence-transformers"
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

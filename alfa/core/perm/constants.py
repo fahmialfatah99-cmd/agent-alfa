@@ -102,7 +102,10 @@ TOOL_CLASSIFICATION = {
     "open_url_in_system_browser": (RiskTier.LOW, "Buka URL di browser - read-only"),
     "play_youtube_music": (RiskTier.LOW, "Putar musik YouTube - hiburan"),
     "browser_open_url": (RiskTier.LOW, "Buka URL di browser stealth - read-only"),
-    "browser_capture_screenshot": (RiskTier.LOW, "Screenshot browser stealth - read-only"),
+    "browser_capture_screenshot": (
+        RiskTier.LOW,
+        "Screenshot browser stealth - read-only",
+    ),
     "browser_close_tab": (RiskTier.LOW, "Tutup tab browser stealth - aman"),
     "show_desktop_notification": (RiskTier.LOW, "Notifikasi desktop - aman"),
 }

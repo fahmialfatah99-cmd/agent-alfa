@@ -136,7 +136,9 @@ class TestExtractor:
     def test_process_attachment_types(self, name, mime, payload):
         from alfa.tools.filesystem import universal_file_extractor as ux
 
-        text, part = ux.process_uploaded_attachment(name, mime, payload, save_disk=False)
+        text, part = ux.process_uploaded_attachment(
+            name, mime, payload, save_disk=False
+        )
         assert isinstance(text, str) and len(text) > 0
 
     def test_csv_direct(self):
@@ -153,9 +155,7 @@ class TestExtractor:
     def test_data_formats_json(self):
         from alfa.tools.filesystem import universal_file_extractor as ux
 
-        assert isinstance(
-            ux._extract_data_formats(b'{"a": 1}', "f.json", ".json"), str
-        )
+        assert isinstance(ux._extract_data_formats(b'{"a": 1}', "f.json", ".json"), str)
 
     def test_excel_archive_helpers(self, tmp_path):
         import zipfile
@@ -198,7 +198,9 @@ class TestPdfEditor:
         b = _make_pdf(tmp_path / "b.pdf", pages=3)
         merged = pe.pdf_merge_documents([a, b], "m.pdf")
         assert merged["status"] == "success"
-        split = pe.pdf_split_document(merged["file_path"], "1-2", str(tmp_path / "parts"))
+        split = pe.pdf_split_document(
+            merged["file_path"], "1-2", str(tmp_path / "parts")
+        )
         assert split["status"] == "success"
         assert len(split["files"]) == 2
         rot = pe.pdf_rotate_pages(merged["file_path"], 90)

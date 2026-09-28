@@ -114,7 +114,7 @@ print("halo")
     mods = patcher.extract_modifications(sample_text)
     assert len(mods) == 1
     assert mods[0][0] == "alfa/demo.py"
-    assert "print(\"halo\")" in mods[0][1]
+    assert 'print("halo")' in mods[0][1]
 
 
 def test_interactive_menu_workspace_files():
@@ -363,7 +363,11 @@ def test_swarm_agents_and_persona_switching(capsys):
     # /agents listing
     cli.do_slash_agents("")
     captured = capsys.readouterr()
-    assert "Workforce" in captured.out or "Swarm" in captured.out or "Custom Agent" in captured.out
+    assert (
+        "Workforce" in captured.out
+        or "Swarm" in captured.out
+        or "Custom Agent" in captured.out
+    )
 
     # /persona listing
     cli.do_slash_persona("")
@@ -420,6 +424,7 @@ def test_sync_external_api_keys(capsys):
     assert "9router" in providers
 
     from alfa.core.cli.app import AlfaCLI
+
     cli = AlfaCLI(mode="standalone")
     cli.do_slash_keys("sync")
     captured = capsys.readouterr()
@@ -434,7 +439,10 @@ def test_proactive_deep_folder_inspection_and_rich_fallback(tmp_path):
 
     # Create a dummy blueprint file
     bp_file = tmp_path / "chat-Arsitektur.txt"
-    bp_file.write_text("Blueprint Sistem Agen Super Cerdas:\n- Layer 1: Core\n- Layer 2: Tools", encoding="utf-8")
+    bp_file.write_text(
+        "Blueprint Sistem Agen Super Cerdas:\n- Layer 1: Core\n- Layer 2: Tools",
+        encoding="utf-8",
+    )
 
     mock_ai = MagicMock()
     mock_ai.system_prompt = ""
@@ -529,19 +537,21 @@ def test_resilient_patching_3_layers(tmp_path):
     )
     assert "Sukses" in res1
     assert "exact" in res1
-    assert "total += item.price * (1 + item.tax_rate)" in test_file.read_text(encoding="utf-8")
+    assert "total += item.price * (1 + item.tax_rate)" in test_file.read_text(
+        encoding="utf-8"
+    )
 
     # 2. Whitespace-normalized match test (different trailing whitespace and tab/spaces)
     res2 = registry.patch_file(
         "code.py",
-        "def calculate_total(items):   \n"
-        "    total = 0   ",
-        "def calculate_total(items, discount=0.0):\n"
-        "    total = -discount",
+        "def calculate_total(items):   \n    total = 0   ",
+        "def calculate_total(items, discount=0.0):\n    total = -discount",
     )
     assert "Sukses" in res2
     assert "whitespace-normalized" in res2
-    assert "def calculate_total(items, discount=0.0):" in test_file.read_text(encoding="utf-8")
+    assert "def calculate_total(items, discount=0.0):" in test_file.read_text(
+        encoding="utf-8"
+    )
 
     # 3. Fuzzy similarity match test (minor difference in loop lines)
     res3 = registry.patch_file(
@@ -549,8 +559,7 @@ def test_resilient_patching_3_layers(tmp_path):
         "    for item in items:\n"
         "        # process\n"
         "        total += item.price * (1 + item.tax_rate)",
-        "    for item in items:\n"
-        "        total += item.calculate_final_price()",
+        "    for item in items:\n        total += item.calculate_final_price()",
     )
     assert "Sukses" in res3
     assert "fuzzy-matched" in res3
@@ -577,11 +586,7 @@ def test_relaxed_json_and_balanced_tool_extraction():
     assert calls1[0]["args"]["config"]["port"] == 8080
 
     # 2. Trailing comma in JSON
-    text2 = (
-        "```json\n"
-        '{"tool": "find_files", "args": {"pattern": "*.py",},}\n'
-        "```"
-    )
+    text2 = '```json\n{"tool": "find_files", "args": {"pattern": "*.py",},}\n```'
     calls2 = runner._extract_tool_calls(text2)
     assert len(calls2) == 1
     assert calls2[0]["tool"] == "find_files"
@@ -614,7 +619,9 @@ def test_smart_rolling_context_compression():
         {"role": "user", "content": "Observation from pytest:\n10 passed"},
     ]
 
-    compressed = AutonomousAgentRunner._compress_conversation_history(history, keep_recent_messages=4)
+    compressed = AutonomousAgentRunner._compress_conversation_history(
+        history, keep_recent_messages=4
+    )
 
     # Root prompt always preserved
     assert compressed[0]["content"] == "User Request: Analisis file ini"
@@ -623,7 +630,9 @@ def test_smart_rolling_context_compression():
     assert len(compressed[2]["content"]) < len(long_output)
     # Recent turns preserved at 100% full fidelity
     assert compressed[-1]["content"] == "Observation from pytest:\n10 passed"
-    assert compressed[-3]["content"] == "Observation from patch_file:\nSukses diterapkan"
+    assert (
+        compressed[-3]["content"] == "Observation from patch_file:\nSukses diterapkan"
+    )
 
 
 def test_dynamic_shell_timeout_and_noninteractive_env(tmp_path):
@@ -633,7 +642,9 @@ def test_dynamic_shell_timeout_and_noninteractive_env(tmp_path):
     registry = LocalToolRegistry(workspace_root=tmp_path)
 
     # Verify non-interactive env flags are passed
-    res = registry.run_command("python3 -c \"import os; print(os.environ.get('CI'), os.environ.get('DEBIAN_FRONTEND'))\"")
+    res = registry.run_command(
+        "python3 -c \"import os; print(os.environ.get('CI'), os.environ.get('DEBIAN_FRONTEND'))\""
+    )
     assert "1 noninteractive" in res
 
 
@@ -673,5 +684,3 @@ def test_multi_language_repomap_symbol_extraction(tmp_path):
     assert any("interface Service" in s for s in go_symbols)
     assert any("(Config).Validate()" in s for s in go_symbols)
     assert any("NewServer()" in s for s in go_symbols)
-
-

@@ -243,11 +243,11 @@ def generate_css_for_background(
     if not result.get("url"):
         search_url = result.get("search_url", "")
         return f"""/* No image scraped. Search manually: {search_url} */
-/* Overlay ready: {result.get('overlay', 'gradient-dark')} */
+/* Overlay ready: {result.get("overlay", "gradient-dark")} */
 """
 
     return f"""{slide_class} {{
-    background-image: url('{result['url']}');
+    background-image: url('{result["url"]}');
     background-size: cover;
     background-position: center;
     position: relative;
@@ -257,7 +257,7 @@ def generate_css_for_background(
     content: '';
     position: absolute;
     inset: 0;
-    background: {result['overlay']};
+    background: {result["overlay"]};
 }}
 
 {slide_class} .content {{
@@ -265,7 +265,7 @@ def generate_css_for_background(
     z-index: 1;
 }}
 
-/* {result.get('attribution', 'Pexels')} - {result.get('search_url', '')} */
+/* {result.get("attribution", "Pexels")} - {result.get("search_url", "")} */
 """
 
 

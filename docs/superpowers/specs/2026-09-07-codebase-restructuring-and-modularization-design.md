@@ -118,11 +118,13 @@ To ensure all external consumers (systemd units, crons, docker scripts) continue
 - `tools.py`:
   ```python
   """Backward-compatibility shim for alfa.tools."""
+
   from alfa.tools import *  # noqa: F403
   ```
 - `web_dashboard.py`:
   ```python
   """Backward-compatibility shim for alfa.dashboard."""
+
   import os
   import uvicorn
   from alfa.dashboard.app import app
@@ -135,6 +137,7 @@ To ensure all external consumers (systemd units, crons, docker scripts) continue
 - `bot.py`:
   ```python
   """Backward-compatibility shim for alfa.bot."""
+
   from alfa.bot.telegram_bot import main
 
   if __name__ == "__main__":

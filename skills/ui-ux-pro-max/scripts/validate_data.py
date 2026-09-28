@@ -400,8 +400,9 @@ def _check_reasoning_contract(
     reasoning_names = {row.get("UI_Category", "") for row in reasoning}
     if product_names != color_names:
         problems.append("[reasoning] products/colors product labels differ")
-    missing, extra = sorted(product_names - reasoning_names), sorted(
-        reasoning_names - product_names
+    missing, extra = (
+        sorted(product_names - reasoning_names),
+        sorted(reasoning_names - product_names),
     )
     if missing:
         problems.append(f"[reasoning] missing exact product rows: {', '.join(missing)}")

@@ -67,7 +67,9 @@ class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
         # Inisialisasi Direct AI Client (Standalone Engine)
         target_provider = provider or self.config.get("provider")
         target_model = model
-        if not target_model and (not provider or provider == self.config.get("provider")):
+        if not target_model and (
+            not provider or provider == self.config.get("provider")
+        ):
             target_model = self.config.get("model")
 
         self.direct_ai = DirectAIClient(
@@ -102,18 +104,24 @@ class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
 
 def run_config_wizard() -> None:
     """Interactive wizard to configure AI provider, model, API keys, and execution mode."""
-    print(f"\n{Colors.BOLD}⚙️  ALFA CLI - Interactive Configuration Setup{Colors.ENDC}\n")
+    print(
+        f"\n{Colors.BOLD}⚙️  ALFA CLI - Interactive Configuration Setup{Colors.ENDC}\n"
+    )
 
     cli = AlfaCLI()
     current_cfg = cli.config
     direct = cli.direct_ai
 
     print("Konfigurasi saat ini:")
-    print(f"  • Mode Operasi : {Colors.CYAN}{current_cfg.get('mode', 'auto')}{Colors.ENDC}")
+    print(
+        f"  • Mode Operasi : {Colors.CYAN}{current_cfg.get('mode', 'auto')}{Colors.ENDC}"
+    )
     print(f"  • AI Provider  : {Colors.CYAN}{direct.provider}{Colors.ENDC}")
     print(f"  • Model Aktif  : {Colors.CYAN}{direct.model}{Colors.ENDC}")
     print(f"  • Server URL   : {Colors.CYAN}{cli.server_url}{Colors.ENDC}")
-    print(f"  • API Key Set  : {Colors.GREEN if direct.get_api_key() else Colors.WARNING}{'Yes' if direct.get_api_key() else 'Belum Diatur'}{Colors.ENDC}\n")
+    print(
+        f"  • API Key Set  : {Colors.GREEN if direct.get_api_key() else Colors.WARNING}{'Yes' if direct.get_api_key() else 'Belum Diatur'}{Colors.ENDC}\n"
+    )
 
     # 1. Pilih Provider
     print(f"{Colors.BOLD}Pilih AI Provider:{Colors.ENDC}")
@@ -123,7 +131,9 @@ def run_config_wizard() -> None:
         curr_mark = " (saat ini)" if p == direct.provider else ""
         print(f"  {i}. {p:<10} - {name}{curr_mark}")
 
-    choice = input(f"\nMasukkan pilihan [1-{len(providers_list)}] (Enter untuk lewati): ").strip()
+    choice = input(
+        f"\nMasukkan pilihan [1-{len(providers_list)}] (Enter untuk lewati): "
+    ).strip()
     selected_provider = direct.provider
     if choice.isdigit() and 1 <= int(choice) <= len(providers_list):
         selected_provider = providers_list[int(choice) - 1]
@@ -137,7 +147,9 @@ def run_config_wizard() -> None:
         print(f"  {i}. {m}{curr_mark}")
     print(f"  {len(models_list) + 1}. Ketik nama model custom manual")
 
-    model_choice = input(f"\nMasukkan pilihan [1-{len(models_list) + 1}] (Enter untuk lewati): ").strip()
+    model_choice = input(
+        f"\nMasukkan pilihan [1-{len(models_list) + 1}] (Enter untuk lewati): "
+    ).strip()
     selected_model = direct.model
     if model_choice.isdigit():
         idx = int(model_choice)
@@ -149,11 +161,17 @@ def run_config_wizard() -> None:
                 selected_model = custom_m
 
     # 3. Masukkan API Key jika diperlukan
-    api_key_env = catalog.get("env_keys", [None])[0] if catalog.get("env_keys") else None
+    api_key_env = (
+        catalog.get("env_keys", [None])[0] if catalog.get("env_keys") else None
+    )
     if api_key_env:
         print(f"\n{Colors.BOLD}Pengaturan API Key ({api_key_env}):{Colors.ENDC}")
         has_key = bool(direct.get_api_key())
-        prompt_text = f"Masukkan {api_key_env} (sembunyi, Enter untuk lewati): " if has_key else f"Masukkan {api_key_env} (sembunyi): "
+        prompt_text = (
+            f"Masukkan {api_key_env} (sembunyi, Enter untuk lewati): "
+            if has_key
+            else f"Masukkan {api_key_env} (sembunyi): "
+        )
         new_key = getpass.getpass(prompt_text).strip()
     else:
         new_key = ""
@@ -188,6 +206,7 @@ def run_config_wizard() -> None:
 
     # Opsi update .env di repo root
     from alfa.core.cli.server_manager import get_repo_root
+
     env_path = get_repo_root() / ".env"
     if env_path.exists() and new_key and api_key_env:
         try:
@@ -210,6 +229,7 @@ def run_config_wizard() -> None:
     # Sinkronkan ke Database SQLite Web Vault (agent_data.db)
     try:
         from alfa.core import database
+
         key_to_save = new_key or direct.get_api_key()
         if key_to_save:
             p_norm = "gemini" if selected_provider == "google" else selected_provider
@@ -222,12 +242,16 @@ def run_config_wizard() -> None:
                 base_url=b_url,
                 set_active=True,
             )
-            print_status("API Key berhasil disinkronkan ke Web Dashboard Vault!", "success")
+            print_status(
+                "API Key berhasil disinkronkan ke Web Dashboard Vault!", "success"
+            )
     except Exception:
         pass
 
     print_status("Konfigurasi berhasil disimpan!", "success")
-    print(f"Provider: {selected_provider} | Model: {selected_model} | Mode: {selected_mode}\n")
+    print(
+        f"Provider: {selected_provider} | Model: {selected_model} | Mode: {selected_mode}\n"
+    )
 
 
 def show_config() -> None:
@@ -239,13 +263,21 @@ def show_config() -> None:
     print(f"\n{Colors.BOLD}📋 ALFA CLI Configuration Summary:{Colors.ENDC}")
     print(f"  • Version      : {VERSION}")
     print(f"  • Active Mode  : {Colors.CYAN}{cfg.get('mode', 'auto')}{Colors.ENDC}")
-    agent_status = f"{Colors.GREEN}ENABLED (Autonomous ReAct Loop){Colors.ENDC}" if cfg.get("agent_mode", True) else f"{Colors.WARNING}DISABLED (Direct Chat){Colors.ENDC}"
+    agent_status = (
+        f"{Colors.GREEN}ENABLED (Autonomous ReAct Loop){Colors.ENDC}"
+        if cfg.get("agent_mode", True)
+        else f"{Colors.WARNING}DISABLED (Direct Chat){Colors.ENDC}"
+    )
     print(f"  • Agent Mode   : {agent_status}")
-    print(f"  • AI Provider  : {Colors.GREEN}{direct.provider}{Colors.ENDC} ({PROVIDERS_CATALOG.get(direct.provider, {}).get('name', direct.provider)})")
+    print(
+        f"  • AI Provider  : {Colors.GREEN}{direct.provider}{Colors.ENDC} ({PROVIDERS_CATALOG.get(direct.provider, {}).get('name', direct.provider)})"
+    )
     print(f"  • Active Model : {Colors.CYAN}{direct.model}{Colors.ENDC}")
     print(f"  • Server URL   : {Colors.CYAN}{cli.server_url}{Colors.ENDC}")
     print(f"  • Streaming    : {cfg.get('streaming', True)}")
-    print(f"  • API Key Set  : {Colors.GREEN if direct.get_api_key() else Colors.FAIL}{'Yes' if direct.get_api_key() else 'No'}{Colors.ENDC}")
+    print(
+        f"  • API Key Set  : {Colors.GREEN if direct.get_api_key() else Colors.FAIL}{'Yes' if direct.get_api_key() else 'No'}{Colors.ENDC}"
+    )
 
     print(f"\n{Colors.BOLD}Supported Providers:{Colors.ENDC}")
     for k, v in PROVIDERS_CATALOG.items():
@@ -279,7 +311,11 @@ def handle_ask_command(args: argparse.Namespace) -> None:
 
     try:
         if args.stream:
-            print(f"{Colors.CYAN}🤖 ALFA ({direct.provider}/{direct.model}):{Colors.ENDC} ", end="", flush=True)
+            print(
+                f"{Colors.CYAN}🤖 ALFA ({direct.provider}/{direct.model}):{Colors.ENDC} ",
+                end="",
+                flush=True,
+            )
 
             def on_chunk(c: str) -> None:
                 print(c, end="", flush=True)
@@ -299,6 +335,7 @@ def handle_ask_command(args: argparse.Namespace) -> None:
             )
             if RICH_AVAILABLE and cli.console:
                 from rich.markdown import Markdown
+
                 cli.console.print(Markdown(resp))
             else:
                 print(resp)
@@ -335,13 +372,30 @@ def handle_run_command(args: argparse.Namespace) -> None:
 def main():
     # Smart subcommand normalization:
     # If first arg is not a recognized subcommand or flag, default to 'chat'
-    known_subcommands = {"chat", "ask", "run", "config", "help", "--help", "-h", "--version", "-v"}
+    known_subcommands = {
+        "chat",
+        "ask",
+        "run",
+        "config",
+        "help",
+        "--help",
+        "-h",
+        "--version",
+        "-v",
+    }
 
     raw_args = sys.argv[1:]
-    if raw_args and raw_args[0] not in known_subcommands and not raw_args[0].startswith("-"):
+    if (
+        raw_args
+        and raw_args[0] not in known_subcommands
+        and not raw_args[0].startswith("-")
+    ):
         # Could be directly asking or chatting
         sys.argv.insert(1, "chat")
-    elif not raw_args or (raw_args[0].startswith("-") and raw_args[0] not in {"--help", "-h", "--version", "-v"}):
+    elif not raw_args or (
+        raw_args[0].startswith("-")
+        and raw_args[0] not in {"--help", "-h", "--version", "-v"}
+    ):
         # Starts with options (e.g. `python cli.py --stream`), treat as `chat`
         sys.argv.insert(1, "chat")
 
@@ -359,41 +413,123 @@ Examples:
   python cli.py --stream                     # Mulai chat dengan streaming
         """,
     )
-    parser.add_argument("--version", "-v", action="version", version=f"ALFA CLI v{VERSION}")
+    parser.add_argument(
+        "--version", "-v", action="version", version=f"ALFA CLI v{VERSION}"
+    )
 
     subparsers = parser.add_subparsers(dest="subcommand", help="Subcommands")
 
     # --- Subcommand: CHAT ---
-    chat_parser = subparsers.add_parser("chat", help="Mulai sesi interaktif chat & coding")
-    chat_parser.add_argument("-f", "--file", action="append", default=[], help="Lampirkan file sebagai konteks (dapat diulang)")
-    chat_parser.add_argument("--server", type=str, default=os.getenv("ALFA_SERVER", DEFAULT_SERVER), help="URL Server ALFA")
-    chat_parser.add_argument("--mode", type=str, choices=["auto", "server", "standalone"], default="auto", help="Mode operasi")
-    chat_parser.add_argument("--standalone", action="store_true", help="Paksa gunakan engine Direct AI tanpa server ALFA")
-    chat_parser.add_argument("--provider", type=str, choices=list(PROVIDERS_CATALOG.keys()), help="Pilih AI provider")
+    chat_parser = subparsers.add_parser(
+        "chat", help="Mulai sesi interaktif chat & coding"
+    )
+    chat_parser.add_argument(
+        "-f",
+        "--file",
+        action="append",
+        default=[],
+        help="Lampirkan file sebagai konteks (dapat diulang)",
+    )
+    chat_parser.add_argument(
+        "--server",
+        type=str,
+        default=os.getenv("ALFA_SERVER", DEFAULT_SERVER),
+        help="URL Server ALFA",
+    )
+    chat_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["auto", "server", "standalone"],
+        default="auto",
+        help="Mode operasi",
+    )
+    chat_parser.add_argument(
+        "--standalone",
+        action="store_true",
+        help="Paksa gunakan engine Direct AI tanpa server ALFA",
+    )
+    chat_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=list(PROVIDERS_CATALOG.keys()),
+        help="Pilih AI provider",
+    )
     chat_parser.add_argument("--model", type=str, help="Pilih model AI")
-    chat_parser.add_argument("--no-color", action="store_true", help="Matikan warna terminal")
-    chat_parser.add_argument("--stream", action="store_true", help="Aktifkan streaming response")
-    chat_parser.add_argument("--no-autostart", action="store_true", help="Jangan otomatis jalankan server di latar belakang")
+    chat_parser.add_argument(
+        "--no-color", action="store_true", help="Matikan warna terminal"
+    )
+    chat_parser.add_argument(
+        "--stream", action="store_true", help="Aktifkan streaming response"
+    )
+    chat_parser.add_argument(
+        "--no-autostart",
+        action="store_true",
+        help="Jangan otomatis jalankan server di latar belakang",
+    )
 
     # --- Subcommand: ASK ---
-    ask_parser = subparsers.add_parser("ask", help="Tanya cepat (one-shot) tanpa mode interaktif")
-    ask_parser.add_argument("question", type=str, help="Pertanyaan atau perintah coding")
-    ask_parser.add_argument("-f", "--file", action="append", default=[], help="Lampirkan file sebagai konteks")
-    ask_parser.add_argument("--server", type=str, default=os.getenv("ALFA_SERVER", DEFAULT_SERVER), help="URL Server ALFA")
-    ask_parser.add_argument("--mode", type=str, choices=["auto", "server", "standalone"], default="standalone", help="Mode operasi")
-    ask_parser.add_argument("--standalone", action="store_true", default=True, help="Gunakan engine Direct AI")
-    ask_parser.add_argument("--provider", type=str, choices=list(PROVIDERS_CATALOG.keys()), help="Pilih AI provider")
+    ask_parser = subparsers.add_parser(
+        "ask", help="Tanya cepat (one-shot) tanpa mode interaktif"
+    )
+    ask_parser.add_argument(
+        "question", type=str, help="Pertanyaan atau perintah coding"
+    )
+    ask_parser.add_argument(
+        "-f",
+        "--file",
+        action="append",
+        default=[],
+        help="Lampirkan file sebagai konteks",
+    )
+    ask_parser.add_argument(
+        "--server",
+        type=str,
+        default=os.getenv("ALFA_SERVER", DEFAULT_SERVER),
+        help="URL Server ALFA",
+    )
+    ask_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["auto", "server", "standalone"],
+        default="standalone",
+        help="Mode operasi",
+    )
+    ask_parser.add_argument(
+        "--standalone",
+        action="store_true",
+        default=True,
+        help="Gunakan engine Direct AI",
+    )
+    ask_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=list(PROVIDERS_CATALOG.keys()),
+        help="Pilih AI provider",
+    )
     ask_parser.add_argument("--model", type=str, help="Pilih model AI")
-    ask_parser.add_argument("--stream", action="store_true", default=True, help="Streaming output")
-    ask_parser.add_argument("--agent", action="store_true", default=False, help="Jalankan dalam mode Autonomous ReAct Agent")
+    ask_parser.add_argument(
+        "--stream", action="store_true", default=True, help="Streaming output"
+    )
+    ask_parser.add_argument(
+        "--agent",
+        action="store_true",
+        default=False,
+        help="Jalankan dalam mode Autonomous ReAct Agent",
+    )
 
     # --- Subcommand: RUN ---
     run_parser = subparsers.add_parser("run", help="Jalankan perintah shell lokal")
-    run_parser.add_argument("command", type=str, help="Perintah shell yang akan dijalankan")
+    run_parser.add_argument(
+        "command", type=str, help="Perintah shell yang akan dijalankan"
+    )
 
     # --- Subcommand: CONFIG ---
-    config_parser = subparsers.add_parser("config", help="Pengaturan konfigurasi provider & CLI")
-    config_parser.add_argument("--show", action="store_true", help="Tampilkan konfigurasi saat ini")
+    config_parser = subparsers.add_parser(
+        "config", help="Pengaturan konfigurasi provider & CLI"
+    )
+    config_parser.add_argument(
+        "--show", action="store_true", help="Tampilkan konfigurasi saat ini"
+    )
 
     args = parser.parse_args()
 
@@ -429,6 +565,7 @@ Examples:
     if not no_autostart and not force_standalone:
         try:
             from alfa.core.cli.server_manager import auto_start_all_servers
+
             auto_start_all_servers(verbose=True)
         except Exception as e:
             print_status(f"Server autostart info: {e}", "info")
@@ -442,22 +579,29 @@ Examples:
                 print_status(f"Terhubung ke server ALFA: {target_server}", "success")
                 server_reachable = True
             else:
-                print_status(f"Server ALFA merespons status code: {r.status_code}", "warning")
+                print_status(
+                    f"Server ALFA merespons status code: {r.status_code}", "warning"
+                )
         except Exception:
             if chosen_mode == "server":
-                print_status(f"Tidak dapat terhubung ke server di {target_server}.", "error")
-                print("Pastikan server berjalan atau gunakan '--standalone' / '--mode standalone'.")
+                print_status(
+                    f"Tidak dapat terhubung ke server di {target_server}.", "error"
+                )
+                print(
+                    "Pastikan server berjalan atau gunakan '--standalone' / '--mode standalone'."
+                )
             else:
                 print_status(
                     f"Server ALFA di {target_server} offline. Otomatis beralih ke Mode Standalone (Direct AI).",
                     "info",
                 )
 
-
     try:
         cli = AlfaCLI(
             server_url=target_server,
-            mode="standalone" if (chosen_mode == "auto" and not server_reachable) else chosen_mode,
+            mode="standalone"
+            if (chosen_mode == "auto" and not server_reachable)
+            else chosen_mode,
             attached_files=getattr(args, "file", []),
             provider=getattr(args, "provider", None),
             model=getattr(args, "model", None),
@@ -468,11 +612,15 @@ Examples:
             cli.streaming = True
 
         if cli.attached_files:
-            print_status(f"Konteks file aktif ({len(cli.attached_files)} file): {', '.join(cli.attached_files)}", "info")
+            print_status(
+                f"Konteks file aktif ({len(cli.attached_files)} file): {', '.join(cli.attached_files)}",
+                "info",
+            )
 
         # Launch modern Cursor-style interactive loop if running in a TTY
         if sys.stdin.isatty() and sys.stdout.isatty():
             from alfa.core.cli.cursor_ui import run_cursor_loop
+
             run_cursor_loop(cli)
         else:
             cli.cmdloop()

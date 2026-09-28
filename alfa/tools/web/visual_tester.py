@@ -73,9 +73,7 @@ def browser_visual_test_page(
                 # Listen to console (bind loop var: callbacks may fire after iteration advances)
                 def _handle_console(msg, _view=view_name):
                     if msg.type == "error":
-                        console_errors.append(
-                            f"[{_view}] [CONSOLE ERROR] {msg.text}"
-                        )
+                        console_errors.append(f"[{_view}] [CONSOLE ERROR] {msg.text}")
                     elif msg.type in ("warn", "warning"):
                         console_logs.append(f"[{_view}] [WARN] {msg.text}")
 

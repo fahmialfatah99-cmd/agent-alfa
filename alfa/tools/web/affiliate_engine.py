@@ -142,7 +142,7 @@ def generate_affiliate_campaign_content(
 ⏱️ Durasi Rekomendasi: 25 - 40 Detik
 
 [00:00 - 00:03] 🔥 HOOK (Visual: Pegang produk / Tunjukkan masalah dengan mimik kaget):
-Voiceover / Audio: "Sumpah gue nyesel baru tau ada barang ini sekarang! Kalau kalian punya masalah {key_features.split(',')[0] if ',' in key_features else key_features}, wajib tonton ini sampai habis!"
+Voiceover / Audio: "Sumpah gue nyesel baru tau ada barang ini sekarang! Kalau kalian punya masalah {key_features.split(",")[0] if "," in key_features else key_features}, wajib tonton ini sampai habis!"
 On-Screen Text: "JANGAN BELI DULU SEBELUM NONTON INI! 😱🔥"
 
 [00:03 - 00:15] 📦 STORY & UNBOXING (Visual: Buka paket, zoom close-up detail kualitas & fungsi):
@@ -282,24 +282,24 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 🎞️ [SHOT-BY-SHOT CINEMATOGRAPHIC BREAKDOWN]:
 
 [SCENE 1 | 00:00 - 00:03] 🔥 HOOK SHOT:
-• Visual: {scene_breakdown[0]['visual_prompt']}
-• Camera: {scene_breakdown[0]['camera_angle']}
-• Lighting: {scene_breakdown[0]['lighting']}
+• Visual: {scene_breakdown[0]["visual_prompt"]}
+• Camera: {scene_breakdown[0]["camera_angle"]}
+• Lighting: {scene_breakdown[0]["lighting"]}
 
 [SCENE 2 | 00:03 - 00:10] 📦 FEATURE DETAIL:
-• Visual: {scene_breakdown[1]['visual_prompt']}
-• Camera: {scene_breakdown[1]['camera_angle']}
-• Lighting: {scene_breakdown[1]['lighting']}
+• Visual: {scene_breakdown[1]["visual_prompt"]}
+• Camera: {scene_breakdown[1]["camera_angle"]}
+• Lighting: {scene_breakdown[1]["lighting"]}
 
 [SCENE 3 | 00:10 - 00:18] 💡 LIFESTYLE DEMO:
-• Visual: {scene_breakdown[2]['visual_prompt']}
-• Camera: {scene_breakdown[2]['camera_angle']}
-• Lighting: {scene_breakdown[2]['lighting']}
+• Visual: {scene_breakdown[2]["visual_prompt"]}
+• Camera: {scene_breakdown[2]["camera_angle"]}
+• Lighting: {scene_breakdown[2]["lighting"]}
 
 [SCENE 4 | 00:18 - 00:25] 🚀 HERO CTA & FLASH SALE:
-• Visual: {scene_breakdown[3]['visual_prompt']}
-• Camera: {scene_breakdown[3]['camera_angle']}
-• Lighting: {scene_breakdown[3]['lighting']}
+• Visual: {scene_breakdown[3]["visual_prompt"]}
+• Camera: {scene_breakdown[3]["camera_angle"]}
+• Lighting: {scene_breakdown[3]["lighting"]}
 """
 
     # Save scripts to Dokumen/ALFA_AFFILIATE_TOOLS/Scripts/

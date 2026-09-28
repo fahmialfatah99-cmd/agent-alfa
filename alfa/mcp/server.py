@@ -75,7 +75,10 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
                 types.TextContent(
                     type="text",
                     text=json.dumps(
-                        {"status": "error", "message": f"Tool '{name}' not found in ALFA registry."},
+                        {
+                            "status": "error",
+                            "message": f"Tool '{name}' not found in ALFA registry.",
+                        },
                         ensure_ascii=False,
                     ),
                 )

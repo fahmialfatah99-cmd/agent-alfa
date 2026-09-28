@@ -129,7 +129,8 @@ def menu_switch_model(cli: Any) -> None:
         is_m_curr = (
             " (aktif)"
             if m == direct.model
-            and normalize_provider(selected_provider) == normalize_provider(direct.provider)
+            and normalize_provider(selected_provider)
+            == normalize_provider(direct.provider)
             else ""
         )
         model_choices.append(Choice(m, f"{m}{is_m_curr}"))
@@ -139,7 +140,9 @@ def menu_switch_model(cli: Any) -> None:
     selected_model = inquirer.select(
         message=f"Pilih Model untuk {catalog['name']}:",
         choices=model_choices,
-        default=direct.model if direct.model in catalog["models"] else catalog["default_model"],
+        default=direct.model
+        if direct.model in catalog["models"]
+        else catalog["default_model"],
     ).execute()
 
     if selected_model == "__custom__":
@@ -173,7 +176,9 @@ def menu_manage_context_files(cli: Any) -> None:
     """Interactive checkbox file selector for prompt context."""
     files = get_workspace_files()
     if not files:
-        print_status("Tidak ada file yang terdeteksi di direktori proyek saat ini.", "warning")
+        print_status(
+            "Tidak ada file yang terdeteksi di direktori proyek saat ini.", "warning"
+        )
         return
 
     currently_attached = set(getattr(cli, "attached_files", []))
@@ -191,7 +196,10 @@ def menu_manage_context_files(cli: Any) -> None:
     ).execute()
 
     cli.attached_files = list(selected_files)
-    print_status(f"Konteks file diperbarui ({len(cli.attached_files)} file terpilih): {', '.join(cli.attached_files) if cli.attached_files else 'Kosong'}", "success")
+    print_status(
+        f"Konteks file diperbarui ({len(cli.attached_files)} file terpilih): {', '.join(cli.attached_files) if cli.attached_files else 'Kosong'}",
+        "success",
+    )
 
 
 def menu_switch_preset(cli: Any) -> None:
@@ -199,7 +207,10 @@ def menu_switch_preset(cli: Any) -> None:
     preset_choices = []
     for name, p in PRESETS.items():
         preset_choices.append(
-            Choice(name, f"{name.upper():<10} - {p['description']} (temp: {p['temperature']})")
+            Choice(
+                name,
+                f"{name.upper():<10} - {p['description']} (temp: {p['temperature']})",
+            )
         )
 
     chosen = inquirer.select(
@@ -215,9 +226,18 @@ def menu_switch_mode(cli: Any) -> None:
     """Interactive execution mode switcher."""
     curr_mode = getattr(cli, "mode", "auto")
     choices = [
-        Choice("auto", f"Auto        - Coba Server ALFA, otomatis fallback ke Standalone{' (aktif)' if curr_mode == 'auto' else ''}"),
-        Choice("standalone", f"Standalone  - Langsung panggil API LLM (Google, NVIDIA, etc) tanpa server{' (aktif)' if curr_mode == 'standalone' else ''}"),
-        Choice("server", f"Server      - Wajib terhubung ke server backend ALFA Sovereign Swarm{' (aktif)' if curr_mode == 'server' else ''}"),
+        Choice(
+            "auto",
+            f"Auto        - Coba Server ALFA, otomatis fallback ke Standalone{' (aktif)' if curr_mode == 'auto' else ''}",
+        ),
+        Choice(
+            "standalone",
+            f"Standalone  - Langsung panggil API LLM (Google, NVIDIA, etc) tanpa server{' (aktif)' if curr_mode == 'standalone' else ''}",
+        ),
+        Choice(
+            "server",
+            f"Server      - Wajib terhubung ke server backend ALFA Sovereign Swarm{' (aktif)' if curr_mode == 'server' else ''}",
+        ),
     ]
 
     selected_mode = inquirer.select(
@@ -236,7 +256,9 @@ def menu_setup_api_keys(cli: Any) -> None:
         message="Kelola API Keys (Web Vault & CLI):",
         choices=[
             Choice("list", "📋 Lihat Daftar API Key Vault (Web & Database)"),
-            Choice("sync", "🔄 Sinkronkan Kunci Otomatis (9Router, CLI, .env ➔ Web Vault)"),
+            Choice(
+                "sync", "🔄 Sinkronkan Kunci Otomatis (9Router, CLI, .env ➔ Web Vault)"
+            ),
             Choice("add", "➕ Tambah / Perbarui API Key (Sinkron ke Web & CLI)"),
             Choice("activate", "⚡ Aktifkan Kunci Vault Tertentu"),
             Separator(),
@@ -253,9 +275,15 @@ def menu_setup_api_keys(cli: Any) -> None:
 
             synced = database.sync_external_api_keys_sync()
             if synced:
-                print_status(f"Berhasil menyinkronkan {len(synced)} API key baru ke Web Dashboard Vault!", "success")
+                print_status(
+                    f"Berhasil menyinkronkan {len(synced)} API key baru ke Web Dashboard Vault!",
+                    "success",
+                )
             else:
-                print_status("Seluruh API key sudah tersinkronisasi penuh dengan Web Dashboard Vault.", "info")
+                print_status(
+                    "Seluruh API key sudah tersinkronisasi penuh dengan Web Dashboard Vault.",
+                    "info",
+                )
             cli.display_api_keys_vault()
         except Exception as e:
             print_status(f"Gagal sinkronisasi: {e}", "error")
@@ -287,7 +315,10 @@ def menu_setup_api_keys(cli: Any) -> None:
 
             if chosen_id:
                 database.activate_api_key_sync(chosen_id)
-                print_status(f"API Key #{chosen_id} berhasil diaktifkan di Web Vault & CLI!", "success")
+                print_status(
+                    f"API Key #{chosen_id} berhasil diaktifkan di Web Vault & CLI!",
+                    "success",
+                )
         except Exception as e:
             print_status(f"Gagal mengaktifkan kunci: {e}", "error")
         return
@@ -317,9 +348,13 @@ def menu_setup_api_keys(cli: Any) -> None:
     catalog = PROVIDERS_CATALOG.get(chosen_prov, {})
     env_key = catalog.get("env_keys", ["API_KEY"])[0]
 
-    key_input = inquirer.secret(
-        message=f"Masukkan {env_key} untuk {catalog.get('name', chosen_prov)}:",
-    ).execute().strip()
+    key_input = (
+        inquirer.secret(
+            message=f"Masukkan {env_key} untuk {catalog.get('name', chosen_prov)}:",
+        )
+        .execute()
+        .strip()
+    )
 
     if key_input:
         if "api_keys" not in cli.config:
@@ -333,7 +368,11 @@ def menu_setup_api_keys(cli: Any) -> None:
 
         env_path = get_repo_root() / ".env"
         try:
-            lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+            lines = (
+                env_path.read_text(encoding="utf-8").splitlines()
+                if env_path.exists()
+                else []
+            )
             found = False
             new_lines = []
             for line in lines:
@@ -397,7 +436,9 @@ def menu_git_actions(cli: Any) -> None:
         res = subprocess.run(["git", "diff"], capture_output=True, text=True)
         if res.stdout:
             if cli.console:
-                cli.console.print(Panel(Syntax(res.stdout, "diff", theme="monokai"), title="Git Diff"))
+                cli.console.print(
+                    Panel(Syntax(res.stdout, "diff", theme="monokai"), title="Git Diff")
+                )
             else:
                 print(res.stdout)
         else:
@@ -406,11 +447,19 @@ def menu_git_actions(cli: Any) -> None:
     elif act == "commit":
         msg = inquirer.text(message="Pesan Commit:").execute().strip()
         if msg:
-            res = subprocess.run(["git", "commit", "-am", msg], capture_output=True, text=True)
+            res = subprocess.run(
+                ["git", "commit", "-am", msg], capture_output=True, text=True
+            )
             print(res.stdout if res.stdout else res.stderr)
 
     elif act == "undo":
-        target = inquirer.text(message="Nama file yang ingin dibatalkan (Enter untuk semua):").execute().strip()
+        target = (
+            inquirer.text(
+                message="Nama file yang ingin dibatalkan (Enter untuk semua):"
+            )
+            .execute()
+            .strip()
+        )
         cmd = ["git", "restore", target] if target else ["git", "restore", "."]
         res = subprocess.run(cmd, capture_output=True, text=True)
         print_status("Perubahan dibatalkan.", "info")
@@ -433,11 +482,16 @@ def menu_undo_patch(cli: Any) -> None:
         return
 
     choices = [
-        Choice("latest", f"↩️  Batalkan Perubahan Terakhir (#{patches[-1].id}: {patches[-1].filepath})"),
+        Choice(
+            "latest",
+            f"↩️  Batalkan Perubahan Terakhir (#{patches[-1].id}: {patches[-1].filepath})",
+        ),
         Separator(),
     ]
     for p in reversed(patches[-15:]):
-        choices.append(Choice(str(p.id), f"#{p.id} [{p.timestamp}] {p.filepath} ({p.summary})"))
+        choices.append(
+            Choice(str(p.id), f"#{p.id} [{p.timestamp}] {p.filepath} ({p.summary})")
+        )
     choices.append(Separator())
     choices.append(Choice("back", "⬅️  Kembali"))
 
@@ -467,12 +521,18 @@ def menu_switch_persona(cli: Any) -> None:
         pass
 
     if not agents:
-        print_status("Belum ada custom agent di database. Kunjungi Web Dashboard di http://localhost:8080/agents.", "warning")
+        print_status(
+            "Belum ada custom agent di database. Kunjungi Web Dashboard di http://localhost:8080/agents.",
+            "warning",
+        )
         return
 
     active_name = getattr(cli, "active_persona_name", None)
     choices = [
-        Choice("reset", f"👑 Default ALFA Orchestrator{' (aktif)' if not active_name else ''}"),
+        Choice(
+            "reset",
+            f"👑 Default ALFA Orchestrator{' (aktif)' if not active_name else ''}",
+        ),
         Separator(),
     ]
 
@@ -514,15 +574,23 @@ def menu_manage_servers(cli: Any) -> None:
     bot = statuses["bot"]
 
     print(f"\n{Colors.BOLD}🌐 Status Server Ekosistem ALFA Saat Ini:{Colors.ENDC}")
-    print(f"  {'🟢' if dash['ok'] else '🔴'} Web Command Center : {Colors.CYAN}{dash['status']}{Colors.ENDC}")
-    print(f"  {'🔀' if r9['ok'] else '⚪'} 9Router AI Gateway : {Colors.CYAN}{r9['status']}{Colors.ENDC}")
-    print(f"  {'🤖' if bot['ok'] else '⚪'} Telegram AI Bot    : {Colors.CYAN}{bot['status']}{Colors.ENDC}\n")
+    print(
+        f"  {'🟢' if dash['ok'] else '🔴'} Web Command Center : {Colors.CYAN}{dash['status']}{Colors.ENDC}"
+    )
+    print(
+        f"  {'🔀' if r9['ok'] else '⚪'} 9Router AI Gateway : {Colors.CYAN}{r9['status']}{Colors.ENDC}"
+    )
+    print(
+        f"  {'🤖' if bot['ok'] else '⚪'} Telegram AI Bot    : {Colors.CYAN}{bot['status']}{Colors.ENDC}\n"
+    )
 
     choices = [
         Choice("start", "🟢 Nyalakan / Pastikan Semua Server Aktif"),
         Choice("restart", "🔄 Restart Semua Server Ekosistem"),
         Choice("stop", "⏹️  Hentikan Semua Server Latar Belakang"),
-        Choice("browser", "🌐 Buka Web Command Center di Browser (http://localhost:8080)"),
+        Choice(
+            "browser", "🌐 Buka Web Command Center di Browser (http://localhost:8080)"
+        ),
         Separator(),
         Choice("back", "⬅️  Kembali"),
     ]
@@ -540,6 +608,7 @@ def menu_manage_servers(cli: Any) -> None:
         cli.do_slash_servers("stop")
     elif action == "browser":
         import webbrowser
+
         webbrowser.open("http://localhost:8080")
         print_status("Membuka browser ke http://localhost:8080...", "success")
 
@@ -549,8 +618,14 @@ def menu_switch_agent_execution_mode(cli: Any) -> None:
     curr_mode = getattr(cli, "agent_execution_mode", "single")
 
     choices = [
-        Choice("single", f"⚡ Single Agent Mode  - 1 Autonomous ReAct Agent Cepat & Berfokus{' (AKTIF)' if curr_mode == 'single' else ''}"),
-        Choice("swarm",  f"🐝 Swarm Multi-Agent - Kolaborasi Seluruh Tim Spesialis (Planner, Coder, QA, Security){' (AKTIF)' if curr_mode == 'swarm' else ''}"),
+        Choice(
+            "single",
+            f"⚡ Single Agent Mode  - 1 Autonomous ReAct Agent Cepat & Berfokus{' (AKTIF)' if curr_mode == 'single' else ''}",
+        ),
+        Choice(
+            "swarm",
+            f"🐝 Swarm Multi-Agent - Kolaborasi Seluruh Tim Spesialis (Planner, Coder, QA, Security){' (AKTIF)' if curr_mode == 'swarm' else ''}",
+        ),
         Separator(),
         Choice("back", "⬅️  Kembali"),
     ]
@@ -569,7 +644,11 @@ def menu_switch_agent_execution_mode(cli: Any) -> None:
     cli._save_config()
     cli._update_prompt()
 
-    label = "SINGLE AGENT (Autonomous ReAct)" if sel == "single" else "SWARM MULTI-AGENT (Kolaboratif)"
+    label = (
+        "SINGLE AGENT (Autonomous ReAct)"
+        if sel == "single"
+        else "SWARM MULTI-AGENT (Kolaboratif)"
+    )
     print_status(f"Mode eksekusi agen berhasil diubah ke: {label}", "success")
 
 
@@ -584,7 +663,10 @@ def menu_configure_agent_models(cli: Any) -> None:
         pass
 
     if not agents:
-        print_status("Belum ada agent di database. Kunjungi Web Dashboard di http://localhost:8080/agents.", "warning")
+        print_status(
+            "Belum ada agent di database. Kunjungi Web Dashboard di http://localhost:8080/agents.",
+            "warning",
+        )
         return
 
     try:
@@ -614,13 +696,26 @@ def menu_configure_agent_models(cli: Any) -> None:
     if selected_agent_id == "back" or not selected_agent_id:
         return
 
-    matched_agent = next((a for a in agents if str(a.get("id")) == str(selected_agent_id)), None)
+    matched_agent = next(
+        (a for a in agents if str(a.get("id")) == str(selected_agent_id)), None
+    )
     if not matched_agent:
         return
 
     primary_order = [
-        "9router", "google", "deepseek", "nvidia", "qwen",
-        "openrouter", "antigravity", "openai", "anthropic", "minimax", "moonshot", "groq", "ollama"
+        "9router",
+        "google",
+        "deepseek",
+        "nvidia",
+        "qwen",
+        "openrouter",
+        "antigravity",
+        "openai",
+        "anthropic",
+        "minimax",
+        "moonshot",
+        "groq",
+        "ollama",
     ]
     prov_choices = []
     curr_prov = matched_agent.get("provider", "google")
@@ -628,7 +723,11 @@ def menu_configure_agent_models(cli: Any) -> None:
         if pkey not in PROVIDERS_CATALOG:
             continue
         pinfo = PROVIDERS_CATALOG[pkey]
-        is_curr = " (saat ini)" if normalize_provider(pkey) == normalize_provider(curr_prov) else ""
+        is_curr = (
+            " (saat ini)"
+            if normalize_provider(pkey) == normalize_provider(curr_prov)
+            else ""
+        )
         prov_choices.append(Choice(pkey, f"{pinfo['name']:<25} ({pkey}){is_curr}"))
 
     prov_choices.append(Separator())
@@ -657,17 +756,25 @@ def menu_configure_agent_models(cli: Any) -> None:
     selected_model = inquirer.select(
         message=f"Pilih Model AI ({selected_provider.upper()}):",
         choices=model_choices,
-        default=curr_mod if curr_mod in model_list else (model_list[0] if model_list else None),
+        default=curr_mod
+        if curr_mod in model_list
+        else (model_list[0] if model_list else None),
     ).execute()
 
     if selected_model == "back" or not selected_model:
         return
 
     if selected_model == "__custom__":
-        selected_model = inquirer.text(
-            message="Ketik nama model AI spesifik:",
-            validate=lambda text: len(text.strip()) > 0 or "Nama model tidak boleh kosong.",
-        ).execute().strip()
+        selected_model = (
+            inquirer.text(
+                message="Ketik nama model AI spesifik:",
+                validate=lambda text: (
+                    len(text.strip()) > 0 or "Nama model tidak boleh kosong."
+                ),
+            )
+            .execute()
+            .strip()
+        )
 
     try:
         res = database.update_custom_agent_sync(
@@ -696,22 +803,39 @@ def open_interactive_menu(cli: Any) -> None:
 
     while True:
         agent_active = getattr(cli, "agent_mode", True)
-        agent_label = "🟢 AKTIF (ReAct + Tools)" if agent_active else "⚪ NON-AKTIF (Direct Chat)"
+        agent_label = (
+            "🟢 AKTIF (ReAct + Tools)" if agent_active else "⚪ NON-AKTIF (Direct Chat)"
+        )
         exec_mode = getattr(cli, "agent_execution_mode", "single")
-        exec_label = "⚡ Single Agent" if exec_mode == "single" else "🐝 Swarm Multi-Agent"
-        active_persona = getattr(cli, "active_persona_name", None) or "Default Orchestrator"
+        exec_label = (
+            "⚡ Single Agent" if exec_mode == "single" else "🐝 Swarm Multi-Agent"
+        )
+        active_persona = (
+            getattr(cli, "active_persona_name", None) or "Default Orchestrator"
+        )
 
         menu_choices = [
-            Choice("exec_mode", f"🔀 Mode Agen: Single vs Swarm (Saat ini: {exec_label})"),
+            Choice(
+                "exec_mode", f"🔀 Mode Agen: Single vs Swarm (Saat ini: {exec_label})"
+            ),
             Choice("swarm_models", "⚙️ Atur Model AI per Agen Swarm (Custom Models)"),
             Choice("agent", f"🤖 Toggle Agent Tools (Saat ini: {agent_label})"),
             Choice("persona", f"👥 Ganti Persona Swarm (Saat ini: {active_persona})"),
-            Choice("servers", "🚀 Status & Kelola Server Ekosistem (Dashboard, 9Router, Bot)"),
+            Choice(
+                "servers",
+                "🚀 Status & Kelola Server Ekosistem (Dashboard, 9Router, Bot)",
+            ),
             Choice("repomap", "🗺️  Peta Arsitektur Proyek (Repomap)"),
             Choice("tools", "🛠️  Lihat Tools Tersedia (Developer & Web Ecosystem)"),
             Choice("undo", "↩️  Rollback Patch / Undo Riwayat Perubahan File"),
-            Choice("model", f"🧠 Switch Model & Provider Utama (Saat ini: {direct.provider.upper()}/{direct.model})"),
-            Choice("files", f"📁 Pilih Konteks File Proyek ({len(getattr(cli, 'attached_files', []))} terpilih)"),
+            Choice(
+                "model",
+                f"🧠 Switch Model & Provider Utama (Saat ini: {direct.provider.upper()}/{direct.model})",
+            ),
+            Choice(
+                "files",
+                f"📁 Pilih Konteks File Proyek ({len(getattr(cli, 'attached_files', []))} terpilih)",
+            ),
             Choice("preset", "⚡ Pilih Preset Respon (Coding, Smart, Fast, Creative)"),
             Choice("mode", f"🧭 Ganti Mode Koneksi (Saat ini: {cli.mode.upper()})"),
             Choice("keys", "🔑 Kelola API Keys (NVIDIA NIM, Google, OpenAI, dll)"),
@@ -735,7 +859,9 @@ def open_interactive_menu(cli: Any) -> None:
             cli.agent_mode = not getattr(cli, "agent_mode", True)
             cli.config["agent_mode"] = cli.agent_mode
             cli._save_config()
-            new_state = "AKTIF (ReAct + Tools)" if cli.agent_mode else "NON-AKTIF (Direct Chat)"
+            new_state = (
+                "AKTIF (ReAct + Tools)" if cli.agent_mode else "NON-AKTIF (Direct Chat)"
+            )
             print_status(f"Autonomous Agent Mode sekarang: {new_state}", "success")
         elif action == "persona":
             menu_switch_persona(cli)
@@ -767,4 +893,3 @@ def open_interactive_menu(cli: Any) -> None:
             print_status("Riwayat chat dibersihkan.", "success")
         elif action == "exit" or not action:
             break
-

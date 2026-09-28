@@ -204,7 +204,7 @@ async def run_agent_turn(
                 )
                 for h in relevant:
                     memory_context_parts.append(
-                        f"- [{h.get('doc_title','?')}] {str(h.get('chunk_text',''))[:350]}"
+                        f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
                     )
         except Exception as rag_err:
             logger.debug(f"Auto-RAG skipped: {rag_err}")

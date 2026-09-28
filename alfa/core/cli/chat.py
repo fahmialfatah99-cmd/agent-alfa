@@ -136,11 +136,38 @@ class CliChatMixin:
         # Default True, atau otomatis terpicu jika ada intensi inspeksi/coding lokal
         is_agent = getattr(self, "agent_mode", True)
         local_intent_keywords = [
-            "cek folder", "lihat folder", "isi folder", "list folder", "struktur folder",
-            "cek direktori", "cek file", "baca file", "lihat file", "periksa file",
-            "periksa", "baca kode", "edit", "ubah", "perbaiki", "fix", "tulis",
-            "buat file", "create", "hapus", "cari", "search", "temukan", "jalankan",
-            "run", "test", "pytest", "git", "diff", "arsitektur", "repomap", "analisis",
+            "cek folder",
+            "lihat folder",
+            "isi folder",
+            "list folder",
+            "struktur folder",
+            "cek direktori",
+            "cek file",
+            "baca file",
+            "lihat file",
+            "periksa file",
+            "periksa",
+            "baca kode",
+            "edit",
+            "ubah",
+            "perbaiki",
+            "fix",
+            "tulis",
+            "buat file",
+            "create",
+            "hapus",
+            "cari",
+            "search",
+            "temukan",
+            "jalankan",
+            "run",
+            "test",
+            "pytest",
+            "git",
+            "diff",
+            "arsitektur",
+            "repomap",
+            "analisis",
         ]
         msg_lower = message.lower()
         has_local_intent = any(kw in msg_lower for kw in local_intent_keywords)
@@ -227,9 +254,7 @@ class CliChatMixin:
         # Periksa apakah ada konteks file atau @file
         attached = getattr(self, "attached_files", [])
         if hasattr(self, "direct_ai") and self.direct_ai:
-            final_message = self.direct_ai.build_prompt_with_context(
-                message, attached
-            )
+            final_message = self.direct_ai.build_prompt_with_context(message, attached)
         else:
             final_message = message
 
@@ -329,14 +354,20 @@ class CliChatMixin:
 
         active_agents = [a for a in agents if a.get("is_enabled", 1)]
         if not active_agents:
-            print_status("Tidak ada agen aktif di Swarm. Buka '/agents' atau atur di Web Dashboard.", "warning")
+            print_status(
+                "Tidak ada agen aktif di Swarm. Buka '/agents' atau atur di Web Dashboard.",
+                "warning",
+            )
             return
 
         if RICH_AVAILABLE and self.console:
             from rich.panel import Panel
             from rich.table import Table
 
-            tbl = Table(title="🐝 Partisipan Swarm & Model AI yang Ditugaskan", border_style="yellow")
+            tbl = Table(
+                title="🐝 Partisipan Swarm & Model AI yang Ditugaskan",
+                border_style="yellow",
+            )
             tbl.add_column("Avatar", justify="center")
             tbl.add_column("Nama Agen", style="bold white")
             tbl.add_column("Peran / Spesialisasi", style="green")
@@ -360,13 +391,19 @@ class CliChatMixin:
             )
             self.console.print(tbl)
         else:
-            print(f"\n{Colors.BOLD}🐝 ALFA Multi-Agent Swarm Orchestrator Aktif{Colors.ENDC}")
+            print(
+                f"\n{Colors.BOLD}🐝 ALFA Multi-Agent Swarm Orchestrator Aktif{Colors.ENDC}"
+            )
             print(f"Target Direktori: {Path.cwd()}")
             for a in active_agents:
-                print(f"  • {a.get('avatar_emoji', '🤖')} {a.get('name')}: {a.get('provider')}/{a.get('model')}")
+                print(
+                    f"  • {a.get('avatar_emoji', '🤖')} {a.get('name')}: {a.get('provider')}/{a.get('model')}"
+                )
 
         target_dir = str(Path.cwd())
-        print(f"\n{Colors.CYAN}🚀 Memulai koordinasi dan eksekusi kolaboratif tim agen...{Colors.ENDC}\n")
+        print(
+            f"\n{Colors.CYAN}🚀 Memulai koordinasi dan eksekusi kolaboratif tim agen...{Colors.ENDC}\n"
+        )
 
         try:
             result = asyncio.run(
@@ -387,9 +424,13 @@ class CliChatMixin:
             self.chat_history.append({"role": "assistant", "content": str(consensus)})
 
             if RICH_AVAILABLE and self.console and self.config.get("markdown", True):
-                self.console.print(Markdown(f"### 🏁 Hasil Konsensus & Eksekusi Swarm\n\n{consensus}"))
+                self.console.print(
+                    Markdown(f"### 🏁 Hasil Konsensus & Eksekusi Swarm\n\n{consensus}")
+                )
             else:
-                print(f"\n{Colors.GREEN}🏁 Hasil Konsensus & Eksekusi Swarm:{Colors.ENDC}\n{consensus}\n")
+                print(
+                    f"\n{Colors.GREEN}🏁 Hasil Konsensus & Eksekusi Swarm:{Colors.ENDC}\n{consensus}\n"
+                )
 
         except Exception as e:
             print_status(f"Error eksekusi swarm: {e}", "error")
