@@ -15,7 +15,7 @@ def list_custom_agents_sync() -> list[dict[str, Any]]:
     """List all registered custom agents."""
     with get_sync_db() as conn:
         cursor = conn.execute("""
-            SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model, 
+            SELECT a.id, a.name, a.role, a.persona, a.system_instruction, a.provider, a.model,
                    a.api_key_id, a.avatar_emoji, a.color_theme, a.is_enabled, a.created_at,
                    COALESCE(a.enable_tools, 0) as enable_tools,
                    k.name as key_name

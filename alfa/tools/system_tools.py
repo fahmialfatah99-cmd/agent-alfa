@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 System execution, sandboxing, monitoring, and administration tools.
 
@@ -7,21 +6,21 @@ the modular `alfa.tools.system.*` packages.
 """
 
 import logging
-import os
-import subprocess
-import sys
-from typing import Any, Dict, List, Optional
+import os  # noqa: F401 - re-exported for backward-compat attribute access (e.g. system_tools.subprocess)
+import subprocess  # noqa: F401 - re-exported for backward-compat (tests monkeypatch system_tools.subprocess)
+import sys  # noqa: F401 - re-exported for backward compatibility
+from typing import Any, Dict, List, Optional  # noqa: F401 - re-exported for backward compatibility
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: F401 - re-exported for backward compatibility
 
-from alfa.core import database
-from alfa.core.runtime_ctx import (
+from alfa.core import database  # noqa: F401 - re-exported for backward compatibility
+from alfa.core.runtime_ctx import (  # noqa: F401 - re-exported for backward compatibility
     current_chat_id_var,
     current_user_id_var,
     get_current_chat_id,
     get_current_user_id,
 )
-from alfa.tools.registry import register_tool
+from alfa.tools.registry import register_tool  # noqa: F401 - re-exported for backward compatibility
 
 # Import all submodules from modular alfa.tools.system package
 from alfa.tools.system.constants import (

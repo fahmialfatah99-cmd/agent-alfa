@@ -39,6 +39,7 @@ from alfa.tools.media.pdf_editor import (
     pdf_rotate_pages,
     pdf_split_document,
 )
+from alfa.tools.media.player import play_youtube_music
 
 __all__ = [
     # pdf_builder
@@ -64,6 +65,8 @@ __all__ = [
     "text_to_audio_file",
     "convert_media_format",
     "edit_image",
+    # player
+    "play_youtube_music",
     # documents
     "generate_excel_spreadsheet",
     "generate_presentation_pptx",

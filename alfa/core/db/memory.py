@@ -32,8 +32,8 @@ async def get_recent_chat_history(
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT role, content FROM chat_history 
-            WHERE user_id = ? 
+            SELECT role, content FROM chat_history
+            WHERE user_id = ?
             ORDER BY id DESC LIMIT ?
             """,
             (user_id, limit),
@@ -109,7 +109,7 @@ def search_memories_sync(user_id: int, query: str) -> list[dict[str, Any]]:
         pattern = f"%{query.strip().lower()}%"
         cursor = conn.execute(
             """
-            SELECT category, key_topic, content, updated_at FROM knowledge_memory 
+            SELECT category, key_topic, content, updated_at FROM knowledge_memory
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
@@ -145,7 +145,7 @@ async def search_memories(user_id: int, query: str) -> list[dict[str, Any]]:
         search_pattern = f"%{query.strip().lower()}%"
         async with db.execute(
             """
-            SELECT category, key_topic, content FROM knowledge_memory 
+            SELECT category, key_topic, content FROM knowledge_memory
             WHERE user_id = ? AND (LOWER(key_topic) LIKE ? OR LOWER(content) LIKE ?)
             ORDER BY updated_at DESC
             """,
@@ -181,7 +181,7 @@ def add_knowledge_relation_sync(
             """
             INSERT INTO knowledge_graph (user_id, entity, relation, target_value, category, tags)
             VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, entity, relation) DO UPDATE SET 
+            ON CONFLICT(user_id, entity, relation) DO UPDATE SET
                 target_value = excluded.target_value,
                 category = excluded.category,
                 tags = excluded.tags,

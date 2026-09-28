@@ -362,20 +362,20 @@ async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
     try:
         if chat_id:
             rows = conn.execute(
-                """SELECT id, chat_id, tool_name, tier, decision, arguments_json, 
-                          datetime(created_at, 'unixepoch', 'localtime') as timestamp, 
+                """SELECT id, chat_id, tool_name, tier, decision, arguments_json,
+                          datetime(created_at, 'unixepoch', 'localtime') as timestamp,
                           round(response_time_sec, 2) as response_time
-                   FROM permission_audit 
-                   WHERE chat_id=? 
+                   FROM permission_audit
+                   WHERE chat_id=?
                    ORDER BY created_at DESC LIMIT ?""",
                 (int(chat_id), limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                """SELECT id, chat_id, tool_name, tier, decision, arguments_json, 
-                          datetime(created_at, 'unixepoch', 'localtime') as timestamp, 
+                """SELECT id, chat_id, tool_name, tier, decision, arguments_json,
+                          datetime(created_at, 'unixepoch', 'localtime') as timestamp,
                           round(response_time_sec, 2) as response_time
-                   FROM permission_audit 
+                   FROM permission_audit
                    ORDER BY created_at DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
@@ -408,7 +408,7 @@ async def get_all_trust_scores():
         rows = conn.execute(
             """SELECT chat_id, trust_score, total_approvals, safe_approvals, risky_approvals,
                       datetime(last_updated, 'unixepoch', 'localtime') as last_updated
-               FROM user_trust_scores 
+               FROM user_trust_scores
                ORDER BY trust_score DESC"""
         ).fetchall()
 

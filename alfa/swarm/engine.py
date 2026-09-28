@@ -218,7 +218,17 @@ async def conduct_multi_agent_meeting(
         else:
             os.environ.pop("ALFA_TARGET_FOLDER", None)
 
-    actual_rounds = 0
+    # Mode eksekusi langsung tidak butuh sesi diskusi (konteks dibangun dari
+    # hasil eksekusi nyata). Mode diskusi/plan HARUS tetap berputar `rounds`
+    # kali — dulu hard-coded 0 sehingga transkrip selalu kosong dan laporan
+    # konsensus dibuat tanpa riwayat (total_dialogues selalu 0).
+    if mode in ("execute", "plan_and_execute"):
+        actual_rounds = 0
+    else:
+        try:
+            actual_rounds = max(1, int(rounds or 1))
+        except (TypeError, ValueError):
+            actual_rounds = 2
     for r in range(1, actual_rounds + 1):
         for agent in participants:
             context_text = (

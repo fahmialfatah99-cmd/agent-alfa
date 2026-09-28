@@ -7,7 +7,6 @@ when the CLI is launched.
 
 from __future__ import annotations
 
-import os
 import shutil
 import socket
 import subprocess
@@ -18,7 +17,7 @@ from typing import Any
 
 import requests
 
-from alfa.core.cli.constants import Colors, print_status
+from alfa.core.cli.constants import Colors
 
 
 def get_repo_root() -> Path:

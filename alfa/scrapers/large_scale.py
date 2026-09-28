@@ -14,7 +14,7 @@ import argparse
 import logging
 import sys
 
-import fast_scraper
+from alfa.scrapers import fast as fast_scraper
 
 logger = logging.getLogger(__name__)
 

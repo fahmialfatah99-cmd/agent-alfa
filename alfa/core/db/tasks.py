@@ -42,8 +42,8 @@ def list_cron_jobs_sync(user_id: int) -> list[dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run 
-            FROM scheduled_cron_jobs 
+            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run
+            FROM scheduled_cron_jobs
             WHERE user_id = ?
             ORDER BY id ASC
             """,
@@ -71,8 +71,8 @@ async def get_due_cron_jobs() -> list[dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes 
-            FROM scheduled_cron_jobs 
+            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes
+            FROM scheduled_cron_jobs
             WHERE is_active = 1 AND next_run <= ?
             """,
             (now_str,),
@@ -116,7 +116,7 @@ def update_subagent_task_sync(task_id: str, status: str, result: str):
     with get_sync_db() as conn:
         conn.execute(
             """
-            UPDATE subagent_tasks 
+            UPDATE subagent_tasks
             SET status = ?, result = ?, finished_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -138,7 +138,7 @@ def list_subagent_tasks_sync(limit: int = 20) -> list[dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT * FROM subagent_tasks 
+            SELECT * FROM subagent_tasks
             ORDER BY created_at DESC LIMIT ?
             """,
             (limit,),
@@ -186,7 +186,7 @@ def list_agent_activities_sync(limit: int = 30) -> list[dict[str, Any]]:
     with get_sync_db() as conn:
         cursor = conn.execute(
             """
-            SELECT * FROM agent_activity_logs 
+            SELECT * FROM agent_activity_logs
             ORDER BY id DESC LIMIT ?
             """,
             (limit,),
@@ -235,8 +235,8 @@ async def get_due_reminders() -> list[dict[str, Any]]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT id, user_id, chat_id, message, reminder_time 
-            FROM reminders 
+            SELECT id, user_id, chat_id, message, reminder_time
+            FROM reminders
             WHERE is_executed = 0 AND reminder_time <= ?
             """,
             (now_iso,),

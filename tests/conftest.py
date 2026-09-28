@@ -14,6 +14,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+# Hermetic tests: never inherit developer-local secrets from shell or `.env`
+# (`load_dotenv()` runs at import time in alfa.dashboard.*). In particular an
+# operator-set DASHBOARD_AUTH_TOKEN would switch the dashboard to auth mode and
+# break unauthenticated TestClient calls, while CI (no .env) stays green.
+os.environ["DASHBOARD_AUTH_TOKEN"] = ""
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))

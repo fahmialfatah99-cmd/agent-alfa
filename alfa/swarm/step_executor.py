@@ -153,13 +153,23 @@ async def _verify_step_result(task: str, step_result: dict[str, Any]) -> tuple:
             "Kamu QA auditor ketat. Hanya terima bukti konkret.",
         )
         v = (verdict or "").strip().upper()
-        if v.startswith("PASS"):
+        # Terima "PASS" walau diawali teks pendek, TOLAK bila ada "FAIL".
+        if "PASS" in v and "FAIL" not in v:
             return True, ""
         fb = verdict.strip() if verdict else "verifier tidak merespons"
         return False, fb[:200]
     except Exception as ver_err:
-        logger.warning("Verification call failed (treated as unverified): %r", ver_err)
-        return True, ""
+        # Judge tidak bisa dihubungi. Dulu selalu return True (fail-open) sehingga
+        # step gagal pun lolos begitu saja. Sekarang pakai bukti mekanis yang sudah
+        # dikumpulkan di atas, dan hanya PASS bila memang ada tanda eksekusi nyata.
+        logger.warning("Verification call failed (using mechanical fallback): %r", ver_err)
+        if claims_file_work and fs_changed:
+            return True, ""
+        status_ok = step_result.get("status") == "success"
+        has_tool = bool(step_result.get("tool_used"))
+        if status_ok and has_tool:
+            return True, ""
+        return False, "verifier offline dan tidak ada bukti eksekusi nyata"
 
 
 async def _single_shot_edit_fallback(

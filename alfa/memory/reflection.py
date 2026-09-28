@@ -59,14 +59,14 @@ async def reflect_recent_conversation(
         if not history:
             return 0
 
-        import database
+        from alfa.core import database
 
         convo_text = "\n".join(
             f"{('USER' if m.get('role') in ('user',) else 'AGENT')}: {str(m.get('content', ''))[:500]}"
             for m in history[-10:]
         )[:8000]
 
-        import main_brain as mb
+        from alfa.core import brain as mb
 
         brain = mb.get_main_brain()
         if not brain.get("api_key"):

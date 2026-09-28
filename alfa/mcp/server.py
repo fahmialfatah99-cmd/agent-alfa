@@ -7,19 +7,17 @@ import asyncio
 import inspect
 import json
 import logging
-import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger("alfa.mcp")
 
 # Ensure tools are loaded
-import alfa.tools
 from alfa.tools.registry import TOOL_REGISTRY, get_tool
 
 try:
+    import mcp.types as types
     from mcp.server import Server
     from mcp.server.stdio import stdio_server
-    import mcp.types as types
 except ImportError:
     Server = None
     stdio_server = None
@@ -37,9 +35,9 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
     server = Server(server_name)
 
     @server.list_tools()
-    async def handle_list_tools() -> List[types.Tool]:
+    async def handle_list_tools() -> list[types.Tool]:
         """List all available tools registered in ALFA TOOL_REGISTRY."""
-        tools_list: List[types.Tool] = []
+        tools_list: list[types.Tool] = []
         for name, info in TOOL_REGISTRY.items():
             schema = info.get("schema", {})
             openai_fn = schema.get("openai_spec", {}).get("function", {})
@@ -67,8 +65,8 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
 
     @server.call_tool()
     async def handle_call_tool(
-        name: str, arguments: Optional[Dict[str, Any]] = None
-    ) -> List[types.TextContent]:
+        name: str, arguments: dict[str, Any] | None = None
+    ) -> list[types.TextContent]:
         """Execute a requested tool and return the output formatted as TextContent."""
         fn = get_tool(name)
         if not fn:

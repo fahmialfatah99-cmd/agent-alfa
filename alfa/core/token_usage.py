@@ -21,7 +21,7 @@ def record(
 ):
     """Persist one usage record; silently ignore failures."""
     try:
-        import database
+        from alfa.core import database
 
         database.record_api_usage_sync(
             provider=provider,

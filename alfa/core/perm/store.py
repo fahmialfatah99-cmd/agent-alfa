@@ -93,7 +93,7 @@ def update_trust_score(chat_id: int, was_safe: bool, response_time: float) -> No
             new_trust = min(1.0, max(0.0, base_ratio + speed_bonus))
 
             conn.execute(
-                """INSERT OR REPLACE INTO user_trust_scores 
+                """INSERT OR REPLACE INTO user_trust_scores
                    (chat_id, trust_score, total_approvals, safe_approvals, risky_approvals, last_updated)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (int(chat_id), new_trust, total, safe, risky, time.time()),
@@ -114,7 +114,7 @@ def log_permission_decision(
     try:
         with _connect() as conn:
             conn.execute(
-                """INSERT INTO permission_audit 
+                """INSERT INTO permission_audit
                    (chat_id, tool_name, tier, decision, arguments_json, created_at, response_time_sec)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
@@ -137,8 +137,8 @@ def is_always_allowed(chat_id: int | None, tool_name: str) -> bool:
     try:
         with _connect() as conn:
             row = conn.execute(
-                """SELECT 1 FROM tool_permissions 
-                   WHERE chat_id=? AND tool_name=? 
+                """SELECT 1 FROM tool_permissions
+                   WHERE chat_id=? AND tool_name=?
                    AND (permission_type='always' OR (permission_type='session' AND expires_at > ?))""",
                 (int(chat_id), tool_name, time.time()),
             ).fetchone()
@@ -158,7 +158,7 @@ def save_always_allow(
         )
         with _connect() as conn:
             conn.execute(
-                """INSERT OR REPLACE INTO tool_permissions 
+                """INSERT OR REPLACE INTO tool_permissions
                    (chat_id, tool_name, permission_type, created_at, expires_at)
                    VALUES (?, ?, ?, ?, ?)""",
                 (int(chat_id), tool_name, perm_type, time.time(), expires_at),
@@ -173,8 +173,8 @@ def list_always_allowed(chat_id: int) -> list[str]:
             return [
                 r[0]
                 for r in conn.execute(
-                    """SELECT tool_name FROM tool_permissions 
-                   WHERE chat_id=? AND (permission_type='always' 
+                    """SELECT tool_name FROM tool_permissions
+                   WHERE chat_id=? AND (permission_type='always'
                    OR (permission_type='session' AND expires_at > ?))
                    ORDER BY tool_name""",
                     (int(chat_id), time.time()),

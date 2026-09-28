@@ -200,7 +200,7 @@ async def _run_step(
         return _render(step.get("text", ""), variables)
 
     if stype == "prompt":
-        import main_brain as mb
+        from alfa.core import brain as mb
 
         brain = mb.get_main_brain()
         text = _render(step.get("text", ""), variables)
@@ -277,7 +277,7 @@ async def _run_step(
         return "\n\n".join(collected)
 
     if stype == "tool":
-        import main_brain as mb
+        from alfa.core import brain as mb
 
         name = step.get("tool", "")
         args_json = json.dumps(

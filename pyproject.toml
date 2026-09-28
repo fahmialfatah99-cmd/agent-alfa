@@ -107,6 +107,12 @@ ignore = ["E501", "B006"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "PLR2004"]
 "*_test.py" = ["S101"]
+# Re-export hub: star imports are intentional, names are re-exported via AVAILABLE_TOOLS
+"alfa/tools/__init__.py" = ["F405"]
+# Compat facades: imports are re-exported for attribute access from other modules/tests
+"alfa/tools/system_tools.py" = ["F401"]
+"alfa/core/database.py" = ["F401"]
+"alfa/bot/telegram_bot.py" = ["F401"]
 
 [tool.mypy]
 python_version = "3.10"

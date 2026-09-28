@@ -9,17 +9,16 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any
 
 import requests
 
 from alfa.core.cli.constants import (
     CONFIG_FILE,
-    RICH_AVAILABLE,
-    Colors,
-    print_status,
 )
+
 
 def normalize_provider(name: str | None) -> str:
     """Normalize provider aliases to match canonical names."""
@@ -361,7 +360,7 @@ class DirectAIClient:
         for path in env_paths:
             if path.exists():
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
+                    with open(path, encoding="utf-8") as f:
                         for line in f:
                             line = line.strip()
                             if line and not line.startswith("#") and "=" in line:
@@ -376,7 +375,7 @@ class DirectAIClient:
     def _load_saved_config(self) -> dict[str, Any]:
         if CONFIG_FILE.exists():
             try:
-                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                with open(CONFIG_FILE, encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 pass

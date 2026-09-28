@@ -85,7 +85,7 @@ def research_trending_niche(niche: str, platform: str = "shopee") -> dict[str, A
     Menggunakan web search untuk mengidentifikasi produk yang paling dicari.
     """
     try:
-        import tools
+        from alfa import tools
 
         query = f"produk viral terlaris {niche} {platform} diskon murah review rating tinggi 2026"
         search_res = tools.web_search(query)
@@ -202,7 +202,7 @@ Biasanya harganya {original_price}, hari ini cuma *{discount_price}* + gratis on
 Fitur andalannya:
 ✅ {feat_check}
 
-Udah bintang 4.9 dan ribuan orang udah checkout. 
+Udah bintang 4.9 dan ribuan orang udah checkout.
 
 Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
 👇👇
@@ -334,7 +334,7 @@ Yang mau amankan diskonnya sebelum kuponnya abis, langsung klik link ini ya:
         cur = conn.cursor()
         cur.execute(
             """
-        INSERT INTO affiliate_campaigns 
+        INSERT INTO affiliate_campaigns
         (product_name, platform, target_audience, tiktok_script, shopee_copy, wa_broadcast, telegram_card, spill_link_templates)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -374,7 +374,7 @@ def _deliver_telegram_broadcast(
     """
     import asyncio
 
-    import bot as bot_module
+    from alfa.bot import telegram_bot as bot_module
     from alfa.swarm import subagents
 
     tg_app = subagents.get_telegram_app()
@@ -451,7 +451,7 @@ def broadcast_affiliate_deal(
     # 2. WhatsApp
     if "whatsapp" in channels:
         try:
-            import tools
+            from alfa import tools
 
             wa_status = tools.manage_wa_sheets_bot("status")
             results["whatsapp"] = {
@@ -485,8 +485,8 @@ def list_affiliate_campaigns(limit: int = 20) -> list[dict[str, Any]]:
         cur = conn.cursor()
         cur.execute(
             """
-        SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at 
-        FROM affiliate_campaigns 
+        SELECT id, product_name, platform, target_audience, status, clicks_count, sales_count, estimated_earnings, created_at
+        FROM affiliate_campaigns
         ORDER BY id DESC LIMIT ?
         """,
             (limit,),

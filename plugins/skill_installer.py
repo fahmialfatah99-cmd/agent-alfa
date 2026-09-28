@@ -70,7 +70,7 @@ def _gh_fetch_file(repo: str, path: str, ref: str = "") -> str:
 def _ingest_skill_to_brain(skill_name: str, skill_dir: str) -> dict[str, Any]:
     """Indeks semua file teks skill ke Vector Brain milik primary user."""
     try:
-        import vector_memory
+        from alfa.memory import vector as vector_memory
 
         allowed = os.getenv("ALLOWED_USER_IDS", "").split(",")[0].strip()
         uid = int(allowed) if allowed.isdigit() else 0
@@ -139,7 +139,7 @@ def _hot_register(name: str, path: str):
             plugins._RUNTIME_PLUGIN_REGISTRY[name] = target_fn
         # Tambahkan juga ke AVAILABLE_TOOLS proses yang sedang berjalan
         try:
-            import tools
+            from alfa import tools
 
             if target_fn and all(
                 getattr(t, "__name__", None) != name for t in tools.AVAILABLE_TOOLS

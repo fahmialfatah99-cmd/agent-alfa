@@ -376,6 +376,7 @@ def menu_setup_api_keys(cli: Any) -> None:
 def menu_git_actions(cli: Any) -> None:
     """Interactive Git Quick Actions."""
     import subprocess
+
     from rich.panel import Panel
     from rich.syntax import Syntax
 
@@ -505,9 +506,7 @@ def menu_switch_persona(cli: Any) -> None:
 def menu_manage_servers(cli: Any) -> None:
     """Interactive management for ALFA background ecosystem servers."""
     from alfa.core.cli.server_manager import (
-        auto_start_all_servers,
         get_servers_status,
-        stop_all_servers,
     )
 
     statuses = get_servers_status()

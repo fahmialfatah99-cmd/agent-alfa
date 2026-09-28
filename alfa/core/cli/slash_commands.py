@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import getpass
 import os
 from pathlib import Path
 
 from alfa.core.cli.constants import (
-    CONFIG_FILE,
     Colors,
     print_status,
 )
@@ -173,7 +171,7 @@ class CliSlashCommandsMixin:
             print(f"  {Colors.CYAN}Model:{Colors.ENDC}       {mod}")
             print(f"  {Colors.CYAN}Temperature:{Colors.ENDC} {temp}")
             print(f"  {Colors.CYAN}Max Tokens:{Colors.ENDC}  {tokens}")
-            print(f"\n💡 Ubah dengan: /provider <nama_provider> [model]")
+            print("\n💡 Ubah dengan: /provider <nama_provider> [model]")
             print(f"   Pilihan: {', '.join(canonical_providers)}\n")
             return
 
@@ -368,8 +366,13 @@ class CliSlashCommandsMixin:
     def _set_agent_model_command(self, arg: str) -> None:
         """Helper to set provider & model for a specific swarm agent."""
         import shlex
+
         from alfa.core import database
-        from alfa.core.cli.direct_ai import PROVIDERS_CATALOG, normalize_provider, sync_providers_catalog
+        from alfa.core.cli.direct_ai import (
+            PROVIDERS_CATALOG,
+            normalize_provider,
+            sync_providers_catalog,
+        )
 
         try:
             sync_providers_catalog()
@@ -389,15 +392,15 @@ class CliSlashCommandsMixin:
 
         if not parts:
             print(f"\n{Colors.BOLD}⚙️  Pengaturan Model AI per Agen Swarm:{Colors.ENDC}\n")
-            print(f"Format perintah:")
+            print("Format perintah:")
             print(f"  {Colors.CYAN}/swarm model <id|nama_agen> <provider> [nama_model]{Colors.ENDC}")
             print(f"  {Colors.CYAN}/agent model <id|nama_agen> <provider> [nama_model]{Colors.ENDC}\n")
-            print(f"Contoh penggunaan:")
-            print(f"  • /swarm model \"Code Crafter\" deepseek deepseek-coder")
-            print(f"  • /swarm model 2 9router antigravity")
-            print(f"  • /swarm model 4 google gemini-3.8-flash")
-            print(f"  • /swarm model \"Security Sentinel\" nvidia meta/llama-3.3-70b-instruct\n")
-            print(f"Daftar agen saat ini:")
+            print("Contoh penggunaan:")
+            print("  • /swarm model \"Code Crafter\" deepseek deepseek-coder")
+            print("  • /swarm model 2 9router antigravity")
+            print("  • /swarm model 4 google gemini-3.8-flash")
+            print("  • /swarm model \"Security Sentinel\" nvidia meta/llama-3.3-70b-instruct\n")
+            print("Daftar agen saat ini:")
             for a in agents:
                 print(f"  #{a.get('id')} {a.get('avatar_emoji', '🤖')} {Colors.CYAN}{a.get('name'):<20}{Colors.ENDC} - {a.get('role'):<25} [{a.get('provider')}/{a.get('model')}]")
             print(f"\n💡 Atau atur via menu interaktif: {Colors.CYAN}/menu{Colors.ENDC} -> 'Atur Model AI per Agen'\n")
@@ -420,7 +423,7 @@ class CliSlashCommandsMixin:
         if len(parts) < 2:
             print(f"\n{Colors.BOLD}Agen Terpilih:{Colors.ENDC} {matched.get('avatar_emoji', '🤖')} {matched.get('name')} ({matched.get('role')})")
             print(f"Provider/Model saat ini: {Colors.CYAN}{matched.get('provider')}/{matched.get('model')}{Colors.ENDC}")
-            print(f"\nUntuk mengubah, tentukan provider dan model:")
+            print("\nUntuk mengubah, tentukan provider dan model:")
             print(f"  {Colors.CYAN}/swarm model \"{matched.get('name')}\" <provider> [model]{Colors.ENDC}")
             print(f"Pilihan provider: {', '.join(list(PROVIDERS_CATALOG.keys())[:8])}\n")
             return
@@ -496,7 +499,7 @@ class CliSlashCommandsMixin:
             curr = getattr(self, "active_persona_name", None)
             curr_str = f"{Colors.GREEN}{curr}{Colors.ENDC}" if curr else f"{Colors.WARNING}Default (Orchestrator){Colors.ENDC}"
             print(f"\n{Colors.BOLD}🎭 Persona Swarm Saat Ini:{Colors.ENDC} {curr_str}")
-            print(f"Pilihan yang tersedia:")
+            print("Pilihan yang tersedia:")
             for a in agents:
                 print(f"  • #{a.get('id')} {a.get('avatar_emoji', '🤖')} {Colors.CYAN}{a.get('name')}{Colors.ENDC} - {a.get('role')}")
             print(f"\nGanti dengan: {Colors.CYAN}/persona <nama|id>{Colors.ENDC} atau kembalikan dengan: {Colors.CYAN}/persona reset{Colors.ENDC}\n")
@@ -685,12 +688,12 @@ class CliSlashCommandsMixin:
         # 3. Local CLI Config Keys
         cfg_keys = getattr(self, "config", {}).get("api_keys", {})
         if cfg_keys:
-            print(f"\n  📁 [Config Lokal CLI (~/.alfa/config.json)]:")
+            print("\n  📁 [Config Lokal CLI (~/.alfa/config.json)]:")
             for p, kv in cfg_keys.items():
                 m_kv = kv[:6] + "••••••••" + kv[-4:] if len(kv) > 10 else "••••••••"
                 print(f"    - {p.upper():<10}: {m_kv}")
 
-        print(f"\n💡 Tambah/kelola kunci: ketik '/menu' -> 'Kelola API Keys' atau melalui Web Dashboard.\n")
+        print("\n💡 Tambah/kelola kunci: ketik '/menu' -> 'Kelola API Keys' atau melalui Web Dashboard.\n")
 
     # --- Autonomous Agent Mode ---
 
@@ -724,7 +727,7 @@ class CliSlashCommandsMixin:
             print(f"\n{Colors.BOLD}🤖 Autonomous Agent Settings:{Colors.ENDC}")
             print(f"  • Status Agent Tools : {status_tag}")
             print(f"  • Mode Eksekusi      : {Colors.CYAN}{exec_mode.upper()}{Colors.ENDC} ({'Single ReAct' if exec_mode == 'single' else 'Swarm Multi-Agen'})")
-            print(f"\n💡 Pilihan perintah:")
+            print("\n💡 Pilihan perintah:")
             print(f"  • {Colors.CYAN}/agent single{Colors.ENDC} - Beralih ke Single Agent Mode")
             print(f"  • {Colors.CYAN}/agent swarm{Colors.ENDC}  - Beralih ke Swarm Multi-Agent Mode")
             print(f"  • {Colors.CYAN}/agent model <agen> <provider> [model]{Colors.ENDC} - Atur model AI spesifik untuk agen")
@@ -783,7 +786,7 @@ class CliSlashCommandsMixin:
                 for p in patches[-20:]:
                     print(f"  • #{p.id} [{p.timestamp}] {p.filepath} ({p.summary})")
                 print()
-            print(f"💡 Batalkan patch tertentu dengan: /undo <patch_id>\n")
+            print("💡 Batalkan patch tertentu dengan: /undo <patch_id>\n")
             return
 
         if target.isdigit():
@@ -899,5 +902,5 @@ class CliSlashCommandsMixin:
                 print(f"  • {Colors.GREEN}{t_name:<24}{Colors.ENDC} ({t_eng}): {t_desc}")
             print()
 
-        print(f"💡 [Sinkronisasi]: ReAct Agent di CLI & Web Command Center memiliki akses ke seluruh tools di atas.\n")
+        print("💡 [Sinkronisasi]: ReAct Agent di CLI & Web Command Center memiliki akses ke seluruh tools di atas.\n")
 

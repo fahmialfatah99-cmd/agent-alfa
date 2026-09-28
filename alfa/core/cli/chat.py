@@ -288,10 +288,11 @@ class CliChatMixin:
 
     def _run_swarm_execution(self, message: str) -> None:
         """Execute task using multi-agent swarm orchestration with custom models per agent."""
-        from alfa.core import database
-        from alfa.swarm import engine as swarm_engine
         import asyncio
         from pathlib import Path
+
+        from alfa.core import database
+        from alfa.swarm import engine as swarm_engine
 
         agents = []
         try:
@@ -305,8 +306,8 @@ class CliChatMixin:
             return
 
         if RICH_AVAILABLE and self.console:
-            from rich.table import Table
             from rich.panel import Panel
+            from rich.table import Table
 
             tbl = Table(title="🐝 Partisipan Swarm & Model AI yang Ditugaskan", border_style="yellow")
             tbl.add_column("Avatar", justify="center")
