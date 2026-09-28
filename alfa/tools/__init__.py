@@ -5,8 +5,6 @@ utilities previously located directly in tools.py.
 """
 
 import logging
-import sys
-from typing import Any
 
 import plugins
 from alfa.core.runtime_ctx import current_chat_id_var as current_chat_id_var
@@ -218,42 +216,6 @@ AVAILABLE_TOOLS = [
 registry.AVAILABLE_TOOLS.clear()
 registry.AVAILABLE_TOOLS.extend(AVAILABLE_TOOLS)
 
-
-def __getattr__(name: str) -> Any:
-    for mod in (
-        system_tools,
-        filesystem_tools,
-        web_tools,
-        desktop_tools,
-        academic_tools,
-        media_tools,
-        memory_tools,
-        registry,
-    ):
-        if hasattr(mod, name):
-            return getattr(mod, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-# Module subclass to propagate monkeypatching across all domain submodules
-class _AlfaToolsModule(sys.modules[__name__].__class__):
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-        for mod in (
-            system_tools,
-            filesystem_tools,
-            web_tools,
-            desktop_tools,
-            academic_tools,
-            media_tools,
-            memory_tools,
-            registry,
-        ):
-            if hasattr(mod, name):
-                setattr(mod, name, value)
-
-
-sys.modules[__name__].__class__ = _AlfaToolsModule
 
 __all__ = [
     "registry",
