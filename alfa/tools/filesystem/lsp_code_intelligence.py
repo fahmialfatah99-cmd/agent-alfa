@@ -190,7 +190,7 @@ def lsp_find_symbol_references(
     if not symbol_name:
         return {"status": "error", "message": "symbol_name tidak boleh kosong."}
 
-    refs = []
+    refs: list[dict[str, Any]] = []
     files = list(
         _iter_source_files(root, ["py", "js", "ts", "jsx", "tsx", "html", "sh"])
     )

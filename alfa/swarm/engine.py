@@ -183,7 +183,7 @@ async def conduct_multi_agent_meeting(
             pass
 
     dialogue_transcript = []
-    history_summary = []
+    history_summary: list[str] = []
     execution_steps = []
 
     meeting_type_label = (

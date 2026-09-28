@@ -317,7 +317,7 @@ def run_cursor_loop(cli: Any) -> None:
     )
 
     history = FileHistory(str(HISTORY_FILE))
-    session = PromptSession(
+    session: PromptSession = PromptSession(
         history=history,
         auto_suggest=AutoSuggestFromHistory(),
         completer=completer,

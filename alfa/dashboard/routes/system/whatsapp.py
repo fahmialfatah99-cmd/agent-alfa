@@ -132,7 +132,7 @@ def _gdrive_ensure_subfolder(folder_name: str) -> str:
 
 def _log_wa_drive_upload(entry: dict[str, Any]):
     try:
-        data = {"uploads": []}
+        data: dict[str, Any] = {"uploads": []}
         if os.path.exists(WA_DRIVE_UPLOADS_FILE):
             try:
                 with open(WA_DRIVE_UPLOADS_FILE, encoding="utf-8") as f:

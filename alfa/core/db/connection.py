@@ -40,7 +40,7 @@ class ConnectionPool:
         self.db_path = db_path
         self.pool_size = pool_size
         self.timeout = timeout
-        self._pool = deque(maxlen=pool_size)
+        self._pool: deque[sqlite3.Connection] = deque(maxlen=pool_size)
         self._lock = threading.Lock()
         self._created = 0
         self._in_use = 0

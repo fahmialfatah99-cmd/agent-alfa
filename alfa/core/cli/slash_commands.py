@@ -78,7 +78,7 @@ class CliSlashCommandsMixin:
         param = parts[1].strip() if len(parts) > 1 else ""
 
         if not hasattr(self, "attached_files"):
-            self.attached_files = []
+            self.attached_files: list[str] = []
 
         if sub == "add":
             if not param:

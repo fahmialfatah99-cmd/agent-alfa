@@ -162,7 +162,7 @@ def analyze_dataset_csv_json(
             }
 
         data_rows = []
-        headers = []
+        headers: list[str] = []
 
         ext = os.path.splitext(expanded)[1].lower()
         if ext == ".csv":
