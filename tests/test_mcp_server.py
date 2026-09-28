@@ -6,8 +6,8 @@ Verifies MCP server initialization, tool exposure, schema integrity, and executi
 import pytest
 
 try:
-    from mcp.server import Server
     import mcp.types as types
+    from mcp.server import Server
     HAS_MCP = True
 except ImportError:
     HAS_MCP = False

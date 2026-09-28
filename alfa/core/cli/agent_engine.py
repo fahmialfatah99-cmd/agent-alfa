@@ -18,19 +18,14 @@ import os
 import re
 import shutil
 import subprocess
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
-from rich.table import Table
-
-from alfa.core.cli.constants import Colors, print_status
-
 
 # ==========================================
 # 1. PATCH HISTORY & ROLLBACK MANAGER
@@ -1126,7 +1121,7 @@ class AutonomousAgentRunner:
                 ]
                 if any(rp in response.lower() for rp in refusal_phrases):
                     dir_info = self.tools.list_directory(".")
-                    self.console.print(f"[bold yellow]⚡ [REAL-TIME AUTO-OBSERVE][/bold yellow] Menginspeksi direktori lokal...")
+                    self.console.print("[bold yellow]⚡ [REAL-TIME AUTO-OBSERVE][/bold yellow] Menginspeksi direktori lokal...")
                     self.console.print(Panel(dir_info, title="📁 [REAL-TIME] Isi Folder Lokal", border_style="blue", padding=(0, 1)))
                     conversation_history.append({"role": "assistant", "content": "Saya akan memeriksa isi folder lokal."})
                     conversation_history.append({
@@ -1229,7 +1224,7 @@ class AutonomousAgentRunner:
                     elif tool_name == "run_command":
                         cmd_p = args.get("command", "")
                         self.console.print(f"\n[bold red]⚡ [REAL-TIME TERMINAL SHELL][/bold red] `$ {cmd_p}`")
-                        self.console.print(Panel(tool_result[:2000], title=f"⚡ Output Shell", border_style="red", padding=(0, 1)))
+                        self.console.print(Panel(tool_result[:2000], title="⚡ Output Shell", border_style="red", padding=(0, 1)))
 
                     else:
                         preview = tool_result.strip()[:400]

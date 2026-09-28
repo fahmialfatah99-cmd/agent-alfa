@@ -16,7 +16,7 @@ import re
 import time
 from typing import Any
 
-import tools
+from alfa import tools
 
 
 def try_execute_fast_path(
@@ -113,9 +113,9 @@ def try_execute_fast_path(
 
             md_reply = f"""⚡ **Konversi Berkas Selesai Instan ({dt_ms} ms via Native Engine)!**
 
-📄 **Dokumen PDF:** `{custom_name}`  
-📊 **Ukuran:** `{size_kb:.1f} KB` ({len(image_paths)} Gambar)  
-📁 **Lokasi Penyimpanan:** `{target_path}`  
+📄 **Dokumen PDF:** `{custom_name}`
+📊 **Ukuran:** `{size_kb:.1f} KB` ({len(image_paths)} Gambar)
+📁 **Lokasi Penyimpanan:** `{target_path}`
 
 <div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">
@@ -188,9 +188,9 @@ def try_execute_fast_path(
 
             md_reply = f"""⚡ **Perbesaran Resolusi Gambar Berhasil Instan ({dt_ms} ms via {engine})!**
 
-🖼️ **Resolusi Awal:** `{orig_res}` ➡️ **Resolusi Baru ({scale_val}x HD):** `{new_res}`  
-📊 **Ukuran File:** `{size_kb} KB`  
-📁 **Lokasi:** `{target_path}`  
+🖼️ **Resolusi Awal:** `{orig_res}` ➡️ **Resolusi Baru ({scale_val}x HD):** `{new_res}`
+📊 **Ukuran File:** `{size_kb} KB`
+📁 **Lokasi:** `{target_path}`
 
 <div class="my-3 p-3.5 bg-dark-950/80 border border-cyan-500/40 rounded-xl space-y-3 shadow-lg max-w-md">
     <div class="relative group overflow-hidden rounded-lg border border-white/10 bg-black/40">
@@ -246,8 +246,8 @@ def try_execute_fast_path(
 
             md_reply = f"""⚡ **Penggabungan PDF Selesai Instan ({dt_ms} ms via Native Engine)!**
 
-📄 **Dokumen:** `{fname}`  
-📊 **Ukuran:** `{size_kb:.1f} KB` ({len(pdf_paths)} File Digabungkan)  
+📄 **Dokumen:** `{fname}`
+📊 **Ukuran:** `{size_kb:.1f} KB` ({len(pdf_paths)} File Digabungkan)
 
 <div class="my-3 p-3.5 bg-cyan-950/60 border border-cyan-500/40 rounded-xl flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3 text-slate-200">

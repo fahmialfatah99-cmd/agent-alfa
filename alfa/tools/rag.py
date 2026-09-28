@@ -222,6 +222,8 @@ _CATEGORY_BOOSTS = {
         "desktop_launch_app",
         "control_linux_hardware",
         "browser_open_url",
+        "play_youtube_music",
+        "open_url_in_system_browser",
         "edit_image",
         "text_to_audio_file",
         "extract_audio_from_video",
@@ -238,6 +240,8 @@ _CATEGORY_BOOSTS = {
         "browser_type_text",
         "browser_capture_screenshot",
         "capture_desktop_screenshot",
+        "open_url_in_system_browser",
+        "play_youtube_music",
         "record_desktop_screen",
         "show_desktop_notification",
         "desktop_type_keys",
@@ -364,6 +368,78 @@ def is_action_request(user_text: str) -> bool:
     return any(k in txt_low for k in _ACTION_TRIGGERS)
 
 
+# Tool yang hanya berguna BERSAMA tool lain. Tanpa ekspansi ini, model memilih
+# browser_open_url tapi kehilangan browser_click_element/type -> membuka halaman
+# lalu buntu karena tool klik tidak pernah disuntikkan ke LLM.
+_TOOL_FAMILIES: dict[str, set[str]] = {
+    "browser_open_url": {
+        "browser_click_element",
+        "browser_type_text",
+        "browser_capture_screenshot",
+        "browser_close_tab",
+    },
+    "browser_click_element": {
+        "browser_open_url",
+        "browser_type_text",
+        "browser_capture_screenshot",
+    },
+    "browser_type_text": {
+        "browser_open_url",
+        "browser_click_element",
+        "browser_capture_screenshot",
+    },
+    "browser_use_autonomous_task": {
+        "browser_open_url",
+        "browser_click_element",
+        "browser_capture_screenshot",
+    },
+    "desktop_launch_app": {
+        "capture_desktop_screenshot",
+        "desktop_click_coordinate",
+        "desktop_type_keys",
+        "vision_click_target",
+        "open_url_in_system_browser",
+    },
+    "desktop_click_coordinate": {
+        "capture_desktop_screenshot",
+        "vision_click_target",
+        "desktop_type_keys",
+    },
+    "vision_click_target": {
+        "capture_desktop_screenshot",
+        "desktop_click_coordinate",
+        "desktop_type_keys",
+    },
+    "desktop_type_keys": {
+        "capture_desktop_screenshot",
+        "desktop_click_coordinate",
+        "vision_click_target",
+    },
+    "open_url_in_system_browser": {
+        "play_youtube_music",
+        "desktop_launch_app",
+        "capture_desktop_screenshot",
+    },
+    "play_youtube_music": {
+        "open_url_in_system_browser",
+        "control_linux_hardware",
+        "desktop_launch_app",
+    },
+    "control_linux_hardware": {
+        "play_youtube_music",
+        "capture_desktop_screenshot",
+    },
+}
+
+
+def _expand_families(selected: set[str], available: set[str]) -> set[str]:
+    """Tambahkan tool pendamping dari keluarga yang sama (hanya yang tersedia)."""
+    out = set(selected)
+    for name in list(selected):
+        out |= _TOOL_FAMILIES.get(name, set())
+    return {n for n in out if n in available}
+
+
 def get_required_action_tools(user_text: str) -> set[str]:
     if not user_text:
         return set()
@@ -392,9 +468,17 @@ def get_required_action_tools(user_text: str) -> set[str]:
     ):
         required.update(
             [
+                "play_youtube_music",
+                "open_url_in_system_browser",
                 "desktop_launch_app",
                 "control_linux_hardware",
                 "browser_open_url",
+                "browser_click_element",
+                "browser_type_text",
+                "capture_desktop_screenshot",
+                "desktop_click_coordinate",
+                "desktop_type_keys",
+                "vision_click_target",
                 "web_search",
                 "execute_bash_command",
             ]
@@ -567,6 +651,7 @@ def select_relevant_functions(
             docs.append(f"{nm} {(getattr(f, '__doc__', '') or '')[:600]}")
 
         keep = set(_rank_names(docs, names, user_text, history, k))
+        keep = _expand_families(keep, set(names))
         keep.update(get_required_action_tools(user_text))
         filtered = []
         seen_filtered = set()
@@ -660,6 +745,10 @@ def select_relevant_tools(
         for core in CORE_ALWAYS:
             if core in name_to_schema:
                 selected.append(core)
+        _with_family = _expand_families(set(selected), set(name_to_schema))
+        selected = [n for n in selected if n in _with_family] + sorted(
+            _with_family - set(selected)
+        )
         for required in get_required_action_tools(user_text):
             if required in name_to_schema:
                 selected.append(required)

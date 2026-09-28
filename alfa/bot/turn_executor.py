@@ -389,30 +389,125 @@ async def run_agent_turn(
                 )
             except Exception:
                 pass
+
+            _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
+            # AUTO: model bebas memanggil tool ATAU menjawab teks (dipakai semua
+            # putaran sesudah panggilan pertama agar giliran selalu ditutup
+            # dengan jawaban teks nyata, bukan loop tool tanpa akhir).
             config = types.GenerateContentConfig(
                 system_instruction=full_system_instruction,
                 temperature=0.75,
                 tools=gemini_tools,
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    disable=True
-                ),
-                tool_config=(
-                    types.ToolConfig(
+                automatic_function_calling=_afc_off,
+            )
+            # ANY: HANYA dipakai pada panggilan PERTAMA bila ini permintaan aksi,
+            # supaya model tidak cukup menjawab basa-basi tanpa menjalankan tool.
+            if action_intent:
+                _allowed = sorted(
+                    {
+                        getattr(f, "__name__", "")
+                        for f in gemini_tools
+                        if getattr(f, "__name__", "")
+                    }
+                )
+                config_force = types.GenerateContentConfig(
+                    system_instruction=full_system_instruction,
+                    temperature=0.75,
+                    tools=gemini_tools,
+                    automatic_function_calling=_afc_off,
+                    tool_config=types.ToolConfig(
                         function_calling_config=types.FunctionCallingConfig(
                             mode=types.FunctionCallingConfigMode.ANY,
-                            allowed_function_names=sorted(
-                                {
-                                    getattr(f, "__name__", "")
-                                    for f in gemini_tools
-                                    if getattr(f, "__name__", "")
-                                }
-                            ),
+                            allowed_function_names=_allowed,
                         )
-                    )
-                    if action_intent
-                    else None
-                ),
+                    ),
+                )
+            else:
+                config_force = config
+            # Tanpa tool: dipakai untuk wrap-up agar model WAJIB merangkum hasil
+            # nyata dalam teks saat iterasi tool habis / jawaban kosong.
+            config_wrapup = types.GenerateContentConfig(
+                system_instruction=full_system_instruction,
+                temperature=0.7,
             )
+
+            executed_tool_names: list[str] = []
+            _turn_contents = list(contents or [])
+
+            async def _drive_tool_loop(
+                resp,
+                cfg,
+                *,
+                _model: str = model_name,
+                _contents: list = _turn_contents,
+                _executed: list = executed_tool_names,
+            ):
+                """Putar loop tool sampai model berhenti memanggil tool.
+
+                Panggilan PERTAMA memakai config_force (mode ANY) supaya
+                permintaan aksi tidak bisa dijawab basa-basi tanpa tool.
+                Putaran berikutnya memakai config AUTO sehingga giliran selalu
+                ditutup dengan jawaban teks nyata — bukan loop tool tanpa akhir
+                yang berujung balasan generik '✅ Permintaan selesai diproses.'.
+                """
+                nonlocal reply_text
+                for _iter in range(_mb.MAX_ITERATIONS):
+                    fcs = list(getattr(resp, "function_calls", None) or [])
+                    if not fcs:
+                        break
+                    try:
+                        model_content = resp.candidates[0].content
+                        if model_content is not None:
+                            _contents.append(model_content)
+                    except Exception:
+                        pass
+                    for fc in fcs:
+                        _executed.append(fc.name)
+                        args_json = json.dumps(
+                            dict(fc.args or {}), ensure_ascii=False, default=str
+                        )
+                        denial = (
+                            await approval_gate(fc.name, args_json)
+                            if approval_gate
+                            else None
+                        )
+                        if denial:
+                            out = denial
+                        else:
+                            out = await asyncio.to_thread(
+                                _mb._execute_tool, fc.name, args_json
+                            )
+                        logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
+                        _contents.append(
+                            types.Content(
+                                role="user",
+                                parts=[
+                                    types.Part(
+                                        function_response=types.FunctionResponse(
+                                            name=fc.name,
+                                            response={"result": str(out)[:4000]},
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+                    resp = await gemini_client.aio.models.generate_content(
+                        model=_model, contents=_contents, config=cfg
+                    )
+                    token_usage.from_gemini_response(
+                        resp,
+                        model=_model,
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat:gate",
+                    )
+                    try:
+                        turn_text = resp.text or ""
+                    except Exception:
+                        turn_text = ""
+                    if turn_text:
+                        reply_text = turn_text
+                return resp
 
             if (
                 streamer
@@ -423,7 +518,7 @@ async def run_agent_turn(
                 try:
                     response_stream = (
                         await gemini_client.aio.models.generate_content_stream(
-                            model=model_name, contents=contents, config=config
+                            model=model_name, contents=contents, config=config_force
                         )
                     )
                     streamed_text = ""
@@ -453,7 +548,7 @@ async def run_agent_turn(
                         f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content."
                     )
                     response = await gemini_client.aio.models.generate_content(
-                        model=model_name, contents=contents, config=config
+                        model=model_name, contents=contents, config=config_force
                     )
                     token_usage.from_gemini_response(
                         response,
@@ -468,7 +563,7 @@ async def run_agent_turn(
                         reply_text = ""
             else:
                 response = await gemini_client.aio.models.generate_content(
-                    model=model_name, contents=contents, config=config
+                    model=model_name, contents=contents, config=config_force
                 )
                 token_usage.from_gemini_response(
                     response,
@@ -482,64 +577,53 @@ async def run_agent_turn(
                 except Exception:
                     reply_text = ""
 
-            executed_tool_names: list[str] = []
-            _turn_contents = list(contents or [])
-            for _iter in range(_mb.MAX_ITERATIONS):
-                fcs = list(getattr(response, "function_calls", None) or [])
-                if not fcs:
-                    break
-                try:
-                    model_content = response.candidates[0].content
-                    if model_content is not None:
-                        _turn_contents.append(model_content)
-                except Exception:
-                    pass
-                for fc in fcs:
-                    executed_tool_names.append(fc.name)
-                    args_json = json.dumps(
-                        dict(fc.args or {}), ensure_ascii=False, default=str
-                    )
-                    denial = await approval_gate(fc.name, args_json) if approval_gate else None
-                    if denial:
-                        out = denial
-                    else:
-                        out = await asyncio.to_thread(
-                            _mb._execute_tool, fc.name, args_json
-                        )
-                    logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
-                    _turn_contents.append(
-                        types.Content(
-                            role="user",
-                            parts=[
-                                types.Part(
-                                    function_response=types.FunctionResponse(
-                                        name=fc.name,
-                                        response={"result": str(out)[:4000]},
-                                    )
-                                )
-                            ],
-                        )
-                    )
-                response = await gemini_client.aio.models.generate_content(
-                    model=model_name, contents=_turn_contents, config=config
-                )
-                token_usage.from_gemini_response(
-                    response,
-                    model=model_name,
-                    key_id=gkey_id,
-                    key_label=gkey_label or "gemini-env",
-                    context="telegram_chat:gate",
-                )
-                try:
-                    reply_text = response.text or ""
-                except Exception:
-                    pass
+            response = await _drive_tool_loop(response, config)
 
-            if not reply_text:
+            if not (reply_text or "").strip():
+                # Wrap-up TANPA tools: model wajib merangkum hasil eksekusi nyata.
+                logger.warning(
+                    f"[WrapUp] jawaban kosong setelah {len(executed_tool_names)} tool "
+                    f"-> minta ringkasan teks ({model_name})"
+                )
+                _turn_contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part.from_text(
+                                text=(
+                                    "[SISTEM] Berhenti memanggil tool. Ringkas dalam bahasa "
+                                    "Indonesia santai APA YANG SUDAH BENAR-BENAR dieksekusi "
+                                    f"(tool: {', '.join(dict.fromkeys(executed_tool_names)) or '-'}), "
+                                    "hasil/atau error nyatanya, dan sisa langkah bila belum "
+                                    "selesai. DILARANG mengarang hasil."
+                                )
+                            )
+                        ],
+                    )
+                )
                 try:
-                    reply_text = response.text or "✅ Permintaan selesai diproses."
-                except Exception:
-                    reply_text = "✅ Permintaan selesai diproses."
+                    response = await gemini_client.aio.models.generate_content(
+                        model=model_name, contents=_turn_contents, config=config_wrapup
+                    )
+                    token_usage.from_gemini_response(
+                        response,
+                        model=f"{model_name}:wrapup",
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat",
+                    )
+                    reply_text = (response.text or "").strip()
+                except Exception as wrap_err:
+                    logger.warning(f"[WrapUp] gagal: {wrap_err}")
+                    reply_text = ""
+
+            if not (reply_text or "").strip():
+                ran = ", ".join(dict.fromkeys(executed_tool_names)) or "tidak ada"
+                reply_text = (
+                    "⚙️ Tool sudah dijalankan: "
+                    f"`{ran}`.\nModel tidak mengirim ringkasan teks — "
+                    "ulangi perintah dengan lebih spesifik agar hasilnya dirangkum."
+                )
 
             new_meetings = _meetings_count() - meetings_before
             reply_low = reply_text.lower()
@@ -576,6 +660,13 @@ async def run_agent_turn(
                 "control_linux_hardware",
                 "execute_bash_command",
                 "web_search",
+                "open_url_in_system_browser",
+                "play_youtube_music",
+                "execute_python_sandbox",
+                "browser_use_autonomous_task",
+                "vision_click_target",
+                "desktop_click_coordinate",
+                "desktop_type_keys",
             }
             need_action_audit = (
                 action_intent
@@ -609,28 +700,37 @@ async def run_agent_turn(
                     )
                 audit_parts.append(
                     "Perbaiki SEKARANG: panggil tool yang sesuai secara nyata "
-                    "(desktop_launch_app / browser_open_url / execute_bash_command / conduct_ai_meeting / "
+                    "(play_youtube_music / open_url_in_system_browser / desktop_launch_app / "
+                    "browser_open_url / execute_bash_command / conduct_ai_meeting / "
                     "execute_python_sandbox / generate_pdf_report / generate_excel_spreadsheet) "
                     "ATAU jawab jujur bahwa belum dieksekusi. Dilarang klaim palsu."
                 )
-                contents.append(
+                # Pakai konteks GILIRAN INI (termasuk riwayat tool) — bukan `contents`
+                # yang tidak memuat hasil tool, agar model tahu apa yang sudah/ belum jalan.
+                _turn_contents.append(
                     types.Content(
                         role="user",
                         parts=[types.Part.from_text(text="\n".join(audit_parts))],
                     )
                 )
-                response2 = await gemini_client.aio.models.generate_content(
-                    model=model_name, contents=contents, config=config
-                )
-                token_usage.from_gemini_response(
-                    response2,
-                    model=f"{model_name}:audit",
-                    key_id=gkey_id,
-                    key_label=gkey_label or "gemini-env",
-                    context="telegram_chat",
-                )
-                if response2.text and response2.text.strip():
-                    reply_text = response2.text
+                try:
+                    response2 = await gemini_client.aio.models.generate_content(
+                        model=model_name, contents=_turn_contents, config=config
+                    )
+                    token_usage.from_gemini_response(
+                        response2,
+                        model=f"{model_name}:audit",
+                        key_id=gkey_id,
+                        key_label=gkey_label or "gemini-env",
+                        context="telegram_chat",
+                    )
+                    # Izinkan model MENGAMBIL AKSI pada pass koreksi — kalau dia
+                    # tetap memanggil tool, jalankan sampai selesai.
+                    response2 = await _drive_tool_loop(response2, config)
+                    if response2.text and response2.text.strip():
+                        reply_text = response2.text
+                except Exception as audit_err:
+                    logger.warning(f"[AUDIT] pass koreksi gagal: {audit_err}")
                 logger.warning(
                     f"[AUDIT] Koreksi selesai ({audit_kind}); "
                     f"rapat baru: {_meetings_count() - meetings_before}; "

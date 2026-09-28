@@ -8,9 +8,6 @@ from alfa.tools.web.affiliate import (
     marketplace_search_products,
 )
 from alfa.tools.web.browser import (
-    _ensure_camofox_server,
-    _find_camofox_bin,
-    _run_camofox_cli,
     browser_capture_screenshot,
     browser_click_element,
     browser_close_tab,
@@ -40,9 +37,6 @@ __all__ = [
     "web_search",
     "fetch_web_page_content",
     "audit_website_security",
-    "_find_camofox_bin",
-    "_ensure_camofox_server",
-    "_run_camofox_cli",
     "browser_open_url",
     "browser_click_element",
     "browser_type_text",

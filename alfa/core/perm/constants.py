@@ -15,6 +15,15 @@ PERMISSION_GATE_ENABLED = os.getenv("PERMISSION_GATE", "on").strip().lower() != 
 APPROVAL_TIMEOUT = int(os.getenv("PERMISSION_GATE_TIMEOUT", "300"))
 TRUST_THRESHOLD = float(os.getenv("PERMISSION_GATE_TRUST_THRESHOLD", "0.7"))
 FAIL_MODE = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
+# Perilaku saat TIDAK ada kanal approval (mis. Web Dashboard tanpa bot Telegram
+# berjalan). Sebelumnya selalu fail-closed -> SEMUA tool non-SAFE ditolak sehingga
+# agent di dashboard tidak pernah bisa bergerak sama sekali.
+#   allow_low_medium : tool LOW & MEDIUM tetap jalan, HIGH/CRITICAL tetap ditolak
+#   allow_all        : semua tool diizinkan bila tak ada kanal
+#   deny             : perilaku lama (fail-closed penuh)
+NO_CHANNEL_POLICY = (
+    os.getenv("PERMISSION_GATE_NO_CHANNEL", "allow_low_medium").strip().lower()
+)
 
 
 # ── Klasifikasi Tool dengan Risk Tiers ─────────────────────────────────────────
@@ -64,12 +73,20 @@ TOOL_CLASSIFICATION = {
     "desktop_click_coordinate": (RiskTier.MEDIUM, "Automasi klik - unintended actions"),
     "desktop_type_keys": (RiskTier.MEDIUM, "Automasi keyboard - unintended input"),
     "desktop_launch_app": (RiskTier.MEDIUM, "Launch aplikasi - resource usage"),
+    "browser_click_element": (RiskTier.MEDIUM, "Interaksi browser - aksi di situs"),
+    "browser_type_text": (RiskTier.MEDIUM, "Input teks browser - submit form"),
     "vision_click_target": (RiskTier.MEDIUM, "Visual automation - misclick risk"),
     "record_desktop_screen": (RiskTier.MEDIUM, "Screen recording - privacy concern"),
     "capture_webcam_frame": (RiskTier.MEDIUM, "Webcam capture - privacy sensitive"),
     "scan_local_network": (RiskTier.MEDIUM, "Network scan - firewall trigger"),
     # LOW - read-only, safe operations
     "auto_diagnose_and_heal_system": (RiskTier.LOW, "Diagnostic read-only - safe"),
+    "open_url_in_system_browser": (RiskTier.LOW, "Buka URL di browser - read-only"),
+    "play_youtube_music": (RiskTier.LOW, "Putar musik YouTube - hiburan"),
+    "browser_open_url": (RiskTier.LOW, "Buka URL di browser stealth - read-only"),
+    "browser_capture_screenshot": (RiskTier.LOW, "Screenshot browser stealth - read-only"),
+    "browser_close_tab": (RiskTier.LOW, "Tutup tab browser stealth - aman"),
+    "show_desktop_notification": (RiskTier.LOW, "Notifikasi desktop - aman"),
 }
 
 # Default tier untuk tool yang tidak terklasifikasi
@@ -95,7 +112,15 @@ SAFE_TOOLS = {
     "list_running_processes",
     "generate_secure_password",
     "translate_text",
-    "token_usage_query",
+    # Nama tool yang sebenarnya terdaftar (sebelumnya salah tulis
+    # 'token_usage_query' sehingga query_token_usage minta izin tiap kali)
+    "query_token_usage",
+    "browser_open_url",
+    "browser_capture_screenshot",
+    "browser_close_tab",
+    "open_url_in_system_browser",
+    "play_youtube_music",
+    "show_desktop_notification",
 }
 
 # Timeout per tier (detik)

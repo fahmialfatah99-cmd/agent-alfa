@@ -1,8 +1,6 @@
 """Unit tests for ALFA Unified Sovereign & Developer CLI."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from alfa.core.cli.app import AlfaCLI
 from alfa.core.cli.constants import VERSION
@@ -166,7 +164,7 @@ def test_database_vault_key_resolution():
 
 
 def test_sync_providers_catalog_integration():
-    from alfa.core.cli.direct_ai import PROVIDERS_CATALOG, sync_providers_catalog
+    from alfa.core.cli.direct_ai import sync_providers_catalog
 
     cat = sync_providers_catalog()
     assert "9router" in cat
@@ -430,8 +428,9 @@ def test_sync_external_api_keys(capsys):
 
 
 def test_proactive_deep_folder_inspection_and_rich_fallback(tmp_path):
-    from alfa.core.cli.agent_engine import AutonomousAgentRunner
     from unittest.mock import MagicMock
+
+    from alfa.core.cli.agent_engine import AutonomousAgentRunner
 
     # Create a dummy blueprint file
     bp_file = tmp_path / "chat-Arsitektur.txt"
@@ -610,9 +609,9 @@ def test_smart_rolling_context_compression():
         {"role": "assistant", "content": "Thought: Menjalankan test"},
         {"role": "user", "content": f"Observation from run_command:\n{long_output}"},
         {"role": "assistant", "content": "Thought: Menerapkan patch"},
-        {"role": "user", "content": f"Observation from patch_file:\nSukses diterapkan"},
+        {"role": "user", "content": "Observation from patch_file:\nSukses diterapkan"},
         {"role": "assistant", "content": "Thought: Menjalankan verifikasi akhir"},
-        {"role": "user", "content": f"Observation from pytest:\n10 passed"},
+        {"role": "user", "content": "Observation from pytest:\n10 passed"},
     ]
 
     compressed = AutonomousAgentRunner._compress_conversation_history(history, keep_recent_messages=4)

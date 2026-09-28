@@ -15,10 +15,14 @@ from pathlib import Path
 
 import requests
 
+from alfa.core.cli.agent_engine import (
+    AutonomousAgentRunner,
+    PatchHistoryManager,
+    RepomapGenerator,
+)
 from alfa.core.cli.chat import CliChatMixin
 from alfa.core.cli.commands import CliCommandsMixin
 from alfa.core.cli.constants import (
-    CONFIG_FILE,
     DEFAULT_MODE,
     DEFAULT_SERVER,
     RICH_AVAILABLE,
@@ -27,12 +31,6 @@ from alfa.core.cli.constants import (
     Console,
     print_banner,
     print_status,
-)
-from alfa.core.cli.agent_engine import (
-    AutonomousAgentRunner,
-    LocalToolRegistry,
-    PatchHistoryManager,
-    RepomapGenerator,
 )
 from alfa.core.cli.direct_ai import (
     PROVIDERS_CATALOG,
@@ -110,7 +108,7 @@ def run_config_wizard() -> None:
     current_cfg = cli.config
     direct = cli.direct_ai
 
-    print(f"Konfigurasi saat ini:")
+    print("Konfigurasi saat ini:")
     print(f"  • Mode Operasi : {Colors.CYAN}{current_cfg.get('mode', 'auto')}{Colors.ENDC}")
     print(f"  • AI Provider  : {Colors.CYAN}{direct.provider}{Colors.ENDC}")
     print(f"  • Model Aktif  : {Colors.CYAN}{direct.model}{Colors.ENDC}")
@@ -205,7 +203,7 @@ def run_config_wizard() -> None:
             if not found:
                 new_lines.append(f"{api_key_env}={new_key}")
             env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-            print_status(f"Kunci tersimpan juga ke .env", "success")
+            print_status("Kunci tersimpan juga ke .env", "success")
         except Exception:
             pass
 

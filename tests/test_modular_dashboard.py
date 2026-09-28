@@ -73,6 +73,7 @@ def test_dashboard_routes_parity():
 def test_health_and_metrics_endpoints():
     """Verify /health, /healthz and /api/metrics respond with 200 OK and valid telemetry."""
     from fastapi.testclient import TestClient
+
     from alfa.dashboard.app import app
 
     client = TestClient(app)

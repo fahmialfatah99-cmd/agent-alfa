@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import shutil
 import subprocess
 from typing import Any
 
@@ -14,6 +15,124 @@ logger = logging.getLogger("AgentTools.Desktop")
 from alfa.tools.desktop.capture import capture_desktop_screenshot
 
 
+def _normalize_url(url: str) -> str:
+    u = (url or "").strip()
+    if not u or any(c.isspace() for c in u):
+        return ""
+    scheme = ""
+    m = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://(.+)$", u)
+    if m:
+        scheme, u = m.group(1).lower(), m.group(2)
+    host = u.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+    if not host:
+        return ""
+    hostname = host.rsplit(":", 1)[0]
+    is_local = hostname == "localhost" or re.match(
+        r"^\d{1,3}(\.\d{1,3}){3}$", hostname
+    )
+    if not is_local and (
+        not re.match(r"^[A-Za-z0-9.-]+$", hostname) or "." not in hostname
+    ):
+        return ""
+    return f"{scheme or 'https'}://{u}"
+
+
+def _browser_openers() -> list[str]:
+    """Daftar perintah yang bisa membuka URL di browser VISIBLE milik user."""
+    found: list[str] = []
+    for name in ("xdg-open", "gio", "sensible-browser", "x-www-browser", "www-browser"):
+        if shutil.which(name):
+            found.append(name)
+    env_browser = (os.environ.get("BROWSER") or "").strip()
+    if env_browser and shutil.which(env_browser):
+        found.append(env_browser)
+    for extra in (
+        "firefox",
+        "firefox-esr",
+        "google-chrome",
+        "chromium",
+        "chromium-browser",
+        "brave-browser",
+        "microsoft-edge",
+    ):
+        if shutil.which(extra):
+            found.append(extra)
+    return found
+
+
+def open_url_in_default_browser(url: str) -> tuple[bool, str]:
+    """Buka URL di browser desktop yang terlihat oleh user.
+
+    Return (sukses, keterangan_mekanisme). Mencoba satu per satu opener
+    sampai ada yang benar-benar menerima perintah — bukan sekadar 'berhasil'.
+    """
+    target = _normalize_url(url)
+    if not target:
+        return False, "URL kosong/tidak valid."
+
+    env = os.environ.copy()
+    env.setdefault("DISPLAY", ":0")
+    env.setdefault("WAYLAND_DISPLAY", "wayland-0")
+
+    tried: list[str] = []
+    for opener in _browser_openers():
+        cmd = [opener, "open", target] if opener == "gio" else [opener, target]
+        tried.append(" ".join(cmd))
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+            try:
+                _, err = proc.communicate(timeout=8)
+            except subprocess.TimeoutExpired:
+                # Opener masih memegang proses = biasanya browser sudah terbuka
+                return True, f"{' '.join(cmd)} (browser berjalan)"
+            if proc.returncode == 0:
+                return True, f"{' '.join(cmd)}"
+            detail = (err or b"").decode("utf-8", "replace").strip()[:200]
+            logger.info(f"Opener '{opener}' gagal (rc={proc.returncode}): {detail}")
+        except FileNotFoundError:
+            continue
+        except Exception as e:  # noqa: BLE001 - lanjut ke opener berikutnya
+            logger.info(f"Opener '{opener}' error: {e}")
+    return False, f"Tidak ada opener browser yang berhasil. Dicoba: {', '.join(tried) or '-'}"
+
+
+@register_tool(category="media")
+def open_url_in_system_browser(url: str) -> dict[str, Any]:
+    """
+    Open a URL in the user's real, visible desktop browser (Firefox/Chrome/Brave/xdg-open).
+
+    Use this whenever the user asks to 'open/open this site/show this page on my computer'.
+    Unlike browser_open_url (headless Camofox engine for scraping), this tool pops the page
+    up on the user's actual screen.
+
+    Args:
+        url: Full web URL or bare domain to open (e.g. 'https://youtube.com', 'github.com').
+    """
+    target = _normalize_url(url)
+    if not target:
+        return {"status": "error", "message": "URL kosong atau tidak valid."}
+    ok, how = open_url_in_default_browser(target)
+    if ok:
+        return {
+            "status": "success",
+            "message": f"Browser desktop berhasil membuka: {target}",
+            "url": target,
+            "mechanism": how,
+        }
+    return {
+        "status": "error",
+        "message": f"Gagal membuka '{target}' di browser desktop. {how}",
+        "url": target,
+    }
+
+
+@register_tool(category="media")
 def desktop_click_coordinate(
     x: int, y: int, button: str = "left", clicks: int = 1
 ) -> dict[str, Any]:
@@ -119,20 +238,97 @@ def desktop_type_keys(text: str = "", hotkey: str = "") -> dict[str, Any]:
 def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
     """
     Launch a Linux GUI software application in the background (e.g. 'code', 'brave-browser', 'spotify', 'nautilus').
+    Verifies the process really started and reports the real PID — returns an error if the app
+    does not exist instead of falsely claiming success.
 
     Args:
-        app_name_or_command: Application executable name or command.
+        app_name_or_command: Application executable name, command line, or a URL to open.
     """
+    cmd = (app_name_or_command or "").strip()
+    if not cmd:
+        return {"status": "error", "message": "Nama aplikasi/komando kosong."}
+
+    # URL / domain -> serahkan ke pembuka browser sungguhan
+    if re.match(r"^(https?://|www\.)", cmd, re.I) or (
+        " " not in cmd and re.match(r"^[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$", cmd, re.I)
+    ):
+        return open_url_in_system_browser(cmd)
+
     try:
+        import time as _time
+
+        shell_meta = any(c in cmd for c in "|&;<>$`(){}")
+        first = cmd.split()[0]
+        if not shell_meta:
+            resolved = shutil.which(first) or (
+                first if os.path.exists(os.path.expanduser(first)) else None
+            )
+            if not resolved:
+                return {
+                    "status": "error",
+                    "message": (
+                        f"Aplikasi '{first}' tidak ditemukan di PATH sistem — "
+                        "tidak ada yang diluncurkan. Cek nama binernya dulu."
+                    ),
+                }
+
         env = os.environ.copy()
         env["DISPLAY"] = env.get("DISPLAY", ":0")
         env["WAYLAND_DISPLAY"] = env.get("WAYLAND_DISPLAY", "wayland-0")
-        subprocess.Popen(
-            app_name_or_command, shell=True, env=env, start_new_session=True
+        proc = subprocess.Popen(
+            cmd,
+            shell=True,
+            env=env,
+            start_new_session=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
         )
+
+        # Verifikasi nyata: tunggu sebentar lalu cek apakah prosesnya hidup.
+        _time.sleep(1.2)
+        rc = proc.poll()
+        stderr_txt = ""
+        if rc is not None:
+            try:
+                stderr_txt = (proc.stderr.read() or b"").decode("utf-8", "replace").strip()
+            except Exception:
+                stderr_txt = ""
+            if rc != 0:
+                return {
+                    "status": "error",
+                    "message": (
+                        f"Meluncurkan '{cmd}' gagal (exit code {rc})"
+                        + (f": {stderr_txt[:300]}" if stderr_txt else ".")
+                    ),
+                }
+
+        pids: list[str] = []
+        try:
+            probe = subprocess.run(
+                ["pgrep", "-f", first if not shell_meta else cmd[:80]],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            pids = [p for p in probe.stdout.split() if p.strip()]
+        except Exception:
+            pids = []
+
+        if rc is None or pids:
+            return {
+                "status": "success",
+                "message": f"Aplikasi '{cmd}' berjalan di background desktop.",
+                "pid": pids[0] if pids else proc.pid,
+                "pids": pids[:10],
+            }
+
         return {
             "status": "success",
-            "message": f"Aplikasi '{app_name_or_command}' berhasil diluncurkan di background desktop.",
+            "message": (
+                f"Perintah '{cmd}' diterima shell (exit 0) tetapi tidak terdeteksi "
+                "sebagai proses berjalan — kemungkinan aplikasi langsung keluar/exit."
+            ),
+            "confidence": "low",
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal meluncurkan aplikasi: {str(e)}"}

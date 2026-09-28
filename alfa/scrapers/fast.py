@@ -325,7 +325,7 @@ def run_batch_scrape(
         data = item.get("data", {})
         cur.execute(
             """
-        INSERT INTO scraped_products 
+        INSERT INTO scraped_products
         (batch_id, title, price, discount_price, rating, sold_count, shop_name, platform, product_url, image_url, description, scraped_via)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,

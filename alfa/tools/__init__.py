@@ -68,11 +68,6 @@ from alfa.tools.system_tools import _docker_available as _docker_available
 from alfa.tools.system_tools import _ensure_sandbox_image as _ensure_sandbox_image
 from alfa.tools.system_tools import _sandbox_base as _sandbox_base
 from alfa.tools.web_tools import *  # noqa: F401, F403
-from alfa.tools.web_tools import (
-    _ensure_camofox_server as _ensure_camofox_server,
-)  # noqa: E402
-from alfa.tools.web_tools import _find_camofox_bin as _find_camofox_bin
-from alfa.tools.web_tools import _run_camofox_cli as _run_camofox_cli
 
 logger = logging.getLogger("AgentTools")
 
@@ -96,6 +91,8 @@ AVAILABLE_TOOLS = [
     browser_type_text,
     browser_capture_screenshot,
     browser_close_tab,
+    open_url_in_system_browser,
+    play_youtube_music,
     desktop_click_coordinate,
     desktop_type_keys,
     desktop_launch_app,
@@ -302,7 +299,4 @@ __all__ = [
     "_iter_code_files",
     "_py_syntax_guard",
     "_resolve_host_path",
-    "_ensure_camofox_server",
-    "_find_camofox_bin",
-    "_run_camofox_cli",
 ] + [name for name in dir() if not name.startswith("_")]
