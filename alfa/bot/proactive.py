@@ -387,21 +387,51 @@ async def proactive_ambient_agent_loop(application: Application):
                             raise RuntimeError(
                                 "Tidak ada API key Gemini aktif (vault/env) untuk loop proaktif."
                             )
-                        proactive_model = _main_brain_gemini_model()
-                        resp = await p_client.aio.models.generate_content(
-                            model=proactive_model,
-                            contents=[
-                                types.Content(
-                                    role="user",
-                                    parts=[
-                                        types.Part.from_text(text=proactive_eval_prompt)
+                        fallback_chain = [
+                            m.strip()
+                            for m in os.getenv(
+                                "GEMINI_FALLBACK_MODELS",
+                                "gemini-3.5-flash-lite,gemini-3.1-flash-lite-preview,gemini-flash-lite-latest",
+                            ).split(",")
+                            if m.strip()
+                        ]
+                        candidates = [_main_brain_gemini_model()]
+                        for fb in fallback_chain:
+                            if fb not in candidates:
+                                candidates.append(fb)
+
+                        resp = None
+                        used_model = candidates[0]
+                        for cand in candidates:
+                            try:
+                                resp = await p_client.aio.models.generate_content(
+                                    model=cand,
+                                    contents=[
+                                        types.Content(
+                                            role="user",
+                                            parts=[
+                                                types.Part.from_text(
+                                                    text=proactive_eval_prompt
+                                                )
+                                            ],
+                                        )
                                     ],
                                 )
-                            ],
-                        )
+                                used_model = cand
+                                break
+                            except Exception as cand_err:
+                                logger.warning(
+                                    f"[Proactive] Model candidate {cand} failed: {cand_err}. Trying next..."
+                                )
+
+                        if resp is None:
+                            raise RuntimeError(
+                                f"Semua model candidate Gemini untuk loop proaktif gagal: {candidates}"
+                            )
+
                         token_usage.from_gemini_response(
                             resp,
-                            model=proactive_model,
+                            model=used_model,
                             key_id=p_key_id,
                             key_label=p_key_label or "gemini-env",
                             context="proactive",
