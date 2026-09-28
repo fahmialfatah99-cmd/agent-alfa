@@ -13,6 +13,15 @@ from alfa.tools.system.constants import SANDBOX_DIR
 logger = logging.getLogger("AgentTools.System")
 
 
+def _cert_pairs(items: Any) -> dict[str, str]:
+    """Flatten X.509 subject/issuer tuples into a plain dict."""
+    out: dict[str, str] = {}
+    for x in items or []:
+        if isinstance(x, (list, tuple)) and len(x) == 2:
+            out[str(x[0])] = str(x[1])
+    return out
+
+
 @register_tool(category="system")
 def scan_local_network() -> dict[str, Any]:
     """
@@ -97,8 +106,8 @@ def audit_network_security(
                             raise ValueError("No peer certificate presented")
                         not_after = cert.get("notAfter", "")
                         result["ssl_certificate"] = {
-                            "subject": dict(x[0] for x in cert.get("subject", ())),
-                            "issuer": dict(x[0] for x in cert.get("issuer", ())),
+                            "subject": _cert_pairs(cert.get("subject", ())),
+                            "issuer": _cert_pairs(cert.get("issuer", ())),
                             "expires_at": not_after,
                             "version": cert.get("version", ""),
                         }

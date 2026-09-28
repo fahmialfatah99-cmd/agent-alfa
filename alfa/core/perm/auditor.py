@@ -15,6 +15,15 @@ from typing import Any
 from alfa.core.perm.constants import PROJECT_DIR
 
 
+def _cert_pairs(items: Any) -> dict[str, str]:
+    """Flatten X.509 subject/issuer tuples into a plain dict."""
+    out: dict[str, str] = {}
+    for x in items or []:
+        if isinstance(x, (list, tuple)) and len(x) == 2:
+            out[str(x[0])] = str(x[1])
+    return out
+
+
 def audit_local_host_security() -> dict[str, Any]:
     """
     Real defensive security audit of THIS machine (no root required):
@@ -235,8 +244,8 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
                     version = ssock.version()
 
                     not_after = cert.get("notAfter", "")
-                    issuer = dict(x[0] for x in cert.get("issuer", []))
-                    subject = dict(x[0] for x in cert.get("subject", []))
+                    issuer = _cert_pairs(cert.get("issuer", []))
+                    subject = _cert_pairs(cert.get("subject", []))
 
                     ssl_info = {
                         "valid": True,
