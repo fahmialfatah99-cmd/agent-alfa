@@ -389,6 +389,6 @@ def update_api_key_model(key_id: int, model: str) -> bool:
                 (model.strip(), int(key_id)),
             )
             conn.commit()
-            return cur.rowcount > 0
+            return bool(cur.rowcount and cur.rowcount > 0)
     except Exception:
         return False

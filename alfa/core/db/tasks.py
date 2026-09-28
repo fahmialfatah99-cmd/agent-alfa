@@ -34,7 +34,7 @@ def add_cron_job_sync(
             (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run),
         )
         conn.commit()
-        return cursor.lastrowid
+        return int(cursor.lastrowid or 0)
 
 
 def list_cron_jobs_sync(user_id: int) -> list[dict[str, Any]]:
@@ -61,7 +61,7 @@ def delete_cron_job_sync(user_id: int, job_id: int) -> bool:
             (job_id, user_id),
         )
         conn.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount and cursor.rowcount > 0)
 
 
 async def get_due_cron_jobs() -> list[dict[str, Any]]:
@@ -178,7 +178,7 @@ def log_agent_activity_sync(
             ),
         )
         conn.commit()
-        return cursor.lastrowid
+        return int(cursor.lastrowid or 0)
 
 
 def list_agent_activities_sync(limit: int = 30) -> list[dict[str, Any]]:
@@ -209,7 +209,7 @@ def add_reminder_sync(
             (user_id, chat_id, reminder_time_iso, message),
         )
         conn.commit()
-        return cursor.lastrowid
+        return int(cursor.lastrowid or 0)
 
 
 async def add_reminder(
@@ -225,7 +225,7 @@ async def add_reminder(
             (user_id, chat_id, reminder_time_iso, message),
         )
         await db.commit()
-        return cursor.lastrowid
+        return int(cursor.lastrowid or 0)
 
 
 async def get_due_reminders() -> list[dict[str, Any]]:

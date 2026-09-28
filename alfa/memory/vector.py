@@ -139,7 +139,7 @@ def _local_subword_embedding(text: str, dim: int = 768) -> list[float]:
     norm = np.linalg.norm(vec)
     if norm > 1e-6:
         vec = vec / norm
-        return vec.tolist()
+        return [float(x) for x in vec.tolist()]
     return [0.0] * dim
 
 
@@ -177,7 +177,7 @@ def _attempt_local_library_embedding(
         norm = np.linalg.norm(vec)
         if norm > 1e-6:
             vec = vec / norm
-        return vec.tolist(), f"sentence-transformers/{st_name}", len(vec)
+        return [float(x) for x in vec.tolist()], f"sentence-transformers/{st_name}", len(vec)
     except Exception:
         pass
 

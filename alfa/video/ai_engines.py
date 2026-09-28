@@ -47,7 +47,8 @@ def _veo_api_request(
     )
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310 - fixed Google Gemini API endpoint
-            return json.loads(resp.read().decode("utf-8"))
+            data = json.loads(resp.read().decode("utf-8"))
+            return data if isinstance(data, dict) else {}
     except urllib.error.HTTPError as e:
         try:
             body = e.read().decode("utf-8", errors="replace")

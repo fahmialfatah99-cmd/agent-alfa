@@ -160,7 +160,7 @@ def manage_api_keys(
     api_key: str = "",
     default_model: str = "gemini-3.6-flash",
     base_url: str = "",
-    key_id: int = None,
+    key_id: int | None = None,
 ) -> dict[str, Any]:
     """
     Manage API keys and multi-provider endpoints.
@@ -214,7 +214,7 @@ def manage_custom_agents(
     model: str = "gemini-3.6-flash",
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",
-    agent_id: int = None,
+    agent_id: int | None = None,
 ) -> dict[str, Any]:
     """
     Manage the Autonomous AI Agent Workforce (Society of Agents).

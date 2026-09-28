@@ -163,7 +163,7 @@ async def delete_memory(user_id: int, key_topic: str) -> bool:
             (user_id, key_topic.strip().lower()),
         )
         await db.commit()
-        return cursor.rowcount > 0
+        return bool(cursor.rowcount and cursor.rowcount > 0)
 
 
 # --- Knowledge Graph (Semantic Relations & Second Brain) ---

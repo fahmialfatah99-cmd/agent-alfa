@@ -413,7 +413,7 @@ def broadcast_affiliate_deal(
     product_name: str,
     message_text: str,
     affiliate_link: str,
-    channels: list[str] = None,
+    channels: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Mengirimkan konten promosi affiliate secara otomatis ke Telegram Channel atau WhatsApp Broadcast.
