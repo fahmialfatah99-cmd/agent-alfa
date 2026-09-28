@@ -220,7 +220,7 @@ async def _generate_with_openai_compat(
     try:
         import httpx
 
-        url = base_url
+        url = base_url or ""
         if not url:
             if provider in ["nvidia", "nim"]:
                 url = "https://integrate.api.nvidia.com/v1"

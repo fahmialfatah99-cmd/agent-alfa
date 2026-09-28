@@ -159,11 +159,15 @@ def _fn_to_openai_tool(fn) -> dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        jtype = (
-            _JSON_TYPES.get(ann, "string")
-            if isinstance(ann, type)
-            else _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
-        )
+        if isinstance(ann, type):
+            jtype = _JSON_TYPES.get(ann, "string")
+        else:
+            _origin = getattr(ann, "__origin__", None)
+            jtype = (
+                _JSON_TYPES.get(_origin, "string")
+                if isinstance(_origin, type)
+                else "string"
+            )
         props[pname] = {"type": jtype, "description": argdocs.get(pname, pname)}
         if p.default is inspect.Parameter.empty:
             required.append(pname)
@@ -245,7 +249,8 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
         return raw_json
     raw_str = str(raw_json).strip()
     try:
-        return json.loads(raw_str)
+        _d = json.loads(raw_str)
+        return _d if isinstance(_d, dict) else {}
     except Exception:
         pass
     # Strip markdown codeblocks
@@ -256,7 +261,8 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
                 lines[1:-1] if lines[-1].strip().startswith("```") else lines[1:]
             ).strip()
     try:
-        return json.loads(raw_str)
+        _d = json.loads(raw_str)
+        return _d if isinstance(_d, dict) else {}
     except Exception:
         pass
     # Hapus trailing comma
@@ -264,7 +270,8 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
 
     cleaned = re.sub(r",\s*([\]}])", r"\1", raw_str)
     try:
-        return json.loads(cleaned)
+        _d = json.loads(cleaned)
+        return _d if isinstance(_d, dict) else {}
     except Exception:
         pass
     try:

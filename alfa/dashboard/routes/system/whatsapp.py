@@ -120,14 +120,17 @@ def _gdrive_ensure_subfolder(folder_name: str) -> str:
     )
     files = found.get("files", [])
     if files:
-        return files[0]["id"]
-    meta = {"name": folder_name, "mimeType": "application/vnd.google-apps.folder"}
+        return str(files[0]["id"])
+    meta: dict[str, Any] = {
+        "name": folder_name,
+        "mimeType": "application/vnd.google-apps.folder",
+    }
     if parent:
         meta["parents"] = [parent]
     created = (
         service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
     )
-    return created["id"]
+    return str(created["id"])
 
 
 def _log_wa_drive_upload(entry: dict[str, Any]):
@@ -294,7 +297,7 @@ async def save_wa_media_rules(payload: dict[str, Any]):
         }
 
     clean = []
-    for r in rules:
+    for r in rules or []:
         clean.append(
             {
                 "name": str(r["name"]).strip(),
@@ -431,7 +434,7 @@ async def save_wa_formats(payload: dict[str, Any]):
         }
 
     clean = []
-    for f in formats:
+    for f in formats or []:
         cols = [
             {"title": str(c["title"]).strip(), "source": str(c["source"]).strip()}
             for c in f["columns"]

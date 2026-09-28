@@ -172,11 +172,15 @@ def _fn_to_schema(fn: Callable) -> dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        jtype = (
-            _JSON_TYPES.get(ann, "string")
-            if isinstance(ann, type)
-            else _JSON_TYPES.get(getattr(ann, "__origin__", None), "string")
-        )
+        if isinstance(ann, type):
+            jtype = _JSON_TYPES.get(ann, "string")
+        else:
+            _origin = getattr(ann, "__origin__", None)
+            jtype = (
+                _JSON_TYPES.get(_origin, "string")
+                if isinstance(_origin, type)
+                else "string"
+            )
         pdesc = argdocs.get(pname, pname)
         props[pname] = {"type": jtype, "description": pdesc}
         is_req = p.default is inspect.Parameter.empty
@@ -231,8 +235,8 @@ def register_tool(
     """
 
     def decorator(fn: Callable[_P, _R]) -> Callable[_P, _R]:
-        actual_name = (name if isinstance(name, str) else None) or getattr(
-            fn, "__name__", ""
+        actual_name = str(
+            (name if isinstance(name, str) else None) or getattr(fn, "__name__", "")
         )
         actual_cat = category or get_domain_for_tool(actual_name) or "general"
         try:
