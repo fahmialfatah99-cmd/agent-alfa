@@ -25,7 +25,7 @@ def vault_store_secret(
     try:
         from alfa.security import vault as vault_engine
 
-        res = vault_engine.vault.store_secret(
+        res = vault_engine.store_secret(
             name=name, value=value, category=category, notes=notes
         )
         return res
@@ -44,7 +44,7 @@ def vault_get_secret(name_or_id: str) -> dict[str, Any]:
     try:
         from alfa.security import vault as vault_engine
 
-        sec = vault_engine.vault.get_secret(name_or_id)
+        sec = vault_engine.get_secret(name_or_id)
         if not sec:
             return {
                 "status": "error",
@@ -73,7 +73,7 @@ def vault_list_secrets(category: str = "all") -> dict[str, Any]:
     try:
         from alfa.security import vault as vault_engine
 
-        items = vault_engine.vault.list_secrets(category=category)
+        items = vault_engine.list_secrets(category=category)
         return {
             "status": "success",
             "total_secrets": len(items),
@@ -95,7 +95,7 @@ def vault_delete_secret(secret_id: int) -> dict[str, Any]:
     try:
         from alfa.security import vault as vault_engine
 
-        deleted = vault_engine.vault.delete_secret(int(secret_id))
+        deleted = vault_engine.delete_secret(int(secret_id))
         if deleted:
             return {
                 "status": "success",

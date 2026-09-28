@@ -292,6 +292,56 @@ class TestMemoryTasks:
         assert isinstance(summary, dict)
 
 
+# ── Vault round-trip (regression: vault_engine.vault AttributeError) ──────────
+
+
+class TestVaultRoundtrip:
+    def test_store_get_delete(self, isolated_db, tmp_path, monkeypatch):
+        import sys
+
+        # NOTE: alfa.security.vault as attribute is the vault *instance*
+        # (package __init__ shadows the submodule); patch via sys.modules.
+        vault_mod = sys.modules["alfa.security.vault"]
+        from alfa.tools.filesystem import vault as v
+
+        # Vault binds DB_PATH at import: redirect + init schema in tmp file.
+        monkeypatch.setattr(vault_mod, "DB_PATH", str(tmp_path / "vault_test.db"))
+        vault_mod._init_vault_db()
+        name = "k-regresi"
+        stored = v.vault_store_secret(name, "nilai-rahasia")
+        assert stored["status"] == "success"
+        got = v.vault_get_secret(name)
+        assert got["status"] == "success"
+        assert got["value"] == "nilai-rahasia"
+        listed = v.vault_list_secrets()
+        assert any(s["name"] == name for s in listed["secrets"])
+        sid = next(s["id"] for s in listed["secrets"] if s["name"] == name)
+        assert v.vault_delete_secret(sid)["status"] == "success"
+        assert v.vault_get_secret(name)["status"] == "error"
+
+
+# ── Scraper dispatch (regression: wrong fast_scraper fn name) ─────────────────
+
+
+class TestScraperDispatch:
+    def test_custom_batch_uses_fast_tls(self, tmp_path, monkeypatch):
+        import alfa.scrapers.fast as fast_mod
+        import alfa.scrapers.universal as uni
+
+        monkeypatch.setattr(uni, "MASTER_EXPORT_DIR", str(tmp_path))
+        (tmp_path / "CSV").mkdir()
+        (tmp_path / "JSON").mkdir()
+        monkeypatch.setattr(
+            fast_mod,
+            "scrape_with_fast_tls",
+            lambda url: {"status": "success", "url": url, "title": "T"},
+        )
+        res = uni.scrape_custom_urls_or_selectors(
+            ["https://contoh.id/a"], concurrency=1, use_camoufox=False
+        )
+        assert res["status"] == "success"
+
+
 # ── Registry / MCP / audit ───────────────────────────────────────────────────
 
 

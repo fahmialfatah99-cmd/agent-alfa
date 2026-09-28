@@ -283,7 +283,7 @@ async def list_vault_secrets(category: str = "all"):
 
     return {
         "status": "success",
-        "items": vault_engine.vault.list_secrets(category=category),
+        "items": vault_engine.list_secrets(category=category),
     }
 
 
@@ -300,7 +300,7 @@ async def store_vault_secret(payload: dict[str, Any]):
     if not name or not value:
         return {"status": "error", "message": "Nama dan nilai secret wajib diisi."}
 
-    res = vault_engine.vault.store_secret(
+    res = vault_engine.store_secret(
         name=name, value=value, category=category, notes=notes
     )
     return res
@@ -315,7 +315,7 @@ async def reveal_vault_secret(payload: dict[str, Any]):
     if not secret_id:
         return {"status": "error", "message": "Secret ID atau nama diperlukan."}
 
-    sec = vault_engine.vault.get_secret(str(secret_id))
+    sec = vault_engine.get_secret(str(secret_id))
     if not sec:
         return {"status": "error", "message": "Secret tidak ditemukan di dalam vault."}
 
@@ -332,7 +332,7 @@ async def delete_vault_secret(secret_id: int):
     """Delete a secret permanently from the vault."""
     from alfa.security import vault as vault_engine
 
-    deleted = vault_engine.vault.delete_secret(int(secret_id))
+    deleted = vault_engine.delete_secret(int(secret_id))
     if deleted:
         return {
             "status": "success",
