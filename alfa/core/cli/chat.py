@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from typing import Any
 
 from alfa.core.cli.constants import (
     RICH_AVAILABLE,
@@ -18,6 +19,29 @@ from alfa.core.cli.constants import (
 
 class CliChatMixin:
     """Handles prompt input, multi-mode AI routing (Server & Direct), streaming, and shell execution."""
+
+    # Attributes provided by AlfaCLI composition (declared for type checkers).
+    config: dict[str, Any]
+    console: Any
+    chat_history: list[dict[str, str]]
+    streaming: bool
+    server_url: str
+    mode: str
+    session_token: str | None
+    username: str | None
+    direct_ai: Any
+    agent_runner: Any
+    attached_files: list[str]
+    patch_manager: Any
+    repomap_gen: Any
+
+    def _request(self, *args: Any, **kwargs: Any) -> Any: ...
+    def _save_config(self) -> None: ...
+    def _update_prompt(self) -> None: ...
+    def _save_session(self) -> None: ...
+    def _clear_session(self) -> None: ...
+    def _save_history(self) -> None: ...
+    def _run_swarm_execution(self, *args: Any, **kwargs: Any) -> Any: ...
 
     def default(self, line: str) -> None:
         """Menangani input chat biasa, perintah shell (!cmd), atau slash commands (/cmd)."""

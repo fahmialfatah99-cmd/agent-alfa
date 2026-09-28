@@ -1,10 +1,13 @@
 """Session management, readline auto-completion, and HTTP client transport for CLI."""
 
+from __future__ import annotations
+
 import json
 import os
 import platform
 import sys
 from datetime import datetime
+from typing import Any
 
 import requests
 
@@ -25,6 +28,9 @@ if READLINE_AVAILABLE:
 
 
 class CliSessionMixin:
+    # Attributes provided by AlfaCLI composition (declared for type checkers).
+    config: dict[str, Any]
+    server_url: str
     """Handles session persistence, readline integration, and API requests."""
 
     def _setup_readline(self):

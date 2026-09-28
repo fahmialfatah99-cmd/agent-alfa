@@ -8,7 +8,10 @@ lookups and global AVAILABLE_TOOLS list.
 import inspect
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
 
 logger = logging.getLogger("AgentTools.Registry")
 
@@ -216,7 +219,7 @@ def register_tool(
     category: str | None = None,
     description: str | None = None,
     tags: list[str] | None = None,
-):
+) -> Callable[[Callable[_P, _R]], Callable[_P, _R]]:
     """Decorator to register a tool function into TOOL_REGISTRY and AVAILABLE_TOOLS.
 
     Can be used with or without arguments:
@@ -227,7 +230,7 @@ def register_tool(
         def my_tool(...): ...
     """
 
-    def decorator(fn: Callable) -> Callable:
+    def decorator(fn: Callable[_P, _R]) -> Callable[_P, _R]:
         actual_name = (name if isinstance(name, str) else None) or getattr(
             fn, "__name__", ""
         )
@@ -259,10 +262,10 @@ def register_tool(
         }
         TOOL_REGISTRY[actual_name] = entry
 
-        fn._tool_name = actual_name
-        fn._tool_category = actual_cat
-        fn._tool_description = actual_desc
-        fn._tool_tags = tags or []
+        setattr(fn, "_tool_name", actual_name)  # noqa: B010
+        setattr(fn, "_tool_category", actual_cat)  # noqa: B010
+        setattr(fn, "_tool_description", actual_desc)  # noqa: B010
+        setattr(fn, "_tool_tags", tags or [])  # noqa: B010
 
         # Add to AVAILABLE_TOOLS if not present
         if all(getattr(t, "__name__", None) != actual_name for t in AVAILABLE_TOOLS):
@@ -282,7 +285,8 @@ def get_tool(name: str) -> Callable | None:
     if name in TOOL_REGISTRY:
         func = TOOL_REGISTRY[name]["func"]
         assert callable(func)
-        return func
+        # Registry stores untyped callables by design.
+        return func  # type: ignore[no-any-return]
     for t in AVAILABLE_TOOLS:
         if getattr(t, "__name__", None) == name:
             return t
