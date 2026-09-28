@@ -168,7 +168,7 @@ async def conduct_multi_agent_meeting(
     if not participants:
         participants = all_agents[:3]
 
-    if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
+    if _CHECKPOINT_AVAILABLE:
         try:
             _SwarmCheckpoint.save(
                 session_id=session_id,
@@ -381,7 +381,7 @@ async def conduct_multi_agent_meeting(
                     f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.",
                 )
                 swarm_cancelled = True
-                if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
+                if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.mark_cancelled(session_id)
                     except Exception:
@@ -445,7 +445,7 @@ async def conduct_multi_agent_meeting(
                 )
                 execution_steps.append(step_result)
 
-                if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
+                if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.save(
                             session_id=session_id,
@@ -697,7 +697,7 @@ async def conduct_multi_agent_meeting(
     if target_fol and os.path.isdir(target_fol):
         sanitize_project_directory(target_fol)
 
-    if _CHECKPOINT_AVAILABLE and _SwarmCheckpoint:
+    if _CHECKPOINT_AVAILABLE:
         try:
             _deliverables = [
                 s["deliverable_file"]
@@ -731,7 +731,7 @@ async def resume_swarm_session(session_id: str) -> dict[str, Any]:
     """
     Melanjutkan sesi swarm yang sebelumnya dibatalkan atau tertunda berdasarkan checkpoint.
     """
-    if not _CHECKPOINT_AVAILABLE or not _SwarmCheckpoint:
+    if not _CHECKPOINT_AVAILABLE:
         return {"status": "error", "message": "Checkpoint system tidak tersedia."}
 
     ckpt = _SwarmCheckpoint.load(session_id)
