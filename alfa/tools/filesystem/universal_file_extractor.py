@@ -376,10 +376,9 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
             df = pd.read_excel(io.BytesIO(raw_bytes), engine="odf")
         else:
             df = pd.read_excel(io.BytesIO(raw_bytes))
-        return f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n" + df.head(
-            150
-        ).to_markdown(
-            index=False
+        return str(
+            f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n"
+            + df.head(150).to_markdown(index=False)
         )
     except Exception as e:
         logger.warning(f"pandas excel error: {e}")
@@ -395,10 +394,9 @@ def _extract_csv(raw_bytes: bytes, fname: str) -> str | None:
         dialect = csv.Sniffer().sniff(text_preview)
         sep = dialect.delimiter
         df = pd.read_csv(io.BytesIO(raw_bytes), sep=sep)
-        return f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n" + df.head(
-            150
-        ).to_markdown(
-            index=False
+        return str(
+            f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n"
+            + df.head(150).to_markdown(index=False)
         )
     except Exception:
         try:
@@ -495,7 +493,7 @@ def _extract_data_formats(raw_bytes: bytes, fname: str, ext: str) -> str:
             import yaml
 
             parsed = yaml.safe_load(decoded)
-            return "```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```"
+            return str("```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```")
         return "```\n" + decoded[:4000] + "\n```"
     except Exception:
         return raw_bytes.decode("utf-8", errors="replace")[:4000]

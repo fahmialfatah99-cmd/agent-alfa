@@ -94,7 +94,7 @@ def affiliate_broadcast_deal(
     product_name: str,
     message_text: str,
     affiliate_link: str,
-    channels: list[str] = None,
+    channels: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Kirimkan penawaran diskon affiliate secara otomatis ke Telegram Channel atau broadcast WhatsApp (Dikelola oleh Code Crafter).

@@ -43,7 +43,8 @@ class PatchHistoryManager:
     def _load_journal(self) -> list[dict[str, Any]]:
         try:
             if self.journal_file.exists():
-                return json.loads(self.journal_file.read_text(encoding="utf-8"))
+                data = json.loads(self.journal_file.read_text(encoding="utf-8"))
+                return data if isinstance(data, list) else []
         except Exception:
             pass
         return []
