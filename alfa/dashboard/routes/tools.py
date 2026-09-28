@@ -1,6 +1,7 @@
 """Tool explorer, dynamic plugins, superpowers, and UI/UX Pro Max routes for ALFA Dashboard."""
 
 import inspect
+import json
 import os
 import re
 import time
@@ -196,6 +197,14 @@ async def execute_tool(payload: dict[str, Any]):
         uid = get_primary_user_id()
         tools.current_user_id_var.set(uid)
         tools.current_chat_id_var.set(uid)
+
+        from alfa.core.perm import gate as _perm_gate
+
+        denial = _perm_gate.check_headless_approval(
+            uid, tool_name, json.dumps(args, ensure_ascii=False, default=str)
+        )
+        if denial:
+            raise HTTPException(status_code=403, detail=denial)
 
         start_t = time.time()
         result = target_fn(**args)

@@ -73,6 +73,7 @@ class CliChatMixin:
                 shell=True,
                 text=True,
                 capture_output=True,
+                timeout=120,
             )
             if res.stdout:
                 print(res.stdout, end="" if res.stdout.endswith("\n") else "\n")
@@ -80,6 +81,8 @@ class CliChatMixin:
                 print(f"{Colors.FAIL}{res.stderr}{Colors.ENDC}", end="")
             if res.returncode != 0:
                 print_status(f"Exit code: {res.returncode}", "warning")
+        except subprocess.TimeoutExpired:
+            print_status("Perintah timeout setelah 120 detik.", "error")
         except Exception as e:
             print_status(f"Gagal menjalankan perintah shell: {e}", "error")
 

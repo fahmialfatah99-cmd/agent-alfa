@@ -12,8 +12,26 @@ PROJECT_DIR = REPO_ROOT
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(PROJECT_DIR, "agent_data.db"))
 
 PERMISSION_GATE_ENABLED = os.getenv("PERMISSION_GATE", "on").strip().lower() != "off"
-APPROVAL_TIMEOUT = int(os.getenv("PERMISSION_GATE_TIMEOUT", "300"))
-TRUST_THRESHOLD = float(os.getenv("PERMISSION_GATE_TRUST_THRESHOLD", "0.7"))
+
+
+def _safe_int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)).strip())
+    except (TypeError, ValueError, AttributeError):
+        logger.warning(f"Env {name} tidak valid; pakai default {default}")
+        return default
+
+
+def _safe_float_env(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)).strip())
+    except (TypeError, ValueError, AttributeError):
+        logger.warning(f"Env {name} tidak valid; pakai default {default}")
+        return default
+
+
+APPROVAL_TIMEOUT = _safe_int_env("PERMISSION_GATE_TIMEOUT", 300)
+TRUST_THRESHOLD = _safe_float_env("PERMISSION_GATE_TRUST_THRESHOLD", 0.7)
 FAIL_MODE = os.getenv("PERMISSION_GATE_FAIL_MODE", "deny").strip().lower()
 # Perilaku saat TIDAK ada kanal approval (mis. Web Dashboard tanpa bot Telegram
 # berjalan). Sebelumnya selalu fail-closed -> SEMUA tool non-SAFE ditolak sehingga

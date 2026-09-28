@@ -86,10 +86,11 @@ def update_trust_score(chat_id: int, was_safe: bool, response_time: float) -> No
                 risky += 1
 
             # Calculate new trust score (simple heuristic)
-            # More safe decisions = higher trust
-            # Faster responses to risky tools = higher trust
+            # More safe decisions = higher trust.
+            # Speed bonus: full when responding instantly, decaying linearly
+            # to zero at 5 minutes (previously a constant due to min-cap bug).
             base_ratio = safe / total if total > 0 else 0.5
-            speed_bonus = min(0.1, 30.0 / max(response_time, 30.0)) * 0.2
+            speed_bonus = max(0.0, 0.02 * (1.0 - min(response_time, 300.0) / 300.0))
             new_trust = min(1.0, max(0.0, base_ratio + speed_bonus))
 
             conn.execute(

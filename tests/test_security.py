@@ -533,5 +533,55 @@ class TestHardeningAndRobustness:
         )
 
 
+# ── Headless permission gate (dashboard-direct & MCP) ────────────────────────
+
+
+class TestHeadlessGate:
+    def test_low_tier_allowed(self):
+        from alfa.core.perm import gate as perm_gate
+
+        assert perm_gate.check_headless_approval(99999111, "web_search") is None
+
+    def test_high_tier_denied_at_fresh_trust(self):
+        from alfa.core.perm import gate as perm_gate
+
+        denial = perm_gate.check_headless_approval(
+            99999112, "execute_bash_command", '{"cmd": "ls"}'
+        )
+        assert denial is not None
+        assert "execute_bash_command" in denial
+
+    def test_gate_respects_global_switch(self, monkeypatch):
+        from alfa.core.perm import gate as perm_gate
+
+        monkeypatch.setattr(perm_gate, "PERMISSION_GATE_ENABLED", False)
+        assert perm_gate.check_headless_approval(99999113, "ssh_execute_command") is None
+
+    def test_audit_args_redacted(self):
+        import json
+
+        from alfa.core.perm import gate as perm_gate
+
+        redacted = json.loads(
+            perm_gate._redact_args_json(
+                '{"username": "admin", "password": "s3cret", "api_key": "k", "cmd": "ls"}'
+            )
+        )
+        assert redacted["password"] == "***REDACTED***"
+        assert redacted["api_key"] == "***REDACTED***"
+        assert redacted["username"] == "admin"
+        assert redacted["cmd"] == "ls"
+
+    def test_speed_bonus_decays_with_response_time(self):
+        def bonus(rt):
+            return max(0.0, 0.02 * (1.0 - min(rt, 300.0) / 300.0))
+
+        assert bonus(0) == 0.02
+        assert bonus(30) < bonus(0)
+        assert bonus(150) < bonus(30)
+        assert bonus(300) == 0.0
+        assert bonus(9999) == 0.0
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
