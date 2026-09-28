@@ -545,7 +545,7 @@ class _BM25Index:
         self.docs = docs_tokens
         self._bm25 = None
         try:
-            from rank_bm25 import BM25Okapi  # type: ignore
+            from rank_bm25 import BM25Okapi
 
             self._bm25 = BM25Okapi(docs_tokens) if docs_tokens else None
         except Exception as e:  # pragma: no cover - fallback path

@@ -63,7 +63,8 @@ class CliChatMixin:
 
             method_name = f"do_slash_{cmd}"
             if hasattr(self, method_name):
-                return getattr(self, method_name)(args)
+                getattr(self, method_name)(args)
+                return
             else:
                 print_status(f"Perintah tidak dikenal: {line_str}", "error")
                 print("Ketik /help untuk daftar perintah.", "info")

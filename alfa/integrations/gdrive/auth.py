@@ -26,8 +26,8 @@ def _get_default_gdrive_folder_id() -> str:
             row = conn.execute(
                 "SELECT value FROM system_settings WHERE key = 'gdrive_default_folder_id'"
             ).fetchone()
-            if row and row[0] and row[0].strip():
-                return row[0].strip()
+            if row and row[0] and str(row[0]).strip():
+                return str(row[0]).strip()
     except Exception:
         pass
     return os.getenv(

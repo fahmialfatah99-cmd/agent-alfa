@@ -134,7 +134,7 @@ def _ddgs_text_with_retry(ddgs, query: str, max_results: int, attempts: int = 3)
             last_err = e
             if i < attempts - 1:
                 time.sleep(2 * (i + 1))
-    raise last_err
+    raise last_err if last_err is not None else RuntimeError("DDGS gagal")
 
 
 def scrape_universal_keyword(

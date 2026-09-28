@@ -198,7 +198,7 @@ def _record(
 
 
 async def request_approval(
-    tool_name: str, arguments_json: str = "{}", chat_id: int = None
+    tool_name: str, arguments_json: str = "{}", chat_id: int | None = None
 ) -> str | None:
     """Tanya izin ke pengguna via tombol Telegram.
     Return None bila diizinkan; string penolakan bila ditolak/timeout."""

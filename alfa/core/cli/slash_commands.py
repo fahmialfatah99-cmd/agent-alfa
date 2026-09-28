@@ -249,7 +249,7 @@ class CliSlashCommandsMixin:
             print("\n💡 Tips: Gunakan '/settings temperature=0.5 max_tokens=2048' untuk mengubah\n")
             return
 
-        settings = {}
+        settings: dict[str, Any] = {}
         for pair in arg.split():
             if "=" in pair:
                 key, value = pair.split("=", 1)
