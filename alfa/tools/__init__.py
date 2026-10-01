@@ -14,6 +14,7 @@ from alfa.core.runtime_ctx import get_current_user_id as get_current_user_id
 from alfa.tools import (
     academic_tools,
     desktop_tools,
+    extras,
     filesystem_tools,
     media_tools,
     memory_tools,
@@ -226,6 +227,7 @@ __all__ = [
     "academic_tools",
     "media_tools",
     "memory_tools",
+    "extras",
     "AVAILABLE_TOOLS",
     "current_chat_id_var",
     "current_user_id_var",

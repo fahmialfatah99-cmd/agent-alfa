@@ -240,6 +240,23 @@ class CliBasicCommandsMixin:
     def do_slash_exit(self, arg):
         """Keluar dari aplikasi. Usage: /exit"""
         self._save_history()
+        try:
+            from alfa.core.cli.session_store import LAST_SESSION_NAME, SessionStore
+
+            if getattr(self, "chat_history", None):
+                SessionStore().save(
+                    LAST_SESSION_NAME,
+                    self.chat_history,
+                    getattr(self, "last_plan", None),
+                    extra={
+                        "agent_mode": getattr(self, "agent_mode", True),
+                        "agent_execution_mode": getattr(
+                            self, "agent_execution_mode", "single"
+                        ),
+                    },
+                )
+        except Exception:
+            pass
         print_status(
             "Terima kasih telah menggunakan ALFA CLI. Sampai jumpa!", "success"
         )
@@ -267,6 +284,122 @@ class CliBasicCommandsMixin:
             if i + 1 < len(recent):
                 assistant_msg = recent[i + 1].get("content", "")[:100]
                 print(f"{Colors.GREEN}ALFA:{Colors.ENDC} {assistant_msg}...\n")
+
+    def do_slash_session(self, arg):
+        """Simpan/lanjutkan sesi chat. Usage: /session [save <nama>|list|load <nama>|delete <nama>]"""
+        from alfa.core.cli.session_store import SessionStore
+
+        parts = arg.strip().split(maxsplit=1)
+        action = parts[0].lower() if parts else "list"
+        rest = parts[1] if len(parts) > 1 else ""
+        store = SessionStore()
+        if action == "save":
+            name = rest.strip() or "sesi"
+            slug = store.save(
+                name,
+                getattr(self, "chat_history", []),
+                getattr(self, "last_plan", None),
+                extra={
+                    "agent_mode": getattr(self, "agent_mode", True),
+                    "agent_execution_mode": getattr(
+                        self, "agent_execution_mode", "single"
+                    ),
+                    "auto_approve": bool(
+                        getattr(getattr(self, "agent_runner", None), "auto_approve", False)
+                    ),
+                },
+            )
+            print_status(f"💾 Sesi '{slug}' tersimpan.", "success")
+        elif action == "list":
+            items = store.list()
+            if not items:
+                print_status("Belum ada sesi tersimpan.", "info")
+                return
+            print(f"\n{Colors.BOLD}💾 Sesi Tersimpan:{Colors.ENDC}")
+            for it in items:
+                plan_mark = "📋" if it["has_plan"] else "  "
+                print(
+                    f"  {plan_mark} {Colors.CYAN}{it['name']:<20}{Colors.ENDC} "
+                    f"{it['messages']} pesan | {it['workspace']} | {it['saved_at']}"
+                )
+            print()
+        elif action == "load":
+            if not rest.strip():
+                print_status("Usage: /session load <nama>", "warning")
+                return
+            data = store.load(rest.strip())
+            if not data:
+                print_status(f"Sesi '{rest.strip()}' tidak ditemukan.", "error")
+                return
+            history = data.get("chat_history", [])
+            self.chat_history = [
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+                for m in history
+                if isinstance(m, dict)
+            ]
+            if data.get("last_plan"):
+                self.last_plan = data["last_plan"]
+            extra = data.get("extra", {}) or {}
+            if "agent_mode" in extra:
+                self.agent_mode = bool(extra["agent_mode"])
+            if "agent_execution_mode" in extra:
+                self.agent_execution_mode = str(extra["agent_execution_mode"])
+            if "auto_approve" in extra and getattr(self, "agent_runner", None):
+                self.agent_runner.auto_approve = bool(extra["auto_approve"])
+            ws = data.get("workspace", "-")
+            if ws and ws != "-":
+                print_status(f"📂 Sesi dari workspace: {ws}", "info")
+            print_status(
+                f"✅ Sesi '{rest.strip()}' dimuat ({len(self.chat_history)} pesan).",
+                "success",
+            )
+        elif action == "delete":
+            if not rest.strip():
+                print_status("Usage: /session delete <nama>", "warning")
+                return
+            if store.delete(rest.strip()):
+                print_status(f"Sesi '{rest.strip()}' dihapus.", "success")
+            else:
+                print_status(f"Sesi '{rest.strip()}' tidak ditemukan.", "error")
+        else:
+            print_status("Usage: /session [save <nama>|list|load <nama>|delete <nama>]", "error")
+
+    def do_slash_compact(self, arg):
+        """Ringkas riwayat chat agar konteks hemat. Usage: /compact"""
+        if len(self.chat_history) < 4:
+            print_status("Riwayat masih pendek, belum perlu diringkas.", "info")
+            return
+        if not hasattr(self, "direct_ai") or self.direct_ai is None:
+            print_status("Engine Direct AI belum siap.", "error")
+            return
+        transcript = "\n".join(
+            f"{'User' if m.get('role') == 'user' else 'ALFA'}: {m.get('content', '')[:800]}"
+            for m in self.chat_history[-20:]
+        )
+        print_status("🗜️ Meringkas riwayat percakapan...", "info")
+        try:
+            summary = self.direct_ai.generate(
+                prompt=(
+                    "Ringkas percakapan berikut menjadi memo konteks ≤15 baris: "
+                    "keputusan, file diubah, todo tersisa, error terbuka.\n\n" + transcript
+                ),
+                stream=False,
+            )
+        except Exception as e:
+            print_status(f"Gagal meringkas: {e}", "error")
+            return
+        kept = self.chat_history[-2:]
+        self.chat_history = [
+            {
+                "role": "user",
+                "content": f"[MEMO RINGKASAN SEBELUMNYA — lanjutkan dari sini]\n{summary}",
+            },
+            *kept,
+        ]
+        print_status(
+            f"✅ Riwayat diringkas ({len(transcript)} → {len(summary)} chars).",
+            "success",
+        )
 
     def do_slash_config(self, arg):
         """Lihat/ubah konfigurasi. Usage: /config [key=value]"""

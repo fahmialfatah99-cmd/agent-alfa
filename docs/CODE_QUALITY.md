@@ -2,25 +2,25 @@
 
 This document tracks code quality metrics for the ALFA Agent project.
 
-## Current Status (v2.5.0)
+## Current Status (v3.5.0, 2026-09-29)
 
 ### Test Coverage
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | >80% | TBD | ⏳ Pending |
-| Core Modules | >90% | TBD | ⏳ Pending |
-| Security Modules | 100% | TBD | ⏳ Pending |
-| Integration Tests | Critical paths | TBD | ⏳ Pending |
+| Overall Coverage | >80% | 47.65% | 🔴 Below target |
+| Core Modules (CLI agent) | >90% | ~70-94% (parsing 79%, reporting 94%) | 🟡 Improving |
+| Security Modules | 100% | Bandit: 0 high, 1 medium | 🟢 OK |
+| Integration Tests | Critical paths | Covered | 🟢 OK |
 
-**Note**: Run `pytest --cov=alfa --cov=. --cov-report=html` to generate current coverage report.
+**Note**: Run `pytest --cov=alfa --cov-report=html` to generate current coverage report.
 
 ### Test Suite Statistics
 
 | Metric | Count |
 |--------|-------|
-| Test Files | 20+ |
-| Test Functions | 100+ |
+| Test Files | 38 |
+| Test Functions | 705 |
 | Fixtures | 15+ |
 | Custom Markers | 5 |
 
@@ -28,7 +28,7 @@ This document tracks code quality metrics for the ALFA Agent project.
 
 | Tool | Status | Issues |
 |------|--------|--------|
-| Ruff | ✅ Configured | Auto-fixed |
+| Ruff | ✅ Clean | 0 errors (alfa + tests) |
 | Black | ✅ Configured | Formatted |
 | MyPy | ⚠️ Partial | Expected warnings |
 

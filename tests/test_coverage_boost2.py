@@ -34,6 +34,22 @@ def _make_cli():
     return cli
 
 
+_MENU_SUBMODULES = (
+    "files_ctx",
+    "models",
+    "modes",
+    "agents",
+    "ops",
+    "dispatcher",
+)
+
+
+def _patch_menu_inquirer(monkeypatch, fake):
+    """Patch `inquirer` in every menu submodule (menus were split from one module)."""
+    for sub in _MENU_SUBMODULES:
+        monkeypatch.setattr(f"alfa.core.cli.menu.{sub}.inquirer", fake)
+
+
 # ── video compositor (pure PIL) ──────────────────────────────────────────────
 
 
@@ -92,7 +108,7 @@ class TestMenusCancelPaths:
     def test_menu_cancel_safe(self, monkeypatch, func):
         import alfa.core.cli.interactive_menu as menu
 
-        monkeypatch.setattr(menu, "inquirer", _prompts("", "", "", ""))
+        _patch_menu_inquirer(monkeypatch, _prompts("", "", "", ""))
         cli = MagicMock()
         cli.direct_ai = MagicMock(provider="gemini", model="m")
         cli.mode = "auto"
@@ -103,7 +119,7 @@ class TestMenusCancelPaths:
     def test_switch_preset_flow(self, monkeypatch):
         import alfa.core.cli.interactive_menu as menu
 
-        monkeypatch.setattr(menu, "inquirer", _prompts("Coding"))
+        _patch_menu_inquirer(monkeypatch, _prompts("Coding"))
         cli = MagicMock()
         menu.menu_switch_preset(cli)
 
@@ -111,7 +127,7 @@ class TestMenusCancelPaths:
         import alfa.core.cli.interactive_menu as menu
 
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(menu, "inquirer", _prompts("status", ""))
+        _patch_menu_inquirer(monkeypatch, _prompts("status", ""))
         cli = MagicMock()
         try:
             menu.menu_git_actions(cli)
@@ -160,7 +176,8 @@ class TestSlashMore:
             pass
         capsys.readouterr()
 
-    def test_undo_and_agent(self, capsys):
+    def test_undo_and_agent(self, capsys, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
         cli = _make_cli()
         cli.do_slash_undo("")
         cli.do_slash_agent("")
@@ -173,6 +190,7 @@ class TestSlashMore:
 @pytest.fixture(scope="module")
 def dashboard_client(tmp_path_factory):
     import os
+
     from fastapi.testclient import TestClient
 
     test_db = str(tmp_path_factory.mktemp("db") / "test_boost2.db")

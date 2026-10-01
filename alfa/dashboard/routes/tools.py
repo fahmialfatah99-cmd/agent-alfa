@@ -11,8 +11,17 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from alfa import tools
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger
+from alfa.tools.extras import EXTRA_GROUPS, is_extra_tool
 
 tools_router = APIRouter(tags=["tools"])
+
+
+def extra_group_of(name: str) -> str | None:
+    """Return extras group name for a tool, or None if core."""
+    for group, names in EXTRA_GROUPS.items():
+        if name in names:
+            return group
+    return None
 
 
 def categorize_tool(name: str) -> str:
@@ -122,6 +131,8 @@ async def get_tools_list():
                 "category": categorize_tool(name),
                 "signature": f"{name}{str(sig)}",
                 "parameters": params,
+                "is_extra": is_extra_tool(name),
+                "extra_group": extra_group_of(name),
             }
         )
 
@@ -163,6 +174,8 @@ async def get_tools_list():
                         "category": "Dynamic Plugins",
                         "signature": f"{tool_name}{str(sig)}",
                         "parameters": params,
+                        "is_extra": False,
+                        "extra_group": "dynamic",
                     }
                 )
     except Exception as e:

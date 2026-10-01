@@ -96,6 +96,11 @@ class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
             workspace_root=Path.cwd(),
             console=self.console,
         )
+        # Approval policy: manual confirm default; /auto on persists, env forces.
+        self.agent_runner.auto_approve = bool(
+            self.config.get("auto_approve", False)
+            or os.getenv("ALFA_AUTO_APPROVE") == "1"
+        )
 
         self._setup_readline()
         self._load_session()

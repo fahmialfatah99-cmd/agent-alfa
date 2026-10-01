@@ -45,7 +45,7 @@ async def _run_subagent_worker(
     """
     logger.info(f"Subagent worker [{task_id}] started for user {user_id}. Role: {role}")
 
-    from bot import run_agent_turn, safe_send_message
+    from alfa.bot.telegram_bot import run_agent_turn, safe_send_message
 
     subagent_prompt = (
         f"[SUBAGENT TASK: {role.upper()}]\n"
