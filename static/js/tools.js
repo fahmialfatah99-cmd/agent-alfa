@@ -114,6 +114,7 @@ function renderToolsList(toolsToRender = allToolsData) {
                     <span class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 text-cyan-400 border border-cyan-500/20">
                         ${t.category}
                     </span>
+                    ${t.is_extra ? `<span title="Optional extra: ${t.extra_group || ''}" class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">Optional</span>` : ``}
                     <span class="text-[11px] font-mono text-slate-400">${t.parameters.length} params</span>
                 </div>
                 <h3 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${t.name}()</h3>

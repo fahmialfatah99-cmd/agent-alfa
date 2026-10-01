@@ -12,6 +12,7 @@ from pathlib import Path
 
 from alfa.core.cli.agent_engine.patch_history import PatchHistoryManager
 from alfa.core.cli.agent_engine.repomap import RepomapGenerator
+from alfa.core.cli.agent_engine.todos import TodoManager
 
 # ==========================================
 # 3. LOCAL DEVELOPER TOOL REGISTRY
@@ -24,6 +25,7 @@ class LocalToolRegistry:
     def __init__(self, workspace_root: Path | None = None):
         self.root = workspace_root or Path.cwd()
         self.patch_manager = PatchHistoryManager(self.root)
+        self.todos = TodoManager(self.root)
 
     def _resolve(self, path_str: str) -> Path:
         p = Path(path_str.strip())
@@ -359,18 +361,40 @@ class LocalToolRegistry:
         env["PYTHONUNBUFFERED"] = "1"
 
         try:
-            res = subprocess.run(
+            proc = subprocess.Popen(
                 command,
                 shell=True,  # nosec B602 - agent runner executes approved operator tasks with timeout; see permission gate
                 cwd=str(self.root),
                 text=True,
-                capture_output=True,
-                timeout=effective_timeout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 env=env,
             )
-            out = res.stdout.strip()
-            err = res.stderr.strip()
-            code = res.returncode
+            try:
+                out_text, err_text = proc.communicate(timeout=effective_timeout)
+                code = proc.returncode
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    out_text, err_text = proc.communicate(timeout=5)
+                except Exception:
+                    out_text, err_text = "", ""
+                out_text = (out_text or "").strip()
+                err_text = (err_text or "").strip()
+                resp_lines = [
+                    f"Error: Perintah melampaui batas waktu ({effective_timeout} detik) dan dihentikan."
+                ]
+                if out_text:
+                    resp_lines.append(f"STDOUT parsial:\n{out_text[-3000:]}")
+                if err_text:
+                    resp_lines.append(f"STDERR parsial:\n{err_text[-2000:]}")
+                resp_lines.append(
+                    "Saran: persempit cakupan (file/subset test spesifik) lalu ulangi."
+                )
+                return "\n\n".join(resp_lines)
+            out = (out_text or "").strip()
+            err = (err_text or "").strip()
+            code = code if code is not None else -1
 
             resp_lines = [f"[Exit Code: {code}]"]
             if out:
@@ -381,8 +405,6 @@ class LocalToolRegistry:
                 resp_lines.append("(Tidak ada output teks)")
 
             return "\n\n".join(resp_lines)
-        except subprocess.TimeoutExpired:
-            return f"Error: Perintah melampaui batas waktu ({effective_timeout} detik)."
         except Exception as e:
             return f"Error eksekusi: {e}"
 
@@ -408,3 +430,24 @@ class LocalToolRegistry:
             return "\n".join(items) if items else "(Direktori kosong)"
         except Exception as e:
             return f"Error membaca direktori: {e}"
+
+    def todo_add(self, task: str) -> str:
+        """Add a todo item for multi-step task tracking."""
+        if not task or not task.strip():
+            return "Error: isi tugas tidak boleh kosong."
+        item = self.todos.add(task)
+        return f"⬜ Todo #{item['id']} ditambahkan: {item['task']}"
+
+    def todo_list(self) -> str:
+        """List all todo items with completion status."""
+        return self.todos.summary()
+
+    def todo_done(self, todo_id: int) -> str:
+        """Mark a todo item as completed."""
+        try:
+            tid = int(todo_id)
+        except (TypeError, ValueError):
+            return "Error: todo_id harus angka."
+        if self.todos.done(tid):
+            return f"✅ Todo #{tid} selesai."
+        return f"Error: Todo #{tid} tidak ditemukan."

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alfa-ai"
-version = "2.5.0"
+version = "3.5.0"
 description = "ALFA Sovereign AI Agent - Unified, Modular AI Agent Architecture"
 readme = "README.md"
 license = {text = "MIT"}
@@ -51,6 +51,25 @@ dependencies = [
 [project.optional-dependencies]
 ml = [
     "sentence-transformers"
+]
+affiliate = [
+    # Niche e-commerce promo stack (optional, 0% coverage core)
+]
+video = [
+    # Promo video generation stack (optional)
+]
+academic = [
+    # Academic paper research (optional)
+]
+scraping-extra = [
+    "scrapy",
+    "crawlee",
+    "crawl4ai",
+    "scrapling",
+    "firecrawl-py",
+]
+full = [
+    "alfa-ai[ml,affiliate,video,academic,scraping-extra]"
 ]
 dev = [
     "pytest>=7.0",

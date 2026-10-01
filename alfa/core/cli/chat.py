@@ -17,6 +17,21 @@ from alfa.core.cli.constants import (
 )
 
 
+def _contains_tool_call(text: str) -> bool:
+    """Detect tool-call protocol emitted as plain text (e.g. ```tool_call block).
+
+    Used to hand over to the Autonomous Agent loop when the model asks to
+    execute tools while running in casual direct-chat mode.
+    """
+    if not text:
+        return False
+    if "```tool_call" in text or "<tool_call>" in text:
+        return True
+    import re
+
+    return bool(re.search(r'"tool"\s*:\s*"[A-Za-z0-9_]+"', text))
+
+
 class CliChatMixin:
     """Handles prompt input, multi-mode AI routing (Server & Direct), streaming, and shell execution."""
 
@@ -70,6 +85,11 @@ class CliChatMixin:
                 return
 
         # 3. Mode Routing: Tentukan apakah menggunakan Server ALFA atau Direct Standalone AI
+        # 2b. Pertanyaan status kerja ("barusan apa?", "tadi ngapain?"):
+        # jawab dari STATE nyata run terakhir, bukan dari LLM.
+        if self._maybe_answer_work_status(line_str):
+            return
+
         use_direct = False
         if getattr(self, "mode", "auto") == "standalone":
             use_direct = True
@@ -83,6 +103,35 @@ class CliChatMixin:
             self._chat_direct_standalone(line_str)
         else:
             self._chat_via_server(line_str)
+
+    def _maybe_answer_work_status(self, line_str: str) -> bool:
+        """Answer 'what did you just do?' from REAL run state (no LLM call).
+
+        Returns True if the message was handled.
+        """
+        low = line_str.lower()
+        patterns = (
+            "barusan",
+            "tadi kamu",
+            "yang tadi",
+            "progres",
+            "progress",
+            "sampai mana",
+            "sudah sejauh",
+            "status tugas",
+            "gimana tugas",
+            "lagi kerjakan apa",
+            "sedang kerjakan apa",
+        )
+        if not any(p in low for p in patterns):
+            return False
+        runner = getattr(self, "agent_runner", None)
+        if runner is None or not getattr(runner, "last_run", None):
+            return False
+        if not runner.last_run.get("tools"):
+            return False
+        print(f"\n{runner.format_last_run()}\n")
+        return True
 
     def _execute_shell_command(self, cmd: str) -> None:
         """Execute a local shell command safely and print output."""
@@ -109,6 +158,28 @@ class CliChatMixin:
             print_status("Perintah timeout setelah 120 detik.", "error")
         except Exception as e:
             print_status(f"Gagal menjalankan perintah shell: {e}", "error")
+
+    def _run_agent_turn(self, message: str) -> None:
+        """Execute one Autonomous ReAct agent turn and render the final answer."""
+        self.agent_runner.direct_ai = self.direct_ai
+        try:
+            final_answer = self.agent_runner.run(message)
+            self.chat_history.append({"role": "user", "content": message})
+            self.chat_history.append({"role": "assistant", "content": final_answer})
+            if (
+                RICH_AVAILABLE
+                and self.console
+                and self.config.get("markdown", True)
+            ):
+                self.console.print(Markdown(final_answer))
+            else:
+                print(f"\n{final_answer}\n")
+        except Exception as e:
+            print(f"\n{Colors.FAIL}❌ Error Autonomous Agent:{Colors.ENDC} {e}")
+            if "API Key" in str(e) or "API_KEY" in str(e):
+                print(
+                    f"{Colors.WARNING}💡 Tips:{Colors.ENDC} Jalankan '/config' atau atur API Key di '/menu'."
+                )
 
     def _chat_direct_standalone(self, message: str) -> None:
         """Kirim pesan langsung ke engine Direct AI (Multi-provider LLM) tanpa server ALFA."""
@@ -168,30 +239,18 @@ class CliChatMixin:
             "arsitektur",
             "repomap",
             "analisis",
+            "bug",
+            "error",
+            "eror",
+            "crash",
+            "gagal",
+            "traceback",
         ]
         msg_lower = message.lower()
         has_local_intent = any(kw in msg_lower for kw in local_intent_keywords)
 
         if (is_agent or has_local_intent) and getattr(self, "agent_runner", None):
-            self.agent_runner.direct_ai = self.direct_ai
-            try:
-                final_answer = self.agent_runner.run(message)
-                self.chat_history.append({"role": "user", "content": message})
-                self.chat_history.append({"role": "assistant", "content": final_answer})
-                if (
-                    RICH_AVAILABLE
-                    and self.console
-                    and self.config.get("markdown", True)
-                ):
-                    self.console.print(Markdown(final_answer))
-                else:
-                    print(f"\n{final_answer}\n")
-            except Exception as e:
-                print(f"\n{Colors.FAIL}❌ Error Autonomous Agent:{Colors.ENDC} {e}")
-                if "API Key" in str(e) or "API_KEY" in str(e):
-                    print(
-                        f"{Colors.WARNING}💡 Tips:{Colors.ENDC} Jalankan '/config' atau atur API Key di '/menu'."
-                    )
+            self._run_agent_turn(message)
             return
 
         print(
@@ -230,6 +289,19 @@ class CliChatMixin:
                     self.console.print(Markdown(response_text))
                 else:
                     print(f"\n{response_text}\n")
+
+            # Handover: model emitted tool-call protocol in casual mode.
+            # Route to the Autonomous Agent loop so tools actually execute
+            # instead of printing raw ```tool_call text.
+            if getattr(self, "agent_runner", None) and _contains_tool_call(
+                response_text
+            ):
+                print(
+                    f"\n{Colors.WARNING}⚠️ Terdeteksi permintaan eksekusi tool — "
+                    f"mengalihkan ke Autonomous Agent...{Colors.ENDC}"
+                )
+                self._run_agent_turn(message)
+                return
 
             # Catat riwayat chat
             self.chat_history.append({"role": "user", "content": message})

@@ -26,7 +26,9 @@ _RUNTIME_PLUGIN_REGISTRY: dict[str, Callable] = {}
 
 
 def _init_plugin_db():
-    """Ensure dynamic_plugins table exists in database."""
+    """Ensure dynamic_plugins table exists in database (lazy, opt-out via env)."""
+    if os.getenv("ALFA_DISABLE_PLUGIN_DB_INIT") == "1":
+        return
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.execute("""
@@ -48,7 +50,16 @@ def _init_plugin_db():
         conn.close()
 
 
-_init_plugin_db()
+# Lazy DB init: only on first actual use, never on bare import.
+_plugin_db_ready = False
+
+
+def _ensure_plugin_db():
+    global _plugin_db_ready
+    if _plugin_db_ready:
+        return
+    _init_plugin_db()
+    _plugin_db_ready = True
 
 
 def load_all_plugin_tools() -> list[Callable]:
@@ -231,6 +242,7 @@ def create_and_register_plugin(
         }
 
         # 8. Persist to dynamic_plugins Database
+        _ensure_plugin_db()
         conn = sqlite3.connect(DB_PATH, timeout=10)
         try:
             conn.execute(
@@ -280,6 +292,7 @@ def create_and_register_plugin(
 def list_all_plugins() -> list[dict[str, Any]]:
     """Retrieve all active dynamic plugins with their status and code."""
     plugins_list = []
+    _ensure_plugin_db()
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.row_factory = sqlite3.Row
@@ -332,6 +345,7 @@ def delete_plugin(tool_name: str) -> dict[str, Any]:
         del sys.modules[module_name]
 
     # Delete from DB
+    _ensure_plugin_db()
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
         conn.execute("DELETE FROM dynamic_plugins WHERE tool_name = ?", (clean_name,))

@@ -42,6 +42,8 @@ from alfa.swarm.llm_client import (
     generate_agent_response,
     get_agent_api_client,
 )
+from alfa.swarm.meeting_steps import _build_task_desc, _execute_agent_step
+from alfa.swarm.sessions import resume_swarm_session as resume_swarm_session
 from alfa.swarm.step_executor import (
     _decompose_task,
     _extract_html_doc,
@@ -312,67 +314,6 @@ async def conduct_multi_agent_meeting(
             _wave_size = 3
         if not _parallel:
             _wave_size = 1
-
-        def _build_task_desc(agent: dict[str, Any], err_ctx: str) -> str:
-            td = (
-                subtask_map.get(agent["name"])
-                or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
-            )
-            if err_ctx:
-                td += f"\n\n{err_ctx}"
-            target_fol = workspace_hygiene._get_target_folder()
-            if target_fol:
-                td += (
-                    f"\n\nFOLDER KERJA WAJIB: {target_fol}\n"
-                    f"SEMUA file yang dibaca/ditulis WAJIB di dalam folder ini. "
-                    f"Pada execute_bash_command: sertakan working_dir='{target_fol}' "
-                    f"dan gunakan PATH RELATIF (folder ter-mount sebagai /workspace). "
-                    f"Untuk mengubah isi file, PAKAI edit_file_precise/write_local_file "
-                    f"dengan path lengkap '{target_fol}/<nama>'. "
-                    f"DILARANG membuat proyek di lokasi lain."
-                )
-            if ctx_lines:
-                td += (
-                    "\n\nKONTEKS HASIL AGEN GELOMBANG SEBELUMNYA (gunakan bila relevan):\n- "
-                    + "\n- ".join(ctx_lines[-3:])
-                )
-            return td
-
-        async def _execute_agent_step(agent: dict[str, Any], task_desc: str):
-            log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
-            step_result = await execute_swarm_task_step(
-                agent, task_desc, topic, intent_info
-            )
-            if step_result.get("deliverable_file"):
-                log_live(
-                    "FILE",
-                    f"📁 {agent['name']} menghasilkan berkas: {os.path.basename(step_result['deliverable_file'])}",
-                )
-
-            passed, feedback = await _verify_step_result(task_desc, step_result)
-            attempts = 0
-            while (
-                not passed
-                and attempts < 1
-                and step_result.get("tool_used") != "strategic_orchestration"
-                and not _cancel_requested()
-            ):
-                attempts += 1
-                logger.warning(
-                    f"Step '{agent['name']}' FAILED verification: {feedback} - retrying with corrections..."
-                )
-                retry_desc = (
-                    f"{task_desc}\n"
-                    f"PERCOBAAN SEBELUMNYA DITOLAK VERIFIKATOR: {feedback}\n"
-                    f"Kerjakan ulang dan pastikan menghasilkan bukti nyata (file/data/output)."
-                )
-                step_result = await execute_swarm_task_step(
-                    agent, retry_desc, topic, intent_info
-                )
-                step_result["retry_count"] = attempts
-                passed, feedback = await _verify_step_result(retry_desc, step_result)
-            return step_result, passed, feedback
-
         for wave_start in range(0, len(participants), _wave_size):
             wave = participants[wave_start : wave_start + _wave_size]
             if _cancel_requested():
@@ -393,7 +334,18 @@ async def conduct_multi_agent_meeting(
             try:
                 wave_results: list[Any] = await asyncio.gather(
                     *[
-                        _execute_agent_step(a, _build_task_desc(a, err_ctx_snapshot))
+                        _execute_agent_step(
+                            a,
+                            _build_task_desc(
+                                a,
+                                err_ctx_snapshot,
+                                subtask_map=subtask_map,
+                                topic=topic,
+                                ctx_lines=ctx_lines,
+                            ),
+                            topic=topic,
+                            intent_info=intent_info,
+                        )
                         for a in wave
                     ],
                     return_exceptions=True,
@@ -727,36 +679,6 @@ async def conduct_multi_agent_meeting(
     }
 
 
-async def resume_swarm_session(session_id: str) -> dict[str, Any]:
-    """
-    Melanjutkan sesi swarm yang sebelumnya dibatalkan atau tertunda berdasarkan checkpoint.
-    """
-    if not _CHECKPOINT_AVAILABLE:
-        return {"status": "error", "message": "Checkpoint system tidak tersedia."}
-
-    ckpt = _SwarmCheckpoint.load(session_id)
-    if not ckpt:
-        return {
-            "status": "error",
-            "message": f"Checkpoint untuk session '{session_id}' tidak ditemukan.",
-        }
-
-    topic = ckpt.get("topic", "")
-    mode = ckpt.get("mode", "execute")
-    participant_names = [
-        a["name"]
-        for a in ckpt.get("participants", [])
-        if isinstance(a, dict) and "name" in a
-    ]
-
-    log_live("RESUME", f"🔄 Melanjutkan sesi {session_id} (Topik: {topic[:60]})...")
-
-    return await conduct_multi_agent_meeting(
-        topic=topic,
-        participant_names=participant_names or None,
-        mode=mode,
-        session_id=session_id,
-    )
 
 
 __all__ = [

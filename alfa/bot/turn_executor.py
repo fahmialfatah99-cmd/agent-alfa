@@ -26,11 +26,10 @@ from alfa.bot.config import (
     resolve_main_gemini,
 )
 from alfa.bot.helpers import (
-    ARTIFACT_NOUNS,
-    COMPLETION_VERBS,
     _artifact_signature,
     _meetings_count,
 )
+from alfa.bot.reply_auditor import evaluate_reply_audits
 from alfa.bot.streamer import TelegramStreamer
 from alfa.core import brain as main_brain
 from alfa.core import database, token_usage
@@ -632,82 +631,20 @@ async def run_agent_turn(
             new_meetings = _meetings_count() - meetings_before
             reply_low = reply_text.lower()
 
-            need_meeting_audit = (
-                meeting_intent
-                and new_meetings == 0
-                and ("rapat" in reply_low or "meeting" in reply_low)
-                and any(mk in reply_low for mk in MEETING_FABRICATION_MARKERS)
-            )
-            need_artifact_audit = (
-                any(n in prompt_low for n in ARTIFACT_NOUNS)
-                and _artifact_signature() == art_before
-                and new_meetings == 0
-                and any(v in reply_low for v in COMPLETION_VERBS)
-                and any(n in reply_low for n in ARTIFACT_NOUNS)
-            )
-            action_claim_markers = (
-                "sudah",
-                "berhasil",
-                "selesai",
-                "diputar",
-                "memutar",
-                "playing",
-                "dibuka",
-                "membuka",
-                "terbuka",
-                "sudah kubuka",
-                "sudah ku",
-            )
-            action_tools = {
-                "browser_open_url",
-                "desktop_launch_app",
-                "control_linux_hardware",
-                "execute_bash_command",
-                "web_search",
-                "open_url_in_system_browser",
-                "play_youtube_music",
-                "execute_python_sandbox",
-                "browser_use_autonomous_task",
-                "vision_click_target",
-                "desktop_click_coordinate",
-                "desktop_type_keys",
-            }
-            need_action_audit = (
-                action_intent
-                and not action_tools.intersection(executed_tool_names)
-                and any(marker in reply_low for marker in action_claim_markers)
+            audit_kind, audit_parts = evaluate_reply_audits(
+                prompt_low=prompt_low,
+                reply_low=reply_low,
+                meeting_intent=meeting_intent,
+                action_intent=action_intent,
+                new_meetings=new_meetings,
+                executed_tool_names=executed_tool_names,
+                art_before=art_before,
+                art_after=_artifact_signature(),
             )
 
-            if need_meeting_audit or need_artifact_audit or need_action_audit:
-                audit_kind = (
-                    "RAPAT FIKTIF"
-                    if need_meeting_audit
-                    else "ARTEFAK BELUM DIBUAT"
-                    if need_artifact_audit
-                    else "AKSI BELUM DIJALANKAN"
-                )
+            if audit_kind:
                 logger.warning(
                     f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})"
-                )
-                audit_parts = ["⛔ SISTEM AUDIT KEBENARAN:"]
-                if need_meeting_audit:
-                    audit_parts.append(
-                        "TIDAK ADA rapat nyata dijalankan (tool conduct_ai_meeting tidak dipanggil)."
-                    )
-                if need_artifact_audit:
-                    audit_parts.append(
-                        "TIDAK ADA berkas baru tercipta di sistem, padahal jawabanmu mengklaim selesai."
-                    )
-                if need_action_audit:
-                    audit_parts.append(
-                        "TIDAK ADA tool aksi nyata yang dipanggil untuk membuka/memutar/menjalankan perintah."
-                    )
-                audit_parts.append(
-                    "Perbaiki SEKARANG: panggil tool yang sesuai secara nyata "
-                    "(play_youtube_music / open_url_in_system_browser / desktop_launch_app / "
-                    "browser_open_url / execute_bash_command / conduct_ai_meeting / "
-                    "execute_python_sandbox / generate_pdf_report / generate_excel_spreadsheet) "
-                    "ATAU jawab jujur bahwa belum dieksekusi. Dilarang klaim palsu."
                 )
                 # Pakai konteks GILIRAN INI (termasuk riwayat tool) — bukan `contents`
                 # yang tidak memuat hasil tool, agar model tahu apa yang sudah/ belum jalan.

@@ -4,10 +4,8 @@
 import logging
 import os
 import sqlite3
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from swarm_personas import AGENTS, build_prompts
+from alfa.swarm.personas import AGENTS, build_prompts
 
 logger = logging.getLogger(__name__)
 
