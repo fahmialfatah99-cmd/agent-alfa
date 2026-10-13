@@ -21,7 +21,7 @@
 
 ## 🌟 Fitur Unggulan
 
-> Terukur: 148 tools, 780 test hijau, 20/20 eval offline —
+> Terukur: 148 tools, 784 test hijau, 20/20 eval offline —
 > lihat [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
@@ -62,6 +62,11 @@
 * **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
 * **Passkey Biometric Vault:** Penyimpanan kredensial terenkripsi dengan proteksi WebAuthn / Passkey.
 * **Google Drive Cloud Hub:** Manajemen kredensial Google Cloud, upload & download file, serta sinkronisasi memori RAG.
+
+### 7. 📊 Operasi Terukur: Antrean, Eval & Keamanan Berlapis
+* **Antrean Misi Durable:** Swarm mission queue SQLite (claim atomik, retry backoff) + worker systemd + endpoint `/api/swarm/queue/*`.
+* **Eval & Benchmark:** 20 golden task offline di CI, live eval mingguan berbiaya terukur (`docs/EFFICIENCY.md`), paket head-to-head terbuka.
+* **Keamanan:** Permission gate + trust score, RBAC admin di 15 endpoint sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
 
 ---
 
