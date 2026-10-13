@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+import time
 from typing import Any
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,25 +99,62 @@ def check_tool_routing(scenario: dict[str, Any]) -> dict[str, Any]:
 
 async def run_live_scenario(scn: dict[str, Any]) -> dict[str, Any]:
     """Eksekusi nyata via jalur agent resmi (bot.run_agent_turn)."""
+    import time
+
     import bot as bot_mod
 
+    wall_start = time.monotonic()
+    usage_start = _tokens_since_now()
     output = await bot_mod.run_agent_turn(
         user_id=999999,
         chat_id=999999,
         user_prompt=scn["prompt"],
     )
+    duration_ms = round((time.monotonic() - wall_start) * 1000, 2)
+    tokens = max(0, _tokens_since_now(usage_start[0]) - usage_start[1]) if usage_start else 0
     results = []
     for chk in scn.get("checks", []):
         ok = run_check(chk, output or "")
         results.append({"type": chk.get("type"), "ok": ok})
     passed = bool(results) and all(r["ok"] for r in results)
+    out_len = len(output or "")
     return {
         "id": scn["id"],
         "mode": "live",
         "passed": passed,
         "checks": results,
         "output_preview": (output or "(kosong)")[:160],
+        "duration_ms": duration_ms,
+        "output_chars": out_len,
+        "tokens_total": tokens,
+        "cost_usd_est": round(tokens / 1_000_000 * _price_per_mtok(), 6),
     }
+
+
+def _price_per_mtok() -> float:
+    try:
+        return float(os.getenv("ALFA_EVAL_PRICE_PER_MTOK", "0.10") or 0.10)
+    except ValueError:
+        return 0.10
+
+
+def _tokens_since_now(prev: str = ""):
+    """Snapshot (ts_utc, total_tokens) pemakaian API; ("", 0) bila gagal."""
+    import datetime
+
+    try:
+        from alfa.core.db.connection import get_sync_db
+
+        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        base = prev or "2000-01-01 00:00:00"
+        with get_sync_db() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(total_tokens),0) FROM api_token_usage WHERE ts >= ?",
+                (base,),
+            ).fetchone()
+        return (now, int(row[0] or 0))
+    except Exception:
+        return ("", 0)
 
 
 async def main_async(argv: list[str]) -> int:
@@ -137,12 +175,17 @@ async def main_async(argv: list[str]) -> int:
     failures = 0
     records: list[dict[str, Any]] = []
     for scn in scenarios:
+        t0 = time.monotonic()
         if not args.live:
             # Offline: hanya audit routing Tool-RAG + validitas skenario
             route = check_tool_routing(scn)
             ok = bool(scn.get("checks")) and route["ok"]
             detail = route["detail"]
             mode = "offline"
+            extra: dict[str, Any] = {
+                "duration_ms": round((time.monotonic() - t0) * 1000, 2),
+                "tokens_total": 0,
+            }
         else:
             try:
                 res = await run_live_scenario(scn)
@@ -150,15 +193,22 @@ async def main_async(argv: list[str]) -> int:
                 detail = ",".join(
                     f"{c['type']}:{'OK' if c['ok'] else 'X'}" for c in res["checks"]
                 )
+                extra = {
+                    "duration_ms": res.get("duration_ms"),
+                    "output_chars": res.get("output_chars"),
+                    "tokens_total": res.get("tokens_total"),
+                    "cost_usd_est": res.get("cost_usd_est"),
+                }
             except Exception as e:
                 ok, detail = False, f"error: {e}"
+                extra = {"duration_ms": round((time.monotonic() - t0) * 1000, 2)}
             mode = "live"
 
         status = "PASS" if ok else "FAIL"
         if not ok:
             failures += 1
         print(f"{mode:<8} {scn['id']:<34} {status}  {detail[:60]}")
-        records.append({"id": scn["id"], "mode": mode, "ok": ok, "detail": detail})
+        records.append({"id": scn["id"], "mode": mode, "ok": ok, "detail": detail, **extra})
 
     print("-" * 70)
     total = len(scenarios)
@@ -167,6 +217,9 @@ async def main_async(argv: list[str]) -> int:
     if args.output_json:
         import datetime
 
+        durs = [r.get("duration_ms") or 0 for r in records]
+        toks = [r.get("tokens_total") or 0 for r in records]
+        costs = [r.get("cost_usd_est") or 0 for r in records]
         summary = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "live": bool(args.live),
@@ -174,6 +227,10 @@ async def main_async(argv: list[str]) -> int:
             "total": total,
             "passed": passed_n,
             "failed": failures,
+            "avg_duration_ms": round(sum(durs) / len(durs), 1) if durs else 0,
+            "total_tokens": int(sum(toks)),
+            "total_cost_usd_est": round(sum(costs), 6),
+            "price_per_mtok_usd": _price_per_mtok(),
             "records": records,
         }
         out_path = args.output_json

@@ -106,3 +106,38 @@ def test_scenario_file_benchmark_all_routed():
     res = ScenarioFileBenchmark().run()
     assert res["total"] > 0
     assert res["passed"] == res["total"], res["details"]
+
+
+def test_efficiency_report_renders(tmp_path):
+    import json
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from evals.efficiency_report import load_runs, render
+
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir()
+    (runs_dir / "r1.json").write_text(
+        json.dumps(
+            {
+                "timestamp": "t",
+                "live": True,
+                "total": 2,
+                "passed": 1,
+                "avg_duration_ms": 10.0,
+                "total_tokens": 500,
+                "total_cost_usd_est": 0.00005,
+                "records": [
+                    {"id": "a", "mode": "live", "ok": True, "duration_ms": 5,
+                     "tokens_total": 200},
+                    {"id": "b", "mode": "live", "ok": False, "duration_ms": 15,
+                     "tokens_total": 300},
+                ],
+            }
+        )
+    )
+    out = render(load_runs(str(runs_dir)))
+    assert "r1.json" in out and "500" in out
+
+    assert "Belum ada arsip" in render(load_runs(str(tmp_path / "kosong")))
