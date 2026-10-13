@@ -134,6 +134,88 @@ def _append_trace(entry: dict[str, Any]):
                 f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass  # tracing must never crash the main app
+    _maybe_export_otlp(entry)
+
+
+def _otlp_enabled() -> str:
+    if os.getenv("ALFA_OTEL_EXPORT", "off").strip().lower() != "on":
+        return ""
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip().rstrip("/")
+    # Hanya skema http/https — endpoint berasal dari env operator, tapi
+    # validasi eksplisit agar tak ada skema file:/gopher: yang lolos.
+    if not endpoint.startswith(("http://", "https://")):
+        return ""
+    return endpoint
+
+
+def _otlp_payload(entry: dict[str, Any]) -> dict[str, Any]:
+    """Bangun payload OTLP/HTTP JSON minimal dari satu span."""
+    start_ns = int(float(entry.get("start_time") or 0) * 1e9)
+    end_ns = int(float(entry.get("end_time") or entry.get("start_time") or 0) * 1e9)
+    status_code = 2 if entry.get("status") == "error" else 1
+    attrs = [
+        {"key": str(k), "value": {"stringValue": str(v)}}
+        for k, v in (entry.get("tags") or {}).items()
+    ]
+    if entry.get("error"):
+        attrs.append({"key": "error", "value": {"stringValue": str(entry["error"])[:500]}})
+    return {
+        "resourceSpans": [
+            {
+                "resource": {
+                    "attributes": [
+                        {"key": "service.name", "value": {"stringValue": "alfa-agent"}}
+                    ]
+                },
+                "scopeSpans": [
+                    {
+                        "spans": [
+                            {
+                                "traceId": (entry.get("trace_id") or "").replace("-", "")[:32].ljust(32, "0"),
+                                "spanId": (entry.get("span_id") or "").replace("-", "")[:16].ljust(16, "0"),
+                                "name": entry.get("name", "?"),
+                                "startTimeUnixNano": str(start_ns),
+                                "endTimeUnixNano": str(end_ns),
+                                "status": {"code": status_code},
+                                "attributes": attrs,
+                            }
+                        ]
+                    }
+                ],
+            }
+        ]
+    }
+
+
+def _maybe_export_otlp(entry: dict[str, Any]) -> bool:
+    """Kirim satu span ke collector OTLP/HTTP. Tak pernah raise; False bila skip/gagal."""
+    endpoint = _otlp_enabled()
+    if not endpoint:
+        return False
+    try:
+        import urllib.request
+
+        body = json.dumps(_otlp_payload(entry)).encode("utf-8")
+        req = urllib.request.Request(
+            endpoint + "/v1/traces",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:  # nosec B310
+            return 200 <= resp.status < 300
+    except Exception as e:
+        logger_debug(f"OTLP export gagal: {e}")
+        return False
+
+
+def logger_debug(msg: str) -> None:
+    try:
+        import logging as _logging
+
+        _logging.getLogger("alfa.tracing").debug(msg)
+    except Exception:
+        pass
 
 
 def new_span(

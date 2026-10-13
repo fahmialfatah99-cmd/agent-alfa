@@ -1,0 +1,13 @@
+[Unit]
+Description=ALFA Swarm Queue Worker (durable mission queue)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/telegram-ai-bot
+ExecStart=%h/telegram-ai-bot/venv/bin/python3 -c "import asyncio; from alfa.swarm.queue import run_queue_worker; asyncio.run(run_queue_worker())"
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

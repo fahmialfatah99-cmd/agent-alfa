@@ -19,7 +19,10 @@
 
 ---
 
-## 🌟 Fitur Unggulan (Level 4.5 Sovereign AI)
+## 🌟 Fitur Unggulan
+
+> Terukur: 148 tools, 780 test hijau, 20/20 eval offline —
+> lihat [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
 * **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom membedah masalah dan merumuskan Action Plan.
