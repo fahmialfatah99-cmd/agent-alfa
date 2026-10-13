@@ -298,6 +298,24 @@ def invalidate_session(token: str) -> bool:
         db.get_connection_pool().release(conn)
 
 
+def require_admin(request: Request) -> dict[str, Any]:
+    """Dependency ringan untuk endpoint sensitif: hanya admin.
+
+    Mode lokal tanpa auth (DASHBOARD_AUTH_TOKEN kosong) diloloskan agar UX
+    localhost tak berubah; bila auth aktif, user non-admin ditolak 403.
+    """
+    user = getattr(getattr(request, "state", None), "user", None)
+    if user is None:
+        if DASHBOARD_AUTH_TOKEN:
+            raise HTTPException(status_code=401, detail="Login diperlukan.")
+        return {"username": "local", "is_admin": True}
+    if not user.get("is_admin"):
+        raise HTTPException(
+            status_code=403, detail="Akses ditolak. Hanya admin."
+        )
+    return user
+
+
 def get_all_users() -> list[dict[str, Any]]:
     """Dapatkan daftar semua users (hanya admin)."""
     from alfa.core import database as db

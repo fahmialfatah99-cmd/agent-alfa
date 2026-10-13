@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from alfa import tools
 from alfa.dashboard.common import REPO_ROOT
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -126,8 +127,9 @@ async def get_stats():
 
 
 @router.post("/api/system/cli-exec")
-async def execute_cli_terminal_command(payload: dict[str, Any]):
+async def execute_cli_terminal_command(payload: dict[str, Any], request: Request):
     """Execute arbitrary bash/linux terminal command directly in the host system with timing and exit codes."""
+    require_admin(request)
     command = (payload.get("command") or "").strip()
     if not command:
         raise HTTPException(status_code=400, detail="command is required")
@@ -224,8 +226,9 @@ async def get_services_status():
 
 
 @router.post("/api/services/action")
-async def service_action(payload: dict[str, Any]):
+async def service_action(payload: dict[str, Any], request: Request):
     """Start, stop, or restart a systemd user service."""
+    require_admin(request)
     service_name = payload.get("service")
     action = payload.get("action", "status")
 

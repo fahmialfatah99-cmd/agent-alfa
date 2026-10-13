@@ -4,10 +4,11 @@ import time
 from typing import Any
 
 from dotenv import dotenv_values
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -209,8 +210,9 @@ async def antigravity_set_main_brain_impl(key_id: int, model: str):
 
 
 @router.post("/api/antigravity/apply")
-async def antigravity_apply_model(payload: dict[str, Any]):
+async def antigravity_apply_model(payload: dict[str, Any], request: Request):
     """Terapkan model Antigravity sebagai KUNCI CADANGAN (+ opsional semua agen)."""
+    require_admin(request)
     model = str(payload.get("model", "")).strip()
     apply_all = bool(payload.get("apply_all_agents", True))
     as_main_brain = bool(payload.get("as_main_brain", False))
@@ -279,8 +281,9 @@ async def antigravity_apply_model(payload: dict[str, Any]):
 
 
 @router.post("/api/main-brain/test")
-async def test_main_brain_combo(payload: dict[str, Any]):
+async def test_main_brain_combo(payload: dict[str, Any], request: Request):
     """Tes koneksi kombinasi kunci + model sebelum diterapkan."""
+    require_admin(request)
     import httpx as _hx
 
     try:
@@ -358,8 +361,9 @@ async def test_main_brain_combo(payload: dict[str, Any]):
 
 
 @router.post("/api/settings/main-brain")
-async def set_main_brain_endpoint(payload: dict[str, Any]):
+async def set_main_brain_endpoint(payload: dict[str, Any], request: Request):
     """Set the agent's MAIN BRAIN by activating a specific vault key."""
+    require_admin(request)
     key_id = payload.get("key_id")
     model_override = str(payload.get("model", "") or "").strip()
     try:
@@ -406,8 +410,9 @@ async def set_main_brain_endpoint(payload: dict[str, Any]):
 
 
 @router.post("/api/settings")
-async def update_system_settings(payload: dict[str, Any]):
+async def update_system_settings(payload: dict[str, Any], request: Request):
     """Update system configuration (.env and database settings)."""
+    require_admin(request)
     env_path = os.path.join(REPO_ROOT, ".env")
 
     def _get(field: str) -> str | None:

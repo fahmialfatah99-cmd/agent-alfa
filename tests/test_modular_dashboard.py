@@ -93,3 +93,82 @@ def test_health_and_metrics_endpoints():
     mdata = r_metrics.json()
     assert "system" in mdata
     assert "process" in mdata
+
+
+class TestRequireAdmin:
+    def _req(self, user=None):
+        class _State:
+            pass
+
+        class _Req:
+            pass
+
+        r = _Req()
+        r.state = _State()
+        r.state.user = user
+        return r
+
+    def test_lokal_tanpa_auth_diloloskan(self, monkeypatch):
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "")
+        out = auth_mod.require_admin(self._req(None))
+        assert out["is_admin"] is True
+
+    def test_tanpa_user_ditolak_bila_auth_aktif(self, monkeypatch):
+        from fastapi import HTTPException
+
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
+        try:
+            auth_mod.require_admin(self._req(None))
+            raise AssertionError("harus 401")
+        except HTTPException as e:
+            assert e.status_code == 401
+
+    def test_non_admin_ditolak(self, monkeypatch):
+        from fastapi import HTTPException
+
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
+        try:
+            auth_mod.require_admin(self._req({"is_admin": False}))
+            raise AssertionError("harus 403")
+        except HTTPException as e:
+            assert e.status_code == 403
+
+    def test_admin_lolos(self, monkeypatch):
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
+        out = auth_mod.require_admin(self._req({"is_admin": True}))
+        assert out["is_admin"] is True
+
+    def test_endpoint_sensitif_tolak_member(self, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        from alfa.dashboard import app as pkg_app
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
+        monkeypatch.setattr(
+            auth_mod,
+            "validate_session",
+            lambda token: {"user_id": 2, "username": "member", "is_admin": False},
+        )
+        client = TestClient(pkg_app)
+        for method, path, body in [
+            ("POST", "/api/settings", {"x": "1"}),
+            ("POST", "/api/system/cli-exec", {"cmd": "id"}),
+            ("POST", "/api/vault/reveal", {"id": "x"}),
+            ("DELETE", "/api/keys/1", None),
+        ]:
+            if method == "POST":
+                resp = client.post(
+                    path, json=body, cookies={"session_token": "member-sess"}
+                )
+            else:
+                resp = client.delete(path, cookies={"session_token": "member-sess"})
+            assert resp.status_code == 403, (path, resp.status_code)

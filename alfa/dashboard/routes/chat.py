@@ -9,12 +9,13 @@ import time
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
 from alfa import tools
 from alfa.core import database
 from alfa.dashboard.common import _get_bot, get_primary_user_id, logger
+from alfa.dashboard.routes.auth import require_admin
 
 chat_router = APIRouter(tags=["chat"])
 
@@ -429,8 +430,9 @@ async def clear_chat_history_api():
 
 
 @chat_router.post("/api/chat/execute-code")
-async def execute_chat_code_block(payload: dict[str, Any]):
+async def execute_chat_code_block(payload: dict[str, Any], request: Request):
     """Live Interactive Code Sandbox Execution right from Chat Code Blocks."""
+    require_admin(request)
     language = (payload.get("language") or "python").lower().strip()
     raw_code = (payload.get("code") or "").strip()
     clean_code = tools._clean_code_snippet(raw_code)

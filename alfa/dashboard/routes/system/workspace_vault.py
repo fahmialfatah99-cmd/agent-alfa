@@ -3,11 +3,12 @@ import os
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from alfa import tools
 from alfa.core import database
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -286,8 +287,9 @@ async def list_vault_secrets(category: str = "all"):
 
 
 @router.post("/api/vault/store")
-async def store_vault_secret(payload: dict[str, Any]):
+async def store_vault_secret(payload: dict[str, Any], request: Request):
     """Encrypt and store secret into AES-256-GCM vault."""
+    require_admin(request)
     from alfa.security import vault as vault_engine
 
     name = payload.get("name", "").strip()
@@ -305,8 +307,9 @@ async def store_vault_secret(payload: dict[str, Any]):
 
 
 @router.post("/api/vault/reveal")
-async def reveal_vault_secret(payload: dict[str, Any]):
+async def reveal_vault_secret(payload: dict[str, Any], request: Request):
     """Decrypt and reveal a secret value for authorized viewing."""
+    require_admin(request)
     from alfa.security import vault as vault_engine
 
     secret_id = payload.get("id") or payload.get("name")
@@ -326,8 +329,9 @@ async def reveal_vault_secret(payload: dict[str, Any]):
 
 
 @router.delete("/api/vault/{secret_id}")
-async def delete_vault_secret(secret_id: int):
+async def delete_vault_secret(secret_id: int, request: Request):
     """Delete a secret permanently from the vault."""
+    require_admin(request)
     from alfa.security import vault as vault_engine
 
     deleted = vault_engine.delete_secret(int(secret_id))

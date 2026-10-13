@@ -3,10 +3,11 @@
 import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from alfa.core import database
 from alfa.dashboard.common import safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -35,8 +36,9 @@ async def get_api_keys_usage(hours: int = 24):
 
 
 @router.post("/api/keys")
-async def add_api_key_endpoint(payload: dict[str, Any]):
+async def add_api_key_endpoint(payload: dict[str, Any], request: Request):
     """Add a new API key to the vault."""
+    require_admin(request)
     name = payload.get("name")
     provider = payload.get("provider", "gemini")
     api_key = payload.get("api_key")
@@ -59,15 +61,17 @@ async def add_api_key_endpoint(payload: dict[str, Any]):
 
 
 @router.post("/api/keys/{key_id}/activate")
-async def activate_api_key_endpoint(key_id: int):
+async def activate_api_key_endpoint(key_id: int, request: Request):
     """Set an API key as active."""
+    require_admin(request)
     res = database.activate_api_key_sync(key_id)
     return res
 
 
 @router.delete("/api/keys/{key_id}")
-async def delete_api_key_endpoint(key_id: int):
+async def delete_api_key_endpoint(key_id: int, request: Request):
     """Delete an API key."""
+    require_admin(request)
     res = database.delete_api_key_sync(key_id)
     return res
 

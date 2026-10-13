@@ -97,6 +97,16 @@ def _init_vault_db():
             notes TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS vault_secret_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            secret_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            ciphertext TEXT NOT NULL,
+            nonce TEXT NOT NULL,
+            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -146,6 +156,12 @@ class AlfaSecureVault:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
+        # Arsipkan nilai lama sebelum ditimpa (versioning untuk audit/rollback).
+        old = cursor.execute(
+            "SELECT id, ciphertext, nonce FROM vault_secrets WHERE name = ?",
+            (clean_name,),
+        ).fetchone()
+
         # Upsert secret
         cursor.execute(
             """
@@ -160,6 +176,14 @@ class AlfaSecureVault:
         """,
             (clean_name, category, enc["ciphertext"], enc["nonce"], now, now, notes),
         )
+
+        if old:
+            cursor.execute(
+                """INSERT INTO vault_secret_versions
+                   (secret_id, name, ciphertext, nonce, archived_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (old[0], clean_name, old[1], old[2], now),
+            )
 
         conn.commit()
         conn.close()
@@ -255,6 +279,32 @@ class AlfaSecureVault:
                 }
             )
         return items
+
+    def list_secret_versions(
+        self, name_or_id: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """Riwayat nilai lama sebuah secret (metadata + ciphertext, tanpa decrypt)."""
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        name_str = str(name_or_id).strip()
+        try:
+            if name_str.isdigit():
+                rows = cursor.execute(
+                    "SELECT id, secret_id, name, archived_at FROM vault_secret_versions "
+                    "WHERE secret_id = ? OR name = ? ORDER BY id DESC LIMIT ?",
+                    (int(name_str), name_str, max(1, limit)),
+                ).fetchall()
+            else:
+                rows = cursor.execute(
+                    "SELECT id, secret_id, name, archived_at FROM vault_secret_versions "
+                    "WHERE name = ? ORDER BY id DESC LIMIT ?",
+                    (name_str, max(1, limit)),
+                ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        conn.close()
+        return [dict(r) for r in rows]
 
     def delete_secret(self, secret_id: int) -> bool:
         """Permanently delete a secret from vault."""

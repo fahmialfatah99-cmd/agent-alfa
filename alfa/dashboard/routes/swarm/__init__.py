@@ -16,6 +16,7 @@ from alfa.dashboard.routes.swarm.live_routes import (
 )
 from alfa.dashboard.routes.swarm.live_routes import router as live_router
 from alfa.dashboard.routes.swarm.meetings_routes import router as meetings_router
+from alfa.dashboard.routes.swarm.queue_routes import router as queue_router
 
 swarm_router = APIRouter(tags=["swarm"])
 
@@ -23,6 +24,7 @@ _sub_routers = [
     affiliate_router,
     agents_router,
     meetings_router,
+    queue_router,
     live_router,
 ]
 for _sub in _sub_routers:
@@ -34,6 +36,7 @@ __all__ = [
     "affiliate_router",
     "agents_router",
     "meetings_router",
+    "queue_router",
     "live_router",
     "parse_arena_state",
     "parse_swarm_stage",

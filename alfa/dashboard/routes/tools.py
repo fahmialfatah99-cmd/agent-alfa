@@ -7,10 +7,11 @@ import re
 import time
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from alfa import tools
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger
+from alfa.dashboard.routes.auth import require_admin
 from alfa.tools.extras import EXTRA_GROUPS, is_extra_tool
 
 tools_router = APIRouter(tags=["tools"])
@@ -289,8 +290,9 @@ async def api_plugins_list():
 
 
 @tools_router.post("/api/plugins/create")
-async def api_plugins_create(payload: dict[str, Any]):
+async def api_plugins_create(payload: dict[str, Any], request: Request):
     """Compile, sandbox-test, and hot-load a new dynamic plugin tool."""
+    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()
@@ -310,8 +312,9 @@ async def api_plugins_create(payload: dict[str, Any]):
 
 
 @tools_router.post("/api/plugins/delete")
-async def api_plugins_delete(payload: dict[str, Any]):
+async def api_plugins_delete(payload: dict[str, Any], request: Request):
     """Permanently remove a dynamic plugin tool."""
+    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()
