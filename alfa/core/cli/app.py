@@ -56,6 +56,9 @@ class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
         self.username = None
         self.is_admin = False
         self.chat_history: list[dict[str, str]] = []
+        import time as _time
+
+        self._session_start = _time.time()
         self.config = self._load_config()
         self.streaming = self.config.get("streaming", True)
         self.console = Console() if RICH_AVAILABLE else None
@@ -294,6 +297,38 @@ def show_config() -> None:
     cli.display_api_keys_vault()
 
 
+def _handle_web_mention(message: str) -> tuple[str, str]:
+    """Detect @web <query> and return (query, search context). Empty query if absent."""
+    import re
+
+    m = re.search(r"@web\s+(.+)", message, re.IGNORECASE)
+    if not m:
+        return "", ""
+    query = m.group(1).strip()
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+
+        res = requests.get(
+            "https://duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=10,
+        )
+        soup = BeautifulSoup(res.text, "html.parser")
+        snippets = []
+        for r in soup.select(".result__body")[:5]:
+            title = r.select_one(".result__title")
+            snippet = r.select_one(".result__snippet")
+            if snippet:
+                snippets.append(
+                    f"- {title.get_text(strip=True) if title else ''}: {snippet.get_text(strip=True)}"
+                )
+        return query, "\n".join(snippets) if snippets else "Tidak ada hasil."
+    except Exception as e:
+        return query, f"Pencarian web gagal: {e}"
+
+
 def handle_ask_command(args: argparse.Namespace) -> None:
     """Handle one-shot question command (DevCLI ask equivalent)."""
     cli = AlfaCLI(
@@ -308,13 +343,51 @@ def handle_ask_command(args: argparse.Namespace) -> None:
     # Jika dipanggil dengan mode --agent, jalankan Autonomous ReAct Runner
     if getattr(args, "agent", False):
         ans = cli.agent_runner.run(args.question)
+        if getattr(args, "json", False):
+            import json as _json
+
+            print(
+                _json.dumps(
+                    {
+                        "answer": ans,
+                        "provider": direct.provider,
+                        "model": direct.model,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
         print(f"\n{Colors.GREEN}✨ Hasil Akhir Agent:{Colors.ENDC}\n{ans}\n")
         return
 
     # Cek file context
     context_files = list(args.file or [])
 
+    # @web mention → konteks hasil pencarian
+    web_query, web_ctx = _handle_web_mention(args.question)
+    question = args.question
+    if web_ctx:
+        question = (
+            f"=== HASIL PENCARIAN WEB ({web_query}) ===\n{web_ctx}\n\n"
+            f"=== PERTANYAAN USER ===\n{args.question}"
+        )
+
     try:
+        if getattr(args, "json", False):
+            import json as _json
+
+            resp = direct.generate(
+                prompt=question,
+                context_files=context_files,
+                stream=False,
+            )
+            print(
+                _json.dumps(
+                    {"answer": resp, "provider": direct.provider, "model": direct.model},
+                    ensure_ascii=False,
+                )
+            )
+            return
         if args.stream:
             print(
                 f"{Colors.CYAN}🤖 ALFA ({direct.provider}/{direct.model}):{Colors.ENDC} ",
@@ -326,7 +399,7 @@ def handle_ask_command(args: argparse.Namespace) -> None:
                 print(c, end="", flush=True)
 
             direct.generate(
-                prompt=args.question,
+                prompt=question,
                 context_files=context_files,
                 stream=True,
                 stream_callback=on_chunk,
@@ -334,7 +407,7 @@ def handle_ask_command(args: argparse.Namespace) -> None:
             print()
         else:
             resp = direct.generate(
-                prompt=args.question,
+                prompt=question,
                 context_files=context_files,
                 stream=False,
             )
@@ -520,6 +593,12 @@ Examples:
         action="store_true",
         default=False,
         help="Jalankan dalam mode Autonomous ReAct Agent",
+    )
+    ask_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output jawaban sebagai JSON (untuk piping/script)",
     )
 
     # --- Subcommand: RUN ---

@@ -249,6 +249,16 @@ async def run_agent_turn(
     )
 
     base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
+    from alfa.tools.system.constants import is_unrestricted
+
+    unrestricted_block = (
+        "\n\n### ⚡ HAK AKSES HOST LINUX PENUH (UNRESTRICTED MODE)\n"
+        "- Kamu beroperasi dengan AKSES HOST LINUX LANGSUNG PENUH di mesin pengguna (bukan di dalam container atau sandbox Docker terisolasi).\n"
+        "- Eksekusi bash (`execute_bash_command`) dan script Python (`execute_python_sandbox`) berjalan langsung di mesin Linux pengguna.\n"
+        "- Tidak ada blocklist perintah dan tidak ada permission gate yang membatasi tindakanmu.\n"
+        "- Kamu memiliki wewenang penuh dari Fahmi untuk mengeksekusi perintah sistem, menginstal paket sistem/pip, memodifikasi file di sistem, dan menggunakan `sudo` kapan pun dibutuhkan tanpa ragu.\n"
+    ) if is_unrestricted() else ""
+
     full_system_instruction = (
         base_instruction
         + active_identity_block
@@ -260,6 +270,7 @@ async def run_agent_turn(
         + TOOL_FIRST_EXECUTION_BLOCK
         + SUPERPOWERS_SKILLS_BLOCK
         + UI_UX_PRO_MAX_BLOCK
+        + unrestricted_block
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
@@ -303,18 +314,55 @@ async def run_agent_turn(
                 compat_text
                 + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
             ).strip()
-        reply_text = await _mb.run_openai_agentic_turn(
-            provider=brain["provider"],
-            base_url=brain["base_url"],
-            api_key=brain["api_key"],
-            model=brain["model"] or preferred_model,
-            system_instruction=full_system_instruction,
-            user_text=compat_text,
-            history=history_msgs,
-            key_id=brain["key_id"],
-            key_label=brain["label"],
-            approval_gate=approval_gate,
-        )
+
+        gate_on = approval_gate is not None
+        reply_text = ""
+        if streamer and not gate_on and hasattr(_mb, "run_openai_agentic_turn_streaming"):
+            try:
+                streamed_text = ""
+                async for chunk in _mb.run_openai_agentic_turn_streaming(
+                    provider=brain["provider"],
+                    base_url=brain["base_url"],
+                    api_key=brain["api_key"],
+                    model=brain["model"] or preferred_model,
+                    system_instruction=full_system_instruction,
+                    user_text=compat_text,
+                    history=history_msgs,
+                    key_id=brain["key_id"],
+                    key_label=brain["label"],
+                    approval_gate=approval_gate,
+                ):
+                    streamed_text += chunk
+                    await streamer.push_chunk(chunk)
+                reply_text = streamed_text
+            except Exception as e:
+                logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
+                reply_text = await _mb.run_openai_agentic_turn(
+                    provider=brain["provider"],
+                    base_url=brain["base_url"],
+                    api_key=brain["api_key"],
+                    model=brain["model"] or preferred_model,
+                    system_instruction=full_system_instruction,
+                    user_text=compat_text,
+                    history=history_msgs,
+                    key_id=brain["key_id"],
+                    key_label=brain["label"],
+                    approval_gate=approval_gate,
+                )
+        else:
+            reply_text = await _mb.run_openai_agentic_turn(
+                provider=brain["provider"],
+                base_url=brain["base_url"],
+                api_key=brain["api_key"],
+                model=brain["model"] or preferred_model,
+                system_instruction=full_system_instruction,
+                user_text=compat_text,
+                history=history_msgs,
+                key_id=brain["key_id"],
+                key_label=brain["label"],
+                approval_gate=approval_gate,
+            )
+
         new_meetings = _meetings_count() - meetings_before
         if meeting_intent and new_meetings == 0 and reply_text:
             low = reply_text.lower()
@@ -696,6 +744,11 @@ async def run_agent_turn(
         prov = (key.get("provider") or "").lower()
         if not (key.get("api_key") or "").strip():
             continue
+        if not (key.get("base_url") or "").strip():
+            logger.warning(
+                f"[Fallback] lewati {prov} ({key.get('name')}): base_url kosong."
+            )
+            continue
         try:
             logger.info(
                 f"[Fallback] mencoba {prov} ({key.get('name')}) model "
@@ -709,6 +762,7 @@ async def run_agent_turn(
                 system_instruction=full_system_instruction,
                 user_text=user_prompt,
                 history=history_msgs,
+                timeout=60.0,
                 key_id=key.get("id"),
                 key_label=key.get("name", f"{prov}-fallback"),
                 context="telegram_chat:fallback",
@@ -721,4 +775,9 @@ async def run_agent_turn(
             logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
 
     logger.error(f"All candidate models failed: {last_error}", exc_info=True)
-    return f"❌ Terjadi kesalahan saat memproses permintaan:\n`{str(last_error)}`"
+    err_reply = f"❌ Terjadi kesalahan saat memproses permintaan:\n`{str(last_error)}`"
+    try:
+        await _db.save_chat_message(user_id, "model", err_reply)
+    except Exception:
+        pass
+    return err_reply

@@ -10,6 +10,7 @@ from alfa.tools.system.constants import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def clean_system_storage(dry_run: bool = True) -> dict[str, Any]:
     """

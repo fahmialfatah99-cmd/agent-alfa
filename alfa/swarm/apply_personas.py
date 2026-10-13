@@ -9,7 +9,12 @@ from alfa.swarm.personas import AGENTS, build_prompts
 
 logger = logging.getLogger(__name__)
 
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_data.db")
+DB = os.getenv(
+    "ALFA_DB_PATH",
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "agent_data.db")
+    ),
+)
 
 
 def apply_db():

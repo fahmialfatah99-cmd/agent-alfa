@@ -10,6 +10,7 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
     """

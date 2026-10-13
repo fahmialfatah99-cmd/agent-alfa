@@ -12,7 +12,11 @@ class TestToolsDocs:
         from alfa.tools.docs import TOOL_DESCRIPTIONS
 
         assert len(TOOL_DESCRIPTIONS) > 100
-        for key in ("execute_bash_command", "affiliate_hunt_trending_products", "read_local_file"):
+        for key in (
+            "execute_bash_command",
+            "affiliate_hunt_trending_products",
+            "read_local_file",
+        ):
             assert TOOL_DESCRIPTIONS[key].strip()
         assert all(isinstance(v, str) for v in TOOL_DESCRIPTIONS.values())
 
@@ -53,7 +57,11 @@ class TestAffiliateEngine:
         monkeypatch.setattr(
             tools,
             "web_search",
-            lambda q: {"results": [{"title": "Powerbank Viral", "snippet": "murah", "link": "http://x"}]},
+            lambda q: {
+                "results": [
+                    {"title": "Powerbank Viral", "snippet": "murah", "link": "http://x"}
+                ]
+            },
         )
         res = affiliate_mod.research_trending_niche("powerbank")
         assert res["status"] == "success"
@@ -124,10 +132,15 @@ class TestBackendsRest:
         monkeypatch.setattr(
             be.requests,
             "post",
-            lambda *a, **k: _Resp(200, {"candidates": [{"content": {"parts": [{"text": "halo"}]}}]}),
+            lambda *a, **k: _Resp(
+                200, {"candidates": [{"content": {"parts": [{"text": "halo"}]}}]}
+            ),
         )
         fake = _FakeBackend()
-        assert _bind(be.ClientBackendsMixin._call_google, fake)("hai", False, None) == "halo"
+        assert (
+            _bind(be.ClientBackendsMixin._call_google, fake)("hai", False, None)
+            == "halo"
+        )
 
     def test_google_no_key(self):
         import alfa.core.cli.backends as be
@@ -157,26 +170,41 @@ class TestBackendsRest:
         )
         fake = _FakeBackend()
         fake.provider = "openai"
-        assert _bind(be.ClientBackendsMixin._call_openai_compatible, fake)("hai", False, None) == "halo"
+        assert (
+            _bind(be.ClientBackendsMixin._call_openai_compatible, fake)(
+                "hai", False, None
+            )
+            == "halo"
+        )
 
     def test_anthropic_rest(self, monkeypatch):
         import alfa.core.cli.backends as be
 
         monkeypatch.setitem(sys.modules, "anthropic", None)
         monkeypatch.setattr(
-            be.requests, "post", lambda *a, **k: _Resp(200, {"content": [{"text": "halo"}]})
+            be.requests,
+            "post",
+            lambda *a, **k: _Resp(200, {"content": [{"text": "halo"}]}),
         )
         fake = _FakeBackend()
-        assert _bind(be.ClientBackendsMixin._call_anthropic, fake)("hai", False, None) == "halo"
+        assert (
+            _bind(be.ClientBackendsMixin._call_anthropic, fake)("hai", False, None)
+            == "halo"
+        )
 
     def test_ollama_rest(self, monkeypatch):
         import alfa.core.cli.backends as be
 
         monkeypatch.setattr(
-            be.requests, "post", lambda *a, **k: _Resp(200, {"message": {"content": "halo"}})
+            be.requests,
+            "post",
+            lambda *a, **k: _Resp(200, {"message": {"content": "halo"}}),
         )
         fake = _FakeBackend()
-        assert _bind(be.ClientBackendsMixin._call_ollama, fake)("hai", False, None) == "halo"
+        assert (
+            _bind(be.ClientBackendsMixin._call_ollama, fake)("hai", False, None)
+            == "halo"
+        )
 
     def test_ollama_conn_error(self, monkeypatch):
         import requests as _rq

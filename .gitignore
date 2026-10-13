@@ -37,6 +37,10 @@ ENV/
 *.key
 gdrive_oauth_client_secret.json
 gdrive_oauth_token.json
+*token*.json
+*credentials*.json
+*client_secret*.json
+secrets/
 
 # Databases and Backups
 *.db
@@ -72,6 +76,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 
 # OS and IDE
 .DS_Store

@@ -63,7 +63,6 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
     # Single source of truth lives in permissions.DEFAULT_ASK_TOOLS.
     MUTATING_TOOLS = DEFAULT_ASK_TOOLS
 
-
     @staticmethod
     def _read_memory_file(path: Path, limit: int = 4000) -> str:
         try:
@@ -83,7 +82,6 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
         if glob:
             parts.append(f"[Global]\n{glob}")
         return "\n\n".join(parts)
-
 
     # Aliases for tool names commonly hallucinated by LLMs.
     TOOL_ALIASES = {
@@ -489,7 +487,11 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
             # Auto-continue: never go silent while todos remain unfinished.
             # (plan_mode runs are one-shot by design and never continue.)
             pending = self._pending_todos()
-            if pending and not self.plan_mode and self._continuations_used < self.max_continuations:
+            if (
+                pending
+                and not self.plan_mode
+                and self._continuations_used < self.max_continuations
+            ):
                 self._continuations_used += 1
                 remaining = ", ".join(
                     f"#{t.get('id')} {t.get('task', '')}" for t in pending
@@ -516,9 +518,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
                     {
                         "turns": getattr(self, "_turns_used", 0),
                         "tools": [e["tool"] for e in exec_log],
-                        "files": sorted(
-                            {f for e in exec_log for f in e["files"]}
-                        ),
+                        "files": sorted({f for e in exec_log for f in e["files"]}),
                         "todos_pending": len(pending_left),
                         "finished": not pending_left,
                     }

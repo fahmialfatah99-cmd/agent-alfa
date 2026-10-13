@@ -166,11 +166,7 @@ class CliChatMixin:
             final_answer = self.agent_runner.run(message)
             self.chat_history.append({"role": "user", "content": message})
             self.chat_history.append({"role": "assistant", "content": final_answer})
-            if (
-                RICH_AVAILABLE
-                and self.console
-                and self.config.get("markdown", True)
-            ):
+            if RICH_AVAILABLE and self.console and self.config.get("markdown", True):
                 self.console.print(Markdown(final_answer))
             else:
                 print(f"\n{final_answer}\n")
@@ -195,6 +191,17 @@ class CliChatMixin:
             unique_contexts = list(dict.fromkeys(context_files))
             print(
                 f"{Colors.GRAY}📎 Konteks file aktif: {', '.join(unique_contexts)}{Colors.ENDC}"
+            )
+
+        # @web mention → injeksi hasil pencarian web ke prompt
+        from alfa.core.cli.app import _handle_web_mention
+
+        web_query, web_ctx = _handle_web_mention(message)
+        if web_ctx:
+            print(f"{Colors.GRAY}🌐 Web context untuk: {web_query}{Colors.ENDC}")
+            message = (
+                f"=== HASIL PENCARIAN WEB ({web_query}) ===\n{web_ctx}\n\n"
+                f"=== PERTANYAAN USER ===\n{message}"
             )
 
         # Check Execution Mode: Swarm vs Single Agent
@@ -253,11 +260,7 @@ class CliChatMixin:
             self._run_agent_turn(message)
             return
 
-        print(
-            f"\n{Colors.CYAN}🤖 ALFA ({direct.provider.upper()}/{direct.model}):{Colors.ENDC} ",
-            end="",
-            flush=True,
-        )
+        print()
 
         try:
             if self.streaming:
@@ -273,7 +276,7 @@ class CliChatMixin:
                     stream=True,
                     stream_callback=on_chunk,
                 )
-                print()
+                print("\n")
             else:
                 response_text = direct.generate(
                     prompt=message,
@@ -285,7 +288,6 @@ class CliChatMixin:
                     and self.console
                     and self.config.get("markdown", True)
                 ):
-                    print()
                     self.console.print(Markdown(response_text))
                 else:
                     print(f"\n{response_text}\n")

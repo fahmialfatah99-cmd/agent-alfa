@@ -11,6 +11,7 @@ from typing import Any
 
 from alfa.core.cli.slash import (
     SlashDeveloperMixin,
+    SlashExtrasMixin,
     SlashNavigationMixin,
     SlashProvidersMixin,
     SlashServersMixin,
@@ -26,6 +27,7 @@ class CliSlashCommandsMixin(
     SlashServersMixin,
     SlashVaultMixin,
     SlashDeveloperMixin,
+    SlashExtrasMixin,
 ):
     """Implements slash commands for server orchestration, direct AI, and developer tools."""
 

@@ -2,6 +2,7 @@
 
 from alfa.core.cli.slash.agents_swarm import SlashSwarmMixin
 from alfa.core.cli.slash.developer import SlashDeveloperMixin
+from alfa.core.cli.slash.extras import SlashExtrasMixin
 from alfa.core.cli.slash.navigation import SlashNavigationMixin
 from alfa.core.cli.slash.providers import SlashProvidersMixin
 from alfa.core.cli.slash.servers import SlashServersMixin
@@ -14,4 +15,5 @@ __all__ = [
     "SlashServersMixin",
     "SlashVaultMixin",
     "SlashDeveloperMixin",
+    "SlashExtrasMixin",
 ]

@@ -22,6 +22,7 @@ def record(
     """Persist one usage record; silently ignore failures."""
     try:
         from alfa.core import database
+        from alfa.core.rate_limiter import check_rate_limit
 
         database.record_api_usage_sync(
             provider=provider,
@@ -32,6 +33,12 @@ def record(
             prompt_tokens=prompt_tokens or 0,
             completion_tokens=completion_tokens or 0,
         )
+
+        # Check rate limit and warn if over budget
+        # We assume user_id=1 as default if not provided in context, or try to parse it
+        allowed, reason = check_rate_limit(user_id=1, provider=provider)
+        if not allowed:
+            logger.warning(f"Rate limit exceeded: {reason}")
     except Exception as e:
         logger.debug(f"usage record skipped: {e}")
 

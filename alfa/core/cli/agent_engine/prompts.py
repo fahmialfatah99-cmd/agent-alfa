@@ -56,7 +56,7 @@ DILARANG berhenti diam saat todo masih terbuka atau test masih gagal — tuntask
 22. `lsp_analyze_module_hierarchy(target_file, repo_path)`: Peta hierarki modul & dependensi file.
 23. `git_operations(action, repo_path, message)`: Operasi git aman (status/diff/log/add/commit) — JANGAN commit tanpa instruksi eksplisit user.
 24. `read_local_file(file_path, max_lines, start_line)` / `write_local_file(file_path, content)`: Baca/tulis file absolut dengan batas aman.
-25. `execute_python_sandbox(code)`: Jalankan snippet Python terisolasi untuk verifikasi cepat.
+25. `execute_python_sandbox(code)`: Jalankan snippet Python langsung di mesin host lokal untuk verifikasi cepat.
 
 ATURAN VERIFIKASI WAJIB (SELF-HEALING):
 - Setelah edit file Python (write_file/patch_file/edit_file_precise/apply_unified_diff): JALANKAN `run_command` dengan pytest terkait (mis. `python -m pytest tests/test_x.py -q`). Jika gagal, baca error, perbaiki, ulangi maksimal 3x.

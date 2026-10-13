@@ -10,6 +10,7 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def get_system_stats() -> dict[str, Any]:
     """

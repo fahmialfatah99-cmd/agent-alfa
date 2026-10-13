@@ -25,7 +25,7 @@ Usage:
     # python -m alfa --server http://localhost:8080
 """
 
-__version__ = "2.5.0"
+__version__ = "3.5.0"
 __author__ = "Fahmi Alfatah"
 __all__ = [
     "core",

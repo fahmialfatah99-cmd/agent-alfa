@@ -116,7 +116,7 @@ CAPABILITIES_BLOCK = (
     "`fetch_web_page_content`, `deep_research_topic`, `analyze_dataset_csv_json`.\n"
     "• DOKUMEN → suite `pdf_*`, `generate_excel_spreadsheet`, `generate_presentation_pptx`, "
     "LibreOffice (`libreoffice_*`), hasil otomatis dikirim sebagai berkas.\n"
-    "• SISTEM & KONTROL PERANGKAT → `execute_bash_command`, `execute_python_sandbox` (Docker), "
+    "• SISTEM & KONTROL PERANGKAT → `execute_bash_command`, `execute_python_sandbox` (Host Linux / Tanpa Batasan Sandbox), "
     "`get_system_stats`, screenshot/webcam/desktop keys, browser automation (camoufox/crawl4ai), "
     "`manage_system_services`, `manage_crontab_jobs`, SSH, Android (scrcpy).\n"
     "• LSP CODE INTELLIGENCE → `lsp_find_symbol_definition`, `lsp_find_symbol_references`, `lsp_analyze_module_hierarchy`.\n"

@@ -16,6 +16,7 @@ from alfa.tools.system.constants import (
     _clean_code_snippet,
     _ensure_sandbox_image,
     generate_self_heal_hint,
+    is_unrestricted,
 )
 
 logger = logging.getLogger("AgentTools.System")
@@ -33,10 +34,9 @@ def execute_bash_command(
     command: str, working_dir: str = "", backend: str = ""
 ) -> dict[str, Any]:
     """
-    Execute a Linux shell command SAFELY inside an isolated Docker sandbox by
-    default (resource-limited, no privileges). Falls back to a direct host run
-    ONLY when Docker is unavailable, or when backend='host' is requested
-    explicitly. Destructive command patterns are always rejected first.
+    Execute a Linux shell command. When unrestricted mode (ALFA_UNRESTRICTED) is active,
+    executes directly on the host Linux system with full root/user privileges and no command blocks.
+    In standard mode, runs inside an isolated Docker container with fallback to host.
     """
     sub = _get_subprocess()
     clean_cmd = _clean_code_snippet(command)
@@ -60,7 +60,11 @@ def execute_bash_command(
             "isolation": "rejected",
         }
 
-    pref = (backend or os.getenv("ALFA_BASH_BACKEND", "auto")).lower().strip()
+    unrestricted = is_unrestricted()
+    pref = (
+        backend
+        or os.getenv("ALFA_BASH_BACKEND", "host" if unrestricted else "auto")
+    ).lower().strip()
     use_docker = (
         pref in ("auto", "docker")
         and _check_docker_available()
@@ -134,7 +138,7 @@ def execute_bash_command(
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
             isolation = "docker"
         else:
-            allow_host = (
+            allow_host = unrestricted or (
                 os.getenv("ALFA_ALLOW_HOST_EXEC", "false").strip().lower() == "true"
             )
             if not allow_host:
@@ -171,7 +175,10 @@ def execute_bash_command(
                     cmd = ["powershell", "-NoProfile", "-Command", command]
             else:
                 cmd = ["bash", "-c", command]
-            timeout_secs, isolation = 45, "none"
+            timeout_secs = int(
+                os.getenv("ALFA_HOST_TIMEOUT", "600" if unrestricted else "45")
+            )
+            isolation = "none"
 
         logger.info(f"Executing bash ({isolation}): {command[:150]}")
         try:
@@ -282,9 +289,9 @@ def execute_bash_command(
 @register_tool(category="system")
 def execute_python_sandbox(code: str) -> dict[str, Any]:
     """
-    Execute a Python script in an ISOLATED Docker container (default) with
-    resource limits and no privileges. Falls back to a local subprocess only
-    when Docker is unavailable or SANDBOX_BACKEND=none.
+    Execute a Python script. When unrestricted mode (ALFA_UNRESTRICTED) is active,
+    executes directly on the host Linux OS with full access to host files, packages, and hardware.
+    In standard mode, runs in an isolated Docker container with resource limits.
     """
     sub = _get_subprocess()
     cleaned = _clean_code_snippet(code)
@@ -309,7 +316,10 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             "isolation": "none",
         }
 
-    backend_pref = os.getenv("SANDBOX_BACKEND", "auto").lower().strip()
+    unrestricted = is_unrestricted()
+    backend_pref = (
+        os.getenv("SANDBOX_BACKEND", "none" if unrestricted else "auto").lower().strip()
+    )
     use_docker = (
         backend_pref in ("auto", "docker")
         and _check_docker_available()
@@ -397,7 +407,9 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             isolation = "docker"
         else:
             cmd = [sys.executable, script_path]
-            timeout_secs = 30
+            timeout_secs = int(
+                os.getenv("ALFA_HOST_TIMEOUT", "600" if unrestricted else "30")
+            )
             isolation = "none"
             if backend_pref in ("auto", "docker"):
                 logger.warning(

@@ -480,6 +480,20 @@ async function controlService(service, action) {
         });
         const data = await res.json();
         showToast(data.status === 'success' ? `Service ${service} ${action} berhasil!` : `Gagal: ${data.output}`, data.status === 'success' ? 'success' : 'error');
+        if (service === 'alfa-dashboard.service' && data.status === 'success' && (action === 'restart' || action === 'stop')) {
+            // Dashboard me-restart dirinya sendiri: tunggu kembali online lalu refresh.
+            showToast('Dashboard me-restart, menunggu online kembali...', 'info');
+            let tries = 0;
+            const timer = setInterval(async () => {
+                tries++;
+                try {
+                    const h = await fetch('/health');
+                    if (h.ok) { clearInterval(timer); fetchServices(); showToast('Dashboard online kembali!', 'success'); }
+                    else if (tries > 30) { clearInterval(timer); }
+                } catch (e) { if (tries > 30) clearInterval(timer); }
+            }, 2000);
+            return;
+        }
         fetchServices();
     } catch (err) {
         showToast(`Error: ${err.message}`, 'error');
@@ -1814,17 +1828,58 @@ function replayLastMeeting() {
         return;
     }
     showToast(`Memutar ulang animasi rapat: "${lastM.title || lastM.topic}"`, 'info');
-    document.getElementById('meeting-dialogue-container').classList.remove('hidden');
-    document.getElementById('ai-virtual-hq').scrollIntoView({ behavior: 'smooth' });
+    const dialogueCont = document.getElementById('meeting-dialogue-container');
+    if (dialogueCont) dialogueCont.classList.remove('hidden');
+    const scrollTarget = document.getElementById('ai-virtual-hq') || document.getElementById('swarm-arena') || document.getElementById('view-swarm');
+    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth' });
     playHqMeetingAnimation(transcript, lastM.consensus, lastM.action_plan, lastM.topic || lastM.title);
 }
 
 async function playHqMeetingAnimation(transcript, consensus, actionPlan, topic) {
-    // War Room animasi sudah dihapus - aktivitas live ada di Live Terminal.
-    if (!document.getElementById('ai-virtual-hq')) return;
-    // War Room animasi sudah dinonaktifkan - aktivitas live ada di Live Terminal.
-    if (!document.getElementById('ai-virtual-hq')) return;
     if (!transcript || transcript.length === 0) return;
+
+    if (!document.getElementById('ai-virtual-hq')) {
+        if (typeof updateSwarmArena === 'function' && document.getElementById('swarm-arena')) {
+            isMeetingAnimationPlaying = true;
+            try {
+                for (let i = 0; i < transcript.length; i++) {
+                    const turn = transcript[i];
+                    const pct = Math.min(99, Math.round(((i + 1) / transcript.length) * 100));
+                    const sp = turn.agent_name || 'Agent';
+                    let stId = 'commander';
+                    const spL = sp.toLowerCase();
+                    if (spL.includes('research') || spL.includes('analis')) stId = 'researcher';
+                    else if (spL.includes('critic') || spL.includes('audit')) stId = 'critic';
+                    else if (spL.includes('exec') || spL.includes('code') || spL.includes('craft')) stId = 'executor';
+
+                    const states = { commander: 'waiting', researcher: 'waiting', critic: 'waiting', executor: 'waiting' };
+                    states[stId] = 'speaking';
+
+                    updateSwarmArena({
+                        running: true,
+                        active_speaker: sp,
+                        stage: i === 0 ? 'plan' : (i < transcript.length - 1 ? 'debate' : 'consensus'),
+                        consensus_percent: pct,
+                        agent_states: states,
+                        entries: [{ tag: 'DIALOG', text: `💬 ${sp}: ${turn.message || ''}` }]
+                    });
+                    const delay = (hqSpeedMultiplier === 99) ? 150 : Math.max(800, 2000 / hqSpeedMultiplier);
+                    await new Promise(r => setTimeout(r, delay));
+                }
+                updateSwarmArena({
+                    running: false,
+                    active_speaker: null,
+                    stage: 'consensus',
+                    consensus_percent: 100,
+                    agent_states: { commander: 'done', researcher: 'done', critic: 'done', executor: 'done' },
+                    entries: [{ tag: 'CONSENSUS', text: `✅ Konsensus: ${consensus || 'Misi tuntas dan disepakati.'}` }]
+                });
+            } finally {
+                isMeetingAnimationPlaying = false;
+            }
+        }
+        return;
+    }
     isMeetingAnimationPlaying = true;
 
     const bubble = document.getElementById('hq-active-speech-bubble');
@@ -2370,7 +2425,10 @@ async function sendAgentTestMessage(e) {
 }
 
 function scrollToMeetingRoom() {
-    document.getElementById('meeting-room-panel').scrollIntoView({ behavior: 'smooth' });
+    const el = document.getElementById('meeting-room-panel') || document.getElementById('swarm-arena') || document.getElementById('meeting-topic-input') || document.getElementById('view-swarm');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 // ==================== AI MEETING & SWARM WORKSPACE CONTROLLER ====================
@@ -2600,7 +2658,15 @@ async function cancelSwarmMeeting() {
     } catch (err) {
         showToast(`Gagal mengirim sinyal batal: ${err.message}`, 'error');
     } finally {
-        if (btnCancel) setTimeout(() => { btnCancel.disabled = false; }, 1500);
+        if (btnCancel) {
+            setTimeout(() => {
+                btnCancel.disabled = false;
+                btnCancel.innerHTML = '<i data-lucide="square" class="w-3.5 h-3.5"></i> Hentikan Swarm';
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                }
+            }, 1500);
+        }
     }
 }
 
@@ -2809,8 +2875,10 @@ function playCurrentModalMeetingAnimation() {
     if (!currentActiveModalMeeting) return;
     closeMeetingModal();
     const transcript = typeof currentActiveModalMeeting.dialogue_transcript === 'string' ? JSON.parse(currentActiveModalMeeting.dialogue_transcript || '[]') : (currentActiveModalMeeting.dialogue_transcript || []);
-    document.getElementById('meeting-dialogue-container').classList.remove('hidden');
-    document.getElementById('ai-virtual-hq').scrollIntoView({ behavior: 'smooth' });
+    const dialogueCont = document.getElementById('meeting-dialogue-container');
+    if (dialogueCont) dialogueCont.classList.remove('hidden');
+    const scrollTarget = document.getElementById('ai-virtual-hq') || document.getElementById('swarm-arena') || document.getElementById('view-swarm');
+    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth' });
     playHqMeetingAnimation(transcript, currentActiveModalMeeting.consensus, currentActiveModalMeeting.action_plan, currentActiveModalMeeting.topic || currentActiveModalMeeting.title);
 }
 
@@ -2818,19 +2886,36 @@ function replaySpecificMeeting(id) {
     const m = allMeetingsData.find(x => x.id === id);
     if (!m) return;
     const transcript = typeof m.dialogue_transcript === 'string' ? JSON.parse(m.dialogue_transcript || '[]') : (m.dialogue_transcript || []);
-    document.getElementById('meeting-dialogue-container').classList.remove('hidden');
-    document.getElementById('ai-virtual-hq').scrollIntoView({ behavior: 'smooth' });
+    const dialogueCont = document.getElementById('meeting-dialogue-container');
+    if (dialogueCont) dialogueCont.classList.remove('hidden');
+    const scrollTarget = document.getElementById('ai-virtual-hq') || document.getElementById('swarm-arena') || document.getElementById('view-swarm');
+    if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth' });
     playHqMeetingAnimation(transcript, m.consensus, m.action_plan, m.topic || m.title);
 }
 
 function closeMeetingModal() {
-    document.getElementById('meeting-modal').classList.add('hidden');
-    document.getElementById('meeting-modal').classList.remove('flex');
+    const modal = document.getElementById('meeting-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 }
 
 function copyConsensus() {
-    const txt = document.getElementById('meeting-consensus-text').innerText + '\n\n' + document.getElementById('meeting-action-plan-text').innerText;
-    navigator.clipboard.writeText(txt);
+    const elModal = document.getElementById('m-modal-consensus-text');
+    const elCons = document.getElementById('meeting-consensus-text');
+    const elAct = document.getElementById('meeting-action-plan-text');
+    let txt = '';
+    if (elCons || elAct) {
+        txt = (elCons?.innerText || '') + '\n\n' + (elAct?.innerText || '');
+    } else if (elModal) {
+        txt = elModal.innerText || '';
+    }
+    if (!txt.trim()) {
+        const arenaCons = document.getElementById('swarm-consensus-text');
+        if (arenaCons) txt = arenaCons.innerText || '';
+    }
+    navigator.clipboard.writeText(txt.trim());
     showToast('Konsensus rapat disalin ke clipboard!', 'success');
 }
 
@@ -3883,7 +3968,8 @@ function renderAffiliateResults(c) {
 function copyAffiliateContent(elemId) {
     const el = document.getElementById(elemId);
     if (el) {
-        navigator.clipboard.writeText(el.innerText);
+        const text = (el.value !== undefined && el.tagName && (el.tagName.toLowerCase() === 'textarea' || el.tagName.toLowerCase() === 'input')) ? el.value : (el.innerText || el.textContent || '');
+        navigator.clipboard.writeText(text);
         showToast('Konten berhasil disalin ke clipboard!', 'success');
     }
 }
@@ -4603,13 +4689,13 @@ function filterScraperTable() {
 
 function sendItemToAffiliate(title, price, url) {
     switchTab('affiliate');
-    const nameInput = document.getElementById('affiliate-product-name');
-    const priceInput = document.getElementById('affiliate-price-drop');
-    const urlInput = document.getElementById('affiliate-product-url');
-    if (nameInput) nameInput.value = title;
-    if (priceInput) priceInput.value = price;
-    if (urlInput) urlInput.value = url;
-    showToast(`Data produk '${title.slice(0, 30)}...' dikirim ke Affiliate War Room!`, 'info');
+    const nameInput = document.getElementById('aff-product-name') || document.getElementById('affiliate-product-name');
+    const priceInput = document.getElementById('aff-disc-price') || document.getElementById('affiliate-price-drop');
+    const urlInput = document.getElementById('aff-link') || document.getElementById('affiliate-product-url');
+    if (nameInput) nameInput.value = title || '';
+    if (priceInput) priceInput.value = price || '';
+    if (urlInput) urlInput.value = url || '';
+    showToast(`Data produk '${(title || '').slice(0, 30)}...' dikirim ke Affiliate War Room!`, 'info');
 }
 
 async function runCustomUrlScraper(e) {

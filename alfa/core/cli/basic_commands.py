@@ -305,7 +305,9 @@ class CliBasicCommandsMixin:
                         self, "agent_execution_mode", "single"
                     ),
                     "auto_approve": bool(
-                        getattr(getattr(self, "agent_runner", None), "auto_approve", False)
+                        getattr(
+                            getattr(self, "agent_runner", None), "auto_approve", False
+                        )
                     ),
                 },
             )
@@ -362,7 +364,9 @@ class CliBasicCommandsMixin:
             else:
                 print_status(f"Sesi '{rest.strip()}' tidak ditemukan.", "error")
         else:
-            print_status("Usage: /session [save <nama>|list|load <nama>|delete <nama>]", "error")
+            print_status(
+                "Usage: /session [save <nama>|list|load <nama>|delete <nama>]", "error"
+            )
 
     def do_slash_compact(self, arg):
         """Ringkas riwayat chat agar konteks hemat. Usage: /compact"""
@@ -381,7 +385,8 @@ class CliBasicCommandsMixin:
             summary = self.direct_ai.generate(
                 prompt=(
                     "Ringkas percakapan berikut menjadi memo konteks ≤15 baris: "
-                    "keputusan, file diubah, todo tersisa, error terbuka.\n\n" + transcript
+                    "keputusan, file diubah, todo tersisa, error terbuka.\n\n"
+                    + transcript
                 ),
                 stream=False,
             )

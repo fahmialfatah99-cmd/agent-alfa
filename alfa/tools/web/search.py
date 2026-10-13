@@ -29,26 +29,32 @@ def _ssl_verify() -> bool:
 def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
     """
     Perform a live web search using DuckDuckGo to get up-to-date real-time information, news, or facts.
+    Falls back to the local Camoufox stealth browser (Bing) when the direct
+    search API is blocked. Fully local, no cloud scraping API needed.
     Use this tool whenever the user asks about current events, stock prices, weather, documentation, or recent news.
 
     Args:
         query: Search query string.
         max_results: Maximum number of search results to return (default: 5).
     """
+    if _ddgs_circuit_open():
+        return _browser_search_fallback(
+            query, max_results, reason="DDGS circuit-breaker aktif."
+        )
     try:
         if DDGS is None:
-            return {
-                "status": "error",
-                "message": "Paket pencarian web (ddgs) belum terpasang. Jalankan: pip install ddgs",
-            }
+            return _browser_search_fallback(
+                query,
+                max_results,
+                reason="Paket pencarian web (ddgs) belum terpasang.",
+            )
         logger.info(f"Searching web for: {query}")
         results = list(DDGS(verify=_ssl_verify()).text(query, max_results=max_results))
         if not results:
-            return {
-                "status": "success",
-                "results": [],
-                "message": "Tidak ada hasil pencarian ditemukan.",
-            }
+            _ddgs_note_failure()
+            return _browser_search_fallback(
+                query, max_results, reason="DDGS tidak mengembalikan hasil."
+            )
 
         formatted_results = []
         for item in results:
@@ -60,12 +66,122 @@ def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
                 }
             )
 
+        _ddgs_note_success()
         return {"status": "success", "results": formatted_results}
     except Exception as e:
         logger.error(f"Web search error: {e}")
+        _ddgs_note_failure()
+        return _browser_search_fallback(query, max_results, reason=str(e))
+
+
+# ── DDGS circuit breaker ──────────────────────────────────────────────
+# Jaringan ini memblokir DuckDuckGo (SSL reset). Setelah 3 gagal beruntun,
+# lewati DDGS selama 10 menit dan langsung pakai browser — menghemat
+# belasan detik timeout di setiap pencarian dalam satu turn.
+_DDGS_BREAKER = {"fails": 0, "skip_until": 0.0}
+_DDGS_FAIL_LIMIT = 3
+_DDGS_COOLDOWN = 600.0
+
+
+def _ddgs_circuit_open() -> bool:
+    import time as _time
+
+    return _time.time() < _DDGS_BREAKER["skip_until"]
+
+
+def _ddgs_note_success() -> None:
+    _DDGS_BREAKER["fails"] = 0
+    _DDGS_BREAKER["skip_until"] = 0.0
+
+
+def _ddgs_note_failure() -> None:
+    import time as _time
+
+    _DDGS_BREAKER["fails"] += 1
+    if _DDGS_BREAKER["fails"] >= _DDGS_FAIL_LIMIT:
+        _DDGS_BREAKER["skip_until"] = _time.time() + _DDGS_COOLDOWN
+        logger.warning(
+            "DDGS gagal %dx beruntun — circuit-breaker aktif 10 menit.",
+            _DDGS_BREAKER["fails"],
+        )
+
+
+def _browser_search_fallback(
+    query: str, max_results: int = 5, reason: str = ""
+) -> dict[str, Any]:
+    """Fallback pencarian via browser lokal (Camoufox + Bing).
+
+    Dipakai saat API DDGS diblokir/gagal. Murni lokal, tanpa API cloud.
+    """
+    try:
+        import threading
+        from urllib.parse import quote_plus
+
+        from alfa.tools.web.browser.engine import _ensure_page, _ui
+
+        def _do() -> list[dict[str, str]]:
+            page = _ensure_page()
+            if page is None:
+                return []
+            url = f"https://www.bing.com/search?q={quote_plus(query)}"
+            page.goto(url, wait_until="domcontentloaded", timeout=45000)
+            try:
+                page.wait_for_timeout(900)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                data = page.evaluate(
+                    """() => Array.from(document.querySelectorAll('li.b_algo'))
+                        .slice(0, 12).map(li => {
+                            const a = li.querySelector('h2 a');
+                            const p = li.querySelector('.b_caption p, p');
+                            let href = a ? (a.href || '') : '';
+                            // Bing membungkus link asli di param ?u=a1<base64>.
+                            // Buka bungkusnya agar dapat URL asli, bukan redirect.
+                            try {
+                                const m = href.match(/[?&]u=a1([^&]+)/);
+                                if (m) href = atob(m[1]);
+                            } catch (e) {}
+                            return {
+                                title: a ? a.innerText : '',
+                                href: href,
+                                body: p ? p.innerText : ''
+                            };
+                        })"""
+                )
+            except Exception:  # noqa: BLE001
+                return []
+            return [d for d in (data or []) if d.get("href")]
+
+        if threading.current_thread().name.startswith("alfa-browser"):
+            raw = _do()
+        else:
+            raw = _ui(_do, timeout=90.0)
+
+        formatted = [
+            {
+                "title": d.get("title", ""),
+                "snippet": d.get("body", ""),
+                "link": d.get("href", ""),
+            }
+            for d in raw[:max_results]
+        ]
+        if not formatted:
+            return {
+                "status": "error",
+                "message": f"Pencarian web gagal (DDGS: {reason or 'unknown'}; browser lokal juga tidak dapat hasil).",
+            }
+        return {
+            "status": "success",
+            "results": formatted,
+            "engine": "camoufox_bing_fallback",
+            "note": f"DDGS gagal ({reason}), memakai browser lokal.",
+        }
+    except Exception as e:
+        logger.error(f"Browser search fallback error: {e}")
         return {
             "status": "error",
-            "message": f"Gagal melakukan pencarian web: {str(e)}",
+            "message": f"Gagal melakukan pencarian web: {reason or e}",
         }
 
 

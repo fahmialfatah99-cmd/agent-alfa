@@ -182,13 +182,14 @@ class TestAppFlows:
         args = MagicMock(
             question="apa ini?",
             file=[],
-            model=None,
-            provider=None,
+            model="mock-model",
+            provider="mock-provider",
             server="http://localhost:8080",
             standalone=True,
             mode="standalone",
             stream=False,
             agent=False,
+            json=False,
         )
         try:
             app_mod.handle_ask_command(args)

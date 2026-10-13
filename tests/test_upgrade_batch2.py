@@ -11,7 +11,10 @@ class TestNetwork:
     def test_cert_pairs(self):
         from alfa.tools.system.network import _cert_pairs
 
-        assert _cert_pairs([("CN", "x"), ["O", "y"], "junk", None]) == {"CN": "x", "O": "y"}
+        assert _cert_pairs([("CN", "x"), ["O", "y"], "junk", None]) == {
+            "CN": "x",
+            "O": "y",
+        }
         assert _cert_pairs(None) == {}
         assert _cert_pairs([]) == {}
 
@@ -68,7 +71,10 @@ class TestDataset:
         res = analyze_dataset_csv_json("/tidak/ada/data_xyz.csv")
         assert res["status"] == "error"
 
-    def test_small_csv(self, tmp_path):
+    def test_small_csv(self, tmp_path, monkeypatch):
+        import alfa.tools.media.documents as docs_mod
+
+        monkeypatch.setattr(docs_mod, "SANDBOX_DIR", str(tmp_path))
         from alfa.tools.media.documents import analyze_dataset_csv_json
 
         f = tmp_path / "d.csv"

@@ -56,7 +56,7 @@ window.parseAnsiToHtml = parseAnsiToHtml;
 class TerminalWebSocketClient {
     constructor(options = {}) {
         this.url = options.url || `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws/terminal`;
-        this.token = options.token || localStorage.getItem("alfa_session_token") || "";
+        this.token = options.token || localStorage.getItem("alfa_session_token") || localStorage.getItem("alfa_auth_token") || "";
         this.ws = null;
         this.onMessage = options.onMessage || null;
         this.onOpen = options.onOpen || null;
@@ -125,7 +125,7 @@ class LogsWebSocketClient {
     }
 
     connect() {
-        const token = localStorage.getItem("alfa_session_token") || "";
+        const token = localStorage.getItem("alfa_session_token") || localStorage.getItem("alfa_auth_token") || "";
         const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
         let url = `${wsProto}//${location.host}/ws/logs?unit=${encodeURIComponent(this.unit)}`;
         if (token) url += `&token=${encodeURIComponent(token)}`;

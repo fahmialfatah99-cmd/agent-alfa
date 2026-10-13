@@ -383,7 +383,9 @@ class SlashDeveloperMixin:
             return
         cmd = cmds.get(sub)
         if not cmd:
-            print_status(f"Subcommand tak dikenal: {sub} (status|diff|log|branch).", "error")
+            print_status(
+                f"Subcommand tak dikenal: {sub} (status|diff|log|branch).", "error"
+            )
             return
         if hasattr(self, "_execute_shell_command"):
             self._execute_shell_command(cmd)
@@ -410,7 +412,9 @@ class SlashDeveloperMixin:
             print_status("Agent runner belum siap.", "error")
             return
         runner.direct_ai = getattr(self, "direct_ai", runner.direct_ai)
-        print_status("📝 PLAN MODE (read-only): menyusun rencana tanpa eksekusi...", "info")
+        print_status(
+            "📝 PLAN MODE (read-only): menyusun rencana tanpa eksekusi...", "info"
+        )
         try:
             plan = runner.run(f"Susun rencana eksekusi untuk: {task}", plan_mode=True)
         except Exception as e:
@@ -423,7 +427,9 @@ class SlashDeveloperMixin:
             )
         except OSError as e:
             print_status(f"Tidak bisa menyimpan rencana: {e}", "warning")
-        print_status("✅ Rencana tersimpan. Setujui dengan /approve untuk eksekusi.", "success")
+        print_status(
+            "✅ Rencana tersimpan. Setujui dengan /approve untuk eksekusi.", "success"
+        )
 
     def do_slash_approve(self, arg: str) -> None:
         """Eksekusi rencana tersimpan dari /plan. Usage: /approve [catatan tambahan]"""
@@ -438,7 +444,9 @@ class SlashDeveloperMixin:
                 except OSError:
                     plan_data = None
         if not plan_data:
-            print_status("Belum ada rencana. Buat dulu dengan /plan <tugas>.", "warning")
+            print_status(
+                "Belum ada rencana. Buat dulu dengan /plan <tugas>.", "warning"
+            )
             return
         runner = getattr(self, "agent_runner", None)
         if runner is None:
@@ -485,7 +493,9 @@ class SlashDeveloperMixin:
             )
         else:
             state = "ON (auto)" if runner.auto_approve else "OFF (manual)"
-            print_status(f"Mode approval saat ini: {state}. Usage: /auto [on|off]", "info")
+            print_status(
+                f"Mode approval saat ini: {state}. Usage: /auto [on|off]", "info"
+            )
 
     def do_slash_permit(self, arg: str) -> None:
         """Atur izin per-tool persisten. Usage: /permit [tool] [allow|ask|deny|reset]"""
@@ -543,7 +553,9 @@ class SlashDeveloperMixin:
                 print_status("Usage: /todo add <deskripsi tugas>", "warning")
                 return
             item = mgr.add(rest)
-            print_status(f"⬜ Todo #{item['id']} ditambahkan: {item['task']}", "success")
+            print_status(
+                f"⬜ Todo #{item['id']} ditambahkan: {item['task']}", "success"
+            )
         elif action == "list" or not action:
             print(f"\n{Colors.BOLD}📝 Todo List:{Colors.ENDC}\n{mgr.summary()}\n")
         elif action == "done":

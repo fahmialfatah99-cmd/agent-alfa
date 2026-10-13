@@ -10,6 +10,7 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def proactive_system_guardian_config(
     action: str = "status",
