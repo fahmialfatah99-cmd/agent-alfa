@@ -568,3 +568,19 @@ class TestVaultRotation:
         monkeypatch.setenv("VAULT_MASTER_KEY", "x" * 64)
         with pytest.raises(RuntimeError, match="env VAULT_MASTER_KEY"):
             v.rotate_master_key()
+
+    def test_store_mengarsipkan_nilai_lama(self, monkeypatch, tmp_path):
+        import importlib
+
+        vault_mod = importlib.import_module("alfa.security.vault")
+        db = str(tmp_path / "v2.db")
+        monkeypatch.setattr(vault_mod, "DB_PATH", db)
+        monkeypatch.setattr(vault_mod, "KEY_FILE", str(tmp_path / "k.key"))
+        vault_mod._init_vault_db()
+        v = vault_mod.AlfaSecureVault()
+        v.store_secret("ROT", "v1")
+        assert v.list_secret_versions("ROT") == []
+        v.store_secret("ROT", "v2")
+        vers = v.list_secret_versions("ROT")
+        assert len(vers) == 1
+        assert v.get_secret("ROT")["value"] == "v2"

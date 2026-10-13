@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Durable swarm mission queue (`alfa/swarm/queue.py`, `/api/swarm/queue/*`, worker retry-backoff)
+- Opt-in LLM cache untuk generasi tanpa tool (`ALFA_LLM_CACHE`)
+- OTel-lite: propagasi span via contextvars + header W3C `traceparent`
+- RBAC `require_admin` pada 15 endpoint sensitif dashboard
+- HMAC-SHA256 webhook + GitHub fail-closed; rotasi master key + versioning secret vault
+- 20 golden eval tasks + CI offline eval gate
+
+## [Unreleased]
+
 ### Security
 - Enforce permission gate on dashboard-direct `/api/tools/execute` (403) and MCP `call_tool`
 - Remove compromised `deep-translator` dependency; translate via Gemini
@@ -16,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redact secret-valued args in permission audit trail; bandit medium/high clean
 
 ### Added
-- `requirements-lock.txt`, Dependabot, CI security job (pip-audit, bandit, gitleaks)
 - 46 critical-path tests (gate, trust math, vault, MCP, localhost audit)
 - `ALFA_VERIFY_SSL`, `ALFA_MCP_USER_ID`, permission-gate env options
 

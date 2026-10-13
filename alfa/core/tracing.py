@@ -8,6 +8,7 @@ import os
 import threading
 import time
 import uuid
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,6 +20,27 @@ TRACE_DIR = os.getenv(
 os.makedirs(TRACE_DIR, exist_ok=True)
 
 _write_lock = threading.Lock()
+
+# Span aktif per konteks async (propagasi trace ala OpenTelemetry, tanpa dep).
+_current_span: ContextVar["TraceSpan | None"] = ContextVar(
+    "alfa_current_span", default=None
+)
+
+
+def current_span() -> "TraceSpan | None":
+    """Span aktif di konteks saat ini (None bila di luar span)."""
+    return _current_span.get()
+
+
+def child_span(name: str, **tags) -> "TraceSpan":
+    """Buat span anak dari span aktif (atau root baru bila tak ada)."""
+    parent = _current_span.get()
+    return TraceSpan(
+        name=name,
+        trace_id=parent.trace_id if parent else None,
+        parent_span_id=parent.span_id if parent else None,
+        tags=tags,
+    )
 
 
 class TraceSpan:
@@ -76,13 +98,25 @@ class TraceSpan:
         _append_trace(entry)
 
     def __enter__(self):
+        self._token = _current_span.set(self)
         return self
 
+    def traceparent(self) -> str:
+        """Header propagasi W3C `00-<32hex>-<16hex>-01` (trace/span di-pad)."""
+        tid = (self.trace_id.replace("-", "") + "0" * 32)[:32]
+        sid = (self.span_id.replace("-", "") + "0" * 16)[:16]
+        return f"00-{tid}-{sid}-01"
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            self.finish(status="error", error=f"{exc_type.__name__}: {exc_val}")
-        elif self.status == "running":
-            self.finish(status="success")
+        try:
+            token = getattr(self, "_token", None)
+            if token is not None:
+                _current_span.reset(token)
+        finally:
+            if exc_type:
+                self.finish(status="error", error=f"{exc_type.__name__}: {exc_val}")
+            elif self.status == "running":
+                self.finish(status="success")
         return False
 
 
