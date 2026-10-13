@@ -5,25 +5,12 @@ All notable changes to the ALFA Agent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.5.0] - 2026-09-29
-
-### Added
-- CLI coding-agent suite: /plan + /approve, /auto, /permit, /todo, /test, /git, /status, /session, /compact
-- Agent runner: plan-mode read-only enforcement, tool aliases, truncated tool-call repair, malformed-call self-heal, auto-continue on pending todos, honest execution reports, run-state tracking
-- run_command timeout now returns partial output; /undo no longer wipes uncommitted work
-- Project memory (ALFA.md), per-tool permission store, workspace todo manager, session persistence
-- 40 new tests (agent runner, reply auditor, system monitoring)
-
-### Changed
-- Decomposed monoliths: keys_models, slash_commands, direct_ai, interactive_menu, rag, monitoring, swarm engine, runner (parsing/reporting mixins)
-- Version aligned to 3.5.0 across package, CLI, and docs
-
 ## [Unreleased]
 
 ### Security
 - Enforce permission gate on dashboard-direct `/api/tools/execute` (403) and MCP `call_tool`
 - Remove compromised `deep-translator` dependency; translate via Gemini
-- Patch 19 dependency CVEs (anyio, click, mcp 1.30, pypdf 6.19)
+- Patch 19 dependency CVEs (anyio, click, mcp 1.30, pypdf 6.19) + multidict to 6.9.1 (CVE-2026-104874)
 - Close shell-injection vectors (git tool args, volume, service names, ffmpeg argv)
 - SSRF scheme guard on urllib scrapers; TLS verify on by default
 - Redact secret-valued args in permission audit trail; bandit medium/high clean
@@ -37,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split `agent_engine` and `browser` into focused subpackages
 - Trust-score speed bonus now decays instead of a constant
 - Test suite fully hermetic (isolated DB, no env leakage)
+
+## [3.5.0] - 2026-09-29
+
+### Added
+- CLI coding-agent suite: /plan + /approve, /auto, /permit, /todo, /test, /git, /status, /session, /compact
+- Agent runner: plan-mode read-only enforcement, tool aliases, truncated tool-call repair, malformed-call self-heal, auto-continue on pending todos, honest execution reports, run-state tracking
+- run_command timeout now returns partial output; /undo no longer wipes uncommitted work
+- Project memory (ALFA.md), per-tool permission store, workspace todo manager, session persistence
+- 40 new tests (agent runner, reply auditor, system monitoring)
+
+### Changed
+- Decomposed monoliths: keys_models, slash_commands, direct_ai, interactive_menu, rag, monitoring, swarm engine, runner (parsing/reporting mixins)
+- Version aligned to 3.5.0 across package, CLI, and docs
 
 ## [2.5.0] - 2024-12-XX
 
