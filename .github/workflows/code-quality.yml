@@ -27,7 +27,7 @@ jobs:
           pytest --cov=alfa --cov=. --cov-report=xml --cov-report=html
       
       - name: Upload coverage report
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./coverage.xml
           flags: unittests
@@ -88,7 +88,7 @@ jobs:
         run: pip install bandit
       
       - name: Run Bandit security scan
-        run: bandit -r alfa/ -f json -o bandit-report.json || true
+        run: bandit -r alfa/ -ll -f json -o bandit-report.json
       
       - name: Upload security report
         uses: actions/upload-artifact@v4
@@ -111,7 +111,7 @@ jobs:
         run: pip install safety
       
       - name: Check dependencies for vulnerabilities
-        run: safety check --json > safety-report.json || true
+        run: safety check --json > safety-report.json
       
       - name: Upload dependency report
         uses: actions/upload-artifact@v4

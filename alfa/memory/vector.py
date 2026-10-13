@@ -695,11 +695,15 @@ def delete_document(
 
         if ids:
             try:
-                # Delete from VSS
+                # Delete from VSS — placeholders are always "?" (no user input
+                # interpolated), ids passed as DB-API params. nosec B608.
                 placeholders = ",".join("?" for _ in ids)
-                conn.execute(f"DELETE FROM vector_knowledge_vss WHERE rowid IN ({placeholders})", ids)
+                conn.execute(
+                    f"DELETE FROM vector_knowledge_vss WHERE rowid IN ({placeholders})",  # nosec B608
+                    ids,
+                )
             except Exception as e:
-                logger.debug(f"Failed to delete from vss table: {e}")
+                logger.debug(f"Failed to delete from vss table: {e}")  # nosec B608
 
         cursor = conn.execute(
             "DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?",

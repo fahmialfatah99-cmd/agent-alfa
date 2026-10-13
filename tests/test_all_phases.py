@@ -16,7 +16,7 @@ import tools
 
 def test_alfa_modular_package_structure():
     """Verify alfa modular sub-packages load correctly."""
-    assert alfa.__version__ == "2.5.0"
+    assert alfa.__version__ == "3.5.0"
     assert hasattr(alfa, "core")
     assert hasattr(alfa, "security")
     assert hasattr(alfa, "swarm")

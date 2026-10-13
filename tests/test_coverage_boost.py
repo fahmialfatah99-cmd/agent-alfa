@@ -339,6 +339,9 @@ class TestSlashCommands:
 
     def test_repomap_and_undo(self, capsys, tmp_path, monkeypatch):
 
+        # Undo prompts for confirmation when patch history exists (it leaks
+        # across tests via the shared patch manager) — stub stdin hermetic.
+        monkeypatch.setattr("builtins.input", lambda *a, **k: "n")
         cli = _make_cli()
         monkeypatch.chdir(tmp_path)
         (tmp_path / "x.py").write_text("a = 1\n")

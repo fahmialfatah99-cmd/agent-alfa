@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.5.x   | :white_check_mark: |
-| < 2.5   | :x:                |
+| 3.5.x   | :white_check_mark: |
+| < 3.5   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -117,4 +117,4 @@ For security-related questions:
 
 ---
 
-*Last updated: August 2024*
+*Last updated: October 2026*
