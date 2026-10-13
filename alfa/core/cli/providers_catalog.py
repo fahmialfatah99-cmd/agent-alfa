@@ -26,6 +26,8 @@ def normalize_provider(name: str | None) -> str:
     if p in ("agy",):
         return "antigravity"
     return p
+
+
 PROVIDERS_CATALOG: dict[str, Any] = {
     "9router": {
         "name": "9Router AI Gateway (Local)",
@@ -214,6 +216,8 @@ PROVIDERS_CATALOG: dict[str, Any] = {
 # Provider aliases mapping
 PROVIDERS_CATALOG["gemini"] = PROVIDERS_CATALOG["google"]
 PROVIDERS_CATALOG["nim"] = PROVIDERS_CATALOG["nvidia"]
+
+
 def sync_providers_catalog() -> dict[str, Any]:
     """Synchronize providers catalog with 9router live models and web dashboard."""
     # 1. Fetch live models from 9Router Gateway (http://127.0.0.1:20128/v1/models)
@@ -247,6 +251,8 @@ def sync_providers_catalog() -> dict[str, Any]:
         pass
 
     return PROVIDERS_CATALOG
+
+
 PRESETS: dict[str, Any] = {
     "fast": {
         "temperature": 0.2,

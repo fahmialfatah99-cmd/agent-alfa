@@ -24,9 +24,22 @@ from alfa.tools.rag.retrieval import (
 from alfa.tools.rag.retrieval import select_relevant_tools as select_relevant_tools
 
 __all__ = [
-    "CORE_ALWAYS", "TOP_K", "_ACTION_TRIGGERS", "_CATEGORY_BOOSTS",
-    "_CATEGORY_TRIGGERS", "_ENABLED", "_STOPWORDS", "_SYNONYMS",
-    "_expand_synonyms", "_schema_to_text", "_tokenize", "_BM25Index",
-    "_rank_names", "select_relevant_functions", "select_relevant_tools",
-    "is_action_request", "get_required_action_tools", "_expand_families",
+    "CORE_ALWAYS",
+    "TOP_K",
+    "_ACTION_TRIGGERS",
+    "_CATEGORY_BOOSTS",
+    "_CATEGORY_TRIGGERS",
+    "_ENABLED",
+    "_STOPWORDS",
+    "_SYNONYMS",
+    "_expand_synonyms",
+    "_schema_to_text",
+    "_tokenize",
+    "_BM25Index",
+    "_rank_names",
+    "select_relevant_functions",
+    "select_relevant_tools",
+    "is_action_request",
+    "get_required_action_tools",
+    "_expand_families",
 ]

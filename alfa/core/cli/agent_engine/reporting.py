@@ -11,17 +11,13 @@ class RunReporterMixin:
     # Tools whose args reference a file path (for touched-files reporting).
     FILE_ARG_KEYS = ("path", "file_path", "filepath", "target_file")
 
-    def _log_execution(
-        self, tool_name: str, args: dict[str, Any], result: str
-    ) -> None:
+    def _log_execution(self, tool_name: str, args: dict[str, Any], result: str) -> None:
         """Record one tool execution for honest end-of-run reporting."""
         log = getattr(self, "_exec_log", None)
         if log is None:
             self._exec_log = log = []
         snippet = str(result or "")[:300].replace("\n", " | ")
-        files = [
-            str(args[k]) for k in self.FILE_ARG_KEYS if args.get(k)
-        ]
+        files = [str(args[k]) for k in self.FILE_ARG_KEYS if args.get(k)]
         log.append({"tool": tool_name, "files": files, "snippet": snippet})
 
     def _build_execution_report(self) -> str:
@@ -54,8 +50,7 @@ class RunReporterMixin:
             last = log[-1]
             lines += [
                 "",
-                "### 🔎 Observasi terakhir "
-                f"(`{last['tool']}`):",
+                f"### 🔎 Observasi terakhir (`{last['tool']}`):",
                 f"> {last['snippet'][:500]}",
             ]
         lines += [

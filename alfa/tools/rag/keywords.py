@@ -389,6 +389,7 @@ _ACTION_TRIGGERS = {
     "kirim",
 }
 
+
 def _tokenize(text: str) -> list[str]:
     toks = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]{1,}", (text or "").lower())
     out: list[str] = []

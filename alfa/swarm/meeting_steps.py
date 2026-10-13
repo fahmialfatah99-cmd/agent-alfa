@@ -16,12 +16,18 @@ def _build_task_desc(
     agent: dict[str, Any],
     err_ctx: str,
     *,
-    subtask_map: dict[str, str],
+    subtask_map: dict[str, Any],
     topic: str,
     ctx_lines: list[str],
 ) -> str:
+    agent_info = subtask_map.get(agent["name"])
+    if isinstance(agent_info, dict):
+        task_str = agent_info.get("task", "")
+    else:
+        task_str = agent_info
+
     td = (
-        subtask_map.get(agent["name"])
+        task_str
         or f"Eksekusi modul {agent['role']} untuk '{topic[:60]}'"
     )
     if err_ctx:
@@ -44,6 +50,7 @@ def _build_task_desc(
         )
     return td
 
+
 async def _execute_agent_step(
     agent: dict[str, Any],
     task_desc: str,
@@ -52,9 +59,7 @@ async def _execute_agent_step(
     intent_info: dict[str, Any],
 ):
     log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
-    step_result = await execute_swarm_task_step(
-        agent, task_desc, topic, intent_info
-    )
+    step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
     if step_result.get("deliverable_file"):
         log_live(
             "FILE",

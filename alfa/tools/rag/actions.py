@@ -1,6 +1,5 @@
 """Action-intent detection: mandatory tool families for action requests."""
 
-
 from alfa.tools.rag.keywords import _ACTION_TRIGGERS
 
 
@@ -72,6 +71,21 @@ _TOOL_FAMILIES: dict[str, set[str]] = {
         "play_youtube_music",
         "capture_desktop_screenshot",
     },
+    "images_convert_to_pdf": {
+        "find_user_files",
+        "pdf_merge_documents",
+        "pdf_split_document",
+        "pdf_compress_and_optimize",
+    },
+    "convert_media_format": {
+        "find_user_files",
+        "execute_bash_command",
+    },
+    "generate_excel_spreadsheet": {
+        "analyze_dataset_csv_json",
+        "read_local_file",
+        "write_local_file",
+    },
 }
 
 
@@ -126,13 +140,52 @@ def get_required_action_tools(user_text: str) -> set[str]:
                 "execute_bash_command",
             ]
         )
-    if any(k in txt_low for k in ["pdf", "dokumen", "laporan"]):
+    if any(
+        k in txt_low
+        for k in [
+            "pdf",
+            "dokumen",
+            "laporan",
+            "convert",
+            "ubah",
+            "gambar",
+            "foto",
+            "satukan",
+            "gabung",
+        ]
+    ):
         required.update(
             [
                 "generate_pdf_report",
+                "images_convert_to_pdf",
                 "pdf_merge_documents",
                 "pdf_split_document",
                 "pdf_extract_full_text",
+                "pdf_convert_to_images",
+                "pdf_compress_and_optimize",
+                "find_user_files",
+            ]
+        )
+    if any(
+        k in txt_low for k in ["excel", "xlsx", "csv", "spreadsheet", "tabel", "data"]
+    ):
+        required.update(
+            [
+                "generate_excel_spreadsheet",
+                "analyze_dataset_csv_json",
+                "read_local_file",
+            ]
+        )
+    if any(
+        k in txt_low
+        for k in ["konversi", "convert", "format", "mp4", "mp3", "wav", "m4a"]
+    ):
+        required.update(
+            [
+                "convert_media_format",
+                "libreoffice_convert_document",
+                "markitdown_convert_document",
+                "find_user_files",
             ]
         )
     if any(

@@ -1,6 +1,5 @@
 import json
 import os
-import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -9,7 +8,6 @@ from fastapi.responses import FileResponse
 
 from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT
 
 router = APIRouter()
 
@@ -357,8 +355,9 @@ async def audit_target_security(payload: dict[str, Any]):
 @router.get("/api/security/permission-audit")
 async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
     """Get permission audit trail log."""
-    db_path = os.path.join(REPO_ROOT, "agent_data.db")
-    conn = sqlite3.connect(db_path, timeout=30)
+    from alfa.core.perm.store import _connect
+
+    conn = _connect()
     try:
         if chat_id:
             rows = conn.execute(
@@ -402,8 +401,9 @@ async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
 @router.get("/api/security/trust-scores")
 async def get_all_trust_scores():
     """Get trust scores for all users."""
-    db_path = os.path.join(REPO_ROOT, "agent_data.db")
-    conn = sqlite3.connect(db_path, timeout=30)
+    from alfa.core.perm.store import _connect
+
+    conn = _connect()
     try:
         rows = conn.execute(
             """SELECT chat_id, trust_score, total_approvals, safe_approvals, risky_approvals,

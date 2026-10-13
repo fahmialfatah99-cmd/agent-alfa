@@ -33,6 +33,7 @@ def _rag_enabled() -> bool:
 
     return bool(keywords._ENABLED)
 
+
 class _BM25Index:
     """Wrapper tipis rank_bm25 dengan fallback scoring overlap sederhana."""
 
@@ -101,6 +102,7 @@ def _rank_names(
             selected.append(nm)
     selected.extend([c for c in CORE_ALWAYS if c not in selected])
     return list(dict.fromkeys(selected))
+
 
 def select_relevant_functions(
     functions: list[Any],

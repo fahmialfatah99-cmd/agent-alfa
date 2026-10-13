@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import sys
+import time
 
 from telegram import Update, constants
 from telegram.ext import ContextTypes
@@ -50,7 +51,9 @@ async def _run_agent_turn(*args, **kwargs):
 
 
 async def _check_and_send_media_artifacts(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    turn_start_time: float | None = None,
 ):
     mod = _get_bot_module()
     if (
@@ -58,8 +61,15 @@ async def _check_and_send_media_artifacts(
         and hasattr(mod, "check_and_send_media_artifacts")
         and mod.check_and_send_media_artifacts is not check_and_send_media_artifacts
     ):
-        return await mod.check_and_send_media_artifacts(update, context)
-    return await check_and_send_media_artifacts(update, context)
+        try:
+            return await mod.check_and_send_media_artifacts(
+                update, context, turn_start_time=turn_start_time
+            )
+        except TypeError:
+            return await mod.check_and_send_media_artifacts(update, context)
+    return await check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )
 
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -184,11 +194,14 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def check_and_send_media_artifacts(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    turn_start_time: float | None = None,
 ):
     """
     Checks if any screenshot, webcam frame, Python chart, or document (PDF, Excel, PPTX, ZIP)
-    was created and dispatches it directly to the Telegram user.
+    was created during this turn and dispatches it directly to the Telegram user.
+    Stale artifacts created before turn_start_time are pruned and never dispatched.
     """
     chat_id = update.effective_chat.id
     if not os.path.exists(SANDBOX_DIR):
@@ -198,12 +211,21 @@ async def check_and_send_media_artifacts(
         ("desktop_screen.png", "🖥️ Tangkapan Layar Desktop"),
         ("webcam_frame.jpg", "📷 Foto Kamera Webcam"),
         ("generated_plot.png", "📊 Grafik Visualisasi Data (Python)"),
+        ("dataset_analysis_chart.png", "📊 Grafik Analisis Dataset"),
         ("browser_screenshot.png", "🌐 Tangkapan Layar Browser (Camofox)"),
     ]
 
     for filename, caption in named_media:
         full_path = os.path.join(SANDBOX_DIR, filename)
         if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
+            mtime = os.path.getmtime(full_path)
+            if turn_start_time is not None and mtime < (turn_start_time - 1.0):
+                # Stale artifact from previous turn/task: delete and ignore
+                try:
+                    os.remove(full_path)
+                except OSError:
+                    pass
+                continue
             try:
                 with open(full_path, "rb") as photo_file:
                     await context.bot.send_photo(
@@ -225,12 +247,27 @@ async def check_and_send_media_artifacts(
             continue
         if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
             continue
+
+        mtime = os.path.getmtime(fpath)
+        if turn_start_time is not None and mtime < (turn_start_time - 1.0):
+            # Stale file from earlier tests or background jobs: cleanup and skip
+            try:
+                os.remove(fpath)
+            except OSError:
+                pass
+            continue
+
         ext = os.path.splitext(fname)[1].lower()
         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
+            caption = (
+                "📊 Grafik Visualisasi Data (Python)"
+                if fname.startswith("generated_plot")
+                else f"📸 Berkas Gambar: {fname}"
+            )
             try:
                 with open(fpath, "rb") as pf:
                     await context.bot.send_photo(
-                        chat_id=chat_id, photo=pf, caption=f"📸 Berkas Gambar: {fname}"
+                        chat_id=chat_id, photo=pf, caption=caption
                     )
             except Exception as img_err:
                 logger.error(f"Failed to send image {fname}: {img_err}")
@@ -267,6 +304,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     user_text = update.message.text.strip()
+    turn_start_time = time.time()
 
     streamer = None
     stop_typing = None
@@ -291,6 +329,14 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=chat_id,
             streamer=streamer,
         )
+    except Exception as e:
+        # Jangan pernah diam: kegagalan turn harus tetap dibalas ke user.
+        logger.error(f"[handle_text] turn gagal untuk {user_id}: {e}", exc_info=True)
+        reply = (
+            "❌ Maaf, permintaannya gagal diproses "
+            f"({type(e).__name__}: {str(e)[:200]}). "
+            "Coba kirim ulang perintahnya."
+        )
     finally:
         if stop_typing and typing_task:
             stop_typing.set()
@@ -307,7 +353,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await safe_send_message(context, chat_id, reply)
 
-    await _check_and_send_media_artifacts(update, context)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )
 
     # If voice mode enabled and content is conversational, send voice note
     mod = _get_bot_module()
@@ -350,6 +398,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     voice = update.message.voice or update.message.audio
     if not voice:
         return
+    turn_start_time = time.time()
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(
@@ -415,11 +464,20 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             multimodal_parts=[audio_part],
             chat_id=chat_id,
         )
+    except Exception as e:
+        logger.error(f"[handle_voice] turn gagal untuk {user_id}: {e}", exc_info=True)
+        reply = (
+            "❌ Maaf, pesan suaranya gagal diproses "
+            f"({type(e).__name__}: {str(e)[:200]}). "
+            "Coba kirim ulang."
+        )
     finally:
         stop_typing.set()
         await typing_task
 
-    await _check_and_send_media_artifacts(update, context)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )
 
     prefer_text = should_reply_with_text_instead_of_voice(reply)
     sent_voice = False
@@ -461,6 +519,7 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     photos = update.message.photo
     if not photos:
         return
+    turn_start_time = time.time()
 
     caption = update.message.caption or "Analisis gambar ini secara detail."
     best_photo = photos[-1]
@@ -479,22 +538,37 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await photo_file.download_to_memory(photo_bytes_io)
         photo_bytes = photo_bytes_io.getvalue()
 
-        from google.genai import types
+        from alfa.tools.filesystem import universal_file_extractor as ufe
 
-        image_part = types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg")
+        photo_filename = f"photo_{int(time.time())}_{user_id}.jpg"
+        txt_ctx, image_part = ufe.process_uploaded_attachment(
+            photo_filename, "image/jpeg", photo_bytes, save_disk=True
+        )
+
+        prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}" if txt_ctx else caption
+        multimodal_parts = [image_part] if image_part is not None else None
 
         reply = await _run_agent_turn(
             user_id=user_id,
-            user_prompt=caption,
-            multimodal_parts=[image_part],
+            user_prompt=prompt,
+            multimodal_parts=multimodal_parts,
             chat_id=chat_id,
+        )
+    except Exception as e:
+        logger.error(f"[handle_photo] turn gagal untuk {user_id}: {e}", exc_info=True)
+        reply = (
+            "❌ Maaf, fotonya gagal diproses "
+            f"({type(e).__name__}: {str(e)[:200]}). "
+            "Coba kirim ulang."
         )
     finally:
         stop_typing.set()
         await typing_task
 
     await safe_send_message(context, chat_id, reply)
-    await _check_and_send_media_artifacts(update, context)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )
 
 
 async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -512,6 +586,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     doc = update.message.document
     if not doc:
         return
+    turn_start_time = time.time()
 
     caption = update.message.caption or "Analisis isi dokumen ini secara mendalam."
     file_name = doc.file_name or "file.bin"
@@ -553,4 +628,6 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         await typing_task
 
     await safe_send_message(context, chat_id, reply)
-    await _check_and_send_media_artifacts(update, context)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )

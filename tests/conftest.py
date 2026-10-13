@@ -19,6 +19,9 @@ import pytest
 # operator-set DASHBOARD_AUTH_TOKEN would switch the dashboard to auth mode and
 # break unauthenticated TestClient calls, while CI (no .env) stays green.
 os.environ["DASHBOARD_AUTH_TOKEN"] = ""
+# Operator-local ALFA_UNRESTRICTED=true would disable every safety guard the
+# security tests assert on; force the safe default for the test session.
+os.environ["ALFA_UNRESTRICTED"] = "false"
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

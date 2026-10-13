@@ -299,24 +299,23 @@ class FilePatcher:
 
 
 def render_cursor_banner(cli: Any) -> None:
-    """Print a clean, modern Cursor-style header."""
+    """Print a clean, modern Claude Code-style header."""
     direct = cli.direct_ai
     branch = get_git_branch()
-    branch_info = f"  🌱 [dim]git:({branch})[/dim]" if branch else ""
-    prov_info = f"[bold cyan]{direct.provider.upper()}[/bold cyan] ([green]{direct.model}[/green])"
+    branch_info = f" [dim]git:{branch}[/dim]" if branch else ""
+    prov_info = f"[cyan]{direct.provider}[/cyan]:[bold]{direct.model}[/bold]"
 
     if RICH_AVAILABLE and cli.console:
         panel_content = (
-            f"[bold white]ALFA AI Code Assistant[/bold white] [dim]v{VERSION}[/dim]\n"
-            f"⚡ Provider: {prov_info}{branch_info}  │  Mode: [bold magenta]{cli.mode.upper()}[/bold magenta]\n"
-            f"[dim]Ketik [bold cyan]/menu[/bold cyan] untuk menu interaktif, [cyan]@[/cyan] untuk file, atau langsung tanya/coding.[/dim]"
+            f"[bold white]ALFA[/bold white] [dim]v{VERSION}[/dim]  │  "
+            f"{prov_info}{branch_info}  │  "
+            f"mode:[magenta]{cli.mode}[/magenta]\n"
+            f"[dim]Type /help for commands, /menu for settings, @ to mention files[/dim]"
         )
-        cli.console.print(Panel(panel_content, border_style="cyan", padding=(0, 2)))
+        cli.console.print(Panel(panel_content, border_style="grey37", padding=(0, 1)))
     else:
-        print(
-            f"\n--- ALFA AI Code Assistant v{VERSION} [{direct.provider}/{direct.model}] ---"
-        )
-        print("Ketik /menu untuk menu interaktif, @file untuk konteks.\n")
+        print(f"\nALFA v{VERSION} │ {direct.provider}:{direct.model}{branch_info} │ mode:{cli.mode}")
+        print("Type /help for commands, @file to reference context.\n")
 
 
 def run_cursor_loop(cli: Any) -> None:
@@ -325,17 +324,17 @@ def run_cursor_loop(cli: Any) -> None:
     patcher = FilePatcher(cli.console)
     completer = AlfaCursorCompleter(cli)
 
-    # Prompt Toolkit styling
+    # Prompt Toolkit styling - modern minimalist dark palette
     style = Style.from_dict(
         {
             "prompt-name": "#38bdf8 bold",
-            "prompt-arrow": "#22c55e bold",
-            "bottom-toolbar": "bg:#0f172a #94a3b8",
+            "prompt-arrow": "#64748b",
+            "bottom-toolbar": "bg:#1e293b #94a3b8",
             "toolbar-brand": "#38bdf8 bold",
-            "toolbar-model": "#f8fafc bold",
-            "toolbar-git": "#4ade80",
-            "toolbar-ctx": "#fbbf24",
-            "toolbar-tip": "#94a3b8 italic",
+            "toolbar-model": "#e2e8f0",
+            "toolbar-git": "#94a3b8",
+            "toolbar-ctx": "#38bdf8",
+            "toolbar-tip": "#64748b",
         }
     )
 
@@ -353,27 +352,24 @@ def run_cursor_loop(cli: Any) -> None:
         branch = get_git_branch() or "local"
         ctx_count = len(getattr(cli, "attached_files", []))
         agent_active = getattr(cli, "agent_mode", True)
-        agent_style = "class:toolbar-git" if agent_active else "class:toolbar-ctx"
-        agent_label = "🤖 AGENT:ON " if agent_active else "💬 CHAT:ON "
+        agent_label = "agent:on" if agent_active else "chat:on"
         return [
-            ("class:toolbar-brand", " 🤖 ALFA "),
+            ("class:toolbar-brand", " alfa "),
             ("class:toolbar-model", f"{direct.provider}:{direct.model} "),
             ("", "│ "),
-            (agent_style, agent_label),
+            ("class:toolbar-tip", f"{agent_label} "),
             ("", "│ "),
-            ("class:toolbar-git", f"🌱 git:{branch} "),
+            ("class:toolbar-git", f"git:{branch} "),
             ("", "│ "),
-            ("class:toolbar-ctx", f"📁 Context:{ctx_count} "),
+            ("class:toolbar-ctx", f"context:{ctx_count} "),
             ("", "│ "),
-            ("", f"🧭 Mode:{cli.mode} "),
-            ("", "│ "),
-            ("class:toolbar-tip", "TAB: @files & /commands "),
+            ("class:toolbar-tip", "TAB: complete "),
         ]
 
     prompt_fragments = [
-        ("class:prompt-name", "alfa "),
-        ("class:prompt-arrow", "❯ "),
+        ("class:prompt-arrow", "› "),
     ]
+
 
     while True:
         try:

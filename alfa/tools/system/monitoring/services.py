@@ -12,6 +12,7 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def manage_system_services(
     service_name: str, action: str = "status", scope: str = "user"

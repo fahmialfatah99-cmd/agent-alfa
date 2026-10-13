@@ -40,17 +40,23 @@ def _runner(tmp_path, **kw):
 class TestToolCallParsing:
     def test_closed_fence(self, tmp_path):
         r = _runner(tmp_path)
-        out = r._extract_tool_calls('```tool_call\n{"tool": "list_directory", "args": {}}\n```')
+        out = r._extract_tool_calls(
+            '```tool_call\n{"tool": "list_directory", "args": {}}\n```'
+        )
         assert out == [{"tool": "list_directory", "args": {}}]
 
     def test_unclosed_fence_balanced(self, tmp_path):
         r = _runner(tmp_path)
-        out = r._extract_tool_calls('```tool_call\n{"tool": "run_command", "args": {"command": "ls"}}\n')
+        out = r._extract_tool_calls(
+            '```tool_call\n{"tool": "run_command", "args": {"command": "ls"}}\n'
+        )
         assert out and out[0]["tool"] == "run_command"
 
     def test_truncated_repairable(self, tmp_path):
         r = _runner(tmp_path)
-        out = r._extract_tool_calls('```tool_call\n{"tool": "list_directory", "args": {"path": "tes')
+        out = r._extract_tool_calls(
+            '```tool_call\n{"tool": "list_directory", "args": {"path": "tes'
+        )
         assert out and out[0]["tool"] == "list_directory"
 
     def test_plain_text_no_call(self, tmp_path):
@@ -59,10 +65,12 @@ class TestToolCallParsing:
 
     def test_fn_syntax_new_tools(self, tmp_path):
         r = _runner(tmp_path)
-        assert r._extract_tool_calls('grep_workspace("bug")')[0]["args"] == {"query": "bug"}
+        assert r._extract_tool_calls('grep_workspace("bug")')[0]["args"] == {
+            "query": "bug"
+        }
         out = r._extract_tool_calls('lsp_find_symbol_definition("run")')
         assert out[0]["args"] == {"symbol_name": "run"}
-        assert r._extract_tool_calls("todo_add(\"refactor\")")[0]["tool"] == "todo_add"
+        assert r._extract_tool_calls('todo_add("refactor")')[0]["tool"] == "todo_add"
 
     def test_aliases(self, tmp_path):
         assert AutonomousAgentRunner.TOOL_ALIASES["run_shell_command"] == "run_command"
@@ -74,7 +82,9 @@ class TestPlanMode:
     def test_mutating_blocked_reads_allowed(self, tmp_path):
         r = _runner(tmp_path, plan_mode=True)
         assert "Blocked" in r._execute_tool("write_file", {"path": "a", "content": "b"})
-        assert "Blocked" in r._execute_tool("edit_file_precise", {"file_path": "a", "old_text": "x", "new_text": "y"})
+        assert "Blocked" in r._execute_tool(
+            "edit_file_precise", {"file_path": "a", "old_text": "x", "new_text": "y"}
+        )
         assert "Blocked" in r._execute_tool("run_command", {"command": "ls"})
         assert "Blocked" not in r._execute_tool("list_directory", {"path": "."})
 
@@ -94,7 +104,14 @@ class TestApprovalPolicy:
         assert r.perm_store.get("run_command") == "deny"
 
     def test_mutating_set_complete(self):
-        for t in ("write_file", "patch_file", "edit_file_precise", "apply_unified_diff", "write_local_file", "run_command"):
+        for t in (
+            "write_file",
+            "patch_file",
+            "edit_file_precise",
+            "apply_unified_diff",
+            "write_local_file",
+            "run_command",
+        ):
             assert t in AutonomousAgentRunner.MUTATING_TOOLS
 
 

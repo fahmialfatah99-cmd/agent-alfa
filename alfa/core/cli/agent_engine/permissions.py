@@ -45,9 +45,7 @@ class PermissionStore:
                 data = json.loads(self.path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     self.rules = {
-                        str(k): v
-                        for k, v in data.items()
-                        if v in VALID_RULES
+                        str(k): v for k, v in data.items() if v in VALID_RULES
                     }
         except (OSError, ValueError):
             self.rules = {}

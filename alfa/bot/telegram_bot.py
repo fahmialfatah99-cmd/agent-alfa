@@ -16,6 +16,7 @@ all components from specialized submodules:
 
 import asyncio
 import logging
+import os
 import sys
 
 from telegram.ext import (
@@ -125,6 +126,9 @@ from alfa.tools import (
 logger = logging.getLogger("TelegramAIAgent")
 
 
+_proactive_tasks: list[asyncio.Task] = []
+
+
 async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
@@ -134,13 +138,43 @@ async def post_init(application: Application):
 
     subagents.set_telegram_app(application)
 
+    # Clean up any stale media/charts in sandbox on startup
+    if os.path.exists(SANDBOX_DIR):
+        for fname in os.listdir(SANDBOX_DIR):
+            fpath = os.path.join(SANDBOX_DIR, fname)
+            if os.path.isfile(fpath):
+                ext = os.path.splitext(fname)[1].lower()
+                if (
+                    ext in [".png", ".jpg", ".jpeg", ".webp"]
+                    or fname.startswith("generated_plot")
+                    or fname == "dataset_analysis_chart.png"
+                ):
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+
     # Start background dispatchers
-    asyncio.create_task(proactive_reminder_loop(application))
-    asyncio.create_task(proactive_cron_watchdog_loop(application))
-    asyncio.create_task(proactive_system_guardian_loop(application))
-    asyncio.create_task(proactive_focus_session_loop(application))
-    asyncio.create_task(proactive_ambient_agent_loop(application))
-    asyncio.create_task(proactive_ecosystem_watchdog_loop(application))
+    global _proactive_tasks
+    _proactive_tasks = [
+        asyncio.create_task(proactive_reminder_loop(application)),
+        asyncio.create_task(proactive_cron_watchdog_loop(application)),
+        asyncio.create_task(proactive_system_guardian_loop(application)),
+        asyncio.create_task(proactive_focus_session_loop(application)),
+        asyncio.create_task(proactive_ambient_agent_loop(application)),
+        asyncio.create_task(proactive_ecosystem_watchdog_loop(application)),
+    ]
+
+
+async def post_shutdown(application: Application):
+    """Graceful shutdown hook to cancel background tasks cleanly."""
+    global _proactive_tasks
+    for task in _proactive_tasks:
+        if not task.done():
+            task.cancel()
+    if _proactive_tasks:
+        await asyncio.gather(*_proactive_tasks, return_exceptions=True)
+    _proactive_tasks.clear()
 
 
 def main():
@@ -158,6 +192,7 @@ def main():
         .token(TELEGRAM_BOT_TOKEN)
         .concurrent_updates(True)
         .post_init(post_init)
+        .post_shutdown(post_shutdown)
         .build()
     )
 

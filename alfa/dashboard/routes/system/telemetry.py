@@ -1,5 +1,6 @@
 import os
 import subprocess
+import threading
 import time
 from datetime import datetime
 from typing import Any
@@ -13,16 +14,6 @@ from alfa.dashboard.common import REPO_ROOT
 router = APIRouter()
 
 # ==================== HEALTH & STATS ENDPOINTS ====================
-
-
-@router.get("/health")
-async def health_check():
-    """Standard health check endpoint."""
-    return {
-        "status": "ok",
-        "service": "alfa-dashboard",
-        "timestamp": datetime.now().isoformat(),
-    }
 
 
 @router.get("/api/system/home-dir")
@@ -169,6 +160,10 @@ async def get_services_status():
             "name": "alfa-dashboard.service",
             "title": "ALFA Web Command Center (Port 8080)",
         },
+        {
+            "name": "rclone-gdrive1.service",
+            "title": "Google Drive Cloud Mount (fahmialfatah99)",
+        },
     ]
     results = []
     for s in services:
@@ -189,6 +184,7 @@ async def get_services_status():
                 "telegram-ai-bot.service": "bot.py",
                 "wa-sheets-bot.service": "wa_sheets",
                 "alfa-dashboard.service": "web_dashboard.py",
+                "rclone-gdrive1.service": "rclone",
             }
             active = _svc_active(hint_map.get(svc, ""))
             results.append(
@@ -240,9 +236,31 @@ async def service_action(payload: dict[str, Any]):
         "telegram-ai-bot.service",
         "wa-sheets-bot.service",
         "alfa-dashboard.service",
+        "rclone-gdrive1.service",
     ]
     if service_name not in allowed_services:
         raise HTTPException(status_code=403, detail="Unauthorized service management")
+
+    # Self-restart/stop would kill this very connection before responding,
+    # so the UI always reported "gagal". Schedule it delayed instead.
+    if service_name == "alfa-dashboard.service" and action in ("restart", "stop"):
+
+        def _delayed_self_action():
+            time.sleep(2)
+            subprocess.run(
+                ["systemctl", "--user", action, service_name],
+                capture_output=True,
+                text=True,
+            )
+
+        threading.Thread(target=_delayed_self_action, daemon=True).start()
+        return {
+            "status": "success",
+            "service": service_name,
+            "action": action,
+            "current_state": "active (restart terjadwal 2 dtk)",
+            "output": "",
+        }
 
     res = subprocess.run(
         ["systemctl", "--user", action, service_name], capture_output=True, text=True

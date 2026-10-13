@@ -33,6 +33,13 @@ def init_vector_db(db_path: str | None = None):
     target_path = _resolve_db_path(db_path)
     conn = sqlite3.connect(target_path, timeout=10)
     try:
+        try:
+            conn.enable_load_extension(True)
+            import sqlite_vss
+            sqlite_vss.load(conn)
+        except Exception as e:
+            logger.debug(f"Failed to load sqlite_vss extension: {e}")
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS vector_knowledge_embeddings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,6 +77,16 @@ def init_vector_db(db_path: str | None = None):
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_vke_model_dim ON vector_knowledge_embeddings(user_id, model, dimension);"
         )
+
+        try:
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vector_knowledge_vss USING vss0(
+                    embedding(768)
+                );
+            """)
+        except Exception as e:
+            logger.debug(f"Failed to create vss table: {e}")
+
         conn.commit()
     except Exception as e:
         logger.error(f"Failed to init vector db ({target_path}): {e}")
@@ -394,7 +411,7 @@ def ingest_document(
         )
         for idx, chunk in enumerate(chunks):
             emb, emb_model, emb_dim = get_text_embedding_with_meta(chunk)
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO vector_knowledge_embeddings
                 (user_id, doc_title, chunk_index, chunk_text, embedding_json, category, source_type, char_count, model, dimension, created_at)
@@ -413,6 +430,12 @@ def ingest_document(
                     emb_dim,
                 ),
             )
+            row_id = cursor.lastrowid
+            try:
+                if emb_dim == 768:
+                    conn.execute("INSERT INTO vector_knowledge_vss(rowid, embedding) VALUES (?, ?)", (row_id, json.dumps(emb)))
+            except Exception as e:
+                logger.debug(f"Failed to insert into vss table: {e}")
             saved_count += 1
         conn.commit()
     except Exception:
@@ -454,10 +477,72 @@ def semantic_search(
 
     query_emb, query_model, query_dim = get_text_embedding_with_meta(query)
 
-    # Fetch candidate embeddings
     conn = sqlite3.connect(target_db, timeout=10)
     try:
+        try:
+            conn.enable_load_extension(True)
+            import sqlite_vss
+            sqlite_vss.load(conn)
+            vss_enabled = True
+        except Exception as e:
+            vss_enabled = False
+            logger.debug(f"sqlite_vss not available for search: {e}")
+
         conn.row_factory = sqlite3.Row
+
+        if vss_enabled and query_dim == 768:
+            try:
+                count_vss = conn.execute("SELECT count(*) FROM vector_knowledge_vss").fetchone()[0]
+                if count_vss > 0:
+                    emb_json = json.dumps(query_emb)
+                    sql = """
+                        WITH vss_results AS (
+                            SELECT rowid, distance
+                            FROM vector_knowledge_vss
+                            WHERE vss_search(embedding, ?)
+                            LIMIT 100
+                        )
+                        SELECT v.distance, e.id, e.doc_title, e.chunk_index, e.chunk_text, e.embedding_json, e.category, e.source_type, e.created_at, e.model, e.dimension
+                        FROM vss_results v
+                        JOIN vector_knowledge_embeddings e ON v.rowid = e.id
+                        WHERE e.user_id = ?
+                    """
+                    params = [emb_json, user_id]
+                    if category and category.strip() and category.lower() != "all":
+                        sql += " AND e.category = ?"
+                        params.append(category.strip())
+
+                    rows = conn.execute(sql, params).fetchall()
+
+                    scored_results = []
+                    for r in rows:
+                        row_model = r["model"]
+                        row_dim = r["dimension"]
+                        if not _are_models_compatible(query_model, row_model, query_dim, row_dim):
+                            continue
+
+                        stored_emb = json.loads(r["embedding_json"])
+                        sim = cosine_similarity(query_emb, stored_emb)
+                        scored_results.append({
+                            "id": r["id"],
+                            "doc_title": r["doc_title"],
+                            "chunk_index": r["chunk_index"],
+                            "chunk_text": r["chunk_text"],
+                            "similarity_score": round(sim, 4),
+                            "category": r["category"],
+                            "source_type": r["source_type"],
+                            "model": row_model or query_model,
+                            "dimension": row_dim,
+                            "created_at": r["created_at"],
+                        })
+
+                    scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+                    return scored_results[:top_k]
+
+            except Exception as e:
+                logger.error(f"VSS search failed, falling back to brute-force: {e}")
+
+        # Fallback to brute-force
         if category and category.strip() and category.lower() != "all":
             rows = conn.execute(
                 """
@@ -482,42 +567,77 @@ def semantic_search(
     if not rows:
         return []
 
-    scored_results = []
+    valid_rows = []
+    embeddings_list = []
+
     for r in rows:
         try:
-            stored_emb = json.loads(r["embedding_json"])
             row_keys = r.keys()
-            row_dim = (
-                r["dimension"]
-                if ("dimension" in row_keys and r["dimension"])
-                else len(stored_emb)
-            )
+            row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else None
             row_model = r["model"] if ("model" in row_keys and r["model"]) else None
 
-            # Enforce dimension and model compatibility:
-            # Skip candidate if dimensions mismatch or models are incompatible
+            if row_dim is None:
+                stored_emb = json.loads(r["embedding_json"])
+                row_dim = len(stored_emb)
+            else:
+                stored_emb = None
+
             if not _are_models_compatible(query_model, row_model, query_dim, row_dim):
                 continue
 
-            sim = cosine_similarity(query_emb, stored_emb)
-            scored_results.append(
-                {
-                    "id": r["id"],
-                    "doc_title": r["doc_title"],
-                    "chunk_index": r["chunk_index"],
-                    "chunk_text": r["chunk_text"],
-                    "similarity_score": round(sim, 4),
-                    "category": r["category"],
-                    "source_type": r["source_type"],
-                    "model": row_model or query_model,
-                    "dimension": row_dim,
-                    "created_at": r["created_at"],
-                }
-            )
+            if stored_emb is None:
+                stored_emb = json.loads(r["embedding_json"])
+
+            valid_rows.append(r)
+            embeddings_list.append(stored_emb)
         except Exception as parse_err:
             logger.debug(f"Error parsing embedding for row {r['id']}: {parse_err}")
 
-    # Sort descending by similarity
+    if not valid_rows:
+        return []
+
+    q_vec = np.array(query_emb, dtype=np.float32)
+    mat = np.array(embeddings_list, dtype=np.float32)
+
+    if mat.shape[1] != q_vec.shape[0]:
+        target_dim = max(q_vec.shape[0], mat.shape[1])
+        if q_vec.shape[0] < target_dim:
+            q_vec = np.pad(q_vec, (0, target_dim - q_vec.shape[0]), "constant")
+        if mat.shape[1] < target_dim:
+            mat = np.pad(mat, ((0, 0), (0, target_dim - mat.shape[1])), "constant")
+
+    q_norm = np.linalg.norm(q_vec)
+    if q_norm > 1e-6:
+        q_vec = q_vec / q_norm
+
+    mat_norms = np.linalg.norm(mat, axis=1)
+    mat_norms[mat_norms < 1e-6] = 1.0
+    mat = mat / mat_norms[:, np.newaxis]
+
+    similarities = np.dot(mat, q_vec)
+
+    scored_results = []
+    for i, r in enumerate(valid_rows):
+        sim = float(similarities[i])
+        row_keys = r.keys()
+        row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else len(embeddings_list[i])
+        row_model = r["model"] if ("model" in row_keys and r["model"]) else None
+
+        scored_results.append(
+            {
+                "id": r["id"],
+                "doc_title": r["doc_title"],
+                "chunk_index": r["chunk_index"],
+                "chunk_text": r["chunk_text"],
+                "similarity_score": round(sim, 4),
+                "category": r["category"],
+                "source_type": r["source_type"],
+                "model": row_model or query_model,
+                "dimension": row_dim,
+                "created_at": r["created_at"],
+            }
+        )
+
     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return scored_results[:top_k]
 
@@ -566,6 +686,21 @@ def delete_document(
     init_vector_db(target_db)
     conn = sqlite3.connect(target_db, timeout=10)
     try:
+        # Get ids to delete from vss
+        rows = conn.execute(
+            "SELECT id FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?",
+            (user_id, doc_title)
+        ).fetchall()
+        ids = [r[0] for r in rows]
+
+        if ids:
+            try:
+                # Delete from VSS
+                placeholders = ",".join("?" for _ in ids)
+                conn.execute(f"DELETE FROM vector_knowledge_vss WHERE rowid IN ({placeholders})", ids)
+            except Exception as e:
+                logger.debug(f"Failed to delete from vss table: {e}")
+
         cursor = conn.execute(
             "DELETE FROM vector_knowledge_embeddings WHERE user_id = ? AND doc_title = ?",
             (user_id, doc_title),
@@ -610,3 +745,43 @@ def search_vector_memory(
     return semantic_search(
         user_id=user_id, query=query, top_k=top_k, category=category, db_path=db_path
     )
+
+
+def rebuild_vss_index(db_path: str | None = None) -> dict[str, Any]:
+    """Re-index all existing embeddings into the VSS table."""
+    target_db = _resolve_db_path(db_path)
+    init_vector_db(target_db)
+    conn = sqlite3.connect(target_db, timeout=10)
+    try:
+        conn.enable_load_extension(True)
+        import sqlite_vss
+        sqlite_vss.load(conn)
+    except Exception as e:
+        return {"status": "error", "message": f"sqlite_vss not available: {e}"}
+
+    try:
+        conn.execute("DELETE FROM vector_knowledge_vss")
+        rows = conn.execute("SELECT id, embedding_json, dimension FROM vector_knowledge_embeddings").fetchall()
+
+        count = 0
+        for row in rows:
+            row_id, emb_json, dim = row
+
+            if dim is None:
+                emb = json.loads(emb_json)
+                dim = len(emb)
+
+            if dim != 768:
+                continue
+
+            conn.execute("INSERT INTO vector_knowledge_vss(rowid, embedding) VALUES (?, ?)", (row_id, emb_json))
+            count += 1
+
+        conn.commit()
+        return {"status": "success", "message": f"Rebuilt VSS index with {count} embeddings.", "indexed_count": count}
+    except Exception as e:
+        conn.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
+

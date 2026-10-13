@@ -46,6 +46,18 @@ def browser_open_url(url: str) -> dict[str, Any]:
     target = _normalize_url(url)
     if not target:
         return {"status": "error", "message": "URL kosong."}
+    # Engine REST eksternal (~/camofox-browser, sesi persisten) bila dipilih
+    # via ALFA_BROWSER_ENGINE=rest dan servernya sedang jalan.
+    try:
+        from alfa.tools.web.browser import camofox_rest as _rest
+
+        if _rest.prefer_rest():
+            res = _rest.rest_open_url(target)
+            if res.get("status") == "success":
+                return res
+            logger.info("REST tak tersedia (%s) -> embedded.", res.get("message"))
+    except Exception:  # noqa: BLE001
+        pass
     try:
         with _LOCK:
             page = _ensure_page()

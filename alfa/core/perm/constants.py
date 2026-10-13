@@ -6,12 +6,15 @@ from enum import Enum
 
 logger = logging.getLogger("PermissionGate")
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 PROJECT_DIR = REPO_ROOT
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(PROJECT_DIR, "agent_data.db"))
 
-PERMISSION_GATE_ENABLED = os.getenv("PERMISSION_GATE", "on").strip().lower() != "off"
+PERMISSION_GATE_ENABLED = (
+    os.getenv("PERMISSION_GATE", "on").strip().lower() != "off"
+    and os.getenv("ALFA_UNRESTRICTED", "false").strip().lower() != "true"
+)
 
 
 def _safe_int_env(name: str, default: int) -> int:

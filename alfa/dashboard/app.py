@@ -56,6 +56,8 @@ from alfa.dashboard.routes.system import (
     system_router,
 )
 from alfa.dashboard.routes.tools import categorize_tool, tools_router
+from alfa.dashboard.routes.webhook import webhook_router
+from alfa.dashboard.schemas import HealthCheckResponse, SystemMetricsResponse
 from alfa.dashboard.websocket import ConnectionManager, websocket_router, ws_manager
 
 load_dotenv()
@@ -145,7 +147,15 @@ def create_app() -> FastAPI:
 
     app_instance = FastAPI(
         title="ALFA Sovereign Command Center Pro-Max",
-        version="2.5.0",
+        description=(
+            "The Autonomous Sovereign AI Operating System & Command Center API.\n\n"
+            "Features 148 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
+            "and external webhook automation integration."
+        ),
+        version="2.6.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
 
@@ -188,37 +198,103 @@ def create_app() -> FastAPI:
 
             user = getattr(request.state, "user", None)
             auth_token = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
+            query_token = request.query_params.get("token") or request.query_params.get(
+                "auth"
+            )
             if not user and auth_token:
                 auth_header = request.headers.get("Authorization", "")
-                if auth_header == f"Bearer {auth_token}" or (
-                    auth_header.startswith("Basic ")
-                    and secrets.compare_digest(
-                        auth_header.split()[-1] if len(auth_header.split()) > 1 else "",
-                        base64.b64encode(f":{auth_token}".encode()).decode(),
+                if (
+                    auth_header == f"Bearer {auth_token}"
+                    or (
+                        auth_header.startswith("Basic ")
+                        and secrets.compare_digest(
+                            auth_header.split()[-1]
+                            if len(auth_header.split()) > 1
+                            else "",
+                            base64.b64encode(f":{auth_token}".encode()).decode(),
+                        )
                     )
+                    or (query_token and secrets.compare_digest(query_token, auth_token))
                 ):
                     user = {"username": "admin"}
 
-            return HTMLResponse(
+            response = HTMLResponse(
                 content=html_content,
                 headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
             )
+
+            # If accessing locally or authenticated and DASHBOARD_AUTH_TOKEN is configured, auto-provision session cookie
+            is_local = not request.client or request.client.host in (
+                "127.0.0.1",
+                "::1",
+                "localhost",
+                "testclient",
+            )
+            existing_session = request.cookies.get("session_token")
+            if (
+                (is_local or user)
+                and auth_token
+                and not (existing_session and validate_session(existing_session))
+            ):
+                try:
+                    s_token = _create_session_token(
+                        0, "admin_local" if is_local else "admin"
+                    )
+                    store_session(0, s_token)
+                    response.set_cookie(
+                        key="session_token",
+                        value=s_token,
+                        max_age=SESSION_DURATION_HOURS * 3600,
+                        httponly=False,
+                        samesite="lax",
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to auto-provision local session: {e}")
+
+            return response
         return HTMLResponse(
             "<h2>Dashboard template not found. Please create templates/index.html</h2>"
         )
 
     # Health check & metrics endpoints
-    @app_instance.get("/health", tags=["Monitoring"])
-    @app_instance.get("/healthz", tags=["Monitoring"])
+    @app_instance.get(
+        "/health",
+        tags=["Monitoring"],
+        response_model=HealthCheckResponse,
+        summary="Kubernetes / Docker Liveness Check",
+    )
+    @app_instance.get(
+        "/healthz",
+        tags=["Monitoring"],
+        response_model=HealthCheckResponse,
+        include_in_schema=False,
+    )
+    @app_instance.get(
+        "/api/health",
+        tags=["Monitoring"],
+        response_model=HealthCheckResponse,
+        summary="Service & Database Health Status",
+    )
+    @app_instance.get(
+        "/api/healthz",
+        tags=["Monitoring"],
+        response_model=HealthCheckResponse,
+        include_in_schema=False,
+    )
     async def health_check():
         """Health check endpoint for Docker, Kubernetes, and uptime monitoring."""
         db_status = "unknown"
+        table_count = 0
         try:
             from alfa.core import database as db
 
             conn = db.get_connection_pool().acquire()
             try:
-                conn.execute("SELECT 1")
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+                )
+                row = cursor.fetchone()
+                table_count = int(row[0]) if row else 0
                 db_status = "connected"
             finally:
                 db.get_connection_pool().release(conn)
@@ -230,17 +306,23 @@ def create_app() -> FastAPI:
         process = psutil.Process()
         memory_info = process.memory_info()
 
-        return {
-            "status": "healthy" if db_status == "connected" else "degraded",
-            "service": "alfa-sovereign-ai",
-            "version": "2.5.0",
-            "database": db_status,
-            "uptime_seconds": round(time.time() - _START_TIME, 2),
-            "memory_rss_mb": round(memory_info.rss / (1024 * 1024), 2),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        return HealthCheckResponse(
+            status="healthy" if db_status == "connected" else "degraded",
+            service="alfa-sovereign-ai",
+            version="2.6.0",
+            database=db_status,
+            database_tables=table_count,
+            uptime_seconds=round(time.time() - _START_TIME, 2),
+            memory_rss_mb=round(memory_info.rss / (1024 * 1024), 2),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
 
-    @app_instance.get("/api/metrics", tags=["Monitoring"])
+    @app_instance.get(
+        "/api/metrics",
+        tags=["Monitoring"],
+        response_model=SystemMetricsResponse,
+        summary="Telemetry & Resource Metrics",
+    )
     async def system_metrics():
         """System performance and resource telemetry metrics."""
         import psutil
@@ -258,24 +340,24 @@ def create_app() -> FastAPI:
         except Exception:
             pass
 
-        return {
-            "service": "alfa-sovereign-ai",
-            "version": "2.5.0",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "system": {
+        return SystemMetricsResponse(
+            service="alfa-sovereign-ai",
+            version="2.6.0",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            system={
                 "cpu_percent": cpu_pct,
                 "memory_total_mb": round(mem.total / (1024 * 1024), 2),
                 "memory_used_mb": round(mem.used / (1024 * 1024), 2),
                 "memory_percent": mem.percent,
                 "disk_percent": disk.percent,
             },
-            "process": {
+            process={
                 "rss_mb": round(proc.memory_info().rss / (1024 * 1024), 2),
                 "threads": proc.num_threads(),
                 "uptime_seconds": round(time.time() - _START_TIME, 2),
             },
-            "database_pool": db_pool_stats,
-        }
+            database_pool=db_pool_stats,
+        )
 
     # Include APIRouters
     app_instance.include_router(auth_router)
@@ -283,6 +365,7 @@ def create_app() -> FastAPI:
     app_instance.include_router(tools_router)
     app_instance.include_router(swarm_router)
     app_instance.include_router(system_router)
+    app_instance.include_router(webhook_router)
     app_instance.include_router(websocket_router)
 
     return app_instance
@@ -326,4 +409,5 @@ __all__ = [
     "SESSION_DURATION_HOURS",
     "ws_manager",
     "ConnectionManager",
+    "webhook_router",
 ]

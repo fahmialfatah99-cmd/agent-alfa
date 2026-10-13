@@ -249,23 +249,27 @@ def validate_session(token: str) -> dict[str, Any] | None:
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
+        fallback_username = session_data.get("username", "admin_local")
         cursor.execute(
             """
-            SELECT s.user_id, u.username, u.is_admin, s.expires_at
+            SELECT s.user_id, COALESCE(u.username, ?), COALESCE(u.is_admin, 1), s.expires_at
             FROM dashboard_sessions s
-            JOIN dashboard_users u ON s.user_id = u.id
+            LEFT JOIN dashboard_users u ON s.user_id = u.id
             WHERE s.token_hash = ? AND s.is_valid = 1 AND s.expires_at > CURRENT_TIMESTAMP
         """,
-            (token_hash,),
+            (fallback_username, token_hash),
         )
         row = cursor.fetchone()
 
         if row:
+            expiry_val = row[3]
+            if isinstance(expiry_val, str):
+                expiry_val = datetime.fromisoformat(expiry_val)
             return {
                 "user_id": row[0],
                 "username": row[1],
                 "is_admin": bool(row[2]),
-                "expiry": datetime.fromisoformat(row[3]),
+                "expiry": expiry_val,
             }
         return None
     finally:
@@ -356,12 +360,16 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/",
             "/health",
             "/healthz",
+            "/api/health",
+            "/api/healthz",
             "/api/metrics",
             "/api/auth/login",
             "/api/auth/register",
+            "/api/v1/webhook",
             "/docs",
             "/redoc",
             "/openapi.json",
+            "/api/openapi.json",
         ]
         if path == "/" or any(path.startswith(pp) for pp in public_paths if pp != "/"):
             return await call_next(request)

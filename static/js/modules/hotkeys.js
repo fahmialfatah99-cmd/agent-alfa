@@ -40,7 +40,7 @@ function handleQuickFocus(e) {
     const activeTab = window.AlfaStore?.activeTab || 'overview';
 
     if (activeTab === 'console') {
-        const chatInput = document.getElementById('chat-input');
+        const chatInput = document.getElementById('chat-input-text') || document.getElementById('chat-input');
         if (chatInput) {
             chatInput.focus();
             chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -49,7 +49,7 @@ function handleQuickFocus(e) {
     }
 
     if (activeTab === 'tools') {
-        const toolSearch = document.getElementById('tools-search-input') || document.getElementById('tools-search');
+        const toolSearch = document.getElementById('tool-search-input') || document.getElementById('tools-search-input') || document.getElementById('tools-search');
         if (toolSearch) {
             toolSearch.focus();
             return;
@@ -60,7 +60,7 @@ function handleQuickFocus(e) {
     if (typeof switchTab === 'function') {
         switchTab('console');
         setTimeout(() => {
-            const chatInput = document.getElementById('chat-input');
+            const chatInput = document.getElementById('chat-input-text') || document.getElementById('chat-input');
             if (chatInput) chatInput.focus();
         }, 100);
     }

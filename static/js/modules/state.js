@@ -19,7 +19,24 @@ function fmtTokens(n) {
     return String(n);
 }
 
+// URL Query Parameter Auth Check
+(function checkUrlAuth() {
+    try {
+        if (typeof window !== "undefined" && window.location) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token') || urlParams.get('auth');
+            if (urlToken) {
+                localStorage.setItem('alfa_auth_token', urlToken);
+                localStorage.setItem('alfa_session_token', urlToken);
+            }
+        }
+    } catch (e) {
+        console.debug('Failed to parse URL token:', e);
+    }
+})();
+
 // Central Reactive App Store
+const _initToken = localStorage.getItem("alfa_auth_token") || localStorage.getItem("alfa_session_token") || null;
 const AlfaStore = {
     theme: localStorage.getItem("alfa_theme") || "dark",
     activeTab: localStorage.getItem("alfa_active_tab") || "overview",
@@ -28,9 +45,9 @@ const AlfaStore = {
     models: [],
     notifications: [],
     session: {
-        token: localStorage.getItem("alfa_auth_token") || null,
+        token: _initToken,
         user: null,
-        isAuthenticated: !!localStorage.getItem("alfa_auth_token")
+        isAuthenticated: !!_initToken
     }
 };
 
@@ -50,6 +67,7 @@ const tabTitles = {
     'canvas': 'Pipeline Canvas Studio — Drag & Drop Workflow',
     'guardian': 'Guardian Defense & Integrity',
     'console': 'Chat Agent ALFA (Multimodal Live)',
+    'waformat': 'WA Laporan & Format SHEETS',
     'settings': 'System Settings & Environment Config'
 };
 
@@ -166,6 +184,11 @@ function switchTab(tabId) {
     }
 
     // Lazy load tab data based on active view
+    if (tabId === 'overview') {
+        if (typeof initTelemetryChart === 'function') initTelemetryChart();
+        if (typeof startTelemetryPolling === 'function') startTelemetryPolling();
+        if (typeof fetchServices === 'function') fetchServices();
+    }
     if (tabId === 'console' && typeof loadChatAvailableModels === 'function') loadChatAvailableModels();
     if (tabId === 'tools') {
         if (typeof allToolsData !== 'undefined' && allToolsData.length === 0 && typeof fetchTools === 'function') fetchTools();
@@ -277,12 +300,13 @@ updateClock();
 // ==================== SESSION / AUTH STATE ====================
 
 function getSessionToken() {
-    return localStorage.getItem('alfa_auth_token');
+    return localStorage.getItem('alfa_auth_token') || localStorage.getItem('alfa_session_token') || '';
 }
 
 function setSessionToken(token) {
     if (token) {
         localStorage.setItem('alfa_auth_token', token);
+        localStorage.setItem('alfa_session_token', token);
         AlfaStore.session.token = token;
         AlfaStore.session.isAuthenticated = true;
     } else {
@@ -292,10 +316,54 @@ function setSessionToken(token) {
 
 function clearSessionToken() {
     localStorage.removeItem('alfa_auth_token');
+    localStorage.removeItem('alfa_session_token');
     AlfaStore.session.token = null;
     AlfaStore.session.isAuthenticated = false;
     AlfaStore.session.user = null;
 }
+
+// Transparent fetch interceptor: attaches credentials & session headers
+(function initFetchInterceptor() {
+    const origFetch = window.fetch;
+    if (typeof origFetch !== "function") return;
+    window.fetch = function(resource, init) {
+        const token = getSessionToken();
+        if (typeof Request !== "undefined" && resource instanceof Request) {
+            if (token && resource.headers && typeof resource.headers.has === "function" && !resource.headers.has('Authorization')) {
+                try {
+                    resource.headers.set('Authorization', `Bearer ${token}`);
+                    resource.headers.set('X-Session-Token', token);
+                } catch (e) {}
+            }
+            return origFetch.call(this, resource, init);
+        }
+        const options = init ? { ...init } : {};
+        if (!options.credentials) {
+            options.credentials = 'same-origin';
+        }
+        if (token) {
+            if (typeof Headers !== "undefined") {
+                const headers = new Headers(options.headers || {});
+                if (!headers.has('Authorization')) {
+                    headers.set('Authorization', `Bearer ${token}`);
+                }
+                if (!headers.has('X-Session-Token')) {
+                    headers.set('X-Session-Token', token);
+                }
+                options.headers = headers;
+            } else {
+                options.headers = options.headers || {};
+                if (!options.headers['Authorization']) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+                if (!options.headers['X-Session-Token']) {
+                    options.headers['X-Session-Token'] = token;
+                }
+            }
+        }
+        return origFetch.call(this, resource, options);
+    };
+})();
 
 // ==================== SWARM LIVE ARENA VISUALIZER HOOK ====================
 

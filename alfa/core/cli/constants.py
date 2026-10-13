@@ -89,26 +89,24 @@ if not sys.stdout.isatty():
 
 def print_banner():
     banner = f"""
-{Colors.CYAN}╔═══════════════════════════════════════════════════════════╗
-║     ALFA Sovereign AI & Developer CLI v{VERSION:<6}         ║
-║         Unified Server & Standalone Coding Engine         ║
-║     Type '/help' for commands or '@file.py' in chat!      ║
-╚═══════════════════════════════════════════════════════════╝{Colors.ENDC}
-    """
+{Colors.GRAY}─────────────────────────────────────────────────────────────{Colors.ENDC}
+{Colors.BOLD}{Colors.WHITE}  ALFA Code Assistant{Colors.ENDC} {Colors.GRAY}v{VERSION}{Colors.ENDC}
+{Colors.GRAY}  Commands: /help  |  Context: @file  |  Config: /menu{Colors.ENDC}
+{Colors.GRAY}─────────────────────────────────────────────────────────────{Colors.ENDC}"""
     print(banner)
 
 
 def print_status(msg, status="info"):
     icons = {
-        "info": "ℹ️",
-        "success": "✅",
-        "error": "❌",
-        "warning": "⚠️",
-        "thinking": "🤔",
-        "loading": "⏳",
+        "info": "•",
+        "success": "✓",
+        "error": "✗",
+        "warning": "!",
+        "thinking": "•",
+        "loading": "•",
     }
     colors = {
-        "info": Colors.BLUE,
+        "info": Colors.CYAN,
         "success": Colors.GREEN,
         "error": Colors.FAIL,
         "warning": Colors.WARNING,
@@ -116,7 +114,8 @@ def print_status(msg, status="info"):
         "loading": Colors.GRAY,
     }
 
-    icon = icons.get(status, "ℹ️")
-    color = colors.get(status, Colors.BLUE)
+    icon = icons.get(status, "•")
+    color = colors.get(status, Colors.CYAN)
 
     print(f"{color}{icon} {msg}{Colors.ENDC}")
+

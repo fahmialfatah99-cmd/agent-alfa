@@ -9,6 +9,7 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
 
+
 @register_tool(category="system")
 def list_running_processes(filter_name: str = "") -> dict[str, Any]:
     """
