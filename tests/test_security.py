@@ -535,3 +535,36 @@ class TestHardeningAndRobustness:
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+class TestVaultRotation:
+    def _fresh_vault(self, monkeypatch, tmp_path):
+        import importlib
+
+        # import_module mengembalikan modul asli (bukan atribut singleton
+        # "vault" milik paket yang menutupi submodule — gotcha yang sama
+        # seperti alfa.dashboard.app).
+        vault_mod = importlib.import_module("alfa.security.vault")
+
+        db = str(tmp_path / "vault_test.db")
+        keyf = str(tmp_path / "test_master.key")
+        monkeypatch.setattr(vault_mod, "DB_PATH", db)
+        monkeypatch.setattr(vault_mod, "KEY_FILE", keyf)
+        vault_mod._init_vault_db()
+        return vault_mod.AlfaSecureVault()
+
+    def test_rotate_reencrypts_all(self, monkeypatch, tmp_path):
+        v = self._fresh_vault(monkeypatch, tmp_path)
+        v.store_secret("S1", "nilai-rahasia-1")
+        v.store_secret("S2", "nilai-rahasia-2")
+        res = v.rotate_master_key()
+        assert res["status"] == "success"
+        assert res["rotated"] == 2
+        assert v.get_secret("S1")["value"] == "nilai-rahasia-1"
+        assert v.get_secret("S2")["value"] == "nilai-rahasia-2"
+
+    def test_rotate_refused_on_env_key(self, monkeypatch, tmp_path):
+        v = self._fresh_vault(monkeypatch, tmp_path)
+        monkeypatch.setenv("VAULT_MASTER_KEY", "x" * 64)
+        with pytest.raises(RuntimeError, match="env VAULT_MASTER_KEY"):
+            v.rotate_master_key()

@@ -454,3 +454,72 @@ class TestDockerMountHygiene:
                 assert not mount_spec.endswith(":/sandbox/output"), (
                     f"Bocoran mount terdeteksi: {mount_spec}"
                 )
+
+
+class TestSwarmModeNormalization:
+    def test_alias_rapat_jadi_plan(self):
+        assert swarm_engine._normalize_swarm_mode("rapat") == "plan"
+        assert swarm_engine._normalize_swarm_mode("discuss") == "plan"
+        assert swarm_engine._normalize_swarm_mode("plan") == "plan"
+
+    def test_execute_lolos(self):
+        assert swarm_engine._normalize_swarm_mode("execute") == "execute"
+        assert swarm_engine._normalize_swarm_mode("plan_and_execute") == "plan_and_execute"
+
+    def test_tak_dikenal_fallback_execute(self):
+        assert swarm_engine._normalize_swarm_mode("ngawur") == "execute"
+        assert swarm_engine._normalize_swarm_mode("") == "execute"
+        assert swarm_engine._normalize_swarm_mode(None) == "execute"
+
+
+class TestSwarmBudget:
+    def test_mati_default(self, monkeypatch):
+        monkeypatch.delenv("ALFA_SWARM_TASK_TIMEOUT", raising=False)
+        monkeypatch.delenv("ALFA_SWARM_MAX_STEPS", raising=False)
+        assert swarm_engine._budget_exceeded([]) == ""
+
+    def test_max_steps(self, monkeypatch):
+        monkeypatch.setenv("ALFA_SWARM_MAX_STEPS", "2")
+        assert swarm_engine._budget_exceeded([{}, {}]) == "batas 2 langkah misi"
+        assert swarm_engine._budget_exceeded([{}]) == ""
+
+    def test_timeout(self, monkeypatch):
+        import time as _t
+
+        monkeypatch.setenv("ALFA_SWARM_TASK_TIMEOUT", "60")
+        monkeypatch.setattr(swarm_engine, "_MISSION_START", _t.monotonic() - 61)
+        assert "timeout" in swarm_engine._budget_exceeded([])
+        monkeypatch.setattr(swarm_engine, "_MISSION_START", _t.monotonic())
+        assert swarm_engine._budget_exceeded([]) == ""
+
+
+class TestMechanicalJudge:
+    def test_mechanical_pass_tanpa_llm(self, monkeypatch):
+        from alfa.swarm import step_executor
+
+        called = []
+        async def _boom(*a, **k):
+            called.append(True)
+            raise AssertionError("LLM tidak boleh dipanggil")
+
+        monkeypatch.setenv("ALFA_SWARM_JUDGE", "mechanical")
+        monkeypatch.setattr(step_executor, "generate_agent_response", _boom)
+        passed, _fb = _run(
+            step_executor._verify_step_result(
+                "tulis skrip", {"status": "success", "tool_used": "write_local_file"}
+            )
+        )
+        assert passed is True
+        assert called == []
+
+    def test_mechanical_fail_tanpa_bukti(self, monkeypatch):
+        from alfa.swarm import step_executor
+
+        monkeypatch.setenv("ALFA_SWARM_JUDGE", "mechanical")
+        passed, fb = _run(
+            step_executor._verify_step_result(
+                "tulis skrip", {"status": "error", "tool_used": None}
+            )
+        )
+        assert passed is False
+        assert "mechanical" in fb

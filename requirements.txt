@@ -53,5 +53,11 @@ ruff>=0.8.0,<1.0.0
 mcp>=1.28.1,<2.0.0
 anyio>=4.14.2
 click>=8.3.3
+pydantic>=2.0.0,<3.0.0
+rich>=13.0.0,<15.0.0
+jinja2>=3.1.0,<4.0.0
+aiofiles>=23.0.0,<25.0.0
+websockets>=12.0,<16.0
+pygments>=2.15.0,<3.0.0
 # CVE floor (pip-audit CVE-2026-104874): keep multidict patched
 multidict>=6.9.1

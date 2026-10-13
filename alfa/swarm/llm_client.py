@@ -467,6 +467,20 @@ async def generate_agent_response(
 
     key_label = f"agent:{agent_name}"
 
+    cache_hit = None
+    if not enable_tools:
+        try:
+            from alfa.core.brain import cache as _llm_cache
+
+            cache_hit = _llm_cache.lookup_for(
+                provider, model, system_instruction, prompt, eff_max_tokens
+            )
+            if cache_hit is not None:
+                logger.debug(f"LLM cache hit untuk '{agent_name}' ({model})")
+                return cache_hit
+        except Exception:
+            pass
+
     def gemini_like_tools() -> list[Any]:
         try:
             from alfa import tools as _t
@@ -623,4 +637,13 @@ async def generate_agent_response(
             f"(primary: {provider}) — langkah ini dilaporkan GAGAL."
         )
         return None
+    if not enable_tools and isinstance(result, str):
+        try:
+            from alfa.core.brain import cache as _llm_cache
+
+            _llm_cache.store_for(
+                provider, model, system_instruction, prompt, result, eff_max_tokens
+            )
+        except Exception:
+            pass
     return result

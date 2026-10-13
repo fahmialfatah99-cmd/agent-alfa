@@ -32,6 +32,40 @@ webhook_router = APIRouter(prefix="/api/v1/webhook", tags=["External Webhooks"])
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "").strip() or DASHBOARD_AUTH_TOKEN
 
 
+def _webhook_clock_skew() -> int:
+    try:
+        return max(0, int(os.getenv("ALFA_WEBHOOK_CLOCK_SKEW", "300") or 0))
+    except ValueError:
+        return 300
+
+
+def _verify_signature(
+    raw_body: bytes,
+    signature: str | None,
+    timestamp: str | None = None,
+) -> bool:
+    """Verifikasi HMAC-SHA256 atas body mentah (ala GitHub/Stripe).
+
+    Header: X-ALFA-Signature: <hex> (boleh prefix 'sha256='),
+    opsional X-ALFA-Timestamp: <unix detik> dengan toleransi
+    ALFA_WEBHOOK_CLOCK_SKEW (default 300s). Timestamp hanya dicek bila
+    header dikirim — kompatibel dengan curl sederhana.
+    """
+    expected = WEBHOOK_SECRET or DASHBOARD_AUTH_TOKEN
+    if not expected or not raw_body or not signature:
+        return False
+    if timestamp:
+        try:
+            skew = abs(time.time() - int(str(timestamp).strip()))
+        except (TypeError, ValueError):
+            return False
+        if skew > _webhook_clock_skew():
+            return False
+    sig = signature.replace("sha256=", "").strip()
+    mac = hmac.new(expected.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return secrets.compare_digest(mac, sig)
+
+
 def _verify_webhook_auth(
     authorization: str | None = None,
     x_webhook_secret: str | None = None,
@@ -84,6 +118,8 @@ async def trigger_webhook(
     authorization: str | None = Header(None),
     x_webhook_secret: str | None = Header(None, alias="X-Webhook-Secret"),
     x_alfa_secret: str | None = Header(None, alias="X-ALFA-Webhook-Secret"),
+    x_signature: str | None = Header(None, alias="X-ALFA-Signature"),
+    x_timestamp: str | None = Header(None, alias="X-ALFA-Timestamp"),
 ):
     """
     Execute an autonomous ALFA agent task triggered by an external system.
@@ -96,11 +132,13 @@ async def trigger_webhook(
     )
     secret_candidate = x_webhook_secret or x_alfa_secret
 
-    if not _verify_webhook_auth(
+    raw_body = await request.body()
+    authed = _verify_webhook_auth(
         authorization=authorization,
         x_webhook_secret=secret_candidate,
         client_host=client_ip,
-    ):
+    ) or _verify_signature(raw_body, x_signature, x_timestamp)
+    if not authed:
         logger.warning(f"Unauthorized webhook trigger attempt from {client_ip}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -183,7 +221,16 @@ async def github_webhook(
     body = await request.body()
     github_secret = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
 
-    if github_secret and x_hub_signature_256:
+    # Fail-closed: bila secret dikonfigurasi, signature wajib ada dan valid.
+    # Tanpa secret, endpoint tetap verifikasi bila pengirim menyertakan
+    # signature (tidak bisa — tanpa secret tak ada yang diverifikasi),
+    # jadi tanpa secret apapun diterima (tetapkan GITHUB_WEBHOOK_SECRET!).
+    if github_secret:
+        if not x_hub_signature_256:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing GitHub webhook signature",
+            )
         signature = x_hub_signature_256.replace("sha256=", "")
         mac = hmac.new(github_secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         if not secrets.compare_digest(mac, signature):
@@ -191,6 +238,10 @@ async def github_webhook(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid GitHub webhook signature",
             )
+    else:
+        logger.warning(
+            "GITHUB_WEBHOOK_SECRET belum disetel — /github menerima tanpa verifikasi"
+        )
 
     try:
         data: dict[str, Any] = json.loads(body.decode("utf-8") or "{}")

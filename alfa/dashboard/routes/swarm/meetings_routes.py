@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/api/meetings/start")
 async def start_agent_meeting(payload: dict[str, Any]):
-    """Launch direct swarm execution (mode rapat/diskusi sudah dihapus)."""
+    """Launch a swarm session: mode 'plan' (diskusi) atau 'execute'."""
     topic = payload.get("topic")
     if not topic:
         raise HTTPException(status_code=400, detail="topic is required")
@@ -21,6 +21,7 @@ async def start_agent_meeting(payload: dict[str, Any]):
     participants = payload.get("participants")
     rounds = payload.get("rounds", 2)
     folder = payload.get("folder", "")
+    mode = payload.get("mode", "execute")
 
     from alfa.swarm import engine as swarm_engine
 
@@ -28,7 +29,7 @@ async def start_agent_meeting(payload: dict[str, Any]):
         topic=topic,
         participant_names=participants,
         rounds=safe_int(rounds, 2, minimum=1, maximum=3),
-        mode="execute",
+        mode=str(mode or "execute"),
         target_folder=str(folder or ""),
     )
     return result

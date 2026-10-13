@@ -266,6 +266,104 @@ class AlfaSecureVault:
         conn.close()
         return deleted
 
+    def rotate_master_key(self) -> dict[str, Any]:
+        """Rotasi master key: dekripsi semua secret dengan key lama, enkripsi
+        ulang dengan key baru, lalu simpan key baru.
+
+        Aman: bila SATU SAJA secret gagal didekripsi, tidak ada yang diubah
+        (abort sebelum tulis). Bila master key berasal dari env
+        VAULT_MASTER_KEY, rotasi file ditolak — operator harus update env
+        manual (kembalikan error eksplisit, bukan diam-diam merusak).
+        """
+        if os.getenv("VAULT_MASTER_KEY", "").strip():
+            raise RuntimeError(
+                "Rotasi ditolak: master key berasal dari env VAULT_MASTER_KEY. "
+                "Set key baru di env/secret manager, lalu restart."
+            )
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        try:
+            rows = cursor.execute(
+                "SELECT id, name, ciphertext, nonce FROM vault_secrets"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+
+        plaintexts: list[tuple[int, str]] = []
+        failed: list[str] = []
+        for r in rows:
+            try:
+                plaintexts.append(
+                    (r["id"], self.decrypt_val(r["ciphertext"], r["nonce"]))
+                )
+            except Exception:
+                failed.append(r["name"])
+        if failed:
+            conn.close()
+            raise RuntimeError(
+                f"Rotasi dibatalkan — {len(failed)} secret tak bisa didekripsi "
+                f"dengan key saat ini: {', '.join(failed[:5])}"
+            )
+
+        new_key = AESGCM.generate_key(bit_length=256)
+        new_aes = AESGCM(new_key)
+        re_enc: list[tuple[str, str, str, int]] = []
+        for rid, plain in plaintexts:
+            nonce = os.urandom(12)
+            ct = new_aes.encrypt(nonce, plain.encode("utf-8"), None)
+            re_enc.append(
+                (
+                    base64.b64encode(ct).decode("utf-8"),
+                    base64.b64encode(nonce).decode("utf-8"),
+                    datetime.now().isoformat(),
+                    rid,
+                )
+            )
+
+        backup_path = KEY_FILE + ".rotated." + datetime.now().strftime("%Y%m%d%H%M%S")
+        try:
+            if os.path.exists(KEY_FILE):
+                os.replace(KEY_FILE, backup_path)
+            else:
+                backup_path = ""
+            fd = os.open(KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "wb") as f:
+                f.write(new_key.hex().encode("utf-8"))
+            os.chmod(KEY_FILE, 0o600)
+        except Exception as key_err:
+            conn.close()
+            raise RuntimeError(
+                f"Rotasi dibatalkan — gagal menulis key baru: {key_err}"
+            ) from key_err
+
+        try:
+            cursor.executemany(
+                "UPDATE vault_secrets SET ciphertext = ?, nonce = ?, updated_at = ? WHERE id = ?",
+                re_enc,
+            )
+            conn.commit()
+        except Exception as db_err:
+            conn.rollback()
+            raise RuntimeError(
+                f"Rotasi gagal di DB (key file sudah terganti — restore {backup_path}): {db_err}"
+            ) from db_err
+        finally:
+            conn.close()
+
+        self.master_key = new_key
+        self.aesgcm = new_aes
+        logger.info(
+            f"Vault master key dirotasi: {len(plaintexts)} secret dienkripsi ulang."
+        )
+        return {
+            "status": "success",
+            "rotated": len(plaintexts),
+            "backup": backup_path,
+            "algorithm": "AES-256-GCM",
+        }
+
 
 # Global Singleton
 vault = AlfaSecureVault()
