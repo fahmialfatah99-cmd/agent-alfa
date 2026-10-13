@@ -1,0 +1,52 @@
+name: Eval Live (nightly LLM)
+
+on:
+  schedule:
+    - cron: "0 20 * * 0" # Mingguan, Senin 03:00 WIB
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Substring id skenario (kosong = semua)"
+        required: false
+        default: ""
+
+jobs:
+  eval-live:
+    name: Live eval via Gemini
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ secrets.GEMINI_API_KEY != '' }}
+    env:
+      TELEGRAM_BOT_TOKEN: "000000000:CI_DUMMY_TOKEN"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ALLOWED_USER_IDS: "123456789"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies (best-effort)
+        run: pip install -r requirements.txt || true
+      - name: Pastikan dependensi inti terpasang
+        run: |
+          pip install python-telegram-bot google-genai python-dotenv \
+            aiosqlite psutil httpx fastapi uvicorn pillow pypdf tabulate \
+            numpy pydantic click rich pyyaml jinja2 aiofiles websockets \
+            cryptography pygments ddgs
+      - name: Jalankan live eval (tak menggagalkan CI)
+        id: liveeval
+        continue-on-error: true
+        run: |
+          mkdir -p storage/eval_runs
+          STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          python evals/run_evals.py --live ${{ inputs.filter }} \
+            --output-json "storage/eval_runs/live_${STAMP}.json" | tee eval_live.log
+      - name: Upload hasil live eval
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-live-results
+          path: |
+            storage/eval_runs/live_*.json
+            eval_live.log
+          retention-days: 30

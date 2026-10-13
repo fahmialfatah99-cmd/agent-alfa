@@ -123,6 +123,11 @@ async def main_async(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="ALFA Evals Harness")
     ap.add_argument("--live", action="store_true", help="eksekusi prompt nyata via LLM")
     ap.add_argument("--filter", default="", help="substring id skenario")
+    ap.add_argument(
+        "--output-json",
+        default="",
+        help="tulis ringkasan hasil ke file JSON (untuk CI/arsip)",
+    )
     args = ap.parse_args(argv)
 
     scenarios = [s for s in load_scenarios() if args.filter in s.get("id", "")]
@@ -130,6 +135,7 @@ async def main_async(argv: list[str]) -> int:
     print("-" * 70)
 
     failures = 0
+    records: list[dict[str, Any]] = []
     for scn in scenarios:
         if not args.live:
             # Offline: hanya audit routing Tool-RAG + validitas skenario
@@ -152,11 +158,29 @@ async def main_async(argv: list[str]) -> int:
         if not ok:
             failures += 1
         print(f"{mode:<8} {scn['id']:<34} {status}  {detail[:60]}")
+        records.append({"id": scn["id"], "mode": mode, "ok": ok, "detail": detail})
 
     print("-" * 70)
     total = len(scenarios)
     passed_n = total - failures
     print(f"TOTAL: {passed_n}/{total} PASS")
+    if args.output_json:
+        import datetime
+
+        summary = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "live": bool(args.live),
+            "filter": args.filter,
+            "total": total,
+            "passed": passed_n,
+            "failed": failures,
+            "records": records,
+        }
+        out_path = args.output_json
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+        print(f"Ringkasan JSON: {out_path}")
     return 0 if failures == 0 else 1
 
 

@@ -57,6 +57,7 @@ storage/runs/
 storage/traces/
 storage/audio/
 storage/checkpoints/
+storage/eval_runs/
 storage/key_value_stores/
 storage/request_queues/
 storage/*.log
