@@ -1,9 +1,11 @@
 """Evaluation and benchmarking framework."""
 
+import json
+import os
 from typing import Any
 
 from alfa.core.db.memory import search_memories_sync
-from alfa.tools.rag.retrieval import select_relevant_tools
+from alfa.tools.rag.retrieval import select_relevant_functions, select_relevant_tools
 
 
 class BenchmarkSuite:
@@ -115,7 +117,8 @@ def run_all_benchmarks() -> dict[str, Any]:
     suites = [
         ToolSelectionBenchmark(),
         MemoryRetrievalBenchmark(),
-        AgenticLoopBenchmark()
+        AgenticLoopBenchmark(),
+        ScenarioFileBenchmark(),
     ]
 
     summary = {
@@ -136,3 +139,60 @@ def run_all_benchmarks() -> dict[str, Any]:
         summary["overall_accuracy_pct"] = (summary["total_passed_scenarios"] / summary["total_scenarios"]) * 100.0
 
     return summary
+
+
+def _repo_root() -> str:
+    return os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+
+
+class ScenarioFileBenchmark(BenchmarkSuite):
+    """Offline routing check atas evals/scenarios.json (single source skenario).
+
+    Tiap skenario yang punya `expect_tools_any` harus di-routing oleh
+    Tool-RAG ke minimal satu tool yang diharapkan; skenario tanpa ekspektasi
+    tool cukup punya `checks` non-kosong. Sama seperti mode offline
+    `evals/run_evals.py`, tapi memakai import modern (alfa.*).
+    """
+
+    def __init__(self, scenarios_path: str = ""):
+        super().__init__("ScenarioFileBenchmark")
+        self.scenarios_path = scenarios_path or os.path.join(
+            _repo_root(), "evals", "scenarios.json"
+        )
+
+    def run(self):
+        try:
+            with open(self.scenarios_path, encoding="utf-8") as f:
+                scenarios = json.load(f)
+        except Exception as e:
+            self._record_result("load scenarios.json", False, str(e))
+            return self.results
+
+        try:
+            from alfa.tools import AVAILABLE_TOOLS
+        except Exception as e:
+            self._record_result("import AVAILABLE_TOOLS", False, str(e))
+            return self.results
+
+        for scn in scenarios:
+            sid = scn.get("id", "?")
+            expect = set(scn.get("expect_tools_any") or [])
+            try:
+                selected = select_relevant_functions(
+                    list(AVAILABLE_TOOLS), scn.get("prompt", "")
+                )
+                names = {getattr(f, "__name__", "") for f in selected}
+            except Exception as e:
+                self._record_result(sid, False, f"routing error: {e}")
+                continue
+            if expect:
+                hit = sorted(expect & names)
+                self._record_result(
+                    sid, bool(hit), f"hit={hit or 'TIDAK ADA'} dari {len(selected)}"
+                )
+            else:
+                self._record_result(sid, bool(scn.get("checks")), "no tool expectation")
+
+        return self.results

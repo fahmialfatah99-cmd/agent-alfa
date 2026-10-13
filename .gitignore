@@ -96,6 +96,7 @@ desktop.ini
 # ALFA runtime / local artefacts
 .alfa_backups/
 .alfa_worktrees/
+.alfa_cache/
 htmlcov/
 node_modules/
 devcli/node_modules/

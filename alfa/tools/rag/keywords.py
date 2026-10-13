@@ -88,6 +88,7 @@ _SYNONYMS = {
     "perintah": "command bash execute cli",
     "jadwal": "cron crontab schedule reminder recurring timer",
     "pengingat": "reminder schedule notify alarm",
+    "ingatkan": "reminder schedule notify alarm",
     "suhu": "hardware battery wifi bluetooth volume system",
     "bersih": "clean storage disk free space",
     "kapasitas": "storage disk df du usage",

@@ -78,6 +78,32 @@ from alfa.swarm.workspace_hygiene import (
 
 logger = logging.getLogger(__name__)
 
+_BUDGET_EXCEEDED = ""
+_MISSION_START = 0.0
+
+
+def _swarm_budget() -> tuple[float, int]:
+    """Baca budget misi: (timeout_detik, max_langkah). 0 = nonaktif."""
+    try:
+        timeout = float(os.getenv("ALFA_SWARM_TASK_TIMEOUT", "0") or 0)
+    except ValueError:
+        timeout = 0
+    try:
+        max_steps = int(os.getenv("ALFA_SWARM_MAX_STEPS", "0") or 0)
+    except ValueError:
+        max_steps = 0
+    return max(0.0, timeout), max(0, max_steps)
+
+
+def _budget_exceeded(execution_steps: list) -> str:
+    """Kembalikan alasan bila budget misi terlampaui, else ''."""
+    timeout, max_steps = _swarm_budget()
+    if timeout > 0 and _MISSION_START and (time.monotonic() - _MISSION_START) > timeout:
+        return f"timeout misi {timeout:g}s"
+    if max_steps > 0 and len(execution_steps) >= max_steps:
+        return f"batas {max_steps} langkah misi"
+    return ""
+
 
 async def _execute_agents_parallel(
     participants: list[dict[str, Any]],
@@ -90,6 +116,7 @@ async def _execute_agents_parallel(
     ctx_lines: list[str],
     failed_steps: list[dict[str, Any]]
 ) -> bool:
+    global _BUDGET_EXCEEDED
     has_deps = False
     if subtask_map:
         for t in subtask_map.values():
@@ -107,6 +134,16 @@ async def _execute_agents_parallel(
             _wave_size = 1
 
         for wave_start in range(0, len(participants), _wave_size):
+            budget_reason = _budget_exceeded(execution_steps)
+            if budget_reason:
+                _BUDGET_EXCEEDED = budget_reason
+                log_live("TIMEOUT", f"⏱ Budget misi terlampaui ({budget_reason}) — swarm berhenti.")
+                if _CHECKPOINT_AVAILABLE:
+                    try:
+                        _SwarmCheckpoint.mark_cancelled(session_id)
+                    except Exception:
+                        pass
+                return True
             wave = participants[wave_start : wave_start + _wave_size]
             if _cancel_requested():
                 log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.")
@@ -208,6 +245,17 @@ async def _execute_agents_parallel(
     while queue:
         if _cancel_requested():
             log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_num}.")
+            if _CHECKPOINT_AVAILABLE:
+                try:
+                    _SwarmCheckpoint.mark_cancelled(session_id)
+                except Exception:
+                    pass
+            return True
+
+        budget_reason = _budget_exceeded(execution_steps)
+        if budget_reason:
+            _BUDGET_EXCEEDED = budget_reason
+            log_live("TIMEOUT", f"⏱ Budget misi terlampaui ({budget_reason}) — swarm berhenti.")
             if _CHECKPOINT_AVAILABLE:
                 try:
                     _SwarmCheckpoint.mark_cancelled(session_id)
@@ -362,6 +410,27 @@ async def _execute_agents_parallel(
 
     return False
 
+_SWARM_MODES = ("plan", "execute", "plan_and_execute")
+_MODE_ALIASES = {
+    "rapat": "plan",
+    "meeting": "plan",
+    "discuss": "plan",
+    "discussion": "plan",
+    "diskusi": "plan",
+    "eksekusi": "execute",
+}
+
+
+def _normalize_swarm_mode(mode: Any) -> str:
+    """Validasi mode swarm; fallback ke 'execute' bila tak dikenal."""
+    m = str(mode or "execute").strip().lower()
+    m = _MODE_ALIASES.get(m, m)
+    if m not in _SWARM_MODES:
+        logger.warning("mode swarm tak dikenal %r — fallback ke 'execute'", mode)
+        return "execute"
+    return m
+
+
 async def conduct_multi_agent_meeting(
     topic: str,
     participant_names: list[str] | None = None,
@@ -371,15 +440,16 @@ async def conduct_multi_agent_meeting(
     session_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    SWARM EKSEKUSI LANGSUNG — tanpa mode rapat/diskusi lagi.
+    Dual-mode: "plan" (diskusi round-table → konsensus + action plan, tanpa
+    eksekusi tool) vs "execute"/"plan_and_execute" (dekomposisi → eksekusi
+    paralel/DAG → verifikasi ground-truth → QA loop).
 
-    Agen langsung dibagi tugas, mengeksekusi tool nyata, lalu diverifikasi
-    ground-truth filesystem. Jika `target_folder` diisi (path lokal yang
-    valid), SEMUA agen wajib mengedit di dalam folder tersebut.
+    Jika `target_folder` diisi (path lokal yang valid), SEMUA agen wajib
+    mengedit di dalam folder tersebut.
     """
     from alfa.swarm import workspace_hygiene
 
-    mode = "execute"
+    mode = _normalize_swarm_mode(mode)
     session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
 
     # Folder target kerja agen
@@ -483,6 +553,9 @@ async def conduct_multi_agent_meeting(
     )
     workspace_hygiene.MEETING_RUNNING = True
     _clear_cancel_flag()
+    global _BUDGET_EXCEEDED, _MISSION_START
+    _BUDGET_EXCEEDED = ""
+    _MISSION_START = time.monotonic()
     log_live(
         "SESSION",
         f"Sesi {mode.upper()} dimulai — topik: {topic[:80]} ({len(participants)} agen)",
@@ -640,6 +713,14 @@ async def conduct_multi_agent_meeting(
             for qa_round in range(1, MAX_QA_ROUNDS + 1):
                 if _cancel_requested():
                     break
+                budget_reason = _budget_exceeded(execution_steps)
+                if budget_reason:
+                    _BUDGET_EXCEEDED = budget_reason
+                    log_live(
+                        "TIMEOUT",
+                        f"⏱ Budget misi terlampaui ({budget_reason}) — QA dihentikan.",
+                    )
+                    break
                 deliverables = [
                     s["deliverable_file"]
                     for s in execution_steps
@@ -756,9 +837,14 @@ async def conduct_multi_agent_meeting(
     if swarm_cancelled or _cancel_requested():
         workspace_hygiene.MEETING_RUNNING = False
         _clear_cancel_flag()
+        stop_note = (
+            f"Budget misi terlampaui ({_BUDGET_EXCEEDED})."
+            if _BUDGET_EXCEEDED
+            else "Eksekusi dibatalkan pengguna."
+        )
         log_live(
             "DONE",
-            f"🏁 Eksekusi swarm DIBATALKAN — {len(execution_steps)} langkah tuntas sebelum berhenti.",
+            f"🏁 Eksekusi swarm BERHENTI ({stop_note}) — {len(execution_steps)} langkah tuntas sebelum berhenti.",
         )
         return {
             "status": "cancelled",
@@ -771,7 +857,7 @@ async def conduct_multi_agent_meeting(
             "dialogue_transcript": dialogue_transcript,
             "execution_results": execution_steps,
             "consensus": (
-                f"⏹ **Eksekusi dibatalkan pengguna.** {len(execution_steps)} dari "
+                f"⏹ **{stop_note}** {len(execution_steps)} dari "
                 f"{len(participants)} agen tuntas dieksekusi sebelum berhenti. "
                 "File/hasil yang sudah dibuat tetap tersimpan."
             ),

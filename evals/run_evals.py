@@ -78,8 +78,12 @@ def check_tool_routing(scenario: dict[str, Any]) -> dict[str, Any]:
     if not expect:
         return {"ok": True, "detail": "no tool expectation"}
     try:
-        import tools as t
-        from tool_rag import select_relevant_functions
+        try:
+            import alfa.tools as t
+            from alfa.tools.rag.retrieval import select_relevant_functions
+        except ImportError:  # fallback shim lama
+            import tools as t
+            from tool_rag import select_relevant_functions
 
         selected = select_relevant_functions(t.AVAILABLE_TOOLS, scenario["prompt"])
         names = {getattr(f, "__name__", "") for f in selected}

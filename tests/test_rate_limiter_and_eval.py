@@ -82,7 +82,27 @@ def test_agentic_loop_benchmark():
     assert res["passed"] == 1
 
 def test_run_all_benchmarks():
+    import json
+    import os
+
     summary = run_all_benchmarks()
-    assert summary["total_benchmarks"] == 3
-    assert summary["total_scenarios"] == 4
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "evals",
+            "scenarios.json",
+        ),
+        encoding="utf-8",
+    ) as f:
+        n_scenarios = len(json.load(f))
+    assert summary["total_benchmarks"] == 4
+    assert summary["total_scenarios"] == 4 + n_scenarios
     assert summary["overall_accuracy_pct"] >= 0.0
+
+
+def test_scenario_file_benchmark_all_routed():
+    from alfa.eval.benchmark import ScenarioFileBenchmark
+
+    res = ScenarioFileBenchmark().run()
+    assert res["total"] > 0
+    assert res["passed"] == res["total"], res["details"]
