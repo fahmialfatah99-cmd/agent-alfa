@@ -408,6 +408,10 @@ async def execute_swarm_task_step(
             f"5. Akhiri dengan daftar path file yang kamu buat/ubah.\n"
             f"DILARANG memberi rencana/koordinasi/instruksi ke orang lain — "
             f"kamu sendiri yang mengeksekusi lewat tool."
+            f"=== ATURAN JUJUR (WAJIB) ===\n"
+            f"1. Akhiri dengan label SELESAI / SEBAGIAN / GAGAL sesuai bukti — dilarang klaim SELESAI bila sebagian.\n"
+            f"2. Dilarang label neural/AI/teruji/production-ready/tanpa bug tanpa bukti (hasil tes, file nyata). Pola regex/AST = sebut heuristik, bukan neural.\n"
+            f"3. Dilarang dummy sebagai hasil asli. Angka hanya dari output tool.\n"
         )
         generated_content = await generate_agent_response(
             work_agent,

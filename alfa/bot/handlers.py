@@ -31,6 +31,39 @@ from alfa.tools import SANDBOX_DIR, get_system_stats
 logger = logging.getLogger("TelegramAIAgent")
 
 
+# --- Sapaan ringan: jawab langsung TANPA agent turn / tools ----------------
+# Cegah model asal memanggil tool (mis. screenshot) untuk "halo".
+_GREETING_EXACT = {
+    "halo", "hallo", "hello", "hi", "hai", "hei", "hey", "hola",
+    "pagi", "siang", "sore", "malam",
+    "selamat pagi", "selamat siang", "selamat sore", "selamat malam",
+    "assalamualaikum", "assalamu'alaikum", "salam",
+    "tes", "test", "testing", "ping", "p",
+    "apa kabar", "gimana kabar", "bagaimana kabar",
+    "ok", "oke", "okey", "okay", "siap", "sip", "mantap",
+    "makasih", "terima kasih", "thanks", "thank you", "trims",
+    "baik", "noted", "hehe", "haha", "wkwk", "👍",
+}
+
+
+def greeting_reply(text: str) -> str | None:
+    """Balasan sapaan instan, atau None bila bukan sapaan murni.
+
+    Hanya cocok bila SELURUH pesan = sapaan (tanpa permintaan lain),
+    jadi 'oke tolong screenshot' tetap masuk agent seperti biasa.
+    """
+    norm = (text or "").lower().strip()
+    for ch in "!?.,-—…":
+        norm = norm.replace(ch, " ")
+    norm = " ".join(norm.split())
+    if norm in _GREETING_EXACT:
+        return (
+            "Halo juga! 👋 Saya **ALFA**, asisten AI otonom.\n"
+            "Ada yang bisa dibantu? Ketik `/menu` untuk lihat semua fitur."
+        )
+    return None
+
+
 def _get_bot_module():
     """Retrieve telegram_bot module to support mocking in tests."""
     return sys.modules.get("alfa.bot.telegram_bot")
@@ -91,7 +124,45 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     data = query.data
-    if data == "btn_stats":
+    try:
+        from alfa.bot.mode_commands import handle_persona_callback
+
+        if await handle_persona_callback(update, context):
+            return
+    except Exception as e:
+        logger.debug(f"[callback] persona router gagal: {e}")
+    try:
+        from alfa.bot.wa_menu import handle_wa_callback
+
+        if await handle_wa_callback(update, context):
+            return
+    except Exception as e:
+        logger.debug(f"[callback] wa_menu router gagal: {e}")
+    try:
+        from alfa.bot.advanced_commands import handle_sites_callback
+
+        if await handle_sites_callback(update, context):
+            return
+    except Exception as e:
+        logger.debug(f"[callback] sites router gagal: {e}")
+
+    # Tombol menu utama → output perintah mengedit pesan menu di tempat
+    from alfa.bot.helpers import clear_menu_target, set_menu_target
+
+    set_menu_target(context, query, chat_id, back=(data != "btn_menu"))
+    try:
+        await _dispatch_menu_callback(update, context, data, user_id, chat_id)
+    finally:
+        clear_menu_target(context)
+
+
+async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
+    if data == "btn_menu":
+        from alfa.bot.basic_commands import menu_command
+
+        await menu_command(update, context)
+
+    elif data == "btn_stats":
         stats = get_system_stats()
         text = (
             f"📊 **Status Server / Laptop Real-Time:**\n\n"
@@ -145,25 +216,146 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif data == "btn_help":
         help_text = (
-            "📖 **Daftar Perintah & Panduan Interaksi:**\n\n"
-            "• `/menu` - Tampilkan tombol kontrol utama\n"
-            "• `/wa` - Kontrol & pantau WhatsApp Google Sheets Bot\n"
-            "• `/stats` - Cek performa CPU, RAM, Disk, & Baterai\n"
-            "• `/memory` - Cek data memori jangka panjang\n"
-            "• `/proactive` - Cek/atur inisiatif mandiri ambient bot\n"
-            "• `/voice` - Hidupkan/matikan respon suara\n"
-            "• `/clear` - Hapus riwayat chat (mulai sesi baru)\n"
-            "• `/id` - Cek ID Telegram & Chat ID\n\n"
+            "📖 **Daftar Perintah Lengkap:**\n\n"
+            "🧭 **Mode Eksekusi:**\n"
+            "• `/mode single|swarm|status` - Alih/lihat mode\n"
+            "• `/single [tugas]` - Single agent (pindah / sekali-jalan)\n"
+            "• `/status` - Status mode, swarm, agen, server\n\n"
+            "⚡ **Swarm Multi-Agent:**\n"
+            "• `/swarm <tugas>` - Eksekusi nyata tim agen\n"
+            "• `/swarm status|cancel` - Status / hentikan misi\n"
+            "• `/swarm model <id|nama> <provider> [model]` - Ganti model agen\n"
+            "• `/swarm template [nama]` - Misi siap pakai\n"
+            "• `/rapat <topik>` - Rapat plan (diskusi + action plan)\n"
+            "• `/resume [session]` - Lanjutkan sesi swarm\n"
+            "• `/cancel` - Hentikan misi berjalan\n\n"
+            "🤖 **Agen & Tools:**\n"
+            "• `/agents` - Daftar workforce\n"
+            "• `/persona [nama|id|reset]` - Persona single-mode\n"
+            "• `/tools` - 148 tools real\n"
+            "• `/cekagen` - Audit kesehatan konfigurasi\n\n"
+            "🔁 **Otomasi:**\n"
+            "• `/pipeline [list|run <id>]` - Workflow DAG\n"
+            "• `/tugas` - Subagent latar & checkpoint\n"
+            "• `/cron` - Tugas berulang (single/swarm)\n"
+            "• `/budget` - Monitor kuota token harian\n"
+            "• `/proactive` - Inisiatif ambient\n\n"
+            "🧰 **Lainnya:**\n"
+            "• `/menu` `/dashboard` `/sites` `/wa` `/keys` (`/vault`)\n"
+            "• `/wachat` `/wamasuk` `/wakirim` `/wacari` — pantau & kirim WA\n"
+            "• `/waformat` `/wareport` — atur & baca pencatatan otomatis\n"
+            "• `/waringkas [format]` — digest cerdas + sorotan AI (otomatis tiap 07:00)\n"
+            "• `/stats` `/memory` `/voice` `/clear` (`/reset`) `/id`\n"
+            "• Alias: `/eksekusi`=`/swarm` • `/meeting`=`/rapat` • `/tasks`=`/cron` • `/stop`=`/cancel`\n"
+            "• Alias: `/web` `/app`=`/dashboard` • `/washeets`=`/wa` • `/batal`=`/cancel` • `/resume_swarm`=`/resume` • `/reset`=`/clear`\n\n"
             "💬 **Contoh Perintah AI:**\n"
             "- *'Ambil screenshot desktop sekarang'* -> Mengirim foto layar aktif.\n"
-            "- *'Cek status bot whatsapp'* -> Melihat kondisi wa-sheets-bot.\n"
-            "- *'Restart wa sheets bot'* -> Merestart service WhatsApp bot.\n"
+            "- *'/swarm buatkan script monitoring RAM dan jalankan'* -> Misi tim.\n"
+            "- *'/rapat strategi hemat token API'* -> Diskusi + action plan.\n"
             "- *'Buatkan grafik plot fungsi sinus dan cosinus'* -> Menghasilkan gambar grafik.\n"
             "- *'Cari informasi berita AI terkini hari ini'* -> Browsing real-time.\n"
             "- *'Ingat bahwa email dev saya adalah admin@example.com'* -> Simpan memori.\n"
             "- *'Ingatkan saya jam 18:00 untuk evaluasi project'* -> Set pengingat otomatis."
         )
         await safe_send_message(context, chat_id, help_text)
+
+    elif data in ("btn_mode_single", "btn_mode_swarm", "btn_status"):
+        from alfa.bot.mode_commands import (
+            get_telegram_mode_sync,
+            set_telegram_mode_sync,
+            status_command,
+        )
+
+        if data == "btn_mode_single":
+            set_telegram_mode_sync("single")
+            await safe_send_message(
+                context, chat_id, "🧍 **Mode SINGLE aktif.** Chat biasa ditangani 1 agen otonom."
+            )
+        elif data == "btn_mode_swarm":
+            set_telegram_mode_sync("swarm")
+            await safe_send_message(
+                context,
+                chat_id,
+                "⚡ **Mode SWARM aktif.** Chat teks berikutnya dieksekusi tim multi-agen.\n"
+                "Kembali: `/mode single` • Batal: `/cancel`",
+            )
+        else:
+            await status_command(update, context)
+
+    elif data in ("btn_meeting_info", "btn_swarm_info"):
+        if data == "btn_meeting_info":
+            await safe_send_message(
+                context,
+                chat_id,
+                "🏛️ **Rapat AI (Plan):** `/rapat <topik>`\n"
+                "Contoh: `/rapat strategi hemat token API`\n"
+                "Hasil: diskusi round-table + konsensus + action plan.",
+            )
+        else:
+            swarm_note = "(mode swarm aktif ⚡)"
+            try:
+                from alfa.bot.mode_commands import get_telegram_mode_sync
+
+                if get_telegram_mode_sync() != "swarm":
+                    swarm_note = "(mode single 🧍 — tetap bisa sekali-jalan)"
+            except Exception:
+                pass
+            await safe_send_message(
+                context,
+                chat_id,
+                f"⚡ **Eksekusi Swarm:** `/swarm <tugas>` {swarm_note}\n"
+                "Contoh: `/swarm buatkan script monitoring RAM dan jalankan`\n"
+                "Atau aktifkan permanen: `/mode swarm` lalu chat biasa.",
+            )
+
+    elif data in ("btn_agents", "btn_tools", "btn_pipeline", "btn_tasks"):
+        if data == "btn_agents":
+            mod = _get_bot_module()
+            fn = getattr(mod, "agents_command", None) if mod else None
+            if callable(fn):
+                await fn(update, context)
+            else:
+                from alfa.bot.advanced_commands import agents_command as _agents
+
+                await _agents(update, context)
+        elif data == "btn_tools":
+            from alfa.bot.mode_commands import tools_command as _tools
+
+            await _tools(update, context)
+        elif data == "btn_pipeline":
+            from alfa.bot.mode_commands import pipeline_command as _pipe
+
+            await _pipe(update, context)
+        else:
+            from alfa.bot.mode_commands import tugas_command as _tugas
+
+            await _tugas(update, context)
+
+    elif data == "btn_persona":
+        from alfa.bot.mode_commands import render_persona_menu as _pm
+
+        await _pm(update, context)
+
+    elif data in ("btn_keys", "btn_cekagen", "btn_cron", "btn_proactive", "btn_dashboard", "btn_wa", "btn_sites", "btn_budget"):
+        mod = _get_bot_module()
+        mapping = {
+            "btn_keys": "keys_command",
+            "btn_cekagen": "cekagen_command",
+            "btn_cron": "cron_command",
+            "btn_proactive": "proactive_command",
+            "btn_dashboard": "dashboard_command",
+            "btn_wa": "wa_command",
+            "btn_sites": "sites_command",
+            "btn_budget": "budget_command",
+        }
+        fn = getattr(mod, mapping[data], None) if mod else None
+        if not callable(fn):
+            from alfa.bot import advanced_commands as _ac
+            from alfa.bot import basic_commands as _bc
+
+            fn = getattr(_ac, mapping[data], None) or getattr(_bc, mapping[data], None)
+        if callable(fn):
+            await fn(update, context)
 
     elif data == "btn_wa_status":
         res = tools.manage_wa_sheets_bot("status")
@@ -291,6 +483,32 @@ async def check_and_send_media_artifacts(
                     pass
 
 
+async def _long_turn_nudge(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    turn_task: "asyncio.Task",
+    streamer,
+    delay: float = 45.0,
+) -> None:
+    """Kirim SATU pesan penenang bila turn single-mode lama tanpa update terlihat."""
+    try:
+        await asyncio.sleep(delay)
+        if turn_task.done():
+            return
+        if streamer is not None and getattr(streamer, "message_id", None):
+            return  # streaming sudah tampil -> tak perlu nudge
+        await safe_send_message(
+            context,
+            chat_id,
+            "🧠 Masih diproses (menjalankan tools + menalar) — mohon tunggu, "
+            "hasil dikirim utuh setelah selesai.",
+        )
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.debug(f"[nudge] gagal: {e}")
+
+
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming text messages."""
     if not update.message or not update.message.text:
@@ -305,6 +523,18 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     user_text = update.message.text.strip()
     turn_start_time = time.time()
+    swarm_files: list[str] = []
+
+    # Sapaan murni → jawab instan, JANGAN lewat agent (hemat token + anti tool nyasar).
+    fast = greeting_reply(user_text)
+    if fast is not None:
+        try:
+            await database.save_chat_message(user_id, "user", user_text)
+            await database.save_chat_message(user_id, "model", fast)
+        except Exception as db_err:
+            logger.debug(f"[greeting] simpan riwayat gagal: {db_err}")
+        await safe_send_message(context, chat_id, fast)
+        return
 
     streamer = None
     stop_typing = None
@@ -323,12 +553,67 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
     try:
-        reply = await _run_agent_turn(
-            user_id=user_id,
-            user_prompt=user_text,
-            chat_id=chat_id,
-            streamer=streamer,
-        )
+        use_swarm = False
+        try:
+            from alfa.bot.mode_commands import get_telegram_mode_sync
+
+            use_swarm = get_telegram_mode_sync() == "swarm"
+        except Exception:
+            use_swarm = False
+
+        if use_swarm:
+            # Mode SWARM: chat teks biasa = misi tim multi-agen.
+            # Satu pesan status live (di-edit berkala) agar tak terkesan diam.
+            if streamer:
+                try:
+                    await streamer.finalize(
+                        "⚡ **Mode SWARM:** misi diteruskan ke tim multi-agen..."
+                    )
+                except Exception:
+                    pass
+                streamer = None
+            from alfa.bot.progress import SwarmProgressReporter
+
+            reporter = SwarmProgressReporter(context, chat_id, user_text)
+            await reporter.start()
+            try:
+                from alfa.bot.mode_commands import format_swarm_result, run_swarm_task
+
+                result = await run_swarm_task(user_text)
+            except Exception as e:
+                logger.error(f"[handle_text:swarm] gagal untuk {user_id}: {e}", exc_info=True)
+                await reporter.stop("❌ Misi gagal.")
+                reply = (
+                    "❌ Misi swarm gagal diproses "
+                    f"({type(e).__name__}: {str(e)[:200]}). "
+                    "Coba `/mode single` untuk 1 agen, atau kirim ulang."
+                )
+            else:
+                await reporter.stop("✅ Selesai — laporan lengkap di bawah ⬇️")
+                steps_text, final_text, files = format_swarm_result(result)
+                await safe_send_message(context, chat_id, steps_text)
+                reply = final_text
+                swarm_files = files or []
+        else:
+            turn_task = asyncio.create_task(
+                _run_agent_turn(
+                    user_id=user_id,
+                    user_prompt=user_text,
+                    chat_id=chat_id,
+                    streamer=streamer,
+                )
+            )
+            nudge_task = asyncio.create_task(
+                _long_turn_nudge(context, chat_id, turn_task, streamer)
+            )
+            try:
+                reply = await turn_task
+            finally:
+                nudge_task.cancel()
+                try:
+                    await nudge_task
+                except (asyncio.CancelledError, Exception):
+                    pass
     except Exception as e:
         # Jangan pernah diam: kegagalan turn harus tetap dibalas ke user.
         logger.error(f"[handle_text] turn gagal untuk {user_id}: {e}", exc_info=True)
@@ -356,6 +641,18 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     await _check_and_send_media_artifacts(
         update, context, turn_start_time=turn_start_time
     )
+
+    for fpath in swarm_files:
+        try:
+            with open(fpath, "rb") as f_doc:
+                await context.bot.send_document(
+                    chat_id=chat_id,
+                    document=f_doc,
+                    filename=os.path.basename(fpath),
+                    caption=f"📁 **File Deliverable Swarm:** `{os.path.basename(fpath)}`",
+                )
+        except Exception as file_err:
+            logger.warning(f"Failed to send swarm file {fpath}: {file_err}")
 
     # If voice mode enabled and content is conversational, send voice note
     mod = _get_bot_module()
@@ -424,8 +721,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             for candidate in (
                 _main_brain_gemini_model(),
                 GEMINI_MODEL,
-                "gemini-3.6-flash",
-                "gemini-3.5-flash",
+                "gemini-3.5-flash-lite",
+                "gemini-flash-lite-latest",
+                "gemini-3-flash-preview",
             ):
                 name = (candidate or "").strip()
                 if name and name not in transcribe_models:

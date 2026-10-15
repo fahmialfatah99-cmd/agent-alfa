@@ -158,7 +158,7 @@ def manage_api_keys(
     name: str = "",
     provider: str = "gemini",
     api_key: str = "",
-    default_model: str = "gemini-3.6-flash",
+    default_model: str = "gemini-3.5-flash-lite",
     base_url: str = "",
     key_id: int | None = None,
 ) -> dict[str, Any]:
@@ -211,7 +211,7 @@ def manage_custom_agents(
     persona: str = "",
     system_instruction: str = "",
     provider: str = "gemini",
-    model: str = "gemini-3.6-flash",
+    model: str = "gemini-3.5-flash-lite",
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",
     agent_id: int | None = None,
@@ -365,25 +365,43 @@ def check_subagent_status(subagent_id: str) -> dict[str, Any]:
 
 @register_tool(category="system")
 def add_recurring_task(
-    title: str, prompt_instruction: str, interval_minutes: int = 60
+    title: str, prompt_instruction: str, interval_minutes: int = 60, kind: str = "single"
 ) -> dict[str, Any]:
     """
     Schedule an autonomous recurring task or proactive watchdog.
+
+    Args:
+        title: Nama tugas.
+        prompt_instruction: Instruksi/tugas yang dijalankan tiap periode. Untuk
+            kind='swarm' boleh nama templat (/swarm template) atau tugas bebas.
+        interval_minutes: Periode pengulangan (menit).
+        kind: 'single' (1 agen, default) atau 'swarm' (misi tim multi-agen).
     """
     try:
         user_id = get_current_user_id()
         chat_id = get_current_chat_id()
+        kind = "swarm" if str(kind).lower() == "swarm" else "single"
+        if kind == "swarm":
+            try:
+                from alfa.bot.mode_commands import SWARM_TEMPLATES
+
+                tpl = SWARM_TEMPLATES.get(prompt_instruction.strip().lower())
+                if tpl:
+                    prompt_instruction = tpl
+            except Exception:
+                pass
         job_id = database.add_cron_job_sync(
             user_id=user_id,
             chat_id=chat_id,
             title=title,
             prompt_instruction=prompt_instruction,
             interval_minutes=max(1, interval_minutes),
+            kind=kind,
         )
         return {
             "status": "success",
             "job_id": job_id,
-            "message": f"Tugas berulang #{job_id} '{title}' berhasil dijadwalkan setiap {interval_minutes} menit.",
+            "message": f"Tugas berulang #{job_id} '{title}' [{kind}] berhasil dijadwalkan setiap {interval_minutes} menit.",
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -416,5 +434,67 @@ def cancel_recurring_task(task_id: int) -> dict[str, Any]:
                 "message": f"Tugas berulang #{task_id} berhasil dibatalkan dan dihapus.",
             }
         return {"status": "error", "message": f"Tugas #{task_id} tidak ditemukan."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def audit_project_honesty(path: str = "") -> dict[str, Any]:
+    """
+    Pindai proyek untuk pola data dummy (mekanis, deterministik).
+
+    Mendeteksi: angka acak di jalur data (Math.random/random di API), database
+    mock di memori, teks lorem/placeholder, kredensial contoh, klaim
+    'neural/AI' tanpa model. Return daftar tersangka file:baris + verdict.
+    Jalankan tiap coding selesai atau on-demand. Bukan bukti mutlak — pola
+    kasat mata saja; reviewer manusia putuskan final.
+    """
+    import os as _os
+    import re as _re
+
+    try:
+        base = _os.path.realpath(_os.path.expanduser((path or "").strip() or "."))
+        if not _os.path.isdir(base):
+            return {"status": "error", "message": f"Folder '{path}' tidak ditemukan."}
+        patterns = [
+            ("random-di-data", _re.compile(r"(Math\.random\(\)|random\.(randint|uniform|choice|random)\(\))"),
+             ("route", "api", "endpoint", "database", "osint", "controller", "service")),
+            ("mock-database", _re.compile(r"(mockDatabase|mock_data|MOCK_|FakeDB|dummy_?data)", _re.I), ()),
+            ("lorem-placeholder", _re.compile(r"(lorem ipsum|placeholder\.|example\.com|test@test\.|TODO|FIXME|XXX)", _re.I), ()),
+            ("kredensial-contoh", _re.compile(r"(AKIA[0-9A-Z]{16}|your-supabase-project|sk-test|password\s*=\s*[\"'](123|test|password|abc))"), ()),
+            ("klaim-neural-tanpa-model", _re.compile(r"(neural|AI-powered|AI augmented|deep learning|GPT-4 powered)", _re.I), ()),
+        ]
+        skip_dirs = {"node_modules", ".next", ".git", "__pycache__", "venv", ".venv", "dist", "build", ".turbo"}
+        exts = (".ts", ".tsx", ".js", ".jsx", ".py", ".php", ".html", ".md")
+        suspects: list[dict[str, Any]] = []
+        files_scanned = 0
+        for root, dirs, files in _os.walk(base):
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
+            for fn in files:
+                if not fn.endswith(exts):
+                    continue
+                fp = _os.path.join(root, fn)
+                try:
+                    if _os.path.getsize(fp) > 500_000:
+                        continue
+                    with open(fp, errors="ignore") as f:
+                        lines = f.readlines()
+                except Exception:
+                    continue
+                files_scanned += 1
+                rel = _os.path.relpath(fp, base)
+                for lineno, line in enumerate(lines, 1):
+                    for label, rx, ctx in patterns:
+                        if rx.search(line):
+                            if label == "random-di-data" and ctx:
+                                blob = "\n".join(lines[max(0, lineno - 6):lineno + 2]).lower()
+                                if not any(k in blob for k in ctx):
+                                    continue
+                            suspects.append({"file": rel, "line": lineno, "pola": label,
+                                             "cuplikan": line.strip()[:140]})
+                            break
+        verdict = "BERSIH" if not suspects else f"{len(suspects)} TEMUAN"
+        return {"status": "success", "path": base, "files_scanned": files_scanned,
+                "verdict": verdict, "suspects": suspects[:40]}
     except Exception as e:
         return {"status": "error", "message": str(e)}

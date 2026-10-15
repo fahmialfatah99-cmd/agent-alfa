@@ -49,6 +49,12 @@ async def clear_user_chat_history(user_id: int):
     """Clear chat history for a user."""
     async with aiosqlite.connect(_get_db_path()) as db:
         await db.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
+        try:
+            await db.execute(
+                "DELETE FROM chat_compactions WHERE user_id = ?", (user_id,)
+            )
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -272,7 +278,7 @@ async def get_user_settings(user_id: int) -> dict[str, Any]:
             return {
                 "voice_reply": 0,
                 "system_prompt_override": None,
-                "model_name": "gemini-3.6-flash",
+                "model_name": "gemini-3.5-flash-lite",
             }
 
 

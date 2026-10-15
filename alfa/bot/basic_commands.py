@@ -31,6 +31,56 @@ def _is_authorized(user_id: int) -> bool:
     return is_authorized(user_id)
 
 
+def _main_menu_markup() -> InlineKeyboardMarkup:
+    """Satu-satunya definisi grid menu utama (dipakai /start & /menu)."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🧍 Single", callback_data="btn_mode_single"),
+                InlineKeyboardButton("⚡ Swarm", callback_data="btn_mode_swarm"),
+                InlineKeyboardButton("📊 Status", callback_data="btn_status"),
+            ],
+            [
+                InlineKeyboardButton("🏛️ Rapat", callback_data="btn_meeting_info"),
+                InlineKeyboardButton("⚡ Eksekusi", callback_data="btn_swarm_info"),
+            ],
+            [
+                InlineKeyboardButton("🤖 Agen", callback_data="btn_agents"),
+                InlineKeyboardButton("🎭 Persona", callback_data="btn_persona"),
+                InlineKeyboardButton("🩺 Cek", callback_data="btn_cekagen"),
+            ],
+            [
+                InlineKeyboardButton("🛠️ Tools", callback_data="btn_tools"),
+                InlineKeyboardButton("🔁 Pipeline", callback_data="btn_pipeline"),
+                InlineKeyboardButton("📋 Tugas", callback_data="btn_tasks"),
+            ],
+            [
+                InlineKeyboardButton("⏰ Cron", callback_data="btn_cron"),
+                InlineKeyboardButton("🤖 Proaktif", callback_data="btn_proactive"),
+                InlineKeyboardButton("🔑 Keys", callback_data="btn_keys"),
+            ],
+            [
+                InlineKeyboardButton("📱 WA", callback_data="btn_wa"),
+                InlineKeyboardButton("🌐 Dash", callback_data="btn_dashboard"),
+            ],
+            [
+                InlineKeyboardButton("🌐 Sites", callback_data="btn_sites"),
+                InlineKeyboardButton("💰 Budget", callback_data="btn_budget"),
+            ],
+            [
+                InlineKeyboardButton("🖥️ Server", callback_data="btn_stats"),
+                InlineKeyboardButton("🧠 Memori", callback_data="btn_memory"),
+                InlineKeyboardButton("🎙️ Voice", callback_data="btn_toggle_voice"),
+            ],
+            [
+                InlineKeyboardButton("🧹 Reset", callback_data="btn_clear"),
+                InlineKeyboardButton("📈 Plot", callback_data="btn_python_info"),
+                InlineKeyboardButton("❓ Help", callback_data="btn_help"),
+            ],
+        ]
+    )
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     user = update.effective_user
@@ -42,34 +92,24 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    keyboard = [
-        [
-            InlineKeyboardButton("📊 System Stats", callback_data="btn_stats"),
-            InlineKeyboardButton("🧠 Memori", callback_data="btn_memory"),
-        ],
-        [
-            InlineKeyboardButton("📈 Python Sandbox", callback_data="btn_python_info"),
-            InlineKeyboardButton("🎙️ Toggle Voice", callback_data="btn_toggle_voice"),
-        ],
-        [
-            InlineKeyboardButton("🧹 Reset Sesi", callback_data="btn_clear"),
-            InlineKeyboardButton("📖 Bantuan & Tools", callback_data="btn_help"),
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = _main_menu_markup()
 
     welcome_text = (
         f"🤖 **Personal Autonomous AI Agent**\n"
-        f"Halo, **{user.first_name}**! Saya asisten AI otonom pribadi berbasis **Google Gemini API** yang terhubung langsung dengan mesin Linux Anda.\n\n"
+        f"Halo, **{user.first_name}**! Saya asisten AI otonom pribadi berbasis **multi-provider (9Router/Gemini)** yang terhubung langsung dengan mesin Linux Anda.\n\n"
+        f"🧭 **Mode Eksekusi:** `/mode single` (1 agen cepat) atau `/mode swarm` (tim multi-agen). "
+        f"Panggil swarm kapan saja via `/swarm <tugas>`.\n\n"
         f"⚡ **Kemampuan & Tools Aktif (100% Real):**\n"
         f"• 🐍 **Python Sandbox & Data Plotter:** Eksekusi script & pembuatan grafik visual otomatis.\n"
         f"• 🖥️ **Desktop & Webcam Vision:** Screenshot layar desktop & snapshot webcam real-time.\n"
         f"• 🎙️ **Voice Notes (STT & TTS):** Kirim suara, AI membalas dengan suara natural Edge-TTS.\n"
         f"• 🌐 **Deep Web Intelligence:** DuckDuckGo search & ekstraksi konten artikel web.\n"
         f"• 🔍 **Workspace Intelligence:** Grep, find files, read/write file lokal.\n"
+        f"• 🤖 **Swarm Multi-Agent:** `/rapat` (plan) & `/swarm` (eksekusi nyata).\n"
+        f"• 🔁 **Pipeline DAG & Tugas Latar:** `/pipeline`, `/tugas`.\n"
         f"• 🧠 **Persistent Long-Term Memory:** Memori permanen terisolasi per akun.\n"
         f"• ⏰ **Proactive Reminders:** Pengingat otomatis terjadwal.\n\n"
-        f"Kirimkan pesan, pertanyaan, perintah bash, atau voice note langsung ke chat ini!"
+        f"Ketik `/menu` untuk panel lengkap atau `/help` untuk semua perintah!"
     )
     await safe_send_message(context, chat_id, welcome_text, reply_markup=reply_markup)
 
@@ -81,25 +121,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_authorized(user.id):
         return
 
-    settings = await database.get_user_settings(user.id)
-    voice_status = "ON 🔊" if settings.get("voice_reply") else "OFF 🔇"
-
-    keyboard = [
-        [
-            InlineKeyboardButton("📊 System Stats", callback_data="btn_stats"),
-            InlineKeyboardButton("🧠 Lihat Memori", callback_data="btn_memory"),
-        ],
-        [
-            InlineKeyboardButton(
-                f"🎙️ Suara: {voice_status}", callback_data="btn_toggle_voice"
-            ),
-            InlineKeyboardButton("📈 Python & Plot", callback_data="btn_python_info"),
-        ],
-        [
-            InlineKeyboardButton("🧹 Reset Konteks", callback_data="btn_clear"),
-            InlineKeyboardButton("❓ Daftar Perintah", callback_data="btn_help"),
-        ],
-    ]
+    keyboard = _main_menu_markup().inline_keyboard
     await safe_send_message(
         context,
         chat_id,
@@ -285,6 +307,57 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send_message(context, chat_id, f"🎙️ **Mode Suara:** {status_str}")
 
 
+async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/budget [set <token_harian> <call_harian>] — lihat & atur kuota token harian."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    from alfa.core import rate_limiter
+
+    args = list(context.args) if context.args else []
+    if len(args) >= 3 and args[0].lower() == "set":
+        try:
+            tok = max(1000, int(args[1]))
+            cal = max(10, int(args[2]))
+        except ValueError:
+            await safe_send_message(
+                context, chat_id, "Usage: `/budget set <token_harian> <call_harian>`\nContoh: `/budget set 500000 200`"
+            )
+            return
+        rate_limiter.set_user_budget(user_id, tok, cal)
+        await safe_send_message(
+            context, chat_id, f"✅ Kuota harian diset: **{tok:,}** token, **{cal}** panggilan."
+        )
+        return
+
+    rep = rate_limiter.get_budget_report(user_id)
+    if rep.get("status") != "ok":
+        await safe_send_message(context, chat_id, "❓ Data kuota belum tersedia.")
+        return
+    pct = rep["pct"] * 100
+    bar_n = int(min(10, rep["pct"] * 10))
+    bar = "█" * bar_n + "░" * (10 - bar_n)
+    icon = "🔴" if rep["exceeded"] else ("🟡" if rep["warn"] else "🟢")
+    lines = [
+        f"{icon} **Kuota Token Harian:**",
+        f"`[{bar}]` {pct:.0f}%",
+        f"• Terpakai: **{rep['total_tokens']:,}** / {rep['budget_limit']:,} token",
+        f"• Sisa: **{rep['remaining']:,}** • Panggilan: {rep['total_calls']}/{rep['call_limit']}",
+        "• Reset: tengah malam WIB",
+    ]
+    for k in (rep.get("by_key") or [])[:5]:
+        label = k.get("key_label") or k.get("provider") or "?"
+        lines.append(f"  - {label}: {(k.get('total_tokens') or 0):,} ({k.get('calls', 0)}×)")
+    if rep["exceeded"]:
+        lines.append("\n🔴 Di atas batas — pantau pemakaian, tidak ada penahanan misi.")
+    elif rep["warn"]:
+        lines.append("\n🟡 Di atas 80% — hemat: utamakan chat single, tunda misi swarm besar.")
+    lines.append("\nUbah batas: `/budget set <token> <call>`")
+    await safe_send_message(context, chat_id, "\n".join(lines))
+
+
 async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List scheduled recurring tasks."""
     user_id = update.effective_user.id
@@ -305,7 +378,8 @@ async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = f"⏰ **Daftar Tugas Berulang & Watchdog ({len(jobs)} tugas):**\n\n"
     for j in jobs:
         status_icon = "🟢 Aktif" if j["is_active"] else "🔴 Nonaktif"
-        text += f"• **#{j['id']} {j['title']}** ({status_icon})\n"
+        kind_badge = "⚡ swarm" if (j.get("kind") or "single") == "swarm" else "🧍 single"
+        text += f"• **#{j['id']} {j['title']}** ({status_icon} • {kind_badge})\n"
         text += f"  - Interval: Setiap {j['interval_minutes']} menit\n"
         text += f"  - Instruksi: `{j['prompt_instruction']}`\n"
         text += f"  - Jadwal Berikutnya: `{j['next_run']}`\n\n"

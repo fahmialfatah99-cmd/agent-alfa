@@ -206,7 +206,7 @@ def init_db_sync():
                 user_id INTEGER PRIMARY KEY,
                 voice_reply INTEGER DEFAULT 0,
                 system_prompt_override TEXT,
-                model_name TEXT DEFAULT 'gemini-3.6-flash'
+                model_name TEXT DEFAULT 'gemini-3.5-flash-lite'
             );
             CREATE TABLE IF NOT EXISTS knowledge_graph (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -248,7 +248,7 @@ def init_db_sync():
                 persona TEXT NOT NULL,
                 system_instruction TEXT NOT NULL,
                 provider TEXT NOT NULL DEFAULT 'gemini',
-                model TEXT NOT NULL DEFAULT 'gemini-3.6-flash',
+                model TEXT NOT NULL DEFAULT 'gemini-3.5-flash-lite',
                 api_key_id INTEGER,
                 avatar_emoji TEXT DEFAULT '🤖',
                 color_theme TEXT DEFAULT 'cyan',
@@ -311,7 +311,7 @@ def init_db_sync():
                 conn.execute(
                     """
                     INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
-                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.6-flash', 1)
+                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.5-flash-lite', 1)
                     """,
                     (encrypt_key(env_gemini_key),),
                 )
@@ -341,7 +341,7 @@ def init_db_sync():
                         1, "Kamu adalah Alpha Lead, koordinator tim ALFA."
                     ),
                     "gemini",
-                    "gemini-3.7-flash",
+                    "gemini-3-flash-preview",
                     "👑",
                     "cyan",
                 ),
@@ -353,7 +353,7 @@ def init_db_sync():
                         2, "Kamu adalah Code Crafter, engineer kode ALFA."
                     ),
                     "gemini",
-                    "gemini-3.6-flash",
+                    "gemini-3.5-flash-lite",
                     "⚡",
                     "emerald",
                 ),
@@ -365,7 +365,7 @@ def init_db_sync():
                         3, "Kamu adalah System Auditor, penguji kritis ALFA."
                     ),
                     "gemini",
-                    "gemini-3.6-flash",
+                    "gemini-3.5-flash-lite",
                     "🛡️",
                     "rose",
                 ),
@@ -377,7 +377,7 @@ def init_db_sync():
                         4, "Kamu adalah Researcher Prime, spesialis riset ALFA."
                     ),
                     "gemini",
-                    "gemini-3.6-flash",
+                    "gemini-3.5-flash-lite",
                     "🌐",
                     "violet",
                 ),
@@ -389,7 +389,7 @@ def init_db_sync():
                         5, "Kamu adalah Strategic Planner, perancang strategi ALFA."
                     ),
                     "gemini",
-                    "gemini-3.6-flash",
+                    "gemini-3.5-flash-lite",
                     "💡",
                     "amber",
                 ),
@@ -401,7 +401,7 @@ def init_db_sync():
                         6, "Kamu adalah Laguna Co-Pilot, triase cepat ALFA."
                     ),
                     "gemini",
-                    "gemini-3.6-flash",
+                    "gemini-3.5-flash-lite",
                     "🚀",
                     "teal",
                 ),

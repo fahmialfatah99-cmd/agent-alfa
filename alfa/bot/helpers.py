@@ -3,14 +3,64 @@
 import asyncio
 import logging
 import os
+import time
 
-from telegram import InlineKeyboardMarkup, constants
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import ContextTypes
 
 from alfa.core import database
 from alfa.tools import SANDBOX_DIR
 
 logger = logging.getLogger("TelegramAIAgent")
+
+
+# --- Edit-in-place target untuk tombol menu -------------------------------
+# Saat user menekan tombol inline, output perintah diedit ke pesan menu itu
+# sendiri (rapi, satu pesan) alih-alih kirim pesan baru. Target di-key per
+# objek `context` (unik per update di PTB) sehingga tidak pernah bocor ke
+# update lain, dan dipakai sekali lalu dibuang.
+_MENU_TARGET: dict[int, tuple] = {}
+_TARGET_TTL = 30.0
+
+
+def set_menu_target(context, query, chat_id: int, back: bool = True) -> None:
+    """Tandai pesan menu yang sedang diklik agar jawaban mengeditnya.
+
+    back=False → jangan tambahkan tombol ◀️ Menu (untuk render ulang menu).
+    """
+    now = time.monotonic()
+    for k in [k for k, v in _MENU_TARGET.items() if now - v[2] > _TARGET_TTL]:
+        _MENU_TARGET.pop(k, None)
+    _MENU_TARGET[id(context)] = (query, chat_id, now, back)
+
+
+def clear_menu_target(context) -> None:
+    _MENU_TARGET.pop(id(context), None)
+
+
+def _pop_menu_target(context, chat_id: int):
+    """Ambil target (sekali pakai). None bila tidak cocok/kedaluwarsa."""
+    entry = _MENU_TARGET.pop(id(context), None)
+    if not entry:
+        return None
+    query, cid, ts, back = entry
+    if cid != chat_id or time.monotonic() - ts > _TARGET_TTL:
+        return None
+    return (query, back)
+
+
+def _with_back_button(reply_markup):
+    """Tambahkan tombol ◀️ Menu ke markup (tanpa merusak markup asli)."""
+    try:
+        rows = [list(r) for r in (reply_markup.inline_keyboard if reply_markup else [])]
+    except Exception:
+        rows = []
+    has_back = any(
+        getattr(b, "callback_data", None) == "btn_menu" for row in rows for b in row
+    )
+    if not has_back:
+        rows.append([InlineKeyboardButton("◀️ Menu", callback_data="btn_menu")])
+    return InlineKeyboardMarkup(rows)
 
 ARTIFACT_DIRS = [
     os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS"),
@@ -122,6 +172,28 @@ async def safe_send_message(
     if Markdown parsing fails.
     """
     chunks = split_message(text)
+
+    # Jika dipanggil dari siklus tombol menu → edit pesan menu di tempat
+    target = _pop_menu_target(context, chat_id)
+    if target is not None:
+        query, want_back = target
+        markup = _with_back_button(reply_markup) if want_back else reply_markup
+        try:
+            await query.edit_message_text(
+                text=chunks[0], parse_mode=constants.ParseMode.MARKDOWN, reply_markup=markup
+            )
+            chunks = chunks[1:]
+            if not chunks:
+                return
+        except Exception:
+            try:
+                await query.edit_message_text(text=chunks[0], reply_markup=markup)
+                chunks = chunks[1:]
+                if not chunks:
+                    return
+            except Exception:
+                pass  # gagal edit (mis. teks identik/kelamaan) → kirim biasa
+
     for i, chunk in enumerate(chunks):
         markup = reply_markup if i == len(chunks) - 1 else None
         reply_id = reply_to_message_id if i == 0 else None
@@ -142,8 +214,17 @@ async def safe_send_message(
                     reply_to_message_id=reply_id,
                     reply_markup=markup,
                 )
-            except Exception as e:
-                logger.error(f"Failed to send message chunk: {e}")
+            except Exception:
+                try:
+                    # Last resort: tanpa markup sama sekali (tombol URL invalid
+                    # tidak boleh membuat pesan hilang total)
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=chunk,
+                        reply_to_message_id=reply_id,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send message chunk: {e}")
 
 
 async def send_typing_loop(

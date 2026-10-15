@@ -60,9 +60,21 @@ from alfa.tools.system.integrations import (
     schedule_reminder,
     scrcpy_android_control,
     start_focus_session,
+    wa_add_format,
+    wa_delete_format,
+    wa_get_chats,
+    wa_get_incoming,
+    wa_get_me,
+    wa_get_messages,
+    wa_get_records,
+    wa_list_formats,
+    wa_search_messages,
+    wa_send_message,
+    wa_toggle_format,
 )
 from alfa.tools.system.management import (
     add_recurring_task,
+    audit_project_honesty,
     cancel_recurring_task,
     check_subagent_status,
     conduct_ai_meeting,
@@ -95,6 +107,10 @@ from alfa.tools.system.network import (
     scan_local_network,
     send_email,
     ssh_execute_command,
+)
+from alfa.tools.system.sites import (
+    list_managed_sites,
+    serve_site,
 )
 
 logger = logging.getLogger("AgentTools.System")
@@ -152,11 +168,25 @@ __all__ = [
     "add_recurring_task",
     "list_recurring_tasks",
     "cancel_recurring_task",
+    "audit_project_honesty",
+    "list_managed_sites",
+    "serve_site",
     # integrations
     "schedule_reminder",
     "generate_secure_password",
     "start_focus_session",
     "manage_wa_sheets_bot",
+    "wa_add_format",
+    "wa_delete_format",
+    "wa_get_records",
+    "wa_list_formats",
+    "wa_toggle_format",
+    "wa_get_chats",
+    "wa_get_incoming",
+    "wa_get_me",
+    "wa_get_messages",
+    "wa_search_messages",
+    "wa_send_message",
     "list_wa_drive_uploads",
     "scrcpy_android_control",
     "query_database",
