@@ -21,7 +21,7 @@
 
 ## 🌟 Fitur Unggulan
 
-> Terukur: 162 tools, 46 perintah Telegram, 5 slash Discord, 39 uji fitur hijau —
+> Terukur: 162 tools, 46 perintah Telegram, 5 slash Discord, 794 uji hijau —
 > detail historis di [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)

@@ -68,13 +68,13 @@ class TestDatabaseOperations:
             assert "user_settings" in tables
 
     def test_custom_agents_default_model(self, temp_db):
-        """Verifikasi agen yang di-seed menggunakan gemini-3.6-flash bukan model deprecated."""
+        """Verifikasi agen tidak memakai model yang terbukti mati (404)."""
         agents = database.list_custom_agents_sync()
         assert len(agents) > 0
+        dead = ("gemini-3.6", "gemini-3.7", "gemini-2.5-flash", "m1")
         for a in agents:
-            # Tidak ada yang boleh memakai gemini-2.5 atau gemini-3.5
-            assert "gemini-2.5" not in a.get("model", "")
-            assert "gemini-3.5" not in a.get("model", "")
+            model = a.get("model", "") or ""
+            assert not any(d in model for d in dead), f"model mati: {model}"
 
     def test_add_and_update_custom_agent(self, temp_db):
         res = database.add_custom_agent_sync(
