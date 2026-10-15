@@ -307,7 +307,8 @@
                 <!-- Clock & Quick Refresh -->
                 <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
                     <span id="header-clock" class="text-slate-300">--:--:-- WIB</span>
-                    <button onclick="fetchStats(true)" class="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 transition-all shadow-sm" title="Refresh Live Telemetry">
+                    <span id="sync-pill" class="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 font-bold" title="Status sinkronisasi data">SYNC…</span>
+                    <button onclick="fetchStats(true)" class="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 transition-all shadow-sm min-w-[40px] min-h-[40px] flex items-center justify-center" title="Refresh Live Telemetry">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
                     </button>
                 </div>
@@ -3952,18 +3953,18 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
 
 
     <!-- Frontend Modular Subsystems -->
-    <script src="/static/js/modules/state.js"></script>
-    <script src="/static/js/modules/audio.js"></script>
-    <script src="/static/js/modules/hotkeys.js"></script>
-    <script src="/static/js/modules/telemetry.js"></script>
+    <script src="/static/js/modules/state.js?v=2591a5e6"></script>
+    <script src="/static/js/modules/audio.js?v=2591a5e6"></script>
+    <script src="/static/js/modules/hotkeys.js?v=2591a5e6"></script>
+    <script src="/static/js/modules/telemetry.js?v=2591a5e6"></script>
 
     <!-- Dashboard Core Application Script & Orchestrator -->
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=2591a5e6"></script>
     <!-- Terminal Live Stream, Logs & ANSI Parser -->
-    <script src="/static/js/terminal.js"></script>
+    <script src="/static/js/terminal.js?v=2591a5e6"></script>
     <!-- Tools Arsenal & Execution Modals -->
-    <script src="/static/js/tools.js"></script>
+    <script src="/static/js/tools.js?v=2591a5e6"></script>
     <!-- Live AI Chat Engine & SSE Streaming -->
-    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/chat.js?v=2591a5e6"></script>
 </body>
 </html>

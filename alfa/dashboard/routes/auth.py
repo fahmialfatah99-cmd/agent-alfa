@@ -482,6 +482,75 @@ async def register_user(payload: dict[str, Any]):
         raise HTTPException(status_code=500, detail="Gagal mendaftar user") from e
 
 
+def _ensure_link_table() -> None:
+    """Tabel magic-link Telegram sekali pakai."""
+    from alfa.core import database as db
+
+    with db.get_sync_db() as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS telegram_login_links (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                expires_at TEXT NOT NULL,
+                used INTEGER DEFAULT 0)"""
+        )
+        conn.commit()
+
+
+def create_telegram_link(user_id: int, ttl_seconds: int = 600) -> str:
+    """Buat magic-link sekali pakai utk user Telegram (return token mentah)."""
+    from datetime import datetime, timedelta
+
+    from alfa.core import database as db
+
+    _ensure_link_table()
+    token = secrets.token_urlsafe(32)
+    exp = (datetime.now() + timedelta(seconds=ttl_seconds)).strftime("%Y-%m-%d %H:%M:%S")
+    with db.get_sync_db() as conn:
+        conn.execute(
+            "INSERT INTO telegram_login_links (token, user_id, expires_at) VALUES (?, ?, ?)",
+            (token, int(user_id), exp),
+        )
+        conn.commit()
+    return token
+
+
+@auth_router.get("/t/{token}")
+async def telegram_magic_link(token: str):
+    """Tukar magic-link Telegram -> session cookie. Sekali pakai, 10 menit."""
+    from datetime import datetime
+
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    from alfa.core import database as db
+
+    _ensure_link_table()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with db.get_sync_db() as conn:
+        row = conn.execute(
+            "SELECT user_id, expires_at, used FROM telegram_login_links WHERE token = ?",
+            (token,),
+        ).fetchone()
+        if row:
+            conn.execute("UPDATE telegram_login_links SET used = 1 WHERE token = ?", (token,))
+            conn.commit()
+    bad = not row or (row["used"] if hasattr(row, "__getitem__") else row[2])
+    exp = (row["expires_at"] if hasattr(row, "__getitem__") else row[1]) if row else ""
+    if bad or (exp and exp < now):
+        return HTMLResponse(
+            "<h3>Link kedaluwarsa/terpakai.</h3><p>Minta link baru via Telegram /dashboard.</p>",
+            status_code=410,
+        )
+    uid = int(row["user_id"] if hasattr(row, "__getitem__") else row[0])
+    session_token = _create_session_token(uid, f"telegram:{uid}")
+    store_session(uid, session_token)
+    resp = RedirectResponse(url="/", status_code=302)
+    resp.set_cookie(key="session_token", value=session_token,
+                    max_age=SESSION_DURATION_HOURS * 3600, httponly=True,
+                    secure=False, samesite="lax")
+    return resp
+
+
 @auth_router.post("/api/auth/login")
 async def login_user(payload: dict[str, Any]):
     """Login user dan buat session token."""

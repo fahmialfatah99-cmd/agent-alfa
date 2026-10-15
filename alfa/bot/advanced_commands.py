@@ -671,6 +671,25 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     keyboard = []
+    magic_ok = False
+    try:
+        from alfa.dashboard.routes.auth import create_telegram_link
+
+        # CATATAN: tombol URL localhost DITOLAK API Telegram (400 utk SELURUH pesan).
+        # Semua tombol pakai base LAN — laptop satu WiFi membukanya normal.
+        lan_base = (res.get("network_url") or "").rstrip("/")
+        if lan_base:
+            tok_hp = create_telegram_link(user_id)
+            tok_laptop = create_telegram_link(user_id)
+            keyboard.append(
+                [InlineKeyboardButton("📱 Buka di HP (WiFi, auto-login)", url=f"{lan_base}/t/{tok_hp}")]
+            )
+            keyboard.append(
+                [InlineKeyboardButton("💻 Buka di Laptop (auto-login)", url=f"{lan_base}/t/{tok_laptop}")]
+            )
+            magic_ok = bool(keyboard)
+    except Exception as link_err:
+        logger.debug(f"[dashboard] magic link gagal: {link_err}")
     if tma_url and tma_url.startswith("https://"):
         keyboard.append(
             [
@@ -681,7 +700,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         web_url = res.get("network_url") or res.get("local_url") or ""
-        if web_url and not web_url.startswith("http://localhost"):
+        if web_url and not web_url.startswith("http://localhost") and not magic_ok:
             keyboard.append(
                 [InlineKeyboardButton("🌐 Buka Web Dashboard", url=web_url)]
             )
@@ -689,17 +708,24 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
     text = (
-        f"🛸 **ALFA SOVEREIGN COMMAND CENTER:**\n\n"
-        f"• **Akses Lokal (Laptop):** `{res.get('local_url')}`\n"
-        f"• **Akses Jaringan (HP / WiFi):** `{res.get('network_url')}`\n\n"
-        f"⚡ **Pusat Kontrol Terintegrasi:**\n"
-        f"1. 📊 Telemetri Hardware & CPU/RAM Real-time\n"
-        f"2. ⚡ 130+ Tools Interaktif & Browser Otomatis\n"
-        f"3. 🧠 Second Brain & Vector Memory\n"
-        f"4. 🛡️ 24/7 System Guardian & Background Watchdogs\n"
-        f"5. 💬 Web AI Interactive Console\n"
-        f"6. 🤖 Ruang Rapat AI (Swarm Multi-Agent Engine)\n"
-        f"7. 🔑 Multi-Provider Vault & API Keys Manager"
+        "🛸 **ALFA SOVEREIGN COMMAND CENTER:**\n\n"
+        + (
+            "Ketuk tombol di bawah untuk masuk otomatis (tanpa login).\n"
+            "Berlaku 10 menit, sekali pakai.\n"
+            if magic_ok
+            else (
+                f"• **Akses Lokal (Laptop):** `{res.get('local_url')}`\n"
+                f"• **Akses Jaringan (HP / WiFi):** `{res.get('network_url')}`\n"
+            )
+        )
+        + "\n⚡ **Pusat Kontrol Terintegrasi:**\n"
+        "1. 📊 Telemetri Hardware & CPU/RAM Real-time\n"
+        "2. ⚡ 130+ Tools Interaktif & Browser Otomatis\n"
+        "3. 🧠 Second Brain & Vector Memory\n"
+        "4. 🛡️ 24/7 System Guardian & Background Watchdogs\n"
+        "5. 💬 Web AI Interactive Console\n"
+        "6. 🤖 Ruang Rapat AI (Swarm Multi-Agent Engine)\n"
+        "7. 🔑 Multi-Provider Vault & API Keys Manager"
     )
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
 

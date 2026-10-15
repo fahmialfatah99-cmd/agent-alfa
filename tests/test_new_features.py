@@ -152,7 +152,9 @@ def test_honesty_scanner_marks_dummy(tmp_path):
 
 
 # --- dashboard: galeri situs & budget ---------------------------------------
-def test_dashboard_sites_and_budget():
+def test_dashboard_sites_and_budget(monkeypatch):
+    monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+    monkeypatch.setenv("DASHBOARD_AUTH_TOKEN", "")
     from fastapi.testclient import TestClient
 
     from alfa.dashboard.routes import auth as auth_mod
@@ -172,3 +174,23 @@ def test_dashboard_sites_and_budget():
     assert r.status_code in (404, 500)
     r = c.post("/api/sites/x/bakar")
     assert r.status_code == 400
+
+
+# --- model mati ditolak di semua jalur tulis --------------------------------
+def test_dead_models_rejected(isolated_db):
+    from alfa.core.db import keys as _keys
+
+    assert _keys.is_dead_model("m1")
+    assert _keys.is_dead_model("gemini-3.6-flash")
+    assert not _keys.is_dead_model("gemini-3.5-flash-lite")
+    assert _keys.update_api_key_model(9999, "m1") is False
+
+
+# --- pipeline: 4 template + vars override ------------------------------------
+def test_pipeline_templates_and_overrides():
+    from alfa.pipelines import engine as pipe
+
+    ids = {p["id"] for p in pipe.list_pipelines()}
+    assert {"riset_dan_ringkas", "audit_situs", "cek_kesehatan", "arsip_outputs"} <= ids
+    data = pipe.load_pipeline("cek_kesehatan")
+    assert len(data["steps"]) == 3
