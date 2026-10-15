@@ -166,6 +166,13 @@ function switchTab(tabId) {
         targetBtn.classList.add('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
     }
 
+    // Sinkron highlight bottom-nav HP
+    document.querySelectorAll('.mnav').forEach(el => {
+        const on = el.getAttribute('data-mtab') === tabId;
+        el.classList.toggle('text-cyan-300', on);
+        el.classList.toggle('text-slate-400', !on);
+    });
+
     // Persist active tab
     localStorage.setItem('alfa_active_tab', tabId);
     AlfaStore.activeTab = tabId;
