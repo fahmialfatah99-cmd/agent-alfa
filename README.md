@@ -11,7 +11,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 140+ Sovereign Tools, Master Scraper, Passkey Vault, dan Web Command Center.**
+**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 162 Sovereign Tools, Master Scraper, Passkey Vault, Web Command Center, dan Jembatan Discord.**
 
 [Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
 
@@ -21,8 +21,8 @@
 
 ## 🌟 Fitur Unggulan
 
-> Terukur: 148 tools, 784 test hijau, 20/20 eval offline —
-> lihat [docs/BENCHMARK.md](docs/BENCHMARK.md).
+> Terukur: 162 tools, 46 perintah Telegram, 5 slash Discord, 39 uji fitur hijau —
+> detail historis di [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
 * **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom membedah masalah dan merumuskan Action Plan.
@@ -68,6 +68,12 @@
 * **Eval & Benchmark:** 20 golden task offline di CI, live eval mingguan berbiaya terukur (`docs/EFFICIENCY.md`), paket head-to-head terbuka.
 * **Keamanan:** Permission gate + trust score, RBAC admin di 15 endpoint sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
 
+### 8. 💬 Jembatan Discord, Galeri Situs & Digest Cerdas
+* **Bot Discord penuh:** chat (memori bersama Telegram), `!swarm`, `!sites`, `!play` musik VC, mode Jarvis dengar-jawab suara (`!join`), cermin war-room live, digest WA harian, 5 slash command (`/tanya /swarm /situs /misi /gabung`). Service: `alfa-discord-bot.service`.
+* **Galeri Situs (`/sites`):** semua website/proyek hasil agent (swarm outputs + `~/alfa_projects`) otomatis terdaftar, bisa dihidupkan/dimatikan/lihat log dari Telegram. Situs baru memicu notifikasi instan.
+* **Digest WA Cerdas (`/waringkas`):** statistik + sorotan AI + terbaru, otomatis tiap 07:00 ke Telegram & Discord. Tanpa autoreply.
+* **Kejujuran Berlapis:** HUKUM JUJUR di prompt (label SELESAI/SEBAGIAN/GAGAL), verifier mekanis swarm, circuit breaker provider, scanner dummy `audit_project_honesty`.
+
 ---
 
 ## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
@@ -95,7 +101,7 @@ chmod +x setup.sh run.sh
 # Atau aktifkan service background 24/7 (Systemd):
 mkdir -p ~/.config/systemd/user && cp deploy/*.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service
+systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service alfa-discord-bot.service
 ```
 
 ---
@@ -138,8 +144,8 @@ TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
 # API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
 GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
 
-# Model Gemini default (pilih generasi aktif, mis. gemini-3.6-flash / gemini-3.5-flash-lite)
-GEMINI_MODEL="gemini-3.6-flash"
+# Model Gemini default (hanya yang terverifikasi hidup)
+GEMINI_MODEL="gemini-3.5-flash-lite"
 
 # Telegram User ID yang diizinkan (WAJIB DIISI - fail-safe: kosong = semua akses ditolak.
 # Jangan pernah jalankan bot ini publik tanpa whitelist karena bot bisa mengeksekusi
@@ -170,6 +176,10 @@ SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif
 | `/memory` | Menampilkan ingatan fakta jangka panjang (Second Brain) |
 | `/clear` | Mereset riwayat chat percakapan saat ini |
 | `/help` | Menampilkan panduan lengkap penggunaan seluruh fitur |
+| `/sites` | Galeri website/proyek hasil agent + hidupkan/matikan dari Telegram |
+| `/budget` | Monitor kuota token harian |
+| `/waringkas [format]` | Digest cerdas WA + sorotan AI |
+| `/swarm template [nama]` | Misi swarm siap pakai (audit-server, bersih-cache, …) |
 
 ---
 
