@@ -9,6 +9,7 @@ from alfa.dashboard.routes.system.pipelines_memory import (
 )
 from alfa.dashboard.routes.system.scrapers import router as scrapers_router
 from alfa.dashboard.routes.system.settings_admin import router as settings_admin_router
+from alfa.dashboard.routes.system.sites_routes import router as sites_router
 from alfa.dashboard.routes.system.telemetry import router as telemetry_router
 from alfa.dashboard.routes.system.whatsapp import router as whatsapp_router
 from alfa.dashboard.routes.system.workspace_vault import (
@@ -30,6 +31,7 @@ _sub_routers = [
     pipelines_memory_router,
     workspace_vault_router,
     settings_admin_router,
+    sites_router,
     scrapers_router,
     whatsapp_router,
     gdrive_router,
@@ -44,6 +46,7 @@ __all__ = [
     "pipelines_memory_router",
     "workspace_vault_router",
     "settings_admin_router",
+    "sites_router",
     "scrapers_router",
     "whatsapp_router",
     "gdrive_router",

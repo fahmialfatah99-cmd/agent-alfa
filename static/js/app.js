@@ -5733,3 +5733,82 @@ fetch("/api/system/home-dir").then(r => r.json()).then(d => {
     if (d && d.home_dir) window._alfaHomeDir = d.home_dir;
 }).catch(() => {});
 
+
+// ==================== GALERI SITUS & KUOTA ====================
+function _escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function fetchSites(isManual = false) {
+    const grid = document.getElementById('sites-grid');
+    try {
+        const res = await fetch('/api/sites');
+        const data = await res.json();
+        if (data.status !== 'success') throw new Error(data.detail || 'gagal');
+        const rows = data.sites || [];
+        if (!rows.length) {
+            grid.innerHTML = '<div class="text-slate-500 text-center py-12 col-span-full font-mono text-xs">Belum ada situs terdaftar.</div>';
+            return;
+        }
+        grid.innerHTML = rows.map(s => {
+            const on = s.backend_on || s.frontend_on;
+            const dot = on ? 'bg-emerald-400' : 'bg-slate-500';
+            const st = s.stack || {};
+            const tags = [
+                st.has_backend ? 'backend' : null,
+                st.has_frontend ? 'frontend' : null,
+                st.has_php ? 'php' : null,
+                st.has_static ? 'statis' : null,
+            ].filter(Boolean).join(' · ') || 'skrip';
+            const ports = [s.backend_port ? `BE:${s.backend_port}` : null, s.frontend_port ? `FE:${s.frontend_port}` : null].filter(Boolean).join(' ');
+            const runnable = st.has_backend || st.has_frontend || st.has_php;
+            return `
+                <div class="glass-card p-4 rounded-2xl flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-2 h-2 rounded-full ${dot}"></span>
+                            <h4 class="text-xs font-bold text-white font-mono truncate" title="${_escHtml(s.slug)}">${_escHtml(s.title || s.slug)}</h4>
+                        </div>
+                        <p class="text-[10px] text-slate-500 font-mono">${_escHtml(s.category || '')} · ${tags} ${ports ? '· ' + ports : ''}</p>
+                    </div>
+                    ${runnable ? `
+                    <div class="flex gap-2">
+                        <button onclick="siteAction('${_escHtml(s.slug)}','start')" class="flex-1 py-2 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition-all">▶ Hidupkan</button>
+                        <button onclick="siteAction('${_escHtml(s.slug)}','stop')" class="flex-1 py-2 bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition-all">⏹ Matikan</button>
+                    </div>` : `
+                    <p class="text-[10px] text-slate-500 font-mono">Proyek non-server — tanpa tombol start/stop.</p>`}
+                </div>`;
+        }).join('');
+        lucide.createIcons();
+    } catch (err) {
+        grid.innerHTML = `<div class="text-rose-400 text-center py-6 col-span-full font-mono text-xs">Galeri error: ${_escHtml(err.message)}</div>`;
+    }
+}
+
+async function siteAction(slug, action) {
+    try {
+        const res = await fetch(`/api/sites/${encodeURIComponent(slug)}/${action}`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'gagal');
+        showToast(`Situs ${action === 'start' ? 'dihidupkan' : 'dimatikan'}: ${slug}`, 'success');
+    } catch (err) {
+        showToast(`Aksi situs gagal: ${err.message}`, 'error');
+    }
+    fetchSites();
+}
+
+async function fetchBudget(isManual = false) {
+    const box = document.getElementById('budget-box');
+    const bar = document.getElementById('budget-bar');
+    try {
+        const res = await fetch('/api/budget/today');
+        const d = await res.json();
+        if (d.status !== 'ok') throw new Error('data kosong');
+        const pct = Math.min(100, (d.pct || 0) * 100);
+        box.innerHTML = `Terpakai <b class="text-white">${Number(d.total_tokens || 0).toLocaleString('id-ID')}</b> / ${Number(d.budget_limit || 0).toLocaleString('id-ID')} token &nbsp;•&nbsp; sisa <b class="text-white">${Number(d.remaining || 0).toLocaleString('id-ID')}</b> &nbsp;•&nbsp; ${d.total_calls || 0} panggilan`;
+        bar.style.width = pct + '%';
+        bar.className = 'h-full rounded-full transition-all ' + (pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-400' : 'bg-cyan-500');
+    } catch (err) {
+        box.textContent = 'Kuota error: ' + err.message;
+    }
+}
