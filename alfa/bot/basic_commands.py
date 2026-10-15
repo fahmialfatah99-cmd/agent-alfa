@@ -94,6 +94,22 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = _main_menu_markup()
 
+    # Onboarding pengguna baru: tur singkat bila belum pernah chat.
+    try:
+        _hist = await database.get_recent_chat_history(user.id, limit=1)
+    except Exception:
+        _hist = [{}]
+    tour = ""
+    if not _hist:
+        tour = (
+            "\n\n🎉 **Selamat datang, pengguna baru! Tur 30 detik:**\n"
+            "1. Ketik apa saja — saya agen AI dengan akses mesin + 160 tools.\n"
+            "2. `/menu` — semua tombol fitur.\n"
+            "3. `/swarm <tugas>` — kerjakan tugas berat multi-agen.\n"
+            "4. `/cekagen` — cek kesehatan konfigurasi bila ada yang aneh.\n"
+            "5. `/sites` — galeri hasil kerja (website/proyek).\n"
+        )
+
     welcome_text = (
         f"🤖 **Personal Autonomous AI Agent**\n"
         f"Halo, **{user.first_name}**! Saya asisten AI otonom pribadi berbasis **multi-provider (9Router/Gemini)** yang terhubung langsung dengan mesin Linux Anda.\n\n"
@@ -110,6 +126,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• 🧠 **Persistent Long-Term Memory:** Memori permanen terisolasi per akun.\n"
         f"• ⏰ **Proactive Reminders:** Pengingat otomatis terjadwal.\n\n"
         f"Ketik `/menu` untuk panel lengkap atau `/help` untuk semua perintah!"
+        f"{tour}"
     )
     await safe_send_message(context, chat_id, welcome_text, reply_markup=reply_markup)
 

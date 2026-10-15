@@ -91,7 +91,7 @@ if ! grep -q "^ENCRYPTION_KEY=[a-zA-Z0-9]" .env 2>/dev/null; then
 fi
 
 # Ensure correct model format
-sed -i "s|^GEMINI_MODEL=.*|GEMINI_MODEL=gemini-3.6-flash|" .env 2>/dev/null || true
+sed -i "s|^GEMINI_MODEL=.*|GEMINI_MODEL=gemini-3.5-flash|" .env 2>/dev/null || true
 
 # Read existing values if any
 source .env 2>/dev/null || true
@@ -118,13 +118,29 @@ else
     echo -e "   ${GREEN}✅ TELEGRAM_BOT_TOKEN sudah terkonfigurasi.${NC}"
 fi
 
-# Interactive Allowed User IDs
-if [ -z "$ALLOWED_USER_IDS" ] && [ -n "$INPUT_BOT_TOKEN" ]; then
-    echo -e "${YELLOW}👉 Masukkan Telegram User ID Anda (opsional, dapatkan dari @userinfobot):${NC}"
-    read -rp "   ALLOWED_USER_IDS (kosongkan jika publik): " INPUT_ALLOWED_IDS
+# Interactive Allowed User IDs (selalu tanya bila kosong — tanpa ini bot menolak semua chat)
+source .env 2>/dev/null || true
+if [ -z "$ALLOWED_USER_IDS" ]; then
+    echo -e "${YELLOW}👉 Masukkan Telegram User ID Anda (WAJIB utk Telegram; dapatkan dari @userinfobot):${NC}"
+    read -rp "   ALLOWED_USER_IDS (kosongkan = mode publik, TIDAK disarankan): " INPUT_ALLOWED_IDS
     if [ -n "$INPUT_ALLOWED_IDS" ]; then
         sed -i "s|ALLOWED_USER_IDS=.*|ALLOWED_USER_IDS=$INPUT_ALLOWED_IDS|" .env
+        echo -e "   ${GREEN}✅ Whitelist tersimpan.${NC}"
+    else
+        echo -e "   ${YELLOW}⚠️ Dibiarkan kosong — SIAPA PUN bisa memakai bot Anda.${NC}"
     fi
+else
+    echo -e "   ${GREEN}✅ ALLOWED_USER_IDS sudah terkonfigurasi.${NC}"
+fi
+
+# Dashboard token: wajib ada nilai nyata (placeholder ditolak utk akses LAN)
+source .env 2>/dev/null || true
+if [ -z "$DASHBOARD_AUTH_TOKEN" ] || [ "$DASHBOARD_AUTH_TOKEN" == "passwordkuatdisini" ]; then
+    GEN_TOK=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))" 2>/dev/null || openssl rand -hex 24)
+    sed -i "s|^DASHBOARD_AUTH_TOKEN=.*|DASHBOARD_AUTH_TOKEN=$GEN_TOK|" .env
+    echo -e "   ${GREEN}✅ DASHBOARD_AUTH_TOKEN dibuat otomatis (lihat .env utk login dashboard).${NC}"
+else
+    echo -e "   ${GREEN}✅ DASHBOARD_AUTH_TOKEN sudah terkonfigurasi.${NC}"
 fi
 
 # 6. Setup Output Deliverable Directory
