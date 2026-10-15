@@ -721,7 +721,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             for candidate in (
                 _main_brain_gemini_model(),
                 GEMINI_MODEL,
-                "gemini-3.5-flash-lite",
+                "gemini-3.5-flash",
                 "gemini-flash-lite-latest",
                 "gemini-3-flash-preview",
             ):

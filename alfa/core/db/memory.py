@@ -278,7 +278,7 @@ async def get_user_settings(user_id: int) -> dict[str, Any]:
             return {
                 "voice_reply": 0,
                 "system_prompt_override": None,
-                "model_name": "gemini-3.5-flash-lite",
+                "model_name": "gemini-3.5-flash",
             }
 
 

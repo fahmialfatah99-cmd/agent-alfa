@@ -33,7 +33,7 @@ def add_custom_agent_sync(
     persona: str,
     system_instruction: str,
     provider: str = "gemini",
-    model: str = "gemini-3.5-flash-lite",
+    model: str = "gemini-3.5-flash",
     api_key_id: int | None = None,
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",

@@ -158,7 +158,7 @@ def manage_api_keys(
     name: str = "",
     provider: str = "gemini",
     api_key: str = "",
-    default_model: str = "gemini-3.5-flash-lite",
+    default_model: str = "gemini-3.5-flash",
     base_url: str = "",
     key_id: int | None = None,
 ) -> dict[str, Any]:
@@ -211,7 +211,7 @@ def manage_custom_agents(
     persona: str = "",
     system_instruction: str = "",
     provider: str = "gemini",
-    model: str = "gemini-3.5-flash-lite",
+    model: str = "gemini-3.5-flash",
     avatar_emoji: str = "🤖",
     color_theme: str = "cyan",
     agent_id: int | None = None,

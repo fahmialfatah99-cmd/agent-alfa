@@ -453,7 +453,7 @@ async def persona_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "VALUES (?, 0, ?, ?) "
             "ON CONFLICT(user_id) DO UPDATE SET system_prompt_override = excluded.system_prompt_override, "
             "model_name = excluded.model_name",
-            (user_id, sys_inst, matched.get("model", "gemini-3.5-flash-lite")),
+            (user_id, sys_inst, matched.get("model", "gemini-3.5-flash")),
         )
         conn.commit()
     await safe_send_message(

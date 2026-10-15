@@ -42,7 +42,7 @@ async def add_api_key_endpoint(payload: dict[str, Any], request: Request):
     name = payload.get("name")
     provider = payload.get("provider", "gemini")
     api_key = payload.get("api_key")
-    default_model = payload.get("default_model", "gemini-3.5-flash-lite")
+    default_model = payload.get("default_model", "gemini-3.5-flash")
     base_url = payload.get("base_url", "")
     set_active = payload.get("set_active", True)
 

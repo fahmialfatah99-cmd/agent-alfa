@@ -55,7 +55,7 @@ def _get_bot():
 _COMPACT_KEEP = 12
 _COMPACT_WINDOW = 40
 _COMPACT_MIN_NEW = 8
-_COMPACT_MODEL = "gemini-3.5-flash-lite"
+_COMPACT_MODEL = "gemini-3.5-flash"
 
 
 def _format_compaction(summary: str) -> str:
@@ -404,7 +404,7 @@ async def run_agent_turn(
         m.strip()
         for m in os.getenv(
             "GEMINI_FALLBACK_MODELS",
-            "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3-flash-preview",
+            "gemini-3.5-flash,gemini-flash-lite-latest,gemini-3-flash-preview",
         ).split(",")
         if m.strip()
     ]
