@@ -5773,8 +5773,8 @@ async function fetchSites(isManual = false) {
                     </div>
                     ${runnable ? `
                     <div class="flex gap-2">
-                        <button onclick="siteAction('${_escHtml(s.slug)}','start')" class="flex-1 py-2 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition-all">▶ Hidupkan</button>
-                        <button onclick="siteAction('${_escHtml(s.slug)}','stop')" class="flex-1 py-2 bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition-all">⏹ Matikan</button>
+                        <button onclick="siteAction('${_escHtml(s.slug)}','start')" class="flex-1 py-2 min-h-[44px] bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition-all">▶ Hidupkan</button>
+                        <button onclick="siteAction('${_escHtml(s.slug)}','stop')" class="flex-1 py-2 min-h-[44px] bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition-all">⏹ Matikan</button>
                     </div>` : `
                     <p class="text-[10px] text-slate-500 font-mono">Proyek non-server — tanpa tombol start/stop.</p>`}
                 </div>`;
