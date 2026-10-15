@@ -142,7 +142,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3-flash-preview",
+        "gemini-3.5-flash,gemini-flash-lite-latest,gemini-3-flash-preview",
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -640,7 +640,7 @@ async def generate_agent_response(
             result = await _generate_with_gemini(
                 agent_name=f"{agent_name} (fallback)",
                 api_key=os.getenv("GEMINI_API_KEY", ""),
-                models=["gemini-3.5-flash-lite", "gemini-flash-lite-latest"],
+                models=["gemini-3.5-flash", "gemini-flash-lite-latest"],
                 prompt=prompt,
                 final_instruction=final_instruction,
                 key_id=None,

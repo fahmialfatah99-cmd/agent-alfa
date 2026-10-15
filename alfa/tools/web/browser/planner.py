@@ -20,7 +20,7 @@ def _candidate_models(cfg: dict[str, Any]) -> list[str]:
     for m in _MODEL_CACHE + [
         cfg.get("model") or "",
         os.getenv("GEMINI_MODEL", "").strip(),
-        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
     ]:
         if m and m not in out:
             out.append(m)

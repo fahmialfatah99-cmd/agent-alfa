@@ -404,7 +404,7 @@ def vision_click_target(
             )
 
             response = client.models.generate_content(
-                model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+                model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
                 contents=[image_part, vision_prompt],
             )
 

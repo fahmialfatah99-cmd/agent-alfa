@@ -560,7 +560,7 @@ async def proactive_ambient_agent_loop(application: Application):
                             m.strip()
                             for m in os.getenv(
                                 "GEMINI_FALLBACK_MODELS",
-                                "gemini-3.5-flash-lite,gemini-3.1-flash-lite-preview,gemini-flash-lite-latest",
+                                "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3-flash-preview",
                             ).split(",")
                             if m.strip()
                         ]

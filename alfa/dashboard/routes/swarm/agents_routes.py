@@ -26,7 +26,7 @@ async def create_custom_agent(payload: dict[str, Any]):
     persona = payload.get("persona", "")
     system_instruction = payload.get("system_instruction", "")
     provider = payload.get("provider", "gemini")
-    model = payload.get("model", "gemini-3.5-flash-lite")
+    model = payload.get("model", "gemini-3.5-flash")
     api_key_id = payload.get("api_key_id")
     avatar_emoji = payload.get("avatar_emoji", "🤖")
     color_theme = payload.get("color_theme", "cyan")
