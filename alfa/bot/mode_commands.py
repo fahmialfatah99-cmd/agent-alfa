@@ -497,16 +497,42 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_message(context, chat_id, "\n".join(lines))
         return
 
+    if sub == "show":
+        if len(args) < 2:
+            await safe_send_message(context, chat_id, "Usage: `/pipeline show <id>`")
+            return
+        try:
+            data = pipe.load_pipeline(args[1])
+        except Exception as e:
+            await safe_send_message(context, chat_id, f"❌ Pipeline tak ditemukan: `{e}`")
+            return
+        lines = [f"🔁 **{data.get('name', data.get('id'))}** (`{data.get('id')}`)\n_{data.get('description', '')}_\n"]
+        for s in data.get("steps", []):
+            dep = f" ⟵ {','.join(s.get('depends_on', []))}" if s.get("depends_on") else ""
+            lines.append(f"• `{s.get('id')}` [{s.get('type', '?')}] {s.get('tool', s.get('text', ''))[:60]}{dep}")
+        if data.get("vars"):
+            lines.append(f"\nVars: `{data['vars']}`")
+        lines.append("\nJalankan: `/pipeline run <id> [kunci=nilai]`")
+        await safe_send_message(context, chat_id, "\n".join(lines))
+        return
+
     if sub == "run":
         if len(args) < 2:
-            await safe_send_message(context, chat_id, "Usage: `/pipeline run <id>`")
+            await safe_send_message(context, chat_id, "Usage: `/pipeline run <id> [kunci=nilai ...]`")
             return
         pid = args[1]
+        overrides = {}
+        for a in args[2:]:
+            if "=" in a:
+                k, v = a.split("=", 1)
+                if k.strip():
+                    overrides[k.strip()] = v.strip()
         await safe_send_message(
             context, chat_id, f"🔁 Menjalankan pipeline `{pid}`..."
+            + (f" (vars: `{overrides}`)" if overrides else "")
         )
         try:
-            res = await asyncio.wait_for(pipe.run_pipeline(pid), timeout=280)
+            res = await asyncio.wait_for(pipe.run_pipeline(pid, overrides or None), timeout=280)
         except asyncio.TimeoutError:
             await safe_send_message(
                 context, chat_id, f"⏱ Pipeline `{pid}` melebihi 280 dtk — cek dashboard."
@@ -529,7 +555,7 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await safe_send_message(context, chat_id, "Usage: `/pipeline [list|run <id>]`")
+    await safe_send_message(context, chat_id, "Usage: `/pipeline [list|run <id> [k=v]|show <id>]`")
 
 
 async def tugas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

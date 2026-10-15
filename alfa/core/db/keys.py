@@ -10,6 +10,14 @@ from alfa.core.db.crypto import decrypt_key, encrypt_key, mask_key
 
 logger = logging.getLogger("DB.Keys")
 
+# Model yang terbukti mati (404/503) di API — dilarang masuk vault/agen.
+DEAD_MODELS = frozenset({"m1", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash"})
+
+
+def is_dead_model(model: str | None) -> bool:
+    """True bila model ada di daftar mati (perbandingan eksak, case-sensitive API)."""
+    return (model or "").strip() in DEAD_MODELS
+
 
 def sync_external_api_keys_sync() -> list[dict[str, Any]]:
     """Automatically discover and synchronize API keys from external sources:
@@ -395,6 +403,9 @@ def list_active_keys_sync(exclude_provider: str = "") -> list[dict[str, Any]]:
 
 def update_api_key_model(key_id: int, model: str) -> bool:
     """Update default_model sebuah kunci vault."""
+    if is_dead_model(model):
+        logger.warning(f"update_api_key_model ditolak: model mati '{model}'")
+        return False
     try:
         with get_sync_db() as conn:
             cur = conn.execute(

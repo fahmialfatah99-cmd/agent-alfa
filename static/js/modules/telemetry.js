@@ -189,19 +189,44 @@ async function fetchStats(isManual = false) {
 
     try {
         const res = await fetch('/api/stats');
+        if (res.status === 401) throw new Error('HTTP 401 (belum login di perangkat ini)');
         const data = await res.json();
         if (data.status === 'success') {
             applyTelemetryData(data);
+            setSyncPill(true, '');
             if (isManual && typeof showToast === 'function') {
                 showToast('Data telemetry diperbarui real-time', 'success');
             }
+        } else {
+            throw new Error(data.detail || 'respons tak valid');
         }
     } catch (err) {
         console.error('Stats fetch error:', err);
+        setSyncPill(false, String(err.message || err));
     } finally {
         if (icon && isManual) {
             setTimeout(() => icon.classList.remove('animate-spin'), 500);
         }
+    }
+}
+
+/**
+ * Pill status sinkronisasi: hijau LIVE + jam update, merah = alasan gagal.
+ */
+function setSyncPill(ok, reason) {
+    const pill = document.getElementById('sync-pill');
+    if (!pill) return;
+    const now = new Date().toLocaleTimeString('id-ID', { hour12: false });
+    if (ok) {
+        pill.textContent = `LIVE ${now}`;
+        pill.className = 'px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold';
+        pill.title = 'Data tersinkron ' + now;
+        pill.onclick = null;
+    } else {
+        pill.textContent = 'ERROR';
+        pill.className = 'px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold';
+        pill.title = 'Gagal sinkron: ' + reason + ' — ketuk untuk muat ulang halaman (login ulang bila perlu).';
+        pill.onclick = () => window.location.reload();
     }
 }
 

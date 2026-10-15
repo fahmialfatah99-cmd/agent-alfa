@@ -88,6 +88,14 @@ def update_custom_agent_sync(agent_id: int, updates: dict[str, Any]) -> dict[str
                 f"update_custom_agent: kolom '{k}' ditolak (tidak ada di whitelist)"
             )
             continue
+        if k == "model":
+            try:
+                from alfa.core.db.keys import is_dead_model as _is_dead
+
+                if _is_dead(v):
+                    return {"status": "error", "message": f"Model '{v}' mati (404) — ditolak."}
+            except ImportError:
+                pass
         if not all(c.isalnum() or c == "_" for c in k):
             logger.warning(
                 f"update_custom_agent: kolom '{k}' ditolak (karakter tidak valid)"
