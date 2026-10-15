@@ -125,6 +125,7 @@ def get_required_action_tools(user_text: str) -> set[str]:
     ):
         required.update(
             [
+                "discord_play_music",
                 "play_youtube_music",
                 "open_url_in_system_browser",
                 "desktop_launch_app",

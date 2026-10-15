@@ -22,6 +22,15 @@ logger = logging.getLogger("AgentTools.Media.Player")
 # Pipeline audio lokal yang sedang berjalan (untuk mode stop / anti-tumpang-tindih)
 _AUDIO_PROC: subprocess.Popen | None = None
 
+# Kunci pemutaran host (dipakai sesi Discord: musik hanya via !play di VC).
+_HOST_PLAY_BLOCKED = False
+
+
+def set_host_play_blocked(blocked: bool = True) -> None:
+    """Aktif/matikan kunci pemutaran host (host = browser/speaker laptop)."""
+    global _HOST_PLAY_BLOCKED
+    _HOST_PLAY_BLOCKED = bool(blocked)
+
 _YT_URL_RE = re.compile(
     r"(?:youtube\.com/(?:watch\?v=|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,})"
 )
@@ -325,6 +334,15 @@ def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
               'audio' = only play the audio through the speakers,
               'stop' = stop the local audio playback (query not needed).
     """
+    if _HOST_PLAY_BLOCKED:
+        return {
+            "status": "error",
+            "message": (
+                "Pemutaran host DINONAKTIFKAN pada sesi ini (musik hanya via Discord !play). "
+                "Jangan coba tool lain untuk memutar — arahkan user pakai perintah !play."
+            ),
+            "query": query,
+        }
     md = (mode or "auto").strip().lower()
     if md == "stop":
         return _stop_audio()

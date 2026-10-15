@@ -511,6 +511,9 @@ async def run_agent_turn(
                 if corrected:
                     reply_text = corrected
         if reply_text:
+            from alfa.bot.helpers import strip_thought_blocks as _strip
+
+            reply_text = _strip(str(reply_text))
             await _db.save_chat_message(user_id, "model", reply_text)
             try:
                 from alfa.memory import reflection as memory_reflection
@@ -852,6 +855,9 @@ async def run_agent_turn(
                     f"artefak berubah: {_artifact_signature() != art_before}"
                 )
 
+            from alfa.bot.helpers import strip_thought_blocks as _strip2
+
+            reply_text = _strip2(str(reply_text))
             await _db.save_chat_message(user_id, "model", reply_text)
             return str(reply_text)
 
@@ -895,6 +901,9 @@ async def run_agent_turn(
             )
             if reply_text:
                 logger.info(f"[Fallback] sukses via {prov}/{key.get('default_model')}")
+                from alfa.bot.helpers import strip_thought_blocks as _strip3
+
+                reply_text = _strip3(str(reply_text))
                 await _db.save_chat_message(user_id, "model", reply_text)
                 return str(reply_text)
         except Exception as fe:

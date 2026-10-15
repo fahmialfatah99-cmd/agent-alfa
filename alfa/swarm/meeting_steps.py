@@ -48,6 +48,11 @@ def _build_task_desc(
             "\n\nKONTEKS HASIL AGEN GELOMBANG SEBELUMNYA (gunakan bila relevan):\n- "
             + "\n- ".join(ctx_lines[-3:])
         )
+    td += (
+        "\n\nDELIVERABLE WAJIB (tanpa kecuali): akhiri dengan MINIMAL 1 file nyata "
+        "di folder kerja. Tugas riset/audit/kajian → tulis LAPORAN-<TOPIK-SINGKAT>.md "
+        "(temuan + bukti + sumber). Tugas tanpa file baru = GAGAL otomatis oleh verifikator."
+    )
     return td
 
 
