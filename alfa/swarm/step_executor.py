@@ -65,6 +65,8 @@ async def _decompose_task(
         f"TIM: {roster}\n\n"
         "Pecah topik ini menjadi SATU subtask konkret dan dapat dieksekusi sistem "
         "(bukan rencana abstrak) untuk setiap anggota tim.\n"
+        "Setiap subtask WAJIB diakhiri deliverable file konkret "
+        "(mis. '... dan tulis hasilnya ke LAPORAN-<TOPIK>.md').\n"
         "Tentukan juga 'depends_on', yaitu daftar nama anggota tim lain yang tugasnya harus selesai SEBELUM tugas ini bisa dimulai (boleh kosong jika bisa paralel).\n"
         "Balas HANYA array JSON tanpa teks lain: "
         '[{"name": "<nama persis dari tim>", "task": "<instruksi spesifik maksimal 25 kata>", "depends_on": ["<nama_agen_lain>"]}]'
@@ -376,6 +378,40 @@ async def execute_swarm_task_step(
             tool_output = f"✅ Scraping Berhasil: {total} data nyata berhasil ditarik!\n📁 File CSV: {deliverable_file}\n\nSampel Data Teratas:\n{top_items_text}"
             deliverable_data = items[:10]
             generated_content = f"Gue udah scrape langsung {total} data nyata untuk target `{search_query}` di kategori `{cat}`. File CSV tersimpan di `{deliverable_file}` dan siap dianalisis!"
+
+            if total == 0 or not items:
+                # Scraper/Bencana koneksi mengembalikan NOL — fallback jujur via web_search + tulis laporan.
+                log_live("EXEC", "🔄 Scraper 0 hasil -> fallback web_search + LAPORAN-Riset.md...")
+                fb_lines, fb_n = [], 0
+                try:
+                    for q in (search_query, f"{search_query} rekomendasi terbaik"):
+                        try:
+                            ws = tools.web_search(query=q, max_results=8)
+                        except TypeError:
+                            ws = tools.web_search(q)
+                        found = (ws.get("results") or ws.get("items") or []) if isinstance(ws, dict) else []
+                        for it in found[:8]:
+                            if isinstance(it, dict):
+                                fb_lines.append(f"- {(it.get('title') or '?')[:80]} | {(it.get('url') or it.get('link') or '')[:80]}")
+                        fb_n += len(found)
+                        if fb_n >= 8:
+                            break
+                except Exception as ws_err:
+                    logger.warning(f"[research-fallback] web_search gagal: {ws_err}")
+                rep_path = os.path.join(swarm_out_dir, "LAPORAN-Riset.md")
+                try:
+                    with open(rep_path, "w") as rf:
+                        rf.write(f"# Laporan Riset: {search_query}\n\nSumber: web_search (fallback scraper, {fb_n} hasil)\n\n" + ("\n".join(fb_lines) if fb_lines else "Tidak ada hasil dari semua sumber.") + "\n")
+                    deliverable_file = rep_path
+                except OSError as w_err:
+                    logger.warning(f"[research-fallback] tulis laporan gagal: {w_err}")
+                if fb_n:
+                    tool_output = f"⚠️ Scraper 0 hasil — fallback web_search: {fb_n} hasil nyata tersimpan di {deliverable_file}"
+                    generated_content = f"Scraper buntu (koneksi), gue ambil {fb_n} hasil via web_search dan tulis ke `{deliverable_file}`."
+                else:
+                    status = "error"
+                    tool_output = "SEMUA sumber riset gagal (scraper 0 + web_search 0) — dilaporkan GAGAL jujur"
+                    generated_content = "(gagal: tidak ada data dari sumber mana pun)"
 
         except Exception as e:
             status = "error"

@@ -14,6 +14,20 @@ from alfa.tools import SANDBOX_DIR
 logger = logging.getLogger("TelegramAIAgent")
 
 
+def strip_thought_blocks(text: str) -> str:
+    """Buang blok penalaran mentah (<thought>...</thought>) dari balasan user-facing.
+
+    Aman untuk blok kode: hanya pola tag persis (case-insensitive) yang dibuang.
+    """
+    import re as _re
+
+    if not text or "<thought" not in text.lower():
+        return text
+    cleaned = _re.sub(r"<thought\b[^>]*>.*?</thought\s*>", "", text, flags=_re.S | _re.I)
+    cleaned = _re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned if cleaned.strip() else text
+
+
 # --- Edit-in-place target untuk tombol menu -------------------------------
 # Saat user menekan tombol inline, output perintah diedit ke pesan menu itu
 # sendiri (rapi, satu pesan) alih-alih kirim pesan baru. Target di-key per

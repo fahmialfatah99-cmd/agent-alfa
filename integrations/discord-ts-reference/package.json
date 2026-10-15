@@ -1,0 +1,29 @@
+{
+  "name": "alfa-discord-bot-ts",
+  "version": "1.0.0",
+  "description": "ALFA Swarm Discord Bot Core in TypeScript with Discord.js v14 and LLM integration",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "node --test dist/tests/*.test.js || ts-node test_runner.ts"
+  },
+  "keywords": [
+    "discord.js",
+    "typescript",
+    "llm",
+    "swarm",
+    "ai-assistant"
+  ],
+  "author": "ALFA Swarm Engineer",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.3"
+  }
+}
