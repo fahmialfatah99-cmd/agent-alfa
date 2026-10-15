@@ -118,3 +118,38 @@ def get_cost_estimate(prompt_text: str, model: str = "") -> dict[str, Any]:
         "estimated_tokens": tokens,
         "estimated_cost_usd": estimated_cost,
     }
+
+
+def get_budget_report(user_id: int = 1) -> dict[str, Any]:
+    """Laporan kuota hari ini: total, sisa, %, per-provider, status waspada.
+
+    Fail-open: bila DB tidak bisa dibaca, kembalikan status 'unknown'
+    agar tidak memblokir misi.
+    """
+    try:
+        from alfa.core.db import get_api_usage_summary_sync
+
+        usage = get_user_usage_today(user_id)
+        try:
+            summary = get_api_usage_summary_sync(hours=24)
+        except Exception:
+            summary = {}
+        total = usage.get("total_tokens", 0) or 0
+        limit = usage.get("budget_limit", 0) or 0
+        pct = (total / limit) if limit else 0.0
+        return {
+            "status": "ok",
+            "total_tokens": total,
+            "total_calls": usage.get("total_calls", 0) or 0,
+            "budget_limit": limit,
+            "call_limit": usage.get("call_limit", 0) or 0,
+            "remaining": usage.get("budget_remaining", 0) or 0,
+            "pct": pct,
+            "warn": pct >= 0.8,
+            "exceeded": pct >= 1.0,
+            "by_key": (summary or {}).get("per_key", []) or [],
+            "by_context": (summary or {}).get("by_context", []) or [],
+        }
+    except Exception as e:
+        logger.warning(f"budget report gagal: {e}")
+        return {"status": "unknown"}

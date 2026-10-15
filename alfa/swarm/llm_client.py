@@ -142,7 +142,7 @@ async def _generate_with_gemini(
     """Try a chain of Gemini models. Returns text or None if all fail."""
     default_chain = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
+        "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3-flash-preview",
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
@@ -215,8 +215,14 @@ async def _generate_with_openai_compat(
     context: str = "swarm",
     max_tokens: int = 500,
     timeout_s: float = 180.0,
+    require_content: bool = False,
 ) -> str | None:
-    """Call an OpenAI-compatible endpoint. Returns text or None on failure."""
+    """Call an OpenAI-compatible endpoint. Returns text or None on failure.
+
+    require_content=True: konten reasoning-saja (tanpa content nyata) dianggap
+    GAGAL (return None) agar rantai fallback provider tetap jalan — dipakai
+    pemanggil yang butuh aksi tool, bukan teks hiasan.
+    """
     try:
         import httpx
 
@@ -294,12 +300,19 @@ async def _generate_with_openai_compat(
                     msg0 = (data.get("choices") or [{}])[0].get("message") or {}
                     content = (msg0.get("content") or "").strip()
                     if not content:
-                        content = (
+                        reason_only = (
                             msg0.get("reasoning_content") or msg0.get("reasoning") or ""
                         ).strip()
+                        if reason_only and not require_content:
+                            logger.warning(
+                                f"[{provider}] content kosong, fallback reasoning ({len(reason_only)} char)"
+                            )
+                            return reason_only
                         logger.warning(
-                            f"[{provider}] content kosong, fallback reasoning ({len(content)} char)"
+                            f"[{provider}] content kosong untuk '{agent_name}' "
+                            f"(reasoning {len(reason_only)} char diabaikan) -> fallback provider."
                         )
+                        return None
                     if content:
                         return content
                 except Exception as parse_err:
@@ -459,6 +472,9 @@ async def generate_agent_response(
             "1. Setiap giliran WAJIB memuat panggilan function call.\n"
             "2. Kerjakan sendiri lewat tool — jangan memberi instruksi ke orang lain.\n"
             "3. Sebelum melapor selesai, pastikan file benar-benar ditulis via tool."
+            "\n\n[ATURAN JUJUR]: Akhiri dengan label SELESAI/SEBAGIAN/GAGAL sesuai bukti. "
+            "Dilarang label neural/AI/teruji/production-ready/deployed tanpa bukti "
+            "(hasil tes, file nyata, URL hidup). Dilarang dummy sebagai hasil asli."
         )
     else:
         final_instruction = (
@@ -542,6 +558,7 @@ async def generate_agent_response(
                     key_label=key_label,
                     context="swarm",
                     tools_schema=_mb.build_openai_tools(safe_only=True),
+                    raw_errors=True,
                 )
             except Exception as agentic_err:
                 logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
@@ -573,6 +590,7 @@ async def generate_agent_response(
                 context="swarm",
                 max_tokens=eff_max_tokens,
                 timeout_s=timeout_s,
+                require_content=enable_tools,
             )
         if result is None and enable_tools:
             try:
@@ -622,7 +640,7 @@ async def generate_agent_response(
             result = await _generate_with_gemini(
                 agent_name=f"{agent_name} (fallback)",
                 api_key=os.getenv("GEMINI_API_KEY", ""),
-                models=["gemini-3.6-flash"],
+                models=["gemini-3.5-flash-lite", "gemini-flash-lite-latest"],
                 prompt=prompt,
                 final_instruction=final_instruction,
                 key_id=None,

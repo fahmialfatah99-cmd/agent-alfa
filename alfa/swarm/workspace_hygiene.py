@@ -4,6 +4,7 @@ Workspace hygiene, sandboxing project snapshotting, and output harvesting for AL
 
 import collections
 import fnmatch
+import json
 import logging
 import os
 import re
@@ -14,6 +15,24 @@ import time
 from alfa import tools
 
 logger = logging.getLogger(__name__)
+
+
+_SLUG_STOPWORDS = frozenset("""
+buatin buatkan buat bikin bikinin tolong coba dong gw gue saya aku kamu lo kau
+yang paling sangat banget nih deh si sebuah untuk dengan dari dan atau di ke
+the a an please make create build buil me my website web app aplikasi aplikasi-
+aplikasi website websiteku webku donglah yuk ayo ingin mau minta mauu harap
+ini itu nya kah lah pun per yang cara gimana bagaimana agar supaya biar
+powered real time online offline baru utilised pakai pake menggunakan
+""".split())
+
+
+def smart_slug(topic: str, max_len: int = 28) -> str:
+    """Nama folder bagus dari topik: buang kata pengisi, ambil 4 kata kunci."""
+    words = re.sub(r"[^a-z0-9]+", " ", (topic or "").lower()).split()
+    keys = [w for w in words if w not in _SLUG_STOPWORDS and len(w) >= 3][:4]
+    slug = "-".join(keys)[:max_len].strip("-")
+    return slug or "proyek"
 
 SWARM_OUTPUT_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
 MAX_SWARM_AGENTS = max(1, int(os.getenv("ALFA_SWARM_MAX_AGENTS", "15")))
@@ -256,7 +275,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
             )
         )
 
-        slug = re.sub(r"[^a-z0-9]+", "_", low_topic[:30]).strip("_") or "proyek"
+        slug = smart_slug(low_topic) or "proyek"
         ts = int(time.time())
 
         for d in sorted(new_dirs):
@@ -316,6 +335,34 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
                 "HARVEST",
                 f"📦 {cat.capitalize()} '{os.path.basename(dst_dir)}' ({max(1, total // 1024)}KB) rapi tanpa sampah diarsipkan ke {dst_dir}",
             )
+            try:
+                from alfa.tools.system import sites as _sites
+
+                _before = set(_sites._load_registry().keys())
+                _sites.refresh_registry()
+                _new = sorted(set(_sites._load_registry().keys()) - _before)
+                if _new:
+                    _pend_file = os.path.join(
+                        os.path.expanduser("~"), ".alfa", "sites_pending_notify.json"
+                    )
+                    try:
+                        _pend = []
+                        if os.path.isfile(_pend_file):
+                            with open(_pend_file) as _f:
+                                _pend = json.load(_f) or []
+                    except Exception:
+                        _pend = []
+                    for _s in _new:
+                        if _s not in _pend:
+                            _pend.append(_s)
+                    with open(_pend_file, "w") as _f:
+                        json.dump(_pend[-10:], _f)
+                log_live(
+                    "SITES",
+                    f"🌐 Registry situs diperbarui ({len(_new)} baru terdeteksi).",
+                )
+            except Exception as _reg_err:
+                logger.debug(f"[harvest] refresh registry situs dilewati: {_reg_err}")
         return harvested
     except Exception as e:
         log_live("HARVEST", f"⚠️ harvest gagal: {e}")

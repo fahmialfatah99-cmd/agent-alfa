@@ -26,6 +26,7 @@ async def run_openai_agentic_turn(
     tools_schema: list[dict[str, Any]] | None = None,
     approval_gate=None,
     timeout: float = 180.0,
+    raw_errors: bool = False,
 ) -> str | None:
     """
     Satu turn agentik penuh di provider OpenAI-compatible:
@@ -209,6 +210,8 @@ async def run_openai_agentic_turn(
                     logger.error(
                         f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}"
                     )
+                    if raw_errors:
+                        return None  # pemanggil swarm: teruskan ke fallback provider
                     if res.status_code == 402:
                         return (
                             f"⚠️ **Gagal memanggil `{model}` via {provider.upper()} (HTTP 402: Saldo / Credit Habis).**\n\n"

@@ -14,24 +14,38 @@ logger = logging.getLogger("DB.Tasks")
 
 
 # --- Cron / Recurring Task Functions ---
+def _ensure_cron_kind_column(conn) -> None:
+    """Migrasi ringan: kolom kind ('single'|'swarm') bila belum ada."""
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(scheduled_cron_jobs)").fetchall()]
+        if "kind" not in cols:
+            conn.execute("ALTER TABLE scheduled_cron_jobs ADD COLUMN kind TEXT DEFAULT 'single'")
+            conn.commit()
+    except Exception as e:
+        logger.debug(f"migrasi kind cron dilewati: {e}")
+
+
 def add_cron_job_sync(
     user_id: int,
     chat_id: int,
     title: str,
     prompt_instruction: str,
     interval_minutes: int,
+    kind: str = "single",
 ) -> int:
-    """Synchronously add a recurring cron job."""
+    """Synchronously add a recurring cron job (kind: 'single' | 'swarm')."""
     next_run = (datetime.now() + timedelta(minutes=interval_minutes)).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
+    kind = "swarm" if str(kind).lower() == "swarm" else "single"
     with get_sync_db() as conn:
+        _ensure_cron_kind_column(conn)
         cursor = conn.execute(
             """
-            INSERT INTO scheduled_cron_jobs (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO scheduled_cron_jobs (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run, kind)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run),
+            (user_id, chat_id, title, prompt_instruction, interval_minutes, next_run, kind),
         )
         conn.commit()
         return int(cursor.lastrowid or 0)
@@ -40,9 +54,11 @@ def add_cron_job_sync(
 def list_cron_jobs_sync(user_id: int) -> list[dict[str, Any]]:
     """List all recurring cron jobs for a user."""
     with get_sync_db() as conn:
+        _ensure_cron_kind_column(conn)
         cursor = conn.execute(
             """
-            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run
+            SELECT id, title, prompt_instruction, interval_minutes, is_active, last_run, next_run,
+                   COALESCE(kind, 'single') AS kind
             FROM scheduled_cron_jobs
             WHERE user_id = ?
             ORDER BY id ASC
@@ -67,18 +83,29 @@ def delete_cron_job_sync(user_id: int, job_id: int) -> bool:
 async def get_due_cron_jobs() -> list[dict[str, Any]]:
     """Get all active recurring cron jobs whose next_run is due."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    base_cols = "id, user_id, chat_id, title, prompt_instruction, interval_minutes"
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """
-            SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes
-            FROM scheduled_cron_jobs
-            WHERE is_active = 1 AND next_run <= ?
-            """,
-            (now_str,),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
+        for cols in (f"{base_cols}, COALESCE(kind, 'single') AS kind", f"{base_cols}"):
+            try:
+                async with db.execute(
+                    f"""
+                    SELECT {cols}
+                    FROM scheduled_cron_jobs
+                    WHERE is_active = 1 AND next_run <= ?
+                    """,
+                    (now_str,),
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    out = []
+                    for r in rows:
+                        d = dict(r)
+                        d.setdefault("kind", "single")
+                        out.append(d)
+                    return out
+            except Exception:
+                continue  # kolom kind belum ada → coba tanpa kind
+        return []
 
 
 async def update_cron_job_after_run(job_id: int, interval_minutes: int):

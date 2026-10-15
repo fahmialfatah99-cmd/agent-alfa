@@ -17,6 +17,7 @@ from alfa.bot.config import (
     CODING_DELIVERY_BLOCK,
     ENFORCEMENT_BLOCK,
     GEMINI_MODEL,
+    HONESTY_BLOCK,
     MEETING_FABRICATION_MARKERS,
     MEETING_INTENT_KEYWORDS,
     OWNER_NAME,
@@ -48,6 +49,120 @@ gemini_client: Any = None
 
 def _get_bot():
     return sys.modules.get("alfa.bot.telegram_bot")
+
+
+# --- Compaction: ringkasan rolling riwayat lama (hemat token) ---------------
+_COMPACT_KEEP = 12
+_COMPACT_WINDOW = 40
+_COMPACT_MIN_NEW = 8
+_COMPACT_MODEL = "gemini-3.5-flash-lite"
+
+
+def _format_compaction(summary: str) -> str:
+    if not (summary or "").strip():
+        return ""
+    return (
+        "\n\n======================================================\n"
+        "🗜️ [RINGKASAN PERCAKAPAN LAMA — COMPACTED]\n"
+        "Konteks lawas yang sudah diringkas otomatis (detail 12 pesan terakhir tetap utuh di atas):\n"
+        + summary.strip()
+        + "\n======================================================\n"
+    )
+
+
+async def _summarize_chunk(prev_summary: str, fresh: list[dict]) -> str:
+    """Ringkas satu potongan riwayat via model murah sekali-jalan (tanpa tools)."""
+    if gemini_client is None:
+        return ""
+    try:
+        from google.genai import types
+
+        convo = "\n".join(
+            f"{m.get('role', '?')}: {str(m.get('content', ''))[:600]}"
+            for m in fresh[-30:]
+        )
+        base = f"Ringkasan sebelumnya:\n{prev_summary}\n\n" if (prev_summary or "").strip() else ""
+        resp = await gemini_client.aio.models.generate_content(
+            model=_COMPACT_MODEL,
+            contents=(
+                base + "Percakapan lanjutan:\n" + convo
+                + "\n\nRingkas gabungan jadi MAKS 15 baris: fakta penting, "
+                "keputusan, janji/tugas terbuka, preferensi user. Bahasa Indonesia, fakta saja."
+            ),
+            config=types.GenerateContentConfig(
+                system_instruction="Kamu peringkas memori percakapan. Fakta saja, tanpa basa-basi."
+            ),
+        )
+        try:
+            from alfa.core import token_usage as _tu
+
+            _tu.from_gemini_response(
+                resp, model=f"{_COMPACT_MODEL}:compact", context="telegram_chat:compact"
+            )
+        except Exception:
+            pass
+        return (getattr(resp, "text", "") or "").strip()
+    except Exception as e:
+        logger.debug(f"[compact] ringkas gagal: {e}")
+        return ""
+
+
+async def _maybe_compact_history(_db, user_id: int) -> str:
+    """Rolling summary riwayat lama. Return blok prompt ('' bila tak perlu). Fail-open."""
+    if not user_id:
+        return ""
+    try:
+        get_conn = getattr(_db, "get_sync_db", None)
+        if get_conn is None:
+            from alfa.core import database as _ddb
+
+            get_conn = _ddb.get_sync_db
+        with get_conn() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS chat_compactions ("
+                " user_id INTEGER PRIMARY KEY, summary TEXT DEFAULT '',"
+                " up_to_id INTEGER DEFAULT 0,"
+                " updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+            )
+            try:
+                row = conn.execute(
+                    "SELECT summary, up_to_id FROM chat_compactions WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+                prev = str(row[0] or "") if row else ""
+                up_to = int(row[1] or 0) if row else 0
+            except Exception:
+                prev, up_to = "", 0
+            msgs = conn.execute(
+                "SELECT id, role, content FROM chat_history WHERE user_id = ? "
+                "ORDER BY id DESC LIMIT ?",
+                (user_id, _COMPACT_WINDOW),
+            ).fetchall()
+            msgs = [{"id": m[0], "role": m[1], "content": m[2]} for m in reversed(msgs)]
+            if len(msgs) <= _COMPACT_KEEP + 4:
+                return _format_compaction(prev)
+            kept_ids = {m["id"] for m in msgs[-_COMPACT_KEEP:]}
+            fresh = [m for m in msgs if m["id"] > up_to and m["id"] not in kept_ids]
+            if len(fresh) >= _COMPACT_MIN_NEW:
+                new_summary = await _summarize_chunk(prev, fresh)
+                if new_summary:
+                    new_up_to = max(m["id"] for m in fresh)
+                    conn.execute(
+                        "INSERT INTO chat_compactions (user_id, summary, up_to_id, updated_at) "
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
+                        "ON CONFLICT(user_id) DO UPDATE SET summary = excluded.summary, "
+                        "up_to_id = excluded.up_to_id, updated_at = CURRENT_TIMESTAMP",
+                        (user_id, new_summary, new_up_to),
+                    )
+                    try:
+                        conn.commit()
+                    except Exception:
+                        pass
+                    prev = new_summary
+            return _format_compaction(prev)
+    except Exception as e:
+        logger.debug(f"[compact] dilewati: {e}")
+        return ""
 
 
 async def run_agent_turn(
@@ -103,6 +218,13 @@ async def run_agent_turn(
 
     # 1. Fetch recent chat history from SQLite
     history_rows = await _db.get_recent_chat_history(user_id, limit=12)
+
+    # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
+    try:
+        _compaction_block = await _maybe_compact_history(_db, user_id)
+    except Exception as _ce:
+        logger.debug(f"compaction dilewati: {_ce}")
+        _compaction_block = ""
 
     # 2. Build contents payload
     from google.genai import types
@@ -219,6 +341,9 @@ async def run_agent_turn(
             + "\n======================================================\n"
         )
 
+    if _compaction_block:
+        memory_block += _compaction_block
+
     # 6. Fetch user settings for prompt override / preferred model
     user_settings = await _db.get_user_settings(user_id)
 
@@ -264,6 +389,7 @@ async def run_agent_turn(
         + active_identity_block
         + memory_block
         + ENFORCEMENT_BLOCK
+        + HONESTY_BLOCK
         + CODING_DELIVERY_BLOCK
         + CAPABILITIES_BLOCK
         + ANTIGRAVITY_WORKFLOW_BLOCK
@@ -278,7 +404,7 @@ async def run_agent_turn(
         m.strip()
         for m in os.getenv(
             "GEMINI_FALLBACK_MODELS",
-            "gemini-3.6-flash,gemini-3.7-flash,gemini-flash-latest",
+            "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3-flash-preview",
         ).split(",")
         if m.strip()
     ]

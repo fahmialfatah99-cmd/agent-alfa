@@ -298,6 +298,10 @@ class TestHandleTextMessageStreamingIntegration:
                 new_callable=AsyncMock,
                 return_value={"voice_reply": False},
             ),
+            patch(
+                "alfa.bot.mode_commands.get_telegram_mode_sync",
+                return_value="single",
+            ),
         ):
 
             async def fake_agent_turn(*args, **kwargs):
@@ -349,6 +353,10 @@ class TestHandleTextMessageStreamingIntegration:
                 new_callable=AsyncMock,
                 return_value={"voice_reply": False},
             ),
+            patch(
+                "alfa.bot.mode_commands.get_telegram_mode_sync",
+                return_value="single",
+            ),
         ):
             mock_agent_turn.return_value = "Sistem berjalan normal tanpa streaming."
 
@@ -385,6 +393,10 @@ class TestHandleTextMessageStreamingIntegration:
                 "alfa.bot.telegram_bot.database.get_user_settings",
                 new_callable=AsyncMock,
                 return_value={"voice_reply": False},
+            ),
+            patch(
+                "alfa.bot.mode_commands.get_telegram_mode_sync",
+                return_value="single",
             ),
         ):
             mock_agent_turn.return_value = "Jawaban berhasil via jalur fallback."

@@ -14,7 +14,6 @@ Modularized structure:
 import asyncio
 import logging
 import os
-import re
 import time
 import uuid
 from datetime import datetime
@@ -79,6 +78,8 @@ from alfa.swarm.workspace_hygiene import (
 logger = logging.getLogger(__name__)
 
 _BUDGET_EXCEEDED = ""
+_PROVIDER_DEAD = ""
+_PROVIDER_DEAD_STREAK = 3
 _MISSION_START = 0.0
 
 
@@ -93,6 +94,26 @@ def _swarm_budget() -> tuple[float, int]:
     except ValueError:
         max_steps = 0
     return max(0.0, timeout), max(0, max_steps)
+
+
+def _provider_dead_streak(execution_steps: list) -> str:
+    """Deteksi provider mati beruntun: N langkah terakhir gagal total tanpa respons.
+
+    Tanda: status error + 'SEMUA provider gagal' (semua provider & fallback buntu).
+    Cegah misi membakar kuota/waktu saat provider benar-benar mati.
+    """
+    tail = (execution_steps or [])[-_PROVIDER_DEAD_STREAK:]
+    if len(tail) < _PROVIDER_DEAD_STREAK:
+        return ""
+    for s in tail:
+        out = str((s or {}).get("tool_output", ""))
+        summ = str((s or {}).get("execution_summary", ""))
+        if (s or {}).get("status") != "error" or "SEMUA provider gagal" not in out + summ:
+            return ""
+    return (
+        f"provider mati {_PROVIDER_DEAD_STREAK} langkah beruntun "
+        "(semua provider & fallback tanpa respons)"
+    )
 
 
 def _budget_exceeded(execution_steps: list) -> str:
@@ -116,7 +137,7 @@ async def _execute_agents_parallel(
     ctx_lines: list[str],
     failed_steps: list[dict[str, Any]]
 ) -> bool:
-    global _BUDGET_EXCEEDED
+    global _BUDGET_EXCEEDED, _PROVIDER_DEAD
     has_deps = False
     if subtask_map:
         for t in subtask_map.values():
@@ -138,6 +159,16 @@ async def _execute_agents_parallel(
             if budget_reason:
                 _BUDGET_EXCEEDED = budget_reason
                 log_live("TIMEOUT", f"⏱ Budget misi terlampaui ({budget_reason}) — swarm berhenti.")
+                if _CHECKPOINT_AVAILABLE:
+                    try:
+                        _SwarmCheckpoint.mark_cancelled(session_id)
+                    except Exception:
+                        pass
+                return True
+            dead_reason = _provider_dead_streak(execution_steps)
+            if dead_reason:
+                _PROVIDER_DEAD = dead_reason
+                log_live("TIMEOUT", f"🔌 {dead_reason} — swarm dihentikan agar tak membakar kuota.")
                 if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.mark_cancelled(session_id)
@@ -256,6 +287,16 @@ async def _execute_agents_parallel(
         if budget_reason:
             _BUDGET_EXCEEDED = budget_reason
             log_live("TIMEOUT", f"⏱ Budget misi terlampaui ({budget_reason}) — swarm berhenti.")
+            if _CHECKPOINT_AVAILABLE:
+                try:
+                    _SwarmCheckpoint.mark_cancelled(session_id)
+                except Exception:
+                    pass
+            return True
+        dead_reason = _provider_dead_streak(execution_steps)
+        if dead_reason:
+            _PROVIDER_DEAD = dead_reason
+            log_live("TIMEOUT", f"🔌 {dead_reason} — swarm dihentikan agar tak membakar kuota.")
             if _CHECKPOINT_AVAILABLE:
                 try:
                     _SwarmCheckpoint.mark_cancelled(session_id)
@@ -489,10 +530,9 @@ async def conduct_multi_agent_meeting(
             "perbaiki tampilan",
         )
         if any(k in topic.lower() for k in build_kw):
-            slug = (
-                re.sub(r"[^a-z0-9]+", "-", topic.lower())[:42].strip("-")
-                or "proyek-baru"
-            )
+            from alfa.swarm.workspace_hygiene import smart_slug as _smart_slug
+
+            slug = _smart_slug(topic) or "proyek-baru"
             nf = os.path.join(tools.SANDBOX_DIR, f"{slug}_{int(time.time()) % 100000}")
             try:
                 os.makedirs(nf, exist_ok=True)
@@ -553,8 +593,9 @@ async def conduct_multi_agent_meeting(
     )
     workspace_hygiene.MEETING_RUNNING = True
     _clear_cancel_flag()
-    global _BUDGET_EXCEEDED, _MISSION_START
+    global _BUDGET_EXCEEDED, _MISSION_START, _PROVIDER_DEAD
     _BUDGET_EXCEEDED = ""
+    _PROVIDER_DEAD = ""
     _MISSION_START = time.monotonic()
     log_live(
         "SESSION",
@@ -840,7 +881,12 @@ async def conduct_multi_agent_meeting(
         stop_note = (
             f"Budget misi terlampaui ({_BUDGET_EXCEEDED})."
             if _BUDGET_EXCEEDED
-            else "Eksekusi dibatalkan pengguna."
+            else (
+                f"Provider mati ({_PROVIDER_DEAD}). Coba lagi setelah kuota reset "
+                "atau via model Gemini."
+                if _PROVIDER_DEAD
+                else "Eksekusi dibatalkan pengguna."
+            )
         )
         log_live(
             "DONE",

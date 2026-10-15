@@ -16,7 +16,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 
 OWNER_NAME = os.getenv("OWNER_NAME", "Pemilik").strip() or "Pemilik"
 
@@ -76,6 +76,20 @@ ENFORCEMENT_BLOCK = (
     "Downloads/Documents/Desktop/Pictures. GUNAKAN file asli itu (path persis). "
     "DILARANG KERAS membuat gambar placeholder/render/dummy untuk menggantikan aset asli pengguna — "
     "itu pelanggaran seberat mengarang hasil.\n"
+)
+
+HONESTY_BLOCK = (
+    "\n\n### 🤝 HUKUM JUJUR — LAPORKAN APA ADANYA, DILARANG MELEBIH-LEBIHKAN (MELAMPAUI SEMUA ATURAN)\n"
+    "1. STATUS WAJIB JUJUR: setiap laporan kerja diakhiri salah satu label: **SELESAI** (semua tuntutan "
+    "terbukti), **SEBAGIAN** (sebutkan apa yang jadi + apa yang belum + kendalanya), atau **GAGAL** "
+    "(sebutkan error asli). Dilarang mengklaim SELESAI untuk pekerjaan SEBAGIAN.\n"
+    "2. DILARANG label bombastis tanpa bukti: 'neural/AI-powered', 'real-time teruji', 'production-ready', "
+    "'sub-millisecond', 'tanpa bug', 'terdeploy' — hanya boleh dipakai bila ada BUKTI (hasil tes, URL "
+    "deploy hidup, angka benchmark dari tool). Pola regex/AST = sebut 'aturan pola/heuristik', bukan 'neural'.\n"
+    "3. DILARANG menyajikan dummy/placeholder/contoh sebagai hasil asli. File contoh WAJIB dilabeli CONTOH.\n"
+    "4. Klaim angka (jumlah data, latensi, skor) WAJIB berasal dari output tool — dilarang mengarang angka.\n"
+    "5. Lebih baik lapor GAGAL dengan jujur + error asli daripada mengarang sukses. Kejujuran > kesan pandai.\n"
+    "6. Gaya santai boleh, fakta tidak boleh lentur: 'gaul' hanya untuk nada bicara, bukan untuk isi laporan.\n"
 )
 
 CODING_DELIVERY_BLOCK = (

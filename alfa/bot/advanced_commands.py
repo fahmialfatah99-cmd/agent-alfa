@@ -43,6 +43,13 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_running = res.get("is_running", False)
     status_icon = "🟢 RUNNING (Aktif)" if is_running else "🔴 STOPPED (Mati)"
 
+    # URL dashboard: pakai network_url (IP LAN) — Telegram menolak URL localhost.
+    dash_url = ""
+    try:
+        dash_url = (tools.open_web_dashboard(port=8080).get("network_url") or "")
+    except Exception:
+        dash_url = ""
+
     wa_auth_status = "UNKNOWN"
     qr_str = ""
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
@@ -57,17 +64,29 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton("🔄 Restart WA Bot", callback_data="btn_wa_restart"),
+            InlineKeyboardButton("💬 Chat", callback_data="wx|chats|0"),
+            InlineKeyboardButton("📥 Masuk", callback_data="wx|in|0"),
+        ],
+        [
+            InlineKeyboardButton("📋 Format", callback_data="wx|fmt"),
+            InlineKeyboardButton("📊 Laporan", callback_data="wx|rep|0|-1"),
+        ],
+        [
+            InlineKeyboardButton("🔄 Restart", callback_data="btn_wa_restart"),
             InlineKeyboardButton("📊 Cek Status", callback_data="btn_wa_status"),
         ],
         [
-            InlineKeyboardButton("▶️ Start WA Bot", callback_data="btn_wa_start"),
-            InlineKeyboardButton("⏹️ Stop WA Bot", callback_data="btn_wa_stop"),
+            InlineKeyboardButton("▶️ Start", callback_data="btn_wa_start"),
+            InlineKeyboardButton("⏹️ Stop", callback_data="btn_wa_stop"),
         ],
         [
-            InlineKeyboardButton("🌐 Buka Web Dashboard", url="http://localhost:8080"),
+            InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu"),
         ],
     ]
+    if dash_url and not dash_url.startswith("http://localhost"):
+        keyboard.insert(
+            len(keyboard) - 1, [InlineKeyboardButton("🌐 Buka Web Dashboard", url=dash_url)]
+        )
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     auth_desc = (
@@ -82,6 +101,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• **Status Akun WA:** `{auth_desc}`\n"
         f"• **Auto-Start Saat Boot/Internet:** `{'Aktif 🟢' if res.get('enabled_on_boot') else 'Nonaktif 🔴'}`\n"
         f"• **Service Name:** `wa-sheets-bot.service`\n\n"
+        f"✉️ Kirim pesan via `/wakirim <nomor|nama grup> <pesan>`.\n"
         f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
     )
 
@@ -109,6 +129,535 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
 
 
+# --- /sites: registry + hidupkan situs hasil kerja agent -------------------
+_SITES_CACHE: dict[int, tuple[float, list[dict]]] = {}
+_SITES_TTL = 300.0
+
+
+def _lan_ip() -> str:
+    try:
+        import socket as _s
+
+        s = _s.socket(_s.AF_INET, _s.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def _sites_cached(user_id: int) -> list[dict]:
+    import time as _t
+
+    now = _t.monotonic()
+    hit = _SITES_CACHE.get(user_id)
+    if hit and now - hit[0] < _SITES_TTL:
+        return hit[1]
+    rows = tools.serve_site(action="status").get("sites", []) or []
+    _SITES_CACHE[user_id] = (now, rows)
+    return rows
+
+
+def _site_kb(rows: list[dict]) -> InlineKeyboardMarkup:
+    kb = []
+    for i, s in enumerate(rows):
+        dot = "🟢" if (s.get("backend_on") or s.get("frontend_on")) else "⚪"
+        label = f"{dot} {_wa_esc(s.get('title', s.get('slug', '?'))[:28])}"
+        kb.append([InlineKeyboardButton(label, callback_data=f"st|view|{i}")])
+    kb.append([InlineKeyboardButton("🔄 Refresh", callback_data="st|list")])
+    return InlineKeyboardMarkup(kb)
+
+
+async def sites_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/sites — daftar website/proyek hasil agent, hidupkan dari Telegram."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    _SITES_CACHE.pop(user_id, None)
+    rows = _sites_cached(user_id)
+    if not rows:
+        await safe_send_message(
+            context, chat_id,
+            "🌐 Belum ada situs terdaftar. Misi swarm website otomatis masuk sini setelah harvest.",
+        )
+        return
+    on = sum(1 for s in rows if s.get("backend_on") or s.get("frontend_on"))
+    await safe_send_message(
+        context, chat_id,
+        f"🌐 **Galeri Hasil Kerja Agent ({on}/{len(rows)} hidup):**\nKetuk untuk kelola:",
+        reply_markup=_site_kb(rows),
+    )
+
+
+async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Router callback st|*. Return True bila ditangani."""
+    query = update.callback_query
+    if not query or not (query.data or "").startswith("st|"):
+        return False
+    if not _is_authorized(update.effective_user.id):
+        await query.answer()
+        return True
+    await query.answer()
+    parts = (query.data or "").split("|")
+    action = parts[1] if len(parts) > 1 else ""
+    idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else -1
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    async def _edit(text, markup=None):
+        try:
+            await query.edit_message_text(text=text, reply_markup=markup, parse_mode="Markdown")
+        except Exception:
+            await safe_send_message(context, chat_id, text, reply_markup=markup)
+
+    try:
+        if action == "list":
+            _SITES_CACHE.pop(user_id, None)
+            rows = _sites_cached(user_id)
+            on = sum(1 for s in rows if s.get("backend_on") or s.get("frontend_on"))
+            await _edit(
+                f"🌐 **Galeri Hasil Kerja Agent ({on}/{len(rows)} hidup):**\nKetuk untuk kelola:",
+                _site_kb(rows),
+            )
+            return True
+        rows = _sites_cached(user_id)
+        if not (0 <= idx < len(rows)):
+            await _edit("⏳ Daftar kedaluwarsa — muat ulang:", _site_kb(_sites_cached(user_id)))
+            return True
+        slug = rows[idx]["slug"]
+        if action == "view":
+            s = tools.serve_site(action="status").get("sites", []) or []
+            hit = next((x for x in s if x.get("slug") == slug), rows[idx])
+            stack = hit.get("stack", {}) or {}
+            runnable = bool(
+                stack.get("has_backend") or stack.get("has_frontend") or stack.get("has_php")
+            )
+            if not runnable:
+                # Proyek non-server: tanpa tombol start/stop, tampilkan cara pakai.
+                try:
+                    info = tools.serve_site(action="start", slug=slug)
+                    howto = info.get("note", "proyek non-server")
+                except Exception:
+                    howto = "proyek non-server"
+                kb = [[InlineKeyboardButton("◀️ Galeri", callback_data="st|list")]]
+                await _edit(
+                    f"📦 **{_wa_esc(hit.get('title', slug))}**\n`{slug}`\n"
+                    f"_{_wa_esc(howto)}_\n\n"
+                    "Jalankan manual dari terminal atau suruh agent via chat.",
+                    InlineKeyboardMarkup(kb),
+                )
+                return True
+            ip = _lan_ip()
+            lines = [f"{'🟢' if hit.get('backend_on') else '⚪'} Backend"]
+            if hit.get("backend_port"):
+                lines[0] += f" — `http://{ip}:{hit['backend_port']}`"
+            lines.append(f"{'🟢' if hit.get('frontend_on') else '⚪'} Frontend")
+            if hit.get("frontend_port"):
+                lines[1] += f" — `http://{ip}:{hit['frontend_port']}`"
+            kb = [
+                [InlineKeyboardButton("▶️ Hidupkan", callback_data=f"st|start|{idx}"),
+                 InlineKeyboardButton("⏹️ Matikan", callback_data=f"st|stop|{idx}")],
+                [InlineKeyboardButton("📜 Log", callback_data=f"st|logs|{idx}"),
+                 InlineKeyboardButton("◀️ Galeri", callback_data="st|list")],
+            ]
+            await _edit(
+                f"🌐 **{_wa_esc(hit.get('title', slug))}**\n`{slug}`\n" + "\n".join(lines),
+                InlineKeyboardMarkup(kb),
+            )
+        elif action in ("start", "stop"):
+            res = tools.serve_site(action=action, slug=slug)
+            _SITES_CACHE.pop(user_id, None)
+            if res.get("status") == "error":
+                await _edit(f"❌ {res.get('message')}")
+            else:
+                det = [f"• {k}: `{v}`" for k, v in res.items() if k not in ("status", "slug", "title")]
+                await _edit(
+                    f"{'🟢' if action == 'start' else '⏹️'} **{_wa_esc(res.get('title', slug))}** "
+                    f"{'hidup' if action == 'start' else 'mati'}.\n" + "\n".join(det),
+                    InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Galeri", callback_data="st|list")]]),
+                )
+        elif action == "logs":
+            res = tools.serve_site(action="logs", slug=slug)
+            chunks = []
+            for k, v in (res.get("logs") or {}).items():
+                tail = (v or "").strip().split("\n")[-12:]
+                chunks.append(f"**{k}:**\n```\n" + "\n".join(tail[-12:]) + "\n```")
+            await _edit(
+                f"📜 **Log {slug}:**\n" + ("\n".join(chunks) if chunks else "_kosong_"),
+                InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Galeri", callback_data="st|list")]]),
+            )
+    except Exception as e:
+        logger.warning(f"[sites_menu] {e}")
+    return True
+
+
+def _wa_esc(text: str) -> str:
+    """Netralkan karakter Markdown pada konten chat WA agar tidak merusak parse."""
+    return (
+        str(text or "")
+        .replace("`", "'")
+        .replace("*", "·")
+        .replace("_", "‑")
+        .replace("[", "(")
+        .replace("]", ")")
+    )
+
+
+def _wa_time(ts: int) -> str:
+    try:
+        import datetime as _dt
+
+        return _dt.datetime.fromtimestamp(int(ts)).strftime("%d/%m %H:%M")
+    except Exception:
+        return ""
+
+
+def _wa_time_iso(ts: str) -> str:
+    """Format ISO UTC (2026-10-14T14:16:22) -> lokal '14/10 21:16'."""
+    try:
+        import datetime as _dt
+
+        s = str(ts or "").replace("Z", "+00:00")
+        dt = _dt.datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=_dt.timezone.utc)
+        return dt.astimezone().strftime("%d/%m %H:%M")
+    except Exception:
+        return str(ts or "")[:16]
+
+
+_WA_TYPE_ICON = {
+    "chat": "💬",
+    "image": "🖼️",
+    "video": "🎥",
+    "audio": "🔊",
+    "ptt": "🎤",
+    "document": "📄",
+    "sticker": "🌟",
+    "location": "📍",
+    "vcard": "👤",
+    "call_log": "📞",
+}
+
+
+def _wa_sender(it: dict) -> str:
+    """Nama pengirim: sender_name > author > chat, tanpa JID mentah bila ada nama."""
+    name = (it.get("sender_name") or "").strip()
+    if name:
+        return _wa_esc(name)
+    for key in ("author", "chat", "sender"):
+        raw = str(it.get(key) or "")
+        if raw:
+            num = raw.split("@")[0].split(":")[0]
+            return num[-4:] if num.isdigit() and len(num) > 8 else (num or "?")
+    return "?"
+
+
+def _wa_not_ready(res: dict) -> str | None:
+    if isinstance(res, dict) and res.get("status") == "error":
+        return res.get("message") or "WA error."
+    return None
+
+
+async def wachat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/wachat [kosong|N|nama/nomor] — daftar chat terbaru atau riwayat satu chat."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    arg = " ".join(context.args).strip() if context.args else ""
+    if not arg:
+        res = tools.wa_get_chats(limit=10)
+        err = _wa_not_ready(res)
+        if err:
+            await safe_send_message(context, chat_id, f"📵 {err}\nCek `/wa` untuk scan QR.")
+            return
+        chats = res.get("chats", []) or []
+        if not chats:
+            await safe_send_message(context, chat_id, "💬 Belum ada chat WA.")
+            return
+        lines = ["💬 **Chat WhatsApp Terbaru:**\n"]
+        for c in chats:
+            icon = "👥" if c.get("is_group") else "👤"
+            unread = f" ({c['unread']} baru)" if c.get("unread") else ""
+            prev = _wa_esc(c.get("last_preview", ""))[:80]
+            who = "kamu" if c.get("last_from_me") else "mereka"
+            lines.append(
+                f"{icon} **{_wa_esc(c.get('name', '?'))}**{unread}\n"
+                f"   _{prev}_ — {who}, {_wa_time(c.get('last_ts', 0))}"
+            )
+        lines.append("\nBaca isi: `/wachat <nama/nomor>` • Masuk: `/wamasuk`")
+        await safe_send_message(context, chat_id, "\n".join(lines))
+        return
+
+    if arg.isdigit():
+        res = tools.wa_get_chats(limit=min(int(arg), 30))
+        err = _wa_not_ready(res)
+        if err:
+            await safe_send_message(context, chat_id, f"📵 {err}")
+            return
+        chats = res.get("chats", []) or []
+        lines = [f"💬 **{len(chats)} Chat Terbaru:**\n"]
+        for c in chats:
+            icon = "👥" if c.get("is_group") else "👤"
+            lines.append(f"{icon} **{_wa_esc(c.get('name', '?'))}** — _{_wa_esc(c.get('last_preview', ''))[:60]}_")
+        await safe_send_message(context, chat_id, "\n".join(lines))
+        return
+
+    res = tools.wa_get_messages(chat=arg, limit=15)
+    err = _wa_not_ready(res)
+    if err:
+        await safe_send_message(context, chat_id, f"📵 {err}")
+        return
+    msgs = res.get("messages", []) or []
+    lines = [f"💬 **{res.get('chat_name', arg)}** ({len(msgs)} pesan):\n"]
+    for m in msgs:
+        who = "kamu" if m.get("from_me") else _wa_esc(m.get("sender", "?"))
+        body = _wa_esc(m.get("body", ""))[:300]
+        lines.append(f"[{_wa_time(m.get('ts', 0))}] **{who}:** {body}")
+    await safe_send_message(context, chat_id, "\n".join(lines) or "💬 Kosong.")
+
+
+async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/wamasuk [limit] — pesan WA masuk terbaru yang terekam bot."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    lim = 10
+    if context.args and context.args[0].isdigit():
+        lim = max(1, min(int(context.args[0]), 40))
+    res = tools.wa_get_incoming(limit=lim)
+    err = _wa_not_ready(res)
+    if err:
+        await safe_send_message(context, chat_id, f"📵 {err}")
+        return
+    items = res.get("incoming", []) or []
+    if not items:
+        await safe_send_message(
+            context, chat_id, "📥 Belum ada pesan WA masuk terekam (bot mencatat sejak restart terakhir)."
+        )
+        return
+    lines = [f"📥 **{len(items)} Pesan WA Masuk Terbaru:**\n"]
+    for it in items:
+        icon = _WA_TYPE_ICON.get(str(it.get("msg_type") or ""), "")
+        icon = icon or ("👥" if it.get("is_group") else "👤")
+        chat = _wa_esc(it.get("chat_name") or "")
+        if not chat:
+            raw = str(it.get("chat") or "").split("@")[0]
+            chat = ("…" + raw[-4:]) if raw.isdigit() and len(raw) > 8 else (raw or "?")
+        when = _wa_time_iso(it.get("ts", ""))
+        body = _wa_esc(it.get("body", ""))[:200] or "_(kosong)_"
+        if it.get("is_group") and not it.get("from_me"):
+            lines.append(f"{icon} **{chat}** — {_wa_sender(it)} · {when}\n   {body}")
+        else:
+            lines.append(f"{icon} **{chat}** · {when}\n   {body}")
+    await safe_send_message(context, chat_id, "\n".join(lines))
+
+
+async def wakirim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/wakirim <tujuan> <pesan> — kirim pesan WA ke nomor/nama grup."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    args = list(context.args) if context.args else []
+    if len(args) < 2:
+        await safe_send_message(
+            context,
+            chat_id,
+            "Usage: `/wakirim <nomor|nama grup> <pesan>`\n"
+            "Contoh: `/wakirim 081234567890 halo dari bot`",
+        )
+        return
+    res = tools.wa_send_message(to=args[0], message=" ".join(args[1:]))
+    err = _wa_not_ready(res)
+    if err:
+        await safe_send_message(context, chat_id, f"📵 {err}")
+        return
+    await safe_send_message(
+        context, chat_id, f"✅ Pesan WA terkirim ke `{res.get('to', args[0])}`."
+    )
+
+
+async def waformat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/waformat [list|on <nama>|off <nama>|add <nama>|<kw>|del <nama>] — atur pencatatan otomatis."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    args = list(context.args) if context.args else []
+    sub = (args[0].lower() if args else "list")
+
+    if sub == "list" or not args:
+        res = tools.wa_list_formats()
+        err = _wa_not_ready(res)
+        if err:
+            await safe_send_message(context, chat_id, f"📵 {err}")
+            return
+        fmts = res.get("formats", []) or []
+        on = sum(1 for f in fmts if f.get("enabled", True))
+        lines = [f"📋 **Format Pencatatan WA ({on}/{len(fmts)} aktif):**\n"]
+        for f in fmts:
+            icon = "✅" if f.get("enabled", True) else "⛔"
+            kws = ", ".join(f"`{k}`" for k in (f.get("keywords") or [])[:4]) or "–"
+            lines.append(
+                f"{icon} **{_wa_esc(f.get('name', '?'))}** → tab `{_wa_esc(f.get('tab', ''))}`\n"
+                f"   keyword: {kws}"
+            )
+        lines.append(
+            "\n**Atur:** `/waformat off <nama>` • `/waformat on <nama>`\n"
+            "**Tambah:** `/waformat add Nama | kw1, kw2 | TabTujuan`\n"
+            "**Hapus:** `/waformat del <nama>`\n"
+            "**Lihat hasil:** `/wareport [nama]`"
+        )
+        await safe_send_message(context, chat_id, "\n".join(lines))
+        return
+
+    if sub in ("on", "off") and len(args) >= 2:
+        name = " ".join(args[1:])
+        res = tools.wa_toggle_format(name=name, enabled=(sub == "on"))
+        if isinstance(res, dict) and res.get("status") == "error":
+            await safe_send_message(context, chat_id, f"❌ {res.get('message')}")
+            return
+        state = "diaktifkan ✅" if (sub == "on") else "dimatikan ⛔"
+        await safe_send_message(
+            context, chat_id, f"Format **{_wa_esc(name)}** {state}."
+        )
+        return
+
+    if sub == "add":
+        rest = " ".join(args[1:])
+        parts = [p.strip() for p in rest.split("|")]
+        if not parts or not parts[0]:
+            await safe_send_message(
+                context, chat_id, "Usage: `/waformat add Nama | kw1, kw2 | TabTujuan`"
+            )
+            return
+        name = parts[0]
+        kws = parts[1] if len(parts) > 1 else ""
+        tab = parts[2] if len(parts) > 2 else name
+        res = tools.wa_add_format(name=name, keywords=kws, tab=tab)
+        if isinstance(res, dict) and res.get("status") == "error":
+            await safe_send_message(context, chat_id, f"❌ {res.get('message')}")
+            return
+        await safe_send_message(
+            context,
+            chat_id,
+            f"✅ Format **{_wa_esc(name)}** ditambahkan (tab `{_wa_esc(tab)}`). "
+            "Pesan berkeyword langsung tercatat otomatis.",
+        )
+        return
+
+    if sub in ("del", "delete", "hapus") and len(args) >= 2:
+        name = " ".join(args[1:])
+        res = tools.wa_delete_format(name=name)
+        if isinstance(res, dict) and res.get("status") == "error":
+            await safe_send_message(context, chat_id, f"❌ {res.get('message')}")
+            return
+        await safe_send_message(
+            context, chat_id, f"🗑️ Format **{_wa_esc(name)}** dihapus."
+        )
+        return
+
+    await safe_send_message(
+        context, chat_id, "Usage: `/waformat [list|on|off|add|del]` — contoh: `/waformat off Stok`"
+    )
+
+
+async def wareport_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/wareport [nama_format] [limit] — baca catatan laporan WA yang terekam."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    args = list(context.args) if context.args else []
+    fmt, lim = "", 8
+    for a in args:
+        if a.isdigit():
+            lim = max(1, min(int(a), 30))
+        elif not fmt:
+            fmt = a
+    res = tools.wa_get_records(report_format=fmt, limit=lim)
+    err = _wa_not_ready(res)
+    if err:
+        await safe_send_message(context, chat_id, f"📵 {err}")
+        return
+    recs = res.get("records", []) or []
+    title = f" format **{_wa_esc(fmt)}**" if fmt else ""
+    if not recs:
+        await safe_send_message(
+            context, chat_id, f"📊 Belum ada catatan{title}."
+        )
+        return
+    lines = [f"📊 **{len(recs)} Catatan Terbaru{title}:**\n"]
+    for r in recs:
+        sync = "☁️" if r.get("synced_to_sheets") else "💾"
+        body = _wa_esc(str(r.get("body", ""))[:220]).replace("\n", " ")
+        lines.append(
+            f"{sync} **{_wa_esc(r.get('format_name', r.get('tab', '?')))}** · "
+            f"{_wa_esc(r.get('timestamp', ''))}\n"
+            f"   👤 {_wa_esc(r.get('sender', '?'))} di **{_wa_esc(r.get('group', '?'))}**\n"
+            f"   _{body}_"
+        )
+    await safe_send_message(context, chat_id, "\n".join(lines))
+
+
+async def waringkas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/waringkas [nama_format] — digest cerdas: statistik + sorotan AI + terbaru."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    args = list(context.args) if context.args else []
+    fmt = " ".join(a for a in args if not a.isdigit())
+    await safe_send_message(context, chat_id, "🧠 Menyusun digest cerdas...")
+    from alfa.bot.wa_digest import send_digest
+
+    ok = await send_digest(context, chat_id, report_format=fmt)
+    if not ok:
+        await safe_send_message(context, chat_id, "❌ Digest gagal disusun. Coba lagi.")
+
+
+async def wacari_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/wacari <kata> — cari kata kunci di pesan WA terbaru."""
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    if not _is_authorized(user_id):
+        return
+
+    q = " ".join(context.args).strip() if context.args else ""
+    if not q:
+        await safe_send_message(context, chat_id, "Usage: `/wacari <kata kunci>`")
+        return
+    res = tools.wa_search_messages(query=q)
+    err = _wa_not_ready(res)
+    if err:
+        await safe_send_message(context, chat_id, f"📵 {err}")
+        return
+    hits = res.get("hits", []) or []
+    if not hits:
+        await safe_send_message(context, chat_id, f"🔍 Tidak ada hasil untuk '{q}'.")
+        return
+    lines = [f"🔍 **{len(hits)} hasil untuk '{_wa_esc(q)}':**\n"]
+    for h in hits[:15]:
+        who = "kamu" if h.get("from_me") else _wa_esc(h.get("sender", "?"))
+        lines.append(
+            f"• **{_wa_esc(h.get('chat', '?'))}** [{_wa_time(h.get('ts', 0))}] {who}: "
+            f"{_wa_esc(h.get('body', ''))[:150]}"
+        )
+    await safe_send_message(context, chat_id, "\n".join(lines))
+
+
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard, /web, or /app command."""
     user_id = update.effective_user.id
@@ -131,14 +680,11 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         )
     else:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "🌐 Buka Web Dashboard",
-                    url=res.get("local_url") or "http://127.0.0.1:8080",
-                )
-            ]
-        )
+        web_url = res.get("network_url") or res.get("local_url") or ""
+        if web_url and not web_url.startswith("http://localhost"):
+            keyboard.append(
+                [InlineKeyboardButton("🌐 Buka Web Dashboard", url=web_url)]
+            )
 
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
@@ -228,13 +774,28 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 Memanggil para agent spesialis untuk memulai diskusi round-table. Mohon tunggu...",
     )
 
+    from alfa.bot.progress import SwarmProgressReporter
+
+    reporter = SwarmProgressReporter(context, chat_id, topic, header="🏛️ **Rapat**")
+    await reporter.start()
+
     try:
         from alfa.swarm import engine as swarm_engine
 
         result = await swarm_engine.conduct_multi_agent_meeting(
             topic=topic, rounds=2, mode="plan"
         )
+    except Exception as e:
+        await reporter.stop("❌ Rapat gagal.")
+        logger.error(f"Error during Telegram /rapat meeting: {e}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}"
+        )
+        return
 
+    await reporter.stop("✅ Diskusi selesai — transkrip di bawah ⬇️")
+
+    try:
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
         for d in transcript[:6]:
@@ -260,13 +821,111 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /swarm or /eksekusi command to trigger live collaborative tool execution (Execute Mode)."""
+    """Handle /swarm — subcommands (model|status|cancel) atau eksekusi langsung (Execute Mode)."""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not _is_authorized(user_id):
         return
 
-    topic = " ".join(context.args).strip() if context.args else ""
+    raw = " ".join(context.args).strip() if context.args else ""
+    first = (raw.split(maxsplit=1)[0].lower() if raw else "")
+    rest = (raw.split(maxsplit=1)[1] if " " in raw else "")
+
+    if first in ("model", "set-model"):
+        # Reuse CLI helper logic via direct DB update path
+        import shlex
+
+        from alfa.core import database as _db
+        from alfa.core.cli.direct_ai import PROVIDERS_CATALOG, normalize_provider
+
+        try:
+            parts = shlex.split(rest)
+        except Exception:
+            parts = rest.strip().split()
+        agents = _db.list_custom_agents_sync()
+        if not parts:
+            await safe_send_message(
+                context,
+                chat_id,
+                "Usage: `/swarm model <id|nama> <provider> [model]`\n"
+                "Contoh: `/swarm model 2 9router antigravity`",
+            )
+            return
+        target_agent = parts[0]
+        matched = None
+        if target_agent.isdigit():
+            matched = next((a for a in agents if a.get("id") == int(target_agent)), None)
+        if not matched:
+            tl = target_agent.lower()
+            matched = next((a for a in agents if tl in a.get("name", "").lower()), None)
+        if not matched:
+            await safe_send_message(context, chat_id, f"❌ Agen '{target_agent}' tidak ditemukan. `/agents`")
+            return
+        if len(parts) < 2:
+            await safe_send_message(
+                context, chat_id,
+                f"Agen: **{matched.get('name')}** — `{matched.get('provider')}/{matched.get('model')}`\n"
+                f"Ubah: `/swarm model \"{matched.get('name')}\" <provider> [model]`",
+            )
+            return
+        provider = normalize_provider(parts[1])
+        cat = PROVIDERS_CATALOG.get(provider, {})
+        model = parts[2] if len(parts) > 2 else (cat.get("default_model") or "default")
+        res = _db.update_custom_agent_sync(matched["id"], {"provider": provider, "model": model})
+        if res.get("status") == "success":
+            await safe_send_message(context, chat_id, f"✅ **{matched.get('name')}** → `{provider}/{model}`")
+        else:
+            await safe_send_message(context, chat_id, f"❌ Gagal: `{res.get('message')}`")
+        return
+
+    if first in ("status", "info"):
+        from alfa.bot.mode_commands import status_command as _status
+
+        await _status(update, context)
+        return
+
+    if first in ("cancel", "stop", "batal"):
+        from alfa.bot.mode_commands import cancel_command as _cancel
+
+        await _cancel(update, context)
+        return
+
+    if first in ("single", "solo"):
+        from alfa.bot.mode_commands import set_telegram_mode_sync
+
+        set_telegram_mode_sync("single")
+        await safe_send_message(context, chat_id, "🧍 **Mode SINGLE aktif.**")
+        return
+
+    if first in ("swarm", "on", "multi"):
+        from alfa.bot.mode_commands import set_telegram_mode_sync
+
+        set_telegram_mode_sync("swarm")
+        await safe_send_message(context, chat_id, "⚡ **Mode SWARM aktif.** Chat teks dieksekusi tim.")
+        return
+
+    if first in ("template", "templates", "templat"):
+        from alfa.bot.mode_commands import SWARM_TEMPLATES
+
+        if not rest:
+            rows = [f"• `{n}` — {t[:90]}…" for n, t in SWARM_TEMPLATES.items()]
+            await safe_send_message(
+                context,
+                chat_id,
+                "📦 **Templat Misi Swarm:**\n\n" + "\n".join(rows)
+                + "\n\nJalankan: `/swarm template <nama>`\nJadwalkan: *'Jadwalkan misi swarm <nama> tiap <N> menit/jam'*",
+            )
+            return
+        tpl = SWARM_TEMPLATES.get(rest.strip().lower())
+        if not tpl:
+            await safe_send_message(
+                context, chat_id,
+                f"❌ Templat '{rest.strip()}' tidak ada. Lihat `/swarm template`.",
+            )
+            return
+        raw = tpl  # alir ke `topic = raw` di bawah → eksekusi misi templat
+
+    topic = raw
     if not topic:
         text = (
             "⚡ **Panduan Swarm Eksekusi Langsung (Mode 2: Bekerja Nyata):**\n\n"
@@ -275,6 +934,12 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• `/swarm Scrape 20 mouse gaming terlaris di Shopee & Tokopedia dan buatkan CSV-nya`\n"
             "• `/swarm Buatkan script Python monitoring RAM/CPU dan jalankan di sandbox`\n"
             "• `/swarm Audit port lokal dan status keamanan server`\n\n"
+            "**Subcommand:**\n"
+            "• `/swarm status` — status swarm & key agen\n"
+            "• `/swarm cancel` — hentikan misi berjalan\n"
+            "• `/swarm template [nama]` — misi siap pakai\n"
+            "• `/swarm model <id|nama> <provider> [model]` — ganti model agen\n"
+            "• `/mode swarm` — semua chat teks jadi misi swarm\n\n"
             "💡 _Seluruh tim agen AI akan langsung membagi tugas, menjalankan tools live, dan mengirimkan file hasil ke Telegram kamu!_"
         )
         await safe_send_message(context, chat_id, text)
@@ -288,13 +953,28 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🛠️ Alpha Lead, Researcher Prime, Code Crafter, dan Cyber Sentry sedang mengeksekusi tools. Mohon tunggu...",
     )
 
+    from alfa.bot.progress import SwarmProgressReporter
+
+    reporter = SwarmProgressReporter(context, chat_id, topic)
+    await reporter.start()
+
     try:
         from alfa.swarm import engine as swarm_engine
 
         result = await swarm_engine.conduct_multi_agent_meeting(
             topic=topic, rounds=1, mode="execute"
         )
+    except Exception as e:
+        await reporter.stop("❌ Misi gagal.")
+        logger.error(f"Error during Telegram /swarm execution: {e}")
+        await safe_send_message(
+            context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}"
+        )
+        return
 
+    await reporter.stop("✅ Selesai — laporan lengkap di bawah ⬇️")
+
+    try:
         steps = result.get("execution_results", [])
         steps_text = "⚡ **Laporan Eksekusi Tiap Agen:**\n\n"
         for s in steps:
@@ -329,11 +1009,10 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.warning(
                         f"Failed to send deliverable file to Telegram: {file_err}"
                     )
-
     except Exception as e:
-        logger.error(f"Error during Telegram /swarm execution: {e}")
+        logger.error(f"Error sending Telegram /swarm report: {e}")
         await safe_send_message(
-            context, chat_id, f"❌ Terjadi kesalahan saat eksekusi swarm: {str(e)}"
+            context, chat_id, f"❌ Gagal mengirim laporan swarm: {str(e)}"
         )
 
 
@@ -375,10 +1054,15 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         chat_id,
         f"🔄 **Melanjutkan sesi swarm `{session_id}` dari checkpoint...**",
     )
+    from alfa.bot.progress import SwarmProgressReporter
+
+    reporter = SwarmProgressReporter(context, chat_id, session_id, header="🔄 **Resume Swarm**")
+    await reporter.start()
     try:
         from alfa.swarm import engine as swarm_engine
 
         result = await swarm_engine.resume_swarm_session(session_id)
+        await reporter.stop("✅ Lanjutan selesai — hasil di bawah ⬇️")
         if result.get("status") == "error":
             await safe_send_message(
                 context,
@@ -402,6 +1086,10 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         await safe_send_message(context, chat_id, final_text)
     except Exception as e:
+        try:
+            await reporter.stop("❌ Resume gagal.")
+        except Exception:
+            pass
         logger.error(f"Error during /resume_swarm: {e}")
         await safe_send_message(
             context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}"

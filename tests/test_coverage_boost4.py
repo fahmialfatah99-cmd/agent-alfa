@@ -67,7 +67,7 @@ class TestHandlers:
         await h.handle_text_message(update, context)
         assert context.bot.send_message.called
 
-    async def test_text_authorized(self, monkeypatch):
+    async def test_text_authorized(self, monkeypatch, isolated_db):
         import alfa.bot.handlers as h
         import alfa.bot.telegram_bot as bot_mod
 

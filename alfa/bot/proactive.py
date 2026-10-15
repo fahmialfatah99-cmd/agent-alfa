@@ -66,6 +66,44 @@ async def proactive_reminder_loop(application: Application):
         await asyncio.sleep(20)
 
 
+async def _run_scheduled_swarm_job(application, job_id, user_id, chat_id, title, prompt) -> None:
+    """Eksekusi satu jadwal cron kind='swarm' (misi tim + lapor hasil)."""
+    try:
+        from alfa.bot.mode_commands import format_swarm_result, run_swarm_task
+        from alfa.bot.progress import SwarmProgressReporter
+
+        reporter = SwarmProgressReporter(application, chat_id, f"[CRON #{job_id}] {title}")
+        try:
+            await reporter.start()
+        except Exception:
+            pass
+        try:
+            result = await run_swarm_task(prompt)
+        finally:
+            try:
+                await reporter.stop("✅ Misi terjadwal selesai")
+            except Exception:
+                pass
+        steps_text, final_text, files = format_swarm_result(result)
+        header = f"⚡ **[MISI SWARM TERJADWAL #{job_id}: {title.upper()}]**\n\n{steps_text}\n\n{final_text}"
+        await safe_send_message(application, chat_id, header)
+        for fpath in files or []:
+            try:
+                with open(fpath, "rb") as f_doc:
+                    await application.bot.send_document(
+                        chat_id=chat_id, document=f_doc,
+                        caption=f"📁 **Deliverable Cron #{job_id}:** `{os.path.basename(fpath)}`",
+                    )
+            except Exception as file_err:
+                logger.warning(f"cron swarm file gagal: {file_err}")
+    except Exception as e:
+        logger.error(f"cron swarm #{job_id} gagal: {e}")
+        try:
+            await safe_send_message(application, chat_id, f"❌ Misi swarm terjadwal #{job_id} gagal: `{type(e).__name__}`")
+        except Exception:
+            pass
+
+
 async def proactive_cron_watchdog_loop(application: Application):
     """Background task to execute scheduled recurring cron tasks & proactive watchdogs."""
     logger.info("Proactive cron watchdog loop started.")
@@ -84,6 +122,13 @@ async def proactive_cron_watchdog_loop(application: Application):
                     f"Executing recurring cron task #{job_id}: '{title}' for user {user_id}"
                 )
                 await database.update_cron_job_after_run(job_id, interval)
+                kind = (job.get("kind") or "single").lower()
+
+                if kind == "swarm":
+                    await _run_scheduled_swarm_job(
+                        application, job_id, user_id, chat_id, title, prompt
+                    )
+                    continue
 
                 cron_prompt = (
                     f"[TUGAS TERJADWAL OTONOM: {title.upper()}]\n"
@@ -137,10 +182,108 @@ async def proactive_cron_watchdog_loop(application: Application):
         await asyncio.sleep(25)
 
 
+async def proactive_wa_digest_loop(application: Application):
+    """Digest WA cerdas harian (07:00 WIB default) — kirim ke pemilik via Telegram.
+
+    TIDAK menyentuh WA: tanpa autoreply, tanpa kirim pesan WA.
+    """
+    from alfa.bot.wa_digest import digest_enabled, digest_hours, send_digest
+
+    logger.info("📊 WA digest loop started.")
+    while True:
+        try:
+            if digest_enabled() and ALLOWED_USER_IDS:
+                now = datetime.now()
+                today = now.strftime("%Y-%m-%d")
+                hhmm = now.strftime("%H:%M")
+                try:
+                    from alfa.bot.wa_digest import _set_setting, _setting
+
+                    last = _setting("wa_digest_last_date", "")
+                    if hhmm in digest_hours() and last != today:
+                        chat_id = int(ALLOWED_USER_IDS[0])
+                        if await send_digest(application, chat_id):
+                            _set_setting("wa_digest_last_date", today)
+                            logger.info(f"Digest WA harian terkirim ke {chat_id}")
+                except Exception as e:
+                    logger.debug(f"[digest] loop dilewati: {e}")
+        except Exception as e:
+            logger.error(f"Error in WA digest loop: {e}")
+        await asyncio.sleep(60)
+
+
+async def proactive_sites_watch_loop(application: Application):
+    """Notifikasi instan tiap situs baru hasil harvest + tombol galeri."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    logger.info("🌐 Sites watch loop started.")
+    pend_file = os.path.join(os.path.expanduser("~"), ".alfa", "sites_pending_notify.json")
+    while True:
+        try:
+            if os.path.isfile(pend_file) and ALLOWED_USER_IDS:
+                try:
+                    with open(pend_file) as f:
+                        pend = json.load(f) or []
+                except Exception:
+                    pend = []
+                if pend:
+                    from alfa.tools.system import sites as _sites
+
+                    reg = _sites.refresh_registry()
+                    names = [f"• **{reg[s]['title'][:40]}** (`{s[:24]}…`)" for s in pend if s in reg]
+                    kb = InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🌐 Lihat Galeri", callback_data="st|list"),
+                    ]])
+                    text = "🌐 **Situs baru terdeteksi dari hasil kerja agent:**\n" + (
+                        "\n".join(names) if names else f"• `{pend[0][:30]}`"
+                    )
+                    for uid in ALLOWED_USER_IDS:
+                        try:
+                            await safe_send_message(application, int(uid), text, reply_markup=kb)
+                        except Exception:
+                            pass
+                    try:
+                        os.remove(pend_file)
+                    except OSError:
+                        pass
+                    logger.info(f"[sites] notifikasi {len(pend)} situs baru terkirim")
+        except Exception as e:
+            logger.error(f"Error in sites watch loop: {e}")
+        await asyncio.sleep(45)
+
+
 async def proactive_system_guardian_loop(application: Application):
     """Background daemon that monitors system health 24/7 and takes autonomous protective actions."""
     logger.info("🛡️ God Mode: System Guardian daemon started.")
     config_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_config.json")
+    state_path = os.path.join(os.path.expanduser("~"), ".alfa", "guardian_state.json")
+
+    def _load_json(path, default):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            return default
+
+    def _save_json(path, data) -> None:
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            logger.debug(f"[guardian] simpan {path} gagal: {e}")
+
+    if not os.path.exists(config_path):
+        _save_json(config_path, {
+            "enabled": True,
+            "cpu_threshold": 90,
+            "ram_threshold": 85,
+            "disk_threshold": 90,
+            "battery_critical": 10,
+            "auto_kill_ram_hogs": False,
+            "cooldown_minutes": 120,
+        })
+        logger.info("[guardian] config default dibuat & DIAKTIFKAN.")
 
     while True:
         try:
@@ -218,12 +361,38 @@ async def proactive_system_guardian_loop(application: Application):
                 )
 
             if alerts:
-                alert_text = "🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
-                for uid in ALLOWED_USER_IDS:
-                    try:
-                        await safe_send_message(application, uid, alert_text)
-                    except Exception:
-                        pass
+                import time as _time
+
+                def _alert_key(text: str) -> str:
+                    t = text.lower()
+                    if "auto-kill" in t:
+                        return "autokill"
+                    for k in ("cpu", "ram", "disk", "baterai"):
+                        if k in t:
+                            return k
+                    return "lainnya"
+
+                cooldown_s = int(config.get("cooldown_minutes", 120)) * 60
+                now_ts = _time.time()
+                state = _load_json(state_path, {})
+                fired = sorted({_alert_key(a) for a in alerts})
+                state_key = "guardian:" + "+".join(fired)
+                last_sent = float(state.get(state_key, 0) or 0)
+                # kunci hilang dari kondisi = pulih → hapus agar berulang bisa lapor lagi
+                for k in [k for k in state if k.startswith("guardian:") and k != state_key]:
+                    state.pop(k, None)
+                if now_ts - last_sent >= cooldown_s:
+                    alert_text = "🛡️ **[SYSTEM GUARDIAN ALERT]**\n\n" + "\n".join(alerts)
+                    for uid in ALLOWED_USER_IDS:
+                        try:
+                            await safe_send_message(application, uid, alert_text)
+                        except Exception:
+                            pass
+                    state[state_key] = now_ts
+                    _save_json(state_path, state)
+                else:
+                    _save_json(state_path, state)
+                    logger.debug("[guardian] alert ditahan cooldown")
         except Exception as e:
             logger.error(f"Guardian daemon error: {e}")
 

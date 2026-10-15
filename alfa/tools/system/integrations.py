@@ -12,6 +12,8 @@ import sqlite3
 import string
 import subprocess
 import time
+import urllib.parse
+import urllib.request
 from typing import Any
 
 from alfa.core import database
@@ -131,6 +133,154 @@ def start_focus_session(
         "message": f"🎯 Sesi fokus '{title}' ({duration_minutes} menit) dimulai! Berakhir pada: {res['end_time']}. Bot akan mengirim notifikasi saat waktu habis.",
         "session_details": res,
     }
+
+
+WA_BOT_URL = os.getenv("WA_BOT_URL", "http://127.0.0.1:3000")
+
+
+def _wa_api(method: str, path: str, params: dict | None = None, body: dict | None = None) -> dict[str, Any]:
+    """Panggil HTTP API wa-sheets-bot lokal. Return dict JSON (status success/error)."""
+    try:
+        url = WA_BOT_URL.rstrip("/") + path
+        if params:
+            url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
+        data = None
+        headers = {}
+        if body is not None:
+            data = json.dumps(body).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - localhost only
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        err_body = ""
+        try:
+            err_body = e.read().decode("utf-8")  # type: ignore[attr-defined]
+            parsed = json.loads(err_body)
+            if isinstance(parsed, dict) and parsed.get("message"):
+                return {"status": "error", "message": parsed["message"], "code": parsed.get("code", "")}
+        except Exception:
+            pass
+        return {"status": "error", "message": f"WA API tak terjangkau: {type(e).__name__}: {str(e)[:150]}"}
+
+
+@register_tool(category="system")
+def wa_get_chats(limit: int = 15, only_unread: bool = False) -> dict[str, Any]:
+    """
+    Daftar chat WhatsApp terbaru (nama, grup/pribadi, unread, preview pesan terakhir).
+
+    Args:
+        limit: Jumlah chat (1-50, default 15).
+        only_unread: True = hanya chat yang ada pesan belum dibaca.
+    """
+    return _wa_api("GET", "/api/chats", {"limit": limit, "unread": "1" if only_unread else "0"})
+
+
+@register_tool(category="system")
+def wa_get_messages(chat: str, limit: int = 20) -> dict[str, Any]:
+    """
+    Baca riwayat pesan sebuah chat WhatsApp (terlama → terbaru).
+
+    Args:
+        chat: ID/nomor/nama chat (mis. '62812xxxx', 'Keluarga', 'xxx@g.us').
+        limit: Jumlah pesan (1-60, default 20).
+    """
+    return _wa_api("GET", "/api/messages", {"chat": chat, "limit": limit})
+
+
+@register_tool(category="system")
+def wa_search_messages(query: str) -> dict[str, Any]:
+    """
+    Cari kata kunci di pesan-pesan WhatsApp terbaru (8 chat teratas).
+
+    Args:
+        query: Kata kunci pencarian.
+    """
+    return _wa_api("GET", "/api/search", {"q": query})
+
+
+@register_tool(category="system")
+def wa_get_incoming(limit: int = 20) -> dict[str, Any]:
+    """
+    Pesan WhatsApp MASUK terbaru yang terekam bot (ring buffer 80).
+
+    Args:
+        limit: Jumlah pesan (default 20).
+    """
+    return _wa_api("GET", "/api/incoming", {"limit": limit})
+
+
+@register_tool(category="system")
+def wa_get_me() -> dict[str, Any]:
+    """Info akun WhatsApp yang login di bot (nama, nomor)."""
+    return _wa_api("GET", "/api/me")
+
+
+@register_tool(category="system")
+def wa_send_message(to: str, message: str) -> dict[str, Any]:
+    """
+    Kirim pesan teks WhatsApp ke nomor/nama grup.
+
+    Args:
+        to: Nomor ('62812xxx'/'0812xxx'), nama grup, atau JID ('xxx@c.us'/'xxx@g.us').
+        message: Isi pesan (max 2000 karakter).
+    """
+    return _wa_api("POST", "/api/send", body={"to": to, "message": message})
+
+
+@register_tool(category="system")
+def wa_list_formats() -> dict[str, Any]:
+    """Daftar format pencatatan WA otomatis (keyword → tab Sheets, on/off)."""
+    return _wa_api("GET", "/api/formats")
+
+
+@register_tool(category="system")
+def wa_toggle_format(name: str, enabled: bool = True) -> dict[str, Any]:
+    """
+    Hidup/matikan satu format pencatatan WA otomatis.
+
+    Args:
+        name: Nama format (mis. 'Stok', 'TJHIN').
+        enabled: True = catat otomatis, False = abaikan.
+    """
+    return _wa_api("POST", "/api/formats/toggle", body={"name": name, "enabled": enabled})
+
+
+@register_tool(category="system")
+def wa_add_format(name: str, keywords: str = "", tab: str = "") -> dict[str, Any]:
+    """
+    Tambah format pencatatan WA baru (pesan mengandung keyword → tersimpan ke tab Sheets).
+
+    Args:
+        name: Nama format baru.
+        keywords: Keyword pemicu dipisah koma (default = nama format). Mis. 'serah terima, bast'.
+        tab: Nama tab Sheets tujuan (default = nama format).
+    """
+    kws = [k.strip() for k in keywords.split(",") if k.strip()]
+    return _wa_api("POST", "/api/formats", body={"name": name, "keywords": kws, "tab": tab or name})
+
+
+@register_tool(category="system")
+def wa_delete_format(name: str) -> dict[str, Any]:
+    """
+    Hapus format pencatatan WA (berhenti mencatat pesan berkeyword itu).
+
+    Args:
+        name: Nama format yang dihapus.
+    """
+    return _wa_api("DELETE", "/api/formats", body={"name": name})
+
+
+@register_tool(category="system")
+def wa_get_records(report_format: str = "", limit: int = 10) -> dict[str, Any]:
+    """
+    Baca catatan laporan WA yang terekam (terbaru dulu).
+
+    Args:
+        report_format: Filter nama format (kosongkan = semua).
+        limit: Jumlah catatan (1-50, default 10).
+    """
+    return _wa_api("GET", "/api/records", {"format": report_format, "limit": limit})
 
 
 @register_tool(category="system")

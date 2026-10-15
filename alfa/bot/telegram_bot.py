@@ -32,6 +32,8 @@ from alfa import tools
 from alfa.bot.commands import *  # noqa: F401, F403
 from alfa.bot.commands import (
     agents_command,
+    budget_command,
+    cancel_command,
     cekagen_command,
     clear_command,
     cron_command,
@@ -40,14 +42,29 @@ from alfa.bot.commands import (
     keys_command,
     memory_command,
     menu_command,
+    mode_command,
+    persona_command,
+    pipeline_command,
     proactive_command,
     rapat_command,
     resume_swarm_command,
+    single_command,
+    sites_command,
     start_command,
     stats_command,
+    status_command,
     swarm_command,
+    tools_command,
+    tugas_command,
     voice_command,
     wa_command,
+    wacari_command,
+    wachat_command,
+    waformat_command,
+    wakirim_command,
+    wamasuk_command,
+    wareport_command,
+    waringkas_command,
 )
 
 # Re-export all symbols from submodules for complete backward compatibility
@@ -106,7 +123,9 @@ from alfa.bot.proactive import (
     proactive_ecosystem_watchdog_loop,
     proactive_focus_session_loop,
     proactive_reminder_loop,
+    proactive_sites_watch_loop,
     proactive_system_guardian_loop,
+    proactive_wa_digest_loop,
 )
 from alfa.bot.streamer import TelegramStreamer  # noqa: F401
 from alfa.bot.turn_executor import run_agent_turn  # noqa: F401
@@ -138,6 +157,63 @@ async def post_init(application: Application):
 
     subagents.set_telegram_app(application)
 
+    # Daftarkan daftar slash command agar muncul di autocomplete Telegram
+    try:
+        from telegram import BotCommand
+
+        await application.bot.set_my_commands(
+            [
+                BotCommand("start", "Mulai & sambutan"),
+                BotCommand("menu", "Panel kontrol lengkap"),
+                BotCommand("help", "Semua perintah"),
+                BotCommand("mode", "Alih mode single|swarm"),
+                BotCommand("single", "Single agent (pindah/eksekusi)"),
+                BotCommand("swarm", "Misi swarm multi-agen"),
+                BotCommand("rapat", "Rapat plan antar-agen"),
+                BotCommand("resume", "Lanjutkan sesi swarm"),
+                BotCommand("cancel", "Hentikan misi swarm"),
+                BotCommand("status", "Status mode & sistem"),
+                BotCommand("agents", "Daftar agen swarm"),
+                BotCommand("persona", "Ganti persona single-mode"),
+                BotCommand("tools", "Daftar tools aktif"),
+                BotCommand("pipeline", "Workflow pipeline"),
+                BotCommand("tugas", "Tugas latar & checkpoint"),
+                BotCommand("keys", "API key vault"),
+                BotCommand("cekagen", "Audit konfigurasi agen"),
+                BotCommand("cron", "Tugas berulang"),
+                BotCommand("budget", "Kuota token harian"),
+                BotCommand("proactive", "Inisiatif ambient"),
+                BotCommand("stats", "Statistik server"),
+                BotCommand("memory", "Memori jangka panjang"),
+                BotCommand("dashboard", "Command center web"),
+                BotCommand("sites", "Galeri & hidupkan situs"),
+                BotCommand("wa", "Bot WhatsApp Sheets"),
+                BotCommand("meeting", "Rapat plan (alias)"),
+                BotCommand("eksekusi", "Swarm execute (alias)"),
+                BotCommand("tasks", "Tugas berulang (alias)"),
+                BotCommand("vault", "API vault (alias)"),
+                BotCommand("stop", "Hentikan swarm (alias)"),
+                BotCommand("web", "Dashboard (alias)"),
+                BotCommand("app", "Dashboard (alias)"),
+                BotCommand("washeets", "Bot WA Sheets (alias)"),
+                BotCommand("batal", "Batalkan misi (alias)"),
+                BotCommand("resume_swarm", "Lanjut swarm (alias)"),
+                BotCommand("reset", "Reset konteks (alias)"),
+                BotCommand("wachat", "Baca chat WhatsApp"),
+                BotCommand("wamasuk", "Pesan WA masuk terbaru"),
+                BotCommand("wakirim", "Kirim pesan WhatsApp"),
+                BotCommand("waringkas", "Digest cerdas WA"),
+                BotCommand("wacari", "Cari pesan WhatsApp"),
+                BotCommand("waformat", "Atur format pencatatan WA"),
+                BotCommand("wareport", "Baca laporan WA terekam"),
+                BotCommand("voice", "Toggle balasan suara"),
+                BotCommand("clear", "Reset riwayat chat"),
+                BotCommand("id", "ID Telegram & chat"),
+            ]
+        )
+    except Exception as cmd_err:
+        logger.warning(f"set_my_commands gagal: {cmd_err}")
+
     # Clean up any stale media/charts in sandbox on startup
     if os.path.exists(SANDBOX_DIR):
         for fname in os.listdir(SANDBOX_DIR):
@@ -158,7 +234,9 @@ async def post_init(application: Application):
     global _proactive_tasks
     _proactive_tasks = [
         asyncio.create_task(proactive_reminder_loop(application)),
+        asyncio.create_task(proactive_sites_watch_loop(application)),
         asyncio.create_task(proactive_cron_watchdog_loop(application)),
+        asyncio.create_task(proactive_wa_digest_loop(application)),
         asyncio.create_task(proactive_system_guardian_loop(application)),
         asyncio.create_task(proactive_focus_session_loop(application)),
         asyncio.create_task(proactive_ambient_agent_loop(application)),
@@ -204,17 +282,36 @@ def main():
     application.add_handler(CommandHandler("app", dashboard_command))
     application.add_handler(CommandHandler("wa", wa_command))
     application.add_handler(CommandHandler("washeets", wa_command))
+    application.add_handler(CommandHandler("wachat", wachat_command))
+    application.add_handler(CommandHandler("wamasuk", wamasuk_command))
+    application.add_handler(CommandHandler("wakirim", wakirim_command))
+    application.add_handler(CommandHandler("wacari", wacari_command))
+    application.add_handler(CommandHandler("waformat", waformat_command))
+    application.add_handler(CommandHandler("wareport", wareport_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("cekagen", cekagen_command))
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
+    application.add_handler(CommandHandler("budget", budget_command))
+    application.add_handler(CommandHandler("waringkas", waringkas_command))
     application.add_handler(CommandHandler("proactive", proactive_command))
     application.add_handler(CommandHandler("keys", keys_command))
     application.add_handler(CommandHandler("vault", keys_command))
     application.add_handler(CommandHandler("agents", agents_command))
+    application.add_handler(CommandHandler("persona", persona_command))
+    application.add_handler(CommandHandler("tools", tools_command))
     application.add_handler(CommandHandler("swarm", swarm_command))
+    application.add_handler(CommandHandler("sites", sites_command))
     application.add_handler(CommandHandler("eksekusi", swarm_command))
+    application.add_handler(CommandHandler("mode", mode_command))
+    application.add_handler(CommandHandler("single", single_command))
+    application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("cancel", cancel_command))
+    application.add_handler(CommandHandler("stop", cancel_command))
+    application.add_handler(CommandHandler("batal", cancel_command))
+    application.add_handler(CommandHandler("pipeline", pipeline_command))
+    application.add_handler(CommandHandler("tugas", tugas_command))
     application.add_handler(CommandHandler("resume_swarm", resume_swarm_command))
     application.add_handler(CommandHandler("resume", resume_swarm_command))
     application.add_handler(CommandHandler("rapat", rapat_command))
