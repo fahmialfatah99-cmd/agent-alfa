@@ -149,3 +149,26 @@ def test_honesty_scanner_marks_dummy(tmp_path):
     r = audit_project_honesty(path=str(proj))
     assert r["status"] == "success"
     assert any(x["pola"] == "random-di-data" for x in r["suspects"])
+
+
+# --- dashboard: galeri situs & budget ---------------------------------------
+def test_dashboard_sites_and_budget():
+    from fastapi.testclient import TestClient
+
+    from alfa.dashboard.routes import auth as auth_mod
+
+    auth_mod.DASHBOARD_AUTH_TOKEN = ""
+    from alfa.dashboard.app import app
+
+    c = TestClient(app)
+    r = c.get("/api/sites")
+    assert r.status_code == 200
+    assert r.json()["status"] == "success"
+    assert isinstance(r.json()["sites"], list)
+    r = c.get("/api/budget/today")
+    assert r.status_code == 200
+    assert "total_tokens" in r.json()
+    r = c.post("/api/sites/slug-tak-ada/start")
+    assert r.status_code in (404, 500)
+    r = c.post("/api/sites/x/bakar")
+    assert r.status_code == 400

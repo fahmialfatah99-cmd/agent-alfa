@@ -62,6 +62,7 @@ const tabTitles = {
     'tools': '126 Tools Catalog & Sandbox',
     'memory': 'Second Brain Memory',
     'artifacts': 'File Artifacts & Storage',
+    'sites': 'Galeri Situs & Kuota',
     'gdrive': 'Google Drive & Google Cloud Suite',
     'services': 'System Services & Background Tasks',
     'canvas': 'Pipeline Canvas Studio — Drag & Drop Workflow',
@@ -198,6 +199,10 @@ function switchTab(tabId) {
     if (tabId === 'services' && typeof fetchServices === 'function') fetchServices();
     if (tabId === 'canvas' && typeof initCanvas === 'function') initCanvas();
     if (tabId === 'memory' && typeof fetchMemory === 'function') fetchMemory();
+    if (tabId === 'sites') {
+        if (typeof fetchSites === 'function') fetchSites();
+        if (typeof fetchBudget === 'function') fetchBudget();
+    }
     if (tabId === 'artifacts') {
         if (typeof fetchArtifacts === 'function') fetchArtifacts();
         if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); }
