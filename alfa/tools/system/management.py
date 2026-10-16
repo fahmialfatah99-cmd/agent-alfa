@@ -498,3 +498,61 @@ def audit_project_honesty(path: str = "") -> dict[str, Any]:
                 "verdict": verdict, "suspects": suspects[:40]}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def mcp_connect(server: str = "lottiefiles") -> dict[str, Any]:
+    """
+    Sambungkan server MCP remote (OAuth): kembalikan URL otorisasi.
+
+    Alur: panggil tool ini -> berikan auth_url ke user untuk dibuka di browser
+    laptop -> login + approve -> token tersimpan otomatis -> tool mcp_call aktif.
+    """
+    try:
+        from alfa.mcp import client as _mc
+
+        redirect = "http://127.0.0.1:8080/api/mcp/oauth/callback"
+        return _mc.start_connect(server, redirect)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def mcp_status(server: str = "") -> dict[str, Any]:
+    """Status koneksi server MCP remote (lottiefiles)."""
+    try:
+        from alfa.mcp import client as _mc
+
+        return {"status": "success", **_mc.connection_status(server)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def mcp_call(server: str, tool: str, args_json: str = "{}") -> dict[str, Any]:
+    """
+    Panggil tool di server MCP remote yang sudah terhubung.
+
+    Args:
+        server: 'lottiefiles'.
+        tool: nama tool (lihat mcp_status/list via operations_list).
+        args_json: argumen JSON.
+    """
+    try:
+        import json as _json
+
+        from alfa.mcp import client as _mc
+
+        try:
+            args = _json.loads(args_json or "{}")
+        except Exception:
+            args = {}
+        listed = _mc.list_tools_sync(server)
+        if listed.get("status") == "success":
+            names = [t.get("name") for t in listed.get("tools", [])]
+            if tool not in names:
+                return {"status": "error",
+                        "message": f"Tool '{tool}' tak ada. Tersedia: {names}"}
+        return _mc.call_tool_sync(server, tool, args)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

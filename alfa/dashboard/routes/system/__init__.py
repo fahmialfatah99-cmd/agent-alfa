@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from alfa.dashboard.routes.system.gdrive import router as gdrive_router
 from alfa.dashboard.routes.system.keys_models import router as keys_models_router
+from alfa.dashboard.routes.system.mcp_routes import router as mcp_router
 from alfa.dashboard.routes.system.pipelines_memory import (
     router as pipelines_memory_router,
 )
@@ -30,6 +31,7 @@ _sub_routers = [
     telemetry_router,
     pipelines_memory_router,
     workspace_vault_router,
+    mcp_router,
     settings_admin_router,
     sites_router,
     scrapers_router,
@@ -45,6 +47,7 @@ __all__ = [
     "telemetry_router",
     "pipelines_memory_router",
     "workspace_vault_router",
+    "mcp_router",
     "settings_admin_router",
     "sites_router",
     "scrapers_router",

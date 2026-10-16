@@ -383,6 +383,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/api/metrics",
             "/api/auth/login",
             "/api/auth/register",
+            "/api/mcp/oauth/callback",
             "/api/v1/webhook",
             "/docs",
             "/redoc",
