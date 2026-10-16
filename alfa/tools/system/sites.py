@@ -124,6 +124,29 @@ def _detect_stack(path: str) -> dict[str, Any]:
     return info
 
 
+
+def _pick_frontend_dir(path: str) -> str:
+    """Pilih folder frontend yang benar-benar bisa di-start (ada next + script start)."""
+    cands = [os.path.join(path, "frontend"), os.path.join(path, "apps", "web"), path]
+    fallback = path
+    for c in cands:
+        pkg = os.path.join(c, "package.json")
+        if not os.path.isfile(pkg):
+            continue
+        try:
+            data = json.load(open(pkg))
+        except Exception:
+            continue
+        deps = {**(data.get("dependencies", {})), **(data.get("devDependencies", {}))}
+        if "next" not in deps:
+            continue
+        fallback = c
+        if "start" in (data.get("scripts", {}) or {}):
+            return c
+    return fallback
+
+
+
 def refresh_registry() -> dict:
     """Pindai ulang folder outputs; pertahankan port/pid yang sudah ada."""
     reg = _load_registry()
@@ -152,7 +175,7 @@ def refresh_registry() -> dict:
             ent = reg.get(slug, {})
             fe_dir = None
             if stack.get("has_frontend"):
-                fe_dir = os.path.join(path, "frontend") if os.path.isfile(os.path.join(path, "frontend", "package.json")) else path
+                fe_dir = _pick_frontend_dir(path)
             ent.update({
                 "slug": slug, "category": cat, "path": path,
                 "title": stack["title"], "stack": {k: v for k, v in stack.items() if k != "title"},
