@@ -93,6 +93,15 @@ def _detect_stack(path: str) -> dict[str, Any]:
             if os.path.isfile(os.path.join(path, cand)):
                 info["has_static"] = True
                 break
+        if not info["has_static"]:
+            try:
+                for _root, _dirs, _files in os.walk(path):
+                    _dirs[:] = [d for d in _dirs if d not in ("node_modules", "__pycache__", ".git")]
+                    if any(f.endswith((".html", ".htm")) for f in _files):
+                        info["has_static"] = True
+                        break
+            except Exception:
+                pass
         idx = None
         for cand in ("static/index.html", "index.html"):
             p = os.path.join(path, cand)
@@ -306,6 +315,25 @@ def start_site(slug: str) -> dict[str, Any]:
             ent["backend_port"] = port
             ok = _wait_http(f"http://127.0.0.1:{port}/")
             out["backend"] = f"http://127.0.0.1:{port} ({'OK' if ok else 'proses jalan, health belum merespons'})"
+    if stack.get("has_static") and not stack.get("has_backend") and not stack.get("has_frontend") and not stack.get("has_php"):
+        if ent.get("pid_backend") and _pid_alive(ent["pid_backend"]):
+            out["static"] = f"sudah jalan (PID {ent['pid_backend']})"
+        else:
+            port = int(ent.get("backend_port") or _free_port(BACKEND_PORT_BASE, set()))
+            logf = open(os.path.join(LOGS_DIR, f"{slug}-static.log"), "ab")
+            import sys as _sys
+
+            proc = subprocess.Popen(
+                [_sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
+                cwd=ent["path"], stdout=logf, stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            ent["pid_backend"] = proc.pid
+            ent["backend_port"] = port
+            ok = _wait_http(f"http://127.0.0.1:{port}/")
+            out["static"] = f"http://127.0.0.1:{port} ({'OK' if ok else 'proses jalan, tunggu sebentar'})"
+        _save_registry(reg)
+        return out
     if not stack.get("has_backend") and not stack.get("has_frontend") and not stack.get("has_php"):
         if stack.get("has_static"):
             out["note"] = "situs statis — buka folder/file index.html langsung (tak perlu server)"
