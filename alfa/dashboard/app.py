@@ -66,6 +66,7 @@ from alfa.dashboard.routes.system import (
     system_router,
 )
 from alfa.dashboard.routes.tools import categorize_tool, tools_router
+from alfa.dashboard.routes.webauthn_auth import webauthn_router
 from alfa.dashboard.routes.webhook import webhook_router
 from alfa.dashboard.schemas import HealthCheckResponse, SystemMetricsResponse
 from alfa.dashboard.websocket import ConnectionManager, websocket_router, ws_manager
@@ -385,6 +386,7 @@ def create_app() -> FastAPI:
 
     # Include APIRouters
     app_instance.include_router(auth_router)
+    app_instance.include_router(webauthn_router)
     app_instance.include_router(chat_router)
     app_instance.include_router(tools_router)
     app_instance.include_router(swarm_router)

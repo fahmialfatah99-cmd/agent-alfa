@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALFA — Passkey WebAuthn</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background:#09090b; color:#e2e8f0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+  .card { background:rgba(9,9,11,.9); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:28px; width:min(420px,92vw); }
+  h1 { font-size:16px; margin:0 0 6px; color:#67e8f9; }
+  p.sub { font-size:11px; color:#94a3b8; margin:0 0 18px; line-height:1.5; }
+  label { font-size:10px; color:#94a3b8; letter-spacing:.08em; text-transform:uppercase; }
+  input, output { width:100%; box-sizing:border-box; padding:10px; background:#0f172a; border:1px solid rgba(255,255,255,.12); color:#fff; border-radius:10px; font-size:12px; margin:4px 0 12px; }
+  button { width:100%; padding:11px; font-weight:800; font-size:12px; border:0; border-radius:10px; cursor:pointer; margin-top:8px; }
+  .primary { background:#06b6d4; color:#09090b; }
+  .ghost { background:rgba(255,255,255,.05); color:#67e8f9; border:1px solid rgba(6,182,212,.3); }
+  #status { font-size:11px; line-height:1.6; white-space:pre-wrap; min-height:40px; margin-top:14px; color:#94a3b8; }
+  .ok { color:#34d399; } .err { color:#f43f5e; }
+  details { margin-top:16px; }
+  summary { cursor:pointer; font-size:11px; color:#67e8f9; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔐 ALFA Passkey (WebAuthn)</h1>
+  <p class="sub">Login tanpa password or daftar passkey baru. Kredensial disimpan server, key dilindungi authenticator (TouchID / Windows Hello / key fisik).</p>
+
+  <button id="btn-passkey-login" class="primary">🔓 Login via Passkey</button>
+  <div>
+    <label style="margin-top:12px;display:block;">opsional: username (menyempurnakan kredensial)</label>
+    <input id="wa-username" placeholder="(kosongkan = discovery)">
+  </div>
+
+  <details>
+    <summary>Daftar passkey baru (butuh sesi aktif)</summary>
+    <label>username</label>
+    <input id="reg-user" autocomplete="username">
+    <label>password</label>
+    <input id="reg-pass" type="password" autocomplete="current-password">
+    <button id="btn-passkey-register" class="ghost">➕ Register Passkey</button>
+  </details>
+
+  <div id="status"></div>
+</div>
+
+<script>
+const status = (msg, cls=false) => document.getElementById("status").innerHTML = msg;
+const toast = (msg, cls) => status(msg, cls);
+
+function b64urlToBuf(value) {
+  const pad = '='.repeat((4 - value.length % 4) % 4);
+  const raw = atob(value.replace(/-/g, '+').replace(/_/g, '/') + pad);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+function bufToB64url(buf) {
+  const raw = btoa(String.fromCharCode(...new Uint8Array(buf)));
+  return raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function passkeyLogin() {
+  status("⏳ Meminta challenge…");
+  const username = document.getElementById("wa-username").value.trim();
+  const res = await fetch(`/api/auth/webauthn/login/options${username ? '?username=' + encodeURIComponent(username) : ''}`);
+  if (!res.ok) return toast("❌ " + (await res.json()).detail, "err");
+  const options = await res.json();
+  options.challenge = b64urlToBuf(options.challenge);
+  options.allowCredentials = (options.allowCredentials || []).map(c => ({...c, id: b64urlToBuf(c.id)}));
+
+  status("👆 Sertifikasi authenticator…");
+  let assertion;
+  try { assertion = await navigator.credentials.get({ publicKey: options }); }
+  catch (e) { return toast("❌ Browser menolak: " + e.message, "err"); }
+
+  const body = {
+    id: assertion.id,
+    rawId: bufToB64url(assertion.rawId),
+    type: assertion.type,
+    response: {
+      authenticatorData: bufToB64url(assertion.response.authenticatorData),
+      clientDataJSON: bufToB64url(assertion.response.clientDataJSON),
+      signature: bufToB64url(assertion.response.signature),
+      userHandle: assertion.response.userHandle ? bufToB64url(assertion.response.userHandle) : null,
+    },
+  };
+  const verify = await fetch("/api/auth/webauthn/login/verify", {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body),
+  });
+  const data = await verify.json();
+  if (!verify.ok) return toast("❌ " + data.detail, "err");
+  if (data.token) try { localStorage.setItem("session_token", data.token); } catch (_e) {}
+  toast("✅ Login berhasil: " + data.user.username + " [" + (data.user.is_admin ? "admin" : "member") + "]", "ok");
+  setTimeout(() => location.href = "/", 600);
+}
+
+async function passkeyRegister() {
+  const username = document.getElementById("reg-user").value.trim();
+  const password = document.getElementById("reg-pass").value;
+  status("⏳ Login password dulu untuk sesi…");
+  const loginRes = await fetch("/api/auth/login", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username, password}), credentials: "include",
+  });
+  if (!loginRes.ok) return toast("❌ Login password gagal: " + (await loginRes.json()).detail, "err");
+
+  status("⏳ Challenge registrasi…");
+  const optRes = await fetch("/api/auth/webauthn/register/options", {method: "POST"});
+  if (!optRes.ok) return toast("❌ " + (await optRes.json()).detail, "err");
+  const options = await optRes.json();
+  options.challenge = b64urlToBuf(options.challenge);
+  options.user.id = b64urlToBuf(options.user.id);
+  options.excludeCredentials = (options.excludeCredentials || []).map(c => ({...c, id: b64urlToBuf(c.id)}));
+
+  status("👆 Buat passkey di authenticator…");
+  let credential;
+  try { credential = await navigator.credentials.create({ publicKey: options }); }
+  catch (e) { return toast("❌ Browser menolak: " + e.message, "err"); }
+
+  const body = {
+    id: credential.id,
+    rawId: bufToB64url(credential.rawId),
+    type: credential.type,
+    response: {
+      attestationObject: bufToB64url(credential.response.attestationObject),
+      clientDataJSON: bufToB64url(credential.response.clientDataJSON),
+      transports: credential.response.getTransports ? credential.response.getTransports() : [],
+    },
+  };
+  const verifyRes = await fetch("/api/auth/webauthn/register/verify", {
+    method: "POST", headers: {"Content-Type": "application/json", credentials: "include"}, body: JSON.stringify(body),
+  });
+  const data = await verifyRes.json();
+  if (!verifyRes.ok) return toast("❌ " + data.detail, "err");
+  toast("✅ Passkey teregis! Coba tombol Login via Passkey.", "ok");
+}
+
+document.getElementById("btn-passkey-login").addEventListener("click", passkeyLogin);
+document.getElementById("btn-passkey-register").addEventListener("click", passkeyRegister);
+</script>
+</body>
+</html>

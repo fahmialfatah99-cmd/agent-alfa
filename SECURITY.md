@@ -36,8 +36,13 @@ ALFA Agent implements several security measures:
 ### 1. Encrypted Credential Vault
 - AES-256-GCM vault storage untuk kredensial API/GDrive (master key file 0600)
 - Masked listings + endpoint vault admin-gated (require_admin)
-- Bagian Passkey/WebAuthn masih roadmap (flag `passkey_lock_enabled` saat ini
-  hanya status eksperimental, belum ada challenge kriptografis end-to-end)
+- Passkey/WebAuthn login dashboard implementasi SELESAI end-to-end
+  (pustaka `python-webauthn`): challenge server-side sekali-pakai,
+  verifikasi attestation/assertion kriptografis (ES256/P-256),
+  `sign_count` anti-klon (counter tidak maju → kredential dicabut),
+  registrasi bind sesi pemanggil; UI di `static/webauthn.html`.
+  Batas jujur: RP ID wajib hostname (bukan IP); produksi wajib HTTPS
+  (`ALFA_WEBAUTHN_RP_ID`, `ALFA_WEBAUTHN_ORIGIN`).
 
 ### 2. Permission Gates
 - Whitelist-only tool execution
