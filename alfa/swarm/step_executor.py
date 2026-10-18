@@ -315,6 +315,80 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
 
 
+# ── Gate deep scraping (hindari scrape tiap langkah bila tidak diperlukan) ────
+#
+# Sebelum: agent bernama "Research"/role "Intel"/(is_scrape & Prime) SELALU
+# memanggil `universal_deep_scraper` — termasuk langkah tulis-ringkasan /
+# analisa, dan berulang tiap langkah Prime dalam satu run (hit jaringan
+# berulang + lambat).
+#
+# Sekarang: scraping hanya bila langkah (atau intent turn) benar-benar minta
+# data eksternal, dan maksimal sekali per (topic, agent) untuk sinyal intent
+# — sinyal eksplisit di instruksi langkah ("scrape", "csv", dst.) selalu
+# diizinkan menembus dedupe.
+
+_SCRAPE_TASK_RE = re.compile(
+    r"(?i)\b(scrap\w+|grab\w+|sedot|csv|kumpulk\w+|gather\w*|collect\w+|carik\w+|"
+    r"ambil\s+data|cari\s+data|daftar\s+(produk|harga|supplier|kontak|lowongan)|"
+    r"list\s+(products?|prices?|suppliers?|contacts?|vacanc\w+)|terlaris|terpopuler|"
+    r"top\s+\d+|marketplace|shopee|tokopedia|tokped|lazada|tik\s?tok\s?shop|"
+    r"e-?commerce|lowongan|supplier|leads)\b"
+)
+
+_scraped_once_keys: set[tuple[str, str]] = set()
+
+
+def _reset_scrape_state() -> None:
+    """Pembersih state dedupe (dipakai test & run baru)."""
+    _scraped_once_keys.clear()
+
+
+def _step_needs_deep_scrape(
+    agent_name: str,
+    role: str,
+    task_instruction: str,
+    intent_info: dict[str, Any] | None,
+) -> tuple[bool, str]:
+    """Keputusan: langkah ini perlu deep scraper atau tidak.
+
+    Returns:
+        (perlu_scrape, alasan_skip) — ``alasan_skip`` hanya diisi bila agent
+        tipe riset tapi TIDAK jalan scraper (untuk log/transparansi).
+    """
+    intent_info = intent_info or {}
+    can_scrape = (
+        "Research" in agent_name or "Intel" in role or "Prime" in agent_name
+    )
+    if not can_scrape:
+        return False, ""
+
+    task_l = (task_instruction or "").lower()
+    task_signal = bool(_SCRAPE_TASK_RE.search(task_l))
+    intent_signal = bool(intent_info.get("is_scrape"))
+
+    if not task_signal and not intent_signal:
+        return (
+            False,
+            "agent riset ada, tapi langkah ini tidak meminta pengambilan "
+            "data eksternal → jalur agentic biasa",
+        )
+
+    if task_signal:
+        # instruksi eksplisit selalu boleh scrape; tetap tandai run ini sudah
+        # melakukan scraping agar langkah intent-only berikutnya skip
+        clean_query = str(intent_info.get("clean_query") or "")[:64]
+        _scraped_once_keys.add((clean_query, agent_name))
+        return True, ""
+
+    # sinyal intent-only: scrape maksimal SEKALI per (topic, agent) dalam run
+    clean_query = str(intent_info.get("clean_query") or "")[:64]
+    key = (clean_query, agent_name)
+    if key in _scraped_once_keys:
+        return False, "deep scraping sudah dilakukan untuk run ini → skip"
+    _scraped_once_keys.add(key)
+    return True, ""
+
+
 async def execute_swarm_task_step(
     agent: dict[str, Any],
     task_instruction: str,
@@ -345,11 +419,17 @@ async def execute_swarm_task_step(
     target_folder = _get_target_folder()
 
     # 1. SPECIALIST: RESEARCHER PRIME (Deep Scraping & Real Web Intelligence)
-    if (
-        "Research" in agent_name
-        or "Intel" in role
-        or (intent_info.get("is_scrape") and "Prime" in agent_name)
-    ):
+    #    Gate dulu: hanya bila langkah/intent benar-benar butuh data eksternal,
+    #    dan maksimal sekali per run utk sinyal intent (lihat helper).
+    scrape_ok, scrape_skip_reason = _step_needs_deep_scrape(
+        agent_name, role, task_instruction, intent_info
+    )
+    if scrape_skip_reason:
+        log_live(
+            "PLAN",
+            f"⏭️ {agent_name} skip deep scraping — {scrape_skip_reason}",
+        )
+    if scrape_ok:
         tool_name = "universal_deep_scraper"
         search_query = intent_info.get("clean_query") or topic
         cat = intent_info.get("category", "all_marketplace")

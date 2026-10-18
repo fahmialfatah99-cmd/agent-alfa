@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Swarm scraping gate (2026-10-18)
+- **Scraping hanya bila diperlukan:** sebelumnya setiap agent bernama "Research"
+  / role "Intel" menjalankan `universal_deep_scraper` di **setiap langkah** —
+  termasuk langkah tulis-ringkasan/analisa — dan Prime melakukannya berulang
+  per SESTA run. Kini `_step_needs_deep_scrape()` membutuhkan sinyal nyata:
+  instruksi langkah menyebut pengambilan data (scrape/CSV/kumpulkan data/
+  marketplace, dll.) ATAU intent `is_scrape`; sinyal intent bersifat
+  **sekali per (topic, agent)** dengan dedupe, instruksi eksplisit selalu
+  diizinkan ulang. Non-riset tak pernah scrape. Skip terlog (PLAN: "⏭️ skip").
+
 ### Added — Backlog upgrade (2026-10-18)
 - **Passkey/WebAuthn end-to-end:** endpoint register/login passkey dengan verifikasi kriptografis nyata (python-webauthn, ES256/P-256, attestation none), challenge server-side sekali-pakai, `sign_count` anti-klon, penyimpanan kredensial DB, UI `static/webauthn.html`; RP ID wajib hostname (IP ditolak) — SECURITY.md/README masa kini, bukan roadmap
 - **MCP ekspansi:** transport HTTP streamable (`alfamcp/http_server.py`, token `ALFA_MCP_HTTP_TOKEN` wajib fail-closed + DNS-rebinding guard) sebagai pelengkap stdio; MCP resources `alfa://status` dan `alfa://tools/catalog`; route admin `/api/mcp/status` + handshake di uji kriptografik; test +5 kelas
