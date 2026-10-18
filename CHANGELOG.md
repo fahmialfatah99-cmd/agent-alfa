@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — Determinisme test & gates matang (2026-10-18, putaran 2)
+- **Akar flaky GDrive dituntaskan, bukan ditambal:** `alfa/security/vault.py`
+  mematok `DB_PATH` saat import — ubah `ALFA_DB_PATH` setelah import tidak
+  menggeser koneksi, sehingga baris vault dari test sebelumnya bocor ke test
+  berikutnya (`_detect_gdrive_auth_mode` salah "oauth"). Kini `_vault_db_path()`
+  mengerjakan resolusi dinamis per koneksi (urut: pakai attr `DB_PATH` di-
+  patch eksplisit; env `ALFA_DB_PATH`/`DATABASE_URL` runtime; resolver
+  `alfa.core.db.connection`; fallback statis) dan `secret_store.delete_secret`
+  mengikutinya. Regresi +3 test `tests/test_vault_dynamic_path.py`.
+- **Seed agent default idempoten:** `init_db_sync()` kini `INSERT OR IGNORE`
+  — akar error `UNIQUE constraint failed: custom_agents.name` antar-urutan
+  test (auto-init saat import `alfa.core.database` bisa bersarang dengan
+  init dari fixture; seed dobel kini tak baku kengeri error).
+- **Coverage kini berangka & beramart:** threshold CI `--cov-fail-under=44`
+  (baseline terukur pertama: **46,67%** total 26.178 statement), plus
+  codecov/artifact tetap. Semua alat CI di-sematkan versinya (ruff 0.16.4,
+  bandit 1.9.4, mkdocs 1.6.1/material 9.7.7, pytest 9.1.1, pytest-cov 7.1.0,
+  pytest-asyncio 1.4.0) supaya gerbang deterministik lintas-tahun.
+- **BLE001 1282 → 1261 (perbaikan nyata, bukan kelonggaran):** catch-all
+  disempitkan bila aman − parser JSON/AST (`tool_exec`), I/O berkas & HTTP
+  helpers (`whatsapp.py`), dekripsi kunci (`keys.py`, `crypto.decrypt_key`
+  → `InvalidTag/TypeError/ValueError`). Sisa catch-all adalah guard
+  portabilitas yang memang sepatutnya; bud mengikuti anggara.
+
 ### Fixed — Swarm scraping gate (2026-10-18)
 - **Scraping hanya bila diperlukan:** sebelumnya setiap agent bernama "Research"
   / role "Intel" menjalankan `universal_deep_scraper` di **setiap langkah** —

@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install ruff
-        run: pip install ruff
+        run: pip install "ruff==0.16.4" # sertakan agar gate deterministik lintas-tahun
       - name: "Ruff check - gate bug nyata (F/E/B/W/I/N/UP/YTT + TRY/BLE budget)"
         run: ruff check .
       - name: Enforce TRY/BLE lint budget (must not grow)
@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install mkdocs
-        run: pip install mkdocs mkdocs-material
+        run: pip install "mkdocs==1.6.1" "mkdocs-material==9.7.7"
       - name: Cek salinan dokumen sinkron
         run: python scripts/build_docs.py --check
       - name: Build strict
@@ -75,7 +75,7 @@ jobs:
           pip-audit --ignore-vuln PYSEC-2026-3740
       - name: Static security scan (bandit, medium+)
         run: |
-          pip install bandit
+          pip install "bandit==1.9.4"
           bandit -r alfa plugins -ll
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
@@ -130,10 +130,13 @@ jobs:
         run: |
           pip install python-telegram-bot google-genai python-dotenv \
             aiosqlite psutil httpx fastapi uvicorn pillow pypdf tabulate \
-            pytest pytest-cov pytest-asyncio cryptography numpy pydantic \
-            click rich pyyaml jinja2 aiofiles websockets pygments ddgs
-      - name: Jalankan seluruh suite dengan coverage
-        run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html
+            "pytest==9.1.1" "pytest-cov==7.1.0" "pytest-asyncio==1.4.0" \
+            cryptography numpy pydantic click rich pyyaml jinja2 \
+            aiofiles websockets pygments ddgs
+      - name: Jalankan seluruh suite dengan coverage (threshold gate)
+        # Threshold diukur dari baseline 46,67% (2026-10-18) dipangkas margin
+        # 2 poin — menahan penurunan besar, tidak menghukum noise kecil.
+        run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=44
       - name: Upload coverage report
         uses: codecov/codecov-action@v5
         continue-on-error: true
