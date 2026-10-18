@@ -15,12 +15,22 @@ from datetime import datetime, timezone
 
 _START_TIME = time.time()
 
-from dotenv import load_dotenv
+
+def _agent_snapshot() -> dict:
+    """Snapshot metrik runtime agent (anti-throwing) untuk /api/metrics."""
+    try:
+        from alfa.core import metrics as _metrics
+
+        return _metrics.snapshot()
+    except Exception:
+        return {}
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from alfa.core.config import ensure_env_loaded
 from alfa.dashboard.common import (
     DASHBOARD_AUTH_TOKEN,
     REPO_ROOT,
@@ -60,7 +70,7 @@ from alfa.dashboard.routes.webhook import webhook_router
 from alfa.dashboard.schemas import HealthCheckResponse, SystemMetricsResponse
 from alfa.dashboard.websocket import ConnectionManager, websocket_router, ws_manager
 
-load_dotenv()
+ensure_env_loaded()
 
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "127.0.0.1")
 DASHBOARD_PORT = safe_int(
@@ -370,6 +380,7 @@ def create_app() -> FastAPI:
                 "uptime_seconds": round(time.time() - _START_TIME, 2),
             },
             database_pool=db_pool_stats,
+            agent=_agent_snapshot(),
         )
 
     # Include APIRouters

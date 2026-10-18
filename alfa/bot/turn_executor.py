@@ -165,7 +165,504 @@ async def _maybe_compact_history(_db, user_id: int) -> str:
         return ""
 
 
-async def run_agent_turn(
+# ═════ TAHAP-5: RAKIT BLOK INGATAN (diekstrak dari run_agent_turn) ════════════
+def _build_memory_block(
+    user_id: int,
+    user_prompt: str,
+    user_memories: list,
+    kg_triples: list,
+    compaction_block: str,
+) -> str:
+    """Rakit blok ingatan jangka panjang + Auto-RAG + ringkasan kompaksi.
+
+    Tanpa akses DB (data diambil pemanggil); vector_memory diimpor lazy.
+    """
+    memory_context_parts = []
+    if user_memories:
+        memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
+        for m in user_memories:
+            memory_context_parts.append(
+                f"- [{m['category']}] {m['key_topic']}: {m['content']}"
+            )
+
+    if kg_triples:
+        memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
+        for k in kg_triples:
+            tag_str = f" ({k['tags']})" if k.get("tags") else ""
+            memory_context_parts.append(
+                f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}"
+            )
+
+    # AUTO-RAG: potongan dokumen Drive yang relevan dgn pertanyaan
+    p_check = (user_prompt or "").lower().strip()
+    should_search_rag = (
+        len(p_check) > 15
+        and not any(
+            p_check == g or p_check.startswith(g + " ")
+            for g in [
+                "halo",
+                "hai",
+                "pagi",
+                "siang",
+                "malam",
+                "apa kabar",
+                "siapa kamu",
+                "tes",
+                "ping",
+            ]
+        )
+        and any(
+            k in p_check
+            for k in [
+                "dokumen",
+                "drive",
+                "file",
+                "catatan",
+                "ingat",
+                "materi",
+                "referensi",
+                "data",
+                "info",
+                "tentang",
+                "jelaskan",
+                "bagaimana",
+                "apa itu",
+                "siapa",
+            ]
+        )
+    )
+
+    if should_search_rag:
+        try:
+            from alfa.memory import vector as vector_memory
+
+            brain_hits = vector_memory.semantic_search(
+                user_id=user_id, query=user_prompt or "", top_k=4
+            )
+            relevant = [
+                h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25
+            ]
+            if relevant:
+                memory_context_parts.append(
+                    "📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):"
+                )
+                for h in relevant:
+                    memory_context_parts.append(
+                        f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
+                    )
+        except Exception as rag_err:
+            logger.debug(f"Auto-RAG skipped: {rag_err}")
+
+    memory_block = ""
+    if memory_context_parts:
+        memory_block = (
+            "\n\n======================================================\n"
+            "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
+            f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
+            "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
+            + "\n".join(memory_context_parts)
+            + "\n======================================================\n"
+        )
+
+    if compaction_block:
+        memory_block += compaction_block
+    return memory_block
+
+
+# ═════ TAHAP-6: INSTRUKSI SISTEM FINAL (diekstrak dari run_agent_turn) ════════
+async def _build_system_instruction(
+    db,
+    user_id: int,
+    brain: dict,
+    override_model: str | None,
+    memory_block: str,
+) -> tuple[str, str, str]:
+    """Muat settings pengguna & file prompt; rakit instruksi sistem final.
+
+    Return ``(full_system_instruction, preferred_model, current_active_model)``.
+    """
+    user_settings = await db.get_user_settings(user_id)
+
+    # Reload latest prompt from file if available
+    active_base_prompt = BASE_SYSTEM_PROMPT
+    if os.path.exists(ALFA_PROMPT_PATH):
+        try:
+            with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
+                active_base_prompt = f.read().strip()
+        except Exception:
+            pass
+
+    brain_model_override = db.get_main_brain_model()
+    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
+    current_active_model = (
+        override_model or brain.get("model") or brain_model_override or preferred_model
+    )
+    current_active_provider = brain.get("provider", "gemini").upper()
+    current_key_label = brain.get("label", "")
+
+    active_identity_block = (
+        f"\n\n### 🤖 INFORMASI ENGINE & MODEL AKTIF SAAT INI (GROUND TRUTH)\n"
+        f"- MODEL AI AKTIF SAAT INI: `{current_active_model}`\n"
+        f"- PROVIDER / GATEWAY: `{current_active_provider}`\n"
+        f"- KUNCI/AKUN VAULT: `{current_key_label}`\n"
+        f"- Jika pengguna bertanya kamu pakai model apa, model apa yang sedang aktif, atau identitas enginemu, "
+        f"jawab dengan jujur dan jelas bahwa saat ini kamu ditenagai oleh model `{current_active_model}` ({current_active_provider})!\n"
+    )
+
+    base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
+    from alfa.tools.system.constants import is_unrestricted
+
+    unrestricted_block = (
+        "\n\n### ⚡ HAK AKSES HOST LINUX PENUH (UNRESTRICTED MODE)\n"
+        "- Kamu beroperasi dengan AKSES HOST LINUX LANGSUNG PENUH di mesin pengguna (bukan di dalam container atau sandbox Docker terisolasi).\n"
+        "- Eksekusi bash (`execute_bash_command`) dan script Python (`execute_python_sandbox`) berjalan langsung di mesin Linux pengguna.\n"
+        "- Tidak ada blocklist perintah dan tidak ada permission gate yang membatasi tindakanmu.\n"
+        "- Kamu memiliki wewenang penuh dari Fahmi untuk mengeksekusi perintah sistem, menginstal paket sistem/pip, memodifikasi file di sistem, dan menggunakan `sudo` kapan pun dibutuhkan tanpa ragu.\n"
+    ) if is_unrestricted() else ""
+
+    full_system_instruction = (
+        base_instruction
+        + active_identity_block
+        + memory_block
+        + ENFORCEMENT_BLOCK
+        + HONESTY_BLOCK
+        + CODING_DELIVERY_BLOCK
+        + CAPABILITIES_BLOCK
+        + ANTIGRAVITY_WORKFLOW_BLOCK
+        + TOOL_FIRST_EXECUTION_BLOCK
+        + SUPERPOWERS_SKILLS_BLOCK
+        + UI_UX_PRO_MAX_BLOCK
+        + unrestricted_block
+    )
+    return full_system_instruction, preferred_model, current_active_model
+
+
+# ═════ TAHAP-7: PILIH TOOL & KONFIG GEMINI (diekstrak dari run_agent_turn) ════
+def _prepare_tools_and_configs(
+    model_name: str,
+    system_instruction: str,
+    user_prompt: str,
+    history_msgs: list,
+    action_intent: bool,
+) -> tuple[list, Any, Any, Any]:
+    """Dedup tool registry + pilihan fungsi relevan RAG; susun konfig generation.
+
+    Return ``(gemini_tools, config, config_force, config_wrapup)``.
+    """
+    from google.genai import types
+
+    all_tools = list(AVAILABLE_TOOLS)
+    try:
+        plugin_tools = plugins.load_all_plugin_tools()
+        if plugin_tools:
+            all_tools = list(AVAILABLE_TOOLS) + plugin_tools
+    except Exception as e:
+        logger.warning(f"Failed to load dynamic plugins: {e}")
+
+    seen_fn_names = set()
+    deduped_tools = []
+    for tool_fn in all_tools:
+        nm = getattr(tool_fn, "__name__", "")
+        if nm and nm not in seen_fn_names:
+            seen_fn_names.add(nm)
+            deduped_tools.append(tool_fn)
+        elif not nm and tool_fn not in deduped_tools:
+            deduped_tools.append(tool_fn)
+    all_tools = deduped_tools
+
+    gemini_tools = all_tools
+    try:
+        from alfa.tools.rag import select_relevant_functions
+
+        gemini_tools = select_relevant_functions(
+            all_tools, user_prompt or "", history=history_msgs
+        )
+    except Exception:
+        pass
+
+    _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
+    # AUTO: model bebas memanggil tool ATAU menjawab teks (dipakai semua
+    # putaran sesudah panggilan pertama agar giliran selalu ditutup
+    # dengan jawaban teks nyata, bukan loop tool tanpa akhir).
+    config = types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=0.75,
+        tools=gemini_tools,
+        automatic_function_calling=_afc_off,
+    )
+    # ANY: HANYA dipakai pada panggilan PERTAMA bila ini permintaan aksi,
+    # supaya model tidak cukup menjawab basa-basi tanpa menjalankan tool.
+    if action_intent:
+        _allowed = sorted(
+            {
+                getattr(t, "__name__", "")
+                for t in gemini_tools
+                if getattr(t, "__name__", "")
+            }
+        )
+        config_force = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.75,
+            tools=gemini_tools,
+            automatic_function_calling=_afc_off,
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(
+                    mode=types.FunctionCallingConfigMode.ANY,
+                    allowed_function_names=_allowed,
+                )
+            ),
+        )
+    else:
+        config_force = config
+    # Tanpa tool: dipakai untuk wrap-up agar model WAJIB merangkum hasil
+    # nyata dalam teks saat iterasi tool habis / jawaban kosong.
+    config_wrapup = types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=0.7,
+    )
+    return gemini_tools, config, config_force, config_wrapup
+
+
+# ═════ TAHAP-AUDIT: PASS KOREKSI ANTI-FABRIKASI (diekstrak) ═══════════════════
+async def _audit_correction_pass(
+    gemini_client,
+    model: str,
+    turn_contents: list,
+    config,
+    drive_tool_loop,
+    gkey_id,
+    gkey_label: str,
+    prompt_low: str,
+    reply_text: str,
+    meeting_intent: bool,
+    action_intent: bool,
+    meetings_before: int,
+    executed_tool_names: list,
+    art_before: str,
+    approval_gate,
+) -> str:
+    """Audit klaim bogus (rapat/berkas dsb.) + pass koreksi bila terdeteksi."""
+    from google.genai import types
+
+    new_meetings = _meetings_count() - meetings_before
+    reply_low = reply_text.lower()
+
+    audit_kind, audit_parts = evaluate_reply_audits(
+        prompt_low=prompt_low,
+        reply_low=reply_low,
+        meeting_intent=meeting_intent,
+        action_intent=action_intent,
+        new_meetings=new_meetings,
+        executed_tool_names=executed_tool_names,
+        art_before=art_before,
+        art_after=_artifact_signature(),
+    )
+
+    if audit_kind:
+        logger.warning(
+            f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model})"
+        )
+        # Pakai konteks GILIRAN INI (termasuk riwayat tool) — bukan `contents`
+        # yang tidak memuat hasil tool, agar model tahu apa yang sudah/belum jalan.
+        turn_contents.append(
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text="\n".join(audit_parts))],
+            )
+        )
+        try:
+            response2 = await gemini_client.aio.models.generate_content(
+                model=model, contents=turn_contents, config=config
+            )
+            token_usage.from_gemini_response(
+                response2,
+                model=f"{model}:audit",
+                key_id=gkey_id,
+                key_label=gkey_label or "gemini-env",
+                context="telegram_chat",
+            )
+            # Izinkan model MENGAMBIL AKSI pada pass koreksi — kalau dia
+            # tetap memanggil tool, jalankan sampai selesai.
+            response2 = await drive_tool_loop(response2, config)
+            if response2.text and response2.text.strip():
+                reply_text = response2.text
+        except Exception as audit_err:
+            logger.warning(f"[AUDIT] pass koreksi gagal: {audit_err}")
+        logger.warning(
+            f"[AUDIT] Koreksi selesai ({audit_kind}); "
+            f"rapat baru: {_meetings_count() - meetings_before}; "
+            f"artefak berubah: {_artifact_signature() != art_before}"
+        )
+    return reply_text
+
+
+# ═════ TAHAP-COMPAT: OTAK LINTAS PROVIDER OpenAI-compatible (diekstrak) ═══════
+async def _openai_compat_turn(
+    mb,
+    brain: dict,
+    preferred_model: str,
+    system_instruction: str,
+    user_prompt: str,
+    multimodal_parts: list | None,
+    history_msgs: list,
+    history_rows: list,
+    approval_gate,
+    streamer,
+    meeting_intent: bool,
+    meetings_before: int,
+    db,
+    user_id: int,
+    display_user_text: str,
+) -> str:
+    """Giliran lewat provider OpenAI-compatible; return "" bila gagal total."""
+    compat_text = user_prompt or ""
+    if multimodal_parts:
+        compat_text = (
+            compat_text
+            + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
+        ).strip()
+
+    gate_on = approval_gate is not None
+    reply_text = ""
+    if streamer and not gate_on and hasattr(mb, "run_openai_agentic_turn_streaming"):
+        try:
+            streamed_text = ""
+            async for chunk in mb.run_openai_agentic_turn_streaming(
+                provider=brain["provider"],
+                base_url=brain["base_url"],
+                api_key=brain["api_key"],
+                model=brain["model"] or preferred_model,
+                system_instruction=system_instruction,
+                user_text=compat_text,
+                history=history_msgs,
+                key_id=brain["key_id"],
+                key_label=brain["label"],
+                approval_gate=approval_gate,
+            ):
+                streamed_text += chunk
+                await streamer.push_chunk(chunk)
+            reply_text = streamed_text
+        except Exception as e:
+            logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
+            reply_text = await mb.run_openai_agentic_turn(
+                provider=brain["provider"],
+                base_url=brain["base_url"],
+                api_key=brain["api_key"],
+                model=brain["model"] or preferred_model,
+                system_instruction=system_instruction,
+                user_text=compat_text,
+                history=history_msgs,
+                key_id=brain["key_id"],
+                key_label=brain["label"],
+                approval_gate=approval_gate,
+            )
+    else:
+        reply_text = await mb.run_openai_agentic_turn(
+            provider=brain["provider"],
+            base_url=brain["base_url"],
+            api_key=brain["api_key"],
+            model=brain["model"] or preferred_model,
+            system_instruction=system_instruction,
+            user_text=compat_text,
+            history=history_msgs,
+            key_id=brain["key_id"],
+            key_label=brain["label"],
+            approval_gate=approval_gate,
+        )
+
+    new_meetings = _meetings_count() - meetings_before
+    if meeting_intent and new_meetings == 0 and reply_text:
+        low = reply_text.lower()
+        if ("rapat" in low or "meeting" in low) and any(
+            mk in low for mk in MEETING_FABRICATION_MARKERS
+        ):
+            logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
+            corrected = await mb.run_openai_agentic_turn(
+                provider=brain["provider"],
+                base_url=brain["base_url"],
+                api_key=brain["api_key"],
+                model=brain["model"] or preferred_model,
+                system_instruction=system_instruction,
+                user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
+                history=history_msgs,
+                key_id=brain["key_id"],
+                key_label=brain["label"],
+                approval_gate=approval_gate,
+            )
+            if corrected:
+                reply_text = corrected
+    if reply_text:
+        from alfa.bot.helpers import strip_thought_blocks as _strip
+
+        reply_text = _strip(str(reply_text))
+        await db.save_chat_message(user_id, "model", reply_text)
+        try:
+            from alfa.memory import reflection as memory_reflection
+
+            refl_history = list(history_rows) + [
+                {"role": "user", "content": display_user_text},
+                {"role": "model", "content": reply_text},
+            ]
+            memory_reflection.maybe_schedule_reflection(user_id, refl_history)
+        except Exception as refl_err:
+            logger.debug(f"reflection scheduling(error): {refl_err}")
+        return str(reply_text)
+    logger.warning(
+        f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
+    )
+    return ""
+
+
+# ═════ TAHAP-FB: FALLBACK KUNCI LAIN DARI VAULT (diekstrak) ═══════════════════
+async def _try_alt_provider_keys(
+    db, mb, system_instruction: str, user_prompt: str, history_msgs: list, user_id: int
+) -> str | None:
+    """Coba kunci aktif non-Gemini di vault; return teks bila satu berhasil."""
+    try:
+        alt_keys = db.list_active_keys_sync(exclude_provider="gemini")
+    except Exception:
+        alt_keys = []
+    for key in alt_keys:
+        prov = (key.get("provider") or "").lower()
+        if not (key.get("api_key") or "").strip():
+            continue
+        if not (key.get("base_url") or "").strip():
+            logger.warning(
+                f"[Fallback] lewati {prov} ({key.get('name')}): base_url kosong."
+            )
+            continue
+        try:
+            logger.info(
+                f"[Fallback] mencoba {prov} ({key.get('name')}) model "
+                f"{key.get('default_model')}"
+            )
+            reply_text = await mb.run_openai_agentic_turn(
+                provider=prov,
+                base_url=key.get("base_url") or "",
+                api_key=key["api_key"].strip(),
+                model=key.get("default_model") or "",
+                system_instruction=system_instruction,
+                user_text=user_prompt,
+                history=history_msgs,
+                timeout=60.0,
+                key_id=key.get("id"),
+                key_label=key.get("name", f"{prov}-fallback"),
+                context="telegram_chat:fallback",
+            )
+            if reply_text:
+                logger.info(
+                    f"[Fallback] sukses via {prov}/{key.get('default_model')}"
+                )
+                from alfa.bot.helpers import strip_thought_blocks as _strip3
+
+                reply_text = _strip3(str(reply_text))
+                await db.save_chat_message(user_id, "model", reply_text)
+                return str(reply_text)
+        except Exception as fe:
+            logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
+    return None
+
+async def _run_agent_turn_impl(
     user_id: int,
     user_prompt: str,
     multimodal_parts: list | None = None,
@@ -254,149 +751,14 @@ async def run_agent_turn(
     user_memories = await _db.get_all_memories(user_id)
     kg_triples = _db.get_all_knowledge_graph_sync(user_id)
 
-    memory_context_parts = []
-    if user_memories:
-        memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
-        for m in user_memories:
-            memory_context_parts.append(
-                f"- [{m['category']}] {m['key_topic']}: {m['content']}"
-            )
-
-    if kg_triples:
-        memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
-        for k in kg_triples:
-            tag_str = f" ({k['tags']})" if k.get("tags") else ""
-            memory_context_parts.append(
-                f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}"
-            )
-
-    # 5b. AUTO-RAG: ambil potongan dokumen Drive yang relevan dgn pertanyaan (hanya saat relevan)
-    p_check = (user_prompt or "").lower().strip()
-    should_search_rag = (
-        len(p_check) > 15
-        and not any(
-            p_check == g or p_check.startswith(g + " ")
-            for g in [
-                "halo",
-                "hai",
-                "pagi",
-                "siang",
-                "malam",
-                "apa kabar",
-                "siapa kamu",
-                "tes",
-                "ping",
-            ]
-        )
-        and any(
-            k in p_check
-            for k in [
-                "dokumen",
-                "drive",
-                "file",
-                "catatan",
-                "ingat",
-                "materi",
-                "referensi",
-                "data",
-                "info",
-                "tentang",
-                "jelaskan",
-                "bagaimana",
-                "apa itu",
-                "siapa",
-            ]
-        )
+    memory_block = _build_memory_block(
+        user_id, user_prompt, user_memories, kg_triples, _compaction_block
     )
 
-    if should_search_rag:
-        try:
-            from alfa.memory import vector as vector_memory
-
-            brain_hits = vector_memory.semantic_search(
-                user_id=user_id, query=user_prompt or "", top_k=4
-            )
-            relevant = [
-                h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25
-            ]
-            if relevant:
-                memory_context_parts.append(
-                    "📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):"
-                )
-                for h in relevant:
-                    memory_context_parts.append(
-                        f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
-                    )
-        except Exception as rag_err:
-            logger.debug(f"Auto-RAG skipped: {rag_err}")
-
-    memory_block = ""
-    if memory_context_parts:
-        memory_block = (
-            "\n\n======================================================\n"
-            "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
-            f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
-            "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
-            + "\n".join(memory_context_parts)
-            + "\n======================================================\n"
+    full_system_instruction, preferred_model, current_active_model = (
+        await _build_system_instruction(
+            _db, user_id, brain, override_model, memory_block
         )
-
-    if _compaction_block:
-        memory_block += _compaction_block
-
-    # 6. Fetch user settings for prompt override / preferred model
-    user_settings = await _db.get_user_settings(user_id)
-
-    # Reload latest prompt from file if available
-    active_base_prompt = BASE_SYSTEM_PROMPT
-    if os.path.exists(ALFA_PROMPT_PATH):
-        try:
-            with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
-                active_base_prompt = f.read().strip()
-        except Exception:
-            pass
-
-    brain_model_override = _db.get_main_brain_model()
-    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
-    current_active_model = (
-        override_model or brain.get("model") or brain_model_override or preferred_model
-    )
-    current_active_provider = brain.get("provider", "gemini").upper()
-    current_key_label = brain.get("label", "")
-
-    active_identity_block = (
-        f"\n\n### 🤖 INFORMASI ENGINE & MODEL AKTIF SAAT INI (GROUND TRUTH)\n"
-        f"- MODEL AI AKTIF SAAT INI: `{current_active_model}`\n"
-        f"- PROVIDER / GATEWAY: `{current_active_provider}`\n"
-        f"- KUNCI/AKUN VAULT: `{current_key_label}`\n"
-        f"- Jika pengguna bertanya kamu pakai model apa, model apa yang sedang aktif, atau identitas enginemu, "
-        f"jawab dengan jujur dan jelas bahwa saat ini kamu ditenagai oleh model `{current_active_model}` ({current_active_provider})!\n"
-    )
-
-    base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    from alfa.tools.system.constants import is_unrestricted
-
-    unrestricted_block = (
-        "\n\n### ⚡ HAK AKSES HOST LINUX PENUH (UNRESTRICTED MODE)\n"
-        "- Kamu beroperasi dengan AKSES HOST LINUX LANGSUNG PENUH di mesin pengguna (bukan di dalam container atau sandbox Docker terisolasi).\n"
-        "- Eksekusi bash (`execute_bash_command`) dan script Python (`execute_python_sandbox`) berjalan langsung di mesin Linux pengguna.\n"
-        "- Tidak ada blocklist perintah dan tidak ada permission gate yang membatasi tindakanmu.\n"
-        "- Kamu memiliki wewenang penuh dari Fahmi untuk mengeksekusi perintah sistem, menginstal paket sistem/pip, memodifikasi file di sistem, dan menggunakan `sudo` kapan pun dibutuhkan tanpa ragu.\n"
-    ) if is_unrestricted() else ""
-
-    full_system_instruction = (
-        base_instruction
-        + active_identity_block
-        + memory_block
-        + ENFORCEMENT_BLOCK
-        + HONESTY_BLOCK
-        + CODING_DELIVERY_BLOCK
-        + CAPABILITIES_BLOCK
-        + ANTIGRAVITY_WORKFLOW_BLOCK
-        + TOOL_FIRST_EXECUTION_BLOCK
-        + SUPERPOWERS_SKILLS_BLOCK
-        + UI_UX_PRO_MAX_BLOCK
-        + unrestricted_block
     )
 
     # 7. Call Gemini with Agent Tools and fast fallback chain
@@ -432,103 +794,26 @@ async def run_agent_turn(
 
     history_msgs = [{"role": r["role"], "content": r["content"]} for r in history_rows]
 
-    # ══ OTAK UTAMA LINTAS PROVIDER (OpenRouter/Ox Alpha/Custom/NVIDIA dll) ══
     if brain["provider"] != "gemini":
-        compat_text = user_prompt or ""
-        if multimodal_parts:
-            compat_text = (
-                compat_text
-                + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
-            ).strip()
-
-        gate_on = approval_gate is not None
-        reply_text = ""
-        if streamer and not gate_on and hasattr(_mb, "run_openai_agentic_turn_streaming"):
-            try:
-                streamed_text = ""
-                async for chunk in _mb.run_openai_agentic_turn_streaming(
-                    provider=brain["provider"],
-                    base_url=brain["base_url"],
-                    api_key=brain["api_key"],
-                    model=brain["model"] or preferred_model,
-                    system_instruction=full_system_instruction,
-                    user_text=compat_text,
-                    history=history_msgs,
-                    key_id=brain["key_id"],
-                    key_label=brain["label"],
-                    approval_gate=approval_gate,
-                ):
-                    streamed_text += chunk
-                    await streamer.push_chunk(chunk)
-                reply_text = streamed_text
-            except Exception as e:
-                logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
-                reply_text = await _mb.run_openai_agentic_turn(
-                    provider=brain["provider"],
-                    base_url=brain["base_url"],
-                    api_key=brain["api_key"],
-                    model=brain["model"] or preferred_model,
-                    system_instruction=full_system_instruction,
-                    user_text=compat_text,
-                    history=history_msgs,
-                    key_id=brain["key_id"],
-                    key_label=brain["label"],
-                    approval_gate=approval_gate,
-                )
-        else:
-            reply_text = await _mb.run_openai_agentic_turn(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=full_system_instruction,
-                user_text=compat_text,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
-            )
-
-        new_meetings = _meetings_count() - meetings_before
-        if meeting_intent and new_meetings == 0 and reply_text:
-            low = reply_text.lower()
-            if ("rapat" in low or "meeting" in low) and any(
-                mk in low for mk in MEETING_FABRICATION_MARKERS
-            ):
-                logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
-                corrected = await _mb.run_openai_agentic_turn(
-                    provider=brain["provider"],
-                    base_url=brain["base_url"],
-                    api_key=brain["api_key"],
-                    model=brain["model"] or preferred_model,
-                    system_instruction=full_system_instruction,
-                    user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
-                    history=history_msgs,
-                    key_id=brain["key_id"],
-                    key_label=brain["label"],
-                    approval_gate=approval_gate,
-                )
-                if corrected:
-                    reply_text = corrected
-        if reply_text:
-            from alfa.bot.helpers import strip_thought_blocks as _strip
-
-            reply_text = _strip(str(reply_text))
-            await _db.save_chat_message(user_id, "model", reply_text)
-            try:
-                from alfa.memory import reflection as memory_reflection
-
-                refl_history = list(history_rows) + [
-                    {"role": "user", "content": display_user_text},
-                    {"role": "model", "content": reply_text},
-                ]
-                memory_reflection.maybe_schedule_reflection(user_id, refl_history)
-            except Exception:
-                pass
-            return str(reply_text)
-        logger.warning(
-            f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
+        reply_text = await _openai_compat_turn(
+            _mb,
+            brain,
+            preferred_model,
+            full_system_instruction,
+            user_prompt,
+            multimodal_parts,
+            history_msgs,
+            history_rows,
+            approval_gate,
+            streamer,
+            meeting_intent,
+            meetings_before,
+            _db,
+            user_id,
+            display_user_text,
         )
+        if reply_text:
+            return reply_text
 
     if gemini_client is None:
         gemini_client, gkey_id, gkey_label = _resolve()
@@ -541,74 +826,14 @@ async def run_agent_turn(
     for model_name in models_to_try:
         try:
             gate_on = approval_gate is not None
-            all_tools = list(AVAILABLE_TOOLS)
-            try:
-                plugin_tools = plugins.load_all_plugin_tools()
-                if plugin_tools:
-                    all_tools = list(AVAILABLE_TOOLS) + plugin_tools
-            except Exception as e:
-                logger.warning(f"Failed to load dynamic plugins: {e}")
-
-            seen_fn_names = set()
-            deduped_tools = []
-            for tool_fn in all_tools:
-                nm = getattr(tool_fn, "__name__", "")
-                if nm and nm not in seen_fn_names:
-                    seen_fn_names.add(nm)
-                    deduped_tools.append(tool_fn)
-                elif not nm and tool_fn not in deduped_tools:
-                    deduped_tools.append(tool_fn)
-            all_tools = deduped_tools
-
-            gemini_tools = all_tools
-            try:
-                from alfa.tools.rag import select_relevant_functions
-
-                gemini_tools = select_relevant_functions(
-                    all_tools, user_prompt or "", history=history_msgs
+            all_tools, config, config_force, config_wrapup = (
+                _prepare_tools_and_configs(
+                    model_name,
+                    full_system_instruction,
+                    user_prompt,
+                    history_msgs,
+                    action_intent,
                 )
-            except Exception:
-                pass
-
-            _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
-            # AUTO: model bebas memanggil tool ATAU menjawab teks (dipakai semua
-            # putaran sesudah panggilan pertama agar giliran selalu ditutup
-            # dengan jawaban teks nyata, bukan loop tool tanpa akhir).
-            config = types.GenerateContentConfig(
-                system_instruction=full_system_instruction,
-                temperature=0.75,
-                tools=gemini_tools,
-                automatic_function_calling=_afc_off,
-            )
-            # ANY: HANYA dipakai pada panggilan PERTAMA bila ini permintaan aksi,
-            # supaya model tidak cukup menjawab basa-basi tanpa menjalankan tool.
-            if action_intent:
-                _allowed = sorted(
-                    {
-                        getattr(t, "__name__", "")
-                        for t in gemini_tools
-                        if getattr(t, "__name__", "")
-                    }
-                )
-                config_force = types.GenerateContentConfig(
-                    system_instruction=full_system_instruction,
-                    temperature=0.75,
-                    tools=gemini_tools,
-                    automatic_function_calling=_afc_off,
-                    tool_config=types.ToolConfig(
-                        function_calling_config=types.FunctionCallingConfig(
-                            mode=types.FunctionCallingConfigMode.ANY,
-                            allowed_function_names=_allowed,
-                        )
-                    ),
-                )
-            else:
-                config_force = config
-            # Tanpa tool: dipakai untuk wrap-up agar model WAJIB merangkum hasil
-            # nyata dalam teks saat iterasi tool habis / jawaban kosong.
-            config_wrapup = types.GenerateContentConfig(
-                system_instruction=full_system_instruction,
-                temperature=0.7,
             )
 
             executed_tool_names: list[str] = []
@@ -805,55 +1030,23 @@ async def run_agent_turn(
                     "ulangi perintah dengan lebih spesifik agar hasilnya dirangkum."
                 )
 
-            new_meetings = _meetings_count() - meetings_before
-            reply_low = reply_text.lower()
-
-            audit_kind, audit_parts = evaluate_reply_audits(
+            reply_text = await _audit_correction_pass(
+                gemini_client,
+                model=model_name,
+                turn_contents=_turn_contents,
+                config=config,
+                drive_tool_loop=_drive_tool_loop,
+                gkey_id=gkey_id,
+                gkey_label=gkey_label,
                 prompt_low=prompt_low,
-                reply_low=reply_low,
+                reply_text=reply_text,
                 meeting_intent=meeting_intent,
                 action_intent=action_intent,
-                new_meetings=new_meetings,
+                meetings_before=meetings_before,
                 executed_tool_names=executed_tool_names,
                 art_before=art_before,
-                art_after=_artifact_signature(),
+                approval_gate=approval_gate,
             )
-
-            if audit_kind:
-                logger.warning(
-                    f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model_name})"
-                )
-                # Pakai konteks GILIRAN INI (termasuk riwayat tool) — bukan `contents`
-                # yang tidak memuat hasil tool, agar model tahu apa yang sudah/ belum jalan.
-                _turn_contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text="\n".join(audit_parts))],
-                    )
-                )
-                try:
-                    response2 = await gemini_client.aio.models.generate_content(
-                        model=model_name, contents=_turn_contents, config=config
-                    )
-                    token_usage.from_gemini_response(
-                        response2,
-                        model=f"{model_name}:audit",
-                        key_id=gkey_id,
-                        key_label=gkey_label or "gemini-env",
-                        context="telegram_chat",
-                    )
-                    # Izinkan model MENGAMBIL AKSI pada pass koreksi — kalau dia
-                    # tetap memanggil tool, jalankan sampai selesai.
-                    response2 = await _drive_tool_loop(response2, config)
-                    if response2.text and response2.text.strip():
-                        reply_text = response2.text
-                except Exception as audit_err:
-                    logger.warning(f"[AUDIT] pass koreksi gagal: {audit_err}")
-                logger.warning(
-                    f"[AUDIT] Koreksi selesai ({audit_kind}); "
-                    f"rapat baru: {_meetings_count() - meetings_before}; "
-                    f"artefak berubah: {_artifact_signature() != art_before}"
-                )
 
             from alfa.bot.helpers import strip_thought_blocks as _strip2
 
@@ -868,46 +1061,11 @@ async def run_agent_turn(
     logger.error(
         f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain..."
     )
-    try:
-        alt_keys = _db.list_active_keys_sync(exclude_provider="gemini")
-    except Exception:
-        alt_keys = []
-    for key in alt_keys:
-        prov = (key.get("provider") or "").lower()
-        if not (key.get("api_key") or "").strip():
-            continue
-        if not (key.get("base_url") or "").strip():
-            logger.warning(
-                f"[Fallback] lewati {prov} ({key.get('name')}): base_url kosong."
-            )
-            continue
-        try:
-            logger.info(
-                f"[Fallback] mencoba {prov} ({key.get('name')}) model "
-                f"{key.get('default_model')}"
-            )
-            reply_text = await _mb.run_openai_agentic_turn(
-                provider=prov,
-                base_url=key.get("base_url") or "",
-                api_key=key["api_key"].strip(),
-                model=key.get("default_model") or "",
-                system_instruction=full_system_instruction,
-                user_text=user_prompt,
-                history=history_msgs,
-                timeout=60.0,
-                key_id=key.get("id"),
-                key_label=key.get("name", f"{prov}-fallback"),
-                context="telegram_chat:fallback",
-            )
-            if reply_text:
-                logger.info(f"[Fallback] sukses via {prov}/{key.get('default_model')}")
-                from alfa.bot.helpers import strip_thought_blocks as _strip3
-
-                reply_text = _strip3(str(reply_text))
-                await _db.save_chat_message(user_id, "model", reply_text)
-                return str(reply_text)
-        except Exception as fe:
-            logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
+    alt_reply = await _try_alt_provider_keys(
+        _db, _mb, full_system_instruction, user_prompt, history_msgs, user_id
+    )
+    if alt_reply:
+        return alt_reply
 
     logger.error(f"All candidate models failed: {last_error}", exc_info=True)
     err_reply = f"❌ Terjadi kesalahan saat memproses permintaan:\n`{str(last_error)}`"
@@ -916,3 +1074,38 @@ async def run_agent_turn(
     except Exception:
         pass
     return err_reply
+
+
+# ═════ PUBLIC ENTRY + OBSERVABILITY TURN METRICS ══════════════════════════════
+async def run_agent_turn(
+    user_id: int,
+    user_prompt: str,
+    multimodal_parts: list | None = None,
+    chat_id: int | None = None,
+    override_model: str | None = None,
+    override_key_id: int | None = None,
+    streamer: TelegramStreamer | None = None,
+) -> str:
+    """Jalankan satu giliran agent (dokumen lengkap di `_run_agent_turn_impl`).
+
+    Wrapper publik menambahkan telemetri turn (mulai/selesai/gagal) yang
+    terekspose via ``/api/metrics`` → ``alfa.core.metrics.snapshot()``.
+    """
+    from alfa.core.metrics import note_turn_finished, note_turn_started
+
+    note_turn_started()
+    try:
+        result = await _run_agent_turn_impl(
+            user_id,
+            user_prompt,
+            multimodal_parts=multimodal_parts,
+            chat_id=chat_id,
+            override_model=override_model,
+            override_key_id=override_key_id,
+            streamer=streamer,
+        )
+    except Exception:
+        note_turn_finished(False)
+        raise
+    note_turn_finished(ok=not result.startswith(("❌", "⚠️")))
+    return result

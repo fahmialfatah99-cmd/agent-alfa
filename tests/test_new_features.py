@@ -76,7 +76,8 @@ def test_honesty_block_wired():
 
     import alfa.bot.turn_executor as t
 
-    src = inspect.getsource(t.run_agent_turn)
+    # Refactor pipeline: blok dikawal di helper tahap-6 (dipanggil setiap giliran)
+    src = inspect.getsource(t._build_system_instruction)
     assert "HONESTY_BLOCK" in src
 
 

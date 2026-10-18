@@ -364,9 +364,9 @@ def vision_click_target(
 
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            from dotenv import load_dotenv
+            from alfa.core.config import ensure_env_loaded
 
-            load_dotenv()
+            ensure_env_loaded()
             api_key = os.environ.get("GEMINI_API_KEY")
 
         client = genai.Client(api_key=api_key)

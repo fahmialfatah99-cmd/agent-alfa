@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Arsitektur (P1)
+- **Config service tunggal (`alfa/core/config.py`):** `.env` dimuat **satu kali per proses** dengan `override=False` — menggantikan 6 titik `load_dotenv()` tersebar (dashboard/common, app, bot/config, brain/client, input_automation) + helper `env_str/env_int/env_float/env_bool`
+- **Anti-siklus impor (`alfa/core/notification.py`):** port notifikasi + adapter; `affiliate_engine` & `management` kini tidak mengimpor `alfa.bot` — bot mendaftarkan diri ke port saat dimuat
+- **Refactor `run_agent_turn` (turn_executor):** god-function 752 baris kini pipeline bertahap — `_build_memory_block`, `_build_system_instruction`, `_prepare_tools_and_configs`, `_audit_correction_pass`, `_openai_compat_turn`, `_try_alt_provider_keys`; `run_agent_turn` jadi wrapper telemetri (turn started/finished)
+- **Observability (`alfa/core/metrics.py`):** counter tool-calls/errors + latensi p50/p95 per tool + turn naik; hook di `core.brain.tool_exec._execute_tool`; terekspose di `/api/metrics` field `agent` (tanpa dependency baru)
+- **Sandbox plugin subprocess (`plugins/runner.py`):** plugin dinamis default dieksekusi di child process ber-resource-limit (RLIMIT_AS/CPU), hasil JSON satu baris via fd terbackup (stdout plugin dialihkan ke stderr); override `ALFA_PLUGIN_SANDBOX=false`, timeout `ALFA_PLUGIN_TIMEOUT`
+- Jalur persistence yang terdiam kini terylog (reflection)
+
+### Docs — Ketelitian Klaim
+- Passkey/WebAuthn diposisikan sebagai **roadmap** (flag status eksperimental, belum ada challenge kriptografis end-to-end); vault AES-256-GCM + admin-gate tetap faktual (SECURITY.md, README)
+
 ### Security
 - **Boot guard keamanan (`alfa/core/security_boot_guard.py`):** boot bot Telegram/Discord/dashboard DITOLAK bila `ALFA_UNRESTRICTED=true` + `DASHBOARD_HOST` publik; kombinasi unrestricted+host-exec kini wajib pengakuan eksplisit (`ALFA_UNRESTRICTED_ACK=yes`)
 - **WebSocket `/ws/terminal` dikeraskan:** auth wajib saat `DASHBOARD_AUTH_TOKEN` terisi; mode tanpa-token hanya loopback (127.0.0.1); validasi Origin semua channel WS (`/ws/terminal`, `/ws/logs`, `/ws/broadcast`) — menutup RCE cross-site

@@ -4,11 +4,10 @@ import logging
 import os
 from typing import Any
 
-from dotenv import load_dotenv
-
 from alfa.core import database
+from alfa.core.config import ensure_env_loaded
 
-load_dotenv()
+ensure_env_loaded()
 
 logger = logging.getLogger("TelegramAIAgent")
 

@@ -4,8 +4,6 @@ import logging
 import os
 from typing import Any
 
-from alfa.core.brain.config import PROJECT_DIR
-
 logger = logging.getLogger("MainBrain")
 
 
@@ -70,9 +68,9 @@ def get_main_brain(
             "label": f"brain#{gk.get('id')}",
         }
 
-    from dotenv import load_dotenv
+    from alfa.core.config import ensure_env_loaded
 
-    load_dotenv(os.path.join(PROJECT_DIR, ".env"))
+    ensure_env_loaded()
     env_key = os.getenv("GEMINI_API_KEY", "").strip()
     return {
         "provider": "gemini" if env_key else "none",

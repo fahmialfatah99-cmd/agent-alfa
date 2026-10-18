@@ -363,8 +363,76 @@ def delete_plugin(tool_name: str) -> dict[str, Any]:
     }
 
 
+def _plugin_sandbox_enabled() -> bool:
+    """Sandbox subprocess aktif secara default di POSIX (override via env)."""
+    value = os.getenv("ALFA_PLUGIN_SANDBOX", "true").strip().lower()
+    return value in ("1", "true", "yes", "on") and os.name == "posix"
+
+
+def _plugin_timeout() -> int:
+    try:
+        return max(5, int(os.getenv("ALFA_PLUGIN_TIMEOUT", "120")))
+    except (TypeError, ValueError):
+        return 120
+
+
+def _run_plugin_in_sandbox(module_stem: str, fn_name: str, kwargs: dict) -> Any:
+    """Jalankan plugin di subprocess terisolasi (runner.py) dan kembalikan hasil.
+
+    Raise bila runner gagal/timeout/tidak menghasilkan JSON valid.
+    """
+    import subprocess  # nosec B404 - eksekusi runner berkendala resource
+
+    plugin_path = os.path.join(PLUGINS_DIR, f"{module_stem}.py")
+    if not os.path.isfile(plugin_path):
+        raise FileNotFoundError(f"Modul plugin tidak ditemukan: {plugin_path}")
+
+    repo_root = os.path.dirname(PLUGINS_DIR)
+    payload = json.dumps(
+        {
+            "file": plugin_path,
+            "module": f"plugins.{module_stem}",
+            "function": fn_name,
+            "kwargs": kwargs,
+            "timeout": _plugin_timeout(),
+        }
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = repo_root + os.pathsep + env.get("PYTHONPATH", "")
+    env.pop("ALFA_ALLOW_HOST_EXEC", None)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "plugins.runner"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=_plugin_timeout() + 2,
+        cwd=repo_root,
+        env=env,
+        check=False,
+    )
+    out_lines = [ln for ln in (proc.stdout or "").strip().splitlines() if ln.strip()]
+    data = None
+    for ln in reversed(out_lines):
+        try:
+            parsed = json.loads(ln)
+            if isinstance(parsed, dict) and ("ok" in parsed):
+                data = parsed
+                break
+        except json.JSONDecodeError:
+            continue
+    if not data:
+        stderr_tail = (proc.stderr or "")[-400:]
+        raise RuntimeError(
+            f"Plugin runner tidak mengembalikan hasil (rc={proc.returncode}). {stderr_tail}"
+        )
+    if not data.get("ok"):
+        raise RuntimeError(f"Plugin sandbox error: {data.get('error')}")
+    return data.get("result")
+
+
 def execute_plugin_direct(tool_name: str, **kwargs) -> Any:
-    """Execute a dynamic plugin tool directly by name."""
+    """Execute a dynamic plugin tool directly by name (sandbox subprocess)."""
     clean_name = tool_name.strip().lower()
     fn = _RUNTIME_PLUGIN_REGISTRY.get(clean_name)
     if not fn:
@@ -377,4 +445,17 @@ def execute_plugin_direct(tool_name: str, **kwargs) -> Any:
             f"Dynamic plugin '{clean_name}' tidak ditemukan atau gagal dimuat."
         )
 
+    if _plugin_sandbox_enabled():
+        module_stem = os.path.splitext(
+            os.path.basename(getattr(fn, "_plugin_path", "") or f"{clean_name}.py")
+        )[0]
+        fn_name = getattr(fn, "__name__", clean_name)
+        try:
+            return _run_plugin_in_sandbox(module_stem, fn_name, kwargs)
+        except Exception as sandbox_err:
+            logger.warning(
+                f"Sandbox gagal utk '{clean_name}': {sandbox_err} — fallback in-process."
+            )
+            # Fallback in-process hanya untuk jenis gangguan lingkungan;
+            # error semantik dari plugin tetap dikembalikan via in-process agar UX utuh.
     return fn(**kwargs)

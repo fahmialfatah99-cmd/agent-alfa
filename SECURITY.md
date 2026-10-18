@@ -33,10 +33,11 @@ Please include the following information in your report:
 
 ALFA Agent implements several security measures:
 
-### 1. Passkey-Based Authentication
-- WebAuthn/FIDO2 compliant passkey storage
-- Encrypted vault for credential management
-- No password storage
+### 1. Encrypted Credential Vault
+- AES-256-GCM vault storage untuk kredensial API/GDrive (master key file 0600)
+- Masked listings + endpoint vault admin-gated (require_admin)
+- Bagian Passkey/WebAuthn masih roadmap (flag `passkey_lock_enabled` saat ini
+  hanya status eksperimental, belum ada challenge kriptografis end-to-end)
 
 ### 2. Permission Gates
 - Whitelist-only tool execution

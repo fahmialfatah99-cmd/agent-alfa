@@ -350,5 +350,28 @@ def main():
     application.run_polling(drop_pending_updates=True)
 
 
+# ── Sambungkan notification port agar lapisan tools tak perlu impor alfa.bot ─
+async def _notify_safe_send(app, chat_id, text, reply_markup=None):
+    """Adapter port→helper bot; impor lazy supaya siklus modul tetap putus."""
+
+    return await safe_send_message(app, chat_id, text, reply_markup)
+
+
+def _notify_swarm_templates() -> dict:
+    from alfa.bot.mode_commands import SWARM_TEMPLATES
+
+    return SWARM_TEMPLATES
+
+
+try:
+    from alfa.core import notification as _notification_port
+
+    _notification_port.register_send_message(_notify_safe_send)
+    _notification_port.register_swarm_templates(_notify_swarm_templates)
+except Exception:  # pragma: no cover — port opsional saat sandingan berubah
+    pass
+
+
 if __name__ == "__main__":
     main()
+

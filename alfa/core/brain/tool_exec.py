@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import time
 from typing import Any
 
 from alfa.core.brain.config import MAX_TOOL_OUTPUT, TOOL_EXEC_TIMEOUT
@@ -57,6 +58,12 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
 def _execute_tool(name: str, arguments_json: str) -> str:
     fn = _find_tool(name)
     if fn is None:
+        try:
+            from alfa.core.metrics import note_tool_missing
+
+            note_tool_missing(name)
+        except Exception:
+            pass
         return f"[ERROR] Tool '{name}' tidak ditemukan. Silakan periksa daftar tool yang tersedia."
     try:
         args = _clean_json_args(arguments_json)
@@ -110,10 +117,26 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         # Jalankan di thread terpisah agar event loop tetap hidup
         import concurrent.futures
 
+        _t0 = time.perf_counter()
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             fut = pool.submit(_call)
             raw = fut.result(timeout=TOOL_EXEC_TIMEOUT)
+        _ok = not str(raw).startswith("[ERROR")
+        try:
+            from alfa.core.metrics import note_tool_call
+
+            note_tool_call(
+                name, _ok, (time.perf_counter() - _t0) * 1000
+            )
+        except Exception:
+            pass
     except Exception as e:
+        try:
+            from alfa.core.metrics import note_tool_call as _ntc
+
+            _ntc(name, False, (time.perf_counter() - _t0) * 1000)
+        except Exception:
+            pass
         if _span:
             _span.finish(status="error", error=str(e))
         return f"[ERROR eksekusi] {e}"

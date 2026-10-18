@@ -383,9 +383,11 @@ def add_recurring_task(
         kind = "swarm" if str(kind).lower() == "swarm" else "single"
         if kind == "swarm":
             try:
-                from alfa.bot.mode_commands import SWARM_TEMPLATES
+                from alfa.core import notification as _notify
 
-                tpl = SWARM_TEMPLATES.get(prompt_instruction.strip().lower())
+                tpl = _notify.get_swarm_templates().get(
+                    prompt_instruction.strip().lower()
+                )
                 if tpl:
                     prompt_instruction = tpl
             except Exception:

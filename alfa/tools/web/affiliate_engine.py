@@ -371,21 +371,20 @@ def _deliver_telegram_broadcast(
 
     Works both from the bot's own loop (tool execution) and from foreign
     threads/loops (FastAPI dashboard) by marshalling onto the bot's loop.
+    Memakai notification port — tanpa impor paket `alfa.bot` (anti-siklus).
     """
     import asyncio
 
-    from alfa.bot import telegram_bot as bot_module
-    from alfa.swarm import subagents
+    from alfa.core import notification as notify
 
-    tg_app = subagents.get_telegram_app()
-    tg_loop = subagents.get_telegram_loop()
+    tg_app, tg_loop = notify.get_telegram_runtime()
     if not tg_app or not tg_loop or not tg_loop.is_running():
         return {
             "status": "error",
             "message": "Telegram bot belum berjalan (application belum siap).",
         }
 
-    coro = bot_module.safe_send_message(
+    coro = notify.safe_send_message(
         tg_app, uid, message_text, reply_markup=reply_markup
     )
     try:

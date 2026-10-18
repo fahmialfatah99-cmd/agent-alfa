@@ -5,10 +5,11 @@ import os
 import secrets
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi import Request
 
-load_dotenv()
+from alfa.core.config import ensure_env_loaded
+
+ensure_env_loaded()
 
 # Setup logging
 logger = logging.getLogger("Dashboard")

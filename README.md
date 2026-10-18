@@ -60,7 +60,7 @@
 ### 6. 🌐 Web Command Center & Live Telemetry (Port 8080)
 * **Light / Dark Mode:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
 * **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
-* **Passkey Biometric Vault:** Penyimpanan kredensial terenkripsi dengan proteksi WebAuthn / Passkey.
+* **Encrypted Credential Vault:** Penyimpanan kredensial terenkripsi AES-256-GCM dengan proteksi admin-gate (Passkey/WebAuthn dalam roadmap).
 * **Google Drive Cloud Hub:** Manajemen kredensial Google Cloud, upload & download file, serta sinkronisasi memori RAG.
 
 ### 7. 📊 Operasi Terukur: Antrean, Eval & Keamanan Berlapis
@@ -197,7 +197,7 @@ Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)
 * **Whitelist Wajib:** Bot menolak semua akses bila `ALLOWED_USER_IDS` kosong (fail-safe). Satu instance = satu pemilik. JANGAN jalankan publik tanpa whitelist.
 * **Sandbox Docker:** Eksekusi bash/python berjalan terisolasi dengan limit resource; tanpa Docker, eksekusi jatuh ke host tanpa isolasi (instal Docker!).
 * **Zero Cloud Leak:** Database, memori vektor, dan log tersimpan 100% lokal di SQLite (`agent_data.db`).
-* **Passkey Biometric Security:** Web Dashboard dilengkapi otentikasi biometrik WebAuthn (Fingerprint, Touch ID, Windows Hello).
+* **Dashboard Auth & Audit:** Sesi cookie aman + HMAC webhook + log audit akses; proteksi biometrik WebAuthn tersedia sebagai roadmap (flag status disediakan, challenge kriptografis menyusul).
 * **Grounded ReAct Engine:** AI dilarang berasumsi atau berhalusinasi tanpa grounding fakta dari eksekusi tool nyata.
 
 ---
