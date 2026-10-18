@@ -117,14 +117,19 @@ def _prepare_deterministic_page(page, base_url: str, width: int) -> dict:
     # Freeze dynamic clock and disable animations for deterministic visual snapshots
     page.evaluate(
         """() => {
-            const clock = document.getElementById('live-clock');
-            if (clock) clock.textContent = '00:00:00 WIB';
+            window.updateClock = () => {};
+            for (const id of ['header-clock', 'live-clock', 'sys-clock']) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '00:00:00 WIB';
+            }
+            const toasts = document.getElementById('toast-container');
+            if (toasts) toasts.innerHTML = '';
             const style = document.createElement('style');
             style.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; }';
             document.head.appendChild(style);
         }"""
     )
-    page.wait_for_timeout(80)
+    page.wait_for_timeout(50)
 
     metrics = page.evaluate(
         """() => ({

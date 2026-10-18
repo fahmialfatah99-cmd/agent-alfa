@@ -11,6 +11,7 @@ MODULE_FILES = [
     "audio.js",
     "hotkeys.js",
     "telemetry.js",
+    "pipelines_sites.js",
 ]
 
 
@@ -105,13 +106,7 @@ def test_sequential_module_loading_in_shared_vm():
     from alfa.dashboard.app import STATIC_DIR
 
     js_dir = Path(STATIC_DIR) / "js"
-    scripts = [
-        str(js_dir / "modules" / "state.js"),
-        str(js_dir / "modules" / "audio.js"),
-        str(js_dir / "modules" / "hotkeys.js"),
-        str(js_dir / "modules" / "telemetry.js"),
-        str(js_dir / "app.js"),
-    ]
+    scripts = [*(str(js_dir / "modules" / mod) for mod in MODULE_FILES), str(js_dir / "app.js")]
 
     node_eval_script = r"""
 const fs = require('fs');
