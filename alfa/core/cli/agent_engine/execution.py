@@ -2,6 +2,7 @@
 
 import difflib
 from pathlib import Path
+from typing import Any
 
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -9,6 +10,13 @@ from rich.syntax import Syntax
 
 class ExecutionMixin:
     """Approval barriers, real-time display, and refusal intervention."""
+
+    perm_store: Any
+    console: Any
+    auto_approve: bool
+    tools: Any
+
+    def _execute_tool(self, *args: Any, **kwargs: Any) -> Any: ...
 
     def _approved_execute(self, tool_name, args, args_str):
         """Run approval policy (deny/auto/allow/manual) and execute."""

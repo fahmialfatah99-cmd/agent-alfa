@@ -12,6 +12,17 @@ import requests
 class ClientBackendsMixin:
     """HTTP backend implementations mixed into DirectAIClient."""
 
+    provider: str
+    model: str
+    base_url: str
+    temperature: float
+    max_tokens: int
+    system_prompt: str
+    history: list[dict[str, str]]
+
+    def get_api_key(self) -> str | None: ...
+    def _record_history(self, user_msg: str, ai_msg: str) -> None: ...
+
     def _call_google(
         self,
         prompt: str,
@@ -38,7 +49,7 @@ class ClientBackendsMixin:
             )
 
             # Build conversation history
-            contents = []
+            contents: list[Any] = []
             for h in self.history[-10:]:
                 role = "user" if h["role"] == "user" else "model"
                 contents.append(
@@ -112,7 +123,7 @@ class ClientBackendsMixin:
                 f"Masukkan API Key di Web Dashboard atau jalankan '/menu' -> 'Kelola API Keys'."
             )
 
-        messages = [{"role": "system", "content": self.system_prompt}]
+        messages: list[Any] = [{"role": "system", "content": self.system_prompt}]
         for h in self.history[-10:]:
             messages.append({"role": h["role"], "content": h["content"]})
         messages.append({"role": "user", "content": prompt})
@@ -132,7 +143,7 @@ class ClientBackendsMixin:
                 default_headers=extra_headers or None,
             )
             if stream and callback:
-                response = client.chat.completions.create(
+                response: Any = client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
@@ -149,7 +160,7 @@ class ClientBackendsMixin:
                 self._record_history(prompt, full_text)
                 return full_text
             else:
-                resp = client.chat.completions.create(
+                resp: Any = client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
@@ -229,7 +240,7 @@ class ClientBackendsMixin:
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY tidak ditemukan.")
 
-        chat_messages = []
+        chat_messages: list[Any] = []
         for h in self.history[-10:]:
             chat_messages.append({"role": h["role"], "content": h["content"]})
         chat_messages.append({"role": "user", "content": prompt})
@@ -260,7 +271,7 @@ class ClientBackendsMixin:
                     model=self.model,
                     temperature=self.temperature,
                 )
-                text: str = resp.content[0].text
+                text: str = str(getattr(resp.content[0], "text", ""))
                 self._record_history(prompt, text)
                 return text
         except Exception:

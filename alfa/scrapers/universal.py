@@ -20,10 +20,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
+DDGS: Any = None
 try:
-    from ddgs import DDGS
+    from ddgs import DDGS as _DDGS
+
+    DDGS = _DDGS
 except ImportError:
-    DDGS = None
+    pass
 
 logger = logging.getLogger("alfa.universal_scraper")
 
@@ -453,7 +456,7 @@ def scrape_custom_urls_or_selectors(
                     it["price"],
                     it["url"],
                     it["image_url"],
-                    it["description"][:120],
+                    str(it["description"] or "")[:120],
                     it["method"],
                 ]
             )

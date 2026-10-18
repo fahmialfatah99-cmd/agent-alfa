@@ -1,12 +1,20 @@
 """Slash-command mixin: Navigation, mode, file-context, and shell-runner commands."""
 
 from pathlib import Path
+from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
 
 
 class SlashNavigationMixin:
     """Navigation, mode, file-context, and shell-runner commands."""
+
+    config: dict[str, Any]
+    agent_execution_mode: str
+    mode: str
+
+    def _save_config(self) -> None: ...
+    def _update_prompt(self) -> None: ...
 
     # --- Interactive Menu Palette ---
 

@@ -15,16 +15,24 @@ from alfa.tools.registry import TOOL_REGISTRY, get_tool
 
 logger = logging.getLogger("alfa.mcp")
 
+Server: Any = None
+stdio_server: Any = None
+types: Any = None
+ReadResourceContents: Any = None
 try:
-    import mcp.types as types
-    from mcp.server import Server
-    from mcp.server.lowlevel.helper_types import ReadResourceContents
-    from mcp.server.stdio import stdio_server
+    import mcp.types as _mcp_types
+    from mcp.server import Server as _McpServer
+    from mcp.server.lowlevel.helper_types import (
+        ReadResourceContents as _ReadResourceContents,
+    )
+    from mcp.server.stdio import stdio_server as _stdio_server
+
+    Server = _McpServer
+    stdio_server = _stdio_server
+    types = _mcp_types
+    ReadResourceContents = _ReadResourceContents
 except ImportError:
-    Server = None
-    stdio_server = None
-    types = None
-    ReadResourceContents = None
+    pass
 
 
 def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
@@ -38,9 +46,9 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
     server = Server(server_name)
 
     @server.list_tools()
-    async def handle_list_tools() -> list[types.Tool]:
+    async def handle_list_tools() -> list[Any]:
         """List all available tools registered in ALFA TOOL_REGISTRY."""
-        tools_list: list[types.Tool] = []
+        tools_list: list[Any] = []
         for name, info in TOOL_REGISTRY.items():
             schema = info.get("schema", {})
             openai_fn = schema.get("openai_spec", {}).get("function", {})
@@ -69,7 +77,7 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
     @server.call_tool()
     async def handle_call_tool(
         name: str, arguments: dict[str, Any] | None = None
-    ) -> list[types.TextContent]:
+    ) -> list[Any]:
         """Execute a requested tool and return the output formatted as TextContent."""
         fn = get_tool(name)
         if not fn:
@@ -133,7 +141,7 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
             ]
 
     @server.list_resources()
-    async def handle_list_resources() -> list[types.Resource]:
+    async def handle_list_resources() -> list[Any]:
         """Expose ringkasan berkas-maklumat MCP (status & katalog tools)."""
         return [
             types.Resource(
@@ -151,7 +159,7 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
         ]
 
     @server.read_resource()
-    async def handle_read_resource(uri: Any) -> list[types.ReadResourceContents]:
+    async def handle_read_resource(uri: Any) -> list[Any]:
         """Baca isi resource MCP ALFA (JSON). URI tak dikenal → KeyError dgn pesan."""
         text_uri = str(uri)
         if text_uri == "alfa://status":

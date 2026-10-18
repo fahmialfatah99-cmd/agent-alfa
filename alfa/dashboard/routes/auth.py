@@ -314,7 +314,7 @@ def require_admin(request: Request) -> dict[str, Any]:
         raise HTTPException(
             status_code=403, detail="Akses ditolak. Hanya admin."
         )
-    return user
+    return dict(user)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -610,7 +610,7 @@ async def register_user(request: Request, payload: dict[str, Any]):
 
         requester = getattr(request.state, "user", None)
         invite_provided = bool(invite_token)
-        invite_valid = consume_invite_token(invite_token) if invite_provided else False
+        invite_valid = consume_invite_token(str(invite_token)) if invite_provided else False
 
         if invite_provided and not invite_valid:
             raise HTTPException(

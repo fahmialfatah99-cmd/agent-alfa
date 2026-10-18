@@ -255,7 +255,7 @@ async def _execute_agents_parallel(
     agent_by_name = {a["name"]: a for a in participants}
 
     in_degree = {name: 0 for name in agent_names}
-    adj_list = {name: [] for name in agent_names}
+    adj_list: dict[str, list[str]] = {name: [] for name in agent_names}
 
     for name in agent_names:
         info = subtask_map.get(name, {})
@@ -310,7 +310,7 @@ async def _execute_agents_parallel(
 
         err_ctx_snapshot = _build_error_context(failed_steps)
         try:
-            wave_results: list[Any] = await asyncio.gather(
+            wave_results = await asyncio.gather(
                 *[
                     _execute_agent_step(
                         a,
@@ -388,7 +388,7 @@ async def _execute_agents_parallel(
         wave = [agent_by_name[n] for n in remaining]
         err_ctx_snapshot = _build_error_context(failed_steps)
         try:
-            wave_results: list[Any] = await asyncio.gather(
+            wave_results = await asyncio.gather(
                 *[
                     _execute_agent_step(
                         a,
@@ -579,7 +579,7 @@ async def conduct_multi_agent_meeting(
 
     dialogue_transcript = []
     history_summary: list[str] = []
-    execution_steps = []
+    execution_steps: list[dict[str, Any]] = []
 
     meeting_type_label = (
         "⚡ SWARM EKSEKUSI LANGSUNG"

@@ -61,7 +61,7 @@ def get_trust_score(chat_id: int | None) -> float:
                 "SELECT trust_score FROM user_trust_scores WHERE chat_id=?",
                 (int(chat_id),),
             ).fetchone()
-        return row[0] if row else 0.5
+        return float(row[0]) if row else 0.5
     except Exception as e:
         logger.warning(f"get trust score gagal: {e}")
         return 0.5

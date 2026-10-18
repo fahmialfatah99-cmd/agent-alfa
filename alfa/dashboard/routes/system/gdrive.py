@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
@@ -210,9 +210,14 @@ async def gdrive_oauth_auth_url(request: Request):
     return tools.gdrive_oauth_get_auth_url(redirect_uri=redirect_uri)
 
 
+_DEFAULT_REQ: Request = cast(Request, None)
+
+
 @router.get("/api/gdrive/oauth/callback")
 async def gdrive_oauth_callback(
-    code: str | None = None, error: str | None = None, request: Request = None
+    code: str | None = None,
+    error: str | None = None,
+    request: Request = _DEFAULT_REQ,
 ):
     """Handle OAuth redirect callback from Google."""
     if error:
@@ -348,7 +353,7 @@ async def gdrive_create_folder_endpoint(payload: dict[str, Any]):
 
 
 @router.post("/api/gdrive/sync-brain")
-async def gdrive_sync_brain_endpoint(payload: dict[str, Any] = None):
+async def gdrive_sync_brain_endpoint(payload: dict[str, Any] | None = None):
     """Sync Google Drive documents to Neural Vector Brain."""
     folder_id = (payload or {}).get("folder_id", "")
     limit = safe_int((payload or {}).get("limit", 10), 10, minimum=1, maximum=100)

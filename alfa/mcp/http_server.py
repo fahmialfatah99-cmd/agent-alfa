@@ -41,7 +41,7 @@ logger = logging.getLogger("alfa.mcp.http")
 
 def _resolve_token(token: str | None) -> str:
     """Token wajib; batal-kan start bila tidak ada (fail-closed)."""
-    resolved = (token or os.getenv("ALFA_MCP_HTTP_TOKEN", "")).strip()
+    resolved = (token or os.getenv("ALFA_MCP_HTTP_TOKEN") or "").strip()
     if not resolved:
         msg = (
             "MCP HTTP butuh token: set env ALFA_MCP_HTTP_TOKEN atau argumen "

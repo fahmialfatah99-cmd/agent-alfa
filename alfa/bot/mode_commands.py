@@ -10,6 +10,7 @@ import logging
 import os
 import socket
 import sys
+from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -25,7 +26,7 @@ VALID_MODES = ("single", "swarm")
 
 # Cache baca mode di memori: tiap chat teks memanggil get_telegram_mode_sync,
 # jadi JANGAN antre lock SQLite (bot live bisa menahan write berdetik-detik).
-_MODE_CACHE = {"value": "single", "ts": 0.0}
+_MODE_CACHE: dict[str, Any] = {"value": "single", "ts": 0.0}
 _MODE_TTL = 20.0
 _MODE_FAIL_TTL = 5.0
 
@@ -78,13 +79,13 @@ def get_telegram_mode_sync() -> str:
     import time as _time
 
     now = _time.monotonic()
-    if now - _MODE_CACHE["ts"] < _MODE_TTL:
-        return _MODE_CACHE["value"]
+    if now - float(_MODE_CACHE["ts"]) < _MODE_TTL:
+        return str(_MODE_CACHE["value"])
     mode = _read_mode_from_db()
     if mode is None:
         # DB sibuk: jangan antre — pakai nilai terakhir, cache singkat
         _MODE_CACHE["ts"] = now - max(0.0, _MODE_TTL - _MODE_FAIL_TTL)
-        return _MODE_CACHE["value"]
+        return str(_MODE_CACHE["value"])
     _MODE_CACHE["value"] = mode
     _MODE_CACHE["ts"] = now
     return mode
@@ -125,8 +126,8 @@ def _mode_keyboard() -> InlineKeyboardMarkup:
 
 async def mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/mode [single|swarm|status] — alih & lihat mode eksekusi."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -173,7 +174,8 @@ async def _run_single_turn(user_id: int, prompt: str, chat_id: int) -> str:
     mod = _get_bot_module()
     fn = getattr(mod, "run_agent_turn", None) if mod else None
     if callable(fn):
-        return await fn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
+        res: str = await fn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
+        return res
     from alfa.bot.turn_executor import run_agent_turn
 
     return await run_agent_turn(user_id=user_id, user_prompt=prompt, chat_id=chat_id)
@@ -181,8 +183,8 @@ async def _run_single_turn(user_id: int, prompt: str, chat_id: int) -> str:
 
 async def single_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/single [tugas] — tanpa arg: pindah ke single; dengan tugas: eksekusi single sekali."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -290,8 +292,8 @@ def format_swarm_result(result: dict) -> tuple[str, str, list[str]]:
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/cancel — hentikan misi swarm yang sedang berjalan."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
     try:
@@ -324,8 +326,8 @@ def _port_open(port: int) -> bool:
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/status — ringkasan mode, swarm, agen, server, key."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -366,8 +368,8 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tools_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/tools — daftar tool real yang bisa dipakai agen (148)."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
     try:
@@ -396,8 +398,8 @@ async def tools_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def persona_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/persona [nama|id|reset] — lihat/ganti persona single-mode."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -466,8 +468,8 @@ async def persona_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/pipeline [list|run <id>] — workflow DAG JSON (storage/pipelines)."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -560,8 +562,8 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tugas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/tugas — daftar background subagent + checkpoint swarm resumable."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 

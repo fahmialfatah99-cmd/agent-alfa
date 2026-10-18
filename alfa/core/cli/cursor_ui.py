@@ -366,7 +366,7 @@ def run_cursor_loop(cli: Any) -> None:
             ("class:toolbar-tip", "TAB: complete "),
         ]
 
-    prompt_fragments = [
+    prompt_fragments: Any = [
         ("class:prompt-arrow", "› "),
     ]
 

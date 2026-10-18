@@ -285,7 +285,7 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
     except Exception as je:
         return f"(forced-exec) JSON rusak: {je}"
 
-    allowed = {
+    allowed: dict[str, Any] = {
         "write_local_file": tools.write_local_file,
         "edit_file_precise": tools.edit_file_precise,
         "execute_bash_command": tools.execute_bash_command,
@@ -414,6 +414,7 @@ async def execute_swarm_task_step(
     status = "success"
     deliverable_file = ""
     deliverable_data = []
+    generated_content: str | None = ""
 
     swarm_out_dir = _get_swarm_output_dir()
     target_folder = _get_target_folder()

@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 from datetime import datetime
+from typing import Any
 
 import psutil
 from telegram.ext import Application
@@ -326,8 +327,8 @@ async def proactive_system_guardian_loop(application: Application):
                     killed = []
                     procs = sorted(
                         psutil.process_iter(["pid", "name", "memory_info"]),
-                        key=lambda p: (
-                            (p.info.get("memory_info") or type("", (), {"rss": 0})).rss
+                        key=lambda p: int(
+                            getattr(p.info.get("memory_info"), "rss", 0) or 0
                         ),
                         reverse=True,
                     )
@@ -451,7 +452,7 @@ async def proactive_ambient_agent_loop(application: Application):
     while True:
         cycle_backoff = 600
         try:
-            config = {
+            config: dict[str, Any] = {
                 "enabled": True,
                 "min_hours_between_pings": 3,
                 "quiet_hours_start": 23,

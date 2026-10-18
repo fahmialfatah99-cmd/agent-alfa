@@ -38,6 +38,7 @@ def scrapling_stealth_fetch(
     try:
         from scrapling import Fetcher, StealthyFetcher
 
+        page: Any
         if bypass_anti_bot:
             try:
                 page = StealthyFetcher.fetch(url)
@@ -47,7 +48,7 @@ def scrapling_stealth_fetch(
             page = Fetcher.get(url, timeout=15)
 
         if css_selector:
-            elements = page.css(css_selector)
+            elements: Any = page.css(css_selector)
             extracted: list[str] | str
             if extract_type == "html":
                 extracted = [
@@ -67,9 +68,10 @@ def scrapling_stealth_fetch(
             if extract_type == "html":
                 extracted = getattr(page, "text", "")[:5000]
             elif extract_type == "links":
+                links_els: Any = page.css("a")
                 extracted = [
                     a.get_attribute("href")
-                    for a in page.css("a")
+                    for a in links_els
                     if a.get_attribute("href")
                 ][:100]
             else:
@@ -132,7 +134,7 @@ def scrapy_spider_quick_scrape(
             json.loads(item_selectors_json) if item_selectors_json.strip() else {}
         )
 
-        extracted_data = {}
+        extracted_data: dict[str, Any] = {}
         if selectors:
             for field, query in selectors.items():
                 if query.startswith("//"):

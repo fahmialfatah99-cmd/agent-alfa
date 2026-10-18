@@ -7,10 +7,13 @@ from typing import Any
 
 from alfa.tools.registry import register_tool
 
+DDGS: Any = None
 try:
-    from ddgs import DDGS
+    from ddgs import DDGS as _DDGS_CLS
+
+    DDGS = _DDGS_CLS
 except ImportError:
-    DDGS = None
+    pass
 
 logger = logging.getLogger("AgentTools.Web.Search")
 

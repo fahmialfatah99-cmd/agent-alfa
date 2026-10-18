@@ -257,9 +257,8 @@ async def run_queue_worker(
     import asyncio
 
     try:
-        interval = float(
-            poll_interval or os.getenv("ALFA_QUEUE_POLL", "5") or 5
-        )
+        raw_poll: str | float = poll_interval or os.getenv("ALFA_QUEUE_POLL") or "5"
+        interval = float(raw_poll)
     except ValueError:
         interval = 5.0
     from alfa.swarm.engine import conduct_multi_agent_meeting

@@ -72,7 +72,7 @@ def _get_bot_module():
 def _is_authorized(user_id: int) -> bool:
     mod = _get_bot_module()
     if mod and hasattr(mod, "is_authorized"):
-        return mod.is_authorized(user_id)
+        return bool(mod.is_authorized(user_id))
     return is_authorized(user_id)
 
 
@@ -117,13 +117,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     await query.answer()
 
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await query.edit_message_text("⛔ Akses ditolak.")
         return
 
-    data = query.data
+    data = query.data or ""
     try:
         from alfa.bot.mode_commands import handle_persona_callback
 
@@ -395,7 +395,7 @@ async def check_and_send_media_artifacts(
     was created during this turn and dispatches it directly to the Telegram user.
     Stale artifacts created before turn_start_time are pruned and never dispatched.
     """
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not os.path.exists(SANDBOX_DIR):
         return
 
@@ -513,8 +513,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle incoming text messages."""
     if not update.message or not update.message.text:
         return
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await safe_send_message(
             context, chat_id, "⛔ Akses ditolak. ID Anda belum terdaftar di whitelist."
@@ -686,8 +686,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     """
     if not update.message:
         return
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
@@ -808,8 +808,8 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     """Handle incoming photos & images for vision analysis."""
     if not update.message:
         return
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
@@ -875,8 +875,8 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     """
     if not update.message:
         return
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return

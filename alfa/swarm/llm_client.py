@@ -207,7 +207,7 @@ async def _generate_with_gemini(
                     key_label=key_label or f"agent:{agent_name}",
                     context=context,
                 )
-                return response.text.strip()
+                return str(response.text).strip()
         except Exception as e:
             last_err = e
             logger.warning(
@@ -462,7 +462,7 @@ async def generate_agent_response(
         if mod and hasattr(mod, "generate_agent_response"):
             fn = mod.generate_agent_response
             if fn is not generate_agent_response and callable(fn):
-                return await fn(
+                res: str | None = await fn(
                     agent=agent,
                     prompt=prompt,
                     system_instruction=system_instruction,
@@ -470,6 +470,7 @@ async def generate_agent_response(
                     timeout_s=timeout_s,
                     thinking_budget=thinking_budget,
                 )
+                return res
 
     provider, api_key, model, base_url, key_id = get_agent_api_client(agent)
     agent_name = agent.get("name", "Agent")

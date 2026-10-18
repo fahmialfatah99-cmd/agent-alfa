@@ -35,39 +35,71 @@ from alfa.security.webauthn_store import (
     user_handle,
 )
 
+generate_authentication_options: Any = None
+generate_registration_options: Any = None
+options_to_json: Any = None
+verify_authentication_response: Any = None
+verify_registration_response: Any = None
+InvalidAuthenticationResponse: Any = Exception
+InvalidRegistrationResponse: Any = Exception
+AuthenticatorSelectionCriteria: Any = None
+PublicKeyCredentialDescriptor: Any = None
+PublicKeyCredentialType: Any = None
+ResidentKeyRequirement: Any = None
+UserVerificationRequirement: Any = None
+
 try:  # pywebauthn (venv); tanpa pustaka router tetap hidup tapi fitur 501
     from webauthn import (
-        generate_authentication_options,
-        generate_registration_options,
-        options_to_json,
-        verify_authentication_response,
-        verify_registration_response,
+        generate_authentication_options as _gen_auth_opts,
+    )
+    from webauthn import (
+        generate_registration_options as _gen_reg_opts,
+    )
+    from webauthn import (
+        options_to_json as _opts_to_json,
+    )
+    from webauthn import (
+        verify_authentication_response as _ver_auth_resp,
+    )
+    from webauthn import (
+        verify_registration_response as _ver_reg_resp,
     )
     from webauthn.helpers.exceptions import (
-        InvalidAuthenticationResponse,
-        InvalidRegistrationResponse,
+        InvalidAuthenticationResponse as _InvAuthResp,
+    )
+    from webauthn.helpers.exceptions import (
+        InvalidRegistrationResponse as _InvRegResp,
     )
     from webauthn.helpers.structs import (
-        AuthenticatorSelectionCriteria,
-        PublicKeyCredentialDescriptor,
-        PublicKeyCredentialType,
-        ResidentKeyRequirement,
-        UserVerificationRequirement,
+        AuthenticatorSelectionCriteria as _AuthSelCrit,
     )
+    from webauthn.helpers.structs import (
+        PublicKeyCredentialDescriptor as _PubKeyCredDesc,
+    )
+    from webauthn.helpers.structs import (
+        PublicKeyCredentialType as _PubKeyCredType,
+    )
+    from webauthn.helpers.structs import (
+        ResidentKeyRequirement as _ResKeyReq,
+    )
+    from webauthn.helpers.structs import (
+        UserVerificationRequirement as _UserVerReq,
+    )
+
+    generate_authentication_options = _gen_auth_opts
+    generate_registration_options = _gen_reg_opts
+    options_to_json = _opts_to_json
+    verify_authentication_response = _ver_auth_resp
+    verify_registration_response = _ver_reg_resp
+    InvalidAuthenticationResponse = _InvAuthResp
+    InvalidRegistrationResponse = _InvRegResp
+    AuthenticatorSelectionCriteria = _AuthSelCrit
+    PublicKeyCredentialDescriptor = _PubKeyCredDesc
+    PublicKeyCredentialType = _PubKeyCredType
+    ResidentKeyRequirement = _ResKeyReq
+    UserVerificationRequirement = _UserVerReq
 except ImportError:  # pragma: no cover — env tanpa pywebauthn
-    generate_authentication_options = None  # type: ignore[assignment]
-    generate_registration_options = None  # type: ignore[assignment]
-    options_to_json = None  # type: ignore[assignment]
-    verify_authentication_response = None  # type: ignore[assignment]
-    verify_registration_response = None  # type: ignore[assignment]
-    InvalidAuthenticationResponse = Exception  # type: ignore[assignment,misc]
-    InvalidRegistrationResponse = Exception  # type: ignore[assignment,misc]
-    AuthenticatorSelectionCriteria = None  # type: ignore[assignment]
-    PublicKeyCredentialDescriptor = None  # type: ignore[assignment]
-    PublicKeyCredentialType = None  # type: ignore[assignment]
-    ResidentKeyRequirement = None  # type: ignore[assignment]
-    UserVerificationRequirement = None  # type: ignore[assignment]
-    options_to_json = None  # type: ignore[assignment]
+    pass
 
 logger = logging.getLogger("alfa.dashboard.webauthn")
 
@@ -126,7 +158,7 @@ def _current_user(request: Request) -> dict[str, Any]:
                 "WWW-Authenticate": 'Bearer realm="ALFA Dashboard Session"',
             },
         )
-    return user
+    return dict(user)
 
 
 def _user_by_username(username: str) -> dict[str, Any] | None:
@@ -220,11 +252,16 @@ def _session_response(user: dict[str, Any]) -> Response:
 def _parse_client_data(payload: dict[str, Any]) -> dict[str, Any]:
     try:
         raw = _b64url_decode(payload["response"]["clientDataJSON"])
-        return json.loads(raw.decode("utf-8"))
+        parsed = json.loads(raw.decode("utf-8"))
     except Exception as exc:  # noqa: BLE001 — payload browser bebas bentuknya
         raise HTTPException(
             status_code=400, detail="clientDataJSON tidak dapat diparse"
         ) from exc
+    if not isinstance(parsed, dict):
+        raise HTTPException(
+            status_code=400, detail="clientDataJSON tidak dapat diparse"
+        )
+    return parsed
 
 
 # ─── registrasi passkey (user yang sedang login, miliknya sendiri) ───────────

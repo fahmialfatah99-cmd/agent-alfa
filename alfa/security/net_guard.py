@@ -31,8 +31,8 @@ def _allow_private() -> bool:
     return os.getenv("ALFA_ALLOW_PRIVATE_FETCH", "false").strip().lower() == "true"
 
 
-def _ip_is_forbidden(ip: object) -> bool:
-    return (
+def _ip_is_forbidden(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return bool(
         ip.is_loopback
         or ip.is_private
         or ip.is_link_local

@@ -28,14 +28,14 @@ def _get_bot_module():
 def _is_authorized(user_id: int) -> bool:
     mod = _get_bot_module()
     if mod and hasattr(mod, "is_authorized"):
-        return mod.is_authorized(user_id)
+        return bool(mod.is_authorized(user_id))
     return is_authorized(user_id)
 
 
 async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /wa or /washeets command to control WhatsApp Google Sheets Bot."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -142,7 +142,7 @@ def _lan_ip() -> str:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
-        return ip
+        return str(ip)
     except Exception:
         return "127.0.0.1"
 
@@ -171,8 +171,8 @@ def _site_kb(rows: list[dict]) -> InlineKeyboardMarkup:
 
 async def sites_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/sites — daftar website/proyek hasil agent, hidupkan dari Telegram."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -197,15 +197,15 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     if not query or not (query.data or "").startswith("st|"):
         return False
-    if not _is_authorized(update.effective_user.id):
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user_id):
         await query.answer()
         return True
     await query.answer()
     parts = (query.data or "").split("|")
     action = parts[1] if len(parts) > 1 else ""
     idx = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else -1
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
 
     async def _edit(text, markup=None):
         try:
@@ -364,8 +364,8 @@ def _wa_not_ready(res: dict) -> str | None:
 
 async def wachat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/wachat [kosong|N|nama/nomor] — daftar chat terbaru atau riwayat satu chat."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -424,8 +424,8 @@ async def wachat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/wamasuk [limit] — pesan WA masuk terbaru yang terekam bot."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -462,8 +462,8 @@ async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wakirim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/wakirim <tujuan> <pesan> — kirim pesan WA ke nomor/nama grup."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -488,8 +488,8 @@ async def wakirim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def waformat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/waformat [list|on <nama>|off <nama>|add <nama>|<kw>|del <nama>] — atur pencatatan otomatis."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -574,8 +574,8 @@ async def waformat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wareport_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/wareport [nama_format] [limit] — baca catatan laporan WA yang terekam."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -613,8 +613,8 @@ async def wareport_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def waringkas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/waringkas [nama_format] — digest cerdas: statistik + sorotan AI + terbaru."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -630,8 +630,8 @@ async def waringkas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wacari_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/wacari <kata> — cari kata kunci di pesan WA terbaru."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -660,8 +660,8 @@ async def wacari_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard, /web, or /app command."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -732,8 +732,8 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def keys_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /keys command to manage API keys vault."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -752,8 +752,8 @@ async def keys_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def agents_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /agents or /swarm command to view autonomous AI workforce."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -773,8 +773,8 @@ async def agents_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /rapat or /meeting command to conduct an autonomous round-table meeting (Plan Mode)."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -848,8 +848,8 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /swarm — subcommands (model|status|cancel) atau eksekusi langsung (Execute Mode)."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -1044,8 +1044,8 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /resume_swarm or /resume to resume an interrupted/cancelled swarm session."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 

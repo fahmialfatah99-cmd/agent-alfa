@@ -203,7 +203,7 @@ def _maybe_export_otlp(entry: dict[str, Any]) -> bool:
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=3) as resp:  # nosec B310
-            return 200 <= resp.status < 300
+            return bool(200 <= resp.status < 300)
     except Exception as e:
         logger_debug(f"OTLP export gagal: {e}")
         return False

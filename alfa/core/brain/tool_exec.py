@@ -157,7 +157,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     except Exception:
         pass
 
-    return raw[:MAX_TOOL_OUTPUT]
+    return str(raw)[:MAX_TOOL_OUTPUT]
 
 
 # ── Kompaksi konteks agentic loop ────────────────────────────────────────────

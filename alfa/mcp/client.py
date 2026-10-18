@@ -16,13 +16,14 @@ import secrets
 import time
 import urllib.parse
 import urllib.request
+from typing import Any
 
 logger = logging.getLogger("MCPClient")
 
 STATE_DIR = os.path.join(os.path.expanduser("~"), ".alfa")
 STORE_FILE = os.path.join(STATE_DIR, "mcp_connections.json")
 
-SERVERS = {
+SERVERS: dict[str, dict[str, Any]] = {
     "lottiefiles": {
         "url": "https://mcp.lottiefiles.com/mcp",
         "scopes": ["mcp:full"],
@@ -30,7 +31,7 @@ SERVERS = {
 }
 
 
-def _load() -> dict:
+def _load() -> dict[str, Any]:
     try:
         with open(STORE_FILE) as f:
             d = json.load(f)
@@ -39,7 +40,7 @@ def _load() -> dict:
         return {}
 
 
-def _save(store: dict) -> None:
+def _save(store: dict[str, Any]) -> None:
     try:
         os.makedirs(STATE_DIR, exist_ok=True)
         with open(STORE_FILE, "w") as f:
@@ -51,15 +52,16 @@ def _save(store: dict) -> None:
 _BROWSER_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
 
 
-def _http(method: str, url: str, body=None, headers=None, timeout: int = 25):
+def _http(method: str, url: str, body=None, headers=None, timeout: int = 25) -> dict[str, Any]:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", **_BROWSER_UA, **(headers or {})}, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode("utf-8", "replace")
-        return json.loads(raw) if raw.strip() else {}
+        parsed = json.loads(raw) if raw.strip() else {}
+        return parsed if isinstance(parsed, dict) else {}
 
 
-def _post_form(url: str, fields: dict, headers: dict | None = None, timeout: int = 25) -> dict:
+def _post_form(url: str, fields: dict, headers: dict | None = None, timeout: int = 25) -> dict[str, Any]:
     """POST application/x-www-form-urlencoded (wajib untuk endpoint OAuth)."""
     data = urllib.parse.urlencode(fields).encode()
     req = urllib.request.Request(url, data=data,
@@ -67,11 +69,12 @@ def _post_form(url: str, fields: dict, headers: dict | None = None, timeout: int
                                           **_BROWSER_UA, **(headers or {})}, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode("utf-8", "replace")
-        return json.loads(raw) if raw.strip() else {}
+        parsed = json.loads(raw) if raw.strip() else {}
+        return parsed if isinstance(parsed, dict) else {}
 
 
 
-def _discover_oauth(base_url: str) -> dict:
+def _discover_oauth(base_url: str) -> dict[str, Any]:
     """RFC8414 + RFC9728: metadata otorisasi server MCP."""
     parsed = urllib.parse.urlparse(base_url)
     origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -87,12 +90,12 @@ def _discover_oauth(base_url: str) -> dict:
     raise RuntimeError(f"Metadata OAuth tak ditemukan: {last_err}")
 
 
-def start_connect(server_id: str, redirect_uri: str) -> dict:
+def start_connect(server_id: str, redirect_uri: str) -> dict[str, Any]:
     """Mulai OAuth: registrasi klien dinamis + URL otorisasi. Return {auth_url, ...}."""
     sid = (server_id or "").lower()
     if sid not in SERVERS:
         return {"status": "error", "message": f"Server '{server_id}' tak dikenal. Pilihan: {sorted(SERVERS)}"}
-    url = SERVERS[sid]["url"]
+    url = str(SERVERS[sid]["url"])
     meta = _discover_oauth(url)
     reg_ep = meta.get("registration_endpoint")
     auth_ep = meta.get("authorization_endpoint")
@@ -130,7 +133,7 @@ def start_connect(server_id: str, redirect_uri: str) -> dict:
             "note": "Buka URL di browser, login + approve. Callback otomatis menyimpan token."}
 
 
-def finish_connect(code: str, state: str) -> dict:
+def finish_connect(code: str, state: str) -> dict[str, Any]:
     """Tukar authorization code -> token. Dipanggil callback dashboard."""
     try:
         sid, _ = (state or "").split(":", 1)
@@ -193,7 +196,7 @@ def _fresh_token(sid: str) -> str:
             if tok.get("refresh_token"):
                 ent["refresh_token"] = tok["refresh_token"]
             _save(store)
-    return _load().get(sid, {}).get("access_token", "")
+    return str(_load().get(sid, {}).get("access_token", ""))
 
 
 def connection_status(server_id: str = "") -> dict:
@@ -215,7 +218,8 @@ async def _call_remote(url: str, token: str, tool: str, args: dict, timeout: flo
     async with streamablehttp_client(url, headers={"Authorization": f"Bearer {token}"}, timeout=timeout) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            return (await session.call_tool(tool, args)).model_dump(mode="json")
+            res: dict[str, Any] = (await session.call_tool(tool, args)).model_dump(mode="json")
+            return res
 
 
 async def _list_remote(url: str, token: str, timeout: float = 30.0) -> list:
@@ -230,10 +234,10 @@ async def _list_remote(url: str, token: str, timeout: float = 30.0) -> list:
                      "input": t.inputSchema} for t in tools.tools]
 
 
-def call_tool_sync(server_id: str, tool: str, args: dict | None = None, timeout: float = 60.0) -> dict:
+def call_tool_sync(server_id: str, tool: str, args: dict | None = None, timeout: float = 60.0) -> dict[str, Any]:
     import asyncio as _a
 
-    async def _run():
+    async def _run() -> dict[str, Any]:
         sid = server_id.lower()
         ent = _load().get(sid, {})
         if not ent.get("url"):
@@ -256,14 +260,15 @@ def call_tool_sync(server_id: str, tool: str, args: dict | None = None, timeout:
         import concurrent.futures as _cf
 
         with _cf.ThreadPoolExecutor(max_workers=1) as ex:
-            return ex.submit(lambda: asyncio.run(_run(), debug=False)).result(timeout=timeout + 30)
+            res = ex.submit(lambda: asyncio.run(_run(), debug=False)).result(timeout=timeout + 30)
+            return dict(res)
     return asyncio.run(_run())
 
 
-def list_tools_sync(server_id: str, timeout: float = 30.0) -> dict:
+def list_tools_sync(server_id: str, timeout: float = 30.0) -> dict[str, Any]:
     import asyncio as _a
 
-    async def _run():
+    async def _run() -> dict[str, Any]:
         sid = server_id.lower()
         ent = _load().get(sid, {})
         if not ent.get("url"):
@@ -285,5 +290,6 @@ def list_tools_sync(server_id: str, timeout: float = 30.0) -> dict:
         import concurrent.futures as _cf
 
         with _cf.ThreadPoolExecutor(max_workers=1) as ex:
-            return ex.submit(lambda: asyncio.run(_run(), debug=False)).result(timeout=timeout + 30)
+            res = ex.submit(lambda: asyncio.run(_run(), debug=False)).result(timeout=timeout + 30)
+            return dict(res)
     return asyncio.run(_run())

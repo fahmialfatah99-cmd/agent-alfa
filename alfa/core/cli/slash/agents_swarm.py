@@ -1,11 +1,20 @@
 """Slash-command mixin: Swarm workforce, persona, and agent-model commands."""
 
+from typing import Any
+
 from alfa.core.cli.constants import Colors, print_status
 from alfa.core.cli.direct_ai import PROVIDERS_CATALOG
 
 
 class SlashSwarmMixin:
     """Swarm workforce, persona, and agent-model commands."""
+
+    console: Any
+
+    def _request(self, *args: Any, **kwargs: Any) -> Any: ...
+    def _update_prompt(self) -> None: ...
+    def do_slash_mode(self, arg: str) -> None: ...
+    def _run_swarm_execution(self, *args: Any, **kwargs: Any) -> Any: ...
 
     def do_slash_agents(self, arg: str) -> None:
         """Lihat status swarm & custom agents yang sinkron dengan Web Command Center. Usage: /agents"""

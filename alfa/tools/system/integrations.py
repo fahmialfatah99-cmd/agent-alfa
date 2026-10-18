@@ -151,7 +151,8 @@ def _wa_api(method: str, path: str, params: dict | None = None, body: dict | Non
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
         with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - localhost only
-            return json.loads(resp.read().decode("utf-8"))
+            res_data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
+            return res_data
     except Exception as e:
         err_body = ""
         try:

@@ -304,6 +304,10 @@ def capture_webcam_frame() -> dict[str, Any]:
             }
     except Exception as err:
         return {"status": "error", "message": str(err)}
+    return {
+        "status": "error",
+        "message": "Gagal membaca frame dari webcam.",
+    }
 
 
 def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:

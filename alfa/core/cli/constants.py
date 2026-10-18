@@ -3,7 +3,7 @@
 import platform
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 try:
     import readline as readline  # noqa: F401 - availability probe, re-exported as flag READLINE_AVAILABLE
@@ -19,8 +19,11 @@ except ImportError:
     print("   Silakan install dengan: pip install requests")
     sys.exit(1)
 
+Console: Any = None
 try:
-    from rich.console import Console
+    from rich.console import Console as _RichConsole
+
+    Console = _RichConsole
     from rich.live import (
         Live as Live,  # noqa: F401 - availability probe for optional UI features
     )
@@ -40,7 +43,6 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-    Console = cast(Any, None)  # optional dependency fallback
 
 VERSION = "3.5.0"
 DEFAULT_SERVER = "http://localhost:8080"

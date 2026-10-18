@@ -506,8 +506,8 @@ async def run_openai_agentic_turn_streaming(
                         "POST", url, headers=headers, json=payload
                     ) as res:
                         if res.status_code != 200:
-                            err_text = await res.aread()
-                            err_text = err_text.decode("utf-8", errors="ignore")[:300]
+                            err_bytes = await res.aread()
+                            err_text = err_bytes.decode("utf-8", errors="ignore")[:300]
                             logger.error(
                                 f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}"
                             )

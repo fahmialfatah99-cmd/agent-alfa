@@ -225,7 +225,10 @@ def analyze_dataset_csv_json(
             plt.scatter(x_vals, y_vals, color="#7C3AED", s=80)
         elif chart_type == "pie" and len(x_vals) <= 10:
             plt.pie(
-                y_vals, labels=x_vals, autopct="%1.1f%%", colors=plt.cm.Paired.colors
+                y_vals,
+                labels=x_vals,
+                autopct="%1.1f%%",
+                colors=getattr(plt.cm.Paired, "colors", None),
             )
         else:
             plt.bar(x_vals, y_vals, color="#3B82F6", edgecolor="#1D4ED8")

@@ -1,12 +1,23 @@
 """Slash-command mixin: Autonomous agent, patch-rollback, repomap, and tools reference."""
 
 from pathlib import Path
+from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
 
 
 class SlashDeveloperMixin:
     """Autonomous agent, patch-rollback, repomap, and tools reference."""
+
+    config: dict[str, Any]
+    console: Any
+    agent_mode: bool
+    patch_manager: Any
+    repomap_gen: Any
+
+    def _save_config(self) -> None: ...
+    def _set_agent_model_command(self, arg: str) -> None: ...
+    def do_slash_mode(self, arg: str) -> None: ...
 
     def do_slash_agent(self, arg: str) -> None:
         """Aktifkan/kelola mode Agent & model per agen. Usage: /agent [on|off|single|swarm|model]"""

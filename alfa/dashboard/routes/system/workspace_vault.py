@@ -127,7 +127,7 @@ async def list_artifacts():
                             }
                         )
 
-    artifacts = sorted(artifacts, key=lambda x: x["modified"], reverse=True)[:30]
+    artifacts = sorted(artifacts, key=lambda x: str(x["modified"]), reverse=True)[:30]
     return {"status": "success", "total": len(artifacts), "artifacts": artifacts}
 
 

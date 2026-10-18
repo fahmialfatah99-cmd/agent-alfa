@@ -10,6 +10,10 @@ class RunReporterMixin:
 
     # Tools whose args reference a file path (for touched-files reporting).
     FILE_ARG_KEYS = ("path", "file_path", "filepath", "target_file")
+    tools: Any
+
+    def _pending_todos(self) -> list[dict[str, Any]]:
+        return []
 
     def _log_execution(self, tool_name: str, args: dict[str, Any], result: str) -> None:
         """Record one tool execution for honest end-of-run reporting."""

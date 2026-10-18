@@ -6,6 +6,7 @@ TIDAK menyentuh sisi WA: tanpa autoreply, tanpa kirim pesan WA.
 
 import logging
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -69,7 +70,8 @@ def collect_records(report_format: str = "", limit: int = 50) -> list[dict]:
         return []
     recs = res.get("records", []) or []
     today = datetime.now().date()
-    fresh, stale = [], []
+    fresh: list[Any] = []
+    stale: list[Any] = []
     for r in recs:
         dt = _parse_ts(r.get("timestamp", ""))
         (fresh if (dt is None or dt.date() == today) else stale).append(r)

@@ -77,7 +77,7 @@ class CliChatMixin:
 
             method_name = f"do_slash_{cmd}"
             if hasattr(self, method_name):
-                getattr(self, method_name)(args)  # type: ignore[attr-defined]
+                getattr(self, method_name)(args)
                 return None
             else:
                 print_status(f"Perintah tidak dikenal: {line_str}", "error")
@@ -509,5 +509,5 @@ class CliChatMixin:
         except Exception as e:
             print_status(f"Error eksekusi swarm: {e}", "error")
 
-    def emptyline(self) -> None:
-        pass
+    def emptyline(self) -> bool:
+        return False

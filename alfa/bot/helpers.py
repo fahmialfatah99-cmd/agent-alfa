@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import time
+from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import ContextTypes
@@ -175,7 +176,7 @@ def split_message(text: str, max_length: int = 3900) -> list[str]:
 
 
 async def safe_send_message(
-    context: ContextTypes.DEFAULT_TYPE,
+    context: Any,
     chat_id: int,
     text: str,
     reply_to_message_id: int | None = None,

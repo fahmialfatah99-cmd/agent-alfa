@@ -109,8 +109,8 @@ async def render_chats(update: Update, context: ContextTypes.DEFAULT_TYPE, page:
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
     res = _tools.wa_get_chats(limit=40)
     if isinstance(res, dict) and res.get("status") == "error":
         await _edit_or_send(query, context, chat_id, f"📵 {res.get('message')}\nCek `/wa` untuk scan QR.")
@@ -137,8 +137,8 @@ async def render_chat_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
     chats = _cache_get(user_id, "chats")
     if not chats or not (0 <= idx < len(chats)):
         # Cache basi — muat ulang lalu minta pilih lagi
@@ -166,7 +166,7 @@ async def render_incoming(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     res = _tools.wa_get_incoming(limit=30)
     if isinstance(res, dict) and res.get("status") == "error":
         await _edit_or_send(query, context, chat_id, f"📵 {res.get('message')}")
@@ -203,13 +203,14 @@ async def render_formats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
     res = _tools.wa_list_formats()
     if isinstance(res, dict) and res.get("status") == "error":
         await _edit_or_send(query, context, chat_id, f"📵 {res.get('message')}")
         return
     fmts = res.get("formats", []) or []
-    _cache_put(update.effective_user.id, "formats", [f.get("name", "?") for f in fmts])
+    _cache_put(user_id, "formats", [f.get("name", "?") for f in fmts])
     on = sum(1 for f in fmts if f.get("enabled", True))
     kb = []
     for i, f in enumerate(fmts):
@@ -227,8 +228,8 @@ async def render_reports(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
     fmt_names = _cache_get(user_id, "formats")
     fmt = ""
     if fidx >= 0 and fidx < len(fmt_names):
@@ -279,7 +280,7 @@ async def render_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     from alfa import tools as _tools
 
     query = update.callback_query
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     try:
         st = _tools.manage_wa_sheets_bot("status")
         svc = "🟢 jalan" if st.get("is_running") else "🔴 mati"
@@ -319,7 +320,9 @@ async def handle_wa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     data = query.data or ""
     if not data.startswith("wx|"):
         return False
-    if not _is_authorized(update.effective_user.id):
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user_id):
         await query.answer()
         return True
     await query.answer()
@@ -339,7 +342,7 @@ async def handle_wa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif action == "ft":
             from alfa import tools as _tools
 
-            names = _cache_get(update.effective_user.id, "formats")
+            names = _cache_get(user_id, "formats")
             idx = int(parts[2]) if len(parts) > 2 else -1
             if 0 <= idx < len(names):
                 cur = _tools.wa_list_formats()
@@ -356,7 +359,7 @@ async def handle_wa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await render_reports(update, context, page, fidx)
         elif action == "send":
             await _edit_or_send(
-                query, context, update.effective_chat.id,
+                query, context, chat_id,
                 "✉️ **Kirim WA:** `/wakirim <nomor|nama grup> <pesan>`\nContoh: `/wakirim 0812xxxx halo`",
                 _home_kb(),
             )

@@ -403,12 +403,13 @@ def vision_click_target(
                 f'{{"found": true/false, "x": <int>, "y": <int>, "element_description": "<apa yang kamu lihat>", "confidence": "<high/medium/low>"}}'
             )
 
+            contents_list: Any = [image_part, vision_prompt]
             response = client.models.generate_content(
                 model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
-                contents=[image_part, vision_prompt],
+                contents=contents_list,
             )
 
-            response_text = response.text.strip()
+            response_text = (response.text or "").strip()
 
             # Parse JSON from response
             json_match = re.search(r"\{.*\}", response_text, re.DOTALL)

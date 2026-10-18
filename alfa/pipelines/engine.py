@@ -150,7 +150,8 @@ def load_pipeline(pid: str) -> dict[str, Any]:
     safe = re.sub(r"[^a-zA-Z0-9_\-]", "", pid)
     path = os.path.join(PIPELINE_DIR, f"{safe}.json")
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
 def save_pipeline(data: dict[str, Any]) -> str:
@@ -412,7 +413,8 @@ _STATE_FILE = os.path.join(RUNS_DIR, "_trigger_state.json")
 def _load_trigger_state() -> dict[str, float]:
     try:
         with open(_STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
+            state: dict[str, float] = json.load(f)
+            return state
     except Exception:
         return {}
 

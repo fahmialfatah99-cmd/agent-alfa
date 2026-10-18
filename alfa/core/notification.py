@@ -105,10 +105,12 @@ async def safe_send_message(
     try:
         from alfa.bot.helpers import safe_send_message as _helpers_send
 
-        return await _helpers_send(application, chat_id, text, reply_markup)
+        res: dict[str, Any] = await _helpers_send(application, chat_id, text, reply_markup)
     except Exception as e:
         logger.warning(f"send_message gagal total: {e}")
         return {"status": "error", "message": str(e)}
+    else:
+        return res
 
 
 def safe_send_message_sync(

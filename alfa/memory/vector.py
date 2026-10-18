@@ -175,11 +175,11 @@ def _attempt_local_library_embedding(
         fe_model = TextEmbedding(model_name=model_name)
         embeddings = list(fe_model.embed([text]))
         if embeddings and len(embeddings) > 0:
-            vec = np.array(embeddings[0], dtype=np.float32)
-            norm = np.linalg.norm(vec)
+            vec: Any = np.array(embeddings[0], dtype=np.float32)
+            norm = float(np.linalg.norm(vec))
             if norm > 1e-6:
                 vec = vec / norm
-            return vec.tolist(), f"fastembed/{model_name}", len(vec)
+            return [float(x) for x in vec.tolist()], f"fastembed/{model_name}", len(vec)
     except Exception:
         pass
 
@@ -191,7 +191,7 @@ def _attempt_local_library_embedding(
         st_model = SentenceTransformer(st_name)
         emb = st_model.encode(text)
         vec = np.array(emb, dtype=np.float32)
-        norm = np.linalg.norm(vec)
+        norm = float(np.linalg.norm(vec))
         if norm > 1e-6:
             vec = vec / norm
         return (
@@ -224,7 +224,7 @@ def get_text_embedding_with_meta(
             from google import genai
 
             client = genai.Client(api_key=api_key)
-            kwargs = {"model": "gemini-embedding-001", "contents": text}
+            kwargs: dict[str, Any] = {"model": "gemini-embedding-001", "contents": text}
             if dim and dim > 0:
                 try:
                     from google.genai import types
@@ -235,24 +235,24 @@ def get_text_embedding_with_meta(
                 except Exception:
                     pass
 
-            resp = client.models.embed_content(**kwargs)
+            resp: Any = client.models.embed_content(**kwargs)
             raw_vals = None
             if hasattr(resp, "embedding") and hasattr(resp.embedding, "values"):
                 raw_vals = resp.embedding.values
-            elif hasattr(resp, "embeddings") and len(resp.embeddings) > 0:
+            elif hasattr(resp, "embeddings") and resp.embeddings and len(resp.embeddings) > 0:
                 raw_vals = resp.embeddings[0].values
 
             if raw_vals is not None:
-                vec = np.array(raw_vals, dtype=np.float32)
+                vec: Any = np.array(raw_vals, dtype=np.float32)
                 if dim and dim > 0 and len(vec) != dim:
                     if len(vec) > dim:
                         vec = vec[:dim]
                     else:
                         vec = np.pad(vec, (0, dim - len(vec)), "constant")
-                norm = np.linalg.norm(vec)
+                norm = float(np.linalg.norm(vec))
                 if norm > 1e-6:
                     vec = vec / norm
-                return vec.tolist(), "gemini-embedding-001", len(vec)
+                return [float(x) for x in vec.tolist()], "gemini-embedding-001", len(vec)
         except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
 
@@ -303,17 +303,17 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     """Compute cosine similarity between two float vectors with safe dimension alignment."""
     if not vec_a or not vec_b:
         return 0.0
-    a = np.array(vec_a, dtype=np.float32)
-    b = np.array(vec_b, dtype=np.float32)
+    a: Any = np.array(vec_a, dtype=np.float32)
+    b: Any = np.array(vec_b, dtype=np.float32)
     if a.shape[0] != b.shape[0]:
         target_dim = max(a.shape[0], b.shape[0])
         if a.shape[0] < target_dim:
             a = np.pad(a, (0, target_dim - a.shape[0]), "constant")
         if b.shape[0] < target_dim:
             b = np.pad(b, (0, target_dim - b.shape[0]), "constant")
-    dot = np.dot(a, b)
-    norm_a = np.linalg.norm(a)
-    norm_b = np.linalg.norm(b)
+    dot = float(np.dot(a, b))
+    norm_a = float(np.linalg.norm(a))
+    norm_b = float(np.linalg.norm(b))
     if norm_a < 1e-6 or norm_b < 1e-6:
         return 0.0
     return float(dot / (norm_a * norm_b))
@@ -596,8 +596,8 @@ def semantic_search(
     if not valid_rows:
         return []
 
-    q_vec = np.array(query_emb, dtype=np.float32)
-    mat = np.array(embeddings_list, dtype=np.float32)
+    q_vec: Any = np.array(query_emb, dtype=np.float32)
+    mat: Any = np.array(embeddings_list, dtype=np.float32)
 
     if mat.shape[1] != q_vec.shape[0]:
         target_dim = max(q_vec.shape[0], mat.shape[1])
@@ -606,15 +606,15 @@ def semantic_search(
         if mat.shape[1] < target_dim:
             mat = np.pad(mat, ((0, 0), (0, target_dim - mat.shape[1])), "constant")
 
-    q_norm = np.linalg.norm(q_vec)
+    q_norm = float(np.linalg.norm(q_vec))
     if q_norm > 1e-6:
         q_vec = q_vec / q_norm
 
-    mat_norms = np.linalg.norm(mat, axis=1)
+    mat_norms: Any = np.linalg.norm(mat, axis=1)
     mat_norms[mat_norms < 1e-6] = 1.0
     mat = mat / mat_norms[:, np.newaxis]
 
-    similarities = np.dot(mat, q_vec)
+    similarities: Any = np.dot(mat, q_vec)
 
     scored_results = []
     for i, r in enumerate(valid_rows):

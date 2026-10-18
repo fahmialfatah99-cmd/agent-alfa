@@ -370,7 +370,7 @@ def _prepare_tools_and_configs(
             deduped_tools.append(tool_fn)
     all_tools = deduped_tools
 
-    gemini_tools = all_tools
+    gemini_tools: Any = all_tools
     try:
         from alfa.tools.rag import select_relevant_functions
 
@@ -438,7 +438,7 @@ async def _audit_correction_pass(
     action_intent: bool,
     meetings_before: int,
     executed_tool_names: list,
-    art_before: str,
+    art_before: Any,
     approval_gate,
 ) -> str:
     """Audit klaim bogus (rapat/berkas dsb.) + pass koreksi bila terdeteksi."""

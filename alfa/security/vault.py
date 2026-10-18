@@ -103,7 +103,7 @@ def _get_or_create_master_key() -> bytes:
             ) from backup_err
 
     # Generate new random 256-bit key
-    new_key = AESGCM.generate_key(bit_length=256)
+    new_key: bytes = AESGCM.generate_key(bit_length=256)
     try:
         # Open with restrictive permissions from the start to avoid a
         # world-readable window before chmod runs.
@@ -175,7 +175,7 @@ class AlfaSecureVault:
         """Decrypt ciphertext and verify authenticity tag."""
         ciphertext = base64.b64decode(ciphertext_b64)
         nonce = base64.b64decode(nonce_b64)
-        decrypted_bytes = self.aesgcm.decrypt(nonce, ciphertext, None)
+        decrypted_bytes: bytes = self.aesgcm.decrypt(nonce, ciphertext, None)
         return decrypted_bytes.decode("utf-8")
 
     def store_secret(

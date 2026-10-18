@@ -47,7 +47,7 @@ def load_secret(name: str) -> str | None:
     try:
         info = _vault().get_secret(name)
         if info and info.get("value"):
-            return info["value"]
+            return str(info["value"])
     except Exception as vault_err:
         logger.warning(f"Vault read gagal untuk {name}: {vault_err}")
     return None
@@ -81,25 +81,25 @@ def _legacy_plaintext_read(key: str) -> str | None:
             row = conn.execute(
                 "SELECT value FROM system_settings WHERE key = ?", (key,)
             ).fetchone()
-            return row[0] if row and row[0] else None
+            return str(row[0]) if row and row[0] else None
     except Exception:
         return None
 
 
-def migrate_legacy_plaintext() -> dict[str, bool]:
+def migrate_legacy_plaintext() -> dict[str, bool | str]:
     """Pindahkan plaintext system_settings → vault (idempoten, sekali jalan).
 
     Dipanggil dari lifespan dashboard; juga aman dipanggil ulang kapan saja.
     Rows plaintext dihapus hanya setelah tersimpan terenkripsi di vault.
     """
-    report: dict[str, bool] = {}
+    report: dict[str, bool | str] = {}
     for key, name in (
         ("gdrive_oauth_token_json", OAUTH_SECRET_NAME),
         ("gdrive_credentials_json", CRED_SECRET_NAME),
     ):
         plaintext = _legacy_plaintext_read(key)
         if not plaintext:
-            report[key] = "kosong"  # type: ignore[assignment]
+            report[key] = "kosong"
             continue
         if load_secret(name):
             # Sudah ada di vault; hapus plaintext legacy dengan aman
@@ -107,17 +107,17 @@ def migrate_legacy_plaintext() -> dict[str, bool]:
         else:
             ok_db = save_secret(name, plaintext)
             if not ok_db:
-                report[key] = False  # type: ignore[assignment]
+                report[key] = False
                 continue
         try:
             with database.get_sync_db() as conn:
                 conn.execute("DELETE FROM system_settings WHERE key = ?", (key,))
                 conn.commit()
-            report[key] = True  # type: ignore[assignment]
+            report[key] = True
         except Exception as e:
             logger.warning(f"Migrasi {key}: hapus plaintext gagal: {e}")
-            report[key] = False  # type: ignore[assignment]
-    return report  # type: ignore[return-value]
+            report[key] = False
+    return report
 
 
 def load_oauth_token(scopes: list | None = None) -> dict | None:
@@ -148,7 +148,8 @@ def load_service_account_json() -> dict | None:
     if not raw:
         return None
     try:
-        return _json.loads(raw)
+        parsed = _json.loads(raw)
+        return parsed if isinstance(parsed, dict) else None
     except (TypeError, _json.JSONDecodeError) as e:
         logger.warning(f"gdrive SA json tidak valid: {e}")
         return None

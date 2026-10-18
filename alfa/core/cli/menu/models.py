@@ -78,7 +78,7 @@ def menu_switch_model(cli: Any) -> None:
         return
 
     catalog = PROVIDERS_CATALOG[selected_provider]
-    model_choices = []
+    model_choices: list[Any] = []
     for m in catalog["models"]:
         is_m_curr = (
             " (aktif)"

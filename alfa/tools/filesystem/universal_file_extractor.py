@@ -288,7 +288,7 @@ def _extract_word(raw_bytes: bytes, fname: str) -> str:
         out = []
         for p in doc.paragraphs:
             if p.text.strip():
-                if p.style.name.startswith("Heading"):
+                if p.style and p.style.name and p.style.name.startswith("Heading"):
                     out.append(f"### {p.text.strip()}")
                 else:
                     out.append(p.text.strip())

@@ -12,6 +12,7 @@ logger = logging.getLogger("AgentTools.Web.Browser")
 def _scrapling_snapshot(url: str) -> dict[str, Any]:
     from scrapling import Fetcher, StealthyFetcher
 
+    page: Any
     try:
         page = StealthyFetcher.fetch(url)
     except Exception:  # noqa: BLE001

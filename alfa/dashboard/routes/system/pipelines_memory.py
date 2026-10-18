@@ -179,7 +179,7 @@ async def add_memory(request: Request, payload: dict[str, Any]):
             raise HTTPException(
                 status_code=400, detail="key_topic and content required"
             )
-        res = database.save_memory_fact_sync(uid, key, content, cat)
+        res: Any = database.save_memory_fact_sync(uid, key, content, cat)
         return {"status": "success", "result": res}
     else:
         entity = payload.get("entity")

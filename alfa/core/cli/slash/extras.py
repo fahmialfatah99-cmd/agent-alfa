@@ -170,13 +170,15 @@ class SlashExtrasMixin:
         else:
             print_status("Commit dibatalkan.", "info")
 
-    def do_slash_stats(self, arg: str) -> None:  # type: ignore[override]
+    def do_slash_stats(self, arg: str) -> None:
         """Statistik sesi lokal (atau server jika login). Usage: /stats"""
         if getattr(self, "session_token", None):
             try:
-                return super().do_slash_stats(arg)  # type: ignore[misc]
+                super().do_slash_stats(arg)  # type: ignore[misc]
             except AttributeError:
                 pass
+            else:
+                return
 
         started = getattr(self, "_session_start", None)
         duration = f"{int(time.time() - started)} detik" if started else "-"

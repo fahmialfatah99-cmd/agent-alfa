@@ -56,14 +56,14 @@ async def get_system_settings(request: Request):
     env_path = os.path.join(REPO_ROOT, ".env")
     env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
 
-    bot_token = env_vals.get("TELEGRAM_BOT_TOKEN", "")
+    bot_token = str(env_vals.get("TELEGRAM_BOT_TOKEN") or "")
     masked_bot_token = (
         (bot_token[:6] + "..." + bot_token[-4:])
         if len(bot_token) > 10
         else ("***" if bot_token else "")
     )
 
-    gemini_key = env_vals.get("GEMINI_API_KEY", "")
+    gemini_key = str(env_vals.get("GEMINI_API_KEY") or "")
     masked_gemini_key = (
         (gemini_key[:6] + "..." + gemini_key[-4:])
         if len(gemini_key) > 10
@@ -289,9 +289,9 @@ async def antigravity_apply_model(payload: dict[str, Any], request: Request):
     brain_note = ""
     main_brain_info = None
 
-    if as_main_brain:
+    if as_main_brain and key_id is not None:
         brain_res = await antigravity_set_main_brain_impl(
-            key_id, model or "gemini-3.6-flash"
+            int(key_id), model or "gemini-3.6-flash"
         )
         main_brain_info = brain_res.get("main_brain")
         brain_note = " Otak utama dialihkan ke Antigravity."
@@ -400,10 +400,14 @@ async def test_main_brain_combo(payload: dict[str, Any], request: Request):
 async def set_main_brain_endpoint(payload: dict[str, Any], request: Request):
     """Set the agent's MAIN BRAIN by activating a specific vault key."""
     require_admin(request)
-    key_id = payload.get("key_id")
+    raw_key_id = payload.get("key_id")
     model_override = str(payload.get("model", "") or "").strip()
+    if raw_key_id is None:
+        raise HTTPException(
+            status_code=400, detail="key_id wajib berupa angka."
+        )
     try:
-        key_id = int(key_id)
+        key_id = int(raw_key_id)
     except (TypeError, ValueError):
         raise HTTPException(
             status_code=400, detail="key_id wajib berupa angka."
@@ -452,8 +456,9 @@ async def update_system_settings(payload: dict[str, Any], request: Request):
     env_path = os.path.join(REPO_ROOT, ".env")
 
     def _get(field: str) -> str | None:
-        if field in payload and isinstance(payload[field], str):
-            return payload[field].strip()
+        val = payload.get(field)
+        if isinstance(val, str):
+            return val.strip()
         return None
 
     bot_token = _get("telegram_bot_token")

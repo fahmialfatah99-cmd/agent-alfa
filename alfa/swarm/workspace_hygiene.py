@@ -11,6 +11,7 @@ import re
 import shutil
 import sys
 import time
+from typing import Any
 
 from alfa import tools
 
@@ -346,7 +347,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
                         os.path.expanduser("~"), ".alfa", "sites_pending_notify.json"
                     )
                     try:
-                        _pend = []
+                        _pend: list[Any] = []
                         if os.path.isfile(_pend_file):
                             with open(_pend_file) as _f:
                                 _pend = json.load(_f) or []

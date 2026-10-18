@@ -7,11 +7,15 @@ import logging
 import os
 import re
 import tempfile
+from typing import Any
 
+edge_tts: Any = None
 try:
-    import edge_tts
+    import edge_tts as _edge_tts_mod
+
+    edge_tts = _edge_tts_mod
 except ImportError:
-    edge_tts = None
+    pass
 
 logger = logging.getLogger("TTSEngine")
 

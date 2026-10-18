@@ -11,7 +11,7 @@ from alfa.tools.rag.retrieval import select_relevant_functions, select_relevant_
 class BenchmarkSuite:
     def __init__(self, name: str):
         self.name = name
-        self.results = {
+        self.results: dict[str, Any] = {
             "name": name,
             "passed": 0,
             "total": 0,
@@ -86,7 +86,7 @@ class AgenticLoopBenchmark(BenchmarkSuite):
         super().__init__("AgenticLoopBenchmark")
 
     def run(self):
-        mock_response = {
+        mock_response: dict[str, Any] = {
             "message": {
                 "content": "",
                 "tool_calls": [
@@ -121,7 +121,7 @@ def run_all_benchmarks() -> dict[str, Any]:
         ScenarioFileBenchmark(),
     ]
 
-    summary = {
+    summary: dict[str, Any] = {
         "total_benchmarks": len(suites),
         "total_passed_scenarios": 0,
         "total_scenarios": 0,

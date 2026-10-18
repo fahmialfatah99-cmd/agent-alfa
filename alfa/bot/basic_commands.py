@@ -84,19 +84,21 @@ def _main_menu_markup() -> InlineKeyboardMarkup:
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command."""
     user = update.effective_user
-    chat_id = update.effective_chat.id
-    if not _is_authorized(user.id):
-        await update.message.reply_text(
-            f"⛔ *Akses Ditolak*\n\nID Anda: `{user.id}` belum terdaftar di whitelist bot.",
-            parse_mode=constants.ParseMode.MARKDOWN,
-        )
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = user.id if user else 0
+    if not _is_authorized(user_id):
+        if update.message:
+            await update.message.reply_text(
+                f"⛔ *Akses Ditolak*\n\nID Anda: `{user_id}` belum terdaftar di whitelist bot.",
+                parse_mode=constants.ParseMode.MARKDOWN,
+            )
         return
 
     reply_markup = _main_menu_markup()
 
     # Onboarding pengguna baru: tur singkat bila belum pernah chat.
     try:
-        _hist = await database.get_recent_chat_history(user.id, limit=1)
+        _hist = await database.get_recent_chat_history(user_id, limit=1)
     except Exception:
         _hist = [{}]
     tour = ""
@@ -110,9 +112,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "5. `/sites` — galeri hasil kerja (website/proyek).\n"
         )
 
+    first_name = user.first_name if user else ""
     welcome_text = (
         f"🤖 **Personal Autonomous AI Agent**\n"
-        f"Halo, **{user.first_name}**! Saya asisten AI otonom pribadi berbasis **multi-provider (9Router/Gemini)** yang terhubung langsung dengan mesin Linux Anda.\n\n"
+        f"Halo, **{first_name}**! Saya asisten AI otonom pribadi berbasis **multi-provider (9Router/Gemini)** yang terhubung langsung dengan mesin Linux Anda.\n\n"
         f"🧭 **Mode Eksekusi:** `/mode single` (1 agen cepat) atau `/mode swarm` (tim multi-agen). "
         f"Panggil swarm kapan saja via `/swarm <tugas>`.\n\n"
         f"⚡ **Kemampuan & Tools Aktif (100% Real):**\n"
@@ -134,8 +137,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /menu command."""
     user = update.effective_user
-    chat_id = update.effective_chat.id
-    if not _is_authorized(user.id):
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user.id if user else 0):
         return
 
     keyboard = _main_menu_markup().inline_keyboard
@@ -149,7 +152,8 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/cekagen — audit kesehatan konfigurasi otak utama & agen swarm."""
-    user_id = update.effective_user.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -225,15 +229,15 @@ async def cekagen_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\n{'🎉 Semua konfigurasi konsisten.' if problems == 0 else f'⚠️ {problems} masalah ditemukan.'}\n"
             "Perbaiki lewat Dashboard › API Key Vault / Agen Swarm."
         )
-        await safe_send_message(context, update.effective_chat.id, "\n".join(lines))
+        await safe_send_message(context, chat_id, "\n".join(lines))
     finally:
         conn.close()
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats command."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -258,8 +262,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /memory command."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -283,8 +287,8 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /clear command."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -299,10 +303,10 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /id command."""
     user = update.effective_user
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     text = (
-        f"👤 **Nama:** {user.full_name}\n"
-        f"🆔 **Telegram ID:** `{user.id}`\n"
+        f"👤 **Nama:** {user.full_name if user else ''}\n"
+        f"🆔 **Telegram ID:** `{user.id if user else 0}`\n"
         f"💬 **Chat ID:** `{chat_id}`"
     )
     await safe_send_message(context, chat_id, text)
@@ -310,8 +314,8 @@ async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /voice toggle command."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -326,8 +330,8 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/budget [set <token_harian> <call_harian>] — lihat & atur kuota token harian."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
@@ -377,8 +381,8 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """List scheduled recurring tasks."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
         return
@@ -406,8 +410,8 @@ async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def proactive_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /proactive command to view or toggle ambient proactive intelligence."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 

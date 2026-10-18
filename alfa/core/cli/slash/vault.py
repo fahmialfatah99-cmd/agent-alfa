@@ -1,10 +1,14 @@
 """Slash-command mixin: API-key vault commands."""
 
+from typing import Any
+
 from alfa.core.cli.constants import Colors, print_status
 
 
 class SlashVaultMixin:
     """API-key vault commands."""
+
+    console: Any
 
     def do_slash_keys(self, arg: str) -> None:
         """Tampilkan atau sinkronkan daftar API Key dari Web Vault (database SQLite) & gateway lokal. Usage: /keys [sync]"""

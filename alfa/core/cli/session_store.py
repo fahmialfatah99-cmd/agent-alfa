@@ -83,7 +83,7 @@ class SessionStore:
         return False
 
     def list(self) -> list[dict[str, Any]]:
-        out = []
+        out: list[dict[str, Any]] = []
         try:
             files = sorted(self.base.glob("*.json"), key=lambda p: p.stat().st_mtime)
         except OSError:

@@ -7,6 +7,8 @@ is cheaply unit-testable.
 
 from __future__ import annotations
 
+from typing import Any
+
 from alfa.bot.config import MEETING_FABRICATION_MARKERS
 from alfa.bot.helpers import ARTIFACT_NOUNS, COMPLETION_VERBS
 
@@ -56,8 +58,8 @@ def evaluate_reply_audits(
     action_intent: bool,
     new_meetings: int,
     executed_tool_names: list[str],
-    art_before: str,
-    art_after: str,
+    art_before: Any,
+    art_after: Any,
 ) -> tuple[str | None, list[str]]:
     """Evaluate reply for fabricated claims.
 

@@ -41,7 +41,7 @@ async def get_recent_chat_history(
             rows = await cursor.fetchall()
             return [
                 {"role": row["role"], "content": row["content"]}
-                for row in reversed(rows)
+                for row in reversed(list(rows))
             ]
 
 

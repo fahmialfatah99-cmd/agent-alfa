@@ -9,6 +9,12 @@ from alfa.core.cli.direct_ai import PRESETS, PROVIDERS_CATALOG
 class SlashProvidersMixin:
     """AI provider, model, and settings commands."""
 
+    config: dict[str, Any]
+    direct_ai: Any
+
+    def _save_config(self) -> None: ...
+    def _request(self, *args: Any, **kwargs: Any) -> Any: ...
+
     # --- Provider & Settings ---
 
     def do_slash_provider(self, arg: str) -> None:

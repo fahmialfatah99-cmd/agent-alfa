@@ -62,6 +62,7 @@ def browser_visual_test_page(
     timestamp = int(time.time())
 
     try:
+        browser: Any
         with Camoufox(headless=True) as browser:
             for view_name in requested_views:
                 v_cfg = viewport_map[view_name]
@@ -77,13 +78,11 @@ def browser_visual_test_page(
                     elif msg.type in ("warn", "warning"):
                         console_logs.append(f"[{_view}] [WARN] {msg.text}")
 
+                def _handle_pageerror(err: Any, _view: str = view_name) -> None:
+                    console_errors.append(f"[{_view}] [PAGE EXCEPTION] {err!s}")
+
                 page.on("console", _handle_console)
-                page.on(
-                    "pageerror",
-                    lambda err, _view=view_name: console_errors.append(
-                        f"[{_view}] [PAGE EXCEPTION] {str(err)}"
-                    ),
-                )
+                page.on("pageerror", _handle_pageerror)
 
                 # Listen to failed network requests
                 def _handle_response(resp, _view=view_name):

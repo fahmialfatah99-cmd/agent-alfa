@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 logger = logging.getLogger("DiscordBridge")
 
@@ -44,7 +45,7 @@ def _discord_token() -> str:
     if not row:
         return ""
     try:
-        return db.decrypt_key(row["api_key"])
+        return str(db.decrypt_key(row["api_key"]))
     except Exception:
         return ""
 
@@ -230,9 +231,10 @@ async def _vc_listen_loop(vc, chan, guild_id: int, owner_uid: int) -> None:
     """Half-duplex Jarvis: rekam 8 detik -> transcribe -> jawab suara. Berhenti bila flag mati."""
     import discord as _dc
 
+    _dc_any: Any = _dc
     while _VC_LISTEN.get(guild_id):
         try:
-            sink = _dc.sinks.WaveSink()
+            sink = _dc_any.sinks.WaveSink()
             vc.start_recording(sink, lambda *a: None)
             await asyncio.sleep(8)
             try:
@@ -305,6 +307,8 @@ async def _discord_play(msg, query: str) -> None:
         voice_state = getattr(msg.author, "voice", None)
         vc = msg.guild.voice_client
         if not vc or not vc.is_connected():
+            if not voice_state or not voice_state.channel:
+                return
             vc = await voice_state.channel.connect()
         try:
             if vc.is_playing() or vc.is_paused():
@@ -561,9 +565,10 @@ def main() -> None:
                 elif low.startswith("!sites"):
                     from alfa.tools import serve_site
 
-                    rows = serve_site(action="status").get("sites", []) or []
+                    site_res: dict[str, Any] = serve_site(action="status")
+                    site_rows: list[dict[str, Any]] = site_res.get("sites") or []
                     lines = ["🌐 **Galeri Situs:**"]
-                    for s in rows:
+                    for s in site_rows:
                         dot = "🟢" if (s.get("backend_on") or s.get("frontend_on")) else "⚪"
                         lines.append(f"{dot} **{s.get('title', s.get('slug'))}** (`{s.get('slug')}`)")
                     lines.append("\nHidupkan: `!serve <slug>`")

@@ -103,7 +103,7 @@ async def test_api_key_endpoint(request: Request, key_id: int):
         system_instruction="Kamu adalah modul health checker. Jawab dengan sangat singkat.",
     )
     duration_ms = round((time.time() - start_t) * 1000, 1)
-    is_error = "[Error:" in resp or "Gagal memanggil" in resp
+    is_error = not resp or "[Error:" in resp or "Gagal memanggil" in resp
 
     return {
         "status": "error" if is_error else "success",

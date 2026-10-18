@@ -111,7 +111,7 @@ async def generate_affiliate_campaign(payload: dict[str, Any]):
                 ),
                 timeout=120.0,
             )
-            sections = _parse_ai_sections(enriched)
+            sections = _parse_ai_sections(enriched or "")
             replaced = 0
             for key_src, key_out in (
                 ("tiktok_script", "tiktok_script"),

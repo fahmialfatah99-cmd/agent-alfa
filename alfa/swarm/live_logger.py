@@ -19,6 +19,7 @@ from alfa.swarm.workspace_hygiene import (
 logger = logging.getLogger(__name__)
 
 # Checkpoint system
+_SwarmCheckpoint: Any
 try:
     from alfa.swarm.checkpoint import SwarmCheckpoint as _SwarmCheckpoint
 

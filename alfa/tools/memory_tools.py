@@ -234,9 +234,9 @@ def export_knowledge_base(format: str = "markdown") -> dict[str, Any]:
                 f"**User ID:** `{uid}` | **Exported At:** `{data['exported_at']}`\n",
                 f"## 📌 Fakta Memori Permanen ({data['total_facts']} fakta)",
             ]
-            for f in data.get("facts", []):
+            for fact in data.get("facts", []):
                 md_lines.append(
-                    f"• **[{f['category'].upper()}] {f['key_topic']}**: {f['content']}"
+                    f"• **[{fact['category'].upper()}] {fact['key_topic']}**: {fact['content']}"
                 )
 
             md_lines.append(

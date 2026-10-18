@@ -88,7 +88,9 @@ def menu_configure_agent_models(cli: Any) -> None:
     except Exception:
         pass
 
-    agent_choices = []
+    from typing import Any
+
+    agent_choices: list[Any] = []
     for a in agents:
         aid = a.get("id")
         name = a.get("name", "Unknown")
@@ -131,7 +133,7 @@ def menu_configure_agent_models(cli: Any) -> None:
         "groq",
         "ollama",
     ]
-    prov_choices = []
+    prov_choices: list[Any] = []
     curr_prov = matched_agent.get("provider", "google")
     for pkey in primary_order:
         if pkey not in PROVIDERS_CATALOG:
@@ -159,7 +161,7 @@ def menu_configure_agent_models(cli: Any) -> None:
     cat = PROVIDERS_CATALOG.get(selected_provider, {})
     model_list = cat.get("models", [])
     curr_mod = matched_agent.get("model", "")
-    model_choices = []
+    model_choices: list[Any] = []
     for m in model_list:
         is_m_curr = " (aktif)" if m == curr_mod else ""
         model_choices.append(Choice(m, f"{m}{is_m_curr}"))
@@ -182,9 +184,7 @@ def menu_configure_agent_models(cli: Any) -> None:
         selected_model = (
             inquirer.text(
                 message="Ketik nama model AI spesifik:",
-                validate=lambda text: (
-                    len(text.strip()) > 0 or "Nama model tidak boleh kosong."
-                ),
+                validate=lambda text: len(text.strip()) > 0,
             )
             .execute()
             .strip()

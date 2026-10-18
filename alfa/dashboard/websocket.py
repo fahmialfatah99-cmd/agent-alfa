@@ -180,7 +180,7 @@ async def ws_terminal_endpoint(websocket: WebSocket):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                 )
-                while True:
+                while proc.stdout is not None:
                     line = await proc.stdout.readline()
                     if not line:
                         break
@@ -224,7 +224,7 @@ async def ws_logs_endpoint(websocket: WebSocket):
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
         )
         try:
-            while True:
+            while proc.stdout is not None:
                 line = await proc.stdout.readline()
                 if not line:
                     break

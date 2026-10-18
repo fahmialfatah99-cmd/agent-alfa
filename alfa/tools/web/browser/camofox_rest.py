@@ -62,7 +62,7 @@ def server_available(timeout: float = 3.0) -> bool:
             headers=_headers(),
             timeout=timeout,
         )
-        return r.status_code < 500
+        return bool(r.status_code < 500)
     except Exception:  # noqa: BLE001
         return False
 

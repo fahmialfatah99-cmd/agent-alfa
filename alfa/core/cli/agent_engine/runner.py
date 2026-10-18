@@ -32,7 +32,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
     ):
         self.direct_ai = direct_ai
         self.root = workspace_root or Path.cwd()
-        self.tools = LocalToolRegistry(self.root)
+        self.tools: LocalToolRegistry = LocalToolRegistry(self.root)
         self.repomap_gen = RepomapGenerator(self.root)
         self.console = console or Console()
         self.max_turns = self._resolve_max_turns()

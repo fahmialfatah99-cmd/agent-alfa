@@ -233,8 +233,8 @@ async def validate_raw_api_key(payload: dict[str, Any]):
             from google.genai import types
 
             target_model = model or "gemini-3.6-flash"
-            client = genai.Client(api_key=api_key)
-            await client.aio.models.generate_content(
+            genai_client: Any = genai.Client(api_key=api_key)
+            await genai_client.aio.models.generate_content(
                 model=target_model,
                 contents="Tes koneksi",
                 config=types.GenerateContentConfig(max_output_tokens=10),
