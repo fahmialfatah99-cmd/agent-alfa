@@ -134,9 +134,8 @@ jobs:
             cryptography numpy pydantic click rich pyyaml jinja2 \
             aiofiles websockets pygments ddgs
       - name: Jalankan seluruh suite dengan coverage (threshold gate)
-        # Threshold diukur dari baseline 46,67% (2026-10-18) dipangkas margin
-        # 2 poin — menahan penurunan besar, tidak menghukum noise kecil.
-        run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=44
+        # Threshold dinaikkan dari 44% ke 50% (terukur 51.62% per 2026-10-19).
+        run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=50
       - name: Determinism sentinel (2x back-to-back without cacheprovider)
         run: |
           pytest tests -p no:cacheprovider -q
