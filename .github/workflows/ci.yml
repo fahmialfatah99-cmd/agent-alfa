@@ -142,7 +142,7 @@ jobs:
           pytest tests -p no:cacheprovider -q
           pytest tests -p no:cacheprovider -q
       - name: Upload coverage report
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
           file: ./coverage.xml
