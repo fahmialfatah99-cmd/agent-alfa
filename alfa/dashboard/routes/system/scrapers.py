@@ -2,10 +2,11 @@ import json
 import time
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from alfa import tools
 from alfa.dashboard.common import get_primary_user_id, safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -13,8 +14,9 @@ router = APIRouter()
 
 
 @router.post("/api/scraper/universal")
-async def api_universal_scrape(payload: dict[str, Any]):
-    """Execute high-yield universal keyword scraper across specialized platforms."""
+async def api_universal_scrape(request: Request, payload: dict[str, Any]):
+    """Execute high-yield universal keyword scraper (hanya admin — pemakai-resource)."""
+    require_admin(request)
     from alfa.scrapers import universal as universal_scraper
 
     query = payload.get("query", "").strip()
@@ -30,8 +32,9 @@ async def api_universal_scrape(payload: dict[str, Any]):
 
 
 @router.post("/api/scraper/custom-batch")
-async def api_custom_batch_scrape(payload: dict[str, Any]):
-    """Execute custom multi-URL batch scraper."""
+async def api_custom_batch_scrape(request: Request, payload: dict[str, Any]):
+    """Execute custom multi-URL batch scraper (hanya admin)."""
+    require_admin(request)
     from alfa.scrapers import universal as universal_scraper
 
     urls = payload.get("urls", [])
@@ -47,8 +50,9 @@ async def api_custom_batch_scrape(payload: dict[str, Any]):
 
 
 @router.get("/api/scraper/batches")
-async def api_list_scraper_batches(limit: int = 15):
-    """List recent master scraper batches."""
+async def api_list_scraper_batches(request: Request, limit: int = 15):
+    """List recent master scraper batches (hanya admin)."""
+    require_admin(request)
     from alfa.scrapers import universal as universal_scraper
 
     batches = universal_scraper.list_all_scrape_batches(limit=limit)
@@ -56,8 +60,9 @@ async def api_list_scraper_batches(limit: int = 15):
 
 
 @router.post("/api/scraper/modern-lab")
-async def api_modern_scraper_lab(payload: dict[str, Any]):
-    """Unified Next-Gen Scraper Lab combining multiple scraping engines."""
+async def api_modern_scraper_lab(request: Request, payload: dict[str, Any]):
+    """Unified Next-Gen Scraper Lab (hanya admin)."""
+    require_admin(request)
     url = payload.get("url", "").strip()
     engine = payload.get("engine", "auto_hybrid")
     css_selector = payload.get("css_selector", "").strip()

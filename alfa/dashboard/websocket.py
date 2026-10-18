@@ -61,22 +61,86 @@ class ConnectionManager:
 ws_manager = ConnectionManager()
 
 
-def _is_ws_authorized(websocket: WebSocket) -> bool:
-    """Verify WebSocket token if DASHBOARD_AUTH_TOKEN is configured."""
-    if not DASHBOARD_AUTH_TOKEN:
+def _ws_client_ip(websocket) -> str:
+    """IP klien WebSocket dengan fallback aman bila metadata hilang."""
+    try:
+        client = websocket.client
+        ip = getattr(client, "host", None) if client else None
+        return str(ip) if ip else ""
+    except Exception:
+        return ""
+
+
+def _is_loopback_ip(ip: str) -> bool:
+    """True untuk 127.x/::1/::ffff:127.x — satu-satunya yang dipercaya tanpa token."""
+    if not ip:
+        return False
+    ip = ip.strip().lower()
+    if ip.startswith("::ffff:"):
+        ip = ip[7:]
+    return ip == "::1" or ip == "localhost" or ip.startswith("127.")
+
+
+def _origin_allowed(websocket) -> bool:
+    """Tolak cross-origin browser (anti cross-site WebSocket hijacking).
+
+    Non-browser client (tanpa header Origin) diizinkan. Browser hanya
+    diizinkan bila Origin berasal dari localhost atau host request itu sendiri.
+    """
+    origin = websocket.headers.get("origin", "").strip()
+    if not origin or origin == "null":
         return True
+    try:
+        host = websocket.headers.get("host", "").strip().lower()
+    except Exception:
+        host = ""
+    origin = origin.lower()
+    for scheme in ("https://", "http://"):
+        rest = origin[len(scheme):] if origin.startswith(scheme) else None
+        if rest:
+            break
+    netloc = (rest or origin).split("/", 1)[0]
+    origin_host = netloc.rsplit(":", 1)[0] if ":" in netloc else netloc
+    if host:
+        req_host = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+        if origin_host == req_host:
+            return True
+    return origin_host in ("localhost", "127.0.0.1", "::1", "[::1]")
+
+
+def _is_ws_authorized(websocket: WebSocket) -> bool:
+    """Verifikasi akses WS: token/session saat auth aktif; localhost-only saat tidak.
+
+    - ``DASHBOARD_AUTH_TOKEN`` terisi: token mentah, session DB, atau cookie
+      sesi yang valid diterima — ditambah cek Origin (anti cross-site hijack).
+    - ``DASHBOARD_AUTH_TOKEN`` kosong: koneksi hanya dipercayai dari loopback
+      (127.0.0.1) dengan Origin sah. Klien jaringan lain ditolak.
+    """
+    if not DASHBOARD_AUTH_TOKEN:
+        ip = _ws_client_ip(websocket)
+        if not _is_loopback_ip(ip):
+            logger.warning(
+                f"[SECURITY] WebSocket ditolak: mode tanpa-token hanya boleh dari "
+                f"localhost, received ip={ip!r}"
+            )
+            return False
+        if not _origin_allowed(websocket):
+            logger.warning("[SECURITY] WebSocket ditolak: origin tidak diperbolehkan")
+            return False
+        return True
+
     token = websocket.query_params.get("token") or websocket.headers.get(
         "X-Session-Token"
     )
     if token == DASHBOARD_AUTH_TOKEN:
-        return True
+        return _origin_allowed(websocket)
     from alfa.dashboard.routes.auth import validate_session
 
     if token and validate_session(token):
-        return True
+        return _origin_allowed(websocket)
     cookie_token = websocket.cookies.get("session_token")
     if cookie_token and validate_session(cookie_token):
-        return True
+        return _origin_allowed(websocket)
     return False
 
 

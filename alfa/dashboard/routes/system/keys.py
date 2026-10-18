@@ -15,15 +15,17 @@ router = APIRouter()
 
 
 @router.get("/api/keys")
-async def get_api_keys():
-    """List all API keys with masked values."""
+async def get_api_keys(request: Request):
+    """List API keys ter-enrolled (hanya admin; key dimasking)."""
+    require_admin(request)
     keys = database.list_api_keys_sync()
     return {"status": "success", "total": len(keys), "keys": keys}
 
 
 @router.get("/api/keys/usage")
-async def get_api_keys_usage(hours: int = 24):
-    """Realtime token-usage summary per API key/provider for the dashboard."""
+async def get_api_keys_usage(request: Request, hours: int = 24):
+    """Realtime token-usage summary per API key/provider (hanya admin)."""
+    require_admin(request)
     hours = safe_int(hours, 24, minimum=1, maximum=720)
     keys = database.list_api_keys_sync()
     key_names = {k["id"]: k["name"] for k in keys}
@@ -77,8 +79,9 @@ async def delete_api_key_endpoint(key_id: int, request: Request):
 
 
 @router.post("/api/keys/{key_id}/test")
-async def test_api_key_endpoint(key_id: int):
-    """Test ping connection for a stored API key."""
+async def test_api_key_endpoint(request: Request, key_id: int):
+    """Live ping koneksi API key memakai kuota server (hanya admin)."""
+    require_admin(request)
     with database.get_sync_db() as conn:
         row = conn.execute("SELECT * FROM api_keys WHERE id = ?", (key_id,)).fetchone()
         if not row:

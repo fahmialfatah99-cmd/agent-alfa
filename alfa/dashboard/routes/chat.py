@@ -393,8 +393,9 @@ async def get_chat_available_models():
 
 
 @chat_router.post("/api/chat/model")
-async def set_chat_active_model(payload: dict[str, Any]):
-    """Set and persist default active model."""
+async def set_chat_active_model(request: Request, payload: dict[str, Any]):
+    """Set and persist default active model (hanya admin)."""
+    require_admin(request)
     model = (payload.get("model") or "").strip()
     key_id = payload.get("key_id")
     if key_id == "ollama":
@@ -419,8 +420,9 @@ async def set_chat_active_model(payload: dict[str, Any]):
 
 
 @chat_router.delete("/api/chat/history")
-async def clear_chat_history_api():
-    """Wipe chat conversation history from database."""
+async def clear_chat_history_api(request: Request):
+    """Wipe chat conversation history from database (hanya admin)."""
+    require_admin(request)
     uid = get_primary_user_id()
     await database.clear_user_chat_history(uid)
     return {
@@ -469,8 +471,9 @@ async def execute_chat_code_block(payload: dict[str, Any], request: Request):
 
 
 @chat_router.get("/api/chat/export")
-async def export_chat_history(format: str = "markdown"):
-    """Export current user conversation history into Markdown (.md) or JSON."""
+async def export_chat_history(request: Request, format: str = "markdown"):
+    """Export current user conversation history (hanya admin)."""
+    require_admin(request)
     uid = get_primary_user_id()
     rows = await database.get_recent_chat_history(uid, limit=100)
 

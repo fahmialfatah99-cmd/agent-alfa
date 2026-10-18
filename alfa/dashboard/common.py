@@ -54,8 +54,16 @@ def _get_bot():
 
 
 def get_primary_user_id(request: Request | None = None) -> int:
-    """Safely get target telegram user id from request headers/params or ALLOWED_USER_IDS env var."""
-    if request is not None:
+    """Safely get target telegram user id.
+
+    Kebijakan identitas (anti-spoof):
+    - Header ``X-User-Id``/param ``user_id`` di request HANYA dipercayai pada
+      mode lokal tanpa token (operator di konsol).
+    - Saat ``DASHBOARD_AUTH_TOKEN`` terisi (multi user / jaringan), identitas
+      selalu jatuh ke whitelist ``ALLOWED_USER_IDS`` — identitas palsu dari
+      klien tidak pernah dipakai untuk menjalankan agent sebagai owner.
+    """
+    if request is not None and not DASHBOARD_AUTH_TOKEN:
         req_uid = request.headers.get("X-User-Id") or request.query_params.get(
             "user_id"
         )

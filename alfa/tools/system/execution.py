@@ -15,6 +15,7 @@ from alfa.tools.system.constants import (
     _check_docker_available,
     _clean_code_snippet,
     _ensure_sandbox_image,
+    _sandbox_network,
     generate_self_heal_hint,
     is_unrestricted,
 )
@@ -27,6 +28,42 @@ def _get_subprocess():
     if mod and hasattr(mod, "subprocess"):
         return mod.subprocess
     return subprocess
+
+
+def _docker_common_args(stamp: str) -> list[str]:
+    """Basis argumen `docker run` yang di-hardening untuk semua sandbox.
+
+    Termasuk pemutusan jaringan (`--network none` default), drop capabilitas,
+    no-new-privileges, dan limit memori/CPU/PID. Mount spesifik tugas
+    ditambahkan oleh pemanggil.
+    """
+    return [
+        "run",
+        "--rm",
+        "--name",
+        f"alfa_sbx_{stamp}",
+        "--network",
+        _sandbox_network(),
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        *(
+            ["--user", f"{os.getuid()}:{os.getgid()}"]
+            if hasattr(os, "getuid")
+            else []
+        ),
+        "-e",
+        "HOME=/tmp",
+        "--memory",
+        os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+        "--memory-swap",
+        os.getenv("SANDBOX_MEM_LIMIT", "512m"),
+        "--cpus",
+        os.getenv("SANDBOX_CPUS", "1.0"),
+        "--pids-limit",
+        "128",
+    ]
 
 
 @register_tool(category="system")
@@ -85,34 +122,8 @@ def execute_bash_command(
             wd_abs = (
                 os.path.realpath(os.path.expanduser(working_dir)) if working_dir else ""
             )
-            cmd = [
-                "docker",
-                "run",
-                "--rm",
-                "--name",
-                f"alfa_sbx_{stamp}",
-                "-v",
-                f"{SANDBOX_DIR}:/sandbox",
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
-                *(
-                    ["--user", f"{os.getuid()}:{os.getgid()}"]
-                    if hasattr(os, "getuid")
-                    else []
-                ),
-                "-e",
-                "HOME=/tmp",
-                "--memory",
-                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--memory-swap",
-                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--cpus",
-                os.getenv("SANDBOX_CPUS", "1.0"),
-                "--pids-limit",
-                "128",
-            ]
+            cmd = ["docker", *_docker_common_args(stamp)]
+            cmd += ["-v", f"{SANDBOX_DIR}:/sandbox"]
             if wd_abs and os.path.isdir(wd_abs):
                 cmd += ["-v", f"{wd_abs}:/workspace", "-w", "/workspace"]
                 cmd += ["-v", f"{wd_abs}:{wd_abs}"]
@@ -361,36 +372,8 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             f.write(preamble + cleaned)
 
         if use_docker:
-            cmd = [
-                "docker",
-                "run",
-                "--rm",
-                "--name",
-                f"alfa_sbx_{stamp}",
-                "-v",
-                f"{SANDBOX_DIR}:/sandbox",
-                "-w",
-                "/sandbox",
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
-                *(
-                    ["--user", f"{os.getuid()}:{os.getgid()}"]
-                    if hasattr(os, "getuid")
-                    else []
-                ),
-                "-e",
-                "HOME=/tmp",
-                "--memory",
-                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--memory-swap",
-                os.getenv("SANDBOX_MEM_LIMIT", "512m"),
-                "--cpus",
-                os.getenv("SANDBOX_CPUS", "1.0"),
-                "--pids-limit",
-                "128",
-            ]
+            cmd = ["docker", *_docker_common_args(stamp)]
+            cmd += ["-v", f"{SANDBOX_DIR}:/sandbox", "-w", "/sandbox"]
             user_home = os.path.expanduser("~")
             project_dirs = [
                 os.path.join(user_home, "alfa_projects"),

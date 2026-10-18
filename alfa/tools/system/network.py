@@ -229,9 +229,18 @@ def send_email(
 def download_file_from_url(url: str, filename: str = "") -> dict[str, Any]:
     """
     Download a file from a URL on the internet to the local computer and optionally send it to Telegram.
+    URL internal/loopback ditolak oleh SSRF guard; `filename` dilucuti ke nama
+    berkas sederhana di dalam SANDBOX_DIR (anti path traversal).
     """
     try:
         import httpx
+
+        from alfa.security.net_guard import UnsafeUrlError, assert_public_http_url
+
+        try:
+            assert_public_http_url(url)
+        except UnsafeUrlError as ssrf_err:
+            return {"status": "error", "message": str(ssrf_err)}
 
         if not filename:
             from urllib.parse import urlparse
@@ -239,7 +248,19 @@ def download_file_from_url(url: str, filename: str = "") -> dict[str, Any]:
             parsed = urlparse(url)
             filename = os.path.basename(parsed.path) or "downloaded_file"
 
-        dest_path = os.path.join(SANDBOX_DIR, filename)
+        # Sanitasi filename: nama berkas sederhana di dalam SANDBOX_DIR saja.
+        filename = os.path.basename(str(filename).replace("\\", "/")).strip()
+        if not filename or filename.startswith(".") or ".." in filename:
+            filename = "downloaded_file"
+        sandbox_root = os.path.realpath(SANDBOX_DIR)
+        dest_path = os.path.join(sandbox_root, filename)
+        if os.path.realpath(dest_path) != dest_path or not os.path.realpath(dest_path).startswith(
+            sandbox_root + os.sep
+        ):
+            return {
+                "status": "error",
+                "message": "[SECURITY] Path tujuan keluar dari sandbox — unduhan dibatalkan.",
+            }
 
         with httpx.Client(follow_redirects=True, timeout=60) as client:
             resp = client.get(url)

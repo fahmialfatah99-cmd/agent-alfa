@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 
 from alfa import tools
 from alfa.core import database
-from alfa.dashboard.common import REPO_ROOT, safe_int
+from alfa.dashboard.common import REPO_ROOT, logger, safe_int
 
 router = APIRouter()
 
@@ -119,11 +119,11 @@ async def gdrive_save_credentials(
         with open(cred_file, "w", encoding="utf-8") as f:
             f.write(content)
 
-        with database.get_sync_db() as conn:
-            conn.execute(
-                "INSERT INTO system_settings (key, value) VALUES ('gdrive_credentials_json', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (content,),
-            )
+        # SA JSON kini dienkripsi AES-256-GCM di vault — bukan plaintext di DB.
+        from alfa.integrations.gdrive import secret_store
+
+        if not secret_store.save_secret(secret_store.CRED_SECRET_NAME, content):
+            logger.warning("SA JSON gagal masuk vault; file 600 tetap jadi sumber.")
 
         test_res = tools.gdrive_status()
         return {
@@ -142,10 +142,13 @@ async def gdrive_save_credentials(
 
 @router.delete("/api/gdrive/credentials")
 async def gdrive_delete_credentials():
-    """Remove stored Google Drive credentials."""
+    """Remove stored Google Drive credentials (vault + file)."""
+    from alfa.integrations.gdrive import secret_store
+
     cred_file = os.path.join(REPO_ROOT, "gdrive_credentials.json")
     if os.path.exists(cred_file):
         os.remove(cred_file)
+    secret_store.delete_secret(secret_store.CRED_SECRET_NAME)
     with database.get_sync_db() as conn:
         conn.execute(
             "DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'"

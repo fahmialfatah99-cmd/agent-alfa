@@ -142,8 +142,9 @@ async def workspace_roots():
 
 
 @router.get("/api/workspace/tree")
-async def workspace_tree(path: str):
-    """List satu level isi folder (lazy-load per folder klik)."""
+async def workspace_tree(request: Request, path: str):
+    """List satu level isi folder (lazy-load per folder klik). Admin-only."""
+    require_admin(request)
     real = _safe_workspace_path(path)
     if not os.path.isdir(real):
         raise HTTPException(status_code=404, detail="Bukan direktori")
@@ -175,8 +176,9 @@ async def workspace_tree(path: str):
 
 
 @router.get("/api/workspace/file")
-async def workspace_read_file(path: str):
-    """Baca isi file teks utk dilihat di browser (dengan deteksi biner)."""
+async def workspace_read_file(request: Request, path: str):
+    """Baca isi file teks utk dilihat di browser (dengan deteksi biner). Admin-only."""
+    require_admin(request)
     real = _safe_workspace_path(path)
     if not os.path.isfile(real):
         raise HTTPException(status_code=404, detail="File tidak ditemukan")
@@ -206,8 +208,9 @@ async def workspace_read_file(path: str):
 
 
 @router.get("/api/artifacts/download")
-async def download_artifact(path: str):
-    """Safely download an artifact file (restricted to known artifact directories)."""
+async def download_artifact(request: Request, path: str):
+    """Safely download an artifact file (restricted to known artifact directories). Admin-only."""
+    require_admin(request)
     import video_generator
     from alfa.swarm import engine as swarm_engine
 
@@ -276,8 +279,9 @@ async def update_guardian_config(payload: dict[str, Any]):
 
 
 @router.get("/api/vault/list")
-async def list_vault_secrets(category: str = "all"):
-    """List metadata for secrets stored in the AES-256-GCM vault."""
+async def list_vault_secrets(request: Request, category: str = "all"):
+    """List metadata for secrets stored in the AES-256-GCM vault (hanya admin)."""
+    require_admin(request)
     from alfa.security import vault as vault_engine
 
     return {
@@ -344,8 +348,9 @@ async def delete_vault_secret(secret_id: int, request: Request):
 
 
 @router.post("/api/security/audit")
-async def audit_target_security(payload: dict[str, Any]):
-    """Perform comprehensive defensive cybersecurity audit on a target URL."""
+async def audit_target_security(request: Request, payload: dict[str, Any]):
+    """Perform comprehensive defensive cybersecurity audit on a target URL (hanya admin)."""
+    require_admin(request)
     from alfa.core import permissions as security_auditor
 
     target_url = payload.get("url", "").strip()
@@ -357,8 +362,9 @@ async def audit_target_security(payload: dict[str, Any]):
 
 
 @router.get("/api/security/permission-audit")
-async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
-    """Get permission audit trail log."""
+async def get_permission_audit_log(request: Request, chat_id: int | None = None, limit: int = 50):
+    """Get permission audit trail log (hanya admin)."""
+    require_admin(request)
     from alfa.core.perm.store import _connect
 
     conn = _connect()
@@ -403,8 +409,9 @@ async def get_permission_audit_log(chat_id: int | None = None, limit: int = 50):
 
 
 @router.get("/api/security/trust-scores")
-async def get_all_trust_scores():
-    """Get trust scores for all users."""
+async def get_all_trust_scores(request: Request):
+    """Get trust scores for all users (hanya admin)."""
+    require_admin(request)
     from alfa.core.perm.store import _connect
 
     conn = _connect()
@@ -450,8 +457,9 @@ async def get_passkey_status():
 
 
 @router.post("/api/vault/passkey/toggle")
-async def toggle_passkey_lock(payload: dict[str, Any]):
-    """Toggle biometric/passkey lock for the dashboard."""
+async def toggle_passkey_lock(request: Request, payload: dict[str, Any]):
+    """Toggle biometric/passkey lock for the dashboard (hanya admin)."""
+    require_admin(request)
     enabled = bool(payload.get("enabled", False))
     with database.get_sync_db() as conn:
         c = conn.cursor()

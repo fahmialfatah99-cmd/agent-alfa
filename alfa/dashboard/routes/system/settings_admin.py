@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import time
 from typing import Any
@@ -16,10 +17,42 @@ router = APIRouter()
 
 _models_cache: dict[int, tuple] = {}
 
+# Nama key yang nilainya bersifat rahasia — tidak pernah dikirim apa adanya
+# ke response HTTP (walau kepada admin), hanya status set/belum.
+_SECRET_KEY_RE = re.compile(
+    r"(token|secret|password|passwd|api_key|apikey|private|credential|bearer|"
+    r"session|client_id)",
+    re.IGNORECASE,
+)
+# Detektor nilai JSON yang berisi bahan rahasia (mis. gdrive_credentials_json).
+_SECRET_VALUE_HINTS = ("client_secret", "private_key", "refresh_token", "access_token")
+
+
+def redact_db_settings(raw: dict[str, Any]) -> dict[str, str]:
+    """Saring nilai sistem_settings rahasia: kirim statusnya saja, bukan isinya."""
+    out: dict[str, str] = {}
+    for k, v in raw.items():
+        value = v if isinstance(v, str) else ("" if v is None else str(v))
+        looks_secret = bool(_SECRET_KEY_RE.search(k))
+        if not looks_secret and k.lower().endswith("_json"):
+            sample = value[:400].lower()
+            looks_secret = any(h in sample for h in _SECRET_VALUE_HINTS)
+        if looks_secret:
+            out[f"{k}_set"] = "1" if value.strip() else ""
+        else:
+            out[k] = value
+    return out
+
 
 @router.get("/api/settings")
-async def get_system_settings():
-    """Retrieve current system configuration (.env and database settings)."""
+async def get_system_settings(request: Request):
+    """Konfigurasi sistem (hanya admin). Nilai rahasia disaring otomatis.
+
+    Pemanggil internal non-HTTP (test/cron) mengirim ``None`` — diperlakukan
+    sebagai konteks lokal berkepercayaan penuh.
+    """
+    if request is not None:
+        require_admin(request)
     env_path = os.path.join(REPO_ROOT, ".env")
     env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
 
@@ -41,6 +74,8 @@ async def get_system_settings():
         c = conn.cursor()
         c.execute("SELECT key, value FROM system_settings")
         db_settings = {row[0]: row[1] for row in c.fetchall()}
+
+    db_settings = redact_db_settings(db_settings)
 
     alfa_prompt_path = os.path.expanduser("~/.alfa/system_prompt.txt")
     prompt_source = "env"
@@ -102,8 +137,9 @@ async def get_system_settings():
 
 
 @router.get("/api/models-for-key")
-async def models_for_key(key_id: int):
-    """Fetch live model list dari provider kunci terpilih (60s cache)."""
+async def models_for_key(request: Request, key_id: int):
+    """Fetch live model list dari provider kunci terpilih (hanya admin)."""
+    require_admin(request)
     import httpx
 
     key_id = safe_int(key_id, 0)

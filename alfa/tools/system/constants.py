@@ -23,6 +23,18 @@ def is_unrestricted() -> bool:
     (termasuk sudo bila sudoers mengizinkan). Dibaca saat runtime."""
     return os.getenv("ALFA_UNRESTRICTED", "false").strip().lower() == "true"
 
+
+def _sandbox_network() -> str:
+    """Mode jaringan container sandbox (default: ``none`` = tanpa jaringan).
+
+    Sandbox menjalankan kode yang diusulkan LLM; kebijakan aman default
+    adalah memutus jaringan container (anti-ekskfiltrasi/anti-pindai LAN).
+    Override dengan ``ALFA_SANDBOX_NETWORK=bridge`` bila tugas ``benar-benar``
+    butuh jaringan di dalam sandbox (risiko ditanggung operator).
+    """
+    value = os.getenv("ALFA_SANDBOX_NETWORK", "none").strip()
+    return value or "none"
+
 _BASH_BLOCK_PATTERNS = [
     (r":\s*\(\s*\)\s*\{.*\}\s*;", "fork bomb"),
     (r"\bdd\s+[^\n]*of=/dev/(sd|hd|vd|nvme|mmcblk)", "tulis mentah ke disk fisik"),

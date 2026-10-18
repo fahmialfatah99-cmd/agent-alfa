@@ -18,7 +18,9 @@ router = APIRouter()
 
 
 @router.get("/api/system/home-dir")
-async def get_home_dir():
+async def get_home_dir(request: Request):
+    """Path home-dir proses (hanya admin — mengungkap username OS)."""
+    require_admin(request)
     """Return server-side home directory so frontend path regex works for any Linux username."""
     return {
         "home_dir": os.path.expanduser("~"),
@@ -27,8 +29,9 @@ async def get_home_dir():
 
 
 @router.get("/api/stats")
-async def get_stats():
-    """Live Linux system telemetry."""
+async def get_stats(request: Request):
+    """Live Linux system telemetry (hanya admin)."""
+    require_admin(request)
     try:
         raw_stats = tools.get_system_stats()
         cpu_pct = psutil.cpu_percent(interval=None)
@@ -150,8 +153,9 @@ async def execute_cli_terminal_command(payload: dict[str, Any], request: Request
 
 
 @router.get("/api/services")
-async def get_services_status():
-    """Get detailed status of all ecosystem services."""
+async def get_services_status(request: Request):
+    """Get detailed status of all ecosystem services (hanya admin)."""
+    require_admin(request)
     services = [
         {
             "name": "telegram-ai-bot.service",
@@ -285,8 +289,9 @@ async def service_action(payload: dict[str, Any], request: Request):
 
 
 @router.get("/api/services/logs")
-async def get_service_logs(service: str = "telegram-ai-bot.service", lines: int = 50):
-    """Fetch live service logs (journalctl di Linux, file log lokal di Windows)."""
+async def get_service_logs(request: Request, service: str = "telegram-ai-bot.service", lines: int = 50):
+    """Fetch live service logs (hanya admin — journalctl bisa bocorken isi chat)."""
+    require_admin(request)
     lines = max(10, min(int(lines), 500))
     if os.name == "nt":
         log_file = (

@@ -257,6 +257,10 @@ async def post_shutdown(application: Application):
 
 def main():
     """Main application launcher."""
+    from alfa.core.security_boot_guard import check_runtime_security
+
+    check_runtime_security("telegram-bot")
+
     if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token_here":
         logger.critical("TELEGRAM_BOT_TOKEN belum disetel di .env!")
         sys.exit(1)

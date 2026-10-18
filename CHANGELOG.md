@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Boot guard keamanan (`alfa/core/security_boot_guard.py`):** boot bot Telegram/Discord/dashboard DITOLAK bila `ALFA_UNRESTRICTED=true` + `DASHBOARD_HOST` publik; kombinasi unrestricted+host-exec kini wajib pengakuan eksplisit (`ALFA_UNRESTRICTED_ACK=yes`)
+- **WebSocket `/ws/terminal` dikeraskan:** auth wajib saat `DASHBOARD_AUTH_TOKEN` terisi; mode tanpa-token hanya loopback (127.0.0.1); validasi Origin semua channel WS (`/ws/terminal`, `/ws/logs`, `/ws/broadcast`) — menutup RCE cross-site
+- **Registrasi dashboard ditutup:** setelah bootstrap, `/api/auth/register` butuh invite token sekali-pakai (`POST /api/auth/invite`, admin-only, hash-only di DB) atau sesi admin; user pertama tetap bootstrap-admin
+- **Rate limit login & register** (in-memory sliding window, 429 + Retry-After)
+- **`GET /api/settings` kini admin-only** dan seluruh nilai rahasia `system_settings` (OAuth Google, kredensial SA, token) direduksi menjadi flag `_set` — tidak pernah lagi dikirim via HTTP
+- **`GET /api/models-for-key` kini admin-only** (proxy keluar berkunci server)
+- **Sandbox Docker diputus dari jaringan:** `--network none` default (override `ALFA_SANDBOX_NETWORK`); argumen docker run dikonsolidasi ke `_docker_common_args()` (bash + python)
+- `.env` contoh runtime direset ke mode aman (`ALFA_UNRESTRICTED=false`, `ALFA_ALLOW_HOST_EXEC=false`)
+
+### Added
+- 34 regression-test hardening (`tests/test_security_hardening.py`): boot guard, WS auth/origin, kebijakan registrasi, invite roundtrip, redaksi settings, argumen sandbox, rate limit
+
 ### Added
 - Durable swarm mission queue (`alfa/swarm/queue.py`, `/api/swarm/queue/*`, worker retry-backoff)
 - Opt-in LLM cache untuk generasi tanpa tool (`ALFA_LLM_CACHE`)

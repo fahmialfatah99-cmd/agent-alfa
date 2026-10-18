@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -36,7 +37,8 @@ async def get_pipeline_endpoint(pid: str):
 
 @router.post("/api/pipelines/{pid}/run")
 async def run_pipeline_endpoint(pid: str, request: Request):
-    """Jalankan pipeline; body JSON opsional: overrides variabel {"vars": {...}}."""
+    """Jalankan pipeline; body JSON opsional: overrides variabel {"vars": {...}} (hanya admin)."""
+    require_admin(request)
     from alfa.pipelines import engine as pl
 
     try:
@@ -59,7 +61,8 @@ async def run_pipeline_endpoint(pid: str, request: Request):
 
 @router.post("/api/pipelines/{pid}")
 async def save_pipeline_endpoint(pid: str, request: Request):
-    """Simpan/overwrite definisi pipeline dari Canvas Studio."""
+    """Simpan/overwrite definisi pipeline dari Canvas Studio (hanya admin)."""
+    require_admin(request)
     from alfa.pipelines import engine as pl
 
     try:
@@ -119,7 +122,8 @@ async def pipeline_runs_endpoint(pid: str, limit: int = 10):
 
 @router.post("/api/pipelines/{pid}/enable")
 async def pipeline_trigger_toggle_endpoint(pid: str, request: Request):
-    """Aktif/matikan trigger jadwal: body {"enabled": true/false}."""
+    """Aktif/matikan trigger jadwal: body {"enabled": true/false} (hanya admin)."""
+    require_admin(request)
     from alfa.pipelines import engine as pl
 
     try:
@@ -161,8 +165,9 @@ async def get_memory_data():
 
 
 @router.post("/api/memory/add")
-async def add_memory(payload: dict[str, Any]):
-    """Add a new memory fact or knowledge graph relation."""
+async def add_memory(request: Request, payload: dict[str, Any]):
+    """Add a new memory fact or knowledge graph relation (hanya admin)."""
+    require_admin(request)
     uid = get_primary_user_id()
     m_type = payload.get("type", "fact")
 
@@ -193,8 +198,9 @@ async def add_memory(payload: dict[str, Any]):
 
 
 @router.post("/api/memory/delete")
-async def delete_memory(payload: dict[str, Any]):
-    """Delete a memory fact by key."""
+async def delete_memory(request: Request, payload: dict[str, Any]):
+    """Delete a memory fact by key (hanya admin)."""
+    require_admin(request)
     uid = get_primary_user_id()
     key_topic = payload.get("key_topic")
     if not key_topic:
@@ -212,8 +218,9 @@ async def delete_memory(payload: dict[str, Any]):
 
 
 @router.get("/api/brain/export")
-async def export_brain():
-    """Export complete Second Brain knowledge as Markdown and JSON."""
+async def export_brain(request: Request):
+    """Export complete Second Brain knowledge as Markdown and JSON (hanya admin)."""
+    require_admin(request)
     uid = get_primary_user_id()
     memories = await database.get_all_memories(uid)
     kg = database.get_all_knowledge_graph_sync(uid)
@@ -270,8 +277,9 @@ async def api_vector_search(payload: dict[str, Any]):
 
 
 @router.post("/api/brain/vector/ingest")
-async def api_vector_ingest(payload: dict[str, Any]):
-    """Ingest, chunk, and embed a document or file into permanent Vector Brain."""
+async def api_vector_ingest(request: Request, payload: dict[str, Any]):
+    """Ingest, chunk, and embed a document or file into permanent Vector Brain (hanya admin)."""
+    require_admin(request)
     from alfa.memory import vector as vector_memory
 
     title = payload.get("title", "").strip()
@@ -299,8 +307,9 @@ async def api_vector_list():
 
 
 @router.post("/api/brain/vector/delete")
-async def api_vector_delete(payload: dict[str, Any]):
-    """Delete a document and its embedding chunks from Vector Brain."""
+async def api_vector_delete(request: Request, payload: dict[str, Any]):
+    """Delete a document and its embedding chunks from Vector Brain (hanya admin)."""
+    require_admin(request)
     from alfa.memory import vector as vector_memory
 
     doc_title = payload.get("doc_title", "").strip()

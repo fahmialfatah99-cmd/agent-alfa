@@ -35,7 +35,8 @@ class TestGetSystemSettings:
     def _call(self, sa):
         import asyncio
 
-        return asyncio.run(sa.get_system_settings())
+        # None request = konteks pemanggilan internal (admin-gate di HTTP layer)
+        return asyncio.run(sa.get_system_settings(None))
 
     def test_masks_long_secrets(self, db, tmp_path, monkeypatch):
         import alfa.dashboard.routes.system.settings_admin as sa

@@ -190,8 +190,9 @@ async def get_tools_list():
 
 
 @tools_router.post("/api/tools/execute")
-async def execute_tool(payload: dict[str, Any]):
-    """Execute any tool directly with supplied arguments."""
+async def execute_tool(request: Request, payload: dict[str, Any]):
+    """Execute any tool directly with supplied arguments (hanya admin)."""
+    require_admin(request)
     tool_name = payload.get("tool_name")
     args = payload.get("args", {})
 
@@ -324,8 +325,9 @@ async def api_plugins_delete(payload: dict[str, Any], request: Request):
 
 
 @tools_router.post("/api/plugins/execute")
-async def api_plugins_execute(payload: dict[str, Any]):
-    """Execute a dynamic plugin tool directly."""
+async def api_plugins_execute(request: Request, payload: dict[str, Any]):
+    """Execute a dynamic plugin tool directly (hanya admin)."""
+    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()

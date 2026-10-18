@@ -74,19 +74,17 @@ def _get_gdrive_service():
 
     if not creds:
         try:
-            with database.get_sync_db() as conn:
-                row = conn.execute(
-                    "SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'"
-                ).fetchone()
-                if row and row[0]:
-                    info = json.loads(row[0])
-                    creds = Credentials.from_authorized_user_info(
-                        info, scopes=info.get("scopes") or scopes
-                    )
-                    if creds and creds.expired and creds.refresh_token:
-                        from google.auth.transport.requests import Request
+            from alfa.integrations.gdrive import secret_store
 
-                        creds.refresh(Request())
+            info = secret_store.load_oauth_token(scopes)
+            if info:
+                creds = Credentials.from_authorized_user_info(
+                    info, scopes=info.get("scopes") or scopes
+                )
+                if creds and creds.expired and creds.refresh_token:
+                    from google.auth.transport.requests import Request
+
+                    creds.refresh(Request())
         except Exception:
             creds = None
 
@@ -114,17 +112,15 @@ def _get_gdrive_service():
 
     if not creds:
         try:
-            with database.get_sync_db() as conn:
-                row = conn.execute(
-                    "SELECT value FROM system_settings WHERE key = 'gdrive_credentials_json'"
-                ).fetchone()
-                if row and row[0]:
-                    info = json.loads(row[0])
-                    creds = service_account.Credentials.from_service_account_info(
-                        info, scopes=scopes
-                    )
+            from alfa.integrations.gdrive import secret_store
+
+            sa_info = secret_store.load_service_account_json()
+            if sa_info:
+                creds = service_account.Credentials.from_service_account_info(
+                    sa_info, scopes=scopes
+                )
         except Exception as e:
-            logger.error(f"Error loading gdrive credentials from database: {e}")
+            logger.error(f"Error loading gdrive credentials from vault/database: {e}")
 
     if not creds:
         raise ValueError(
@@ -141,12 +137,10 @@ def _detect_gdrive_auth_mode() -> str:
     if os.path.exists(oauth_file):
         return "oauth"
     try:
-        with database.get_sync_db() as conn:
-            row = conn.execute(
-                "SELECT value FROM system_settings WHERE key = 'gdrive_oauth_token_json'"
-            ).fetchone()
-            if row and row[0]:
-                return "oauth"
+        from alfa.integrations.gdrive import secret_store
+
+        if secret_store.load_oauth_token() is not None:
+            return "oauth"
     except Exception:
         pass
     cred_file = os.path.join(PROJECT_DIR, "gdrive_credentials.json")
@@ -256,16 +250,14 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> dict[str, A
         except OSError:
             pass
 
-        # Backup into DB so other services/processes share the same token
-        try:
-            with database.get_sync_db() as conn:
-                conn.execute(
-                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_token_json', ?)",
-                    (_json.dumps(token_data),),
-                )
-                conn.commit()
-        except Exception as db_err:
-            logger.warning(f"Could not mirror OAuth token to DB: {db_err}")
+        # Simpan terenkripsi AES-256-GCM di vault agar lintas proses/layanan
+        # berbagi token TANPA menulis plaintext ke system_settings.
+        from alfa.integrations.gdrive import secret_store
+
+        if not secret_store.save_secret(
+            secret_store.OAUTH_SECRET_NAME, _json.dumps(token_data)
+        ):
+            logger.warning("OAuth token gagal masuk vault; file 600 tetap jadi sumber.")
 
         return {
             "status": "success",
@@ -428,15 +420,12 @@ def gdrive_oauth_exchange_code(
         with open(token_file, "w", encoding="utf-8") as f:
             _json.dump(token_data, f, indent=2)
 
-        try:
-            with database.get_sync_db() as conn:
-                conn.execute(
-                    "INSERT OR REPLACE INTO system_settings (key, value) VALUES ('gdrive_oauth_token_json', ?)",
-                    (_json.dumps(token_data),),
-                )
-                conn.commit()
-        except Exception as db_err:
-            logger.warning(f"Could not mirror OAuth token to DB: {db_err}")
+        from alfa.integrations.gdrive import secret_store
+
+        if not secret_store.save_secret(
+            secret_store.OAUTH_SECRET_NAME, _json.dumps(token_data)
+        ):
+            logger.warning("OAuth token gagal masuk vault; file 600 tetap jadi sumber.")
 
         return {
             "status": "success",
@@ -460,6 +449,12 @@ def gdrive_oauth_logout() -> dict[str, Any]:
             removed = True
         except OSError:
             pass
+    try:
+        from alfa.integrations.gdrive import secret_store
+
+        secret_store.delete_secret(secret_store.OAUTH_SECRET_NAME)
+    except Exception:
+        pass
     try:
         with database.get_sync_db() as conn:
             conn.execute(

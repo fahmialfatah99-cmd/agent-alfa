@@ -343,6 +343,10 @@ def _tg_owner_uid() -> int:
 
 
 def main() -> None:
+    from alfa.core.security_boot_guard import check_runtime_security
+
+    check_runtime_security("discord-bot")
+
     import discord
 
     token = _discord_token()

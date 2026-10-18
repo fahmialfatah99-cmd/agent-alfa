@@ -109,6 +109,14 @@ async def lifespan(app: FastAPI):
         init_auth_db()
     except Exception as e:
         logger.error(f"Gagal inisialisasi auth database di lifespan startup: {e}")
+    try:
+        from alfa.integrations.gdrive import secret_store as _gs
+
+        report = _gs.migrate_legacy_plaintext()
+        if any(report.values()):
+            logger.info(f"GDrive secret migrasi plaintext→vault: {report}")
+    except Exception as e:
+        logger.debug(f"GDrive secret migration dilewati: {e}")
     asyncio.create_task(_pipeline_trigger_scheduler())
     asyncio.create_task(_malloc_trim_loop())
     yield
@@ -139,6 +147,11 @@ def _check_security_config():
             )
     else:
         logger.info("Dashboard authentication enabled (Bearer token + Basic auth)")
+
+    # Guard kombinasi env berbahaya (unrestricted + bind publik, dll.)
+    from alfa.core.security_boot_guard import check_runtime_security
+
+    check_runtime_security("dashboard")
 
 
 def create_app() -> FastAPI:

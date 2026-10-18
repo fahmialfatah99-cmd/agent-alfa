@@ -199,6 +199,14 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
     status_code = 200
     engine_used = "httpx"
 
+    # SSRF guard: URL internal/loopback selalu ditolak
+    from alfa.security.net_guard import UnsafeUrlError, assert_public_http_url
+
+    try:
+        assert_public_http_url(url)
+    except UnsafeUrlError as ssrf_err:
+        return {"status": "error", "message": str(ssrf_err)}
+
     # Tier 1: Fast HTTPX with Chrome/Linux Headers
     try:
         import httpx
