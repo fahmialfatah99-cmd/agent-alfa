@@ -126,7 +126,7 @@ ignore = ["E501", "B006"]
 # ==== lint budget TRY/BLE (dibuat otomatis: scripts/lint_budget.py) ====
 "alfa/bot/advanced_commands.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:18,TRY300:2,TRY400:6
 "alfa/bot/basic_commands.py" = ["BLE001"]  # n=BLE001:1
-"alfa/bot/config.py" = ["BLE001", "TRY400"]  # n=BLE001:5,TRY400:1
+"alfa/bot/config.py" = ["BLE001"]  # n=BLE001:4
 "alfa/bot/discord_bot.py" = ["BLE001", "TRY400"]  # n=BLE001:46,TRY400:6
 "alfa/bot/handlers.py" = ["BLE001", "TRY400"]  # n=BLE001:18,TRY400:6
 "alfa/bot/helpers.py" = ["BLE001", "TRY400"]  # n=BLE001:9,TRY400:1
@@ -142,7 +142,7 @@ ignore = ["E501", "B006"]
 "alfa/core/brain/cache.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:1
 "alfa/core/brain/client.py" = ["BLE001"]  # n=BLE001:2
 "alfa/core/brain/convo.py" = ["BLE001"]  # n=BLE001:1
-"alfa/core/brain/tool_exec.py" = ["BLE001", "TRY003"]  # n=BLE001:14,TRY003:1
+"alfa/core/brain/tool_exec.py" = ["BLE001", "TRY003"]  # n=BLE001:9,TRY003:1
 "alfa/core/brain/tool_schema.py" = ["BLE001", "TRY400"]  # n=BLE001:3,TRY400:1
 "alfa/core/cli/agent_engine/parsing.py" = ["BLE001"]  # n=BLE001:4
 "alfa/core/cli/agent_engine/patch_history.py" = ["BLE001"]  # n=BLE001:5
@@ -170,8 +170,8 @@ ignore = ["E501", "B006"]
 "alfa/core/config.py" = ["BLE001"]  # n=BLE001:1
 "alfa/core/db/agents.py" = ["BLE001"]  # n=BLE001:5
 "alfa/core/db/connection.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:6,TRY003:1,TRY300:1
-"alfa/core/db/crypto.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:1
-"alfa/core/db/keys.py" = ["BLE001", "TRY400"]  # n=BLE001:11,TRY400:1
+"alfa/core/db/crypto.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:1
+"alfa/core/db/keys.py" = ["BLE001", "TRY400"]  # n=BLE001:6,TRY400:1
 "alfa/core/db/memory.py" = ["BLE001"]  # n=BLE001:1
 "alfa/core/db/tasks.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:1
 "alfa/core/metrics.py" = ["BLE001"]  # n=BLE001:5
@@ -197,7 +197,7 @@ ignore = ["E501", "B006"]
 "alfa/dashboard/routes/system/settings_admin.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:2
 "alfa/dashboard/routes/system/sites_routes.py" = ["TRY300", "TRY301"]  # n=TRY300:1,TRY301:1
 "alfa/dashboard/routes/system/telemetry.py" = ["BLE001"]  # n=BLE001:3
-"alfa/dashboard/routes/system/whatsapp.py" = ["BLE001", "TRY300"]  # n=BLE001:14,TRY300:1
+"alfa/dashboard/routes/system/whatsapp.py" = ["BLE001", "TRY300"]  # n=BLE001:4,TRY300:1
 "alfa/dashboard/routes/tools.py" = ["BLE001", "TRY300", "TRY301"]  # n=BLE001:5,TRY300:2,TRY301:1
 "alfa/dashboard/routes/webhook.py" = ["BLE001", "TRY400"]  # n=BLE001:4,TRY400:1
 "alfa/dashboard/websocket.py" = ["BLE001"]  # n=BLE001:10
@@ -317,10 +317,13 @@ ignore = ["E501", "B006"]
 "alfa/tools/system_tools.py" = ["F401"]
 "alfa/core/database.py" = ["F401", "E402", "BLE001", "TRY400"]  # n=BLE001:1,TRY400:1
 
+
 "alfa/bot/telegram_bot.py" = ["F401", "BLE001"]  # n=BLE001:2
+
 
 # App factory reads env (ensure_env_loaded) before importing env-dependent routers — order is intentional
 "alfa/dashboard/app.py" = ["E402", "BLE001", "TRY003"]  # n=BLE001:8,TRY003:1
+
 
 
 [tool.mypy]

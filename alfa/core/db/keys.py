@@ -3,6 +3,7 @@ API Key Multi-Provider Vault & Brain Model configuration.
 """
 
 import logging
+import sqlite3
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
@@ -43,7 +44,7 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                 p = (r["provider"] or "").lower().strip()
                 try:
                     dec = decrypt_key(r["api_key"]).strip()
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     dec = (r["api_key"] or "").strip()
                 if dec:
                     existing_keys.add(f"{p}:{dec}")
@@ -303,7 +304,7 @@ def get_main_brain_model() -> str:
                 "SELECT value FROM system_settings WHERE key = 'main_brain_model'"
             ).fetchone()
             return (row[0] or "").strip() if row else ""
-    except Exception:
+    except (sqlite3.Error, TypeError):
         return ""
 
 
@@ -321,7 +322,7 @@ def get_api_key_by_id_sync(key_id: int) -> dict[str, Any] | None:
             res = dict(row)
             res["api_key"] = decrypt_key(res["api_key"])
             return res
-    except Exception as e:
+    except (sqlite3.Error, TypeError) as e:
         logger.error(f"Error fetching API key #{key_id}: {e}")
         return None
 
@@ -337,7 +338,7 @@ def get_main_brain_key_id() -> int | None:
                 LIMIT 1
                 """).fetchone()
             return int(row[0]) if row else None
-    except Exception:
+    except (sqlite3.Error, TypeError, ValueError):
         return None
 
 
@@ -393,7 +394,7 @@ def list_active_keys_sync(exclude_provider: str = "") -> list[dict[str, Any]]:
                     continue
                 try:
                     d["api_key"] = decrypt_key(d.get("api_key") or "")
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     continue
                 out.append(d)
     except Exception as e:

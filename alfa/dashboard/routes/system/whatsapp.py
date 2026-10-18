@@ -140,7 +140,7 @@ def _log_wa_drive_upload(entry: dict[str, Any]):
             try:
                 with open(WA_DRIVE_UPLOADS_FILE, encoding="utf-8") as f:
                     data = json.load(f) or data
-            except Exception:
+            except (OSError, ValueError):
                 pass
         uploads = data.get("uploads", [])
         uploads.insert(0, entry)
@@ -149,7 +149,7 @@ def _log_wa_drive_upload(entry: dict[str, Any]):
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
         os.replace(tmp, WA_DRIVE_UPLOADS_FILE)
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         logger.warning(f"Could not log wa drive upload: {e}")
 
 
@@ -192,7 +192,9 @@ async def get_wa_qr():
                 "qr_data_url": qr_data_url,
                 "timestamp": data.get("updated_at", ""),
             }
-        except Exception:
+        except (ImportError, OSError, ValueError):
+            # qrcode library opsional (ImportError) + B64/qr/img.save gagal
+            # → fallback status DISCONNECTED standar
             pass
 
     return {
@@ -244,13 +246,13 @@ async def get_wa_reports():
         try:
             with open(reports_file) as f:
                 reports_data = json.load(f)
-        except Exception:
+        except (OSError, ValueError):
             pass
     if os.path.exists(formats_file):
         try:
             with open(formats_file) as f:
                 formats_data = json.load(f).get("formats", [])
-        except Exception:
+        except (OSError, ValueError, AttributeError):
             pass
 
     return {
@@ -278,7 +280,7 @@ async def get_wa_media_rules():
                 data = json.load(f)
             result["exists"] = True
             result["rules"] = data.get("rules", []) if isinstance(data, dict) else []
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         result["status"] = "error"
         result["message"] = f"Gagal membaca media_rules.json: {e}"
     return result
@@ -323,7 +325,7 @@ async def save_wa_media_rules(payload: dict[str, Any]):
             "saved": len(clean),
             "message": f"{len(clean)} aturan media tersimpan. Bot langsung memakainya.",
         }
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         return {
             "status": "error",
             "message": f"Gagal menyimpan media_rules.json: {str(e)}",
@@ -341,7 +343,7 @@ async def get_wa_drive_uploads():
             ups = data.get("uploads", []) if isinstance(data, dict) else []
             result["uploads"] = ups
             result["total"] = len(ups)
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         result["status"] = "error"
         result["message"] = str(e)
     return result
@@ -415,7 +417,7 @@ async def get_wa_formats():
             result["formats"] = (
                 data.get("formats", []) if isinstance(data, dict) else []
             )
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         result["status"] = "error"
         result["message"] = f"Gagal membaca formats.json: {e}"
     return result
@@ -464,5 +466,5 @@ async def save_wa_formats(payload: dict[str, Any]):
             "backup": WA_BOT_FORMATS_FILE + ".bak",
             "message": f"{len(clean)} format laporan tersimpan. Bot WhatsApp langsung memakainya (tanpa restart).",
         }
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         return {"status": "error", "message": f"Gagal menyimpan formats.json: {str(e)}"}

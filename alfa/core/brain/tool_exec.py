@@ -22,7 +22,7 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
     try:
         _d = json.loads(raw_str)
         return _d if isinstance(_d, dict) else {}
-    except Exception:
+    except ValueError:
         pass
     # Strip markdown codeblocks
     if raw_str.startswith("```"):
@@ -34,7 +34,7 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
     try:
         _d = json.loads(raw_str)
         return _d if isinstance(_d, dict) else {}
-    except Exception:
+    except ValueError:
         pass
     # Hapus trailing comma
 
@@ -42,7 +42,7 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
     try:
         _d = json.loads(cleaned)
         return _d if isinstance(_d, dict) else {}
-    except Exception:
+    except ValueError:
         pass
     try:
         import ast
@@ -50,7 +50,7 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
         val = ast.literal_eval(raw_str)
         if isinstance(val, dict):
             return val
-    except Exception:
+    except (ValueError, SyntaxError, TypeError):
         pass
     raise ValueError("Argumen tool bukan JSON valid.")
 
@@ -67,7 +67,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         return f"[ERROR] Tool '{name}' tidak ditemukan. Silakan periksa daftar tool yang tersedia."
     try:
         args = _clean_json_args(arguments_json)
-    except Exception as err:
+    except ValueError as err:
         return f"[ERROR format JSON] {err}. Pastikan argumen dalam format JSON valid."
 
     # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)

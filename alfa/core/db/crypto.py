@@ -7,6 +7,8 @@ import logging
 import os
 import sqlite3
 
+from cryptography.exceptions import InvalidTag
+
 logger = logging.getLogger("DB.Crypto")
 
 _ENC_PREFIX = "enc1:"
@@ -53,7 +55,9 @@ def decrypt_key(stored: str) -> str:
                 base64.b64decode(nonce_b64), base64.b64decode(ct_b64), None
             ).decode("utf-8")
         )
-    except Exception:
+    except (InvalidTag, TypeError, ValueError):
+        # InvalidTag: korek/key salah; ValueError: format/b64 rusak;
+        # TypeError: input non-str — semua → perlakukan sebagai plaintext-gagal.
         return ""
 
 
