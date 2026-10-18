@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Backlog upgrade (2026-10-18)
+- **Passkey/WebAuthn end-to-end:** endpoint register/login passkey dengan verifikasi kriptografis nyata (python-webauthn, ES256/P-256, attestation none), challenge server-side sekali-pakai, `sign_count` anti-klon, penyimpanan kredensial DB, UI `static/webauthn.html`; RP ID wajib hostname (IP ditolak) — SECURITY.md/README masa kini, bukan roadmap
+- **MCP ekspansi:** transport HTTP streamable (`alfamcp/http_server.py`, token `ALFA_MCP_HTTP_TOKEN` wajib fail-closed + DNS-rebinding guard) sebagai pelengkap stdio; MCP resources `alfa://status` dan `alfa://tools/catalog`; route admin `/api/mcp/status` + handshake di uji kriptografik; test +5 kelas
+- **Lint budget TRY/BLE:** rules `TRY*` & `BLE*` AKTIF penuh di ruff; utang legacy 1282 instans dipatok per-instansi di region budget `pyproject.toml` (regen `scripts/lint_budget.py --apply`; CI gagal bila instans bertambah)
+- **mkdocs strict:** site material `mkdocs build --strict` hijau; registry nav 11 halaman + landing `docs/index.md` + salinan sinkron `docs/{about,security,CHANGELOG}.md` (regen `scripts/build_docs.py`); job CI Docs
+- **Startup lazy:** `google.genai` (±1.4 s) tidak lagi diimpor saat boot — `alfa/bot/config.gemini_client` inilah None (dibangun saat API dipakai), `alfa/swarm/llm_client._ensure_genai()` on-demand; bootstrap import: `telegram_bot` 2135→604 ms, `dashboard.app` 2444→1174 ms; dijaga test regresi subprocess
+
 ### Changed — Arsitektur (P1)
 - **Config service tunggal (`alfa/core/config.py`):** `.env` dimuat **satu kali per proses** dengan `override=False` — menggantikan 6 titik `load_dotenv()` tersebar (dashboard/common, app, bot/config, brain/client, input_automation) + helper `env_str/env_int/env_float/env_bool`
 - **Anti-siklus impor (`alfa/core/notification.py`):** port notifikasi + adapter; `affiliate_engine` & `management` kini tidak mengimpor `alfa.bot` — bot mendaftarkan diri ke port saat dimuat
@@ -16,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Jalur persistence yang terdiam kini terylog (reflection)
 
 ### Docs — Ketelitian Klaim
-- Passkey/WebAuthn diposisikan sebagai **roadmap** (flag status eksperimental, belum ada challenge kriptografis end-to-end); vault AES-256-GCM + admin-gate tetap faktual (SECURITY.md, README)
+- Klaim passkey/WebAuthn "roadmap" pada putaran ini telah digantikan implementasi nyata (lihat blok Added); klaim kini jujur termasuk batasnya (RP ID hostname, HTTPS produksi)
 
 ### Removed — Root shim legacy
 - **37 file shim root dihapus** (`database.py`, `tools.py`, `web_dashboard.py`, `bot.py`, dll.) — semuanya fasad back-compat murni yang memetakan ke paket `alfa.*`; konsumen terakhir dimigrasi:
