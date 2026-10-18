@@ -101,3 +101,6 @@ desktop.ini
 htmlcov/
 node_modules/
 devcli/node_modules/
+
+# mkdocs build artifact
+site/

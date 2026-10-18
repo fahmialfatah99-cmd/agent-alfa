@@ -16,8 +16,25 @@ jobs:
           python-version: "3.12"
       - name: Install ruff
         run: pip install ruff
-      - name: "Ruff check - gate bug nyata (F/E/B006)"
+      - name: "Ruff check - gate bug nyata (F/E/B/W/I/N/UP/YTT + TRY/BLE budget)"
         run: ruff check .
+      - name: Enforce TRY/BLE lint budget (must not grow)
+        run: python scripts/lint_budget.py --check
+
+  docs:
+    name: Docs (mkdocs strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install mkdocs
+        run: pip install mkdocs mkdocs-material
+      - name: Cek salinan dokumen sinkron
+        run: python scripts/build_docs.py --check
+      - name: Build strict
+        run: mkdocs build --strict
 
   type-check:
     name: Type Check (mypy)

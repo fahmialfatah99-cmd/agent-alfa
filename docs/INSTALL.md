@@ -121,6 +121,7 @@ Sisanya boleh default dulu. Simpan file.
 
 ---
 
+<a id="7-jalankan--verifikasi-pertama"></a>
 ## 7. Jalankan & Verifikasi Pertama
 
 ```bash

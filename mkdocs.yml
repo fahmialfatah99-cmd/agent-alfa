@@ -1,0 +1,60 @@
+site_name: ALFA Sovereign AI
+site_description: >-
+  Ekosistem AI otonom terpadu: multi-agent swarm, 162 tools, brain RAG hibrido,
+  dashboard Web command center, bot Telegram/Discord, vault AES-256-GCM.
+site_url: https://example.invalid/alfa-doc
+repo_url: https://github.com/fahmial/agent-alfa
+repo_name: agent-alfa
+
+theme:
+  name: material
+  language: id
+  features:
+    - navigation.top
+    - navigation.expand
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    # Dark default (nilai dark-950 ala dashboard)
+    - scheme: slate
+      primary: cyan
+      accent: teal
+      toggle:
+        icon: material/moon-waning-crescent
+        name: Gelap
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Terang
+
+nav:
+  - Beranda: index.md
+  - README: about.md
+  - Instalasi: INSTALL.md
+  - Arsitektur:
+      - Discord/TG Core: DISCORD_BOT_CORE_ARCHITECTURE.md
+  - Keamanan: security.md
+  - Testing: TESTING.md
+  - Kualitas Kode: CODE_QUALITY.md
+  - Benchmark: BENCHMARK.md
+  - Efisiensi: EFFICIENCY.md
+  - PostgreSQL: POSTGRES.md
+  - Changelog: CHANGELOG.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+strict: true
+not_in_nav: |
+  docs/superpowers/
+  history/

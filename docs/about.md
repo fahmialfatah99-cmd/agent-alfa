@@ -1,0 +1,290 @@
+<!-- COPY SINKRON dari /README.md — jangan edit manual; jalankan scripts/build_docs.py -->
+
+# ⚡ ALFA // Sovereign AI Agent Ecosystem & Command Center
+
+<div align="center">
+
+![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI%20v3.5-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
+[![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
+![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google-Gemini%203.x-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API%20v21-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
+
+**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 162 Sovereign Tools, Master Scraper, Passkey Vault, Web Command Center, dan Jembatan Discord.**
+
+[Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
+
+</div>
+
+---
+
+## 🌟 Fitur Unggulan
+
+> Terukur: 162 tools, 46 perintah Telegram, 5 slash Discord, 794 uji hijau —
+> detail historis di [docs/BENCHMARK.md](BENCHMARK.md).
+
+### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
+* **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom membedah masalah dan merumuskan Action Plan.
+* **Mode 2 (Eksekusi Nyata Otonom):** Agen AI langsung mengeksekusi kode, scraping data, menulis skrip, dan membuat file deliverable (`CSV`, `JSON`, `Python`) yang otomatis tersimpan di `~/Dokumen/ALFA_SWARM_OUTPUTS` dan langsung dikirimkan ke chat Telegram.
+
+### 2. 🧬 Self-Evolution & Dynamic Plugin Generator
+* **Hot-Reloading Tanpa Restart:** Kemampuan ALFA untuk menciptakan alat Python baru secara otonom saat menghadapi tugas baru.
+* **Sandbox Verification:** Kode plugin baru otomatis divalidasi via AST Parser, diuji di sandbox, dan langsung aktif di RAM tanpa perlu mematikan bot.
+
+### 3. ⚡ Neural Vector Memory & Hybrid RAG (Super Second Brain)
+* **Pencarian Semantik Kontekstual:** Menggunakan vector embedding (`gemini-embedding-001` + fallback lokal) dan cosine similarity ranking.
+* **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.py`) ke dalam memori semantik permanen untuk pencarian berbasis makna.
+
+### 4. 📁 Google Drive & Google Cloud Suite (Drive API v3)
+* **Integrasi Resmi Google Cloud IAM:** Mendukung Service Account JSON Key dan OAuth2 untuk akses cloud sovereign tanpa batasan.
+* **Auto-Upload & Cloud Backup:** Mengunggah file laporan (`.pdf`, `.xlsx`, `.docx`, gambar, zip) otomatis ke Google Drive dan mengembalikan tautan sharing publik.
+* **1-Click Sync ke Second Brain:** Mengunduh dan mengindeks dokumen dari folder Google Drive langsung ke Neural Vector Brain untuk pencarian semantik instan.
+* **Web Drive Explorer:** File manager interaktif di dashboard untuk membuat folder, mengunggah file langsung dari browser, dan mengelola izin berbagi.
+
+### 5. 🛠️ 140+ Real Sovereign Tools & Interactive Workbench
+* **Scraping & Modern Web Intelligence:**
+  * 📄 **MarkItDown (Microsoft):** Konversi dokumen Word/PowerPoint/Excel, PDF, Audio, HTML ke Markdown LLM.
+  * 🛡️ **Scrapling:** Stealth scraper anti-deteksi untuk bypass Cloudflare & Akamai.
+  * 🕷️ **Scrapy & Parsel:** Ekstraksi dataset terstruktur berkecepatan tinggi via CSS/XPath.
+  * 🌐 **Crawlee (Apify):** Crawler tangguh dengan request queueing dan deduplikasi otomatis.
+  * 🤖 **Crawl4AI:** Web crawler khusus LLM dengan ekstraksi fit-markdown, link, dan media.
+  * 🧭 **Browser-Use Agent:** Agen AI otonom untuk navigasi multi-step browser & pengisian form.
+  * 🔥 **Firecrawl:** Scraper cerdas cloud + sovereign local engine fallback.
+  * 📱 **Scrcpy & ADB:** Kontrol penuh smartphone Android (Screenshot, Touch Tap, Keyevents, Screen Mirroring).
+* **System & Diagnostic:** Live telemetri CPU/RAM, storage vacuum, service manager.
+* **Network & Security:** Speedtest benchmark CDN, WHOIS & SSL expiry inspector, audit port jaringan.
+* **Marketplace & Finance:** Real-time crypto & forex ticker (CoinGecko + ExchangeRate API), generator QR Code resolusi tinggi.
+* **Vision & Media:** Screenshot desktop, koordinat klik AI, Edge-TTS audio, konversi media FFmpeg.
+
+### 6. 🌐 Web Command Center & Live Telemetry (Port 8080)
+* **Light / Dark Mode:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
+* **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
+* **Encrypted Credential Vault:** Penyimpanan kredensial terenkripsi AES-256-GCM dengan proteksi admin-gate. Passkey/WebAuthn end-to-end aktif (`static/webauthn.html`, challenge kriptografis via python-webauthn).
+* **Google Drive Cloud Hub:** Manajemen kredensial Google Cloud, upload & download file, serta sinkronisasi memori RAG.
+
+### 7. 📊 Operasi Terukur: Antrean, Eval & Keamanan Berlapis
+* **Antrean Misi Durable:** Swarm mission queue SQLite (claim atomik, retry backoff) + worker systemd + endpoint `/api/swarm/queue/*`.
+* **Eval & Benchmark:** 20 golden task offline di CI, live eval mingguan berbiaya terukur (`docs/EFFICIENCY.md`), paket head-to-head terbuka.
+* **Keamanan:** Permission gate + trust score, RBAC admin di 15 endpoint sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
+
+### 8. 💬 Jembatan Discord, Galeri Situs & Digest Cerdas
+* **Bot Discord penuh:** chat (memori bersama Telegram), `!swarm`, `!sites`, `!play` musik VC, mode Jarvis dengar-jawab suara (`!join`), cermin war-room live, digest WA harian, 5 slash command (`/tanya /swarm /situs /misi /gabung`). Service: `alfa-discord-bot.service`.
+* **Galeri Situs (`/sites`):** semua website/proyek hasil agent (swarm outputs + `~/alfa_projects`) otomatis terdaftar, bisa dihidupkan/dimatikan/lihat log dari Telegram. Situs baru memicu notifikasi instan.
+* **Digest WA Cerdas (`/waringkas`):** statistik + sorotan AI + terbaru, otomatis tiap 07:00 ke Telegram & Discord. Tanpa autoreply.
+* **Kejujuran Berlapis:** HUKUM JUJUR di prompt (label SELESAI/SEBAGIAN/GAGAL), verifier mekanis swarm, circuit breaker provider, scanner dummy `audit_project_honesty`.
+
+---
+
+## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
+
+> 📖 **Baru pertama kali?** Ikuti tutorial lengkap dari nol sampai siap pakai:
+> **[docs/INSTALL.md](INSTALL.md)** — termasuk cara membuat bot BotFather,
+> mengambil API key, whitelist keamanan, checklist verifikasi, dan troubleshooting.
+
+### 🐧 1. Linux (Ubuntu, Debian, Arch, Fedora)
+```bash
+# Prasyarat: Python 3.10+, Git, dan Docker (untuk sandbox eksekusi aman)
+sudo apt install docker.io && sudo usermod -aG docker $USER   # lalu logout-login
+
+# Clone repository
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
+cd telegram-ai-bot
+
+# Jalankan 1-Click Interactive Setup Wizard
+chmod +x setup.sh run.sh
+./setup.sh
+
+# Jalankan langsung di terminal:
+./run.sh
+
+# Atau aktifkan service background 24/7 (Systemd):
+mkdir -p ~/.config/systemd/user && cp deploy/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service alfa-discord-bot.service
+```
+
+---
+
+### 🍏 2. macOS (MacBook, Mac Mini, iMac)
+```bash
+# Prasyarat: Python 3.10+, Git; Docker Desktop disarankan untuk sandbox
+git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
+cd telegram-ai-bot
+
+# Beri izin eksekusi dan jalankan
+chmod +x setup.sh run.sh
+./run.sh
+```
+* Buka Web Dashboard di Safari/Chrome: **[http://localhost:8080](http://localhost:8080)**.
+* Notifikasi desktop otomatis menggunakan **AppleScript Native macOS**.
+
+---
+
+### 🪟 3. Windows (Windows 10 / 11)
+1. **Clone repository:**
+   ```cmd
+   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
+   cd agent-alfa
+   ```
+2. **Double-Click (Klik 2x) file `setup.bat`** untuk panduan setup otomatis interaktif pertama kali.
+3. Setelah setup selesai, cukup **Double-Click `run.bat`** kapan saja untuk langsung meluncurkan Command Center & Bot!
+4. Notifikasi desktop otomatis menggunakan **PowerShell Windows Toast Notification**.
+
+---
+
+## ⚙️ Konfigurasi Environment (.env)
+
+Salin `.env.example` menjadi `.env` dan isi token Anda:
+
+```env
+# Token dari @BotFather di Telegram (Wajib)
+TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+
+# API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
+GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
+
+# Model Gemini default (hanya yang terverifikasi hidup)
+GEMINI_MODEL="gemini-3.5-flash-lite"
+
+# Telegram User ID yang diizinkan (WAJIB DIISI - fail-safe: kosong = semua akses ditolak.
+# Jangan pernah jalankan bot ini publik tanpa whitelist karena bot bisa mengeksekusi
+# perintah di mesin Anda!)
+ALLOWED_USER_IDS="123456789"
+
+# Nama Anda — AI akan menyapa & mempersonalisasi prompt dengan nama ini
+OWNER_NAME="Nama Kamu"
+
+# Persona / Karakter Utama AI
+SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif, proaktif, dan handal."
+```
+
+*(Atau Anda bisa mengaturnya langsung melalui menu **`⚙️ System Settings`** di browser [http://localhost:8080](http://localhost:8080))*
+
+---
+
+## 📌 Daftar Perintah Telegram
+
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `/start` | Membuka pesan selamat datang & status kesiapan agen |
+| `/menu` | Membuka Menu Interaktif dengan tombol navigasi cepat |
+| `/swarm <tugas>` | **Mode Eksekusi:** Menugaskan tim AI Swarm untuk langsung bekerja dan menghasilkan deliverable nyata |
+| `/rapat <topik>` | **Mode Rapat:** Diskusi strategis antar 6 agen spesialis untuk merumuskan Action Plan |
+| `/stats` | Menampilkan metrik performa CPU, RAM, Disk, Uptime, dan Baterai laptop |
+| `/vault` | Membuka brankas Passkey Vault & melihat kredensial tersimpan |
+| `/memory` | Menampilkan ingatan fakta jangka panjang (Second Brain) |
+| `/clear` | Mereset riwayat chat percakapan saat ini |
+| `/help` | Menampilkan panduan lengkap penggunaan seluruh fitur |
+| `/sites` | Galeri website/proyek hasil agent + hidupkan/matikan dari Telegram |
+| `/budget` | Monitor kuota token harian |
+| `/waringkas [format]` | Digest cerdas WA + sorotan AI |
+| `/swarm template [nama]` | Misi swarm siap pakai (audit-server, bersih-cache, …) |
+
+---
+
+## 🧰 Tools Catalog & Interactive Workbench
+
+Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)) **100% interaktif dan dapat dieksekusi langsung**:
+1. Klik kartu tool mana saja di web dashboard.
+2. Form parameter akan otomatis digenerate sesuai signature fungsi Python.
+3. Klik tombol **Eksekusi Tool Sekarang** untuk melihat output JSON dan durasi eksekusi dalam milidetik (ms).
+
+---
+
+## 🔒 Keamanan & Privasi
+
+* **Whitelist Wajib:** Bot menolak semua akses bila `ALLOWED_USER_IDS` kosong (fail-safe). Satu instance = satu pemilik. JANGAN jalankan publik tanpa whitelist.
+* **Sandbox Docker:** Eksekusi bash/python berjalan terisolasi dengan limit resource; tanpa Docker, eksekusi jatuh ke host tanpa isolasi (instal Docker!).
+* **Zero Cloud Leak:** Database, memori vektor, dan log tersimpan 100% lokal di SQLite (`agent_data.db`).
+* **Dashboard Auth & Audit:** Sesi cookie aman + HMAC webhook + log audit akses; login passkey WebAuthn end-to-end: challenge salah-pakai, verifikasi kripto ES256, anti-klon via sign_count.
+* **Grounded ReAct Engine:** AI dilarang berasumsi atau berhalusinasi tanpa grounding fakta dari eksekusi tool nyata.
+
+---
+
+## 📄 Lisensi
+Didistribusikan di bawah lisensi **MIT License**. Silakan gunakan, modifikasi, dan kembangkan untuk kebutuhan pribadi maupun komersial.
+
+---
+
+## 💻 Mode CLI Interaktif: Panduan Cepat
+
+Mode ini adalah **Terminal Client** untuk berinteraksi dengan ALFA Agent melalui command line.
+
+### ✨ Cara Menggunakan
+
+1. **Instalasi Paket ALFA:**
+   ```bash
+   cd /path/to/agent-alfa
+   pip install -e .
+   ```
+
+2. **Jalankan CLI:**
+   ```bash
+   # Menggunakan command yang terinstall
+   alfa-cli
+   
+   # Atau menggunakan module Python
+   python -m alfa.cli
+   
+   # Dengan server custom
+   alfa-cli --server http://192.168.1.100:8080
+   ```
+
+3. **Login dan Mulai Chat:**
+   ```bash
+   alfa> register  # Daftar akun baru
+   alfa> login     # Login ke akun
+   alfa> Halo, apa kabar?  # Chat dengan AI
+   alfa> stats     # Lihat statistik sistem
+   alfa> exit      # Keluar
+   ```
+
+### 📋 Perintah CLI Tersedia
+
+| Perintah | Deskripsi |
+|----------|-----------|
+| `register` | Daftar akun baru di server ALFA |
+| `login` | Login ke akun Anda |
+| `logout` | Logout dari akun saat ini |
+| `stats` | Tampilkan statistik sistem ALFA |
+| `tools` | Daftar tools yang tersedia |
+| `clear` | Bersihkan layar terminal |
+| `exit` / `q` | Keluar dari aplikasi CLI |
+| *chat biasa* | Kirim pesan teks ke AI untuk diproses |
+
+### 🔧 Environment Variables
+
+- `ALFA_SERVER`: URL server ALFA (default: `http://localhost:8080`)
+
+### 📦 Struktur Paket alfa
+
+```
+alfa/
+├── __init__.py       # Package metadata & exports
+├── __main__.py       # Entry point untuk python -m alfa
+├── cli.py            # Command-line interface implementation
+└── core/
+    ├── __init__.py   # Core module initialization
+    └── brain.py      # Main reasoning engine
+```
+
+Untuk dokumentasi lengkap, lihat **[alfa-cli/README.md](https://github.com/fahmialfatah99-cmd/agent-alfa/tree/main/alfa-cli)**
+
+---
+
+## 🚀 Script Instalasi Cepat (Sekali Copas)
+
+Untuk memastikan semua tools terinstal dengan benar di sistem Anda, gunakan script berikut:
+
+### 🐧 Linux (Ubuntu/Debian/Mint)
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install -y build-essential cmake gdb valgrind git curl wget unzip pkg-config libssl-dev libffi-dev python3-pip python3-venv software-properties-common && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo pip3 install --break-system-packages pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab && sudo npm install -g typescript ts-node nodemon eslint prettier && echo "=== VERIFIKASI ===" && python3 --version && node --version && g++ --version | head -n 1 && tsc --version && python3 -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')" && echo "🚀 Setup Selesai! Siap untuk Coding Berat."
+```
+
+### 🪟 Windows (PowerShell - Run as Administrator)
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); choco install -y git python nodejs-lts visualstudio2022buildtools cmake --params "--includeRecommended"; refreshenv; pip install pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab; npm install -g typescript ts-node nodemon eslint prettier; Write-Host "=== VERIFIKASI ===" -ForegroundColor Green; python --version; node --version; g++ --version | Select-Object -First 1; tsc --version; python -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')"; Write-Host "🚀 Setup Selesai! Siap untuk Coding Berat." -ForegroundColor Green
+```
