@@ -12,6 +12,7 @@ import signal
 import socket
 import subprocess
 import time
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -257,10 +258,14 @@ def _stop_entry(reg: dict, slug: str) -> None:
 
 
 def _wait_http(url: str, timeout: float = 20.0) -> bool:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return False
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
-            urllib.request.urlopen(url, timeout=3)
+            # Skema URL telah divalidasi hanya http/https untuk health-check port lokal
+            urllib.request.urlopen(url, timeout=3)  # nosec B310
             return True
         except Exception:
             time.sleep(1)

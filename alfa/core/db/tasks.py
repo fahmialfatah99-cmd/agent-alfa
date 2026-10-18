@@ -83,19 +83,24 @@ def delete_cron_job_sync(user_id: int, job_id: int) -> bool:
 async def get_due_cron_jobs() -> list[dict[str, Any]]:
     """Get all active recurring cron jobs whose next_run is due."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    base_cols = "id, user_id, chat_id, title, prompt_instruction, interval_minutes"
+    queries = (
+        """
+        SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes,
+               COALESCE(kind, 'single') AS kind
+        FROM scheduled_cron_jobs
+        WHERE is_active = 1 AND next_run <= ?
+        """,
+        """
+        SELECT id, user_id, chat_id, title, prompt_instruction, interval_minutes
+        FROM scheduled_cron_jobs
+        WHERE is_active = 1 AND next_run <= ?
+        """,
+    )
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
-        for cols in (f"{base_cols}, COALESCE(kind, 'single') AS kind", f"{base_cols}"):
+        for query in queries:
             try:
-                async with db.execute(
-                    f"""
-                    SELECT {cols}
-                    FROM scheduled_cron_jobs
-                    WHERE is_active = 1 AND next_run <= ?
-                    """,
-                    (now_str,),
-                ) as cursor:
+                async with db.execute(query, (now_str,)) as cursor:
                     rows = await cursor.fetchall()
                     out = []
                     for r in rows:

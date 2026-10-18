@@ -52,10 +52,19 @@ def _save(store: dict[str, Any]) -> None:
 _BROWSER_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
 
 
+def _validate_http_url(url: str) -> None:
+    """Pastikan skema URL hanya http/https untuk mencegah file:// atau skema lokal."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError(url)
+
+
 def _http(method: str, url: str, body=None, headers=None, timeout: int = 25) -> dict[str, Any]:
+    _validate_http_url(url)
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", **_BROWSER_UA, **(headers or {})}, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    # Skema URL telah divalidasi hanya http/https via _validate_http_url
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310
         raw = r.read().decode("utf-8", "replace")
         parsed = json.loads(raw) if raw.strip() else {}
         return parsed if isinstance(parsed, dict) else {}
@@ -63,11 +72,13 @@ def _http(method: str, url: str, body=None, headers=None, timeout: int = 25) -> 
 
 def _post_form(url: str, fields: dict, headers: dict | None = None, timeout: int = 25) -> dict[str, Any]:
     """POST application/x-www-form-urlencoded (wajib untuk endpoint OAuth)."""
+    _validate_http_url(url)
     data = urllib.parse.urlencode(fields).encode()
     req = urllib.request.Request(url, data=data,
                                  headers={"Content-Type": "application/x-www-form-urlencoded",
                                           **_BROWSER_UA, **(headers or {})}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    # Skema URL telah divalidasi hanya http/https via _validate_http_url
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310
         raw = r.read().decode("utf-8", "replace")
         parsed = json.loads(raw) if raw.strip() else {}
         return parsed if isinstance(parsed, dict) else {}

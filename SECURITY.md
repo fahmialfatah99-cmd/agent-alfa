@@ -61,8 +61,11 @@ ALFA Agent implements several security measures:
 
 ### 5. Code Quality & Security
 - Automated linting with Ruff
-- Static type checking with mypy
-- Security scanning with Bandit
+- Static type checking with mypy (0 baseline errors)
+- Security scanning with Bandit (`bandit -r alfa plugins -ll -q` = 0 Medium/High):
+  - `alfa/core/db/tasks.py`: kueri SQL cron job menggunakan tuple statis berparameter (`?`) tanpa interpolasi f-string (bebas B608).
+  - `alfa/mcp/client.py` (`_http`, `_post_form`): setiap pemanggilan `urllib.request.urlopen` didahului `_validate_http_url()` yang menolak skema selain `http`/`https` (mencegah SSRF skema `file://`); ditandai `# nosec B310` karena Bandit memindai `urlopen` secara statis.
+  - `alfa/tools/system/sites.py` (`_wait_http`): health-check proses lokal memvalidasi `parsed.scheme in ("http", "https")` sebelum `urllib.request.urlopen`; ditandai `# nosec B310`.
 - Pre-commit hooks for code review
 
 ## Best Practices for Users
