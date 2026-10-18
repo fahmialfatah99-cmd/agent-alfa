@@ -13,7 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def test_dashboard_auth_requirement():
-    """Test 1: Dashboard menolak start tanpa token saat binding ke 0.0.0.0"""
+    """Test 1: Dashboard menolak start tanpa token saat binding ke 0.0.0.0.
+
+    Semantik berpindah ke `_check_security_config()` setelah facade
+    web_dashboard.py dihapus (dipanggil create_app setiap instansiasi).
+    """
     print("\n[TEST 1] Dashboard auth requirement...")
 
     orig_token = os.environ.get("DASHBOARD_AUTH_TOKEN", "")
@@ -23,29 +27,22 @@ def test_dashboard_auth_requirement():
         os.environ["DASHBOARD_AUTH_TOKEN"] = ""
         os.environ["DASHBOARD_HOST"] = "0.0.0.0"
 
-        import importlib
+        import pytest
 
-        try:
-            import web_dashboard
+        from alfa.dashboard.app import _check_security_config
 
-            importlib.reload(web_dashboard)
-            raise AssertionError("Seharusnya raise RuntimeError")
-        except RuntimeError as e:
-            assert "tanpa autentikasi" in str(e).lower(), (
-                f"Pesan error tidak sesuai: {e}"
-            )
-            print("  PASS: RuntimeError raised dengan pesan yang tepat")
+        with pytest.raises(RuntimeError, match="tanpa autentikasi"):
+            _check_security_config()
+        print("  PASS: RuntimeError raised dengan pesan yang tepat")
 
         os.environ["DASHBOARD_AUTH_TOKEN"] = "testtoken123"
         os.environ["DASHBOARD_HOST"] = "0.0.0.0"
-        import web_dashboard
-
-        importlib.reload(web_dashboard)
+        _check_security_config()
         print("  PASS: Dashboard start OK dengan token")
 
         os.environ["DASHBOARD_AUTH_TOKEN"] = ""
         os.environ["DASHBOARD_HOST"] = "127.0.0.1"
-        importlib.reload(web_dashboard)
+        _check_security_config()
         print("  PASS: Dashboard start OK di localhost (dengan warning)")
 
     finally:
@@ -64,7 +61,7 @@ def test_sql_column_whitelist():
     """Test 2: SQL UPDATE column whitelist mencegah injection"""
     print("\n[TEST 2] SQL column whitelist...")
 
-    from database import update_custom_agent_sync
+    from alfa.core.database import update_custom_agent_sync
 
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         tmp_db = tmp.name
@@ -86,7 +83,8 @@ def test_sql_column_whitelist():
         conn.commit()
         conn.close()
 
-        import database
+        import alfa.core.database as database
+
 
         original_path = database.DB_PATH
         database.DB_PATH = tmp_db

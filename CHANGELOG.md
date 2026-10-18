@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs — Ketelitian Klaim
 - Passkey/WebAuthn diposisikan sebagai **roadmap** (flag status eksperimental, belum ada challenge kriptografis end-to-end); vault AES-256-GCM + admin-gate tetap faktual (SECURITY.md, README)
 
+### Removed — Root shim legacy
+- **37 file shim root dihapus** (`database.py`, `tools.py`, `web_dashboard.py`, `bot.py`, dll.) — semuanya fasad back-compat murni yang memetakan ke paket `alfa.*`; konsumen terakhir dimigrasi:
+  - 17 berkas uji kini mengimpor modul nyata (mis. `import alfa.core.brain as main_brain`, `import alfa.memory.vector as vector_memory`) + string target-patch diperbaiki (`patch("vector_memory.*")` → `patch("alfa.memory.vector.*")`)
+  - 3 titik kode sumber: `alfa/tools/media/av.py`, `alfa/dashboard/routes/swarm/affiliate_routes.py`, `alfa/dashboard/routes/system/workspace_vault.py` → `import alfa.video as video_generator`
+  - `evals/run_evals.py` — fallback shim dibuang; memakai `alfa.bot.telegram_bot`
+  - `scripts/run.sh`, `scripts/setup.sh`, `deploy/*.service` — start via `python -m alfa.dashboard.app` / `-m alfa.bot.telegram_bot` / `-m alfa.core.cli` (runner uvicorn baru `alfa/dashboard/app.py::_serve`)
+- Gotcha Python tercatat: `import alfa.dashboard.app as X` mengikat **instansi FastAPI** (atribut package shadow submodule) — test memakai `importlib.import_module("alfa.dashboard.app")`
+- `tests/conftest.py`: `DASHBOARD_HOST` dipaksa `127.0.0.1` (hermetik) — `.env` operator ber-host publik tidak lagi memicu boot-guard fatal saat koleksi test; test yang mengetes guard mengatur env sendiri
+
 ### Security
 - **Boot guard keamanan (`alfa/core/security_boot_guard.py`):** boot bot Telegram/Discord/dashboard DITOLAK bila `ALFA_UNRESTRICTED=true` + `DASHBOARD_HOST` publik; kombinasi unrestricted+host-exec kini wajib pengakuan eksplisit (`ALFA_UNRESTRICTED_ACK=yes`)
 - **WebSocket `/ws/terminal` dikeraskan:** auth wajib saat `DASHBOARD_AUTH_TOKEN` terisi; mode tanpa-token hanya loopback (127.0.0.1); validasi Origin semua channel WS (`/ws/terminal`, `/ws/logs`, `/ws/broadcast`) — menutup RCE cross-site

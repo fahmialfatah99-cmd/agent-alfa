@@ -6,12 +6,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import alfa
 import alfa.bot
 import alfa.core
+import alfa.core.brain as main_brain
 import alfa.dashboard
 import alfa.scrapers
 import alfa.security
 import alfa.swarm
-import main_brain
-import tools
+import alfa.tools as tools
 
 
 def test_alfa_modular_package_structure():

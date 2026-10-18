@@ -163,7 +163,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$DIR
-ExecStart=$DIR/venv/bin/python3 bot.py
+ExecStart=$DIR/venv/bin/python3 -m alfa.bot.telegram_bot
 Restart=always
 RestartSec=3
 
@@ -179,7 +179,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$DIR
-ExecStart=$DIR/venv/bin/python3 web_dashboard.py
+ExecStart=$DIR/venv/bin/python3 -m alfa.dashboard.app
 Restart=always
 RestartSec=3
 

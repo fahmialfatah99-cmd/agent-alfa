@@ -10,9 +10,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import swarm_engine
-import tools
-import tools_registry
+import alfa.swarm.engine as swarm_engine
+import alfa.tools as tools
+import alfa.tools.registry as tools_registry
 
 
 class TestNormalizePath:

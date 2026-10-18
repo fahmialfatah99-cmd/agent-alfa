@@ -5,14 +5,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import importlib
+import importlib as _imp
 
-import web_dashboard
+web_dashboard = _imp.import_module("alfa.dashboard.app")
 
-importlib.reload(web_dashboard)
-
-# NOTE: import order is intentional — names must bind after the reload above.
-from web_dashboard import (  # noqa: E402
+from alfa.dashboard.app import (  # noqa: E402
     _create_session_token,
     _hash_password,
     _verify_password,

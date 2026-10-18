@@ -3,9 +3,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import main_brain
-import tool_rag
-import tools
+import alfa.core.brain as main_brain
+import alfa.tools as tools
+import alfa.tools.rag as tool_rag
 
 
 def test_tool_rag_synonyms_and_intent():

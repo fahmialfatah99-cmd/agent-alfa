@@ -211,7 +211,7 @@ async def workspace_read_file(request: Request, path: str):
 async def download_artifact(request: Request, path: str):
     """Safely download an artifact file (restricted to known artifact directories). Admin-only."""
     require_admin(request)
-    import video_generator
+    import alfa.video as video_generator
     from alfa.swarm import engine as swarm_engine
 
     allowed_dirs = [

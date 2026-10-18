@@ -20,8 +20,11 @@ def test_dashboard_package_import():
 
 
 def test_web_dashboard_shim_parity():
-    """Verify root web_dashboard.py acts as transparent shim for alfa.dashboard."""
-    import web_dashboard
+    """Verify antarmuka dashboard setara (jejak history: dulu membandingkan
+    facade web_dashboard.py — facade kini dihapus, pernyataan langsung ke modul)."""
+    import importlib as _imp
+    web_dashboard = _imp.import_module("alfa.dashboard.app")
+
     from alfa.dashboard import app as pkg_app
 
     assert web_dashboard.app is pkg_app

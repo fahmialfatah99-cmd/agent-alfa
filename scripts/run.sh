@@ -31,17 +31,17 @@ trap cleanup SIGINT SIGTERM EXIT
 source .env 2>/dev/null || true
 
 # Start Web Dashboard in background
-./venv/bin/python3 web_dashboard.py &
+./venv/bin/python3 -m alfa.dashboard.app &
 DASH_PID=$!
 
 if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ "$TELEGRAM_BOT_TOKEN" != "your_telegram_bot_token_here" ]; then
     echo "  👉 Telegram AI Bot     : Aktif"
-    ./venv/bin/python3 bot.py &
+    ./venv/bin/python3 -m alfa.bot.telegram_bot &
     BOT_PID=$!
     wait $DASH_PID $BOT_PID
 else
     echo "  👉 Telegram AI Bot     : Dinonaktifkan (Token belum disetel)"
     echo "  👉 Masuk ke mode Web Dashboard & CLI Interaktif..."
-    ./venv/bin/python3 cli.py
+    ./venv/bin/python3 -m alfa.core.cli
 fi
 

@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import vector_memory
+import alfa.memory.vector as vector_memory
 from alfa.tools import memory_tools
 
 
@@ -225,7 +225,7 @@ class TestLocalVectorMemory:
                 mock_uid.get.return_value = 999
 
                 # Ingest via memory_tools
-                with patch("vector_memory.ingest_document") as mock_ingest:
+                with patch("alfa.memory.vector.ingest_document") as mock_ingest:
                     mock_ingest.return_value = {"status": "success", "total_chunks": 1}
                     res = memory_tools.save_to_vector_memory(
                         title="Test Note",
@@ -236,7 +236,7 @@ class TestLocalVectorMemory:
                     mock_ingest.assert_called_once()
 
                 # Search via memory_tools
-                with patch("vector_memory.semantic_search") as mock_search:
+                with patch("alfa.memory.vector.semantic_search") as mock_search:
                     mock_search.return_value = [
                         {"doc_title": "Test Note", "similarity_score": 0.88}
                     ]
@@ -333,7 +333,8 @@ class TestLocalVectorMemory:
         # Search with 384-dim query (mocked local library)
         mock_meta = ([0.1] * 384, "fastembed/bge-small-en-v1.5", 384)
         with patch(
-            "vector_memory.get_text_embedding_with_meta", return_value=mock_meta
+            "alfa.memory.vector.get_text_embedding_with_meta",
+            return_value=mock_meta,
         ):
             results_384 = vector_memory.semantic_search(
                 user_id=10, query="Neural networks", db_path=test_db

@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import swarm_engine  # noqa: E402
+import alfa.swarm.engine as swarm_engine  # noqa: E402
 
 
 @pytest.fixture
@@ -118,7 +118,8 @@ class TestConfigEnv:
 class TestSwarmCheckpoint:
     def test_save_and_load(self, tmp_path, monkeypatch):
         """Checkpoint tersimpan dan dapat dimuat kembali."""
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
@@ -142,7 +143,8 @@ class TestSwarmCheckpoint:
         assert loaded["status"] == "paused"
 
     def test_list_resumable_excludes_completed(self, tmp_path, monkeypatch):
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
@@ -163,7 +165,8 @@ class TestSwarmCheckpoint:
         assert "s2" not in ids
 
     def test_mark_cancelled_and_resume(self, tmp_path, monkeypatch):
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
@@ -175,7 +178,8 @@ class TestSwarmCheckpoint:
         assert loaded["status"] == "cancelled"
 
     def test_add_error_log(self, tmp_path, monkeypatch):
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
@@ -188,7 +192,8 @@ class TestSwarmCheckpoint:
         assert loaded["error_log"][0]["error"] == "Provider timeout"
 
     def test_clear_checkpoint(self, tmp_path, monkeypatch):
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         monkeypatch.setattr(swarm_checkpoint, "CHECKPOINT_DIR", str(tmp_path))
 
@@ -235,7 +240,8 @@ class TestModularSwarmAndBotShims:
 
     def test_swarm_checkpoint_shim_and_package(self):
         import alfa.swarm.checkpoint
-        import swarm_checkpoint
+        import alfa.swarm.checkpoint as swarm_checkpoint
+
 
         assert hasattr(alfa.swarm.checkpoint, "SwarmCheckpoint")
         assert hasattr(swarm_checkpoint, "SwarmCheckpoint")
@@ -243,21 +249,19 @@ class TestModularSwarmAndBotShims:
 
     def test_swarm_personas_shim_and_package(self):
         import alfa.swarm.personas
-        import swarm_personas
+        import alfa.swarm.personas as swarm_personas
+
 
         assert hasattr(alfa.swarm.personas, "AGENTS")
         assert hasattr(swarm_personas, "AGENTS")
         assert swarm_personas.AGENTS is alfa.swarm.personas.AGENTS
 
-    def test_bot_shim_and_package(self):
+    def test_bot_paket_punya_entrypoint_lengkap(self):
         import alfa.bot.telegram_bot
-        import bot
 
         assert hasattr(alfa.bot.telegram_bot, "main")
-        assert hasattr(bot, "main")
-        assert hasattr(bot, "run_agent_turn")
-        assert hasattr(bot, "safe_send_message")
-        assert bot.main is alfa.bot.telegram_bot.main
+        assert hasattr(alfa.bot.telegram_bot, "run_agent_turn")
+        assert hasattr(alfa.bot.telegram_bot, "safe_send_message")
 
 
 class TestSanitizeProjectDirectory:

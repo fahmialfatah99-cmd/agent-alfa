@@ -5,7 +5,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import web_dashboard  # noqa: E402
+import importlib as _imp
+
+web_dashboard = _imp.import_module("alfa.dashboard.app")# noqa: E402
+
 
 
 class TestParseAiSections:

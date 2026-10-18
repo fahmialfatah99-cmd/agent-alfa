@@ -398,6 +398,22 @@ def create_app() -> FastAPI:
 # Global FastAPI instance (create_app() runs _check_security_config())
 app = create_app()
 
+
+def _serve() -> None:
+    """Entry subprocess `python -m alfa.dashboard.app` (pengganti web_dashboard.py)."""
+    import uvicorn
+
+    uvicorn.run(
+        "alfa.dashboard.app:app",
+        host=os.getenv("DASHBOARD_HOST", "127.0.0.1"),
+        port=int(os.getenv("DASHBOARD_PORT", "8000")),
+        reload=False,
+    )
+
+
+if __name__ == "__main__":
+    _serve()
+
 __all__ = [
     "app",
     "create_app",

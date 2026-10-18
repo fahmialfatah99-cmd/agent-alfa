@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools import AVAILABLE_TOOLS, get_system_stats
+from alfa.tools import AVAILABLE_TOOLS, get_system_stats
 
 
 def test_agent_tools_and_stats():

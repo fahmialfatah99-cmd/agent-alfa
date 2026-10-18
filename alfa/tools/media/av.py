@@ -157,7 +157,8 @@ def generate_promo_video_from_images(
     Generate video promosi produk otomatis format 9:16 (1080x1920) untuk TikTok / Reels / Shorts hanya dari foto produk.
     """
     try:
-        import video_generator
+        import alfa.video as video_generator
+
 
         return video_generator.generate_video_from_images(
             image_paths=image_paths,

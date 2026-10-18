@@ -22,6 +22,11 @@ os.environ["DASHBOARD_AUTH_TOKEN"] = ""
 # Operator-local ALFA_UNRESTRICTED=true would disable every safety guard the
 # security tests assert on; force the safe default for the test session.
 os.environ["ALFA_UNRESTRICTED"] = "false"
+# Same hermetic reason: an operator .env with DASHBOARD_HOST=0.0.0.0 would fire
+# the fatal boot guard (_check_security_config) at import time of
+# alfa.dashboard.* because token above is forced empty in tests. Force the
+# localhost default; tests exercising the guard set their own env per-test.
+os.environ["DASHBOARD_HOST"] = "127.0.0.1"
 
 # Add project root to path
 project_root = Path(__file__).parent.parent

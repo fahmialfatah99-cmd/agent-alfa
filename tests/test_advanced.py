@@ -14,8 +14,8 @@ import pytest
 
 # ── Tool-RAG ──────────────────────────────────────────────────────────────
 def test_toolrag_memperkecil_set_tools():
-    import tools as t
-    from tool_rag import select_relevant_functions
+    import alfa.tools as t
+    from alfa.tools.rag import select_relevant_functions
 
     sel = select_relevant_functions(
         t.AVAILABLE_TOOLS, "buat website landing page dengan python"
@@ -24,8 +24,8 @@ def test_toolrag_memperkecil_set_tools():
 
 
 def test_toolrag_core_selalu_ada():
-    import tools as t
-    from tool_rag import select_relevant_functions
+    import alfa.tools as t
+    from alfa.tools.rag import select_relevant_functions
 
     sel = select_relevant_functions(t.AVAILABLE_TOOLS, "apa itu kucing")
     names = {getattr(f, "__name__", "") for f in sel}
@@ -34,8 +34,8 @@ def test_toolrag_core_selalu_ada():
 
 
 def test_toolrag_mempertahankan_tool_aksi_youtube():
-    import tools as t
-    from tool_rag import select_relevant_functions
+    import alfa.tools as t
+    from alfa.tools.rag import select_relevant_functions
 
     sel = select_relevant_functions(
         t.AVAILABLE_TOOLS, "buka YouTube putar lagu dari utopia"
@@ -45,8 +45,8 @@ def test_toolrag_mempertahankan_tool_aksi_youtube():
 
 
 def test_toolrag_routing_bahasa_indonesia():
-    import tools as t
-    from tool_rag import select_relevant_functions
+    import alfa.tools as t
+    from alfa.tools.rag import select_relevant_functions
 
     sel = select_relevant_functions(
         t.AVAILABLE_TOOLS, "rekam layar laptop saya 10 detik"
@@ -56,13 +56,14 @@ def test_toolrag_routing_bahasa_indonesia():
 
 
 def test_toolrag_failopen_input_kosong():
-    from tool_rag import select_relevant_functions
+    from alfa.tools.rag import select_relevant_functions
 
     assert select_relevant_functions([], "apapun") == []
 
 
 def test_toolrag_off_via_env(monkeypatch):
-    import tool_rag
+    import alfa.tools.rag as tool_rag
+
 
     monkeypatch.setattr(tool_rag, "_ENABLED", False)
     dummy = [
@@ -73,7 +74,8 @@ def test_toolrag_off_via_env(monkeypatch):
 
 # ── Pipeline Engine ───────────────────────────────────────────────────────
 def test_pipeline_topological_waves_paralel():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     steps = [
         {"id": "a", "type": "set", "value": "1"},
@@ -92,7 +94,8 @@ def test_pipeline_topological_waves_paralel():
 
 
 def test_pipeline_deteksi_siklus():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     steps = [
         {"id": "a", "type": "set", "value": "x", "depends_on": ["b"]},
@@ -103,14 +106,16 @@ def test_pipeline_deteksi_siklus():
 
 
 def test_pipeline_render_interpolasi():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     out = pl._render("Halo {{nama}}, umur {{umur}}", {"nama": "ALFA", "umur": 3})
     assert out == "Halo ALFA, umur 3"
 
 
 def test_pipeline_run_end_to_end(tmp_path):
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     data = {
         "id": "_test_unit",
@@ -138,7 +143,8 @@ def test_pipeline_run_end_to_end(tmp_path):
 
 # ── n8n-mini: kondisi, foreach, dot-path, riwayat run ─────────────────────
 def test_pipeline_dotpath_render():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     vars_ = {"data": {"user": {"nama": "Fahmi"}, "items": ["a", "b"]}}
     assert pl._render("Hai {{data.user.nama}}", vars_) == "Hai Fahmi"
@@ -147,7 +153,8 @@ def test_pipeline_dotpath_render():
 
 
 def test_pipeline_eval_condition_ops():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     v = {"cari": "Ada Berita AI Terbaru", "kosong": "", "angka": "5"}
     eval_cond = pl._eval_condition
@@ -163,7 +170,8 @@ def test_pipeline_eval_condition_ops():
 
 
 def test_pipeline_if_skip_dan_foreach(tmp_path):
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     data = {
         "id": "_test_cond",
@@ -197,7 +205,8 @@ def test_pipeline_if_skip_dan_foreach(tmp_path):
 
 
 def test_pipeline_runs_history_roundtrip():
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     data = {
         "id": "_test_hist",
@@ -214,7 +223,8 @@ def test_pipeline_runs_history_roundtrip():
 
 def test_pipeline_http_step_local():
     """HTTP step memakai dashboard sendiri sebagai target (tanpa internet)."""
-    import pipelines as pl
+    import alfa.pipelines.engine as pl
+
 
     data = {
         "id": "_test_http",
@@ -237,7 +247,7 @@ def test_pipeline_http_step_local():
 
 # ── Memory Reflection ─────────────────────────────────────────────────────
 def test_reflect_interval_counter():
-    from memory_reflection import EVERY, should_reflect
+    from alfa.memory.reflection import EVERY, should_reflect
 
     uid = 987654321
     hits = []
@@ -262,7 +272,8 @@ def test_reflect_parse_json_fenced():
 
 # ── Indexer paralel ───────────────────────────────────────────────────────
 def test_index_one_file_chunking():
-    import tools
+    import alfa.tools as tools
+
 
     with tempfile.NamedTemporaryFile(
         "w", suffix=".py", delete=False, encoding="utf-8"
@@ -280,9 +291,11 @@ def test_index_one_file_chunking():
 
 
 def test_chat_execute_code_sandbox():
-    from fastapi.testclient import TestClient
+    import importlib as _imp
 
-    import web_dashboard
+    from fastapi.testclient import TestClient
+    web_dashboard = _imp.import_module("alfa.dashboard.app")
+
 
     client = TestClient(web_dashboard.app)
     # Test Python with markdown code fences

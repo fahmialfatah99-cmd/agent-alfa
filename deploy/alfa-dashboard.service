@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/telegram-ai-bot
-ExecStart=%h/telegram-ai-bot/venv/bin/python3 %h/telegram-ai-bot/web_dashboard.py
+ExecStart=%h/telegram-ai-bot/venv/bin/python3 -m alfa.dashboard.app
 Restart=always
 RestartSec=5
 

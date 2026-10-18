@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import main_brain
+import alfa.core.brain as main_brain
 
 
 class TestBuildOpenAITools:

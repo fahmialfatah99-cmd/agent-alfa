@@ -23,7 +23,8 @@ class TestToolsDocs:
 
 class TestCliShims:
     def test_cli_shim_import(self):
-        import cli as root_cli
+        import alfa.core.cli as root_cli
+
 
         assert hasattr(root_cli, "main")
 

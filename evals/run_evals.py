@@ -79,12 +79,8 @@ def check_tool_routing(scenario: dict[str, Any]) -> dict[str, Any]:
     if not expect:
         return {"ok": True, "detail": "no tool expectation"}
     try:
-        try:
-            import alfa.tools as t
-            from alfa.tools.rag.retrieval import select_relevant_functions
-        except ImportError:  # fallback shim lama
-            import tools as t
-            from tool_rag import select_relevant_functions
+        import alfa.tools as t
+        from alfa.tools.rag.retrieval import select_relevant_functions
 
         selected = select_relevant_functions(t.AVAILABLE_TOOLS, scenario["prompt"])
         names = {getattr(f, "__name__", "") for f in selected}
@@ -101,7 +97,7 @@ async def run_live_scenario(scn: dict[str, Any]) -> dict[str, Any]:
     """Eksekusi nyata via jalur agent resmi (bot.run_agent_turn)."""
     import time
 
-    import bot as bot_mod
+    import alfa.bot.telegram_bot as bot_mod
 
     wall_start = time.monotonic()
     usage_start = _tokens_since_now()

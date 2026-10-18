@@ -26,7 +26,9 @@ def dashboard_client(tmp_path_factory):
 
     _conn.init_db_sync()
 
-    import web_dashboard
+    import importlib as _imp
+    web_dashboard = _imp.import_module("alfa.dashboard.app")
+
 
     client = TestClient(web_dashboard.app)
     yield client

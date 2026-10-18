@@ -158,7 +158,8 @@ async def broadcast_affiliate_campaign(payload: dict[str, Any]):
 @router.post("/api/video/generate")
 async def generate_promo_video(payload: dict[str, Any]):
     """Generate 9:16 vertical promo video from images and script."""
-    import video_generator
+    import alfa.video as video_generator
+
 
     image_paths = payload.get("image_paths", [])
     product_name = payload.get("product_name", "Produk Pilihan").strip()
