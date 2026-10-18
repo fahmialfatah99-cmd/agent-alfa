@@ -11,6 +11,7 @@ MODULE_FILES = [
     "audio.js",
     "hotkeys.js",
     "telemetry.js",
+    "scraper.js",
     "gdrive.js",
     "pipelines_sites.js",
 ]
