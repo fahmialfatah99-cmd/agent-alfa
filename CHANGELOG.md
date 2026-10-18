@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added, Refactored & Hardened — SPA Modularization + Playwright Visual Snapshots, BLE001 < 800 & Coverage Gate 50%+ (2026-10-19, putaran 4)
+- **Part A — Modularisasi SPA + Playwright Visual & DOM Snapshot Gate:**
+  - Memasang Chromium headless di Playwright (`PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`) dan membangun suite regresi visual & metrik tata letak DOM di `tests/test_spa_playwright_snapshots.py` pada 4 lebar viewport (`375px`, `768px`, `1024px`, `1440px`) beserta verifikasi interaksi tab dan tombol approve eksekusi.
+  - Memecah monolit `static/js/app.js` dari **5.814 baris menjadi 3.679 baris (−2.135 baris / −36,7%)** ke dalam 5 modul domain terfokus di `static/js/modules/`:
+    1. `static/js/modules/pipelines_sites.js` (550 baris) — Workflow Pipelines DAG Canvas & Sites Gallery
+    2. `static/js/modules/gdrive.js` (429 baris) — Google Drive Cloud Backup & Explorer
+    3. `static/js/modules/scraper.js` (364 baris) — Universal Pro Web Scraper & Modern Scraper Lab
+    4. `static/js/modules/vault_security.js` (366 baris) — Multi-Provider API Key Vault & Security Passkeys
+    5. `static/js/modules/affiliate.js` (426 baris) — Affiliate Video Clipper Studio
+- **Part B — Kikis `BLE001` / `TRY` Lint Budget 1056 → 782 (−274 instans tambahan; total −479 dari 1261):**
+  - Menyempitkan `except Exception` menjadi tuple exception spesifik (`_MODE_ERR`, `_DC_ERR`, `_TOOL_ERR`, `_SRV_ERR`, `_PDF_ERR`, `_AV_ERR`, `_CAP_ERR`, `_HND_ERR`, `_PRO_ERR`, `_ADV_ERR`, `_EXT_ERR`, `_MGT_ERR`, `_SITE_ERR`, `_PIPE_ERR`, `_MCP_ERR`, `_VEC_ERR`, `_SCR_ERR`) di 17 modul (`alfa/bot/{mode_commands,discord_bot,handlers,proactive,advanced_commands}.py`, `alfa/core/cli/{agent_engine/tool_registry,server_manager}.py`, `alfa/mcp/client.py`, `alfa/memory/vector.py`, `alfa/pipelines/engine.py`, `alfa/tools/desktop/capture.py`, `alfa/tools/filesystem/universal_file_extractor.py`, `alfa/tools/media/{av,pdf_editor}.py`, `alfa/tools/system/{management,sites}.py`, `alfa/tools/web/scrapers.py`).
+  - Menyinkronkan region budget otomatis di `pyproject.toml` via `scripts/lint_budget.py --apply` menjadi **782 instans** (di bawah target `< 800`).
+- **Part C — Peningkatan Test Coverage 46,37% → 51,62% & Kenaikan Gate CI 44% → 50%:**
+  - Menambahkan suite unit test cepat dan hermetik di `tests/test_coverage_boost_phase3.py` yang menguji seluruh alur perintah bot Telegram (`mode_commands`, `basic_commands`, `wa_menu`, `advanced_commands`, `SwarmProgressReporter`) serta rute FastAPI (`observability`, `meetings_routes`, `agents_routes`, `pipelines_memory`, `settings_admin`, `telemetry`, `workspace_vault`, `scrapers`).
+  - Menaikkan ambang batas `--cov-fail-under=50` di `.github/workflows/ci.yml` dan `fail_under = 50` di `pyproject.toml`.
+
 ### Fixed & Hardened — Zero Mypy, Zero Bandit, BLE001 −205 & CI Sentinel (2026-10-18, putaran 3)
 - **Fase 1 — `mypy` 7 → 0 error (baseline `.github/mypy-baseline.txt` = `0`):**
   seluruh 238 berkas sumber di `alfa/` kini bersih di bawah `mypy --ignore-missing-imports alfa/`. Perbaikan mencakup guard `if gemini_client is None:` pada `alfa/bot/commands/admin.py`, anotasi `dict[str, Any]` pada `alfa/dashboard/common.py`, konstruktor `types.Part(text=...)` dan guard `prompt_instruction` pada `alfa/swarm/step_executor.py`, perbaikan argumen `execute_with_healing(..., target_fn=None)` serta import `get_active_api_key` dari `alfa.core.db.keys` di `alfa/tools/media/av.py`, penyelesaian atribut shadow `_audit_mod` di `alfa/core/perm/__init__.py`, dan anotasi tipe eksplisit di `alfa/core/brain/agentic.py`, `alfa/bot/handlers/callback_router.py`, `alfa/bot/turn_executor.py`, serta `alfa/swarm/affiliate_engine.py`.
