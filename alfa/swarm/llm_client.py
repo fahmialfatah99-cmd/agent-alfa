@@ -9,10 +9,25 @@ import os
 import sys
 from typing import Any
 
-from google import genai
-from google.genai import types
+# LAZY (PEMROSESAN AWAL LAMBAT): `import google.genai` sendiri ≈1.0–1.5 s karena
+# type-model raksasa `google.genai.types` — diimpor di sini di awal proses akan
+# memperlambat setiap startup bot/dashboard/swarm worker. genai & types kini
+# dibuat lewat `_ensure_genai()` saat pertama sebuah turn memanggil Gemini.
+genai: Any = None
+types: Any = None
 
-from alfa.core import database, token_usage
+
+def _ensure_genai() -> None:
+    global genai, types
+    if genai is None:
+        import google.genai as _genai  # noqa: PLC0415 — lazy disengaja
+        from google.genai import types as _types  # noqa: PLC0415 — lazy disengaja
+
+        genai = _genai
+        types = _types
+
+
+from alfa.core import database, token_usage  # noqa: E402 — di bawah helper lazy
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +164,7 @@ async def _generate_with_gemini(
 
     last_err: BaseException | None = None
     try:
+        _ensure_genai()
         client = genai.Client(api_key=api_key)
     except Exception as client_err:
         logger.error(

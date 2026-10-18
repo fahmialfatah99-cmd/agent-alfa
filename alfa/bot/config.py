@@ -49,14 +49,10 @@ else:
     )
 
 gemini_client = None
-if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
-    try:
-        from google import genai
-
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        logger.info("Google GenAI client initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize GenAI client: {e}")
+# DIBIARKAN None (lazy): `google.genai.Client` sekarang dibuat oleh
+# `_create_llm_cli` saat pertama dipakai — impor google.genai tanda tanda
+# boot lambat karena ~1.4 detik pas proses start; depensi siapa pun yang
+# membutuhkan instans client harus menunggu sampai API diminta.
 
 _gemini_client_cache: dict[str, Any] = {}
 
