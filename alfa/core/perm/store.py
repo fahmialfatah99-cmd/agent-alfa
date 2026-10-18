@@ -62,7 +62,7 @@ def get_trust_score(chat_id: int | None) -> float:
                 (int(chat_id),),
             ).fetchone()
         return float(row[0]) if row else 0.5
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"get trust score gagal: {e}")
         return 0.5
 
@@ -104,7 +104,7 @@ def update_trust_score(chat_id: int, was_safe: bool, response_time: float) -> No
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (int(chat_id), new_trust, total, safe, risky, time.time()),
             )
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"update trust score gagal: {e}")
 
 
@@ -133,7 +133,7 @@ def log_permission_decision(
                     response_time,
                 ),
             )
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"log audit trail gagal: {e}")
 
 
@@ -149,7 +149,7 @@ def is_always_allowed(chat_id: int | None, tool_name: str) -> bool:
                 (int(chat_id), tool_name, time.time()),
             ).fetchone()
         return row is not None
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"cek tool_permissions gagal (lolos-aman): {e}")
         return False
 
@@ -169,7 +169,7 @@ def save_always_allow(
                    VALUES (?, ?, ?, ?, ?)""",
                 (int(chat_id), tool_name, perm_type, time.time(), expires_at),
             )
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"simpan tool_permissions gagal: {e}")
 
 
@@ -186,5 +186,5 @@ def list_always_allowed(chat_id: int) -> list[str]:
                     (int(chat_id), time.time()),
                 ).fetchall()
             ]
-    except Exception:
+    except (sqlite3.Error, OSError, ValueError, TypeError):
         return []

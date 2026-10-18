@@ -93,7 +93,7 @@ async def _decompose_task(
             if nm in valid_names and tk:
                 mapping[nm] = {"task": tk, "depends_on": deps}
         return mapping
-    except Exception as dec_err:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as dec_err:
         logger.warning("Task decomposition failed, using generic tasks: %r", dec_err)
         return {}
 
@@ -174,7 +174,7 @@ async def _verify_step_result(task: str, step_result: dict[str, Any]) -> tuple:
             return True, ""
         fb = verdict.strip() if verdict else "verifier tidak merespons"
         return False, fb[:200]
-    except Exception as ver_err:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as ver_err:
         # Judge tidak bisa dihubungi. Dulu selalu return True (fail-open) sehingga
         # step gagal pun lolos begitu saja. Sekarang pakai bukti mekanis yang sudah
         # dikumpulkan di atas, dan hanya PASS bila memang ada tanda eksekusi nyata.
@@ -251,7 +251,7 @@ async def _single_shot_edit_fallback(
         st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"
         log_live("FILE", f"📝 single-shot write {os.path.basename(main_file)} -> {st}")
         return f"(single-shot) {main_file} diperbarui ({len(content)} char)"
-    except Exception as w_err:
+    except (OSError, ValueError, TypeError) as w_err:
         return f"(single-shot) gagal tulis: {w_err}"
 
 
@@ -282,7 +282,7 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
 
     try:
         actions = json.loads(m.group(0))
-    except Exception as je:
+    except (ValueError, TypeError) as je:
         return f"(forced-exec) JSON rusak: {je}"
 
     allowed: dict[str, Any] = {

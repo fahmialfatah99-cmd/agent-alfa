@@ -45,7 +45,7 @@ class SwarmCheckpoint:
             try:
                 with open(path, encoding="utf-8") as f:
                     existing = json.load(f)
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 pass
 
         state = {
@@ -78,7 +78,7 @@ class SwarmCheckpoint:
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else None
-        except Exception:
+        except (OSError, ValueError, TypeError):
             return None
 
     @staticmethod
@@ -109,9 +109,9 @@ class SwarmCheckpoint:
                                 "resume_count": state.get("resume_count", 0),
                             }
                         )
-                except Exception:
+                except (OSError, ValueError, TypeError, KeyError, AttributeError):
                     pass
-        except Exception:
+        except OSError:
             pass
         return sorted(result, key=lambda x: x.get("updated_at", ""), reverse=True)
 

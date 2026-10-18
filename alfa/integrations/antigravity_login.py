@@ -51,7 +51,7 @@ def _load_instances() -> dict[str, Any]:
         with open(_instances_path(), encoding="utf-8") as f:
             data = json.load(f)
             return data if isinstance(data, dict) else {}
-    except Exception:
+    except (OSError, ValueError, TypeError):
         return {}
 
 
@@ -67,7 +67,7 @@ def next_free_instance_port() -> int:
     for v in _load_instances().get("instances", {}).values():
         try:
             used.add(int(v.get("port", 0)))
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             pass
     p = 8878
     while p in used:
@@ -117,7 +117,7 @@ def _fetch_email(access_token: str) -> str:
         )
         with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - fixed Google userinfo endpoint
             return str(json.loads(resp.read().decode()).get("email", "") or "")
-    except Exception:
+    except (OSError, ValueError, TypeError):
         return ""
 
 
@@ -304,7 +304,7 @@ def start_login(name: str) -> dict[str, Any]:
             entry["email"] = email
             entry["port"] = port
             logger.info(f"[Antigravity] '{name}' ({email}) terdaftar di port {port}")
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as e:
             entry["status"] = "error"
             entry["error"] = str(e)[:200]
             logger.error(f"[Antigravity] Login '{name}' gagal: {e!r}")
@@ -344,7 +344,7 @@ def list_accounts() -> list[dict[str, Any]]:
                 try:
                     with open(tf, encoding="utf-8") as f:
                         email = json.load(f).get("email", "")
-                except Exception:
+                except (OSError, ValueError, TypeError, AttributeError):
                     pass
             out.append(
                 {

@@ -47,7 +47,7 @@ async def run_pipeline_endpoint(pid: str, request: Request):
             body = await request.json()
             if isinstance(body, dict):
                 overrides = body.get("vars") or {}
-        except Exception:
+        except (ValueError, TypeError, RuntimeError):
             pass
         result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)
         return result
@@ -67,7 +67,7 @@ async def save_pipeline_endpoint(pid: str, request: Request):
 
     try:
         data = await request.json()
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         raise HTTPException(status_code=400, detail="Body harus JSON valid.") from None
     if not isinstance(data, dict) or not data.get("steps"):
         raise HTTPException(status_code=400, detail="Pipeline wajib punya 'steps'.")
@@ -101,7 +101,7 @@ async def pipeline_webhook_endpoint(pid: str, request: Request):
             raise HTTPException(status_code=401, detail="Webhook key salah.")
     try:
         payload = await request.json()
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         payload = {}
     overrides = {"payload": payload if isinstance(payload, dict) else {"raw": payload}}
     result = await asyncio.wait_for(pl.run_pipeline(pid, overrides), timeout=600)

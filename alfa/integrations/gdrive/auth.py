@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 from typing import Any
 
 from alfa.core import database
@@ -28,7 +29,7 @@ def _get_default_gdrive_folder_id() -> str:
             ).fetchone()
             if row and row[0] and str(row[0]).strip():
                 return str(row[0]).strip()
-    except Exception:
+    except (sqlite3.Error, OSError):
         pass
     return os.getenv(
         "GDRIVE_DEFAULT_FOLDER_ID", "1WTQuU2lbAQy438Whnhtn95jld-1d17lE"
@@ -59,7 +60,7 @@ def _get_gdrive_service():
             try:
                 with open(oauth_file, encoding="utf-8") as f:
                     stored_scopes = json.load(f).get("scopes") or scopes
-            except Exception:
+            except (OSError, ValueError, TypeError, AttributeError):
                 stored_scopes = scopes
             creds = Credentials.from_authorized_user_file(
                 oauth_file, scopes=stored_scopes
@@ -96,7 +97,7 @@ def _get_gdrive_service():
                 creds = service_account.Credentials.from_service_account_file(
                     cred_file, scopes=scopes
                 )
-            except Exception as e:
+            except (OSError, ValueError, TypeError, KeyError) as e:
                 logger.error(f"Error loading gdrive_credentials.json: {e}")
 
     if not creds:
@@ -107,7 +108,7 @@ def _get_gdrive_service():
                 creds = service_account.Credentials.from_service_account_info(
                     info, scopes=scopes
                 )
-            except Exception as e:
+            except (ValueError, TypeError, KeyError) as e:
                 logger.error(f"Error loading GDRIVE_SERVICE_ACCOUNT_JSON from env: {e}")
 
     if not creds:
@@ -119,7 +120,7 @@ def _get_gdrive_service():
                 creds = service_account.Credentials.from_service_account_info(
                     sa_info, scopes=scopes
                 )
-        except Exception as e:
+        except (sqlite3.Error, OSError, ValueError, TypeError, KeyError) as e:
             logger.error(f"Error loading gdrive credentials from vault/database: {e}")
 
     if not creds:
@@ -141,7 +142,7 @@ def _detect_gdrive_auth_mode() -> str:
 
         if secret_store.load_oauth_token() is not None:
             return "oauth"
-    except Exception:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError):
         pass
     cred_file = os.path.join(PROJECT_DIR, "gdrive_credentials.json")
     if os.path.exists(cred_file):
@@ -213,7 +214,7 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> dict[str, A
                         "4. OAuth consent screen > Audience > tambahkan email Anda sebagai Test user"
                     ),
                 }
-    except Exception as probe_err:
+    except (OSError, ValueError, TypeError) as probe_err:
         logger.warning(f"Could not probe oauth secret file: {probe_err}")
 
     try:
@@ -309,7 +310,7 @@ def gdrive_save_oauth_client_secret(raw_content: Any) -> dict[str, Any]:
                     (_json.dumps(data),),
                 )
                 conn.commit()
-        except Exception as db_err:
+        except (sqlite3.Error, OSError) as db_err:
             logger.warning(f"Could not mirror client secret to DB: {db_err}")
 
         return {
@@ -317,7 +318,7 @@ def gdrive_save_oauth_client_secret(raw_content: Any) -> dict[str, Any]:
             "message": "OAuth Client Secret berhasil disimpan. Sekarang Anda dapat menghubungkan akun Google pribadi Anda!",
             "file": target_file,
         }
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return {
             "status": "error",
             "message": f"Gagal menyimpan client secret: {str(e)}",
@@ -350,7 +351,7 @@ def gdrive_oauth_get_auth_url(
                     )
                     with open(secret_path, "w", encoding="utf-8") as f:
                         f.write(row[0])
-        except Exception:
+        except (sqlite3.Error, OSError):
             pass
 
     if not secret_path:
@@ -374,7 +375,7 @@ def gdrive_oauth_get_auth_url(
             "state": state,
             "redirect_uri": redirect_uri,
         }
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
         return {
             "status": "error",
             "message": f"Gagal membuat URL otentikasi Google: {str(e)}",
@@ -453,7 +454,7 @@ def gdrive_oauth_logout() -> dict[str, Any]:
         from alfa.integrations.gdrive import secret_store
 
         secret_store.delete_secret(secret_store.OAUTH_SECRET_NAME)
-    except Exception:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError):
         pass
     try:
         with database.get_sync_db() as conn:
@@ -461,7 +462,7 @@ def gdrive_oauth_logout() -> dict[str, Any]:
                 "DELETE FROM system_settings WHERE key = 'gdrive_oauth_token_json'"
             )
             conn.commit()
-    except Exception:
+    except (sqlite3.Error, OSError):
         pass
     return {"status": "success", "removed": removed, "message": "Token OAuth dihapus."}
 
@@ -483,7 +484,7 @@ def gdrive_status() -> dict[str, Any]:
                 ).fetchone()
                 if r and r[0]:
                     folder_name = r[0]
-        except Exception:
+        except (sqlite3.Error, OSError):
             pass
 
         return {

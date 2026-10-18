@@ -1,5 +1,6 @@
 import asyncio
 import re
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -125,7 +126,7 @@ async def generate_affiliate_campaign(payload: dict[str, Any]):
                     replaced += 1
             if replaced:
                 res["ai_enriched"] = True
-    except Exception as aff_ai_err:
+    except (asyncio.TimeoutError, OSError, RuntimeError, ValueError, TypeError, KeyError) as aff_ai_err:
         import traceback as _tb
 
         logger.warning(
@@ -198,7 +199,7 @@ async def generate_promo_video(payload: dict[str, Any]):
                 row = r.fetchone()
             if row and row["api_key"]:
                 api_key = database.decrypt_key(row["api_key"])
-        except Exception:
+        except (sqlite3.Error, ValueError, TypeError, OSError):
             pass
         if not (api_key or "").strip():
             return {

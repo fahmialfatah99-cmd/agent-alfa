@@ -162,7 +162,7 @@ async def _execute_agents_parallel(
                 if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.mark_cancelled(session_id)
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         pass
                 return True
             dead_reason = _provider_dead_streak(execution_steps)
@@ -172,7 +172,7 @@ async def _execute_agents_parallel(
                 if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.mark_cancelled(session_id)
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         pass
                 return True
             wave = participants[wave_start : wave_start + _wave_size]
@@ -181,7 +181,7 @@ async def _execute_agents_parallel(
                 if _CHECKPOINT_AVAILABLE:
                     try:
                         _SwarmCheckpoint.mark_cancelled(session_id)
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         pass
                 return True
 
@@ -245,7 +245,7 @@ async def _execute_agents_parallel(
                             steps_done=len(execution_steps),
                             status="running",
                         )
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
@@ -279,7 +279,7 @@ async def _execute_agents_parallel(
             if _CHECKPOINT_AVAILABLE:
                 try:
                     _SwarmCheckpoint.mark_cancelled(session_id)
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pass
             return True
 
@@ -290,7 +290,7 @@ async def _execute_agents_parallel(
             if _CHECKPOINT_AVAILABLE:
                 try:
                     _SwarmCheckpoint.mark_cancelled(session_id)
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pass
             return True
         dead_reason = _provider_dead_streak(execution_steps)
@@ -300,7 +300,7 @@ async def _execute_agents_parallel(
             if _CHECKPOINT_AVAILABLE:
                 try:
                     _SwarmCheckpoint.mark_cancelled(session_id)
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pass
             return True
 
@@ -368,7 +368,7 @@ async def _execute_agents_parallel(
                         steps_done=len(execution_steps),
                         status="running",
                     )
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pass
 
             brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
@@ -442,7 +442,7 @@ async def _execute_agents_parallel(
                             steps_done=len(execution_steps),
                             status="running",
                         )
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
@@ -574,7 +574,7 @@ async def conduct_multi_agent_meeting(
                 steps_done=0,
                 status="running",
             )
-        except Exception:
+        except (OSError, ValueError, TypeError):
             pass
 
     dialogue_transcript = []
@@ -977,7 +977,7 @@ async def conduct_multi_agent_meeting(
                 if s.get("deliverable_file")
             ]
             _SwarmCheckpoint.mark_completed(session_id, deliverables=_deliverables)
-        except Exception:
+        except (OSError, ValueError, TypeError):
             pass
 
     log_live("DONE", "🏁 Eksekusi swarm selesai.")

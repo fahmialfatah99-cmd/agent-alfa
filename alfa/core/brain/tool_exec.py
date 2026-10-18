@@ -62,7 +62,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             from alfa.core.metrics import note_tool_missing
 
             note_tool_missing(name)
-        except Exception:
+        except (ImportError, AttributeError, TypeError):
             pass
         return f"[ERROR] Tool '{name}' tidak ditemukan. Silakan periksa daftar tool yang tersedia."
     try:
@@ -80,14 +80,14 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                 or "-"
             )
             _se.log_tool_live(f"⚙️ menjalankan `{name}` ({arg_hint}) ...")
-    except Exception:
+    except (ImportError, AttributeError, OSError, TypeError):
         pass
 
     try:
         from alfa.core import tracing as _tr
 
         _span = _tr.new_span(f"tool:{name}", tool=name)
-    except Exception:
+    except (ImportError, AttributeError, TypeError):
         _span = None
 
     def _call():
@@ -108,7 +108,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                     return fn(**args)
                 valid_args = {k: v for k, v in args.items() if k in sig.parameters}
                 return fn(**valid_args)
-            except Exception:
+            except (ValueError, TypeError, KeyError):
                 return f"[ERROR tool] {te}"
         except Exception as e:
             return f"[ERROR tool] {e}"
@@ -128,14 +128,14 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             note_tool_call(
                 name, _ok, (time.perf_counter() - _t0) * 1000
             )
-        except Exception:
+        except (ImportError, AttributeError, TypeError):
             pass
     except Exception as e:
         try:
             from alfa.core.metrics import note_tool_call as _ntc
 
             _ntc(name, False, (time.perf_counter() - _t0) * 1000)
-        except Exception:
+        except (ImportError, AttributeError, TypeError):
             pass
         if _span:
             _span.finish(status="error", error=str(e))
@@ -154,7 +154,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
         if getattr(_se, "MEETING_RUNNING", False):
             _se.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
-    except Exception:
+    except (ImportError, AttributeError, OSError, TypeError):
         pass
 
     return str(raw)[:MAX_TOOL_OUTPUT]

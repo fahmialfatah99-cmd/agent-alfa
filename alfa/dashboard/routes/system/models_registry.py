@@ -45,7 +45,7 @@ async def get_available_models():
                                 "pricing_label": "🟢 GRATIS (1000 NIM Credits)",
                             }
                         )
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
         pass
 
     try:
@@ -74,7 +74,7 @@ async def get_available_models():
                                 ),
                             }
                         )
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
         pass
 
     try:
@@ -95,7 +95,7 @@ async def get_available_models():
                                 "pricing_label": "🟢 9ROUTER",
                             }
                         )
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
         pass
 
     return {"status": "success", "providers": PROVIDER_MODELS}
@@ -130,9 +130,9 @@ async def validate_raw_api_key(payload: dict[str, Any]):
         "qwen",
         "dashscope",
     ]:
-        try:
-            import httpx
+        import httpx
 
+        try:
             url = base_url
             if not url:
                 if provider in ["nvidia", "nim"]:
@@ -225,7 +225,7 @@ async def validate_raw_api_key(payload: dict[str, Any]):
                         "duration_ms": duration_ms,
                         "message": f"HTTP {res.status_code}: {res.text[:200]}",
                     }
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError, TypeError) as e:
             return {"status": "error", "message": f"Error: {str(e)}"}
     else:
         try:

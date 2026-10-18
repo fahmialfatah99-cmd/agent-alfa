@@ -200,14 +200,14 @@ def list_agent_meetings_sync(limit: int = 50) -> list[dict[str, Any]]:
             parts = []
             try:
                 parts = json.loads(r["participants"])
-            except Exception:
+            except (ValueError, TypeError):
                 pass
 
             exec_res = []
             if r["execution_results"]:
                 try:
                     exec_res = json.loads(r["execution_results"])
-                except Exception:
+                except (ValueError, TypeError):
                     exec_res = r["execution_results"]
 
             results.append(
@@ -238,16 +238,16 @@ def get_agent_meeting_sync(meeting_id: int) -> dict[str, Any] | None:
             d = dict(row)
             try:
                 d["participants"] = json.loads(d["participants"])
-            except Exception:
+            except (ValueError, TypeError):
                 pass
             try:
                 d["dialogue_transcript"] = json.loads(d["dialogue_transcript"])
-            except Exception:
+            except (ValueError, TypeError):
                 pass
             if d.get("execution_results"):
                 try:
                     d["execution_results"] = json.loads(d["execution_results"])
-                except Exception:
+                except (ValueError, TypeError):
                     pass
             return d
     return None

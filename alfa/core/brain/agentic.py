@@ -171,7 +171,7 @@ async def run_openai_agentic_turn(
                     tools_schema = select_relevant_tools(
                         tools_schema, user_text, history=history
                     )
-                except Exception:
+                except (ImportError, ValueError, TypeError, KeyError):
                     pass  # fail-open: set lengkap
 
         messages: list[dict[str, Any]] = [
@@ -314,7 +314,7 @@ async def run_openai_agentic_turn(
                         return (
                             f"⏳ *Progres parsial (batas iterasi tercapai):*\n\n{wrap}"
                         )
-            except Exception as wrap_err:
+            except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as wrap_err:
                 logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return None
     except Exception as e:
@@ -467,7 +467,7 @@ async def run_openai_agentic_turn_streaming(
                     tools_schema = select_relevant_tools(
                         tools_schema, user_text, history=history
                     )
-                except Exception:
+                except (ImportError, ValueError, TypeError, KeyError):
                     pass
 
         messages: list[dict[str, Any]] = [
@@ -556,7 +556,7 @@ async def run_openai_agentic_turn_streaming(
                                                 ] += tc["function"]["arguments"]
                                             if tc.get("id"):
                                                 tool_calls_buffer[idx]["id"] = tc["id"]
-                                except Exception:
+                                except (ValueError, KeyError, IndexError, TypeError):
                                     pass
 
                 except Exception as stream_err:
@@ -652,9 +652,9 @@ async def run_openai_agentic_turn_streaming(
                                     delta = chunk["choices"][0].get("delta", {})
                                     if delta.get("content"):
                                         yield delta["content"]
-                                except Exception:
+                                except (ValueError, KeyError, IndexError, TypeError):
                                     pass
-            except Exception as wrap_err:
+            except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as wrap_err:
                 logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return
 

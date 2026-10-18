@@ -84,7 +84,7 @@ def audit_local_host_security() -> dict[str, Any]:
             + (", ".join(public_listeners[:6]) if public_listeners else "tidak ada"),
             severity="MEDIUM",
         )
-    except Exception as net_err:
+    except (psutil.Error, OSError, ValueError, TypeError) as net_err:
         add_check("listening_ports", True, f"Tidak dapat memeriksa ({net_err})")
 
     # 2. Sensitive file permissions (POSIX platforms)
@@ -165,7 +165,7 @@ def audit_local_host_security() -> dict[str, Any]:
                 ),
                 severity="MEDIUM",
             )
-        except Exception as svc_err:
+        except (subprocess.SubprocessError, OSError, ValueError, IndexError) as svc_err:
             add_check("failed_services", True, f"Tidak dapat memeriksa ({svc_err})")
     else:
         add_check(
@@ -189,7 +189,7 @@ def audit_local_host_security() -> dict[str, Any]:
             f"{root_path} terpakai {pct:.0f}% ({du.free // (1024**3)} GB bebas)",
             severity="HIGH",
         )
-    except Exception as du_err:
+    except (psutil.Error, OSError, ValueError, TypeError) as du_err:
         add_check("disk_usage", True, f"Tidak dapat memeriksa ({du_err})")
 
     total = len(checks)
@@ -256,7 +256,7 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
                         "subject": subject.get("commonName", hostname),
                         "expires_on": not_after,
                     }
-        except Exception as e:
+        except (OSError, ValueError, TypeError, KeyError) as e:
             ssl_info = {"valid": False, "error": str(e), "tls_version": "N/A"}
     else:
         ssl_info = {
@@ -282,7 +282,7 @@ def audit_website_security(target_url: str, timeout: int = 8) -> dict[str, Any]:
         status_code = e.code
         for k, v in e.headers.items():
             headers_dict[k.lower()] = v
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return {
             "status": "error",
             "target_url": target_url,

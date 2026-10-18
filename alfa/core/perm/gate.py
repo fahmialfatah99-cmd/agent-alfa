@@ -149,7 +149,7 @@ def _redact_args_json(args_json: str) -> str:
                 for k, v in data.items()
             }
             return json.dumps(redacted, ensure_ascii=False, default=str)
-    except Exception:
+    except (TypeError, ValueError):
         pass
     import re as _re
 
@@ -160,7 +160,7 @@ def _redact_args_json(args_json: str) -> str:
             args_json,
             flags=_re.IGNORECASE,
         )
-    except Exception:
+    except (TypeError, _re.error):
         return args_json
 
 
@@ -237,7 +237,7 @@ async def request_approval(
                 s = s[:117] + "..."
             preview_parts.append(f"• {k}: {s}")
         arg_preview = "\n".join(preview_parts) if preview_parts else "(tanpa argumen)"
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         arg_preview = str(arguments_json)[:300]
 
     req_id = uuid.uuid4().hex[:10]

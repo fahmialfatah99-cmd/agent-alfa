@@ -5,6 +5,7 @@ import base64
 import json
 import os
 import re
+import sqlite3
 import time
 from datetime import datetime
 from typing import Any
@@ -50,7 +51,7 @@ async def chat_with_agent(payload: dict[str, Any]):
             b64_data = b64_data.split(",", 1)[1]
         try:
             raw_bytes = base64.b64decode(b64_data)
-        except Exception:
+        except (ValueError, TypeError):
             continue
 
         txt_ctx, part = ufe.process_uploaded_attachment(
@@ -83,7 +84,7 @@ async def chat_with_agent(payload: dict[str, Any]):
     if selected_key_id:
         try:
             selected_key_id = int(selected_key_id)
-        except Exception:
+        except (ValueError, TypeError):
             selected_key_id = None
 
     # 3. Autonomous Multi-step LLM Turn
@@ -141,7 +142,7 @@ async def chat_with_agent_stream(payload: dict[str, Any]):
             b64_data = b64_data.split(",", 1)[1]
         try:
             raw_bytes = base64.b64decode(b64_data)
-        except Exception:
+        except (ValueError, TypeError):
             continue
 
         txt_ctx, part = ufe.process_uploaded_attachment(
@@ -160,7 +161,7 @@ async def chat_with_agent_stream(payload: dict[str, Any]):
     if selected_key_id:
         try:
             selected_key_id = int(selected_key_id)
-        except Exception:
+        except (ValueError, TypeError):
             selected_key_id = None
 
     expert_mode = (payload.get("expert_mode") or "general").strip()
@@ -407,7 +408,7 @@ async def set_chat_active_model(request: Request, payload: dict[str, Any]):
             database.activate_api_key_sync(
                 int(key_id), custom_model=model if model else None
             )
-        except Exception as e:
+        except (sqlite3.Error, ValueError, TypeError, OSError) as e:
             logger.warning(f"Failed activating key #{key_id}: {e}")
     else:
         os.environ["ALFA_OFFLINE_MODE"] = "false"
@@ -594,7 +595,7 @@ async def chat_with_agent_async(payload: dict[str, Any]):
                     b64_data = b64_data.split(",", 1)[1]
                 try:
                     raw_bytes = base64.b64decode(b64_data)
-                except Exception:
+                except (ValueError, TypeError):
                     continue
 
                 txt_ctx, part = ufe.process_uploaded_attachment(fname, mime, raw_bytes)
@@ -627,7 +628,7 @@ async def chat_with_agent_async(payload: dict[str, Any]):
                 await database.save_chat_message(
                     uid, "model", f"{task_tag} GAGAL ❌: {e}"
                 )
-            except Exception:
+            except (sqlite3.Error, OSError):
                 pass
 
     asyncio.get_running_loop().create_task(_runner())

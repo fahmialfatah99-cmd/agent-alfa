@@ -55,6 +55,6 @@ def _compact_convo(convo: list[dict[str, Any]]) -> list[dict[str, Any]]:
         logger.debug(
             f"[MainBrain] kompaksi konteks: ukuran sekarang {_convo_size(convo)}"
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, AttributeError) as e:
         logger.warning(f"[MainBrain] kompaksi gagal (abaikan): {e!r}")
     return convo

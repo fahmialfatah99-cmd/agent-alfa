@@ -227,11 +227,11 @@ async def swarm_live_feed(since: int = 0):
                         all_recent_entries.append(e)
                         if e.get("i", 0) > since:
                             entries.append(e)
-                    except Exception:
+                    except (ValueError, TypeError, AttributeError):
                         continue
             all_recent_entries = all_recent_entries[-50:]
             entries = entries[-150:]
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return {
             "status": "error",
             "message": str(e),
@@ -275,7 +275,7 @@ async def swarm_list_folders():
                 p = os.path.join(root, d)
                 if os.path.isdir(p) and not d.startswith("."):
                     candidates.append({"path": p, "label": f"{label_prefix}/{d}"})
-        except Exception:
+        except OSError:
             pass
 
     _add("/dev/shm/alfa_sandbox", "sandbox")  # nosec B108 - fixed sandbox dir, not a tempfile

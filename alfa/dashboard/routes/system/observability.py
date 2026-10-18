@@ -16,7 +16,7 @@ async def get_traces_endpoint(limit: int = 50):
 
         traces = tracing.get_recent_traces(n=min(200, max(1, limit)))
         return {"status": "success", "total": len(traces), "traces": traces}
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError) as e:
         return {"status": "error", "message": f"Error fetching traces: {e}"}
 
 
@@ -28,7 +28,7 @@ async def get_trace_detail_endpoint(trace_id: str):
 
         spans = tracing.get_trace_by_id(trace_id)
         return {"status": "success", "trace_id": trace_id, "spans": spans}
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError) as e:
         return {"status": "error", "message": f"Error fetching trace detail: {e}"}
 
 
@@ -40,7 +40,7 @@ async def get_checkpoints_endpoint():
 
         resumable = SwarmCheckpoint.list_resumable()
         return {"status": "success", "total": len(resumable), "checkpoints": resumable}
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError) as e:
         return {"status": "error", "message": f"Error listing checkpoints: {e}"}
 
 
@@ -72,10 +72,10 @@ async def get_eval_runs_endpoint(limit: int = 20):
                         "failed": data.get("failed"),
                     }
                 )
-            except Exception:
+            except (OSError, ValueError, TypeError, AttributeError):
                 continue
         return {"status": "success", "total": len(runs), "runs": runs}
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return {"status": "error", "message": f"Error listing eval runs: {e}"}
 
 
@@ -96,7 +96,7 @@ async def get_eval_run_detail_endpoint(filename: str):
             return {"status": "success", "run": json.load(f)}
     except FileNotFoundError:
         return {"status": "error", "message": "Hasil eval tidak ditemukan."}
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         return {"status": "error", "message": f"Error reading eval run: {e}"}
 
 
@@ -108,5 +108,5 @@ async def resume_checkpoint_endpoint(session_id: str):
 
         res = await swarm_engine.resume_swarm_session(session_id)
         return res
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
         return {"status": "error", "message": f"Error resuming session: {e}"}

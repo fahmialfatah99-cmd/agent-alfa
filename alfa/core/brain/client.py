@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 from typing import Any
 
 logger = logging.getLogger("MainBrain")
@@ -50,13 +51,13 @@ def get_main_brain(
                     "key_id": row["id"],
                     "label": f"brain#{row['id']}",
                 }
-        except Exception as e:
+        except (sqlite3.Error, KeyError, TypeError, ValueError) as e:
             logger.warning(f"main brain pointer unreadable: {e}")
 
     # Fallback: kunci gemini aktif di vault, lalu .env
     try:
         gk = database.get_active_api_key_sync("gemini")
-    except Exception:
+    except (sqlite3.Error, KeyError, TypeError, ValueError):
         gk = None
     if gk and (gk.get("api_key") or "").strip():
         return {

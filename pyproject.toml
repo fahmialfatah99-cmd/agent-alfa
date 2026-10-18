@@ -124,7 +124,7 @@ ignore = ["E501", "B006"]
 
 [tool.ruff.lint.per-file-ignores]
 # ==== lint budget TRY/BLE (dibuat otomatis: scripts/lint_budget.py) ====
-"alfa/bot/advanced_commands.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:18,TRY300:2,TRY400:6
+"alfa/bot/advanced_commands.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:18,TRY300:1,TRY400:6
 "alfa/bot/basic_commands.py" = ["BLE001"]  # n=BLE001:1
 "alfa/bot/config.py" = ["BLE001"]  # n=BLE001:4
 "alfa/bot/discord_bot.py" = ["BLE001", "TRY400"]  # n=BLE001:46,TRY400:6
@@ -134,16 +134,14 @@ ignore = ["E501", "B006"]
 "alfa/bot/proactive.py" = ["BLE001", "TRY003", "TRY300", "TRY301", "TRY400"]  # n=BLE001:28,TRY003:2,TRY300:1,TRY301:2,TRY400:14
 "alfa/bot/progress.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:2
 "alfa/bot/streamer.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:1
-"alfa/bot/turn_executor.py" = ["BLE001"]  # n=BLE001:25
+"alfa/bot/turn_executor.py" = ["BLE001"]  # n=BLE001:10
 "alfa/bot/wa_digest.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:1
 "alfa/bot/wa_menu.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:1
 "alfa/core/__init__.py" = ["TRY003"]  # n=TRY003:1
-"alfa/core/brain/agentic.py" = ["BLE001", "TRY002", "TRY003", "TRY301", "TRY400"]  # n=BLE001:11,TRY002:1,TRY003:1,TRY301:1,TRY400:2
-"alfa/core/brain/cache.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:1
-"alfa/core/brain/client.py" = ["BLE001"]  # n=BLE001:2
-"alfa/core/brain/convo.py" = ["BLE001"]  # n=BLE001:1
-"alfa/core/brain/tool_exec.py" = ["BLE001", "TRY003"]  # n=BLE001:9,TRY003:1
-"alfa/core/brain/tool_schema.py" = ["BLE001", "TRY400"]  # n=BLE001:3,TRY400:1
+"alfa/core/brain/agentic.py" = ["BLE001", "TRY002", "TRY003", "TRY301", "TRY400"]  # n=BLE001:5,TRY002:1,TRY003:1,TRY301:1,TRY400:2
+"alfa/core/brain/cache.py" = ["TRY300"]  # n=TRY300:1
+"alfa/core/brain/tool_exec.py" = ["BLE001", "TRY003"]  # n=BLE001:2,TRY003:1
+"alfa/core/brain/tool_schema.py" = ["TRY400"]  # n=TRY400:1
 "alfa/core/cli/agent_engine/parsing.py" = ["BLE001"]  # n=BLE001:4
 "alfa/core/cli/agent_engine/patch_history.py" = ["BLE001"]  # n=BLE001:5
 "alfa/core/cli/agent_engine/repomap.py" = ["BLE001"]  # n=BLE001:2
@@ -168,44 +166,37 @@ ignore = ["E501", "B006"]
 "alfa/core/cli/slash/providers.py" = ["BLE001"]  # n=BLE001:2
 "alfa/core/cli/slash/vault.py" = ["BLE001"]  # n=BLE001:2
 "alfa/core/config.py" = ["BLE001"]  # n=BLE001:1
-"alfa/core/db/agents.py" = ["BLE001"]  # n=BLE001:5
 "alfa/core/db/connection.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:6,TRY003:1,TRY300:1
 "alfa/core/db/crypto.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:1
-"alfa/core/db/keys.py" = ["BLE001", "TRY400"]  # n=BLE001:6,TRY400:1
+"alfa/core/db/keys.py" = ["TRY400"]  # n=TRY400:1
 "alfa/core/db/memory.py" = ["BLE001"]  # n=BLE001:1
 "alfa/core/db/tasks.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:1
 "alfa/core/metrics.py" = ["BLE001"]  # n=BLE001:5
 "alfa/core/notification.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:1
-"alfa/core/perm/auditor.py" = ["BLE001", "TRY003", "TRY301"]  # n=BLE001:5,TRY003:1,TRY301:1
-"alfa/core/perm/gate.py" = ["BLE001"]  # n=BLE001:13
-"alfa/core/perm/store.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:1
-"alfa/core/rate_limiter.py" = ["BLE001", "TRY400"]  # n=BLE001:5,TRY400:3
+"alfa/core/perm/auditor.py" = ["TRY003", "TRY301"]  # n=TRY003:1,TRY301:1
+"alfa/core/perm/gate.py" = ["BLE001"]  # n=BLE001:10
+"alfa/core/perm/store.py" = ["TRY300"]  # n=TRY300:1
+"alfa/core/rate_limiter.py" = ["TRY400"]  # n=TRY400:3
 "alfa/core/security_boot_guard.py" = ["TRY003"]  # n=TRY003:2
 "alfa/core/token_usage.py" = ["BLE001"]  # n=BLE001:3
-"alfa/core/tracing.py" = ["BLE001"]  # n=BLE001:5
 "alfa/dashboard/common.py" = ["BLE001"]  # n=BLE001:1
-"alfa/dashboard/routes/auth.py" = ["BLE001", "TRY003", "TRY300", "TRY301"]  # n=BLE001:2,TRY003:3,TRY300:3,TRY301:2
-"alfa/dashboard/routes/chat.py" = ["BLE001"]  # n=BLE001:9
-"alfa/dashboard/routes/swarm/affiliate_routes.py" = ["BLE001"]  # n=BLE001:2
-"alfa/dashboard/routes/swarm/live_routes.py" = ["BLE001"]  # n=BLE001:3
-"alfa/dashboard/routes/swarm/meetings_routes.py" = ["BLE001"]  # n=BLE001:2
-"alfa/dashboard/routes/system/gdrive.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:1
-"alfa/dashboard/routes/system/models_registry.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:1
-"alfa/dashboard/routes/system/observability.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:2
-"alfa/dashboard/routes/system/pipelines_memory.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:2
+"alfa/dashboard/routes/auth.py" = ["TRY003", "TRY300", "TRY301"]  # n=TRY003:3,TRY300:3,TRY301:2
+"alfa/dashboard/routes/chat.py" = ["BLE001"]  # n=BLE001:2
+"alfa/dashboard/routes/system/gdrive.py" = ["TRY300"]  # n=TRY300:1
+"alfa/dashboard/routes/system/models_registry.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:1
+"alfa/dashboard/routes/system/observability.py" = ["TRY300"]  # n=TRY300:2
+"alfa/dashboard/routes/system/pipelines_memory.py" = ["TRY300"]  # n=TRY300:2
 "alfa/dashboard/routes/system/scrapers.py" = ["BLE001"]  # n=BLE001:1
-"alfa/dashboard/routes/system/settings_admin.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:2
+"alfa/dashboard/routes/system/settings_admin.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:2
 "alfa/dashboard/routes/system/sites_routes.py" = ["TRY300", "TRY301"]  # n=TRY300:1,TRY301:1
-"alfa/dashboard/routes/system/telemetry.py" = ["BLE001"]  # n=BLE001:3
-"alfa/dashboard/routes/system/whatsapp.py" = ["BLE001", "TRY300"]  # n=BLE001:4,TRY300:1
-"alfa/dashboard/routes/tools.py" = ["BLE001", "TRY300", "TRY301"]  # n=BLE001:5,TRY300:2,TRY301:1
-"alfa/dashboard/routes/webhook.py" = ["BLE001", "TRY400"]  # n=BLE001:4,TRY400:1
-"alfa/dashboard/websocket.py" = ["BLE001"]  # n=BLE001:10
+"alfa/dashboard/routes/system/whatsapp.py" = ["TRY300"]  # n=TRY300:1
+"alfa/dashboard/routes/tools.py" = ["BLE001", "TRY300", "TRY301"]  # n=BLE001:2,TRY300:2,TRY301:1
+"alfa/dashboard/routes/webhook.py" = ["BLE001", "TRY400"]  # n=BLE001:1,TRY400:1
 "alfa/eval/benchmark.py" = ["BLE001"]  # n=BLE001:6
-"alfa/integrations/antigravity_login.py" = ["BLE001", "TRY003", "TRY301", "TRY400"]  # n=BLE001:5,TRY003:2,TRY301:2,TRY400:1
-"alfa/integrations/gdrive/auth.py" = ["BLE001", "TRY003", "TRY300", "TRY400"]  # n=BLE001:19,TRY003:1,TRY300:3,TRY400:4
-"alfa/integrations/gdrive/operations.py" = ["BLE001"]  # n=BLE001:7
-"alfa/integrations/gdrive/secret_store.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:2
+"alfa/integrations/antigravity_login.py" = ["TRY003", "TRY301", "TRY400"]  # n=TRY003:2,TRY301:2,TRY400:1
+"alfa/integrations/gdrive/auth.py" = ["BLE001", "TRY003", "TRY300", "TRY400"]  # n=BLE001:5,TRY003:1,TRY300:3,TRY400:4
+"alfa/integrations/gdrive/operations.py" = ["BLE001"]  # n=BLE001:6
+"alfa/integrations/gdrive/secret_store.py" = ["TRY300"]  # n=TRY300:2
 "alfa/mcp/client.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:9,TRY003:2,TRY300:1
 "alfa/mcp/server.py" = ["TRY003", "TRY401"]  # n=TRY003:1,TRY401:1
 "alfa/media/tts_engine.py" = ["BLE001", "TRY003", "TRY400"]  # n=BLE001:3,TRY003:1,TRY400:1
@@ -217,14 +208,12 @@ ignore = ["E501", "B006"]
 "alfa/scrapers/universal.py" = ["BLE001"]  # n=BLE001:4
 "alfa/security/net_guard.py" = ["TRY003"]  # n=TRY003:1
 "alfa/security/vault.py" = ["BLE001", "TRY003", "TRY400"]  # n=BLE001:3,TRY003:7,TRY400:3
-"alfa/swarm/checkpoint.py" = ["BLE001"]  # n=BLE001:4
-"alfa/swarm/engine.py" = ["BLE001", "TRY400"]  # n=BLE001:14,TRY400:2
-"alfa/swarm/live_logger.py" = ["BLE001"]  # n=BLE001:4
-"alfa/swarm/llm_client.py" = ["BLE001", "TRY400"]  # n=BLE001:17,TRY400:5
-"alfa/swarm/queue.py" = ["BLE001", "TRY003"]  # n=BLE001:3,TRY003:1
-"alfa/swarm/step_executor.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:1
+"alfa/swarm/engine.py" = ["BLE001", "TRY400"]  # n=BLE001:3,TRY400:2
+"alfa/swarm/llm_client.py" = ["BLE001", "TRY400"]  # n=BLE001:5,TRY400:5
+"alfa/swarm/queue.py" = ["BLE001", "TRY003"]  # n=BLE001:1,TRY003:1
+"alfa/swarm/step_executor.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:1
 "alfa/swarm/subagents.py" = ["BLE001", "TRY400"]  # n=BLE001:1,TRY400:1
-"alfa/swarm/workspace_hygiene.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:1
+"alfa/swarm/workspace_hygiene.py" = ["TRY300"]  # n=TRY300:1
 "alfa/tools/academic_researcher.py" = ["BLE001", "TRY400"]  # n=BLE001:2,TRY400:1
 "alfa/tools/academic_tools.py" = ["BLE001"]  # n=BLE001:3
 "alfa/tools/desktop/capture.py" = ["BLE001", "TRY003", "TRY300", "TRY301"]  # n=BLE001:9,TRY003:1,TRY300:2,TRY301:1
@@ -263,7 +252,7 @@ ignore = ["E501", "B006"]
 "alfa/tools/web/affiliate.py" = ["BLE001", "TRY400"]  # n=BLE001:5,TRY400:5
 "alfa/tools/web/affiliate_engine.py" = ["BLE001", "TRY003", "TRY300", "TRY301", "TRY400"]  # n=BLE001:5,TRY003:1,TRY300:1,TRY301:1,TRY400:1
 "alfa/tools/web/browser/actions.py" = ["TRY300"]  # n=TRY300:1
-"alfa/tools/web/browser/camofox_rest.py" = ["TRY003", "TRY300"]  # n=TRY003:1,TRY300:2
+"alfa/tools/web/browser/camofox_rest.py" = ["TRY003", "TRY300"]  # n=TRY003:1,TRY300:1
 "alfa/tools/web/browser/engine.py" = ["TRY300", "TRY400"]  # n=TRY300:1,TRY400:1
 "alfa/tools/web/browser/planner.py" = ["TRY003", "TRY301"]  # n=TRY003:5,TRY301:1
 "alfa/tools/web/scrapers.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:10,TRY300:1,TRY400:2
@@ -318,11 +307,14 @@ ignore = ["E501", "B006"]
 "alfa/core/database.py" = ["F401", "E402", "BLE001", "TRY400"]  # n=BLE001:1,TRY400:1
 
 
+
 "alfa/bot/telegram_bot.py" = ["F401", "BLE001"]  # n=BLE001:2
+
 
 
 # App factory reads env (ensure_env_loaded) before importing env-dependent routers — order is intentional
 "alfa/dashboard/app.py" = ["E402", "BLE001", "TRY003"]  # n=BLE001:8,TRY003:1
+
 
 
 

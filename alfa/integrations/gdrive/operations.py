@@ -271,7 +271,7 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> dict[st
                     if allowed.split(",")[0].strip().isdigit()
                     else 0
                 )
-            except Exception:
+            except (ValueError, TypeError, IndexError):
                 uid = 0
 
         for f in files:

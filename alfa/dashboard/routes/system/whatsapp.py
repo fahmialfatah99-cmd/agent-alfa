@@ -156,14 +156,14 @@ def _log_wa_drive_upload(entry: dict[str, Any]):
 @router.get("/api/wa/qr")
 async def get_wa_qr():
     """Fetch live WhatsApp QR code and authentication status."""
-    try:
-        import httpx
+    import httpx
 
+    try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/qr")
             if resp.status_code == 200:
                 return resp.json()
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError):
         pass
 
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
@@ -210,14 +210,14 @@ async def get_wa_qr():
 @router.post("/api/wa/logout")
 async def logout_wa():
     """Trigger WhatsApp logout to force new QR generation."""
-    try:
-        import httpx
+    import httpx
 
+    try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post("http://localhost:3000/api/logout")
             if resp.status_code == 200:
                 return resp.json()
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError):
         pass
     return {
         "status": "error",
@@ -228,14 +228,14 @@ async def logout_wa():
 @router.get("/api/wa/reports")
 async def get_wa_reports():
     """Fetch recorded WhatsApp Google Sheets reports and format definitions."""
-    try:
-        import httpx
+    import httpx
 
+    try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get("http://localhost:3000/api/reports")
             if resp.status_code == 200:
                 return resp.json()
-    except Exception:
+    except (httpx.HTTPError, ValueError, TypeError):
         pass
 
     reports_file = os.path.expanduser("~/wa-sheets-bot/recorded_reports.json")
@@ -396,7 +396,7 @@ async def wa_media_upload(
                 "folder": f"WA Media / {target_sub}",
             }
         return res
-    except Exception as e:
+    except (OSError, ValueError, TypeError, RuntimeError) as e:
         return {"status": "error", "message": str(e)}
 
 

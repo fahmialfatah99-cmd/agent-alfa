@@ -63,7 +63,7 @@ def lookup(key: str) -> str | None:
         data = json.loads(p.read_text(encoding="utf-8"))
         text = data.get("text")
         return text if isinstance(text, str) and text else None
-    except Exception as e:
+    except (OSError, ValueError, TypeError, AttributeError) as e:
         logger.debug(f"LLM cache lookup gagal: {e}")
         return None
 
@@ -79,7 +79,7 @@ def store(key: str, text: str) -> bool:
             json.dumps({"text": text}, ensure_ascii=False), encoding="utf-8"
         )
         return True
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         logger.debug(f"LLM cache store gagal: {e}")
         return False
 

@@ -75,7 +75,7 @@ def _verify_session_token(token: str) -> dict[str, Any] | None:
             return None
 
         return {"user_id": user_id, "username": username, "expiry": expiry}
-    except Exception:
+    except (ValueError, TypeError, IndexError):
         return None
 
 
@@ -543,7 +543,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
                     decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
                     _, _, pwd = decoded.partition(":")
                     authorized = secrets.compare_digest(pwd, DASHBOARD_AUTH_TOKEN)
-                except Exception:
+                except (ValueError, TypeError):
                     authorized = False
 
             if authorized:

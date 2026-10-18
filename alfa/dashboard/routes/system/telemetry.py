@@ -53,7 +53,7 @@ async def get_stats(request: Request):
                         cl = p.info.get("cmdline") or []
                         if any(script_hint in str(c) for c in cl):
                             return True
-                    except Exception:
+                    except (psutil.Error, OSError, KeyError):
                         continue
                 return False
 
@@ -125,7 +125,7 @@ async def get_stats(request: Request):
             },
             "top_ram_processes": raw_stats.get("top_ram_processes", [])[:8],
         }
-    except Exception as e:
+    except (psutil.Error, subprocess.SubprocessError, OSError, ValueError, TypeError, KeyError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -182,7 +182,7 @@ async def get_services_status(request: Request):
                         cl = p.info.get("cmdline") or []
                         if any(hint in str(c) for c in cl):
                             return True
-                    except Exception:
+                    except (psutil.Error, OSError, KeyError):
                         continue
                 return False
 

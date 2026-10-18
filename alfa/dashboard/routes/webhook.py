@@ -192,7 +192,7 @@ async def trigger_webhook(
                 )
                 await safe_send_message(app, primary_uid, msg)
                 telegram_dispatched = True
-        except Exception as tg_err:
+        except (ImportError, OSError, RuntimeError, ValueError, TypeError) as tg_err:
             logger.warning(f"Gagal mengirim notifikasi webhook ke Telegram: {tg_err}")
 
     return WebhookTriggerResponse(
@@ -245,7 +245,7 @@ async def github_webhook(
 
     try:
         data: dict[str, Any] = json.loads(body.decode("utf-8") or "{}")
-    except Exception:
+    except (ValueError, TypeError):
         data = {}
 
     repo_name = data.get("repository", {}).get("full_name", "unknown_repo")
@@ -269,7 +269,7 @@ async def github_webhook(
                 f"Repository: `{repo_name}`\n"
                 f"Actor: @{sender}",
             )
-    except Exception as e:
+    except (ImportError, OSError, RuntimeError, ValueError, TypeError) as e:
         logger.debug(f"GitHub event Telegram forward skipped: {e}")
 
     return GitHubWebhookResponse(

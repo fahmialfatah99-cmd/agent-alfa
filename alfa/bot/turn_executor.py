@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 import sys
 from typing import Any
 
@@ -99,7 +100,7 @@ async def _summarize_chunk(prev_summary: str, fresh: list[dict]) -> str:
             _tu.from_gemini_response(
                 resp, model=f"{_COMPACT_MODEL}:compact", context="telegram_chat:compact"
             )
-        except Exception:
+        except (ImportError, AttributeError, TypeError, ValueError):
             pass
         return (getattr(resp, "text", "") or "").strip()
     except Exception as e:
@@ -131,7 +132,7 @@ async def _maybe_compact_history(_db, user_id: int) -> str:
                 ).fetchone()
                 prev = str(row[0] or "") if row else ""
                 up_to = int(row[1] or 0) if row else 0
-            except Exception:
+            except (sqlite3.Error, TypeError, ValueError, IndexError):
                 prev, up_to = "", 0
             msgs = conn.execute(
                 "SELECT id, role, content FROM chat_history WHERE user_id = ? "
@@ -156,7 +157,7 @@ async def _maybe_compact_history(_db, user_id: int) -> str:
                     )
                     try:
                         conn.commit()
-                    except Exception:
+                    except sqlite3.Error:
                         pass
                     prev = new_summary
             return _format_compaction(prev)
@@ -250,7 +251,7 @@ def _build_memory_block(
                     memory_context_parts.append(
                         f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
                     )
-        except Exception as rag_err:
+        except (ImportError, OSError, sqlite3.Error, ValueError, TypeError, KeyError) as rag_err:
             logger.debug(f"Auto-RAG skipped: {rag_err}")
 
     memory_block = ""
@@ -289,7 +290,7 @@ async def _build_system_instruction(
         try:
             with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
                 active_base_prompt = f.read().strip()
-        except Exception:
+        except OSError:
             pass
 
     brain_model_override = db.get_main_brain_model()
@@ -356,7 +357,7 @@ def _prepare_tools_and_configs(
         plugin_tools = plugins.load_all_plugin_tools()
         if plugin_tools:
             all_tools = list(AVAILABLE_TOOLS) + plugin_tools
-    except Exception as e:
+    except (ImportError, OSError, AttributeError, TypeError, ValueError) as e:
         logger.warning(f"Failed to load dynamic plugins: {e}")
 
     seen_fn_names = set()
@@ -377,7 +378,7 @@ def _prepare_tools_and_configs(
         gemini_tools = select_relevant_functions(
             all_tools, user_prompt or "", history=history_msgs
         )
-    except Exception:
+    except (ImportError, ValueError, TypeError, KeyError):
         pass
 
     _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
@@ -604,7 +605,7 @@ async def _openai_compat_turn(
                 {"role": "model", "content": reply_text},
             ]
             memory_reflection.maybe_schedule_reflection(user_id, refl_history)
-        except Exception as refl_err:
+        except (ImportError, RuntimeError, AttributeError, TypeError) as refl_err:
             logger.debug(f"reflection scheduling(error): {refl_err}")
         return str(reply_text)
     logger.warning(
@@ -620,7 +621,7 @@ async def _try_alt_provider_keys(
     """Coba kunci aktif non-Gemini di vault; return teks bila satu berhasil."""
     try:
         alt_keys = db.list_active_keys_sync(exclude_provider="gemini")
-    except Exception:
+    except (sqlite3.Error, TypeError, ValueError, AttributeError):
         alt_keys = []
     for key in alt_keys:
         prov = (key.get("provider") or "").lower()
@@ -864,7 +865,7 @@ async def _run_agent_turn_impl(
                         model_content = resp.candidates[0].content
                         if model_content is not None:
                             _contents.append(model_content)
-                    except Exception:
+                    except (AttributeError, IndexError, TypeError, ValueError):
                         pass
                     for fc in fcs:
                         _executed.append(fc.name)
@@ -908,7 +909,7 @@ async def _run_agent_turn_impl(
                     )
                     try:
                         turn_text = resp.text or ""
-                    except Exception:
+                    except (AttributeError, IndexError, TypeError, ValueError):
                         turn_text = ""
                     if turn_text:
                         reply_text = turn_text
@@ -943,7 +944,7 @@ async def _run_agent_turn_impl(
                                 key_label=gkey_label or "gemini-env",
                                 context="telegram_chat:stream",
                             )
-                        except Exception:
+                        except (AttributeError, TypeError, ValueError):
                             pass
                     response = last_chunk
                     reply_text = streamed_text
@@ -964,7 +965,7 @@ async def _run_agent_turn_impl(
                     )
                     try:
                         reply_text = response.text or ""
-                    except Exception:
+                    except (AttributeError, IndexError, TypeError, ValueError):
                         reply_text = ""
             else:
                 response = await gemini_client.aio.models.generate_content(
@@ -979,7 +980,7 @@ async def _run_agent_turn_impl(
                 )
                 try:
                     reply_text = response.text or ""
-                except Exception:
+                except (AttributeError, IndexError, TypeError, ValueError):
                     reply_text = ""
 
             response = await _drive_tool_loop(response, config)
@@ -1071,7 +1072,7 @@ async def _run_agent_turn_impl(
     err_reply = f"❌ Terjadi kesalahan saat memproses permintaan:\n`{str(last_error)}`"
     try:
         await _db.save_chat_message(user_id, "model", err_reply)
-    except Exception:
+    except (sqlite3.Error, OSError, TypeError, ValueError):
         pass
     return err_reply
 

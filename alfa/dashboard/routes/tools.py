@@ -94,7 +94,7 @@ async def get_tools_list():
         import plugins
 
         plugins.load_all_plugin_tools()
-    except Exception as e:
+    except (ImportError, OSError, ValueError, TypeError, RuntimeError) as e:
         logger.warning(f"Failed to load dynamic plugins for API: {e}")
 
     tools_list = []
@@ -179,7 +179,7 @@ async def get_tools_list():
                         "extra_group": "dynamic",
                     }
                 )
-    except Exception as e:
+    except (ImportError, AttributeError, ValueError, TypeError) as e:
         logger.warning(f"Failed to add dynamic plugins to list: {e}")
 
     return {
@@ -449,7 +449,7 @@ async def api_superpowers_list():
                     m = re.search(r"description:\s*([^\n]+)", text)
                     if m:
                         desc = m.group(1).strip()
-                except Exception:
+                except OSError:
                     pass
 
             icon, default_desc, category = icons_map.get(

@@ -148,7 +148,7 @@ def sanitize_project_directory(dir_path: str) -> dict[str, int]:
                 try:
                     shutil.rmtree(dp, ignore_errors=True)
                     pruned_dirs += 1
-                except Exception:
+                except OSError:
                     pass
 
     # 2. Hapus file sampah (patterns & debug logs)
@@ -205,7 +205,7 @@ def _hash_sandbox_projects() -> dict[str, str]:
                         out[fp] = f"{st.st_size}:{st.st_mtime_ns}"
                     except OSError:
                         pass
-    except Exception:
+    except OSError:
         pass
     return out
 
@@ -226,7 +226,7 @@ def _sandbox_project_dirs() -> set:
             and not d.startswith(".")
             and d not in _HARVEST_EXCLUDE
         }
-    except Exception:
+    except OSError:
         return set()
 
 
@@ -351,7 +351,7 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
                         if os.path.isfile(_pend_file):
                             with open(_pend_file) as _f:
                                 _pend = json.load(_f) or []
-                    except Exception:
+                    except (OSError, ValueError, TypeError):
                         _pend = []
                     for _s in _new:
                         if _s not in _pend:
@@ -362,10 +362,10 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
                     "SITES",
                     f"🌐 Registry situs diperbarui ({len(_new)} baru terdeteksi).",
                 )
-            except Exception as _reg_err:
+            except (ImportError, OSError, ValueError, TypeError, KeyError) as _reg_err:
                 logger.debug(f"[harvest] refresh registry situs dilewati: {_reg_err}")
         return harvested
-    except Exception as e:
+    except (OSError, shutil.Error, ValueError, TypeError) as e:
         log_live("HARVEST", f"⚠️ harvest gagal: {e}")
         return harvested
     finally:

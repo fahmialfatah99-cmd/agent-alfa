@@ -12,6 +12,7 @@ Nama secret di vault:
 
 import json as _json
 import logging
+import sqlite3
 
 from alfa.core import database
 
@@ -37,7 +38,7 @@ def save_secret(name: str, value: str) -> bool:
             name, value, category=category, notes="Google Drive (auto-managed)"
         )
         return True
-    except Exception as vault_err:
+    except (sqlite3.Error, OSError, ValueError, TypeError, RuntimeError) as vault_err:
         logger.warning(f"Vault save gagal untuk {name}: {vault_err}")
         return False
 
@@ -48,7 +49,7 @@ def load_secret(name: str) -> str | None:
         info = _vault().get_secret(name)
         if info and info.get("value"):
             return str(info["value"])
-    except Exception as vault_err:
+    except (sqlite3.Error, OSError, ValueError, TypeError, RuntimeError) as vault_err:
         logger.warning(f"Vault read gagal untuk {name}: {vault_err}")
     return None
 
@@ -63,14 +64,14 @@ def delete_secret(name: str) -> bool:
         secret_id = info.get("id")
         from alfa.security.vault import _vault_db_path
 
-        conn = __import__("sqlite3").connect(_vault_db_path())
+        conn = sqlite3.connect(_vault_db_path())
         try:
             conn.execute("DELETE FROM vault_secrets WHERE id = ?", (secret_id,))
             conn.commit()
         finally:
             conn.close()
         return True
-    except Exception as vault_err:
+    except (sqlite3.Error, OSError, ValueError, TypeError, RuntimeError) as vault_err:
         logger.warning(f"Vault delete gagal untuk {name}: {vault_err}")
         return False
 
@@ -82,7 +83,7 @@ def _legacy_plaintext_read(key: str) -> str | None:
                 "SELECT value FROM system_settings WHERE key = ?", (key,)
             ).fetchone()
             return str(row[0]) if row and row[0] else None
-    except Exception:
+    except (sqlite3.Error, OSError):
         return None
 
 
@@ -114,7 +115,7 @@ def migrate_legacy_plaintext() -> dict[str, bool | str]:
                 conn.execute("DELETE FROM system_settings WHERE key = ?", (key,))
                 conn.commit()
             report[key] = True
-        except Exception as e:
+        except (sqlite3.Error, OSError) as e:
             logger.warning(f"Migrasi {key}: hapus plaintext gagal: {e}")
             report[key] = False
     return report

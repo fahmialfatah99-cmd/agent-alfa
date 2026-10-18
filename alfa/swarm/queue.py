@@ -66,7 +66,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     for key in ("participants_json", "result_json"):
         try:
             d[key.replace("_json", "")] = json.loads(d.pop(key) or ("[]" if key == "participants_json" else "{}"))
-        except Exception:
+        except (ValueError, TypeError):
             d[key.replace("_json", "")] = [] if key == "participants_json" else {}
     return d
 
@@ -189,7 +189,7 @@ def claim_next(db_path: str | None = None) -> dict[str, Any] | None:
         except Exception:
             try:
                 conn.execute("ROLLBACK")
-            except Exception:
+            except sqlite3.Error:
                 pass
             raise
     finally:

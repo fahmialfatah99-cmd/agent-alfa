@@ -39,7 +39,7 @@ class ConnectionManager:
                 await websocket.send_text(json.dumps(message))
             else:
                 await websocket.send_text(str(message))
-        except Exception as e:
+        except (WebSocketDisconnect, OSError, RuntimeError, ValueError, TypeError) as e:
             logger.debug(f"Failed to send personal websocket message: {e}")
 
     async def broadcast(self, message: Any, channel: str | None = None):
@@ -54,7 +54,7 @@ class ConnectionManager:
         for connection in target_connections:
             try:
                 await connection.send_text(payload)
-            except Exception:
+            except (WebSocketDisconnect, OSError, RuntimeError, ValueError, TypeError):
                 self.disconnect(connection, channel)
 
 
@@ -67,7 +67,7 @@ def _ws_client_ip(websocket) -> str:
         client = websocket.client
         ip = getattr(client, "host", None) if client else None
         return str(ip) if ip else ""
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         return ""
 
 
@@ -92,7 +92,7 @@ def _origin_allowed(websocket) -> bool:
         return True
     try:
         host = websocket.headers.get("host", "").strip().lower()
-    except Exception:
+    except (AttributeError, KeyError, TypeError):
         host = ""
     origin = origin.lower()
     for scheme in ("https://", "http://"):
@@ -163,7 +163,7 @@ async def ws_terminal_endpoint(websocket: WebSocket):
             try:
                 msg = json.loads(raw_data)
                 command = msg.get("command", "").strip()
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 command = raw_data.strip()
 
             if not command:
@@ -195,14 +195,14 @@ async def ws_terminal_endpoint(websocket: WebSocket):
                 await ws_manager.send_personal_message(
                     {"type": "exit", "code": proc.returncode}, websocket
                 )
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 await ws_manager.send_personal_message(
                     {"type": "error", "data": f"Execution error: {str(e)}\r\n"},
                     websocket,
                 )
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, channel="terminal")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         logger.debug(f"Terminal websocket error: {e}")
         ws_manager.disconnect(websocket, channel="terminal")
 
@@ -240,11 +240,11 @@ async def ws_logs_endpoint(websocket: WebSocket):
             if proc.returncode is None:
                 try:
                     proc.kill()
-                except Exception:
+                except (ProcessLookupError, OSError):
                     pass
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, channel="logs")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         logger.debug(f"Logs websocket error: {e}")
         ws_manager.disconnect(websocket, channel="logs")
 
@@ -265,6 +265,6 @@ async def ws_broadcast_endpoint(websocket: WebSocket):
                 await ws_manager.send_personal_message({"type": "pong"}, websocket)
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, channel="broadcast")
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         logger.debug(f"Broadcast websocket error: {e}")
         ws_manager.disconnect(websocket, channel="broadcast")

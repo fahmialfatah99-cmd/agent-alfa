@@ -85,7 +85,7 @@ def build_openai_tools(safe_only: bool = False) -> list[dict[str, Any]]:
         from alfa import tools as t
 
         fns = [f for f in t.AVAILABLE_TOOLS if callable(f)]
-    except Exception as e:
+    except (ImportError, AttributeError, TypeError) as e:
         logger.error(f"build_openai_tools gagal: {e}")
         return []
     if safe_only:
@@ -94,7 +94,7 @@ def build_openai_tools(safe_only: bool = False) -> list[dict[str, Any]]:
     for fn in fns:
         try:
             converted.append(_fn_to_openai_tool(fn))
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             continue
     return converted
 
@@ -125,6 +125,6 @@ def _find_tool(name: str):
         for f in t.AVAILABLE_TOOLS:
             if getattr(f, "__name__", "") == name:
                 return f
-    except Exception:
+    except (ImportError, AttributeError, TypeError):
         pass
     return None

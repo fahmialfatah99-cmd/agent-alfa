@@ -132,7 +132,7 @@ def _append_trace(entry: dict[str, Any]):
         with _write_lock:
             with open(_get_trace_file(), "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
-    except Exception:
+    except (OSError, ValueError, TypeError):
         pass  # tracing must never crash the main app
     _maybe_export_otlp(entry)
 
@@ -204,7 +204,7 @@ def _maybe_export_otlp(entry: dict[str, Any]) -> bool:
         )
         with urllib.request.urlopen(req, timeout=3) as resp:  # nosec B310
             return bool(200 <= resp.status < 300)
-    except Exception as e:
+    except (OSError, ValueError, TypeError) as e:
         logger_debug(f"OTLP export gagal: {e}")
         return False
 
@@ -214,7 +214,7 @@ def logger_debug(msg: str) -> None:
         import logging as _logging
 
         _logging.getLogger("alfa.tracing").debug(msg)
-    except Exception:
+    except (OSError, ValueError, TypeError):
         pass
 
 
@@ -245,10 +245,10 @@ def get_recent_traces(n: int = 100) -> list[dict[str, Any]]:
         for line in lines[-n:]:
             try:
                 result.append(json.loads(line))
-            except Exception:
+            except (ValueError, TypeError):
                 pass
         return list(reversed(result))  # newest first
-    except Exception:
+    except OSError:
         return []
 
 

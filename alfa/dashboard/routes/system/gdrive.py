@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import sqlite3
 from typing import Any, cast
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -31,7 +32,7 @@ async def gdrive_status_endpoint():
                     cdata = json.load(f)
                     account_email = cdata.get("client_email", "")
                     project_id = cdata.get("project_id", "")
-            except Exception:
+            except (OSError, ValueError, TypeError, AttributeError):
                 pass
 
         active_email = (res.get("user") or {}).get("emailAddress", "")
@@ -52,7 +53,7 @@ async def gdrive_status_endpoint():
             ),
             "error": res.get("message", "") if not res.get("connected") else "",
         }
-    except Exception as e:
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
         return {"status": "error", "connected": False, "message": str(e)}
 
 
@@ -133,7 +134,7 @@ async def gdrive_save_credentials(
             "project_id": data.get("project_id", ""),
             "connected": test_res.get("connected", False),
         }
-    except Exception as e:
+    except (OSError, ValueError, TypeError, sqlite3.Error, RuntimeError) as e:
         return {
             "status": "error",
             "message": f"Gagal memproses kredensial Google Cloud: {str(e)}",
@@ -175,7 +176,7 @@ async def gdrive_oauth_secret_check():
             elif probe.get("type") == "service_account" or "private_key" in probe:
                 result["kind"] = "service_account"
                 result["exists"] = False
-        except Exception:
+        except (OSError, ValueError, TypeError):
             result["kind"] = "invalid_json"
             result["exists"] = False
     return result
@@ -300,7 +301,7 @@ async def gdrive_oauth_start():
             "status": "error",
             "message": "Waktu login habis (5 menit) tanpa konfirmasi dari browser.",
         }
-    except Exception as oauth_err:
+    except (OSError, ValueError, TypeError, RuntimeError) as oauth_err:
         return {"status": "error", "message": f"OAuth error: {str(oauth_err)}"}
 
 

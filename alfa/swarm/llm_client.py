@@ -6,6 +6,7 @@ Supports Gemini (with automatic function calling) and OpenAI-compatible provider
 import asyncio
 import logging
 import os
+import sqlite3
 import sys
 from typing import Any
 
@@ -55,14 +56,14 @@ def _default_gemini_model() -> str:
         m = (database.get_main_brain_model() or "").strip()
         if m:
             return m
-    except Exception:
+    except (sqlite3.Error, TypeError, ValueError):
         pass
     try:
         k = database.get_active_api_key_sync("gemini")
         m = ((k or {}).get("default_model") or "").strip()
         if m:
             return m
-    except Exception:
+    except (sqlite3.Error, TypeError, ValueError, AttributeError):
         pass
     return "gemini-flash-latest"
 
@@ -134,7 +135,7 @@ def get_agent_api_client(
                             if rk and rk[0]:
                                 api_key = rk[0]
                                 break
-            except Exception:
+            except (sqlite3.Error, OSError, TypeError, ValueError, IndexError):
                 pass
 
     return provider, api_key, model, base_url, key_id
@@ -331,7 +332,7 @@ async def _generate_with_openai_compat(
                         return None
                     if content:
                         return content
-                except Exception as parse_err:
+                except (ValueError, KeyError, IndexError, TypeError, AttributeError) as parse_err:
                     logger.warning(
                         f"[{provider}] JSON parse fallback ({parse_err!r}) -> mencoba parsing SSE chunks"
                     )
@@ -353,7 +354,7 @@ async def _generate_with_openai_compat(
                                 )
                                 if c:
                                     content_parts.append(c)
-                            except Exception:
+                            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
                                 pass
                     if content_parts:
                         return "".join(content_parts).strip()
@@ -375,7 +376,7 @@ async def _generate_with_openai_compat(
                             headers=headers,
                             json=payload,
                         )
-                    except Exception as retry_err:
+                    except (httpx.HTTPError, ValueError, TypeError) as retry_err:
                         logger.error(
                             f"[{provider}] retry 402 gagal: {type(retry_err).__name__}: {retry_err}"
                         )
@@ -434,7 +435,7 @@ async def _generate_with_openai_compat(
                         content = (msg0.get("content") or "").strip()
                         if content:
                             return content
-                except Exception as retry_err:
+                except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as retry_err:
                     logger.error(f"[{provider}] retry 429 failed: {retry_err}")
 
             err_detail = res.text[:200] or "(empty body)"
@@ -511,7 +512,7 @@ async def generate_agent_response(
             if cache_hit is not None:
                 logger.debug(f"LLM cache hit untuk '{agent_name}' ({model})")
                 return cache_hit
-        except Exception:
+        except (ImportError, OSError, ValueError, TypeError):
             pass
 
     def gemini_like_tools() -> list[Any]:
@@ -524,7 +525,7 @@ async def generate_agent_response(
                 for n in sorted(_mb.SAFE_TOOL_NAMES)
                 if hasattr(_t, n) and callable(getattr(_t, n))
             ]
-        except Exception:
+        except (ImportError, AttributeError, TypeError):
             return []
 
     result = None
@@ -541,7 +542,7 @@ async def generate_agent_response(
                     for n in sorted(_mb.SAFE_TOOL_NAMES)
                     if hasattr(_t, n) and callable(getattr(_t, n))
                 ]
-            except Exception as tools_err:
+            except (ImportError, AttributeError, TypeError) as tools_err:
                 logger.warning(
                     f"Tools swarm utk '{agent_name}' gagal dimuat: {tools_err}"
                 )
@@ -617,7 +618,7 @@ async def generate_agent_response(
                     if (k.get("provider") or "").lower() == "gemini"
                     and k.get("id") != key_id
                 ]
-            except Exception:
+            except (sqlite3.Error, TypeError, ValueError, AttributeError):
                 gem_keys = []
             for gk in gem_keys:
                 try:
@@ -679,6 +680,6 @@ async def generate_agent_response(
             _llm_cache.store_for(
                 provider, model, system_instruction, prompt, result, eff_max_tokens
             )
-        except Exception:
+        except (ImportError, OSError, ValueError, TypeError):
             pass
     return result

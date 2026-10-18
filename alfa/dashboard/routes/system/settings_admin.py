@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import sqlite3
 import time
 from typing import Any
 
@@ -85,7 +86,7 @@ async def get_system_settings(request: Request):
             with open(alfa_prompt_path, encoding="utf-8") as f:
                 active_instruction = f.read().strip()
             prompt_source = "file"
-        except Exception:
+        except OSError:
             pass
 
     try:
@@ -98,7 +99,7 @@ async def get_system_settings(request: Request):
             "key_id": brain["key_id"],
             "label": brain["label"],
         }
-    except Exception:
+    except (sqlite3.Error, OSError, KeyError, ValueError, TypeError):
         main_brain_info = {"provider": "?", "model": "", "key_id": None, "label": ""}
 
     vault_keys = database.list_api_keys_sync()
@@ -176,7 +177,7 @@ async def models_for_key(request: Request, key_id: int):
                         mid = (m.get("name") or "").replace("models/", "")
                         if mid:
                             models.append(mid)
-            except Exception:
+            except (httpx.HTTPError, ValueError, TypeError, KeyError):
                 pass
             if not models:
                 models = [
@@ -212,7 +213,7 @@ async def models_for_key(request: Request, key_id: int):
         _models_cache.clear()
         _models_cache[key_id] = (time.time(), provider, models)
         return {"status": "success", "provider": provider, "models": models}
-    except Exception as e:
+    except (httpx.HTTPError, OSError, ValueError, TypeError, KeyError) as e:
         return {
             "status": "error",
             "message": str(e),
@@ -381,7 +382,7 @@ async def test_main_brain_combo(payload: dict[str, Any], request: Request):
                         .get("content", "")
                         or ""
                     )[:80]
-                except Exception:
+                except (ValueError, TypeError, IndexError, KeyError, AttributeError):
                     snippet = r2.text[:80]
             else:
                 snippet = f"HTTP {r2.status_code}: {r2.text[:120]}"
@@ -565,7 +566,7 @@ async def update_system_settings(payload: dict[str, Any], request: Request):
                 shutil.copyfile(alfa_prompt_path, alfa_prompt_path + ".bak")
             with open(alfa_prompt_path, "w", encoding="utf-8") as f:
                 f.write(system_instruction + "\n")
-        except Exception as prompt_err:
+        except OSError as prompt_err:
             return {
                 "status": "error",
                 "message": f"Gagal menulis {alfa_prompt_path}: {prompt_err}",

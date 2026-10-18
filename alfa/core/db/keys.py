@@ -86,7 +86,7 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                                 synced.append(
                                     {"provider": "9router", "name": rname, "key": rk}
                                 )
-                except Exception as e:
+                except (sqlite3.Error, OSError, ValueError, TypeError) as e:
                     logger.debug(f"9router sqlite sync check error: {e}")
 
         # 2. CLI Configuration (~/.alfa_cli_config.json)
@@ -137,7 +137,7 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                             synced.append(
                                 {"provider": p_norm, "name": "CLI Config", "key": k_val}
                             )
-                except Exception as e:
+                except (sqlite3.Error, OSError, ValueError, TypeError, AttributeError) as e:
                     logger.debug(f"CLI config sync error: {e}")
 
         # 3. Environment Variables (NINEROUTER_API_KEY, ROUTER_API_KEY, etc.)
@@ -181,7 +181,7 @@ def sync_external_api_keys_sync() -> list[dict[str, Any]]:
                     existing_keys.add(ident)
                     synced.append({"provider": p_norm, "name": env_var, "key": e_val})
 
-    except Exception as exc:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as exc:
         logger.warning(f"Error in sync_external_api_keys_sync: {exc}")
 
     return synced
@@ -194,7 +194,7 @@ def list_api_keys_sync(auto_sync: bool = True) -> list[dict[str, Any]]:
     if auto_sync:
         try:
             sync_external_api_keys_sync()
-        except Exception:
+        except (sqlite3.Error, OSError, ValueError, TypeError):
             pass
 
     with get_sync_db() as conn:
@@ -397,7 +397,7 @@ def list_active_keys_sync(exclude_provider: str = "") -> list[dict[str, Any]]:
                 except (KeyError, TypeError, ValueError):
                     continue
                 out.append(d)
-    except Exception as e:
+    except (sqlite3.Error, TypeError, ValueError) as e:
         logger.warning(f"list_active_keys_sync gagal: {e}")
     return out
 
@@ -415,5 +415,5 @@ def update_api_key_model(key_id: int, model: str) -> bool:
             )
             conn.commit()
             return bool(cur.rowcount and cur.rowcount > 0)
-    except Exception:
+    except (sqlite3.Error, TypeError, ValueError):
         return False

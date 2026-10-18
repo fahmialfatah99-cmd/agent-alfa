@@ -39,7 +39,7 @@ def _load_last_seq() -> int:
             lines = f.read().strip().splitlines()
         if lines:
             return int(json.loads(lines[-1]).get("i", 0))
-    except Exception:
+    except (OSError, ValueError, TypeError, IndexError, AttributeError):
         pass
     return 0
 
@@ -61,7 +61,7 @@ def _append_feed_file(entry: dict[str, Any]) -> None:
             os.replace(tmp, feed_file)
         with open(feed_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
+    except (OSError, ValueError, TypeError):
         pass
 
 
@@ -76,7 +76,7 @@ def log_live(tag: str, text: str) -> None:
         }
         LIVE_LOG.append(entry)
         _append_feed_file(entry)
-    except Exception:
+    except (OSError, ValueError, TypeError):
         pass
 
 
@@ -113,7 +113,7 @@ def _record_step_error(session_id: str, step_result: dict, feedback: str) -> Non
                 agent_name=step_result.get("agent_name", "?"),
                 error=feedback or step_result.get("execution_summary", ""),
             )
-        except Exception:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError):
             pass
 
 

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
@@ -25,7 +26,7 @@ def init_budgets_table():
                 );
             """)
             conn.commit()
-    except Exception as e:
+    except (sqlite3.Error, OSError) as e:
         logger.error(f"Failed to init user_budgets: {e}")
 
 
@@ -70,7 +71,7 @@ def get_user_usage_today(user_id: int) -> dict[str, Any]:
                 total_tokens = usage_row["total_tokens"] or 0
                 total_calls = usage_row["total_calls"] or 0
 
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.error(f"Error getting usage: {e}")
 
     return {
@@ -100,7 +101,7 @@ def set_user_budget(user_id: int, daily_token_limit: int, daily_call_limit: int)
                 (user_id, daily_token_limit, daily_call_limit),
             )
             conn.commit()
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.error(f"Error setting user budget: {e}")
 
 
@@ -132,7 +133,7 @@ def get_budget_report(user_id: int = 1) -> dict[str, Any]:
         usage = get_user_usage_today(user_id)
         try:
             summary = get_api_usage_summary_sync(hours=24)
-        except Exception:
+        except (sqlite3.Error, OSError, ValueError, TypeError):
             summary = {}
         total = usage.get("total_tokens", 0) or 0
         limit = usage.get("budget_limit", 0) or 0
@@ -150,6 +151,6 @@ def get_budget_report(user_id: int = 1) -> dict[str, Any]:
             "by_key": (summary or {}).get("per_key", []) or [],
             "by_context": (summary or {}).get("by_context", []) or [],
         }
-    except Exception as e:
+    except (ImportError, sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"budget report gagal: {e}")
         return {"status": "unknown"}

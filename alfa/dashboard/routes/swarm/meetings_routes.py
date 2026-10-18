@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -81,9 +82,9 @@ async def get_meeting_history(limit: int = 50):
             m = dict(r)
             try:
                 m["participants"] = json.loads(m.get("participants") or "[]")
-            except Exception:
+            except (ValueError, TypeError):
                 pass
             meetings.append(m)
         return {"status": "success", "total": len(meetings), "meetings": meetings}
-    except Exception as e:
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         return {"status": "error", "message": str(e), "meetings": []}
