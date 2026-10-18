@@ -10,8 +10,32 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
+import subprocess
 import sys
 from typing import Any
+
+try:
+    from discord import DiscordException as _DiscordError
+except ImportError:
+
+    class _DiscordError(Exception):  # type: ignore[no-redef]
+        pass
+
+
+_DC_ERR = (
+    _DiscordError,
+    sqlite3.Error,
+    subprocess.SubprocessError,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    LookupError,
+)
 
 logger = logging.getLogger("DiscordBridge")
 
@@ -33,7 +57,7 @@ def _setting(key: str, default: str = "") -> str:
             row = conn.execute("SELECT value FROM system_settings WHERE key = ?", (key,)).fetchone()
             if row and row["value"]:
                 return str(row["value"])
-    except Exception:
+    except _DC_ERR:
         pass
     return default
 
@@ -46,7 +70,7 @@ def _discord_token() -> str:
         return ""
     try:
         return str(db.decrypt_key(row["api_key"]))
-    except Exception:
+    except _DC_ERR:
         return ""
 
 
@@ -55,12 +79,12 @@ def _owner_ids() -> set[int]:
         from alfa.bot.config import ALLOWED_USER_IDS
 
         tg = {int(x) for x in ALLOWED_USER_IDS}
-    except Exception:
+    except _DC_ERR:
         tg = set()
     raw = _setting("discord_owner_id", str(DEF_OWNER_ID))
     try:
         disc = {int(x) for x in raw.replace(",", " ").split() if x.strip().isdigit()}
-    except Exception:
+    except _DC_ERR:
         disc = set()
     return tg | disc | {DEF_OWNER_ID}
 
@@ -95,7 +119,7 @@ async def _run_single(prompt: str, uid: int) -> str:
             from alfa.tools.media.player import set_host_play_blocked
 
             set_host_play_blocked(True)  # Discord: musik HANYA via !play, tanpa Brave
-        except Exception:
+        except _DC_ERR:
             pass
         try:
             return await run_agent_turn(user_id=uid, user_prompt=prompt, chat_id=uid)
@@ -104,9 +128,9 @@ async def _run_single(prompt: str, uid: int) -> str:
                 from alfa.tools.media.player import set_host_play_blocked as _unblock
 
                 _unblock(False)
-            except Exception:
+            except _DC_ERR:
                 pass
-    except Exception as e:
+    except _DC_ERR as e:
         logger.error(f"[discord] turn gagal: {e}")
         return f"❌ Gagal memproses ({type(e).__name__})."
 
@@ -117,7 +141,7 @@ async def _run_swarm(topic: str) -> tuple[str, str]:
     try:
         result = await run_swarm_task(topic)
         return format_swarm_result(result)[:2]
-    except Exception as e:
+    except _DC_ERR as e:
         logger.error(f"[discord] swarm gagal: {e}")
         return f"❌ Misi gagal: {e}", ""
 
@@ -156,7 +180,7 @@ def discord_play_music(query: str = "") -> dict:
 
         try:
             _dc.opus.load_opus("libopus.so.0")
-        except Exception:
+        except _DC_ERR:
             pass
         guild = _DC_CLIENT.get_guild(int(gid))
         if guild is None:
@@ -170,7 +194,7 @@ def discord_play_music(query: str = "") -> dict:
         try:
             if vc.is_playing() or vc.is_paused():
                 vc.stop()
-        except Exception:
+        except _DC_ERR:
             pass
         import yt_dlp as _ydl
 
@@ -188,7 +212,7 @@ def discord_play_music(query: str = "") -> dict:
     fut = _a.run_coroutine_threadsafe(_do(), _DC_LOOP)
     try:
         return fut.result(timeout=120)
-    except Exception as e:
+    except _DC_ERR as e:
         return {"status": "error", "message": f"{type(e).__name__}: {str(e)[:150]}"}
 
 
@@ -199,7 +223,7 @@ def _register_discord_tools() -> None:
         names = {getattr(f, "__name__", "") for f in AVAILABLE_TOOLS}
         if "discord_play_music" not in names:
             AVAILABLE_TOOLS.append(discord_play_music)
-    except Exception as e:
+    except _DC_ERR as e:
         logger.debug(f"[discord] registrasi tool gagal: {e}")
 _PLAY_LOCKS: dict[int, object] = {}
 
@@ -239,7 +263,7 @@ async def _vc_listen_loop(vc, chan, guild_id: int, owner_uid: int) -> None:
             await asyncio.sleep(8)
             try:
                 vc.stop_recording()
-            except Exception:
+            except _DC_ERR:
                 pass
             await asyncio.sleep(1)
             heard = []
@@ -266,7 +290,7 @@ async def _vc_listen_loop(vc, chan, guild_id: int, owner_uid: int) -> None:
                         pass
                     if len(text) >= 4:
                         heard.append(text)
-                except Exception as e:
+                except _DC_ERR as e:
                     logger.debug(f"[jarvis] transcribe gagal: {e}")
             if not heard:
                 continue
@@ -285,10 +309,10 @@ async def _vc_listen_loop(vc, chan, guild_id: int, owner_uid: int) -> None:
                 vc.play(_dc.FFmpegPCMAudio(ogg))
                 while vc.is_playing():
                     await asyncio.sleep(0.5)
-            except Exception as e:
+            except _DC_ERR as e:
                 await chan.send((reply)[:1900])
                 logger.debug(f"[jarvis] TTS gagal: {e}")
-        except Exception as e:
+        except _DC_ERR as e:
             logger.debug(f"[jarvis] loop: {e}")
             await asyncio.sleep(2)
 
@@ -302,7 +326,7 @@ async def _discord_play(msg, query: str) -> None:
     try:
         try:
             _dc.opus.load_opus("libopus.so.0")
-        except Exception:
+        except _DC_ERR:
             pass
         voice_state = getattr(msg.author, "voice", None)
         vc = msg.guild.voice_client
@@ -313,7 +337,7 @@ async def _discord_play(msg, query: str) -> None:
         try:
             if vc.is_playing() or vc.is_paused():
                 vc.stop()
-        except Exception:
+        except _DC_ERR:
             pass
         await asyncio.sleep(0.3)
         import yt_dlp as _ydl
@@ -329,11 +353,11 @@ async def _discord_play(msg, query: str) -> None:
         try:
             if vc.is_playing() or vc.is_paused():
                 vc.stop()
-        except Exception:
+        except _DC_ERR:
             pass
         vc.play(_dc.FFmpegPCMAudio(url, before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"))
         await msg.reply(f"▶️ **Memutar:** {title[:150]}")
-    except Exception as e:
+    except _DC_ERR as e:
         await msg.reply(f"❌ Musik gagal: {str(e)[:200]}")
 
 
@@ -342,7 +366,7 @@ def _tg_owner_uid() -> int:
         from alfa.bot.config import ALLOWED_USER_IDS
 
         return int(list(ALLOWED_USER_IDS)[0])
-    except Exception:
+    except _DC_ERR:
         return DEF_OWNER_ID
 
 
@@ -376,7 +400,7 @@ def main() -> None:
         if interaction.user.id not in _owner_ids():
             try:
                 await interaction.response.send_message("🔒 Khusus owner.", ephemeral=True)
-            except Exception:
+            except _DC_ERR:
                 pass
             return False
         return True
@@ -417,9 +441,9 @@ def main() -> None:
                         f"{icon} `{st.get('session_id', '?')[:18]}` {st.get('status')} "
                         f"({st.get('steps_done', 0)}/{st.get('steps_total', '?')}) — {(st.get('topic') or '')[:60]}"
                     )
-                except Exception:
+                except _DC_ERR:
                     pass
-        except Exception:
+        except _DC_ERR:
             pass
         await interaction.response.send_message(
             ("📋 **Misi Swarm Terakhir:**\n" + "\n".join(rows) if rows else "📋 Belum ada misi tercatat.")[:1900]
@@ -430,7 +454,7 @@ def main() -> None:
         if interaction.user.id not in _owner_ids():
             try:
                 await interaction.response.send_message("🔒 Khusus owner.", ephemeral=True)
-            except Exception:
+            except _DC_ERR:
                 pass
             return
         try:
@@ -445,10 +469,10 @@ def main() -> None:
             _VC_LISTEN[interaction.guild.id] = True
             await interaction.followup.send("🤖 **Mode Jarvis ON** — bicara, saya jawab suara. `!leave` berhenti.")
             client.loop.create_task(_vc_listen_loop(vc, interaction.channel, interaction.guild.id, _tg_owner_uid()))
-        except Exception as e:
+        except _DC_ERR as e:
             try:
                 await interaction.followup.send(f"❌ Join gagal: {str(e)[:150]}")
-            except Exception:
+            except _DC_ERR:
                 pass
 
     @tree.command(name="situs", description="Galeri situs hasil kerja agent", guild=_guild)
@@ -469,7 +493,7 @@ def main() -> None:
         try:
             synced = await tree.sync(guild=_guild)
             logger.warning(f"[discord] {len(synced)} slash command tersinkron.")
-        except Exception as e:
+        except _DC_ERR as e:
             logger.error(f"[discord] sync slash gagal: {e}")
         try:
             _DC_LOOP = asyncio.get_running_loop()
@@ -482,7 +506,7 @@ def main() -> None:
                     type=__import__("discord").ActivityType.watching, name="WA & swarm"
                 )
             )
-        except Exception:
+        except _DC_ERR:
             pass
         client.loop.create_task(_mirror_loop(client))
         client.loop.create_task(_digest_loop(client))
@@ -500,7 +524,7 @@ def main() -> None:
                 _DISCORD_CMD_CTX["guild_id"] = msg.guild.id if msg.guild else 0
                 vs = getattr(msg.author, "voice", None)
                 _DISCORD_CMD_CTX["voice_channel_id"] = vs.channel.id if vs and vs.channel else 0
-            except Exception:
+            except _DC_ERR:
                 pass
             low = text.lower()
             owner_only = {"!swarm", "!serve", "!stop", "!ss", "!cam", "!join",
@@ -523,7 +547,7 @@ def main() -> None:
 
                             ok = request_cancel_swarm()
                             await msg.reply("⏹️ Permintaan henti dikirim." if ok else "ℹ️ Tidak ada misi berjalan.")
-                        except Exception:
+                        except _DC_ERR:
                             await msg.reply("ℹ️ Tidak ada misi berjalan.")
                         return
                     if topic.lower().startswith("template"):
@@ -547,7 +571,7 @@ def main() -> None:
                                 name="misi swarm berjalan",
                             )
                         )
-                    except Exception:
+                    except _DC_ERR:
                         pass
                     steps, final = await _run_swarm(topic)
                     try:
@@ -556,7 +580,7 @@ def main() -> None:
                                 type=__import__("discord").ActivityType.watching, name="WA & swarm"
                             )
                         )
-                    except Exception:
+                    except _DC_ERR:
                         pass
                     for part in _split(steps)[:4]:
                         await msg.channel.send(part)
@@ -618,7 +642,7 @@ def main() -> None:
                             await msg.reply("🖥️ **Layar laptop saat ini:**", file=__import__("discord").File(fp))
                         else:
                             await msg.reply(f"❌ Screenshot gagal: {(res or {}).get('message', '?')}")
-                    except Exception as e:
+                    except _DC_ERR as e:
                         await msg.reply(f"❌ Screenshot gagal: {e}")
                 elif low.startswith("!cam"):
                     await msg.reply("📷 Mengambil frame webcam...")
@@ -631,7 +655,7 @@ def main() -> None:
                             await msg.reply("📷 **Webcam saat ini:**", file=__import__("discord").File(fp))
                         else:
                             await msg.reply(f"❌ Webcam gagal: {(res or {}).get('message', '?')}")
-                    except Exception as e:
+                    except _DC_ERR as e:
                         await msg.reply(f"❌ Webcam gagal: {e}")
                 elif low.startswith("!play"):
                     query = text[5:].strip()
@@ -659,7 +683,7 @@ def main() -> None:
                             await msg.reply("⏹️ Keluar dari voice channel.")
                         else:
                             await msg.reply("ℹ️ Tidak sedang di voice channel.")
-                    except Exception as e:
+                    except _DC_ERR as e:
                         await msg.reply(f"❌ {e}")
                 elif low.startswith("!join"):
                     vs = getattr(msg.author, "voice", None)
@@ -671,7 +695,7 @@ def main() -> None:
 
                         try:
                             _dc2.opus.load_opus("libopus.so.0")
-                        except Exception:
+                        except _DC_ERR:
                             pass
                         vc = msg.guild.voice_client
                         if not vc or not vc.is_connected():
@@ -683,7 +707,7 @@ def main() -> None:
                         _VC_LISTEN[gid] = True
                         await msg.reply("🤖 **Mode Jarvis ON** — bicara, saya dengar 8 detik lalu jawab suara. `!leave` berhenti.")
                         client.loop.create_task(_vc_listen_loop(vc, msg.channel, gid, _tg_owner_uid()))
-                    except Exception as e:
+                    except _DC_ERR as e:
                         await msg.reply(f"❌ Join gagal: {str(e)[:200]}")
                 elif low.startswith("!leave"):
                     gid = msg.guild.id if msg.guild else 0
@@ -693,10 +717,10 @@ def main() -> None:
                         if vc and vc.is_connected():
                             try:
                                 vc.stop_recording()
-                            except Exception:
+                            except _DC_ERR:
                                 pass
                             await vc.disconnect(force=True)
-                    except Exception:
+                    except _DC_ERR:
                         pass
                     await msg.reply("👋 Mode Jarvis OFF, keluar VC.")
                 elif low.startswith("!help") or low.startswith("!menu"):
@@ -723,7 +747,7 @@ def main() -> None:
                         )
                         for part in _split(reply)[:4]:
                             await msg.reply(part)
-        except Exception as e:
+        except _DC_ERR as e:
             logger.error(f"[discord] on_message gagal: {e}")
 
     client.run(token, log_handler=None)
@@ -751,9 +775,9 @@ async def _digest_loop(cli) -> None:
                             await asyncio.sleep(1)
                         _dset("wa_digest_discord_date", now.strftime("%Y-%m-%d"))
                         logger.warning("[discord] digest harian terkirim")
-                    except Exception as e:
+                    except _DC_ERR as e:
                         logger.debug(f"[discord] digest gagal: {e}")
-        except Exception as e:
+        except _DC_ERR as e:
             logger.error(f"[discord] digest loop error: {e}")
         await asyncio.sleep(60)
 
@@ -761,7 +785,7 @@ async def _mirror_loop(cli):
     await cli.wait_until_ready()
     try:
         chan = await cli.fetch_channel(_channel_id())
-    except Exception as e:
+    except _DC_ERR as e:
         logger.error(f"[discord] channel mirror tak bisa dibuka: {e}")
         return
     pos = os.path.getsize(FEED_FILE) if os.path.isfile(FEED_FILE) else 0
@@ -781,13 +805,13 @@ async def _mirror_loop(cli):
                         try:
                             d = json.loads(ln)
                             tag, text = d.get("tag", "?"), d.get("text", "")[:1200]
-                        except Exception:
+                        except _DC_ERR:
                             tag, text = "LOG", ln[:1200]
                         if tag in ("PLAN", "EXEC", "VERIFY", "DONE", "CANCEL", "TIMEOUT", "QA", "FILE", "HARVEST"):
                             for part in _split(f"**[{tag}]** {text}"):
                                 await chan.send(part)
                                 await asyncio.sleep(1)
-        except Exception as e:
+        except _DC_ERR as e:
             logger.debug(f"[discord] mirror dilewati: {e}")
         await asyncio.sleep(15)
 

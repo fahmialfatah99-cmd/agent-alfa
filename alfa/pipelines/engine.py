@@ -141,7 +141,7 @@ def list_pipelines() -> list[dict[str, Any]]:
                     "steps": len(data.get("steps", [])),
                 }
             )
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.warning(f"Pipeline rusak dilewati {fn}: {e}")
     return out
 
@@ -243,7 +243,7 @@ async def _run_step(
             parsed = json.loads(text_out)
             if isinstance(parsed, (dict, list)):
                 text_out = json.dumps(parsed, ensure_ascii=False)[:20000]
-        except Exception:
+        except (TypeError, ValueError):
             pass
         if sid:
             variables[f"{sid}_status"] = str(res.status_code)
@@ -256,7 +256,7 @@ async def _run_step(
             items = json.loads(items_raw)
             if not isinstance(items, list):
                 raise ValueError
-        except Exception:
+        except (TypeError, ValueError):
             items = [s.strip() for s in re.split(r"[\n,;]+", items_raw) if s.strip()]
         inner_text_tmpl = step.get("text") or "{{item}}"
         collected = []
@@ -327,7 +327,7 @@ async def run_pipeline(
                             )
                             trace.append({"step": s["id"], "status": "skipped"})
                             continue
-                    except Exception as ce:
+                    except (KeyError, TypeError, ValueError) as ce:
                         logger.warning(
                             f"[Pipeline] kondisi '{s['id']}' gagal dievaluasi: {ce}"
                         )
@@ -378,7 +378,7 @@ def _record_run(pid: str, summary: dict[str, Any]) -> None:
         if len(lines) > 100:
             with open(path, "w", encoding="utf-8") as f:
                 f.writelines(lines[-100:])
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         logger.debug(f"record_run gagal: {e}")
 
 
@@ -401,7 +401,7 @@ def list_runs(pid: str, limit: int = 10) -> list[dict[str, Any]]:
                     "steps": len(d.get("trace", [])),
                 }
             )
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             continue
     return list(reversed(out))
 
@@ -415,7 +415,7 @@ def _load_trigger_state() -> dict[str, float]:
         with open(_STATE_FILE, encoding="utf-8") as f:
             state: dict[str, float] = json.load(f)
             return state
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return {}
 
 
@@ -423,7 +423,7 @@ def _save_trigger_state(st: dict[str, float]) -> None:
     try:
         with open(_STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(st, f)
-    except Exception:
+    except (OSError, TypeError, ValueError):
         pass
 
 
@@ -436,7 +436,7 @@ async def scheduler_tick() -> int:
         pid = meta["id"]
         try:
             data = load_pipeline(pid)
-        except Exception:
+        except (OSError, TypeError, ValueError):
             continue
         trig = data.get("trigger") or {}
         if trig.get("type") != "interval" or trig.get("enabled") is False:
@@ -499,5 +499,5 @@ for _dp in _DEFAULT_PIPELINES:
     if not os.path.exists(_p):
         try:
             save_pipeline(_dp)
-        except Exception:
+        except (OSError, TypeError, ValueError):
             pass

@@ -4,6 +4,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import sqlite3
 import subprocess
 from typing import Any
 
@@ -12,6 +13,19 @@ from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
 from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.System")
+
+_MGMT_ERR = (
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    sqlite3.Error,
+    subprocess.SubprocessError,
+    concurrent.futures.TimeoutError,
+)
 
 
 @register_tool(category="system")
@@ -32,12 +46,12 @@ def self_add_new_tool(
         if test_arguments_json and test_arguments_json.strip():
             try:
                 test_kwargs = json.loads(test_arguments_json)
-            except Exception:
+            except (ValueError, TypeError):
                 test_kwargs = {}
         return plugins.create_and_register_plugin(
             tool_name, tool_description, tool_code, test_kwargs=test_kwargs
         )
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": f"Self-evolution error: {str(e)}"}
 
 
@@ -55,7 +69,7 @@ def list_dynamic_plugins() -> dict[str, Any]:
             "total_plugins": len(plugins_list),
             "plugins": plugins_list,
         }
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -68,7 +82,7 @@ def delete_dynamic_plugin(tool_name: str) -> dict[str, Any]:
         import plugins
 
         return plugins.delete_plugin(tool_name)
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -96,7 +110,7 @@ def query_token_usage(hours: int = 24) -> dict[str, Any]:
             "by_context": summary.get("by_context", []),
             "message": f"Pemakaian {hours} jam terakhir: {summary.get('tokens_today')} token hari ini.",
         }
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal membaca pemakaian token: {str(e)}",
@@ -129,7 +143,7 @@ def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
             s.connect(("8.8.8.8", 80))
             local_ip = s.getsockname()[0]
             s.close()
-        except Exception:
+        except OSError:
             pass
 
         return {
@@ -148,7 +162,7 @@ def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
                 "Multi-Provider API Key Vault",
             ],
         }
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": f"Open web dashboard error: {str(e)}"}
 
 
@@ -199,7 +213,7 @@ def manage_api_keys(
             return database.delete_api_key_sync(key_id)
         else:
             return {"status": "error", "message": f"Action tidak dikenal: {action}."}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": f"Manage API keys error: {str(e)}"}
 
 
@@ -267,7 +281,7 @@ def manage_custom_agents(
             )
         else:
             return {"status": "error", "message": f"Action tidak dikenal: {action}."}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": f"Manage custom agents error: {str(e)}"}
 
 
@@ -320,7 +334,7 @@ def conduct_ai_meeting(
             "consensus": result.get("consensus"),
             "action_plan": result.get("action_plan"),
         }
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": f"AI Meeting error: {str(e)}"}
 
 
@@ -342,7 +356,7 @@ def spawn_background_subagent(
             role=agent_role,
             task_description=task_description,
         )
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -359,7 +373,7 @@ def check_subagent_status(subagent_id: str) -> dict[str, Any]:
                 "message": f"Subagent dengan ID '{subagent_id}' tidak ditemukan.",
             }
         return {"status": "success", "task": task}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -390,7 +404,7 @@ def add_recurring_task(
                 )
                 if tpl:
                     prompt_instruction = tpl
-            except Exception:
+            except _MGMT_ERR:
                 pass
         job_id = database.add_cron_job_sync(
             user_id=user_id,
@@ -405,7 +419,7 @@ def add_recurring_task(
             "job_id": job_id,
             "message": f"Tugas berulang #{job_id} '{title}' [{kind}] berhasil dijadwalkan setiap {interval_minutes} menit.",
         }
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -418,7 +432,7 @@ def list_recurring_tasks() -> dict[str, Any]:
         user_id = get_current_user_id()
         jobs = database.list_cron_jobs_sync(user_id)
         return {"status": "success", "total_jobs": len(jobs), "tasks": jobs}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -436,7 +450,7 @@ def cancel_recurring_task(task_id: int) -> dict[str, Any]:
                 "message": f"Tugas berulang #{task_id} berhasil dibatalkan dan dihapus.",
             }
         return {"status": "error", "message": f"Tugas #{task_id} tidak ditemukan."}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -481,7 +495,7 @@ def audit_project_honesty(path: str = "") -> dict[str, Any]:
                         continue
                     with open(fp, errors="ignore") as f:
                         lines = f.readlines()
-                except Exception:
+                except OSError:
                     continue
                 files_scanned += 1
                 rel = _os.path.relpath(fp, base)
@@ -498,7 +512,7 @@ def audit_project_honesty(path: str = "") -> dict[str, Any]:
         verdict = "BERSIH" if not suspects else f"{len(suspects)} TEMUAN"
         return {"status": "success", "path": base, "files_scanned": files_scanned,
                 "verdict": verdict, "suspects": suspects[:40]}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -515,7 +529,7 @@ def mcp_connect(server: str = "lottiefiles") -> dict[str, Any]:
 
         redirect = "http://127.0.0.1:8080/api/mcp/oauth/callback"
         return _mc.start_connect(server, redirect)
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -526,7 +540,7 @@ def mcp_status(server: str = "") -> dict[str, Any]:
         from alfa.mcp import client as _mc
 
         return {"status": "success", **_mc.connection_status(server)}
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -547,7 +561,7 @@ def mcp_call(server: str, tool: str, args_json: str = "{}") -> dict[str, Any]:
 
         try:
             args = _json.loads(args_json or "{}")
-        except Exception:
+        except (ValueError, TypeError):
             args = {}
         listed = _mc.list_tools_sync(server)
         if listed.get("status") == "success":
@@ -556,5 +570,5 @@ def mcp_call(server: str, tool: str, args_json: str = "{}") -> dict[str, Any]:
                 return {"status": "error",
                         "message": f"Tool '{tool}' tak ada. Tersedia: {names}"}
         return _mc.call_tool_sync(server, tool, args)
-    except Exception as e:
+    except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}

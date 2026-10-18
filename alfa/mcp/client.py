@@ -36,7 +36,7 @@ def _load() -> dict[str, Any]:
         with open(STORE_FILE) as f:
             d = json.load(f)
             return d if isinstance(d, dict) else {}
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return {}
 
 
@@ -45,7 +45,7 @@ def _save(store: dict[str, Any]) -> None:
         os.makedirs(STATE_DIR, exist_ok=True)
         with open(STORE_FILE, "w") as f:
             json.dump(store, f, indent=2)
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         logger.debug(f"[mcp] simpan gagal: {e}")
 
 
@@ -96,7 +96,7 @@ def _discover_oauth(base_url: str) -> dict[str, Any]:
     ):
         try:
             return _http("GET", meta_url)
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             last_err = e
     raise RuntimeError(f"Metadata OAuth tak ditemukan: {last_err}")
 
@@ -164,14 +164,14 @@ def finish_connect(code: str, state: str) -> dict[str, Any]:
         headers["Authorization"] = "Basic " + base64.b64encode(pair).decode()
     try:
         tok = _post_form(ent["token_endpoint"], body, headers)
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         detail = ""
         try:
             import urllib.error as _ue
 
             if isinstance(e, _ue.HTTPError):
                 detail = f" | body: {e.read().decode('utf-8', 'replace')[:300]}"
-        except Exception:
+        except (AttributeError, OSError, ValueError):
             pass
         logger.warning(f"[mcp] tukar token gagal: {e}{detail}")
         return {"status": "error", "message": f"Tukar token gagal: {e}{detail}"}
@@ -255,7 +255,7 @@ def call_tool_sync(server_id: str, tool: str, args: dict | None = None, timeout:
             return {"status": "error", "message": "server tak dikenal/belum connect"}
         try:
             token = await _a.to_thread(_fresh_token, sid)
-        except Exception as e:
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as e:
             return {"status": "error", "message": str(e)}
         try:
             out = await _call_remote(ent["url"], token, tool, args or {}, timeout)
@@ -286,7 +286,7 @@ def list_tools_sync(server_id: str, timeout: float = 30.0) -> dict[str, Any]:
             return {"status": "error", "message": "server tak dikenal/belum connect"}
         try:
             token = await _a.to_thread(_fresh_token, sid)
-        except Exception as e:
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as e:
             return {"status": "error", "message": str(e)}
         try:
             return {"status": "success", "tools": await _list_remote(ent["url"], token, timeout)}

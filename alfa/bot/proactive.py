@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 import psutil
+from telegram.error import TelegramError
 from telegram.ext import Application
 
 from alfa import tools
@@ -25,6 +26,19 @@ from alfa.core import database, token_usage
 from alfa.tools import SANDBOX_DIR
 
 logger = logging.getLogger("TelegramAIAgent")
+
+_PROACTIVE_ERR = (
+    TelegramError,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    subprocess.SubprocessError,
+    psutil.Error,
+)
 
 
 async def proactive_reminder_loop(application: Application):
@@ -48,7 +62,7 @@ async def proactive_reminder_loop(application: Application):
                     await safe_send_message(application, chat_id, alert_text)
                     await database.mark_reminder_executed(rem_id)
                     logger.info(f"Dispatched reminder #{rem_id} to chat {chat_id}")
-                except Exception as send_err:
+                except _PROACTIVE_ERR as send_err:
                     logger.error(
                         f"Failed to dispatch reminder #{rem_id}: {send_err}. Will retry."
                     )
@@ -59,9 +73,9 @@ async def proactive_reminder_loop(application: Application):
                             logger.warning(
                                 f"Reminder #{rem_id} dropped: overdue >24h and undeliverable."
                             )
-                    except Exception:
+                    except (ValueError, TypeError, OSError):
                         await database.mark_reminder_executed(rem_id)
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in reminder loop: {e}")
 
         await asyncio.sleep(20)
@@ -76,14 +90,14 @@ async def _run_scheduled_swarm_job(application, job_id, user_id, chat_id, title,
         reporter = SwarmProgressReporter(application, chat_id, f"[CRON #{job_id}] {title}")
         try:
             await reporter.start()
-        except Exception:
+        except _PROACTIVE_ERR:
             pass
         try:
             result = await run_swarm_task(prompt)
         finally:
             try:
                 await reporter.stop("✅ Misi terjadwal selesai")
-            except Exception:
+            except _PROACTIVE_ERR:
                 pass
         steps_text, final_text, files = format_swarm_result(result)
         header = f"⚡ **[MISI SWARM TERJADWAL #{job_id}: {title.upper()}]**\n\n{steps_text}\n\n{final_text}"
@@ -95,13 +109,13 @@ async def _run_scheduled_swarm_job(application, job_id, user_id, chat_id, title,
                         chat_id=chat_id, document=f_doc,
                         caption=f"📁 **Deliverable Cron #{job_id}:** `{os.path.basename(fpath)}`",
                     )
-            except Exception as file_err:
+            except _PROACTIVE_ERR as file_err:
                 logger.warning(f"cron swarm file gagal: {file_err}")
-    except Exception as e:
+    except _PROACTIVE_ERR as e:
         logger.error(f"cron swarm #{job_id} gagal: {e}")
         try:
             await safe_send_message(application, chat_id, f"❌ Misi swarm terjadwal #{job_id} gagal: `{type(e).__name__}`")
-        except Exception:
+        except _PROACTIVE_ERR:
             pass
 
 
@@ -171,13 +185,13 @@ async def proactive_cron_watchdog_loop(application: Application):
                                         os.remove(fpath)
                                     except OSError:
                                         pass
-                                except Exception as attach_err:
+                                except _PROACTIVE_ERR as attach_err:
                                     logger.error(
                                         f"Failed to send cron attachment {fname}: {attach_err}"
                                     )
-                except Exception as run_err:
+                except _PROACTIVE_ERR as run_err:
                     logger.error(f"Error executing cron job #{job_id}: {run_err}")
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in cron watchdog loop: {e}")
 
         await asyncio.sleep(25)
@@ -206,9 +220,9 @@ async def proactive_wa_digest_loop(application: Application):
                         if await send_digest(application, chat_id):
                             _set_setting("wa_digest_last_date", today)
                             logger.info(f"Digest WA harian terkirim ke {chat_id}")
-                except Exception as e:
+                except _PROACTIVE_ERR as e:
                     logger.debug(f"[digest] loop dilewati: {e}")
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in WA digest loop: {e}")
         await asyncio.sleep(60)
 
@@ -225,7 +239,7 @@ async def proactive_sites_watch_loop(application: Application):
                 try:
                     with open(pend_file) as f:
                         pend = json.load(f) or []
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pend = []
                 if pend:
                     from alfa.tools.system import sites as _sites
@@ -241,14 +255,14 @@ async def proactive_sites_watch_loop(application: Application):
                     for uid in ALLOWED_USER_IDS:
                         try:
                             await safe_send_message(application, int(uid), text, reply_markup=kb)
-                        except Exception:
+                        except _PROACTIVE_ERR:
                             pass
                     try:
                         os.remove(pend_file)
                     except OSError:
                         pass
                     logger.info(f"[sites] notifikasi {len(pend)} situs baru terkirim")
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in sites watch loop: {e}")
         await asyncio.sleep(45)
 
@@ -263,7 +277,7 @@ async def proactive_system_guardian_loop(application: Application):
         try:
             with open(path) as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, ValueError, TypeError):
             return default
 
     def _save_json(path, data) -> None:
@@ -271,7 +285,7 @@ async def proactive_system_guardian_loop(application: Application):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w") as f:
                 json.dump(data, f)
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             logger.debug(f"[guardian] simpan {path} gagal: {e}")
 
     if not os.path.exists(config_path):
@@ -387,14 +401,14 @@ async def proactive_system_guardian_loop(application: Application):
                     for uid in ALLOWED_USER_IDS:
                         try:
                             await safe_send_message(application, uid, alert_text)
-                        except Exception:
+                        except _PROACTIVE_ERR:
                             pass
                     state[state_key] = now_ts
                     _save_json(state_path, state)
                 else:
                     _save_json(state_path, state)
                     logger.debug("[guardian] alert ditahan cooldown")
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Guardian daemon error: {e}")
 
         await asyncio.sleep(30)
@@ -425,12 +439,12 @@ async def proactive_focus_session_loop(application: Application):
                     logger.info(
                         f"Dispatched focus session completion #{s_id} to chat {chat_id}"
                     )
-                except Exception as send_err:
+                except _PROACTIVE_ERR as send_err:
                     logger.error(
                         f"Failed to dispatch focus session #{s_id}: {send_err}"
                     )
                     await database.mark_focus_session_completed(s_id)
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in focus session loop: {e}")
 
         await asyncio.sleep(15)
@@ -462,7 +476,7 @@ async def proactive_ambient_agent_loop(application: Application):
                 try:
                     with open(config_path, encoding="utf-8") as f:
                         config = json.load(f)
-                except Exception:
+                except (OSError, ValueError, TypeError):
                     pass
 
             if config.get("enabled", True):
@@ -499,7 +513,7 @@ async def proactive_ambient_agent_loop(application: Application):
                             min_hours = config.get("min_hours_between_pings", 3)
                             if elapsed_hours < min_hours:
                                 should_evaluate = False
-                        except Exception:
+                        except (ValueError, TypeError):
                             pass
 
                     if should_evaluate and gemini_client and ALLOWED_USER_IDS:
@@ -589,7 +603,7 @@ async def proactive_ambient_agent_loop(application: Application):
                                 )
                                 used_model = cand
                                 break
-                            except Exception as cand_err:
+                            except _PROACTIVE_ERR as cand_err:
                                 logger.warning(
                                     f"[Proactive] Model candidate {cand} failed: {cand_err}. Trying next..."
                                 )
@@ -635,7 +649,7 @@ async def proactive_ambient_agent_loop(application: Application):
                         with open(config_path, "w", encoding="utf-8") as f:
                             json.dump(config, f, indent=2)
 
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Error in proactive ambient loop: {e}")
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 cycle_backoff = 3600
@@ -749,10 +763,10 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                 )
 
                         last_known_auth_status = current_status
-                    except Exception as e:
+                    except _PROACTIVE_ERR as e:
                         logger.error(f"Error checking WA status in watchdog: {e}")
 
-        except Exception as e:
+        except _PROACTIVE_ERR as e:
             logger.error(f"Ecosystem watchdog error: {e}")
 
         await asyncio.sleep(15)

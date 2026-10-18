@@ -19,6 +19,17 @@ import requests
 
 from alfa.core.cli.constants import Colors
 
+_SRV_ERR = (
+    OSError,
+    subprocess.SubprocessError,
+    requests.RequestException,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    IndexError,
+    KeyError,
+)
+
 
 def get_repo_root() -> Path:
     """Find the root directory of the agent alfa repository."""
@@ -27,7 +38,7 @@ def get_repo_root() -> Path:
         p = Path(__file__).resolve().parents[3]
         if (p / "web_dashboard.py").exists():
             return p
-    except Exception:
+    except _SRV_ERR:
         pass
     # Fallback to current working directory or known location
     candidates = [
@@ -65,7 +76,7 @@ def check_http_health(url: str, timeout: float = 1.2) -> bool:
     try:
         r = requests.get(url, timeout=timeout)
         return r.status_code in (200, 204, 301, 302, 401)
-    except Exception:
+    except _SRV_ERR:
         return False
 
 
@@ -113,7 +124,7 @@ def start_dashboard_server(
             False,
             "Server dinyalakan namun melebihi batas waktu inisialisasi (cek ~/.alfa/logs/dashboard.log)",
         )
-    except Exception as e:
+    except _SRV_ERR as e:
         return False, f"Gagal menyalakan dashboard server: {e}"
 
 
@@ -127,7 +138,7 @@ def start_telegram_bot(repo_root: Path | None = None) -> tuple[bool, str]:
             for line in env_file.read_text(encoding="utf-8").splitlines():
                 if line.startswith("TELEGRAM_BOT_TOKEN="):
                     token = line.split("=", 1)[1].strip().strip("'\"")
-        except Exception:
+        except _SRV_ERR:
             pass
 
     if not token or token == "your_telegram_bot_token_here":
@@ -138,7 +149,7 @@ def start_telegram_bot(repo_root: Path | None = None) -> tuple[bool, str]:
         res = subprocess.run(["pgrep", "-f", "bot.py"], capture_output=True, text=True)
         if res.returncode == 0 and res.stdout.strip():
             return True, "Aktif di latar belakang"
-    except Exception:
+    except _SRV_ERR:
         pass
 
     py_bin = get_venv_python(root)
@@ -161,7 +172,7 @@ def start_telegram_bot(repo_root: Path | None = None) -> tuple[bool, str]:
                 start_new_session=True,
             )
         return True, "Berhasil dinyalakan di latar belakang"
-    except Exception as e:
+    except _SRV_ERR as e:
         return False, f"Gagal menjalankan bot: {e}"
 
 
@@ -184,7 +195,7 @@ def check_9router_gateway() -> tuple[bool, str]:
             time.sleep(1.5)
             if check_http_health(models_url):
                 return True, "http://127.0.0.1:20128 (Dinyalakan Otomatis)"
-        except Exception:
+        except _SRV_ERR:
             pass
 
     return False, "Offline (Gunakan '/menu' -> Switch Model -> 9Router untuk detail)"
@@ -207,7 +218,7 @@ def get_servers_status() -> dict[str, Any]:
         if res.returncode == 0 and res.stdout.strip():
             bot_ok = True
             bot_msg = f"Aktif di latar belakang (PID: {res.stdout.split()[0]})"
-    except Exception:
+    except _SRV_ERR:
         pass
 
     return {
@@ -230,14 +241,14 @@ def stop_all_servers() -> dict[str, bool]:
             ["pkill", "-f", "web_dashboard.py"], capture_output=True, text=True
         )
         results["dashboard"] = res.returncode == 0
-    except Exception:
+    except _SRV_ERR:
         results["dashboard"] = False
 
     # Stop telegram bot
     try:
         res = subprocess.run(["pkill", "-f", "bot.py"], capture_output=True, text=True)
         results["bot"] = res.returncode == 0
-    except Exception:
+    except _SRV_ERR:
         results["bot"] = False
 
     return results

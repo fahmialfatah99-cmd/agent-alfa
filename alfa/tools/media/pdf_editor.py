@@ -13,6 +13,18 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Media.PDFEditor")
 
+_PDF_ERR = (
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    IndexError,
+    ImportError,
+    LookupError,
+)
+
 
 @register_tool(category="pdf")
 def pdf_merge_documents(
@@ -67,7 +79,7 @@ def pdf_merge_documents(
             "total_pages": total_pages,
             "file_size_bytes": os.path.getsize(target_path),
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         logger.error(f"Error in pdf_merge_documents: {e}")
         return {"status": "error", "message": f"Gagal merge PDF: {str(e)}"}
 
@@ -137,7 +149,7 @@ def pdf_split_document(
             "output_dir": target_dir,
             "files": output_files,
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         logger.error(f"Error in pdf_split_document: {e}")
         return {"status": "error", "message": f"Gagal split PDF: {str(e)}"}
 
@@ -205,7 +217,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, An
             "text_preview": full_text[:4000],
             "full_text": full_text,
         }
-    except Exception:
+    except _PDF_ERR:
         try:
             from pypdf import PdfReader
 
@@ -229,7 +241,7 @@ def pdf_extract_full_text(pdf_path: str, page_numbers: str = "") -> dict[str, An
                 "text_preview": full[:4000],
                 "full_text": full,
             }
-        except Exception as err2:
+        except _PDF_ERR as err2:
             return {
                 "status": "error",
                 "message": f"Gagal ekstrak teks PDF: {str(err2)}",
@@ -280,7 +292,7 @@ def pdf_encrypt_password(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         return {"status": "error", "message": f"Gagal enkripsi PDF: {str(e)}"}
 
 
@@ -333,7 +345,7 @@ def pdf_decrypt_password(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         return {"status": "error", "message": f"Gagal dekripsi PDF: {str(e)}"}
 
 
@@ -400,7 +412,7 @@ def pdf_rotate_pages(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         return {"status": "error", "message": f"Gagal rotasi PDF: {str(e)}"}
 
 
@@ -447,7 +459,7 @@ def pdf_inspect_metadata(pdf_path: str) -> dict[str, Any]:
         info["saved_json_path"] = json_file
 
         return info
-    except Exception as e:
+    except _PDF_ERR as e:
         return {"status": "error", "message": f"Gagal inspeksi PDF: {str(e)}"}
 
 
@@ -503,5 +515,5 @@ def pdf_compress_and_optimize(
             "new_size_kb": round(new_size / 1024, 2),
             "saved_percentage": savings_pct,
         }
-    except Exception as e:
+    except _PDF_ERR as e:
         return {"status": "error", "message": f"Gagal kompresi PDF: {str(e)}"}

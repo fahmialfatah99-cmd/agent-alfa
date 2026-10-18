@@ -11,6 +11,17 @@ from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Desktop")
 
+_CAP_ERR = (
+    OSError,
+    subprocess.SubprocessError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
+
 
 @register_tool(category="media")
 def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
@@ -107,7 +118,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                         "message": "Screenshot desktop Windows berhasil diambil dengan resolusi penuh.",
                         "file_path": screenshot_path,
                     }
-            except Exception as win_err:
+            except _CAP_ERR as win_err:
                 logger.warning(
                     f"Win32 GDI screen capture failed ({win_err}), trying fallbacks..."
                 )
@@ -177,7 +188,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                         "message": "Screenshot desktop berhasil diambil via Wayland Portal.",
                         "file_path": screenshot_path,
                     }
-            except Exception:
+            except _CAP_ERR:
                 pass
 
             # 3. Try grim (wlroots Wayland compositors like Sway/Hyprland)
@@ -197,7 +208,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                         "message": "Screenshot desktop berhasil diambil via grim.",
                         "file_path": screenshot_path,
                     }
-            except Exception:
+            except _CAP_ERR:
                 pass
 
             # 4. Try import (ImageMagick)
@@ -217,7 +228,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                         "message": "Screenshot desktop berhasil diambil via ImageMagick.",
                         "file_path": screenshot_path,
                     }
-            except Exception:
+            except _CAP_ERR:
                 pass
 
             # 5. Try scrot (Standard Linux X11 screen capture tool)
@@ -237,7 +248,7 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                         "message": "Screenshot desktop berhasil diambil via scrot.",
                         "file_path": screenshot_path,
                     }
-            except Exception:
+            except _CAP_ERR:
                 pass
 
         # 6. Fallback PIL ImageGrab (Universal / macOS / Linux / Windows)
@@ -255,14 +266,14 @@ def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
                     "message": "Screenshot desktop berhasil diambil via ImageGrab.",
                     "file_path": screenshot_path,
                 }
-        except Exception:
+        except _CAP_ERR:
             pass
 
         return {
             "status": "error",
             "message": "Gagal mengambil screenshot desktop di lingkungan display saat ini.",
         }
-    except Exception as err:
+    except _CAP_ERR as err:
         return {"status": "error", "message": str(err)}
 
 
@@ -302,7 +313,7 @@ def capture_webcam_frame() -> dict[str, Any]:
                 "message": "Foto webcam berhasil diambil.",
                 "file_path": cam_path,
             }
-    except Exception as err:
+    except _CAP_ERR as err:
         return {"status": "error", "message": str(err)}
     return {
         "status": "error",
@@ -389,5 +400,5 @@ def record_desktop_screen(duration_seconds: int = 10) -> dict[str, Any]:
                 "message": "Rekaman layar berhasil (timeout graceful).",
             }
         return {"status": "error", "message": "Timeout saat merekam layar."}
-    except Exception as e:
+    except _CAP_ERR as e:
         return {"status": "error", "message": str(e)}

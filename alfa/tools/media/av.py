@@ -15,6 +15,17 @@ from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Media.AV")
 
+_AV_ERR = (
+    OSError,
+    subprocess.SubprocessError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
+
 
 @register_tool(category="media")
 def upscale_image_hd(
@@ -95,7 +106,7 @@ def upscale_image_hd(
                 )
                 if sub_res.returncode == 0 and os.path.exists(target_path):
                     used_engine = f"Waifu2x AI ({selected_model})"
-            except Exception:
+            except _AV_ERR:
                 pass
 
         if not os.path.exists(target_path):
@@ -131,7 +142,7 @@ def upscale_image_hd(
             "scale": scale_factor,
             "size_kb": round(size_kb, 1),
         }
-    except Exception as e:
+    except _AV_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal memperbesar resolusi gambar: {str(e)}",
@@ -174,7 +185,7 @@ def generate_promo_video_from_images(
             visual_prompt=visual_prompt,
             output_filename=output_filename,
         )
-    except Exception as e:
+    except _AV_ERR as e:
         logger.error(f"Error in generate_promo_video_from_images: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -223,7 +234,7 @@ def extract_audio_from_video(
             "status": "error",
             "message": f"Gagal mengekstrak audio: {res.stderr[:500]}",
         }
-    except Exception as e:
+    except _AV_ERR as e:
         return {"status": "error", "message": f"Extract audio error: {str(e)}"}
 
 
@@ -254,7 +265,7 @@ def text_to_audio_file(
                     executor.submit(asyncio.run, _synth()).result()
             else:
                 loop.run_until_complete(_synth())
-        except Exception:
+        except _AV_ERR:
             asyncio.run(_synth())
 
         if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
@@ -266,7 +277,7 @@ def text_to_audio_file(
                 "voice": voice,
             }
         return {"status": "error", "message": "Gagal membuat file audio speech."}
-    except Exception as e:
+    except _AV_ERR as e:
         return {"status": "error", "message": f"Audio synthesis error: {str(e)}"}
 
 
@@ -304,7 +315,7 @@ def convert_media_format(
             "status": "error",
             "message": f"Gagal mengonversi media: {res.stderr[:500]}",
         }
-    except Exception as e:
+    except _AV_ERR as e:
         return {"status": "error", "message": f"Media conversion error: {str(e)}"}
 
 
@@ -365,7 +376,7 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
                 font = ImageFont.truetype(
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24
                 )
-            except Exception:
+            except _AV_ERR:
                 font = ImageFont.load_default()
             bbox = draw.textbbox((0, 0), text, font=font)
             tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -406,5 +417,5 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
             "message": f"Gambar berhasil di-{act} dan disimpan sebagai '{out_name}'. Akan dikirim ke Telegram.",
             "file_path": out_path,
         }
-    except Exception as e:
+    except _AV_ERR as e:
         return {"status": "error", "message": f"Gagal mengedit gambar: {str(e)}"}

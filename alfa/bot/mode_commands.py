@@ -9,10 +9,13 @@ import asyncio
 import logging
 import os
 import socket
+import sqlite3
+import subprocess
 import sys
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from alfa.bot.config import is_authorized
@@ -20,6 +23,20 @@ from alfa.bot.helpers import safe_send_message
 from alfa.core import database
 
 logger = logging.getLogger("TelegramAIAgent")
+
+_MODE_ERR = (
+    TelegramError,
+    sqlite3.Error,
+    subprocess.SubprocessError,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    LookupError,
+)
 
 MODE_KEY = "telegram_exec_mode"
 VALID_MODES = ("single", "swarm")
@@ -67,7 +84,7 @@ def _read_mode_from_db() -> str | None:
             return "single"
         mode = (row["value"] or "single").strip().lower()
         return mode if mode in VALID_MODES else "single"
-    except Exception:
+    except _MODE_ERR:
         return None
 
 
@@ -204,7 +221,7 @@ async def single_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     try:
         reply = await _run_single_turn(user_id, task, chat_id)
-    except Exception as e:
+    except _MODE_ERR as e:
         logger.error(f"/single gagal: {e}", exc_info=True)
         reply = f"❌ Single agent gagal: `{type(e).__name__}: {str(e)[:200]}`"
     await safe_send_message(context, chat_id, reply)
@@ -312,7 +329,7 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if ok
             else "ℹ️ Tidak ada misi aktif untuk dibatalkan.",
         )
-    except Exception as e:
+    except _MODE_ERR as e:
         await safe_send_message(context, chat_id, f"❌ Gagal membatalkan: `{e}`")
 
 
@@ -340,7 +357,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(
             "⚡ **Swarm:** 🟢 BERJALAN" if MEETING_RUNNING else "⚡ **Swarm:** ⚪ idle"
         )
-    except Exception:
+    except _MODE_ERR:
         lines.append("⚡ **Swarm:** ?")
 
     try:
@@ -349,14 +366,14 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         agents = database.list_custom_agents_sync()
         ok = sum(1 for a in agents if get_agent_api_client(a)[1])
         lines.append(f"🤖 **Agen:** {ok}/{len(agents)} punya key aktif")
-    except Exception as e:
+    except _MODE_ERR as e:
         lines.append(f"🤖 **Agen:** ❌ (`{e}`)")
 
     try:
         keys = database.list_api_keys_sync(auto_sync=False)
         active = sum(1 for k in keys if k.get("is_active"))
         lines.append(f"🔑 **Vault:** {active}/{len(keys)} key aktif")
-    except Exception:
+    except _MODE_ERR:
         lines.append("🔑 **Vault:** ?")
 
     dash = "🟢" if _port_open(8080) else "🔴"
@@ -376,7 +393,7 @@ async def tools_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from alfa import tools as alfa_tools
 
         funcs = list(alfa_tools.AVAILABLE_TOOLS or [])
-    except Exception as e:
+    except _MODE_ERR as e:
         await safe_send_message(context, chat_id, f"❌ Gagal memuat tools: `{e}`")
         return
 
@@ -478,7 +495,7 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         from alfa.pipelines import engine as pipe
-    except Exception as e:
+    except _MODE_ERR as e:
         await safe_send_message(context, chat_id, f"❌ Pipeline engine gagal dimuat: `{e}`")
         return
 
@@ -505,7 +522,7 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         try:
             data = pipe.load_pipeline(args[1])
-        except Exception as e:
+        except _MODE_ERR as e:
             await safe_send_message(context, chat_id, f"❌ Pipeline tak ditemukan: `{e}`")
             return
         lines = [f"🔁 **{data.get('name', data.get('id'))}** (`{data.get('id')}`)\n_{data.get('description', '')}_\n"]
@@ -540,7 +557,7 @@ async def pipeline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context, chat_id, f"⏱ Pipeline `{pid}` melebihi 280 dtk — cek dashboard."
             )
             return
-        except Exception as e:
+        except _MODE_ERR as e:
             await safe_send_message(
                 context, chat_id, f"❌ Pipeline gagal: `{type(e).__name__}: {str(e)[:200]}`"
             )
@@ -578,7 +595,7 @@ async def tugas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"• `{t.get('id', '?')}` {t.get('task_description', '')[:80]} "
                     f"[{t.get('status', '?')}]"
                 )
-    except Exception as e:
+    except _MODE_ERR as e:
         lines.append(f"• Subagent: ❌ `{e}`")
 
     try:
@@ -595,14 +612,14 @@ async def tugas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lines.append("Lanjutkan: `/resume <session_id>`")
         else:
             lines.append("\n🔄 Swarm resumable: _tidak ada_")
-    except Exception:
+    except _MODE_ERR:
         pass
 
     try:
         jobs = database.list_cron_jobs_sync(user_id)
         active = sum(1 for j in jobs if j.get("is_active"))
         lines.append(f"\n⏰ Cron: {active}/{len(jobs)} aktif (`/cron` detail)")
-    except Exception:
+    except _MODE_ERR:
         pass
     await safe_send_message(context, chat_id, "\n".join(lines))
 
@@ -653,7 +670,7 @@ async def render_persona_menu(update, context) -> None:
         await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
     except BadRequest:
         pass
-    except Exception as e:
+    except _MODE_ERR as e:
         logger.debug(f"[persona_menu] {e}")
 
 
@@ -682,6 +699,6 @@ async def handle_persona_callback(update, context) -> bool:
             context.args = ["reset"]
             await persona_command(update, context)
             await render_persona_menu(update, context)
-    except Exception as e:
+    except _MODE_ERR as e:
         logger.warning(f"[persona_menu] {e}")
     return True

@@ -8,6 +8,16 @@ from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Web.Scrapers")
 
+_SCRAPE_ERR = (
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
+
 
 def _require_http_url(url: str) -> dict[str, Any] | None:
     """Reject non-http(s) URLs (urllib would otherwise honor file:// etc.)."""
@@ -42,7 +52,7 @@ def scrapling_stealth_fetch(
         if bypass_anti_bot:
             try:
                 page = StealthyFetcher.fetch(url)
-            except Exception:
+            except _SCRAPE_ERR:
                 page = Fetcher.get(url, timeout=15)
         else:
             page = Fetcher.get(url, timeout=15)
@@ -93,7 +103,7 @@ def scrapling_stealth_fetch(
             "match_count": len(extracted) if isinstance(extracted, list) else 1,
             "data": extracted,
         }
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Scrapling fetch failed: {str(e)}"}
 
 
@@ -164,7 +174,7 @@ def scrapy_spider_quick_scrape(
             "status_code": status_code,
             "extracted_fields": extracted_data,
         }
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Scrapy scraper error: {str(e)}"}
 
 
@@ -216,7 +226,7 @@ def crawlee_web_scraper(start_urls: str, max_requests: int = 5) -> dict[str, Any
             "total_crawled_pages": len(results),
             "pages": results,
         }
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Crawlee crawl failed: {str(e)}"}
 
 
@@ -273,7 +283,7 @@ def crawl4ai_web_crawler(
             "links_sample": links[:15],
             "images_count": len(images),
         }
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Crawl4AI crawler error: {str(e)}"}
 
 
@@ -320,7 +330,7 @@ def firecrawl_scrape_and_crawl(
                 ),
                 "note": "Dieksekusi via Sovereign Local Engine (set FIRECRAWL_API_KEY di .env jika ingin menggunakan cloud Firecrawl).",
             }
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Firecrawl scrape failed: {str(e)}"}
 
 
@@ -351,7 +361,7 @@ def universal_deep_scraper(
         return universal_scraper.scrape_universal_keyword(
             query=query, category=category, limit=limit
         )
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {"status": "error", "message": f"Universal scraper error: {str(e)}"}
 
 
@@ -374,7 +384,7 @@ def scrape_custom_urls_batch(
         return universal_scraper.scrape_custom_urls_or_selectors(
             urls=urls, concurrency=concurrency, use_camoufox=use_camoufox
         )
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         return {
             "status": "error",
             "message": f"Custom URL batch scraper error: {str(e)}",
@@ -404,7 +414,7 @@ def scrape_real_product_data(url: str, engine: str = "auto") -> dict[str, Any]:
                 return fast_scraper.scrape_with_camoufox(url)
             else:
                 return fast_scraper.scrape_with_fast_tls(url)
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         logger.error(f"Error in scrape_real_product_data: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -435,6 +445,6 @@ def scrape_large_scale_batch(
             max_concurrency=max_concurrency,
             use_camoufox=use_camoufox,
         )
-    except Exception as e:
+    except _SCRAPE_ERR as e:
         logger.error(f"Error in scrape_large_scale_batch: {e}")
         return {"status": "error", "message": str(e)}

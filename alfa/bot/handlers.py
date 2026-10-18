@@ -8,6 +8,7 @@ import sys
 import time
 
 from telegram import Update, constants
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from alfa import tools
@@ -29,6 +30,17 @@ from alfa.media import tts_engine
 from alfa.tools import SANDBOX_DIR, get_system_stats
 
 logger = logging.getLogger("TelegramAIAgent")
+
+_HANDLER_ERR = (
+    TelegramError,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
 
 
 # --- Sapaan ringan: jawab langsung TANPA agent turn / tools ----------------
@@ -129,21 +141,21 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
         if await handle_persona_callback(update, context):
             return
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.debug(f"[callback] persona router gagal: {e}")
     try:
         from alfa.bot.wa_menu import handle_wa_callback
 
         if await handle_wa_callback(update, context):
             return
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.debug(f"[callback] wa_menu router gagal: {e}")
     try:
         from alfa.bot.advanced_commands import handle_sites_callback
 
         if await handle_sites_callback(update, context):
             return
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.debug(f"[callback] sites router gagal: {e}")
 
     # Tombol menu utama → output perintah mengedit pesan menu di tempat
@@ -298,7 +310,7 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
 
                 if get_telegram_mode_sync() != "swarm":
                     swarm_note = "(mode single 🧍 — tetap bisa sekali-jalan)"
-            except Exception:
+            except _HANDLER_ERR:
                 pass
             await safe_send_message(
                 context,
@@ -423,7 +435,7 @@ async def check_and_send_media_artifacts(
                     await context.bot.send_photo(
                         chat_id=chat_id, photo=photo_file, caption=caption
                     )
-            except Exception as send_err:
+            except _HANDLER_ERR as send_err:
                 logger.error(f"Failed to send media artifact {filename}: {send_err}")
             finally:
                 try:
@@ -461,7 +473,7 @@ async def check_and_send_media_artifacts(
                     await context.bot.send_photo(
                         chat_id=chat_id, photo=pf, caption=caption
                     )
-            except Exception as img_err:
+            except _HANDLER_ERR as img_err:
                 logger.error(f"Failed to send image {fname}: {img_err}")
             finally:
                 try:
@@ -474,7 +486,7 @@ async def check_and_send_media_artifacts(
                     await context.bot.send_document(
                         chat_id=chat_id, document=df, caption=f"📄 Berkas: {fname}"
                     )
-            except Exception as doc_err:
+            except _HANDLER_ERR as doc_err:
                 logger.error(f"Failed to send document {fname}: {doc_err}")
             finally:
                 try:
@@ -505,7 +517,7 @@ async def _long_turn_nudge(
         )
     except asyncio.CancelledError:
         pass
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.debug(f"[nudge] gagal: {e}")
 
 
@@ -531,7 +543,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await database.save_chat_message(user_id, "user", user_text)
             await database.save_chat_message(user_id, "model", fast)
-        except Exception as db_err:
+        except _HANDLER_ERR as db_err:
             logger.debug(f"[greeting] simpan riwayat gagal: {db_err}")
         await safe_send_message(context, chat_id, fast)
         return
@@ -542,7 +554,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         streamer = TelegramStreamer(context=context, chat_id=chat_id, initial_text=None)
         await streamer.start()
-    except Exception as se:
+    except _HANDLER_ERR as se:
         logger.warning(f"[TelegramStreamer] Start failed: {se}")
         streamer = None
 
@@ -558,7 +570,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             from alfa.bot.mode_commands import get_telegram_mode_sync
 
             use_swarm = get_telegram_mode_sync() == "swarm"
-        except Exception:
+        except _HANDLER_ERR:
             use_swarm = False
 
         if use_swarm:
@@ -569,7 +581,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await streamer.finalize(
                         "⚡ **Mode SWARM:** misi diteruskan ke tim multi-agen..."
                     )
-                except Exception:
+                except _HANDLER_ERR:
                     pass
                 streamer = None
             from alfa.bot.progress import SwarmProgressReporter
@@ -580,7 +592,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 from alfa.bot.mode_commands import format_swarm_result, run_swarm_task
 
                 result = await run_swarm_task(user_text)
-            except Exception as e:
+            except _HANDLER_ERR as e:
                 logger.error(f"[handle_text:swarm] gagal untuk {user_id}: {e}", exc_info=True)
                 await reporter.stop("❌ Misi gagal.")
                 reply = (
@@ -612,9 +624,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 nudge_task.cancel()
                 try:
                     await nudge_task
-                except (asyncio.CancelledError, Exception):
+                except (asyncio.CancelledError, *_HANDLER_ERR):
                     pass
-    except Exception as e:
+    except _HANDLER_ERR as e:
         # Jangan pernah diam: kegagalan turn harus tetap dibalas ke user.
         logger.error(f"[handle_text] turn gagal untuk {user_id}: {e}", exc_info=True)
         reply = (
@@ -630,7 +642,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if streamer:
         try:
             await streamer.finalize(reply)
-        except Exception as fe:
+        except _HANDLER_ERR as fe:
             logger.error(
                 f"[TelegramStreamer] Finalize failed: {fe}, fallback to safe_send_message"
             )
@@ -651,7 +663,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     filename=os.path.basename(fpath),
                     caption=f"📁 **File Deliverable Swarm:** `{os.path.basename(fpath)}`",
                 )
-        except Exception as file_err:
+        except _HANDLER_ERR as file_err:
             logger.warning(f"Failed to send swarm file {fpath}: {file_err}")
 
     # If voice mode enabled and content is conversational, send voice note
@@ -669,7 +681,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             voice_path = await tts_engine.text_to_speech_ogg(reply)
             with open(voice_path, "rb") as voice_file:
                 await update.message.reply_voice(voice=voice_file)
-        except Exception as tts_err:
+        except _HANDLER_ERR as tts_err:
             logger.error(f"TTS sending error: {tts_err}")
         finally:
             if voice_path and os.path.exists(voice_path):
@@ -748,7 +760,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                             f"Transkripsi pesan suara ({model_id}): {transcription_text}"
                         )
                         break
-                except Exception as tr_err:
+                except _HANDLER_ERR as tr_err:
                     logger.debug(f"Fast transcription skipped ({model_id}): {tr_err}")
 
         if transcription_text:
@@ -762,7 +774,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             multimodal_parts=[audio_part],
             chat_id=chat_id,
         )
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.error(f"[handle_voice] turn gagal untuk {user_id}: {e}", exc_info=True)
         reply = (
             "❌ Maaf, pesan suaranya gagal diproses "
@@ -790,7 +802,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             with open(voice_path, "rb") as vf:
                 await update.message.reply_voice(voice=vf)
             sent_voice = True
-        except Exception as e:
+        except _HANDLER_ERR as e:
             logger.error(f"TTS voice reply error: {e}, falling back to text")
             sent_voice = False
         finally:
@@ -852,7 +864,7 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
             multimodal_parts=multimodal_parts,
             chat_id=chat_id,
         )
-    except Exception as e:
+    except _HANDLER_ERR as e:
         logger.error(f"[handle_photo] turn gagal untuk {user_id}: {e}", exc_info=True)
         reply = (
             "❌ Maaf, fotonya gagal diproses "

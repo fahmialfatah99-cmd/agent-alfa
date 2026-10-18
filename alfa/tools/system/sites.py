@@ -33,7 +33,7 @@ def _load_registry() -> dict:
         with open(REGISTRY_FILE) as f:
             data = json.load(f)
             return data if isinstance(data, dict) else {}
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return {}
 
 
@@ -42,7 +42,7 @@ def _save_registry(reg: dict) -> None:
         os.makedirs(STATE_DIR, exist_ok=True)
         with open(REGISTRY_FILE, "w") as f:
             json.dump(reg, f, indent=2)
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         logger.debug(f"[sites] simpan registry gagal: {e}")
 
 
@@ -86,7 +86,7 @@ def _detect_stack(path: str) -> dict[str, Any]:
                 deps = {**(pkg.get("dependencies", {})), **(pkg.get("devDependencies", {}))}
                 if "next" in deps:
                     info["has_frontend"] = True
-            except Exception:
+            except (OSError, TypeError, ValueError):
                 pass
         if os.path.isfile(os.path.join(path, "artisan")):
             info["has_php"] = True
@@ -101,7 +101,7 @@ def _detect_stack(path: str) -> dict[str, Any]:
                     if any(f.endswith((".html", ".htm")) for f in _files):
                         info["has_static"] = True
                         break
-            except Exception:
+            except OSError:
                 pass
         idx = None
         for cand in ("static/index.html", "index.html"):
@@ -118,9 +118,9 @@ def _detect_stack(path: str) -> dict[str, Any]:
                 m = _re.search(r"<title>(.*?)</title>", html, _re.S)
                 if m and m.group(1).strip():
                     info["title"] = m.group(1).strip()[:60]
-            except Exception:
+            except OSError:
                 pass
-    except Exception as e:
+    except (OSError, TypeError, ValueError) as e:
         logger.debug(f"[sites] deteksi gagal {path}: {e}")
     return info
 
@@ -136,7 +136,7 @@ def _pick_frontend_dir(path: str) -> str:
             continue
         try:
             data = json.load(open(pkg))
-        except Exception:
+        except (OSError, TypeError, ValueError):
             continue
         deps = {**(data.get("dependencies", {})), **(data.get("devDependencies", {}))}
         if "next" not in deps:
@@ -200,7 +200,7 @@ def _pid_alive(pid) -> bool:
     try:
         os.kill(int(pid), 0)
         return True
-    except Exception:
+    except (OSError, TypeError, ValueError):
         return False
 
 
@@ -219,17 +219,17 @@ def _stop_entry(reg: dict, slug: str) -> None:
                 for child in proc.children(recursive=True):
                     try:
                         child.terminate()
-                    except Exception:
+                    except (OSError, _ps.Error):
                         pass
                 proc.terminate()
-            except Exception:
+            except (OSError, TypeError, ValueError, _ps.Error):
                 pass
         except ImportError:
             pass
         try:
             if _pid_alive(pid):
                 os.kill(int(pid), signal.SIGTERM)
-        except Exception:
+        except (OSError, TypeError, ValueError):
             pass
     time.sleep(2)
     for k in ("pid_backend", "pid_frontend"):
@@ -243,15 +243,15 @@ def _stop_entry(reg: dict, slug: str) -> None:
                     for child in proc.children(recursive=True):
                         try:
                             child.kill()
-                        except Exception:
+                        except (OSError, _ps.Error):
                             pass
                     proc.kill()
-                except Exception:
+                except (OSError, TypeError, ValueError, _ps.Error):
                     os.kill(int(pid), signal.SIGKILL)
             except ImportError:
                 try:
                     os.kill(int(pid), signal.SIGKILL)
-                except Exception:
+                except (OSError, TypeError, ValueError):
                     pass
     ent.pop("pid_backend", None)
     ent.pop("pid_frontend", None)
@@ -267,7 +267,7 @@ def _wait_http(url: str, timeout: float = 20.0) -> bool:
             # Skema URL telah divalidasi hanya http/https untuk health-check port lokal
             urllib.request.urlopen(url, timeout=3)  # nosec B310
             return True
-        except Exception:
+        except OSError:
             time.sleep(1)
     return False
 
@@ -441,7 +441,7 @@ def serve_site(action: str = "status", slug: str = "") -> dict[str, Any]:
                     try:
                         with open(lf, errors="ignore") as f:
                             out["logs"][k] = "".join(f.readlines()[-25:])
-                    except Exception as e:
+                    except OSError as e:
                         out["logs"][k] = f"(gagal baca: {e})"
             out["running"] = {
                 "backend": bool(ent.get("pid_backend") and _pid_alive(ent["pid_backend"])),

@@ -11,6 +11,7 @@ from telegram import (
     Update,
     WebAppInfo,
 )
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from alfa import tools
@@ -19,6 +20,17 @@ from alfa.bot.helpers import safe_send_message
 from alfa.core import database
 
 logger = logging.getLogger("TelegramAIAgent")
+
+_ADV_ERR = (
+    TelegramError,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
 
 
 def _get_bot_module():
@@ -47,7 +59,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dash_url = ""
     try:
         dash_url = (tools.open_web_dashboard(port=8080).get("network_url") or "")
-    except Exception:
+    except _ADV_ERR:
         dash_url = ""
 
     wa_auth_status = "UNKNOWN"
@@ -59,7 +71,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 wa_data = json.load(f)
             wa_auth_status = wa_data.get("status", "UNKNOWN")
             qr_str = wa_data.get("qr", "")
-        except Exception:
+        except (OSError, ValueError, TypeError):
             pass
 
     keyboard = [
@@ -123,7 +135,7 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown",
             )
             return
-        except Exception as e:
+        except _ADV_ERR as e:
             logger.error(f"Failed to generate QR photo: {e}")
 
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
@@ -143,7 +155,7 @@ def _lan_ip() -> str:
         ip = s.getsockname()[0]
         s.close()
         return str(ip)
-    except Exception:
+    except OSError:
         return "127.0.0.1"
 
 
@@ -210,7 +222,7 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
     async def _edit(text, markup=None):
         try:
             await query.edit_message_text(text=text, reply_markup=markup, parse_mode="Markdown")
-        except Exception:
+        except _ADV_ERR:
             await safe_send_message(context, chat_id, text, reply_markup=markup)
 
     try:
@@ -240,7 +252,7 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 try:
                     info = tools.serve_site(action="start", slug=slug)
                     howto = info.get("note", "proyek non-server")
-                except Exception:
+                except _ADV_ERR:
                     howto = "proyek non-server"
                 kb = [[InlineKeyboardButton("◀️ Galeri", callback_data="st|list")]]
                 await _edit(
@@ -289,7 +301,7 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 f"📜 **Log {slug}:**\n" + ("\n".join(chunks) if chunks else "_kosong_"),
                 InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Galeri", callback_data="st|list")]]),
             )
-    except Exception as e:
+    except _ADV_ERR as e:
         logger.warning(f"[sites_menu] {e}")
     return True
 
@@ -311,7 +323,7 @@ def _wa_time(ts: int) -> str:
         import datetime as _dt
 
         return _dt.datetime.fromtimestamp(int(ts)).strftime("%d/%m %H:%M")
-    except Exception:
+    except (ValueError, TypeError, OSError):
         return ""
 
 
@@ -325,7 +337,7 @@ def _wa_time_iso(ts: str) -> str:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=_dt.timezone.utc)
         return dt.astimezone().strftime("%d/%m %H:%M")
-    except Exception:
+    except (ValueError, TypeError, OSError):
         return str(ts or "")[:16]
 
 
@@ -688,7 +700,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("💻 Buka di Laptop (auto-login)", url=f"{lan_base}/t/{tok_laptop}")]
             )
             magic_ok = bool(keyboard)
-    except Exception as link_err:
+    except _ADV_ERR as link_err:
         logger.debug(f"[dashboard] magic link gagal: {link_err}")
     if tma_url and tma_url.startswith("https://"):
         keyboard.append(
@@ -811,7 +823,7 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await swarm_engine.conduct_multi_agent_meeting(
             topic=topic, rounds=2, mode="plan"
         )
-    except Exception as e:
+    except _ADV_ERR as e:
         await reporter.stop("❌ Rapat gagal.")
         logger.error(f"Error during Telegram /rapat meeting: {e}")
         await safe_send_message(
@@ -839,7 +851,7 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await safe_send_message(context, chat_id, final_text)
 
-    except Exception as e:
+    except _ADV_ERR as e:
         logger.error(f"Error during Telegram /rapat meeting: {e}")
         await safe_send_message(
             context, chat_id, f"❌ Terjadi kesalahan saat rapat agent: {str(e)}"
@@ -866,7 +878,7 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             parts = shlex.split(rest)
-        except Exception:
+        except ValueError:
             parts = rest.strip().split()
         agents = _db.list_custom_agents_sync()
         if not parts:
@@ -990,7 +1002,7 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = await swarm_engine.conduct_multi_agent_meeting(
             topic=topic, rounds=1, mode="execute"
         )
-    except Exception as e:
+    except _ADV_ERR as e:
         await reporter.stop("❌ Misi gagal.")
         logger.error(f"Error during Telegram /swarm execution: {e}")
         await safe_send_message(
@@ -1031,11 +1043,11 @@ async def swarm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             filename=os.path.basename(fpath),
                             caption=f"📁 **File Deliverable Hasil Swarm ({s['agent_name']}):**\n`{os.path.basename(fpath)}`",
                         )
-                except Exception as file_err:
+                except _ADV_ERR as file_err:
                     logger.warning(
                         f"Failed to send deliverable file to Telegram: {file_err}"
                     )
-    except Exception as e:
+    except _ADV_ERR as e:
         logger.error(f"Error sending Telegram /swarm report: {e}")
         await safe_send_message(
             context, chat_id, f"❌ Gagal mengirim laporan swarm: {str(e)}"
@@ -1111,10 +1123,10 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
             f"🏆 **LAPORAN HASIL LANJUTAN EKSEKUSI:**\n\n{result.get('consensus', '')}"
         )
         await safe_send_message(context, chat_id, final_text)
-    except Exception as e:
+    except _ADV_ERR as e:
         try:
             await reporter.stop("❌ Resume gagal.")
-        except Exception:
+        except _ADV_ERR:
             pass
         logger.error(f"Error during /resume_swarm: {e}")
         await safe_send_message(

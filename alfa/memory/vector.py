@@ -28,6 +28,18 @@ def _resolve_db_path(custom_path: str | None = None) -> str:
     return custom_path if custom_path is not None else DB_PATH
 
 
+_VEC_ERR = (
+    sqlite3.Error,
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+)
+
+
 def init_vector_db(db_path: str | None = None):
     """Ensure vector knowledge table and indices exist in SQLite."""
     target_path = _resolve_db_path(db_path)
@@ -37,7 +49,7 @@ def init_vector_db(db_path: str | None = None):
             conn.enable_load_extension(True)
             import sqlite_vss
             sqlite_vss.load(conn)
-        except Exception as e:
+        except _VEC_ERR as e:
             logger.debug(f"Failed to load sqlite_vss extension: {e}")
 
         conn.execute("""
@@ -84,11 +96,11 @@ def init_vector_db(db_path: str | None = None):
                     embedding(768)
                 );
             """)
-        except Exception as e:
+        except sqlite3.Error as e:
             logger.debug(f"Failed to create vss table: {e}")
 
         conn.commit()
-    except Exception as e:
+    except sqlite3.Error as e:
         logger.error(f"Failed to init vector db ({target_path}): {e}")
     finally:
         conn.close()
@@ -180,7 +192,7 @@ def _attempt_local_library_embedding(
             if norm > 1e-6:
                 vec = vec / norm
             return [float(x) for x in vec.tolist()], f"fastembed/{model_name}", len(vec)
-    except Exception:
+    except _VEC_ERR:
         pass
 
     # 2. Sentence Transformers
@@ -199,7 +211,7 @@ def _attempt_local_library_embedding(
             f"sentence-transformers/{st_name}",
             len(vec),
         )
-    except Exception:
+    except _VEC_ERR:
         pass
 
     return None
@@ -232,7 +244,7 @@ def get_text_embedding_with_meta(
                     kwargs["config"] = types.EmbedContentConfig(
                         output_dimensionality=dim
                     )
-                except Exception:
+                except _VEC_ERR:
                     pass
 
             resp: Any = client.models.embed_content(**kwargs)
@@ -253,7 +265,7 @@ def get_text_embedding_with_meta(
                 if norm > 1e-6:
                     vec = vec / norm
                 return [float(x) for x in vec.tolist()], "gemini-embedding-001", len(vec)
-        except Exception as e:
+        except _VEC_ERR as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
 
     # 3. Deterministic local subword fallback
@@ -386,7 +398,7 @@ def ingest_document(
             else:
                 with open(content_or_path, encoding="utf-8", errors="ignore") as f:
                     text_content = f.read()
-        except Exception as read_err:
+        except _VEC_ERR as read_err:
             return {
                 "status": "error",
                 "message": f"Gagal membaca file {content_or_path}: {read_err}",
@@ -434,11 +446,11 @@ def ingest_document(
             try:
                 if emb_dim == 768:
                     conn.execute("INSERT INTO vector_knowledge_vss(rowid, embedding) VALUES (?, ?)", (row_id, json.dumps(emb)))
-            except Exception as e:
+            except sqlite3.Error as e:
                 logger.debug(f"Failed to insert into vss table: {e}")
             saved_count += 1
         conn.commit()
-    except Exception:
+    except _VEC_ERR:
         conn.rollback()
         raise
     finally:
@@ -484,7 +496,7 @@ def semantic_search(
             import sqlite_vss
             sqlite_vss.load(conn)
             vss_enabled = True
-        except Exception as e:
+        except _VEC_ERR as e:
             vss_enabled = False
             logger.debug(f"sqlite_vss not available for search: {e}")
 
@@ -539,7 +551,7 @@ def semantic_search(
                     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
                     return scored_results[:top_k]
 
-            except Exception as e:
+            except _VEC_ERR as e:
                 logger.error(f"VSS search failed, falling back to brute-force: {e}")
 
         # Fallback to brute-force
@@ -590,7 +602,7 @@ def semantic_search(
 
             valid_rows.append(r)
             embeddings_list.append(stored_emb)
-        except Exception as parse_err:
+        except (ValueError, TypeError, KeyError) as parse_err:
             logger.debug(f"Error parsing embedding for row {r['id']}: {parse_err}")
 
     if not valid_rows:
@@ -702,7 +714,7 @@ def delete_document(
                     f"DELETE FROM vector_knowledge_vss WHERE rowid IN ({placeholders})",  # nosec B608
                     ids,
                 )
-            except Exception as e:
+            except sqlite3.Error as e:
                 logger.debug(f"Failed to delete from vss table: {e}")  # nosec B608
 
         cursor = conn.execute(
@@ -760,7 +772,7 @@ def rebuild_vss_index(db_path: str | None = None) -> dict[str, Any]:
         conn.enable_load_extension(True)
         import sqlite_vss
         sqlite_vss.load(conn)
-    except Exception as e:
+    except _VEC_ERR as e:
         return {"status": "error", "message": f"sqlite_vss not available: {e}"}
 
     try:
@@ -783,7 +795,7 @@ def rebuild_vss_index(db_path: str | None = None) -> dict[str, Any]:
 
         conn.commit()
         return {"status": "success", "message": f"Rebuilt VSS index with {count} embeddings.", "indexed_count": count}
-    except Exception as e:
+    except _VEC_ERR as e:
         conn.rollback()
         return {"status": "error", "message": str(e)}
     finally:

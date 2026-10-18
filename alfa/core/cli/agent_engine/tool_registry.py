@@ -14,6 +14,17 @@ from alfa.core.cli.agent_engine.patch_history import PatchHistoryManager
 from alfa.core.cli.agent_engine.repomap import RepomapGenerator
 from alfa.core.cli.agent_engine.todos import TodoManager
 
+_TOOL_ERR = (
+    OSError,
+    subprocess.SubprocessError,
+    re.error,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+)
+
 # ==========================================
 # 3. LOCAL DEVELOPER TOOL REGISTRY
 # ==========================================
@@ -70,11 +81,11 @@ class LocalToolRegistry:
                             if str(self.root) in line:
                                 line = line.replace(str(self.root) + "/", "")
                             cleaned.append(line)
-                        except Exception:
+                        except _TOOL_ERR:
                             cleaned.append(line)
                     return "\n".join(cleaned)
                 return f"Tidak ditemukan kecocokan untuk: '{query}'"
-            except Exception:
+            except _TOOL_ERR:
                 pass
 
         # 2. Python fallback search
@@ -99,9 +110,9 @@ class LocalToolRegistry:
                                 results.append(f"{rel}:{i}: {line.strip()[:150]}")
                                 if len(results) >= 30:
                                     return "\n".join(results)
-                    except Exception:
+                    except _TOOL_ERR:
                         pass
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error pencarian: {e}"
 
         return (
@@ -146,7 +157,7 @@ class LocalToolRegistry:
                         for line in res.stdout.strip().splitlines()[:50]
                     ]
                     return "\n".join(lines)
-            except Exception:
+            except _TOOL_ERR:
                 pass
 
         # Python fallback
@@ -186,7 +197,7 @@ class LocalToolRegistry:
             ]
             header = f"--- {path} (Baris {start}-{end} dari {total}) ---"
             return f"{header}\n" + "\n".join(numbered)
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error membaca '{path}': {e}"
 
     def write_file(self, path: str, content: str) -> str:
@@ -196,7 +207,7 @@ class LocalToolRegistry:
         if p.exists() and p.is_file():
             try:
                 old_content = p.read_text(encoding="utf-8", errors="replace")
-            except Exception:
+            except _TOOL_ERR:
                 pass
 
         try:
@@ -204,7 +215,7 @@ class LocalToolRegistry:
             p.write_text(content, encoding="utf-8")
             record = self.patch_manager.record_patch(path, old_content, content)
             return f"Sukses: File '{path}' berhasil ditulis (Backup ID: #{record.id})."
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error menulis file '{path}': {e}"
 
     @staticmethod
@@ -312,7 +323,7 @@ class LocalToolRegistry:
                 f"Sukses: Patch berhasil diterapkan ke '{path}' "
                 f"menggunakan strategi '{strategy}' (Backup ID: #{record.id})."
             )
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error patching '{path}': {e}"
 
     def run_command(self, command: str, timeout: int | None = None) -> str:
@@ -378,7 +389,7 @@ class LocalToolRegistry:
                 proc.kill()
                 try:
                     out_text, err_text = proc.communicate(timeout=5)
-                except Exception:
+                except _TOOL_ERR:
                     out_text, err_text = "", ""
                 out_text = (out_text or "").strip()
                 err_text = (err_text or "").strip()
@@ -406,7 +417,7 @@ class LocalToolRegistry:
                 resp_lines.append("(Tidak ada output teks)")
 
             return "\n\n".join(resp_lines)
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error eksekusi: {e}"
 
     def list_directory(self, path: str = ".") -> str:
@@ -429,7 +440,7 @@ class LocalToolRegistry:
                 size = f"({item.stat().st_size} B)" if item.is_file() else ""
                 items.append(f"{type_mark} {item.name:<30} {size}")
             return "\n".join(items) if items else "(Direktori kosong)"
-        except Exception as e:
+        except _TOOL_ERR as e:
             return f"Error membaca direktori: {e}"
 
     def todo_add(self, task: str) -> str:

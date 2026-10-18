@@ -26,6 +26,19 @@ from typing import Any
 
 logger = logging.getLogger("UniversalFileExtractor")
 
+_UFE_ERR = (
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    csv.Error,
+    zipfile.BadZipFile,
+    tarfile.TarError,
+)
+
 UPLOAD_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -49,7 +62,7 @@ def process_uploaded_attachment(
             file_disk_path = os.path.join(UPLOAD_DIR, f"{int(time.time())}_{safe_name}")
             with open(file_disk_path, "wb") as f_disk:
                 f_disk.write(raw_bytes)
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Gagal simpan upload ke disk: {e}")
 
     path_header = (
@@ -80,7 +93,7 @@ def process_uploaded_attachment(
             if img_mime == "image/jpg":
                 img_mime = "image/jpeg"
             multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=img_mime)
-        except Exception as e:
+        except _UFE_ERR as e:
             logger.warning(f"Native image part error: {e}")
 
         text_ctx = f"[LAMPIRAN GAMBAR/FOTO: {fname_clean}]\n{path_header}{tool_hint}"
@@ -105,7 +118,7 @@ def process_uploaded_attachment(
                 else f"audio/{ext.lstrip('.')}"
             )
             multimodal_part = types.Part.from_bytes(data=raw_bytes, mime_type=aud_mime)
-        except Exception as e:
+        except _UFE_ERR as e:
             logger.warning(f"Native audio part error: {e}")
 
         text_ctx = f"[LAMPIRAN AUDIO/SUARA: {fname_clean}]\n{path_header}{tool_hint}"
@@ -121,7 +134,7 @@ def process_uploaded_attachment(
             multimodal_part = types.Part.from_bytes(
                 data=raw_bytes, mime_type="application/pdf"
             )
-        except Exception:
+        except _UFE_ERR:
             pass
         return (
             f"[DOKUMEN PDF: {fname_clean}]\n{path_header}{tool_hint}\n{pdf_text}",
@@ -231,14 +244,14 @@ def process_uploaded_attachment(
                 f"[KODE SUMBER: {fname_clean}{total_hint}]\n{path_header}\n```{lang}\n{numbered}\n```",
                 None,
             )
-        except Exception:
+        except (ValueError, TypeError):
             pass
 
     # 12. Fallback UTF-8 text decoder
     try:
         decoded = raw_bytes.decode("utf-8", errors="replace")
         return f"[BERKAS TEKS: {fname_clean}]\n{path_header}\n{decoded}", None
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         return (
             f"[BERKAS BINER: {fname_clean} ({len(raw_bytes)} bytes)]\n{path_header}",
             None,
@@ -260,7 +273,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
                 pages.append(f"--- Halaman {i + 1} ---\n{text}")
         if pages:
             return f"Total {len(doc)} halaman:\n\n" + "\n\n".join(pages[:50])
-    except Exception as e:
+    except _UFE_ERR as e:
         logger.debug(f"fitz pdf error: {e}")
 
     try:
@@ -274,7 +287,7 @@ def _extract_pdf(raw_bytes: bytes, fname: str) -> str:
                 pages.append(f"--- Halaman {i + 1} ---\n{txt}")
         if pages:
             return f"Total {len(reader.pages)} halaman:\n\n" + "\n\n".join(pages[:50])
-    except Exception as e:
+    except _UFE_ERR as e:
         logger.debug(f"pypdf error: {e}")
 
     return f"Gagal membaca teks dari PDF {fname}."
@@ -307,7 +320,7 @@ def _extract_word(raw_bytes: bytes, fname: str) -> str:
                     out.append("| " + " | ".join(r[:cols]) + " |")
 
         return "\n\n".join(out)
-    except Exception as e:
+    except _UFE_ERR as e:
         logger.warning(f"docx error: {e}")
         return f"Gagal membaca dokumen Word {fname}."
 
@@ -335,7 +348,7 @@ def _extract_powerpoint(raw_bytes: bytes, fname: str) -> str:
         return f"Total {len(prs.slides)} Slide Presentasi:\n\n" + "\n\n".join(
             slides_out
         )
-    except Exception as e:
+    except _UFE_ERR as e:
         logger.warning(f"pptx error: {e}")
         return f"Gagal membaca presentasi PPTX {fname}."
 
@@ -366,7 +379,7 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
                     sheets_out.append("\n".join(table_lines))
             if sheets_out:
                 return "\n\n".join(sheets_out)
-        except Exception as e:
+        except _UFE_ERR as e:
             logger.warning(f"openpyxl error: {e}")
 
     try:
@@ -380,7 +393,7 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
             f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n"
             + df.head(150).to_markdown(index=False)
         )
-    except Exception as e:
+    except _UFE_ERR as e:
         logger.warning(f"pandas excel error: {e}")
 
     return f"Gagal membaca spreadsheet {fname}."
@@ -398,12 +411,12 @@ def _extract_csv(raw_bytes: bytes, fname: str) -> str | None:
             f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n"
             + df.head(150).to_markdown(index=False)
         )
-    except Exception:
+    except _UFE_ERR:
         try:
             decoded = raw_bytes.decode("utf-8", errors="replace")
             lines = decoded.splitlines()[:150]
             return "```csv\n" + "\n".join(lines) + "\n```"
-        except Exception:
+        except (ValueError, TypeError, AttributeError):
             return None
 
 
@@ -439,7 +452,7 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
                                 f"\n#### 📄 Pratinjau Isi: `{info.filename}`\n```\n{content[:2000]}\n```"
                             )
                             break
-                        except Exception:
+                        except _UFE_ERR:
                             pass
 
         elif ext in (".tar", ".gz", ".tgz", ".bz2"):
@@ -451,7 +464,7 @@ def _extract_archive(raw_bytes: bytes, fname: str, ext: str) -> str:
                     out.append(f"- `/{m.name}` ({size_kb})")
 
         return "\n".join(out)
-    except Exception as e:
+    except _UFE_ERR as e:
         return f"Gagal membaca arsip {fname}: {e}"
 
 
@@ -467,7 +480,7 @@ def _extract_html_xml(raw_bytes: bytes, fname: str, ext: str) -> str:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         clean_text = "\n".join(lines[:500])
         return f"### Konten Web/Struktur {fname}:\n\n{clean_text}"
-    except Exception:
+    except _UFE_ERR:
         return raw_bytes.decode("utf-8", errors="replace")[:4000]
 
 
@@ -497,5 +510,5 @@ def _extract_data_formats(raw_bytes: bytes, fname: str, ext: str) -> str:
                 "```yaml\n" + yaml.dump(parsed, sort_keys=False)[:4000] + "\n```"
             )
         return "```\n" + decoded[:4000] + "\n```"
-    except Exception:
+    except _UFE_ERR:
         return raw_bytes.decode("utf-8", errors="replace")[:4000]

@@ -124,14 +124,14 @@ ignore = ["E501", "B006"]
 
 [tool.ruff.lint.per-file-ignores]
 # ==== lint budget TRY/BLE (dibuat otomatis: scripts/lint_budget.py) ====
-"alfa/bot/advanced_commands.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:18,TRY300:1,TRY400:6
+"alfa/bot/advanced_commands.py" = ["TRY300", "TRY400"]  # n=TRY300:1,TRY400:6
 "alfa/bot/basic_commands.py" = ["BLE001"]  # n=BLE001:1
 "alfa/bot/config.py" = ["BLE001"]  # n=BLE001:4
-"alfa/bot/discord_bot.py" = ["BLE001", "TRY400"]  # n=BLE001:46,TRY400:6
-"alfa/bot/handlers.py" = ["BLE001", "TRY400"]  # n=BLE001:18,TRY400:6
+"alfa/bot/discord_bot.py" = ["TRY400"]  # n=TRY400:6
+"alfa/bot/handlers.py" = ["TRY400"]  # n=TRY400:6
 "alfa/bot/helpers.py" = ["BLE001", "TRY400"]  # n=BLE001:9,TRY400:1
-"alfa/bot/mode_commands.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:14,TRY003:1,TRY300:1
-"alfa/bot/proactive.py" = ["BLE001", "TRY003", "TRY300", "TRY301", "TRY400"]  # n=BLE001:28,TRY003:2,TRY300:1,TRY301:2,TRY400:14
+"alfa/bot/mode_commands.py" = ["TRY003", "TRY300"]  # n=TRY003:1,TRY300:1
+"alfa/bot/proactive.py" = ["TRY003", "TRY300", "TRY400"]  # n=TRY003:2,TRY300:1,TRY400:14
 "alfa/bot/progress.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:2
 "alfa/bot/streamer.py" = ["BLE001", "TRY300"]  # n=BLE001:7,TRY300:1
 "alfa/bot/turn_executor.py" = ["BLE001"]  # n=BLE001:10
@@ -147,7 +147,7 @@ ignore = ["E501", "B006"]
 "alfa/core/cli/agent_engine/repomap.py" = ["BLE001"]  # n=BLE001:2
 "alfa/core/cli/agent_engine/reporting.py" = ["BLE001"]  # n=BLE001:1
 "alfa/core/cli/agent_engine/runner.py" = ["BLE001"]  # n=BLE001:4
-"alfa/core/cli/agent_engine/tool_registry.py" = ["BLE001", "TRY300"]  # n=BLE001:12,TRY300:3
+"alfa/core/cli/agent_engine/tool_registry.py" = ["TRY300"]  # n=TRY300:3
 "alfa/core/cli/app.py" = ["BLE001"]  # n=BLE001:7
 "alfa/core/cli/backends.py" = ["BLE001", "TRY003"]  # n=BLE001:4,TRY003:10
 "alfa/core/cli/basic_commands.py" = ["BLE001"]  # n=BLE001:4
@@ -158,7 +158,7 @@ ignore = ["E501", "B006"]
 "alfa/core/cli/menu/files_ctx.py" = ["BLE001"]  # n=BLE001:1
 "alfa/core/cli/menu/models.py" = ["BLE001"]  # n=BLE001:7
 "alfa/core/cli/providers_catalog.py" = ["BLE001"]  # n=BLE001:2
-"alfa/core/cli/server_manager.py" = ["BLE001", "TRY300"]  # n=BLE001:10,TRY300:3
+"alfa/core/cli/server_manager.py" = ["TRY300"]  # n=TRY300:3
 "alfa/core/cli/session.py" = ["BLE001", "TRY003", "TRY300", "TRY301"]  # n=BLE001:7,TRY003:1,TRY300:1,TRY301:1
 "alfa/core/cli/slash/agents_swarm.py" = ["BLE001"]  # n=BLE001:8
 "alfa/core/cli/slash/developer.py" = ["BLE001"]  # n=BLE001:2
@@ -197,12 +197,12 @@ ignore = ["E501", "B006"]
 "alfa/integrations/gdrive/auth.py" = ["BLE001", "TRY003", "TRY300", "TRY400"]  # n=BLE001:5,TRY003:1,TRY300:3,TRY400:4
 "alfa/integrations/gdrive/operations.py" = ["BLE001"]  # n=BLE001:6
 "alfa/integrations/gdrive/secret_store.py" = ["TRY300"]  # n=TRY300:2
-"alfa/mcp/client.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:9,TRY003:2,TRY300:1
+"alfa/mcp/client.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:2,TRY003:2,TRY300:1
 "alfa/mcp/server.py" = ["TRY003", "TRY401"]  # n=TRY003:1,TRY401:1
 "alfa/media/tts_engine.py" = ["BLE001", "TRY003", "TRY400"]  # n=BLE001:3,TRY003:1,TRY400:1
 "alfa/memory/reflection.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:1
-"alfa/memory/vector.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:15,TRY300:1,TRY400:2
-"alfa/pipelines/engine.py" = ["BLE001", "TRY003", "TRY004", "TRY301"]  # n=BLE001:11,TRY003:4,TRY004:1,TRY301:1
+"alfa/memory/vector.py" = ["TRY300", "TRY400"]  # n=TRY300:1,TRY400:2
+"alfa/pipelines/engine.py" = ["BLE001", "TRY003", "TRY004", "TRY301"]  # n=BLE001:1,TRY003:4,TRY004:1,TRY301:1
 "alfa/scrapers/fast.py" = ["BLE001", "TRY400"]  # n=BLE001:4,TRY400:1
 "alfa/scrapers/large_scale.py" = ["BLE001", "TRY400"]  # n=BLE001:1,TRY400:1
 "alfa/scrapers/universal.py" = ["BLE001"]  # n=BLE001:4
@@ -216,7 +216,7 @@ ignore = ["E501", "B006"]
 "alfa/swarm/workspace_hygiene.py" = ["TRY300"]  # n=TRY300:1
 "alfa/tools/academic_researcher.py" = ["BLE001", "TRY400"]  # n=BLE001:2,TRY400:1
 "alfa/tools/academic_tools.py" = ["BLE001"]  # n=BLE001:3
-"alfa/tools/desktop/capture.py" = ["BLE001", "TRY003", "TRY300", "TRY301"]  # n=BLE001:9,TRY003:1,TRY300:2,TRY301:1
+"alfa/tools/desktop/capture.py" = ["TRY003", "TRY300"]  # n=TRY003:1,TRY300:2
 "alfa/tools/desktop/input_automation.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:4
 "alfa/tools/desktop/system_ui.py" = ["BLE001", "TRY300"]  # n=BLE001:3,TRY300:2
 "alfa/tools/filesystem/code_index.py" = ["BLE001", "TRY300"]  # n=BLE001:4,TRY300:1
@@ -225,12 +225,12 @@ ignore = ["E501", "B006"]
 "alfa/tools/filesystem/lsp_code_intelligence.py" = ["BLE001"]  # n=BLE001:7
 "alfa/tools/filesystem/office_convert.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:4
 "alfa/tools/filesystem/search.py" = ["BLE001", "TRY301"]  # n=BLE001:6,TRY301:1
-"alfa/tools/filesystem/universal_file_extractor.py" = ["BLE001", "TRY300"]  # n=BLE001:18,TRY300:3
+"alfa/tools/filesystem/universal_file_extractor.py" = ["TRY300"]  # n=TRY300:3
 "alfa/tools/filesystem/vault.py" = ["BLE001", "TRY300"]  # n=BLE001:4,TRY300:2
-"alfa/tools/media/av.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:9,TRY300:2,TRY400:1
+"alfa/tools/media/av.py" = ["TRY300", "TRY400"]  # n=TRY300:2,TRY400:1
 "alfa/tools/media/documents.py" = ["BLE001", "TRY300"]  # n=BLE001:5,TRY300:2
 "alfa/tools/media/pdf_builder.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:3
-"alfa/tools/media/pdf_editor.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:9,TRY300:3,TRY400:2
+"alfa/tools/media/pdf_editor.py" = ["TRY300", "TRY400"]  # n=TRY300:3,TRY400:2
 "alfa/tools/media/player.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:1
 "alfa/tools/memory_tools.py" = ["BLE001", "TRY300"]  # n=BLE001:6,TRY300:2
 "alfa/tools/rag/keywords.py" = ["BLE001"]  # n=BLE001:1
@@ -239,7 +239,7 @@ ignore = ["E501", "B006"]
 "alfa/tools/system/constants.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:2,TRY300:1,TRY400:1
 "alfa/tools/system/execution.py" = ["BLE001"]  # n=BLE001:5
 "alfa/tools/system/integrations.py" = ["BLE001", "TRY300"]  # n=BLE001:8,TRY300:2
-"alfa/tools/system/management.py" = ["BLE001", "TRY300"]  # n=BLE001:22,TRY300:4
+"alfa/tools/system/management.py" = ["TRY300"]  # n=TRY300:4
 "alfa/tools/system/monitoring/guardian.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:2
 "alfa/tools/system/monitoring/hardware.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:1
 "alfa/tools/system/monitoring/health.py" = ["BLE001", "TRY300"]  # n=BLE001:1,TRY300:1
@@ -248,14 +248,14 @@ ignore = ["E501", "B006"]
 "alfa/tools/system/monitoring/stats.py" = ["BLE001", "TRY400"]  # n=BLE001:2,TRY400:1
 "alfa/tools/system/monitoring/storage.py" = ["BLE001"]  # n=BLE001:1
 "alfa/tools/system/network.py" = ["BLE001", "TRY003", "TRY300", "TRY301"]  # n=BLE001:6,TRY003:1,TRY300:2,TRY301:1
-"alfa/tools/system/sites.py" = ["BLE001", "TRY300"]  # n=BLE001:18,TRY300:3
+"alfa/tools/system/sites.py" = ["BLE001", "TRY300"]  # n=BLE001:2,TRY300:3
 "alfa/tools/web/affiliate.py" = ["BLE001", "TRY400"]  # n=BLE001:5,TRY400:5
 "alfa/tools/web/affiliate_engine.py" = ["BLE001", "TRY003", "TRY300", "TRY301", "TRY400"]  # n=BLE001:5,TRY003:1,TRY300:1,TRY301:1,TRY400:1
 "alfa/tools/web/browser/actions.py" = ["TRY300"]  # n=TRY300:1
 "alfa/tools/web/browser/camofox_rest.py" = ["TRY003", "TRY300"]  # n=TRY003:1,TRY300:1
 "alfa/tools/web/browser/engine.py" = ["TRY300", "TRY400"]  # n=TRY300:1,TRY400:1
 "alfa/tools/web/browser/planner.py" = ["TRY003", "TRY301"]  # n=TRY003:5,TRY301:1
-"alfa/tools/web/scrapers.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:10,TRY300:1,TRY400:2
+"alfa/tools/web/scrapers.py" = ["TRY300", "TRY400"]  # n=TRY300:1,TRY400:2
 "alfa/tools/web/search.py" = ["BLE001", "TRY300", "TRY400"]  # n=BLE001:7,TRY300:2,TRY400:2
 "alfa/tools/web/visual_tester.py" = ["BLE001", "TRY400"]  # n=BLE001:2,TRY400:1
 "alfa/video/ai_engines.py" = ["BLE001", "TRY003"]  # n=BLE001:3,TRY003:7
@@ -308,12 +308,18 @@ ignore = ["E501", "B006"]
 
 
 
+
+
 "alfa/bot/telegram_bot.py" = ["F401", "BLE001"]  # n=BLE001:2
+
+
 
 
 
 # App factory reads env (ensure_env_loaded) before importing env-dependent routers — order is intentional
 "alfa/dashboard/app.py" = ["E402", "BLE001", "TRY003"]  # n=BLE001:8,TRY003:1
+
+
 
 
 
