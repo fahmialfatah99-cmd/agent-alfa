@@ -62,7 +62,9 @@ async function fetchTools() {
         const data = await res.json();
         if (data.status === 'success') {
             allToolsData = data.tools;
-            document.getElementById('nav-tools-badge').innerText = data.total_tools;
+            document.querySelectorAll('[data-tools-count]').forEach((el) => {
+                el.textContent = data.total_tools;
+            });
             document.getElementById('tool-count-pill').innerText = `${data.total_tools} Tools`;
             renderCategories();
             renderToolsList();

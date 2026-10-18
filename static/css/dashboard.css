@@ -89,6 +89,24 @@ select option {
     color: #FFFFFF;
 }
 
+/* Single-value <select>: chevron seragam + ruang kanan tetap agar teks panjang
+   terpotong elipsis dan tidak menabrak ikon panah. Spesifisitas (0,2,1) sengaja
+   lebih tinggi dari utilitas Tailwind (p-2.5 / pr-1) supaya padding kanan menang.
+   Tidak memakai `appearance: base-select` (belum didukung Firefox & mematikan
+   picker native di HP). */
+select:not([multiple]):not([size]) {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 0.85rem 0.85rem;
+    padding-right: 2rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -221,6 +239,10 @@ html:not(.dark) select:focus {
 html:not(.dark) select option {
     background-color: #FFFFFF !important;
     color: #111827 !important;
+}
+
+html:not(.dark) select:not([multiple]):not([size]) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 /* Border & Subtle Background Utilities in Light Mode */
@@ -472,6 +494,11 @@ html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
 }
 .cv-node select:hover { border-color: rgba(34,211,238,.5); }
 .cv-node select:focus { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34,211,238,.25); }
+/* Node canvas sengaja memakai panah native; batalkan chevron global. */
+.cv-node select:not([multiple]):not([size]) {
+    -webkit-appearance: auto; appearance: auto;
+    background-image: none; padding-right: 8px;
+}
 .cv-node select option,
 .cv-node select optgroup {
     background: #0f172a; color: #e2e8f0; font-size: 13px; padding: 8px 10px;

@@ -105,7 +105,7 @@
                                     ALFA <span class="text-cyan-400 font-light">//</span> HUB
                                 </h1>
                                 <span class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                    130+ TOOLS
+                                    <span data-tools-count>130+</span> TOOLS
                                 </span>
                             </div>
                             <p class="text-[10px] text-slate-400 font-mono truncate">Sovereign Linux Orchestrator</p>
@@ -184,7 +184,7 @@
                                 <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
                                 <span>Tools Catalog</span>
                             </div>
-                            <span id="nav-tools-badge" class="px-2 py-0.5 bg-dark-800 text-[10px] rounded text-cyan-400 font-bold">130+</span>
+                            <span id="nav-tools-badge" data-tools-count class="px-2 py-0.5 bg-dark-800 text-[10px] rounded text-cyan-400 font-bold">130+</span>
                         </button>
                         <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-pink-300 hover:bg-white/5 font-semibold text-left">
                             <div class="flex items-center gap-2.5">
@@ -1888,7 +1888,7 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                             </div>
                             <p class="text-[11px] text-slate-400 font-sans flex items-center gap-1.5">
                                 <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                                130+ Tools Otonom &amp; Multimodal Vision
+                                <span><span data-tools-count>130+</span> Tools Otonom &amp; Multimodal Vision</span>
                             </p>
                         </div>
                     </div>
@@ -1917,7 +1917,7 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                         <!-- AI Model Selector -->
                         <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-dark-950/90 border border-cyan-500/30 text-xs font-mono text-cyan-300 shadow-sm" title="Pilih Model AI aktif">
                             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400 flex-shrink-0"></i>
-                            <select id="chat-model-selector" onchange="onChatModelChanged(this)" class="bg-transparent text-white font-mono text-xs focus:outline-none cursor-pointer pr-1 max-w-[140px] sm:max-w-[200px]">
+                            <select id="chat-model-selector" onchange="onChatModelChanged(this)" class="bg-transparent text-white font-mono text-xs focus:outline-none cursor-pointer max-w-[160px] sm:max-w-[240px]">
                                 <option value="" disabled selected>Memuat Model AI...</option>
                             </select>
                         </div>
@@ -1950,7 +1950,7 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                             </div>
                             <div>
                                 <h4 class="text-sm font-bold text-white font-mono">Selamat Datang di Command Center AI ALFA</h4>
-                                <p class="text-xs text-slate-400">Asisten AI otonom dengan eksekusi kode native, riset web live, dan 130+ tools sistem.</p>
+                                <p class="text-xs text-slate-400">Asisten AI otonom dengan eksekusi kode native, riset web live, dan <span data-tools-count>130+</span> tools sistem.</p>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 text-[11px] font-mono">
@@ -2144,7 +2144,7 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                             <i data-lucide="brain-circuit" class="w-4 h-4"></i> OTAK UTAMA AGENT — PROVIDER &amp; MODEL
                             <span id="mb-current-badge" class="ml-auto text-[10px] px-2 py-0.5 rounded font-bold bg-slate-600/20 text-slate-300 border border-white/10">MEMUAT...</span>
                         </h4>
-                        <p class="text-[10px] text-slate-400 leading-relaxed">Pilih kunci yang tersambung sebagai otak utama. Berlaku <b>serentak</b> untuk agent Telegram &amp; chat Web, tanpa restart. Semua tools (130+) tetap berfungsi di provider mana pun.</p>
+                        <p class="text-[10px] text-slate-400 leading-relaxed">Pilih kunci yang tersambung sebagai otak utama. Berlaku <b>serentak</b> untuk agent Telegram &amp; chat Web, tanpa restart. Semua tools (<span data-tools-count>130+</span>) tetap berfungsi di provider mana pun.</p>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                             <div class="space-y-1">
                                 <label class="text-[11px] font-mono text-slate-400">1. Provider:</label>
