@@ -61,7 +61,9 @@ def delete_secret(name: str) -> bool:
         if not info:
             return False
         secret_id = info.get("id")
-        conn = __import__("sqlite3").connect(database.DB_PATH)
+        from alfa.security.vault import _vault_db_path
+
+        conn = __import__("sqlite3").connect(_vault_db_path())
         try:
             conn.execute("DELETE FROM vault_secrets WHERE id = ?", (secret_id,))
             conn.commit()

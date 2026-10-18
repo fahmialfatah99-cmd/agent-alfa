@@ -418,7 +418,7 @@ def init_db_sync():
             ) in default_agents:
                 conn.execute(
                     """
-                    INSERT INTO custom_agents (name, role, persona, system_instruction, provider, model, avatar_emoji, color_theme, is_enabled)
+                    INSERT OR IGNORE INTO custom_agents (name, role, persona, system_instruction, provider, model, avatar_emoji, color_theme, is_enabled)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
                     """,
                     (name, role, persona, sys_inst, prov, model, emoji, color),

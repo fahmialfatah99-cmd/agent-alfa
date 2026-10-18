@@ -22,6 +22,42 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(REPO_ROOT, "agent_data.db"))
 KEY_FILE = os.path.expanduser("~/.alfa_vault_master.key")
 
+# Jalur patokan yang dibekukan saat import — pembanding untuk mendeteksi
+# monkeypatch ATTR DB_PATH (pola isolasi test lama) vs ubah ENV runtime (baru).
+_ENV_DB_PATH_AT_IMPORT = DB_PATH
+
+
+def _vault_db_path() -> str:
+    """Resolusi path DB **dinamis** untuk setiap koneksi.
+
+    Nilai statis ``DB_PATH`` dipatok saat import — bila ``ALFA_DB_PATH`` diubah
+    setelahnya koneksi tetap menunjuk DB lama dan baris vault bocor antar-test
+    (sumber race GDrive auth-mode). Preseden resolusi:
+
+    1. ATTR ``DB_PATH`` yang di-patch eksplisit (≠ patokan) — pola isolasi lama;
+    2. ENV ``ALFA_DB_PATH``/``DATABASE_URL`` saat koneksi — pola test baru;
+    3. resolver ``alfa.core.db.connection`` (database module facade);
+    4. ATTR ``DB_PATH`` apa adanya.
+    """
+    if globals().get("DB_PATH") != _ENV_DB_PATH_AT_IMPORT:
+        # DB_PATH di-override eksplisit (monkeypatch attr) → hormati.
+        return str(globals().get("DB_PATH"))
+    for env_key in ("ALFA_DB_PATH", "DATABASE_URL"):
+        db_env = os.getenv(env_key, "").strip()
+        if db_env:
+            if db_env.startswith("sqlite:///"):
+                return db_env.replace("sqlite:///", "")
+            return db_env
+    try:
+        from alfa.core.db.connection import _get_db_path
+
+        resolved = _get_db_path()
+        if resolved:
+            return str(resolved)
+    except Exception:  # noqa: BLE001 — resolver opsional, fallback statis aman
+        pass
+    return DB_PATH
+
 
 def _get_or_create_master_key() -> bytes:
     """
@@ -83,7 +119,7 @@ def _get_or_create_master_key() -> bytes:
 
 def _init_vault_db():
     """Ensure vault_secrets table exists in SQLite database."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_vault_db_path())
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS vault_secrets (
@@ -153,7 +189,7 @@ class AlfaSecureVault:
         enc = self.encrypt_val(value)
         now = datetime.now().isoformat()
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         cursor = conn.cursor()
 
         # Arsipkan nilai lama sebelum ditimpa (versioning untuk audit/rollback).
@@ -201,7 +237,7 @@ class AlfaSecureVault:
 
     def get_secret(self, name_or_id: str) -> dict[str, Any] | None:
         """Retrieve and decrypt secret value."""
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -248,7 +284,7 @@ class AlfaSecureVault:
 
     def list_secrets(self, category: str | None = None) -> list[dict[str, Any]]:
         """List metadata for secrets without exposing decrypted values."""
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -284,7 +320,7 @@ class AlfaSecureVault:
         self, name_or_id: str, limit: int = 20
     ) -> list[dict[str, Any]]:
         """Riwayat nilai lama sebuah secret (metadata + ciphertext, tanpa decrypt)."""
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         name_str = str(name_or_id).strip()
@@ -308,7 +344,7 @@ class AlfaSecureVault:
 
     def delete_secret(self, secret_id: int) -> bool:
         """Permanently delete a secret from vault."""
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         cursor = conn.cursor()
         cursor.execute("DELETE FROM vault_secrets WHERE id = ?", (secret_id,))
         deleted = cursor.rowcount > 0
@@ -331,7 +367,7 @@ class AlfaSecureVault:
                 "Set key baru di env/secret manager, lalu restart."
             )
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(_vault_db_path())
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         try:
