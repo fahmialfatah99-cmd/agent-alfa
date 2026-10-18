@@ -17,8 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sandbox Docker diputus dari jaringan:** `--network none` default (override `ALFA_SANDBOX_NETWORK`); argumen docker run dikonsolidasi ke `_docker_common_args()` (bash + python)
 - `.env` contoh runtime direset ke mode aman (`ALFA_UNRESTRICTED=false`, `ALFA_ALLOW_HOST_EXEC=false`)
 
+### Security
+- **RBAC sweep mekanis:** 25+ endpoint sensitif kini `require_admin` (`/api/tools/execute`, `/api/plugins/execute`, `/api/vault/list`, `/api/workspace/{tree,file}`, `/api/artifacts/download`, `/api/security/*`, `/api/keys*`, `/api/stats`, `/api/system/home-dir`, `/api/services*`, `/api/pipelines/{run,save,enable}`, `/api/memory/{add,delete}`, `/api/brain/{export,vector/*}`, `/api/scraper/*`, `/api/chat/{model,history,export}`, passkey toggle) — regresi dikunci oleh test sweep parametrized (anonim 401/member 403)
+- **Anti-spoof identitas:** header `X-User-Id`/query `user_id` hanya dipercayai di mode lokal tanpa token; mode token selalu jatuh ke whitelist `ALLOWED_USER_IDS`
+- **SSRF guard (`alfa/security/net_guard.py`):** loopback/private/link-local/metadata & DNS-resolve terlarang ditolak di `download_file_from_url` + `fetch_web_page_content`; bypass eksplisit `ALFA_ALLOW_PRIVATE_FETCH`; filename unduhan disanitasi (anti path-traversal write)
+- **GDrive kredensial → vault AES-256-GCM:** OAuth token & SA JSON tak lagi plaintext di `system_settings` (migrasi otomatis saat startup, hash/encrypted-only); reader/writer/auth/logout/dirutekan ke `gdrive/secret_store.py`
+- **Git history termigrasi:** snapshot `agent_data.db`/`-wal`/`-shm` dipurge dari seluruh sejarah (git-filter-repo) — riwayat sekarang hanya konten live; lift paksa push `git push --force --all` diperlukan oleh owner
+
 ### Added
 - 34 regression-test hardening (`tests/test_security_hardening.py`): boot guard, WS auth/origin, kebijakan registrasi, invite roundtrip, redaksi settings, argumen sandbox, rate limit
+- 48 regression-test tambahan: RBAC sweep parametrized, SSRF guard, identitas anti-spoof, vault roundtrip gdrive
 
 ### Added
 - Durable swarm mission queue (`alfa/swarm/queue.py`, `/api/swarm/queue/*`, worker retry-backoff)
