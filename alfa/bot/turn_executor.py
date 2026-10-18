@@ -767,7 +767,7 @@ async def _run_agent_turn_impl(
         m.strip()
         for m in os.getenv(
             "GEMINI_FALLBACK_MODELS",
-            "gemini-3.5-flash,gemini-flash-lite-latest,gemini-3-flash-preview",
+            "gemini-3.8-flash,gemini-flash-lite-latest,gemini-3.5-flash",
         ).split(",")
         if m.strip()
     ]

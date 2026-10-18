@@ -1,5 +1,6 @@
 """OpenAI-compatible agentic turn loop with tool calls and wrap-up."""
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -252,6 +253,14 @@ async def run_openai_agentic_turn(
                         "tool_calls": tool_calls,
                     }
                 )
+                from alfa.swarm.workspace_hygiene import _cancel_requested
+
+                if _cancel_requested():
+                    logger.info(
+                        f"[MainBrain] pembatalan terdeteksi sebelum tool call (iterasi {_iteration})"
+                    )
+                    return "⏹ Misi dihentikan atas permintaan pengguna (/cancel)."
+
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
@@ -265,7 +274,7 @@ async def run_openai_agentic_turn(
                         except Exception as gate_err:
                             logger.warning(f"[Gate] error (fail-open): {gate_err!r}")
                     if out is None:
-                        out = _execute_tool(name, raw_args)
+                        out = await asyncio.to_thread(_execute_tool, name, raw_args)
                     logger.info(f"[MainBrain] tool {name} -> {out[:80]}")
                     convo.append(
                         {
@@ -599,6 +608,15 @@ async def run_openai_agentic_turn_streaming(
                     }
                 )
 
+                from alfa.swarm.workspace_hygiene import _cancel_requested
+
+                if _cancel_requested():
+                    logger.info(
+                        "[MainBrain] pembatalan terdeteksi sebelum streaming tool call"
+                    )
+                    yield "⏹ Misi dihentikan atas permintaan pengguna (/cancel)."
+                    return
+
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
@@ -612,7 +630,7 @@ async def run_openai_agentic_turn_streaming(
                         except Exception as gate_err:
                             logger.warning(f"[Gate] error (fail-open): {gate_err!r}")
                     if out is None:
-                        out = _execute_tool(name, raw_args)
+                        out = await asyncio.to_thread(_execute_tool, name, raw_args)
                     logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
                     convo.append(
                         {
