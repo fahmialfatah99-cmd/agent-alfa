@@ -18,11 +18,13 @@ logger = logging.getLogger("alfa.mcp")
 try:
     import mcp.types as types
     from mcp.server import Server
+    from mcp.server.lowlevel.helper_types import ReadResourceContents
     from mcp.server.stdio import stdio_server
 except ImportError:
     Server = None
     stdio_server = None
     types = None
+    ReadResourceContents = None
 
 
 def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
@@ -129,6 +131,52 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
                     text=json.dumps(err_payload, ensure_ascii=False, indent=2),
                 )
             ]
+
+    @server.list_resources()
+    async def handle_list_resources() -> list[types.Resource]:
+        """Expose ringkasan berkas-maklumat MCP (status & katalog tools)."""
+        return [
+            types.Resource(
+                uri=types.AnyUrl("alfa://status"),
+                name="ALFA status",
+                description="Jumlah tools & identitas server ALFA",
+                mimeType="application/json",
+            ),
+            types.Resource(
+                uri=types.AnyUrl("alfa://tools/catalog"),
+                name="Tool catalog",
+                description="Daftar nama + deskripsi seluruh tools ALFA",
+                mimeType="application/json",
+            ),
+        ]
+
+    @server.read_resource()
+    async def handle_read_resource(uri: Any) -> list[types.ReadResourceContents]:
+        """Baca isi resource MCP ALFA (JSON). URI tak dikenal → KeyError dgn pesan."""
+        text_uri = str(uri)
+        if text_uri == "alfa://status":
+            payload = {
+                "server": server.name,
+                "tools": len(TOOL_REGISTRY),
+                "protocol": "mcp",
+            }
+        elif text_uri == "alfa://tools/catalog":
+            payload = {
+                tool: str(info.get("description", tool))[:200]
+                for tool, info in TOOL_REGISTRY.items()
+            }
+        else:
+            msg = (
+                f"Resource {text_uri} tidak dikenal; gunakan "
+                "alfa://status atau alfa://tools/catalog"
+            )
+            raise KeyError(msg)
+        return [
+            ReadResourceContents(
+                content=json.dumps(payload, ensure_ascii=False, indent=2),
+                mime_type="application/json",
+            )
+        ]
 
     return server
 
