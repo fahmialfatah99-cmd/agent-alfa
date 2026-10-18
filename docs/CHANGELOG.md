@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed & Hardened — Zero Mypy, Zero Bandit, BLE001 −205 & CI Sentinel (2026-10-18, putaran 3)
+- **Fase 1 — `mypy` 7 → 0 error (baseline `.github/mypy-baseline.txt` = `0`):**
+  seluruh 238 berkas sumber di `alfa/` kini bersih di bawah `mypy --ignore-missing-imports alfa/`. Perbaikan mencakup guard `if gemini_client is None:` pada `alfa/bot/commands/admin.py`, anotasi `dict[str, Any]` pada `alfa/dashboard/common.py`, konstruktor `types.Part(text=...)` dan guard `prompt_instruction` pada `alfa/swarm/step_executor.py`, perbaikan argumen `execute_with_healing(..., target_fn=None)` serta import `get_active_api_key` dari `alfa.core.db.keys` di `alfa/tools/media/av.py`, penyelesaian atribut shadow `_audit_mod` di `alfa/core/perm/__init__.py`, dan anotasi tipe eksplisit di `alfa/core/brain/agentic.py`, `alfa/bot/handlers/callback_router.py`, `alfa/bot/turn_executor.py`, serta `alfa/swarm/affiliate_engine.py`.
+- **Fase 2 — Penyempitan `blind-except` (`BLE001`) 1261 → 1056 (−205 instans, 186 → 175 file):**
+  `except Exception` generik disempitkan menjadi tuple pengecualian spesifik (`(ValueError, SyntaxError, TypeError)`, `OSError`, `sqlite3.Error`, `httpx.HTTPError`, `(InvalidTag, TypeError, ValueError)`) di `alfa/core/brain/`, `alfa/bot/turn_executor.py`, `alfa/swarm/`, `alfa/dashboard/routes/`, `alfa/integrations/`, `alfa/core/db/`, dan `alfa/core/perm/`; region budget `pyproject.toml` disinkronkan via `scripts/lint_budget.py --apply`.
+- **Fase 3 — Evaluasi Modularisasi SPA & Playwright Gate:**
+  instalasi binary browser Chromium Playwright diuji pada lingkungan host (`ubuntu26.04-x64`) dan ditolak upstream oleh Playwright (`ERROR: Playwright does not support chromium on ubuntu26.04-x64`); sesuai kebijakan anti-blind-refactor, monolit `static/index.html` tidak dipecah tanpa baseline snapshot visual yang valid.
+- **Fase 4 — Sanitasi Bandit Medium+ 4 → 0 (`bandit -r alfa plugins -ll -q`):**
+  kueri SQL cron job di `alfa/core/db/tasks.py` diubah dari f-string menjadi tuple kueri statis berparameter (`?`) sehingga bebas `B608`; pemanggilan `urllib.request.urlopen` di `alfa/mcp/client.py` dan `alfa/tools/system/sites.py` kini divalidasi skemanya (`http`/`https` saja) dan didokumentasikan di `SECURITY.md` beserta `# nosec B310`.
+- **Fase 5 — Dependabot & Determinism Sentinel CI:**
+  menambahkan `.github/dependabot.yml` (pembaruan mingguan `pip` & `github-actions`) serta langkah sentinel determinisme `pytest tests -p no:cacheprovider -q` 2× berturut-turut pada job `test` di `.github/workflows/ci.yml`.
+
 ### Fixed — Determinisme test & gates matang (2026-10-18, putaran 2)
 - **Akar flaky GDrive dituntaskan, bukan ditambal:** `alfa/security/vault.py`
   mematok `DB_PATH` saat import — ubah `ALFA_DB_PATH` setelah import tidak

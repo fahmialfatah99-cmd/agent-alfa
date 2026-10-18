@@ -137,6 +137,10 @@ jobs:
         # Threshold diukur dari baseline 46,67% (2026-10-18) dipangkas margin
         # 2 poin — menahan penurunan besar, tidak menghukum noise kecil.
         run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=44
+      - name: Determinism sentinel (2x back-to-back without cacheprovider)
+        run: |
+          pytest tests -p no:cacheprovider -q
+          pytest tests -p no:cacheprovider -q
       - name: Upload coverage report
         uses: codecov/codecov-action@v5
         continue-on-error: true
