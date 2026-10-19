@@ -47,12 +47,7 @@ logger = logging.getLogger("TelegramAIAgent")
 # Lazily-initialized shared Gemini client (set on first turn via _resolve).
 gemini_client: Any = None
 
-try:
-    from google.genai.errors import APIError as _GenAIAPIError
-except ImportError:
-    _GenAIAPIError = RuntimeError  # type: ignore[misc,assignment]
-
-_TURN_EXEC_ERR = (
+_TURN_EXEC_ERR: tuple[type[BaseException], ...] = (
     OSError,
     ValueError,
     RuntimeError,
@@ -63,8 +58,18 @@ _TURN_EXEC_ERR = (
     TimeoutError,
     ConnectionError,
     sqlite3.Error,
-    _GenAIAPIError,
 )
+
+
+def _ensure_genai_errors() -> None:
+    global _TURN_EXEC_ERR
+    try:
+        from google.genai.errors import APIError as _GenAIAPIError
+
+        if _GenAIAPIError not in _TURN_EXEC_ERR:
+            _TURN_EXEC_ERR = (*_TURN_EXEC_ERR, _GenAIAPIError)
+    except ImportError:
+        pass
 
 
 def _get_bot():
@@ -697,6 +702,7 @@ async def _run_agent_turn_impl(
     Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault atau pilihan model aktif.
     """
     global gemini_client
+    _ensure_genai_errors()
 
     bot = _get_bot()
     _db = getattr(bot, "database", database) if bot else database

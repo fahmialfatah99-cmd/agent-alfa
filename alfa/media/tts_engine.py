@@ -10,12 +10,18 @@ import tempfile
 from typing import Any
 
 edge_tts: Any = None
-try:
-    import edge_tts as _edge_tts_mod
 
-    edge_tts = _edge_tts_mod
-except ImportError:
-    pass
+
+def _get_edge_tts():
+    global edge_tts
+    if edge_tts is None:
+        try:
+            import edge_tts as _edge_tts_mod
+
+            edge_tts = _edge_tts_mod
+        except ImportError:
+            pass
+    return edge_tts
 
 logger = logging.getLogger("TTSEngine")
 
@@ -69,9 +75,10 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
     temp_file.close()
 
     # 1. Try Primary Edge-TTS
-    if edge_tts is not None:
+    et = _get_edge_tts()
+    if et is not None:
         try:
-            communicate = edge_tts.Communicate(clean_text, voice)
+            communicate = et.Communicate(clean_text, voice)
             await communicate.save(temp_path)
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
@@ -85,7 +92,7 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
             "id-ID-ArdiNeural" if voice != "id-ID-ArdiNeural" else "id-ID-GadisNeural"
         )
         try:
-            communicate = edge_tts.Communicate(clean_text, fallback_voice)
+            communicate = et.Communicate(clean_text, fallback_voice)
             await communicate.save(temp_path)
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
