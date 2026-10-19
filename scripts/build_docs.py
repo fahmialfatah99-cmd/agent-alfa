@@ -21,6 +21,7 @@ COPIES: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] = (
 REWRITE_DOC_LINKS = (
     ("docs/BENCHMARK.md", "BENCHMARK.md"),
     ("docs/INSTALL.md", "INSTALL.md"),
+    ("docs/DEPLOYMENT.md", "DEPLOYMENT.md"),
     ("docs/TESTING.md", "TESTING.md"),
     ("docs/CODE_QUALITY.md", "CODE_QUALITY.md"),
     ("docs/EFFICIENCY.md", "EFFICIENCY.md"),

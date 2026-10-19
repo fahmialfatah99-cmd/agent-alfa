@@ -33,6 +33,7 @@ nav:
   - Beranda: index.md
   - README: about.md
   - Instalasi: INSTALL.md
+  - Deployment: DEPLOYMENT.md
   - Arsitektur:
       - Discord/TG Core: DISCORD_BOT_CORE_ARCHITECTURE.md
   - Keamanan: security.md

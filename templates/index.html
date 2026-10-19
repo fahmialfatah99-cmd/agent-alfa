@@ -331,6 +331,13 @@
                 </div>
 
                 <div class="flex items-center gap-2.5 text-xs font-mono">
+                    <!-- Live WebSocket Telemetry Indicator Pill -->
+                    <div id="ws-status-badge" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 text-slate-400 border border-white/10 font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Status WebSocket Telemetri & Telemetri Real-Time">
+                        <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span id="ws-status-text" class="hidden sm:inline">WS Connect...</span>
+                        <span id="ws-latency-text" class="text-[10px] text-slate-400 opacity-90 hidden md:inline"></span>
+                    </div>
+
                     <!-- Theme Toggle Button in Top Header -->
                     <button onclick="toggleTheme()" id="theme-toggle-btn" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer" title="Ganti Mode Gelap / Terang">
                         <span id="theme-icon">🌙</span>
@@ -1328,6 +1335,10 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                             <option value="60" selected>60 Baris</option>
                             <option value="120">120 Baris</option>
                         </select>
+                        <button id="btn-toggle-live-logs" onclick="toggleLiveLogsStream()" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg font-mono text-xs flex items-center gap-1.5 transition-all cursor-pointer" title="Streaming Log Real-time via WebSocket">
+                            <span id="live-logs-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span id="live-logs-label" class="hidden sm:inline">Live Stream</span>
+                        </button>
                         <button onclick="copyLogsToClipboard()" class="p-2 bg-white/5 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-lg text-slate-300 transition-all" title="Copy All Logs">
                             <i data-lucide="copy" class="w-3.5 h-3.5"></i>
                         </button>

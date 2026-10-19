@@ -80,9 +80,9 @@
 
 ## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
 
-> 📖 **Baru pertama kali?** Ikuti tutorial lengkap dari nol sampai siap pakai:
-> **[docs/INSTALL.md](INSTALL.md)** — termasuk cara membuat bot BotFather,
-> mengambil API key, whitelist keamanan, checklist verifikasi, dan troubleshooting.
+> 📖 **Panduan Lengkap:**
+> * Tutorial awal dari nol sampai bot siap pakai: **[docs/INSTALL.md](INSTALL.md)** (BotFather, API key, whitelist, setup lokal).
+> * Panduan deployment server produksi: **[docs/DEPLOYMENT.md](DEPLOYMENT.md)** (Docker Compose, Systemd 24/7, Reverse Proxy Caddy/Nginx, WebSockets, SSL).
 
 ### 🐧 1. Linux (Ubuntu, Debian, Arch, Fedora)
 ```bash

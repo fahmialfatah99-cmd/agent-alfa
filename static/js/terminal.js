@@ -316,3 +316,172 @@ function clearSwLiveView() {
     const box = document.getElementById('sw-terminal');
     if (box) box.innerHTML = '<p class="text-slate-600">// tampilan dibersihkan (log tetap berjalan)</p>';
 }
+
+// ── TELEMETRY WEBSOCKET & STATUS INDICATOR ──
+let _telemetryWs = null;
+let _telemetryPingStart = 0;
+let _telemetryReconnectDelay = 2000;
+let _telemetryReconnectTimer = null;
+
+function initTelemetryWebSocket() {
+    const badge = document.getElementById('ws-status-badge');
+    const dot = document.getElementById('ws-status-dot');
+    const txt = document.getElementById('ws-status-text');
+    const lat = document.getElementById('ws-latency-text');
+    if (!badge || !dot || !txt) return;
+
+    if (_telemetryWs) {
+        try { _telemetryWs.close(); } catch (_) {}
+        _telemetryWs = null;
+    }
+
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    const token = localStorage.getItem("alfa_session_token") || localStorage.getItem("alfa_auth_token") || "";
+    let url = `${wsProto}//${location.host}/ws/broadcast`;
+    if (token) url += `?token=${encodeURIComponent(token)}`;
+
+    function setBadgeState(state, text, latencyMs = null) {
+        if (!badge || !dot || !txt) return;
+        if (state === 'connected') {
+            badge.className = "px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1.5 shadow-sm transition-all";
+            dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+            txt.innerText = text || "Live WS";
+            if (lat) {
+                lat.innerText = latencyMs !== null ? `${latencyMs}ms` : "";
+                lat.className = "text-[10px] text-emerald-400/80 font-mono hidden md:inline";
+            }
+        } else if (state === 'connecting') {
+            badge.className = "px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1.5 shadow-sm transition-all";
+            dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+            txt.innerText = text || "WS Connect...";
+            if (lat) lat.innerText = "";
+        } else {
+            badge.className = "px-2.5 py-1.5 rounded-xl bg-rose-500/10 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1.5 shadow-sm transition-all";
+            dot.className = "w-2 h-2 rounded-full bg-rose-400";
+            txt.innerText = text || "WS Offline";
+            if (lat) lat.innerText = "";
+        }
+    }
+
+    setBadgeState('connecting');
+
+    try {
+        _telemetryWs = new WebSocket(url);
+
+        _telemetryWs.onopen = () => {
+            _telemetryReconnectDelay = 2000;
+            setBadgeState('connected', 'Live WS');
+            sendTelemetryPing();
+        };
+
+        _telemetryWs.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === "pong") {
+                    const rtt = Math.max(1, Math.round(performance.now() - _telemetryPingStart));
+                    setBadgeState('connected', 'Live WS', rtt);
+                }
+            } catch (_) {}
+        };
+
+        _telemetryWs.onclose = () => {
+            setBadgeState('disconnected', 'WS Reconnecting...');
+            scheduleTelemetryReconnect();
+        };
+
+        _telemetryWs.onerror = () => {
+            setBadgeState('disconnected', 'WS Error');
+        };
+    } catch (err) {
+        setBadgeState('disconnected', 'WS Error');
+        scheduleTelemetryReconnect();
+    }
+}
+
+function sendTelemetryPing() {
+    if (_telemetryWs && _telemetryWs.readyState === WebSocket.OPEN) {
+        _telemetryPingStart = performance.now();
+        _telemetryWs.send("ping");
+        setTimeout(sendTelemetryPing, 10000);
+    }
+}
+
+function scheduleTelemetryReconnect() {
+    clearTimeout(_telemetryReconnectTimer);
+    _telemetryReconnectTimer = setTimeout(() => {
+        initTelemetryWebSocket();
+        _telemetryReconnectDelay = Math.min(_telemetryReconnectDelay * 1.5, 30000);
+    }, _telemetryReconnectDelay);
+}
+
+// ── LIVE LOGS WEBSOCKET STREAMING ──
+let _liveLogsClient = null;
+let _isLiveLogsStreaming = false;
+
+function toggleLiveLogsStream() {
+    const btn = document.getElementById('btn-toggle-live-logs');
+    const dot = document.getElementById('live-logs-dot');
+    const label = document.getElementById('live-logs-label');
+    const viewer = document.getElementById('service-logs-viewer');
+    const svcSelect = document.getElementById('log-service-select');
+    const svc = svcSelect ? svcSelect.value : 'telegram-ai-bot.service';
+
+    if (_isLiveLogsStreaming) {
+        if (_liveLogsClient) {
+            _liveLogsClient.disconnect();
+            _liveLogsClient = null;
+        }
+        _isLiveLogsStreaming = false;
+        if (btn) {
+            btn.className = "px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 rounded-lg font-mono text-xs flex items-center gap-1.5 transition-all cursor-pointer";
+        }
+        if (dot) {
+            dot.className = "w-2 h-2 rounded-full bg-slate-400";
+        }
+        if (label) {
+            label.innerText = "Live Stream";
+        }
+        if (typeof showToast === 'function') {
+            showToast("Streaming log WebSocket dihentikan.", "info");
+        }
+    } else {
+        _isLiveLogsStreaming = true;
+        if (btn) {
+            btn.className = "px-2.5 py-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg font-mono text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-emerald-500/10";
+        }
+        if (dot) {
+            dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        }
+        if (label) {
+            label.innerText = "Streaming...";
+        }
+
+        if (viewer) {
+            viewer.innerHTML = `<span class="text-emerald-400 font-bold">[WS LOGS] Terhubung ke stream live log: ${svc}...</span>\n`;
+        }
+
+        _liveLogsClient = new LogsWebSocketClient(svc, (data) => {
+            if (!viewer) return;
+            const line = data.data || data.line || (typeof data === "string" ? data : "");
+            if (!line) return;
+            const parsed = typeof parseAnsiToHtml === 'function' ? parseAnsiToHtml(line) : line;
+            viewer.innerHTML += parsed;
+            viewer.scrollTop = viewer.scrollHeight;
+        });
+
+        _liveLogsClient.connect();
+        if (typeof showToast === 'function') {
+            showToast(`Streaming log ${svc} aktif via WebSocket!`, "success");
+        }
+    }
+}
+
+window.toggleLiveLogsStream = toggleLiveLogsStream;
+window.initTelemetryWebSocket = initTelemetryWebSocket;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTelemetryWebSocket);
+} else {
+    initTelemetryWebSocket();
+}
+
