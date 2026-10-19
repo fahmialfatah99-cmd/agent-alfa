@@ -2,26 +2,42 @@
 
 This document tracks code quality metrics for the ALFA Agent project.
 
-## Current Status (v3.5.0, 2026-10-19)
+## Current Status (v3.5.0, 2026-10-20)
 
 ### Test Coverage
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | >80% | 54.00% | 🟡 Below target (naik dari 47,65%) |
-| Core Modules (CLI agent) | >90% | ~70-94% (parsing 79%, reporting 94%) | 🟡 Improving |
-| Security Modules | 100% | Bandit: 0 high, 0 medium | 🟢 OK |
+| Overall Coverage | 80% | **57.00%** | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00%) |
+| Security-critical modules | 90% | 85–95% (perm gate, sandbox, vault, command policy) | 🟢 |
 | Integration Tests | Critical paths | Covered | 🟢 OK |
 
-**Note**: Run `pytest --cov=alfa --cov-report=html` to generate current coverage report.
+**Note:** Run `pytest --cov=alfa --cov-report=html` to generate current coverage report.
+
+### Gap analysis — area yang masih belum tercover
+
+Target 80% belum tercapai. Berikut peta area yang paling besar masih
+belum ada test-nya, urut dari satu-satunya celah yang paling，恶ah
+(sorted by missing statements):
+
+| Area | Missing | Alasan / langkah berikutnya |
+|------|---------|------------------------------|
+| `alfa/bot/discord_bot.py` | ~600 | `main()` butuh klien Discord nyata; sisanya sudah dipecah jadi helper yang teruji |
+| `alfa/bot/handlers.py` | ~550 | Handler Telegram butuh `Update`/`Context` nyata; butuh integrasi mock yang lebih besar |
+| `alfa/bot/proactive.py` | ~450 | Loop background (`asyncio.sleep` tak terfinite); perlu fake clock |
+| `alfa/swarm/engine.py` | ~450 | `conduct_multi_agent_meeting` penuh butuh LLM nyata; jalur terstruktur sudah teruji terpisah |
+| `alfa/core/cli/*` | ~600 | CLI interaktif (Rich/prompt) — butuh PTY palsu |
+| `alfa/tools/media/*`, `alfa/video/*` | ~500 | Butuh ffmpeg/ffmpeg-python terpasang |
+| `alfa/scrapers/fast.py` | ~180 | Butuh `camoufox`/`playwright` browser |
+| `alfa/mcp/client.py` | ~120 | Jalur HTTP sudah teruji; sisanya butuh server MCP sungguhan |
 
 ### Test Suite Statistics
 
 | Metric | Count |
 |--------|-------|
-| Test Files | 59 |
-| Test Functions | 1.063 |
-| Fixtures | 15+ |
+| Test Files | 66 |
+| Test Functions | 1.345 |
+| Fixtures | 20+ |
 | Custom Markers | 5 |
 
 ### Linting Status

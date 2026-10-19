@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security & Quality (P3) — allowlist perintah, OAuth CSRF fix, deliberasi terstruktur, coverage 57% (2026-10-20, putaran 7)
+Menutup 5 item tersisa dari audit keamanan: jalur prompt-injection → shell,
+OAuth CSRF di MCP, kebocoran metrik dashboard, "diskusi" swarm yang tak
+terukur, dan cakupan test.
+
+- **P3-1 — Prompt-injection → shell ditutup dengan allowlist perintah.**
+  `POST /api/agents/{id}/execute` meneruskan output LLM mentah ke
+  `execute_bash_command`; jalur fallback bahkan mengeksekusi **instruksi user
+  mentah** sebagai shell hanya karena mengandung kata "git"/"ls". Module baru
+  `alfa/security/command_policy.py` menerapkan kebijakan deny-by-default:
+  allowlist binary (segmen pipeline diperiksa satu per satu), daftar binary
+  terlarang (`sudo`, `systemctl`, `crontab`, `docker`, `ssh`, ...), deteksi
+  chaining ke shell (`curl | sh`, `python -c`), path sensitif
+  (`~/.ssh`, `/etc`), dan pola destruktif (`rm -rf /`, `chmod 777 /`,
+  `dd of=/dev/`). Diterapkan di endpoint eksekusi agent dan di jalur
+  forced-JSON swarm.
+- **P3-2 — OAuth CSRF di MCP client diperbaiki.** `finish_connect` tidak
+  pernah memvalidasi parameter `state` — siapa pun bisa menyelesaikan flow
+  dengan authorization code miliknya sendiri dan mengikat tokennya ke entri
+  server korban. Kini `state` dibandingkan dengan nilai tersimpan memakai
+  `secrets.compare_digest`; `KeyError` pada entri store yang tidak lengkap
+  juga hilang.
+- **P3-3 — `/api/metrics` tidak lagi publik.** Endpoint ini membocorkan
+  CPU/RAM/disk, RSS proses, jumlah thread, dan statistik connection pool ke
+  siapa pun yang bisa menjangkau. `/docs`, `/redoc`, dan `/openapi.json`
+  juga dilindungi (memetakan seluruh permukaan endpoint).
+- **P3-4 — Diskusi swarm jadi terstruktur & terukur.** Sebelumnya "diskusi"
+  hanya prompt-chain sekuensial: satu panggilan LLM terakhir menulis
+  "konsensus" dan persentase konsensus di UI adalah heuristik atas string
+  tahap. Module baru `alfa/swarm/deliberation.py` memberi: **proposal**
+  (posisi + bukti + keyakinan per agen), **pemungutan suara** sejak putaran
+  ke-2, **tally dihitung mekanis**, **dissent tercatat**, dan konteks yang
+  dipangkas ke batas karakter (sebelumnya seluruh riwayat obrolan dikirim
+  setiap giliran → prompt tumbuh O(putaran × agen × panjang)). Hasil rapat
+  kini membawa `vote_tally`, `proposals`, `dissent`, dan
+  `consensus_agreement`.
+- **P3-5 — Cakupan test 54,23% → 57,00%** dengan 6 modul test baru
+  (`test_rag_tools.py`, `test_swarm_deliberation.py`, `test_swarm_engine.py`,
+  `test_brain_agentic.py`, `test_mcp_and_admin.py`, `test_tools_layer.py`,
+  `test_bot_layer.py`, `test_dashboard_api.py`): perilaku 8 tool RAG/vector
+  yang dulu tak terlihat model, loop otak agentik (HTTP client palsu),
+  parser/poll swagger, validasi perintah, gate admin per endpoint, dan
+  helper bot. `docs/CODE_QUALITY.md` diperbarui dengan daftar area yang
+  masih belum tercover.
+
 ### Quality & Hardening (P1 + P2) — XSS, RBAC default-deny, registry SSOT, ES modules (2026-10-20, putaran 6)
 Melanjutkan P0 (7 celah keamanan tertutup) dengan perbaikan kualitas &
 struktur yang tersisa. Semua gate tetap hijau: ruff, mypy 0/251 file, bandit

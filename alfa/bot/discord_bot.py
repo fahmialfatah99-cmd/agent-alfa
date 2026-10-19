@@ -217,9 +217,16 @@ def discord_play_music(query: str = "") -> dict:
 
 
 def _register_discord_tools() -> None:
-    try:
-        from alfa.tools import AVAILABLE_TOOLS
+    """Daftarkan tool Discord ke registry tools (bukan hanya ke daftar legacy).
 
+    Versi lama hanya menempelkan fungsi ke ``AVAILABLE_TOOLS`` sehingga tool
+    ini TIDAK punya metadata registry (kategori, tags, schema) dan tidak
+    punya risk tier — celah di gate permission.
+    """
+    try:
+        from alfa.tools import AVAILABLE_TOOLS, registry
+
+        registry.sync_registry_from_available([discord_play_music])
         names = {getattr(f, "__name__", "") for f in AVAILABLE_TOOLS}
         if "discord_play_music" not in names:
             AVAILABLE_TOOLS.append(discord_play_music)

@@ -12,6 +12,44 @@ router = APIRouter()
 # --- Autonomous AI Workforce & Custom Agent Endpoints ---
 
 
+def _agent_working_dir() -> str:
+    """Direktori kerja default untuk perintah shell yang diminta LLM.
+
+    Dibatasi ke folder target swarm (kalau ada) — bukan root mesin.
+    """
+    import os
+
+    target = os.getenv("ALFA_TARGET_FOLDER", "").strip()
+    if target and os.path.isdir(target):
+        return target
+    try:
+        from alfa.swarm import workspace_hygiene
+
+        folder = workspace_hygiene._get_target_folder()
+        if folder and os.path.isdir(folder):
+            return folder
+    except (ImportError, AttributeError, OSError, TypeError):
+        pass
+    return ""
+
+
+def _policy_denial(command: str) -> str:
+    """Alasan penolakan perintah atas instruksi LLM, atau '' bila diizinkan.
+
+    Output LLM bisa dipengaruhi prompt injection; perintahnya wajib lolos
+    allowlist binary + blocklist destruktif sebelum dieksekusi.
+    """
+    from alfa.security.command_policy import check_agent_command
+
+    try:
+        reason = check_agent_command(
+            command, working_dir=_agent_working_dir()
+        )
+    except (ImportError, AttributeError, TypeError, ValueError) as err:
+        return f"[KEAMANAN] Gagal memverifikasi perintah: {err}"
+    return f"[KEAMANAN] Perintah ditolak: {reason}" if reason else ""
+
+
 @router.get("/api/agents")
 async def get_custom_agents():
     """List all custom agents in the workforce."""
@@ -205,7 +243,11 @@ async def execute_agent_task(agent_id: int, payload: dict[str, Any]):
         tool_called = "execute_bash_command"
         tool_input = cmd
         action_type = "bash_exec"
-        res = tools.execute_bash_command(cmd)
+        denial = _policy_denial(cmd)
+        if denial:
+            res = {"status": "error", "stdout": "", "stderr": denial}
+        else:
+            res = tools.execute_bash_command(cmd, working_dir=_agent_working_dir())
         tool_output_str = (
             res.get("stdout")
             or res.get("output")
@@ -252,7 +294,15 @@ async def execute_agent_task(agent_id: int, payload: dict[str, Any]):
             tool_called = "execute_bash_command"
             tool_input = instruction
             action_type = "bash_exec"
-            res = tools.execute_bash_command(instruction)
+            # Instruksi mentah dari user/LLM TIDAK boleh dieksekusi sebagai
+            # shell tanpa kebijakan — ini jalur prompt-injection klasik.
+            denial = _policy_denial(instruction)
+            if denial:
+                res = {"status": "error", "stdout": "", "stderr": denial}
+            else:
+                res = tools.execute_bash_command(
+                    instruction, working_dir=_agent_working_dir()
+                )
             tool_output_str = (
                 res.get("stdout")
                 or res.get("output")

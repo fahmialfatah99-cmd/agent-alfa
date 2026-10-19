@@ -169,7 +169,13 @@ def compute_agent_states(
 
 
 def compute_consensus_percent(stage: str, entries: list[dict[str, Any]]) -> int:
-    """Compute consensus agreement percentage (0 to 100) based on stage and progress."""
+    """Compute consensus agreement percentage (0 to 100) based on stage and progress.
+
+    CATATAN: ini adalah PETA PROGRESS, bukan consensus terukur. Nilai
+    consensus yang sebenarnya berasal dari pemungutan suara swarm
+    (``vote_tally.agreement`` di hasil rapat) dan ditampilkan lewat
+    ``/api/meetings/{id}``. Angka di sini hanya untuk indikator progres UI.
+    """
     if stage == "idle":
         if entries and str(entries[-1].get("tag", "")).upper() == "DONE":
             return 100

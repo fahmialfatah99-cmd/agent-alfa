@@ -95,6 +95,10 @@ TOOL_CLASSIFICATION = {
         RiskTier.CRITICAL,
         "Hapus secret dari vault terenkripsi - irreversible, kehilangan kredensial",
     ),
+    "discord_play_music": (
+        RiskTier.MEDIUM,
+        "Putar musik di voice channel Discord - memakai speaker & jaringan",
+    ),
     # ── HIGH - system changes, potentially destructive ──────────────────────
     "kill_process": (RiskTier.HIGH, "Terminasi process - bisa crash sistem"),
     "execute_bash_command": (

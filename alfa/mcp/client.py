@@ -147,20 +147,33 @@ def start_connect(server_id: str, redirect_uri: str) -> dict[str, Any]:
 def finish_connect(code: str, state: str) -> dict[str, Any]:
     """Tukar authorization code -> token. Dipanggil callback dashboard."""
     try:
-        sid, _ = (state or "").split(":", 1)
+        sid, received_state = (state or "").split(":", 1)
     except ValueError:
         return {"status": "error", "message": "State tak valid."}
     store = _load()
     ent = store.get(sid)
     if not ent or not ent.get("token_endpoint"):
         return {"status": "error", "message": "Sesi connect tak ditemukan — ulangi dari awal."}
-    body = {"grant_type": "authorization_code", "code": code,
-            "redirect_uri": ent["redirect_uri"], "client_id": ent["client_id"],
-            "code_verifier": ent.get("code_verifier", ""),
-            "resource": ent.get("url", "")}
+    # Validasi `state` (anti OAuth CSRF / session fixation). Tanpa ini siapa
+    # pun bisa menyelesaikan flow dengan authorization code miliknya sendiri
+    # dan mengikat tokennya ke entri server korban.
+    expected_state = str(ent.get("state") or "")
+    if not expected_state:
+        return {"status": "error", "message": "Sesi connect tak punya state — ulangi dari awal."}
+    if not secrets.compare_digest(expected_state, str(received_state or "")):
+        logger.warning("[mcp] state OAuth tidak cocok — permintaan ditolak")
+        return {"status": "error", "message": "State tidak cocok — permintaan ditolak."}
+    body = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": ent.get("redirect_uri", ""),
+        "client_id": ent.get("client_id", ""),
+        "code_verifier": ent.get("code_verifier", ""),
+        "resource": ent.get("url", ""),
+    }
     headers = {}
     if ent.get("client_secret"):
-        pair = f"{ent['client_id']}:{ent['client_secret']}".encode()
+        pair = f"{ent.get('client_id', '')}:{ent['client_secret']}".encode()
         headers["Authorization"] = "Basic " + base64.b64encode(pair).decode()
     try:
         tok = _post_form(ent["token_endpoint"], body, headers)
@@ -195,10 +208,10 @@ def _fresh_token(sid: str) -> str:
         raise RuntimeError("belum terhubung — jalankan connect dulu")
     if ent.get("refresh_token") and time.time() > float(ent.get("expires_at", 0)) - 120:
         body = {"grant_type": "refresh_token", "refresh_token": ent["refresh_token"],
-                "client_id": ent["client_id"], "resource": ent.get("url", "")}
+                "client_id": ent.get("client_id", ""), "resource": ent.get("url", "")}
         headers = {}
         if ent.get("client_secret"):
-            pair = f"{ent['client_id']}:{ent['client_secret']}".encode()
+            pair = f"{ent.get('client_id', '')}:{ent['client_secret']}".encode()
             headers["Authorization"] = "Basic " + base64.b64encode(pair).decode()
         tok = _post_form(ent["token_endpoint"], body, headers)
         if tok.get("access_token"):

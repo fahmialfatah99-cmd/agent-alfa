@@ -257,6 +257,19 @@ async def _single_shot_edit_fallback(
         return f"(single-shot) gagal tulis: {w_err}"
 
 
+def _command_policy_denial(command: str, working_dir: str = "") -> str:
+    """Alasan penolakan perintah shell dari LLM, atau '' bila diizinkan."""
+    if not command.strip():
+        return "perintah kosong"
+    try:
+        from alfa.security.command_policy import check_agent_command
+
+        reason = check_agent_command(command, working_dir=working_dir)
+    except (ImportError, AttributeError, TypeError, ValueError) as err:
+        return f"gagal verifikasi perintah: {err}"
+    return str(reason) if reason else ""
+
+
 async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -> str:
     """Eksekusi deterministik: model hanya menyusun rencana JSON aksi tool,
     engine-lah yang menjalankannya."""
@@ -305,6 +318,17 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
             kwargs["file_path"] = kwargs.pop("path")
         if tool_nm == "edit_file_precise":
             kwargs.setdefault("replace_all", False)
+        if tool_nm == "execute_bash_command":
+            # Perintah dari LLM wajib lolos kebijakan allowlist sebelum
+            # dieksekusi (prompt injection bisa menyuruh apa saja).
+            denial = _command_policy_denial(
+                str(kwargs.get("command") or ""),
+                str(kwargs.get("working_dir") or ""),
+            )
+            if denial:
+                logs.append(f"{i + 1}. {tool_nm} -> DENIED ({denial[:70]})")
+                log_live("TOOL", f"🚫 forced-exec {tool_nm} DITOLAK: {denial[:90]}")
+                continue
         try:
             res = fn(**kwargs)
             st = (res or {}).get("status", "?") if isinstance(res, dict) else "?"

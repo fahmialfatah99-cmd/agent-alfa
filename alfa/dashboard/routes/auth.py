@@ -552,7 +552,9 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/healthz",
             "/api/health",
             "/api/healthz",
-            "/api/metrics",
+            # CATATAN: /api/metrics TIDAK lagi publik — endpoint ini
+            # membocorkan CPU/RAM/disk, RSS proses, jumlah thread, dan
+            # statistik connection pool ke siapa pun yang bisa menjangkau.
             "/api/auth/login",
             "/api/auth/register",
             "/api/mcp/oauth/callback",
@@ -608,7 +610,14 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
         # Fail-CLOSED: seluruh /api/* WAJIB punya session valid atau token.
         # Sebelumnya blokade ini hanya aktif bila DASHBOARD_AUTH_TOKEN terisi,
         # sehingga dashboard tanpa token membiarkan SEMUA /api/* terbuka.
-        if path.startswith("/api/"):
+        # Dokumentasi API (/docs, /redoc, /openapi.json) juga dilindungi:
+        # memetakan seluruh permukaan endpoint ke publik.
+        protected = path.startswith("/api/") or path in (
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+        )
+        if protected:
             # Escape hatch lokal HANYA berlaku bila operator memang
             # tidak menyiapkan token sama sekali. Bila DASHBOARD_AUTH_TOKEN
             # diset, mode auth aktif dan escape hatch ini tidak berlaku.

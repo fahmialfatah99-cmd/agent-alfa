@@ -105,6 +105,29 @@ ALFA Agent implements several security measures:
 - SPA dimuat sebagai ES module dengan import/export eksplisit — dependensi
   antar-file bisa dianalisis statis dan diuji, bukan lagi global implisit.
 
+### 6. Proteksi Perintah Shell atas Instruksi LLM
+Output LLM bisa dipengaruhi *prompt injection*. Karena itu perintah yang
+datang dari LLM **tidak** dieksekusi mentah:
+
+- **Allowlist binary** (`alfa/security/command_policy.py`) — deny-by-default;
+  setiap segmen pipeline (`|`, `&&`, `;`) diperiksa sendiri.
+- **Binary terlarang** — `sudo`, `su`, `systemctl`, `crontab`, `docker`,
+  `ssh`, `useradd`, `iptables`, `mkfs`, `dd`, `kill`, ...
+- **Chaining ke shell** — `curl x | sh`, `wget | bash`, `eval`, `python -c`.
+- **Path sensitif** — `~/.ssh`, `~/.aws`, `/etc`, `/proc`, `id_rsa`.
+- **Pola destruktif** — `rm -rf /`, `chmod 777 /`, `dd of=/dev/`, `git push --force`.
+- Diterapkan pada `POST /api/agents/{id}/execute` dan jalur eksekusi
+  forced-JSON swarm. Perintah yang ditolak dikembalikan sebagai pesan
+  penolakan, bukan dieksekusi.
+
+### 7. OAuth & Endpoint Dashboard
+- **State OAuth divalidasi** (`secrets.compare_digest`) di MCP client —
+  tanpa ini siapa pun bisa menyelesaikan flow dengan authorization code
+  miliknya sendiri (OAuth CSRF / session fixation).
+- **Endpoint surface tidak bocor** — `/docs`, `/redoc`, `/openapi.json` dan
+  `/api/metrics` (CPU/RAM/disk, RSS proses, thread, connection pool)
+  membutuhkan autentikasi.
+
 ### 5. Code Quality & Security
 - Automated linting with Ruff
 - Static type checking with mypy (0 baseline errors)

@@ -21,6 +21,27 @@ from typing import Any
 
 from alfa import tools
 from alfa.core import database
+from alfa.swarm.deliberation import (
+    Proposal as _Proposal,
+)
+from alfa.swarm.deliberation import (
+    Turn as _Turn,
+)
+from alfa.swarm.deliberation import (
+    apply_votes as _apply_votes,
+)
+from alfa.swarm.deliberation import (
+    build_context_digest as _build_context_digest,
+)
+from alfa.swarm.deliberation import (
+    build_proposal_menu as _build_proposal_menu,
+)
+from alfa.swarm.deliberation import (
+    collect_proposals as _collect_proposals,
+)
+from alfa.swarm.deliberation import (
+    parse_turn as _parse_turn,
+)
 from alfa.swarm.live_logger import (
     _CHECKPOINT_AVAILABLE,
     _append_feed_file,
@@ -663,6 +684,15 @@ async def _conduct_multi_agent_meeting_impl(
             actual_rounds = max(1, int(rounds or 1))
         except (TypeError, ValueError):
             actual_rounds = 2
+    # ── Deliberasi terstruktur (mode diskusi) ──────────────────────────────────
+    # Tiap giliran menghasilkan posisi + bukti + keyakinan; sejak putaran ke-2
+    # agen juga memberi suara atas proposal yang sudah ada. Suara dihitung
+    # mekanis (lihat alfa.swarm.deliberation), bukan ditebak LLM.
+    deliberation_turns: list[_Turn] = []
+    proposals: list[_Proposal] = []
+    all_votes: list[tuple[str, bool, str]] = []
+    vote_tally: dict = {}
+
     for r in range(1, actual_rounds + 1):
         if _cancel_requested():
             break
@@ -670,8 +700,8 @@ async def _conduct_multi_agent_meeting_impl(
             if _cancel_requested():
                 break
             context_text = (
-                "\n".join(history_summary)
-                if history_summary
+                _build_context_digest(deliberation_turns)
+                if deliberation_turns
                 else "(Sesi baru saja dibuka oleh Alpha Lead)"
             )
             if mode in ["execute", "plan_and_execute"]:
@@ -687,18 +717,34 @@ async def _conduct_multi_agent_meeting_impl(
                     f"2. Bicara santai, tegas, siap aksi!"
                 )
             else:
+                menu = _build_proposal_menu(proposals)
+                vote_block = (
+                    ""
+                    if r == 1
+                    else (
+                        "\n\n=== PROPOSAL TIM YANG ADA (BERI SUARA) ===\n"
+                        f"{menu}\n\n"
+                        "S voted untuk setiap proposal: SETUJU atau TOLAK, sertakan alasan singkat."
+                    )
+                )
                 prompt = (
                     f"=== TOPIK AGENDA DISKUSI ===\n"
                     f"{topic}\n\n"
-                    f"=== RIWAYAT OBROLAN TIM (PUTARAN {r}) ===\n"
+                    f"=== RINGKASAN OBROLAN TIM (PUTARAN {r}) ===\n"
                     f"{context_text}\n\n"
                     f"=== IDENTITAS KAMU ===\n"
                     f"Nama: {agent['name']} ({agent['role']})\n"
                     f"Persona: {agent['persona']}\n\n"
                     f"TUGAS KAMU:\n"
-                    f"1. Berikan tanggapan/solusi teknis tajam sesuai bidang keahlianmu.\n"
-                    f"2. Langsung sanggah/kritisi/dukung poin peserta lain secara to-the-point.\n"
-                    f"3. HEMAT TOKEN & ON-POINT: Tulis 2 sampai 4 kalimat padat saja."
+                    f"1. Berikan posisi/solusi teknis tajam sesuai bidang keahlianmu.\n"
+                    f"2. Kritas/dukung poin peserta lain secara to-the-point.\n"
+                    f"3. HEMAT TOKEN: 2-4 kalimat padat.\n\n"
+                    f"JAWAB DENGAN JSON MURNI (tanpa teks lain):\n"
+                    f'{{"position":"posisiemu 2-4 kalimat",'
+                    f'"evidence":"bukti/fakta pendukung singkat",'
+                    f'"confidence":0.0-1.0,'
+                    f'"votes":[{{"id":"id-proposal","approve":true,"reason":"alasan singkat"}}]}}'
+                    f"{vote_block}"
                 )
 
             response_text = (
@@ -727,6 +773,40 @@ async def _conduct_multi_agent_meeting_impl(
                 f"[{agent['name']} - {agent['role']}]:\n{response_text}\n"
             )
             log_live("DIALOG", f"💬 {entry['agent_name']}: {response_text[:140]}")
+
+            # ── Catat giliran terstruktur (mode diskusi) ──────────────────────
+            if mode not in ("execute", "plan_and_execute"):
+                parsed = _parse_turn(response_text)
+                turn = _Turn(
+                    round=r,
+                    agent=agent["name"],
+                    role=agent["role"],
+                    position=parsed.get("position") or response_text[:600],
+                    evidence=parsed.get("evidence", ""),
+                    confidence=parsed.get("confidence", 0.5),
+                    votes=list(parsed.get("votes", [])),
+                    raw=response_text,
+                )
+                deliberation_turns.append(turn)
+                for ref, approve in turn.votes:
+                    all_votes.append((turn.agent, approve, ref))
+                # Proposal dihitung ulang tiap giliran (posisi terbaru tiap agen).
+                proposals = _collect_proposals(deliberation_turns)
+
+    # ── Hitung suara secara mekanis ──────────────────────────────────────────
+    if mode not in ("execute", "plan_and_execute") and deliberation_turns:
+        vote_tally = _apply_votes(proposals, all_votes)
+        if vote_tally.get("winner"):
+            _w = vote_tally["winner"]
+            log_live(
+                "VOTE",
+                f"🗳️ Pemungutan suara: {_w['id']} ({_w['author']}) "
+                f"{_w['votes_for']} setuju / {_w['votes_against']} tolak"
+                f" — agreement {vote_tally.get('agreement', 0):.0%}",
+            )
+        if vote_tally.get("dissent"):
+            _d = ", ".join(sorted({x["voter"] for x in vote_tally["dissent"]}))
+            log_live("VOTE", f"⚖️ Dissenting agents: {_d}")
 
     swarm_cancelled = False
     if mode in ["execute", "plan_and_execute"]:
@@ -973,15 +1053,37 @@ async def _conduct_multi_agent_meeting_impl(
             f"Gunakan gaya bicara santai, gaul, tegas, to-the-point!"
         )
     else:
+        # Hasil pemungutan suara dihitung mekanis — kapten menulis narasi
+        # berdasarkan angka nyata, bukan menebak.
+        vote_block = ""
+        if vote_tally.get("winner"):
+            _w = vote_tally["winner"]
+            _dissent = ", ".join(sorted({x["voter"] for x in vote_tally.get("dissent", [])}))
+            vote_block = (
+                "\n\n=== HASIL PEMUNGUTAN SUARA (KOMPUTASI, BUKAN TEBAKAN) ===\n"
+                f"Pemili suara: {vote_tally.get('total_voters', 0)} | "
+                f"Proposal: {vote_tally.get('total_proposals', 0)}\n"
+                f"Pemenang: {_w['id']} (oleh {_w['author']}) — "
+                f"{_w['votes_for']} setuju, {_w['votes_against']} tolak\n"
+                f"Agreement: {vote_tally.get('agreement', 0):.0%}\n"
+                f"Isi: {_w['summary'][:300]}\n"
+                + (f"Agen yang menyanggah: {_dissent}\n" if _dissent else "")
+            )
         consensus_prompt = (
             f"=== TOPIK RAPAT ===\n{topic}\n\n"
             f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n"
             + "\n".join(history_summary)
+            + vote_block
             + "\n\n"
             f"Sebagai kapten rapat ({lead_agent['name']}), buatlah rangkuman KONSENSUS & ACTION PLAN yang ON-POINT:\n"
             f"1. KONSENSUS UTAMA (Inti kesepakatan tim dalam 2-3 poin ringkas).\n"
             f"2. ACTION PLAN (Tabel tugas terstruktur: No, Modul/Tugas, Penanggung Jawab, Target).\n"
-            f"Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
+            + (
+                "3. CATAT DISSENT: sebutkan succinctly agen yang tidak setuju dan alasannya.\n"
+                if vote_tally.get("dissent")
+                else ""
+            )
+            + "Gunakan gaya bahasa santai, tegas, to-the-point tanpa basa-basi."
         )
 
     consensus_text = (
@@ -1035,6 +1137,23 @@ async def _conduct_multi_agent_meeting_impl(
         "execution_results": execution_steps,
         "consensus": consensus_text_clean,
         "action_plan": action_plan_text,
+        # Hasil deliberasi terstruktur (dihitung mekanis, bukan tebakan LLM).
+        "vote_tally": vote_tally,
+        "proposals": [
+            {
+                "id": p.id,
+                "author": p.author,
+                "round": p.round,
+                "summary": p.summary,
+                "evidence": p.evidence,
+                "confidence": p.confidence,
+                "votes_for": p.votes_for,
+                "votes_against": p.votes_against,
+            }
+            for p in proposals
+        ],
+        "dissent": vote_tally.get("dissent", []),
+        "consensus_agreement": vote_tally.get("agreement", 0.0),
     }
 
 
