@@ -308,27 +308,46 @@ def format_swarm_result(result: dict) -> tuple[str, str, list[str]]:
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/cancel — hentikan misi swarm yang sedang berjalan."""
+    """/cancel — hentikan misi swarm atau giliran kerja agen yang sedang berjalan."""
     user_id = update.effective_user.id if update.effective_user else 0
     chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
     try:
-        from alfa.swarm.workspace_hygiene import MEETING_RUNNING, request_cancel_swarm
+        from alfa.swarm import workspace_hygiene
+        from alfa.swarm.workspace_hygiene import request_cancel_swarm
 
-        if not MEETING_RUNNING:
+        cancelled_items: list[str] = []
+
+        # 1. Batalkan async task yang aktif di chat ini (Single turn atau Swarm task)
+        try:
+            from alfa.bot.handlers import ACTIVE_CHAT_TASKS
+
+            active_task = ACTIVE_CHAT_TASKS.get(chat_id)
+            if active_task and not active_task.done():
+                active_task.cancel()
+                cancelled_items.append("proses agen aktif dibatalkan")
+        except _MODE_ERR:
+            pass
+
+        # 2. Batalkan Swarm engine jika sedang berjalan
+        if workspace_hygiene.MEETING_RUNNING or request_cancel_swarm():
+            request_cancel_swarm()
+            workspace_hygiene.MEETING_RUNNING = False
+            cancelled_items.append("misi Swarm dihentikan")
+
+        if cancelled_items:
             await safe_send_message(
-                context, chat_id, "ℹ️ Tidak ada misi swarm yang sedang berjalan."
+                context,
+                chat_id,
+                f"⏹ **Berhasil dihentikan:** {', '.join(cancelled_items)}.",
             )
-            return
-        ok = request_cancel_swarm()
-        await safe_send_message(
-            context,
-            chat_id,
-            "⏹ **Permintaan pembatalan dikirim** — swarm berhenti setelah langkah berjalan selesai."
-            if ok
-            else "ℹ️ Tidak ada misi aktif untuk dibatalkan.",
-        )
+        else:
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Tidak ada proses atau misi yang sedang berjalan saat ini.",
+            )
     except _MODE_ERR as e:
         await safe_send_message(context, chat_id, f"❌ Gagal membatalkan: `{e}`")
 

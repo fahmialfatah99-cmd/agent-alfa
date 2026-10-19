@@ -293,10 +293,37 @@ def conduct_ai_meeting(
     mode: str = "execute",
     folder: str = "",
 ) -> dict[str, Any]:
-    """
-    Jalankan SWARM EKSEKUSI LANGSUNG: agen bekerja nyata memakai tool.
+    """Jalankan SWARM EKSEKUSI MULTI-AGEN: HANYA panggil jika pengguna SECARA EKSPLISIT meminta rapat, diskusi tim, atau mode swarm.
+
+    PERINGATAN KERAS: JANGAN memanggil tool ini jika pengguna hanya memberikan tugas biasa
+    (coding, riset, analisis, perbaikan file). Selesaikan tugas biasa tersebut sendiri menggunakan
+    tools native Anda (write_local_file, execute_bash_command, web_search, dll).
     """
     try:
+        from alfa.bot.mode_commands import get_telegram_mode_sync
+
+        current_mode = get_telegram_mode_sync()
+        if current_mode == "single":
+            topic_lower = (topic or "").lower()
+            explicit_swarm_keywords = (
+                "rapat",
+                "meeting",
+                "swarm",
+                "tim multi-agen",
+                "diskusi tim",
+                "musyawarah",
+                "war room",
+            )
+            if not any(k in topic_lower for k in explicit_swarm_keywords):
+                return {
+                    "status": "skipped",
+                    "message": (
+                        "Mode Telegram saat ini adalah SINGLE AGENT. Pengguna tidak secara eksplisit meminta rapat/swarm. "
+                        "DILARANG meluncurkan swarm! Selesaikan tugas ini sendiri secara langsung menggunakan tools native "
+                        "Anda (write_local_file, execute_bash_command, web_search, dll)."
+                    ),
+                }
+
         from alfa.swarm import engine as swarm_engine
 
         part_list = (

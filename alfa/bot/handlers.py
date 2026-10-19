@@ -42,6 +42,9 @@ _HANDLER_ERR = (
     ImportError,
 )
 
+# Registry untuk melacak task yang sedang berjalan per chat_id agar bisa di-cancel instan via /cancel
+ACTIVE_CHAT_TASKS: dict[int, asyncio.Task] = {}
+
 
 # --- Sapaan ringan: jawab langsung TANPA agent turn / tools ----------------
 # Cegah model asal memanggil tool (mis. screenshot) untuk "halo".
@@ -588,10 +591,19 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             reporter = SwarmProgressReporter(context, chat_id, user_text)
             await reporter.start()
-            try:
-                from alfa.bot.mode_commands import format_swarm_result, run_swarm_task
+            from alfa.bot.mode_commands import format_swarm_result, run_swarm_task
 
-                result = await run_swarm_task(user_text)
+            swarm_task = asyncio.create_task(run_swarm_task(user_text))
+            ACTIVE_CHAT_TASKS[chat_id] = swarm_task
+            try:
+                result = await swarm_task
+            except asyncio.CancelledError:
+                from alfa.swarm.workspace_hygiene import request_cancel_swarm
+
+                request_cancel_swarm()
+                await reporter.stop("⏹ Misi dibatalkan pengguna.")
+                reply = "⏹ **Misi swarm telah dihentikan atas permintaan Anda.**"
+                logger.info(f"[handle_text:swarm] Swarm task untuk chat_id={chat_id} dibatalkan pengguna.")
             except _HANDLER_ERR as e:
                 logger.error(f"[handle_text:swarm] gagal untuk {user_id}: {e}", exc_info=True)
                 await reporter.stop("❌ Misi gagal.")
@@ -606,6 +618,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await safe_send_message(context, chat_id, steps_text)
                 reply = final_text
                 swarm_files = files or []
+            finally:
+                ACTIVE_CHAT_TASKS.pop(chat_id, None)
         else:
             turn_task = asyncio.create_task(
                 _run_agent_turn(
@@ -615,12 +629,17 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     streamer=streamer,
                 )
             )
+            ACTIVE_CHAT_TASKS[chat_id] = turn_task
             nudge_task = asyncio.create_task(
                 _long_turn_nudge(context, chat_id, turn_task, streamer)
             )
             try:
                 reply = await turn_task
+            except asyncio.CancelledError:
+                reply = "⏹ **Proses agen telah dibatalkan atas permintaan Anda.**"
+                logger.info(f"[handle_text] Single turn untuk chat_id={chat_id} dibatalkan pengguna.")
             finally:
+                ACTIVE_CHAT_TASKS.pop(chat_id, None)
                 nudge_task.cancel()
                 try:
                     await nudge_task

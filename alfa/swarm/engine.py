@@ -249,6 +249,9 @@ async def _execute_agents_parallel(
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
+                if _cancel_requested():
+                    log_live("CANCEL", "⏹ Eksekusi dihentikan pengguna setelah langkah gelombang selesai.")
+                    return True
         return False
 
     agent_names = [a["name"] for a in participants]
@@ -490,6 +493,30 @@ async def conduct_multi_agent_meeting(
     """
     from alfa.swarm import workspace_hygiene
 
+    workspace_hygiene.MEETING_RUNNING = True
+    try:
+        return await _conduct_multi_agent_meeting_impl(
+            topic=topic,
+            participant_names=participant_names,
+            rounds=rounds,
+            mode=mode,
+            target_folder=target_folder,
+            session_id=session_id,
+        )
+    finally:
+        workspace_hygiene.MEETING_RUNNING = False
+
+
+async def _conduct_multi_agent_meeting_impl(
+    topic: str,
+    participant_names: list[str] | None = None,
+    rounds: int = 2,
+    mode: str = "execute",
+    target_folder: str = "",
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    from alfa.swarm import workspace_hygiene
+
     mode = _normalize_swarm_mode(mode)
     session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
 
@@ -629,7 +656,11 @@ async def conduct_multi_agent_meeting(
         except (TypeError, ValueError):
             actual_rounds = 2
     for r in range(1, actual_rounds + 1):
+        if _cancel_requested():
+            break
         for agent in participants:
+            if _cancel_requested():
+                break
             context_text = (
                 "\n".join(history_summary)
                 if history_summary
