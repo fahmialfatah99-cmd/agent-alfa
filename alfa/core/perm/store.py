@@ -1,23 +1,21 @@
 """Database persistence, trust scoring, and always-allow permissions store."""
 
-import os
 import sqlite3
-import sys
 import time
 
 from alfa.core.perm.constants import DB_PATH, logger
 
 
 def _get_db_path() -> str:
-    # Explicit env override wins: sys.modules attributes may hold stale copies
-    # bound at import time (e.g. facade re-exports), so they are only fallback.
-    db_env = os.getenv("ALFA_DB_PATH")
-    if db_env:
-        return db_env
-    mod = sys.modules.get("permission_gate") or sys.modules.get("alfa.core.permissions")
-    if mod and hasattr(mod, "DB_PATH"):
-        return str(mod.DB_PATH)
-    return DB_PATH
+    """Resolusi path DB — resolver tunggal (``alfa/core/db/paths.py``).
+
+    Versi lama hanya menghormati ``ALFA_DB_PATH`` dan mengabaikan
+    ``DATABASE_URL``, sehingga permission store bisa mendarat di database
+    yang berbeda dari data yang dilindunginya.
+    """
+    from alfa.core.db.paths import resolve_db_path
+
+    return resolve_db_path(fallback=DB_PATH)
 
 
 def _connect() -> sqlite3.Connection:
@@ -48,11 +46,26 @@ def _connect() -> sqlite3.Connection:
                safe_approvals INTEGER DEFAULT 0,
                risky_approvals INTEGER DEFAULT 0,
                last_updated REAL)""")
+    # Trust per-tier: skor dihitung per (chat_id, tier) supaya persetujuan
+    # tool LOW tidak pernah menaikkan confianza tool HIGH/CRITICAL.
+    conn.execute("""CREATE TABLE IF NOT EXISTS user_tier_trust(
+               chat_id INTEGER NOT NULL,
+               tier TEXT NOT NULL,
+               trust_score REAL DEFAULT 0.5,
+               total_approvals INTEGER DEFAULT 0,
+               safe_approvals INTEGER DEFAULT 0,
+               risky_approvals INTEGER DEFAULT 0,
+               last_updated REAL,
+               PRIMARY KEY(chat_id, tier))""")
     return conn
 
 
 def get_trust_score(chat_id: int | None) -> float:
-    """Get user's trust score (0.0 - 1.0)."""
+    """Get user's global trust score (0.0 - 1.0).
+
+    Nilai ini hanya untuk ditampilkan/diagnostic. Keputusan auto-approve
+    memakai skor per-tier via :func:`get_tier_trust`.
+    """
     if chat_id is None:
         return 0.0
     try:
@@ -65,6 +78,88 @@ def get_trust_score(chat_id: int | None) -> float:
     except (sqlite3.Error, OSError, ValueError, TypeError) as e:
         logger.warning(f"get trust score gagal: {e}")
         return 0.5
+
+
+def get_tier_trust(chat_id: int | None, tier: str) -> tuple[float, int]:
+    """Trust score + jumlah persetujuan eksplisit untuk satu tier.
+
+    Return ``(trust_score, explicit_approvals)``. ``trust_score`` 0.0 bila
+    chat belum punya catatan; ``explicit_approvals`` adalah banyaknya
+    persetujuan manusia eksplisit ("once"/"always") pada tier tersebut.
+    """
+    if chat_id is None:
+        return 0.0, 0
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT trust_score, total_approvals FROM user_tier_trust "
+                "WHERE chat_id=? AND tier=?",
+                (int(chat_id), str(tier)),
+            ).fetchone()
+        if not row:
+            return 0.0, 0
+        return float(row[0]), int(row[1])
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
+        logger.warning(f"get tier trust gagal: {e}")
+        return 0.0, 0
+
+
+def update_tier_trust(
+    chat_id: int,
+    tier: str,
+    was_safe: bool,
+    response_time: float,
+) -> None:
+    """Perbarui trust score KHVATUR (chat_id, tier).
+
+    Hanya dipanggil untuk keputusan manusia EKSPLISIT: "once"/"always"
+    (``was_safe=True``) atau "deny" (``was_safe=False``). Auto-approve TIDAK
+    pernah menaikkan skor — jika tidak, satu tool LOW yang auto-lolos akan
+    menaikkan trust ke 1.0 dan membuka tool CRITICAL tanpa persetujuan.
+
+    Risiko tool sudah tercermin di dimensi ``tier``; di dalam satu tier,
+    ``was_safe`` berarti "user mengizinkan" vs "user menolak".
+    """
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT trust_score, total_approvals, safe_approvals, risky_approvals "
+                "FROM user_tier_trust WHERE chat_id=? AND tier=?",
+                (int(chat_id), str(tier)),
+            ).fetchone()
+            if row:
+                _, total, safe, risky = row
+            else:
+                _, total, safe, risky = 0.5, 0, 0, 0
+
+            total += 1
+            if was_safe:
+                safe += 1
+            else:
+                risky += 1
+
+            # Rasio persetujuan eksplisit vs penolakan pada tier ini.
+            base_ratio = safe / total if total > 0 else 0.5
+            speed_bonus = max(0.0, 0.02 * (1.0 - min(response_time, 300.0) / 300.0))
+            new_trust = min(1.0, max(0.0, base_ratio + speed_bonus))
+
+            conn.execute(
+                """INSERT OR REPLACE INTO user_tier_trust
+                   (chat_id, tier, trust_score, total_approvals, safe_approvals,
+                    risky_approvals, last_updated)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    int(chat_id),
+                    str(tier),
+                    new_trust,
+                    total,
+                    safe,
+                    risky,
+                    time.time(),
+                ),
+            )
+    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
+        logger.warning(f"update tier trust gagal: {e}")
 
 
 def update_trust_score(chat_id: int, was_safe: bool, response_time: float) -> None:

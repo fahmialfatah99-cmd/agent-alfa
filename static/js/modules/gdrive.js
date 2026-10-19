@@ -1,7 +1,11 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { fetchMemory, saveWaFormats, saveWaMediaRules } from '../app.js';
+import { escAttr, escHtml, showToast } from './state.js';
 // ==================== GOOGLE DRIVE & GOOGLE CLOUD SUITE LOGIC ====================
 let selectedGdriveFile = null;
 
-function handleGdriveFileSelect(event) {
+export function handleGdriveFileSelect(event) {
     const file = event.target.files[0];
     if (file) {
         selectedGdriveFile = file;
@@ -12,7 +16,7 @@ function handleGdriveFileSelect(event) {
     }
 }
 
-async function fetchGdriveStatus() {
+export async function fetchGdriveStatus() {
     const pill = document.getElementById('gdrive-status-pill');
     const pillText = document.getElementById('gdrive-status-pill-text');
     const badge = document.getElementById('nav-gdrive-badge');
@@ -90,14 +94,14 @@ async function fetchGdriveStatus() {
 
 // ── Indikator perubahan belum disimpan ──
 let _waFmtDirty = false, _waRulesDirty = false;
-function waMarkDirty(which) {
+export function waMarkDirty(which) {
     if (which === 'formats') _waFmtDirty = true; else _waRulesDirty = true;
     const dot = document.getElementById('wa-dirty-dot');
     if (dot) dot.classList.remove('hidden');
     const btn = document.getElementById(which === 'formats' ? 'btn-save-wa-formats' : 'btn-save-wa-rules');
     if (btn) btn.classList.add('ring-2', 'ring-amber-400/70');
 }
-function waClearDirty(which) {
+export function waClearDirty(which) {
     if (which === 'formats') _waFmtDirty = false; else _waRulesDirty = false;
     if (!_waFmtDirty && !_waRulesDirty) {
         const dot = document.getElementById('wa-dirty-dot');
@@ -107,7 +111,7 @@ function waClearDirty(which) {
     if (btn) btn.classList.remove('ring-2', 'ring-amber-400/70');
 }
 
-async function saveAllWaSettings() {
+export async function saveAllWaSettings() {
     // Simpan dua-duanya sekali klik; aman walau salah satu kosong.
     const r1 = await saveWaFormats(true);
     const r2 = await saveWaMediaRules(true);
@@ -115,7 +119,7 @@ async function saveAllWaSettings() {
     if (okCount === 2) showToast('Format & aturan Drive tersimpan.', 'success');
 }
 
-async function handleGdriveOauthSecretUpload(e) {
+export async function handleGdriveOauthSecretUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     const preview = document.getElementById('gdrive-oauth-secret-preview');
@@ -143,7 +147,7 @@ async function handleGdriveOauthSecretUpload(e) {
     }
 }
 
-async function startGdriveOauth() {
+export async function startGdriveOauth() {
     const btn = document.getElementById('btn-gdrive-oauth');
     const statusBox = document.getElementById('gdrive-oauth-status');
 
@@ -184,7 +188,7 @@ async function startGdriveOauth() {
     }
 }
 
-async function gdriveOauthLogout() {
+export async function gdriveOauthLogout() {
     if (!confirm('Hapus token OAuth dan kembali ke service account?')) return;
     try {
         const res = await fetch('/api/gdrive/oauth/logout', { method: 'POST' });
@@ -197,7 +201,7 @@ async function gdriveOauthLogout() {
     }
 }
 
-async function saveGdriveCredentials() {
+export async function saveGdriveCredentials() {
     const jsonText = document.getElementById('gdrive-json-text').value.trim();
     const btn = document.getElementById('btn-save-gdrive-cred');
 
@@ -242,7 +246,7 @@ async function saveGdriveCredentials() {
     }
 }
 
-async function deleteGdriveCredentials() {
+export async function deleteGdriveCredentials() {
     if (!confirm('Apakah Anda yakin ingin menghapus kredensial Google Drive dari sistem?')) return;
     try {
         const res = await fetch('/api/gdrive/credentials', { method: 'DELETE' });
@@ -257,7 +261,7 @@ async function deleteGdriveCredentials() {
     }
 }
 
-async function fetchGdriveFiles() {
+export async function fetchGdriveFiles() {
     const container = document.getElementById('gdrive-files-container');
     const countBadge = document.getElementById('gdrive-files-count');
     const query = document.getElementById('gdrive-search-input')?.value.trim() || '';
@@ -296,8 +300,8 @@ async function fetchGdriveFiles() {
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="text-xl flex-shrink-0">${icon}</span>
                             <div class="truncate">
-                                <a href="${f.webViewLink || '#'}" target="_blank" class="text-xs font-bold text-white hover:text-blue-400 transition-colors truncate block">
-                                    ${f.name}
+                                <a href="${escAttr(f.webViewLink || '#')}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-white hover:text-blue-400 transition-colors truncate block">
+                                    ${escHtml(f.name)}
                                 </a>
                                 <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
                                     <span>${sizeStr}</span>
@@ -309,7 +313,7 @@ async function fetchGdriveFiles() {
                         </div>
                         <div class="flex items-center gap-1.5 flex-shrink-0">
                             ${f.webViewLink ? `
-                                <a href="${f.webViewLink}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center gap-1">
+                                <a href="${escAttr(f.webViewLink)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold transition-all flex items-center gap-1">
                                     <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Buka
                                 </a>
                             ` : ''}
@@ -332,7 +336,7 @@ async function fetchGdriveFiles() {
     }
 }
 
-async function promptCreateGdriveFolder() {
+export async function promptCreateGdriveFolder() {
     const name = prompt('Masukkan nama folder baru untuk Google Drive:');
     if (!name) return;
 
@@ -354,7 +358,7 @@ async function promptCreateGdriveFolder() {
     }
 }
 
-async function syncGdriveToBrain() {
+export async function syncGdriveToBrain() {
     const btn = document.getElementById('btn-gdrive-sync-brain');
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menyinkronkan...';
@@ -370,7 +374,7 @@ async function syncGdriveToBrain() {
 
         if (data.status === 'success') {
             showToast(`Berhasil menyinkronkan ${data.total_ingested} dokumen Drive ke Second Brain!`, 'success');
-            if (typeof fetchMemory === 'function') fetchMemory();
+            fetchMemory();
         } else {
             showToast(`Gagal sinkronisasi: ${data.message}`, 'error');
         }
@@ -383,7 +387,7 @@ async function syncGdriveToBrain() {
     }
 }
 
-async function uploadDirectToGdrive() {
+export async function uploadDirectToGdrive() {
     const fileInput = document.getElementById('gdrive-upload-file-input');
     const folderIdInput = document.getElementById('gdrive-target-folder-id');
     const btn = document.getElementById('btn-upload-direct-gdrive');
@@ -427,3 +431,17 @@ async function uploadDirectToGdrive() {
     }
 }
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.deleteGdriveCredentials = deleteGdriveCredentials;
+window.fetchGdriveFiles = fetchGdriveFiles;
+window.fetchGdriveStatus = fetchGdriveStatus;
+window.gdriveOauthLogout = gdriveOauthLogout;
+window.handleGdriveFileSelect = handleGdriveFileSelect;
+window.handleGdriveOauthSecretUpload = handleGdriveOauthSecretUpload;
+window.promptCreateGdriveFolder = promptCreateGdriveFolder;
+window.saveAllWaSettings = saveAllWaSettings;
+window.saveGdriveCredentials = saveGdriveCredentials;
+window.startGdriveOauth = startGdriveOauth;
+window.syncGdriveToBrain = syncGdriveToBrain;
+window.uploadDirectToGdrive = uploadDirectToGdrive;

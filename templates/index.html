@@ -57,6 +57,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Marked for Markdown rendering in Live Chat -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify: sanitasi HTML hasil render Markdown (anti stored XSS dari output LLM) -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 
 
     <!-- Custom Dashboard Styles -->
@@ -3964,23 +3966,11 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
 
 
     <!-- Frontend Modular Subsystems -->
-    <script src="/static/js/modules/state.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/audio.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/hotkeys.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/telemetry.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/affiliate.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/vault_security.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/scraper.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/gdrive.js?v=2591a5e6"></script>
-    <script src="/static/js/modules/pipelines_sites.js?v=2591a5e6"></script>
 
     <!-- Dashboard Core Application Script & Orchestrator -->
-    <script src="/static/js/app.js?v=2591a5e6"></script>
+    <script type="module" src="/static/js/app.js?v=es-modules"></script>
     <!-- Terminal Live Stream, Logs & ANSI Parser -->
-    <script src="/static/js/terminal.js?v=2591a5e6"></script>
     <!-- Tools Arsenal & Execution Modals -->
-    <script src="/static/js/tools.js?v=2591a5e6"></script>
     <!-- Live AI Chat Engine & SSE Streaming -->
-    <script src="/static/js/chat.js?v=2591a5e6"></script>
 </body>
 </html>

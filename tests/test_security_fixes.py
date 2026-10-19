@@ -22,10 +22,12 @@ def test_dashboard_auth_requirement():
 
     orig_token = os.environ.get("DASHBOARD_AUTH_TOKEN", "")
     orig_host = os.environ.get("DASHBOARD_HOST", "")
+    orig_insecure = os.environ.get("ALFA_INSECURE_LOCAL", "")
 
     try:
         os.environ["DASHBOARD_AUTH_TOKEN"] = ""
         os.environ["DASHBOARD_HOST"] = "0.0.0.0"
+        os.environ["ALFA_INSECURE_LOCAL"] = "false"
 
         import pytest
 
@@ -39,6 +41,12 @@ def test_dashboard_auth_requirement():
         os.environ["DASHBOARD_HOST"] = "0.0.0.0"
         _check_security_config()
         print("  PASS: Dashboard start OK dengan token")
+
+        # Escape hatch lokal TIDAK boleh dipakai saat binding ke jaringan.
+        os.environ["ALFA_INSECURE_LOCAL"] = "true"
+        with pytest.raises(RuntimeError, match="ALFA_INSECURE_LOCAL"):
+            _check_security_config()
+        print("  PASS: ALFA_INSECURE_LOCAL ditolak saat bind publik")
 
         os.environ["DASHBOARD_AUTH_TOKEN"] = ""
         os.environ["DASHBOARD_HOST"] = "127.0.0.1"
@@ -55,6 +63,11 @@ def test_dashboard_auth_requirement():
             os.environ["DASHBOARD_HOST"] = orig_host
         elif "DASHBOARD_HOST" in os.environ:
             del os.environ["DASHBOARD_HOST"]
+
+        if orig_insecure:
+            os.environ["ALFA_INSECURE_LOCAL"] = orig_insecure
+        elif "ALFA_INSECURE_LOCAL" in os.environ:
+            del os.environ["ALFA_INSECURE_LOCAL"]
 
 
 def test_sql_column_whitelist():
@@ -136,7 +149,10 @@ def test_env_documentation():
 
     checks = [
         ("WAJIB diisi di production", "Warning production untuk DASHBOARD_AUTH_TOKEN"),
-        ("TANPA autentikasi", "Penjelasan risiko tanpa token"),
+        (
+            "fail-closed",
+            "Penjelasan bahwa API tetap wajib login saat token kosong",
+        ),
         ("Minimal 16 karakter", "Rekomendasi panjang password"),
         ("openssl rand -base64 32", "Contoh generate token aman"),
     ]

@@ -140,6 +140,128 @@ def normalize_path(p: str) -> str:
     return os.path.normpath(q) if os.name == "nt" else p
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Sandbox path containment
+#
+# Tanpa batas ini, `working_dir="/"` membuat container menerima mount
+# `-v /:/workspace -v /:/` → seluruh host filesystem read-write di dalam
+# "sandbox" yang Runnable sebagai UID host. Semua `working_dir` WAJIB lolos
+# pemeriksaan in below.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _is_within(path: str, root: str) -> bool:
+    """True bila ``path`` berada di dalam ``root`` (atau sama dengan ``root``).
+
+    Memakai ``os.path.commonpath`` sehingga ``/home/user2`` TIDAK dianggap
+    berada di dalam ``/home/user``.
+    """
+    try:
+        return os.path.commonpath([os.path.realpath(path), os.path.realpath(root)]) == (
+            os.path.realpath(root)
+        )
+    except (ValueError, OSError):
+        return False
+
+
+def _home_dir() -> str:
+    try:
+        return os.path.realpath(os.path.expanduser("~"))
+    except (OSError, RuntimeError):
+        return ""
+
+
+def _root_is_dangerous(root: str, home: str) -> bool:
+    """True bila root terlalu luas untuk dipakai sebagai sandbox mount.
+
+    Root '/' , root filesystem, dan root yang menjadi nenek moyang $HOME
+    (mis. '/home' atau '/') DITOLAK: mount seperti itu membocorkan
+    ~/.ssh, ~/.env, dan seluruh isi mesin ke dalam container.
+    """
+    if not root or root == "/" or root == os.path.abspath(os.sep):
+        return True
+    if home and _is_within(home, root):
+        # root berisi $HOME (root == $HOME atau root adalah nenek moyang $HOME)
+        return True
+    return False
+
+
+def sandbox_allowed_roots() -> list[str]:
+    """Daftar root yang boleh dipakai sebagai `working_dir` / mount di sandbox.
+
+    Prioritas:
+      1. ``ALFA_SANDBOX_ROOT`` — daftar putih eksplisit, dipisah ``os.pathsep``.
+         Menggantikan seluruh default.
+      2. Default: direktori kerja ALFA saja (``~/alfa_projects``,
+         ``~/ALFA_WORKSPACE``, ``~/Dokumen/ALFA_SWARM_OUTPUTS``, ``~/output``,
+         ``SANDBOX_DIR``) plus ``ALFA_TARGET_FOLDER`` bila diset.
+
+    Root yang terlalu luas ('/', $HOME, atau nenek moyang $HOME) SELALU
+    dibuang, bahkan kalau operator menuliskannya secara eksplisit.
+    """
+    home = _home_dir()
+    raw_env = os.getenv("ALFA_SANDBOX_ROOT", "").strip()
+    if raw_env:
+        candidates = [c for c in raw_env.split(os.pathsep) if c.strip()]
+    else:
+        candidates = [
+            SANDBOX_DIR,
+            os.path.join(home, "alfa_projects"),
+            os.path.join(home, "ALFA_WORKSPACE"),
+            os.path.join(home, "Dokumen", "ALFA_SWARM_OUTPUTS"),
+            os.path.join(home, "output"),
+        ]
+        target = os.getenv("ALFA_TARGET_FOLDER", "").strip()
+        if target:
+            candidates.append(target)
+
+    roots: list[str] = []
+    for cand in candidates:
+        try:
+            rp = os.path.realpath(os.path.expanduser(cand))
+        except (OSError, RuntimeError):
+            continue
+        if not rp or _root_is_dangerous(rp, home):
+            logger.warning(
+                "[SECURITY] root sandbox '%s' ditolak (terlalu luas / memuat $HOME).",
+                cand,
+            )
+            continue
+        if rp not in roots:
+            roots.append(rp)
+    return roots
+
+
+def resolve_sandbox_working_dir(working_dir: str) -> tuple[str, str]:
+    """Resolusi + validasi ``working_dir`` terhadap daftar putih root.
+
+    Return ``(abs_path, "")`` bila aman. Return ``("", pesan_error)`` bila
+    path berada di luar root yang diizinkan, bukan direktori, atau tidak ada
+    root yang diizinkan sama sekali.
+    """
+    if not working_dir or not str(working_dir).strip():
+        return "", ""
+    try:
+        abs_path = os.path.realpath(os.path.expanduser(str(working_dir).strip()))
+    except (OSError, RuntimeError):
+        return "", f"working_dir '{working_dir}' tidak bisa diresolusi."
+    if not os.path.isdir(abs_path):
+        return "", f"working_dir '{working_dir}' bukan direktori yang ada."
+    roots = sandbox_allowed_roots()
+    if not roots:
+        return "", (
+            "Tidak ada root sandbox yang diizinkan. Set ALFA_SANDBOX_ROOT ke "
+            "direktori kerja yang sah (mis. ~/alfa_projects)."
+        )
+    for root in roots:
+        if _is_within(abs_path, root):
+            return abs_path, ""
+    return "", (
+        f"working_dir '{working_dir}' berada di luar root sandbox yang diizinkan "
+        f"({', '.join(roots)}). Set ALFA_SANDBOX_ROOT untuk menambah root yang sah."
+    )
+
+
 def _bash_blocked_reason(command: str) -> str | None:
     """Kembalikan alasan pemblokiran bila perintah cocok pola berbahaya."""
     if is_unrestricted():

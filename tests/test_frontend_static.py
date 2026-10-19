@@ -20,12 +20,12 @@ def test_index_html_decomposition():
     # Monolithic index.html was 11,450 lines. Decomposed index.html should be under 5,000 lines.
     assert len(lines) < 5000, f"index.html has {len(lines)} lines, expected < 5000"
 
-    # Verify links to static assets
+    # Verify links to static assets.
+    # SPA kini dimuat sebagai ES module: satu entry app.js yang mengimpor
+    # seluruh modul (classic script per-file sudah dihapus).
     assert "/static/css/dashboard.css" in content
-    assert "/static/js/app.js" in content
-    assert "/static/js/terminal.js" in content
-    assert "/static/js/tools.js" in content
-    assert "/static/js/chat.js" in content
+    assert '/static/js/app.js' in content
+    assert '<script type="module"' in content
 
 
 def test_static_files_exist():

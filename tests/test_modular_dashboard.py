@@ -98,25 +98,77 @@ def test_health_and_metrics_endpoints():
     assert "process" in mdata
 
 
+_MUST_BE_401 = "harus 401"
+_MUST_BE_403 = "harus 403"
+
+
 class TestRequireAdmin:
-    def _req(self, user=None):
+    def _req(self, user=None, host="127.0.0.1"):
         class _State:
             pass
 
+        class _Client:
+            def __init__(self, h):
+                self.host = h
+
         class _Req:
-            pass
+            def __init__(self):
+                self.client = _Client(host)
 
         r = _Req()
         r.state = _State()
         r.state.user = user
         return r
 
-    def test_lokal_tanpa_auth_diloloskan(self, monkeypatch):
+    def test_tanpa_auth_default_ditolak(self, monkeypatch):
+        """Fail-closed: tanpa token DAN tanpa escape hatch → 401."""
+        from fastapi import HTTPException
+
         from alfa.dashboard.routes import auth as auth_mod
 
         monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "")
+        monkeypatch.setenv("ALFA_INSECURE_LOCAL", "false")
+        try:
+            auth_mod.require_admin(self._req(None))
+            raise AssertionError(_MUST_BE_401)
+        except HTTPException as e:
+            assert e.status_code == 401
+
+    def test_lokal_tanpa_auth_diloloskan_hanya_dengan_escape_hatch(self, monkeypatch):
+        """Escape hatch lokal harus EKSPLISIT (ALFA_INSECURE_LOCAL=true)."""
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "")
+        monkeypatch.setenv("ALFA_INSECURE_LOCAL", "true")
         out = auth_mod.require_admin(self._req(None))
         assert out["is_admin"] is True
+
+    def test_escape_hatch_tidak_berlaku_untuk_klien_non_lokal(self, monkeypatch):
+        from fastapi import HTTPException
+
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "")
+        monkeypatch.setenv("ALFA_INSECURE_LOCAL", "true")
+        try:
+            auth_mod.require_admin(self._req(None, host="10.0.0.5"))
+            raise AssertionError(_MUST_BE_401)
+        except HTTPException as e:
+            assert e.status_code == 401
+
+    def test_escape_hatch_tidak_berlaku_saat_token_aktif(self, monkeypatch):
+        """Bila DASHBOARD_AUTH_TOKEN diset, escape hatch lokal dimatikan."""
+        from fastapi import HTTPException
+
+        from alfa.dashboard.routes import auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
+        monkeypatch.setenv("ALFA_INSECURE_LOCAL", "true")
+        try:
+            auth_mod.require_admin(self._req(None))
+            raise AssertionError(_MUST_BE_401)
+        except HTTPException as e:
+            assert e.status_code == 401
 
     def test_tanpa_user_ditolak_bila_auth_aktif(self, monkeypatch):
         from fastapi import HTTPException
@@ -126,7 +178,7 @@ class TestRequireAdmin:
         monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
         try:
             auth_mod.require_admin(self._req(None))
-            raise AssertionError("harus 401")
+            raise AssertionError(_MUST_BE_401)
         except HTTPException as e:
             assert e.status_code == 401
 
@@ -138,7 +190,7 @@ class TestRequireAdmin:
         monkeypatch.setattr(auth_mod, "DASHBOARD_AUTH_TOKEN", "tok")
         try:
             auth_mod.require_admin(self._req({"is_admin": False}))
-            raise AssertionError("harus 403")
+            raise AssertionError(_MUST_BE_403)
         except HTTPException as e:
             assert e.status_code == 403
 

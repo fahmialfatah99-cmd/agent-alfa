@@ -32,6 +32,64 @@ from alfa.core import database, token_usage  # noqa: E402 — di bawah helper la
 
 logger = logging.getLogger(__name__)
 
+#: Tool yang boleh dijalankan agen swarm tanpa kanal approval manusia.
+#:
+#: Batas keamanan tool ini bukan "tidak ada" — melainkan:
+#:   * ``execute_bash_command`` / ``execute_python_sandbox`` → sandbox Docker
+#:     terisolasi (network none, cap-drop ALL, no-new-privileges, working_dir
+#:     dibatasi ke root yang diizinkan) + blocklist perintah destruktif.
+#:   * sisanya → read-only / write ringan.
+#: Tool HIGH/CRITICAL di luar daftar ini (vault, ssh, crontab, hardware)
+#: tetap DITOLAK pada jalur swarm karena tidak ada kanal persetujuan.
+SWARM_HEADLESS_ALLOWED = {
+    "execute_bash_command",
+    "execute_python_sandbox",
+}
+
+
+async def swarm_headless_gate(tool_name: str, arguments_json: str = "{}") -> str | None:
+    """Gate headless untuk agen swarm (tidak ada kanal Telegram).
+
+    Return None = boleh jalan; string = pesan penolakan.
+    """
+    from alfa.core.perm.gate import check_headless_approval
+
+    if tool_name in SWARM_HEADLESS_ALLOWED:
+        return None
+    return check_headless_approval(None, tool_name, arguments_json)
+
+
+def _filter_cooled_down_models(models: list[str]) -> list[str]:
+    """Buang model yang sedang dalam masa pendinginan (circuit breaker)."""
+    try:
+        from alfa.core.brain.circuit_breaker import get_available_models
+
+        return get_available_models(models)
+    except (ImportError, AttributeError, TypeError):
+        return models
+
+
+def _mark_model_exhausted(model_name: str, error: BaseException | str) -> None:
+    """Tandai model sebagai cooldown bila error menunjukkan kuota/masalah layanan."""
+    try:
+        from alfa.core.brain.circuit_breaker import (
+            mark_model_exhausted,
+            parse_retry_delay,
+        )
+
+        text = str(error)
+        if not any(
+            code in text
+            for code in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE", "quota")
+        ):
+            return
+        mark_model_exhausted(
+            model_name, cooldown_seconds=parse_retry_delay(error), reason=text[:120]
+        )
+    except (ImportError, AttributeError, TypeError, ValueError):
+        pass
+
+
 KNOWN_OPENAI_PROVIDERS = {
     "openai",
     "groq",
@@ -162,6 +220,9 @@ async def _generate_with_gemini(
     ).split(",")
     candidate_models = [m for m in models + [x.strip() for x in default_chain] if m]
     unique_models = list(dict.fromkeys(candidate_models))
+    # Circuit breaker: model yang sedang cooldown (429/503) dilewati agar
+    # swarm tidak wasting waktu & kuota untuk provider yang sudah mati.
+    unique_models = _filter_cooled_down_models(unique_models)
 
     last_err: BaseException | None = None
     try:
@@ -211,6 +272,7 @@ async def _generate_with_gemini(
                 return str(response.text).strip()
         except Exception as e:
             last_err = e
+            _mark_model_exhausted(m, e)
             logger.warning(
                 f"Model '{m}' failed for agent '{agent_name}': {e}. Trying next fallback..."
             )
@@ -439,11 +501,17 @@ async def _generate_with_openai_compat(
                     logger.error(f"[{provider}] retry 429 failed: {retry_err}")
 
             err_detail = res.text[:200] or "(empty body)"
+            # Circuit breaker: 429/503 → model diberi masa pendinginan
+            # supaya langkah swarm berikutnya tidak mencoba provider mati.
+            _mark_model_exhausted(
+                model, f"HTTP {res.status_code}: {err_detail}"
+            )
             logger.error(
                 f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
             )
             return None
     except Exception as e:
+        _mark_model_exhausted(model, e)
         logger.error(f"Error in {provider} agent '{agent_name}': {e!r}")
         return None
 
@@ -576,6 +644,9 @@ async def generate_agent_response(
                     key_label=key_label,
                     context="swarm",
                     tools_schema=_mb.build_openai_tools(safe_only=True),
+                    # Tanpa gate, jalur swarm bisa menjalankan tool apa pun
+                    # tanpa human-in-the-loop (deny-by-default di brain).
+                    approval_gate=swarm_headless_gate,
                     raw_errors=True,
                 )
             except Exception as agentic_err:

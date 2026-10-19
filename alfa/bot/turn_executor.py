@@ -1,4 +1,6 @@
-"""Core autonomous agent turn execution engine."""
+"""Core autonomous agent turn execution engine (Modular Pipeline Coordinator)."""
+
+from __future__ import annotations
 
 import asyncio
 import json
@@ -8,36 +10,46 @@ import sqlite3
 import sys
 from typing import Any
 
-import plugins
 from alfa.bot.config import (
-    ALFA_PROMPT_PATH,
-    ANTIGRAVITY_WORKFLOW_BLOCK,
-    AUDIT_CORRECTION_TEXT,
-    BASE_SYSTEM_PROMPT,
-    CAPABILITIES_BLOCK,
-    CODING_DELIVERY_BLOCK,
-    ENFORCEMENT_BLOCK,
-    GEMINI_MODEL,
-    HONESTY_BLOCK,
-    MEETING_FABRICATION_MARKERS,
     MEETING_INTENT_KEYWORDS,
-    OWNER_NAME,
-    SUPERPOWERS_SKILLS_BLOCK,
-    TOOL_FIRST_EXECUTION_BLOCK,
-    UI_UX_PRO_MAX_BLOCK,
     resolve_main_gemini,
 )
 from alfa.bot.helpers import (
     _artifact_signature,
     _meetings_count,
 )
-from alfa.bot.reply_auditor import evaluate_reply_audits
+from alfa.bot.pipeline import (
+    audit_correction_pass as _audit_correction_pass,
+)
+from alfa.bot.pipeline import (
+    build_memory_block as _build_memory_block,
+)
+from alfa.bot.pipeline import (
+    build_system_instruction as _build_system_instruction,
+)
+from alfa.bot.pipeline import (
+    format_compaction as _format_compaction,
+)
+from alfa.bot.pipeline import (
+    maybe_compact_history as _maybe_compact_history,
+)
+from alfa.bot.pipeline import (
+    openai_compat_turn as _openai_compat_turn,
+)
+from alfa.bot.pipeline import (
+    prepare_tools_and_configs as _prepare_tools_and_configs,
+)
+from alfa.bot.pipeline import (
+    summarize_chunk as _summarize_chunk,
+)
+from alfa.bot.pipeline import (
+    try_alt_provider_keys as _try_alt_provider_keys,
+)
 from alfa.bot.streamer import TelegramStreamer
 from alfa.core import brain as main_brain
 from alfa.core import database, token_usage
 from alfa.core import permissions as permission_gate
 from alfa.tools import (
-    AVAILABLE_TOOLS,
     current_chat_id_var,
     current_user_id_var,
 )
@@ -76,617 +88,6 @@ def _get_bot():
     return sys.modules.get("alfa.bot.telegram_bot")
 
 
-# --- Compaction: ringkasan rolling riwayat lama (hemat token) ---------------
-_COMPACT_KEEP = 12
-_COMPACT_WINDOW = 40
-_COMPACT_MIN_NEW = 8
-_COMPACT_MODEL = "gemini-3.5-flash"
-
-
-def _format_compaction(summary: str) -> str:
-    if not (summary or "").strip():
-        return ""
-    return (
-        "\n\n======================================================\n"
-        "🗜️ [RINGKASAN PERCAKAPAN LAMA — COMPACTED]\n"
-        "Konteks lawas yang sudah diringkas otomatis (detail 12 pesan terakhir tetap utuh di atas):\n"
-        + summary.strip()
-        + "\n======================================================\n"
-    )
-
-
-async def _summarize_chunk(prev_summary: str, fresh: list[dict]) -> str:
-    """Ringkas satu potongan riwayat via model murah sekali-jalan (tanpa tools)."""
-    if gemini_client is None:
-        return ""
-    try:
-        from google.genai import types
-
-        convo = "\n".join(
-            f"{m.get('role', '?')}: {str(m.get('content', ''))[:600]}"
-            for m in fresh[-30:]
-        )
-        base = f"Ringkasan sebelumnya:\n{prev_summary}\n\n" if (prev_summary or "").strip() else ""
-        resp = await gemini_client.aio.models.generate_content(
-            model=_COMPACT_MODEL,
-            contents=(
-                base + "Percakapan lanjutan:\n" + convo
-                + "\n\nRingkas gabungan jadi MAKS 15 baris: fakta penting, "
-                "keputusan, janji/tugas terbuka, preferensi user. Bahasa Indonesia, fakta saja."
-            ),
-            config=types.GenerateContentConfig(
-                system_instruction="Kamu peringkas memori percakapan. Fakta saja, tanpa basa-basi."
-            ),
-        )
-        try:
-            from alfa.core import token_usage as _tu
-
-            _tu.from_gemini_response(
-                resp, model=f"{_COMPACT_MODEL}:compact", context="telegram_chat:compact"
-            )
-        except (ImportError, AttributeError, TypeError, ValueError):
-            pass
-        return (getattr(resp, "text", "") or "").strip()
-    except _TURN_EXEC_ERR as e:
-        logger.debug(f"[compact] ringkas gagal: {e}")
-        return ""
-
-
-async def _maybe_compact_history(_db, user_id: int) -> str:
-    """Rolling summary riwayat lama. Return blok prompt ('' bila tak perlu). Fail-open."""
-    if not user_id:
-        return ""
-    try:
-        get_conn = getattr(_db, "get_sync_db", None)
-        if get_conn is None:
-            from alfa.core import database as _ddb
-
-            get_conn = _ddb.get_sync_db
-        with get_conn() as conn:
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS chat_compactions ("
-                " user_id INTEGER PRIMARY KEY, summary TEXT DEFAULT '',"
-                " up_to_id INTEGER DEFAULT 0,"
-                " updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
-            )
-            try:
-                row = conn.execute(
-                    "SELECT summary, up_to_id FROM chat_compactions WHERE user_id = ?",
-                    (user_id,),
-                ).fetchone()
-                prev = str(row[0] or "") if row else ""
-                up_to = int(row[1] or 0) if row else 0
-            except (sqlite3.Error, TypeError, ValueError, IndexError):
-                prev, up_to = "", 0
-            msgs = conn.execute(
-                "SELECT id, role, content FROM chat_history WHERE user_id = ? "
-                "ORDER BY id DESC LIMIT ?",
-                (user_id, _COMPACT_WINDOW),
-            ).fetchall()
-            msgs = [{"id": m[0], "role": m[1], "content": m[2]} for m in reversed(msgs)]
-            if len(msgs) <= _COMPACT_KEEP + 4:
-                return _format_compaction(prev)
-            kept_ids = {m["id"] for m in msgs[-_COMPACT_KEEP:]}
-            fresh = [m for m in msgs if m["id"] > up_to and m["id"] not in kept_ids]
-            if len(fresh) >= _COMPACT_MIN_NEW:
-                new_summary = await _summarize_chunk(prev, fresh)
-                if new_summary:
-                    new_up_to = max(m["id"] for m in fresh)
-                    conn.execute(
-                        "INSERT INTO chat_compactions (user_id, summary, up_to_id, updated_at) "
-                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP) "
-                        "ON CONFLICT(user_id) DO UPDATE SET summary = excluded.summary, "
-                        "up_to_id = excluded.up_to_id, updated_at = CURRENT_TIMESTAMP",
-                        (user_id, new_summary, new_up_to),
-                    )
-                    try:
-                        conn.commit()
-                    except sqlite3.Error:
-                        pass
-                    prev = new_summary
-            return _format_compaction(prev)
-    except _TURN_EXEC_ERR as e:
-        logger.debug(f"[compact] dilewati: {e}")
-        return ""
-
-
-# ═════ TAHAP-5: RAKIT BLOK INGATAN (diekstrak dari run_agent_turn) ════════════
-def _build_memory_block(
-    user_id: int,
-    user_prompt: str,
-    user_memories: list,
-    kg_triples: list,
-    compaction_block: str,
-) -> str:
-    """Rakit blok ingatan jangka panjang + Auto-RAG + ringkasan kompaksi.
-
-    Tanpa akses DB (data diambil pemanggil); vector_memory diimpor lazy.
-    """
-    memory_context_parts = []
-    if user_memories:
-        memory_context_parts.append("📌 FAKTA & CATATAN PRIBADI TERSIMPAN:")
-        for m in user_memories:
-            memory_context_parts.append(
-                f"- [{m['category']}] {m['key_topic']}: {m['content']}"
-            )
-
-    if kg_triples:
-        memory_context_parts.append("🕸️ RELASI KNOWLEDGE GRAPH:")
-        for k in kg_triples:
-            tag_str = f" ({k['tags']})" if k.get("tags") else ""
-            memory_context_parts.append(
-                f"- {k['entity']} -> [{k['relation']}] -> {k['target_value']}{tag_str}"
-            )
-
-    # AUTO-RAG: potongan dokumen Drive yang relevan dgn pertanyaan
-    p_check = (user_prompt or "").lower().strip()
-    should_search_rag = (
-        len(p_check) > 15
-        and not any(
-            p_check == g or p_check.startswith(g + " ")
-            for g in [
-                "halo",
-                "hai",
-                "pagi",
-                "siang",
-                "malam",
-                "apa kabar",
-                "siapa kamu",
-                "tes",
-                "ping",
-            ]
-        )
-        and any(
-            k in p_check
-            for k in [
-                "dokumen",
-                "drive",
-                "file",
-                "catatan",
-                "ingat",
-                "materi",
-                "referensi",
-                "data",
-                "info",
-                "tentang",
-                "jelaskan",
-                "bagaimana",
-                "apa itu",
-                "siapa",
-            ]
-        )
-    )
-
-    if should_search_rag:
-        try:
-            from alfa.memory import vector as vector_memory
-
-            brain_hits = vector_memory.semantic_search(
-                user_id=user_id, query=user_prompt or "", top_k=4
-            )
-            relevant = [
-                h for h in brain_hits if (h.get("similarity_score") or 0) >= 0.25
-            ]
-            if relevant:
-                memory_context_parts.append(
-                    "📄 PENGETAHUAN DARI DOKUMEN DRIVE (Second Brain):"
-                )
-                for h in relevant:
-                    memory_context_parts.append(
-                        f"- [{h.get('doc_title', '?')}] {str(h.get('chunk_text', ''))[:350]}"
-                    )
-        except (ImportError, OSError, sqlite3.Error, ValueError, TypeError, KeyError) as rag_err:
-            logger.debug(f"Auto-RAG skipped: {rag_err}")
-
-    memory_block = ""
-    if memory_context_parts:
-        memory_block = (
-            "\n\n======================================================\n"
-            "🧠 [INGATAN JANGKA PANJANG & SECOND BRAIN AKTIF]\n"
-            f"Berikut adalah seluruh ingatan jangka panjang dan fakta yang tersimpan tentang {OWNER_NAME}. "
-            "Pahami dan gunakan fakta ini secara alami dalam percakapan tanpa perlu bertanya ulang:\n"
-            + "\n".join(memory_context_parts)
-            + "\n======================================================\n"
-        )
-
-    if compaction_block:
-        memory_block += compaction_block
-    return memory_block
-
-
-# ═════ TAHAP-6: INSTRUKSI SISTEM FINAL (diekstrak dari run_agent_turn) ════════
-async def _build_system_instruction(
-    db,
-    user_id: int,
-    brain: dict,
-    override_model: str | None,
-    memory_block: str,
-) -> tuple[str, str, str]:
-    """Muat settings pengguna & file prompt; rakit instruksi sistem final.
-
-    Return ``(full_system_instruction, preferred_model, current_active_model)``.
-    """
-    user_settings = await db.get_user_settings(user_id)
-
-    # Reload latest prompt from file if available
-    active_base_prompt = BASE_SYSTEM_PROMPT
-    if os.path.exists(ALFA_PROMPT_PATH):
-        try:
-            with open(ALFA_PROMPT_PATH, encoding="utf-8") as f:
-                active_base_prompt = f.read().strip()
-        except OSError:
-            pass
-
-    brain_model_override = db.get_main_brain_model()
-    preferred_model = override_model or user_settings.get("model_name") or GEMINI_MODEL
-    current_active_model = (
-        override_model or brain.get("model") or brain_model_override or preferred_model
-    )
-    current_active_provider = brain.get("provider", "gemini").upper()
-    current_key_label = brain.get("label", "")
-
-    active_identity_block = (
-        f"\n\n### 🤖 INFORMASI ENGINE & MODEL AKTIF SAAT INI (GROUND TRUTH)\n"
-        f"- MODEL AI AKTIF SAAT INI: `{current_active_model}`\n"
-        f"- PROVIDER / GATEWAY: `{current_active_provider}`\n"
-        f"- KUNCI/AKUN VAULT: `{current_key_label}`\n"
-        f"- Jika pengguna bertanya kamu pakai model apa, model apa yang sedang aktif, atau identitas enginemu, "
-        f"jawab dengan jujur dan jelas bahwa saat ini kamu ditenagai oleh model `{current_active_model}` ({current_active_provider})!\n"
-    )
-
-    base_instruction = user_settings.get("system_prompt_override") or active_base_prompt
-    from alfa.tools.system.constants import is_unrestricted
-
-    unrestricted_block = (
-        "\n\n### ⚡ HAK AKSES HOST LINUX PENUH (UNRESTRICTED MODE)\n"
-        "- Kamu beroperasi dengan AKSES HOST LINUX LANGSUNG PENUH di mesin pengguna (bukan di dalam container atau sandbox Docker terisolasi).\n"
-        "- Eksekusi bash (`execute_bash_command`) dan script Python (`execute_python_sandbox`) berjalan langsung di mesin Linux pengguna.\n"
-        "- Tidak ada blocklist perintah dan tidak ada permission gate yang membatasi tindakanmu.\n"
-        "- Kamu memiliki wewenang penuh dari Fahmi untuk mengeksekusi perintah sistem, menginstal paket sistem/pip, memodifikasi file di sistem, dan menggunakan `sudo` kapan pun dibutuhkan tanpa ragu.\n"
-    ) if is_unrestricted() else ""
-
-    full_system_instruction = (
-        base_instruction
-        + active_identity_block
-        + memory_block
-        + ENFORCEMENT_BLOCK
-        + HONESTY_BLOCK
-        + CODING_DELIVERY_BLOCK
-        + CAPABILITIES_BLOCK
-        + ANTIGRAVITY_WORKFLOW_BLOCK
-        + TOOL_FIRST_EXECUTION_BLOCK
-        + SUPERPOWERS_SKILLS_BLOCK
-        + UI_UX_PRO_MAX_BLOCK
-        + unrestricted_block
-    )
-    return full_system_instruction, preferred_model, current_active_model
-
-
-# ═════ TAHAP-7: PILIH TOOL & KONFIG GEMINI (diekstrak dari run_agent_turn) ════
-def _prepare_tools_and_configs(
-    model_name: str,
-    system_instruction: str,
-    user_prompt: str,
-    history_msgs: list,
-    action_intent: bool,
-) -> tuple[list, Any, Any, Any]:
-    """Dedup tool registry + pilihan fungsi relevan RAG; susun konfig generation.
-
-    Return ``(gemini_tools, config, config_force, config_wrapup)``.
-    """
-    from google.genai import types
-
-    all_tools = list(AVAILABLE_TOOLS)
-    try:
-        plugin_tools = plugins.load_all_plugin_tools()
-        if plugin_tools:
-            all_tools = list(AVAILABLE_TOOLS) + plugin_tools
-    except (ImportError, OSError, AttributeError, TypeError, ValueError) as e:
-        logger.warning(f"Failed to load dynamic plugins: {e}")
-
-    seen_fn_names = set()
-    deduped_tools = []
-    for tool_fn in all_tools:
-        nm = getattr(tool_fn, "__name__", "")
-        if nm and nm not in seen_fn_names:
-            seen_fn_names.add(nm)
-            deduped_tools.append(tool_fn)
-        elif not nm and tool_fn not in deduped_tools:
-            deduped_tools.append(tool_fn)
-    all_tools = deduped_tools
-
-    gemini_tools: Any = all_tools
-    try:
-        from alfa.tools.rag import select_relevant_functions
-
-        gemini_tools = select_relevant_functions(
-            all_tools, user_prompt or "", history=history_msgs
-        )
-    except (ImportError, ValueError, TypeError, KeyError):
-        pass
-
-    _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
-    # AUTO: model bebas memanggil tool ATAU menjawab teks (dipakai semua
-    # putaran sesudah panggilan pertama agar giliran selalu ditutup
-    # dengan jawaban teks nyata, bukan loop tool tanpa akhir).
-    config = types.GenerateContentConfig(
-        system_instruction=system_instruction,
-        temperature=0.75,
-        tools=gemini_tools,
-        automatic_function_calling=_afc_off,
-    )
-    # ANY: HANYA dipakai pada panggilan PERTAMA bila ini permintaan aksi,
-    # supaya model tidak cukup menjawab basa-basi tanpa menjalankan tool.
-    if action_intent:
-        _allowed = sorted(
-            {
-                getattr(t, "__name__", "")
-                for t in gemini_tools
-                if getattr(t, "__name__", "")
-            }
-        )
-        config_force = types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0.75,
-            tools=gemini_tools,
-            automatic_function_calling=_afc_off,
-            tool_config=types.ToolConfig(
-                function_calling_config=types.FunctionCallingConfig(
-                    mode=types.FunctionCallingConfigMode.ANY,
-                    allowed_function_names=_allowed,
-                )
-            ),
-        )
-    else:
-        config_force = config
-    # Tanpa tool: dipakai untuk wrap-up agar model WAJIB merangkum hasil
-    # nyata dalam teks saat iterasi tool habis / jawaban kosong.
-    config_wrapup = types.GenerateContentConfig(
-        system_instruction=system_instruction,
-        temperature=0.7,
-    )
-    return gemini_tools, config, config_force, config_wrapup
-
-
-# ═════ TAHAP-AUDIT: PASS KOREKSI ANTI-FABRIKASI (diekstrak) ═══════════════════
-async def _audit_correction_pass(
-    gemini_client,
-    model: str,
-    turn_contents: list,
-    config,
-    drive_tool_loop,
-    gkey_id,
-    gkey_label: str,
-    prompt_low: str,
-    reply_text: str,
-    meeting_intent: bool,
-    action_intent: bool,
-    meetings_before: int,
-    executed_tool_names: list,
-    art_before: Any,
-    approval_gate,
-) -> str:
-    """Audit klaim bogus (rapat/berkas dsb.) + pass koreksi bila terdeteksi."""
-    from google.genai import types
-
-    new_meetings = _meetings_count() - meetings_before
-    reply_low = reply_text.lower()
-
-    audit_kind, audit_parts = evaluate_reply_audits(
-        prompt_low=prompt_low,
-        reply_low=reply_low,
-        meeting_intent=meeting_intent,
-        action_intent=action_intent,
-        new_meetings=new_meetings,
-        executed_tool_names=executed_tool_names,
-        art_before=art_before,
-        art_after=_artifact_signature(),
-    )
-
-    if audit_kind:
-        logger.warning(
-            f"[AUDIT] {audit_kind} terdeteksi -> pass koreksi ({model})"
-        )
-        # Pakai konteks GILIRAN INI (termasuk riwayat tool) — bukan `contents`
-        # yang tidak memuat hasil tool, agar model tahu apa yang sudah/belum jalan.
-        turn_contents.append(
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text="\n".join(audit_parts))],
-            )
-        )
-        try:
-            response2 = await gemini_client.aio.models.generate_content(
-                model=model, contents=turn_contents, config=config
-            )
-            token_usage.from_gemini_response(
-                response2,
-                model=f"{model}:audit",
-                key_id=gkey_id,
-                key_label=gkey_label or "gemini-env",
-                context="telegram_chat",
-            )
-            # Izinkan model MENGAMBIL AKSI pada pass koreksi — kalau dia
-            # tetap memanggil tool, jalankan sampai selesai.
-            response2 = await drive_tool_loop(response2, config)
-            if response2.text and response2.text.strip():
-                reply_text = response2.text
-        except _TURN_EXEC_ERR as audit_err:
-            logger.warning(f"[AUDIT] pass koreksi gagal: {audit_err}")
-        logger.warning(
-            f"[AUDIT] Koreksi selesai ({audit_kind}); "
-            f"rapat baru: {_meetings_count() - meetings_before}; "
-            f"artefak berubah: {_artifact_signature() != art_before}"
-        )
-    return reply_text
-
-
-# ═════ TAHAP-COMPAT: OTAK LINTAS PROVIDER OpenAI-compatible (diekstrak) ═══════
-async def _openai_compat_turn(
-    mb,
-    brain: dict,
-    preferred_model: str,
-    system_instruction: str,
-    user_prompt: str,
-    multimodal_parts: list | None,
-    history_msgs: list,
-    history_rows: list,
-    approval_gate,
-    streamer,
-    meeting_intent: bool,
-    meetings_before: int,
-    db,
-    user_id: int,
-    display_user_text: str,
-) -> str:
-    """Giliran lewat provider OpenAI-compatible; return "" bila gagal total."""
-    compat_text = user_prompt or ""
-    if multimodal_parts:
-        compat_text = (
-            compat_text
-            + "\n[Lampiran media tidak didukung provider otak utama saat ini]"
-        ).strip()
-
-    gate_on = approval_gate is not None
-    reply_text = ""
-    if streamer and not gate_on and hasattr(mb, "run_openai_agentic_turn_streaming"):
-        try:
-            streamed_text = ""
-            async for chunk in mb.run_openai_agentic_turn_streaming(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
-            ):
-                streamed_text += chunk
-                await streamer.push_chunk(chunk)
-            reply_text = streamed_text
-        except _TURN_EXEC_ERR as e:
-            logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
-            reply_text = await mb.run_openai_agentic_turn(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
-            )
-    else:
-        reply_text = await mb.run_openai_agentic_turn(
-            provider=brain["provider"],
-            base_url=brain["base_url"],
-            api_key=brain["api_key"],
-            model=brain["model"] or preferred_model,
-            system_instruction=system_instruction,
-            user_text=compat_text,
-            history=history_msgs,
-            key_id=brain["key_id"],
-            key_label=brain["label"],
-            approval_gate=approval_gate,
-        )
-
-    new_meetings = _meetings_count() - meetings_before
-    if meeting_intent and new_meetings == 0 and reply_text:
-        low = reply_text.lower()
-        if ("rapat" in low or "meeting" in low) and any(
-            mk in low for mk in MEETING_FABRICATION_MARKERS
-        ):
-            logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
-            corrected = await mb.run_openai_agentic_turn(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
-            )
-            if corrected:
-                reply_text = corrected
-    if reply_text:
-        from alfa.bot.helpers import strip_thought_blocks as _strip
-
-        reply_text = _strip(str(reply_text))
-        await db.save_chat_message(user_id, "model", reply_text)
-        try:
-            from alfa.memory import reflection as memory_reflection
-
-            refl_history = list(history_rows) + [
-                {"role": "user", "content": display_user_text},
-                {"role": "model", "content": reply_text},
-            ]
-            memory_reflection.maybe_schedule_reflection(user_id, refl_history)
-        except (ImportError, RuntimeError, AttributeError, TypeError) as refl_err:
-            logger.debug(f"reflection scheduling(error): {refl_err}")
-        return str(reply_text)
-    logger.warning(
-        f"[MainBrain:{brain['provider']}] gagal total -> fallback rantai Gemini"
-    )
-    return ""
-
-
-# ═════ TAHAP-FB: FALLBACK KUNCI LAIN DARI VAULT (diekstrak) ═══════════════════
-async def _try_alt_provider_keys(
-    db, mb, system_instruction: str, user_prompt: str, history_msgs: list, user_id: int
-) -> str | None:
-    """Coba kunci aktif non-Gemini di vault; return teks bila satu berhasil."""
-    try:
-        alt_keys = db.list_active_keys_sync(exclude_provider="gemini")
-    except (sqlite3.Error, TypeError, ValueError, AttributeError):
-        alt_keys = []
-    for key in alt_keys:
-        prov = (key.get("provider") or "").lower()
-        if not (key.get("api_key") or "").strip():
-            continue
-        if not (key.get("base_url") or "").strip():
-            logger.warning(
-                f"[Fallback] lewati {prov} ({key.get('name')}): base_url kosong."
-            )
-            continue
-        try:
-            logger.info(
-                f"[Fallback] mencoba {prov} ({key.get('name')}) model "
-                f"{key.get('default_model')}"
-            )
-            reply_text = await mb.run_openai_agentic_turn(
-                provider=prov,
-                base_url=key.get("base_url") or "",
-                api_key=key["api_key"].strip(),
-                model=key.get("default_model") or "",
-                system_instruction=system_instruction,
-                user_text=user_prompt,
-                history=history_msgs,
-                timeout=60.0,
-                key_id=key.get("id"),
-                key_label=key.get("name", f"{prov}-fallback"),
-                context="telegram_chat:fallback",
-            )
-            if reply_text:
-                logger.info(
-                    f"[Fallback] sukses via {prov}/{key.get('default_model')}"
-                )
-                from alfa.bot.helpers import strip_thought_blocks as _strip3
-
-                reply_text = _strip3(str(reply_text))
-                await db.save_chat_message(user_id, "model", reply_text)
-                return str(reply_text)
-        except _TURN_EXEC_ERR as fe:
-            logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
-    return None
-
 async def _run_agent_turn_impl(
     user_id: int,
     user_prompt: str,
@@ -696,8 +97,8 @@ async def _run_agent_turn_impl(
     override_key_id: int | None = None,
     streamer: TelegramStreamer | None = None,
 ) -> str:
-    """
-    Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
+    """Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
+
     Propagates contextvars for per-user tool isolation.
     Supports MAIN BRAIN lintas-provider: otak mengikuti kunci yang diaktivasi di vault atau pilihan model aktif.
     """
@@ -736,15 +137,18 @@ async def _run_agent_turn_impl(
     current_user_id_var.set(user_id)
     current_chat_id_var.set(chat_id or user_id)
 
-    # Permission Gate (human-in-the-loop) utk tool berbahaya
-    approval_gate = _pg.make_gate(chat_id or user_id)
+    # Permission Gate (human-in-the-loop) utk tool berbahaya.
+    # `make_gate` mengembalikan None saat operator mematikan gate; pada kasus
+    # itu kita pakai ALLOW_ALL_GATE (permissive) sehingga brain tidak
+    # menolaknya dengan deny-by-default.
+    approval_gate = _pg.make_gate(chat_id or user_id) or _pg.ALLOW_ALL_GATE
 
     # 1. Fetch recent chat history from SQLite
     history_rows = await _db.get_recent_chat_history(user_id, limit=12)
 
     # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
     try:
-        _compaction_block = await _maybe_compact_history(_db, user_id)
+        _compaction_block = await _maybe_compact_history(_db, user_id, gemini_client=gemini_client)
     except _TURN_EXEC_ERR as _ce:
         logger.debug(f"compaction dilewati: {_ce}")
         _compaction_block = ""
@@ -797,17 +201,15 @@ async def _run_agent_turn_impl(
         if m.strip()
     ]
 
-    base_model = current_active_model
-    candidate_models = (
-        [base_model]
-        + (
-            [preferred_model]
-            if preferred_model and preferred_model != base_model
-            else []
-        )
-        + fallback_chain
+    from alfa.core.brain.model_router import route_candidate_models
+
+    brain_model_override = _db.get_main_brain_model() if hasattr(_db, "get_main_brain_model") else None
+    models_to_try = route_candidate_models(
+        user_prompt=user_prompt or "",
+        base_model=current_active_model,
+        fallback_chain=fallback_chain,
+        override_model=override_model or brain_model_override,
     )
-    models_to_try = list(dict.fromkeys(candidate_models))
 
     last_error = None
     meetings_before = _meetings_count()
@@ -851,7 +253,7 @@ async def _run_agent_turn_impl(
 
     for model_name in models_to_try:
         try:
-            gate_on = approval_gate is not None
+            gate_on = _pg.gate_is_interactive(approval_gate)
             all_tools, config, config_force, config_wrapup = (
                 _prepare_tools_and_configs(
                     model_name,
@@ -897,17 +299,37 @@ async def _run_agent_turn_impl(
                         args_json = json.dumps(
                             dict(fc.args or {}), ensure_ascii=False, default=str
                         )
-                        denial = (
-                            await approval_gate(fc.name, args_json)
-                            if approval_gate
-                            else None
-                        )
+                        if approval_gate is None:
+                            # Deny-by-default: tanpa gate, tool tidak boleh jalan.
+                            denial = (
+                                f"[DITOLAK] Tool '{fc.name}' tidak dieksekusi karena "
+                                "tidak ada permission gate yang tersambung."
+                            )
+                        else:
+                            try:
+                                denial = await approval_gate(fc.name, args_json)
+                            except Exception as gate_err:  # noqa: BLE001 - fail-closed
+                                logger.exception(
+                                    "[GatePath] gate error (fail-closed) for %s",
+                                    fc.name,
+                                )
+                                denial = (
+                                    f"[DITOLAK] Tool '{fc.name}' tidak dieksekusi "
+                                    f"karena permission gate gagal ({gate_err})."
+                                )
                         if denial:
                             out = denial
                         else:
-                            out = await asyncio.to_thread(
-                                _mb._execute_tool, fc.name, args_json
-                            )
+                            try:
+                                out = await asyncio.wait_for(
+                                    asyncio.to_thread(
+                                        _mb._execute_tool, fc.name, args_json
+                                    ),
+                                    timeout=180.0,
+                                )
+                            except TimeoutError:
+                                out = f"[ERROR timeout] Tool '{fc.name}' melebihi batas waktu eksekusi (180 detik)."
+                                logger.exception(f"[ToolTimeout] {fc.name} timed out after 180s")
                         logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
                         _contents.append(
                             types.Content(
@@ -939,6 +361,8 @@ async def _run_agent_turn_impl(
                     if turn_text:
                         reply_text = turn_text
                 return resp
+
+            reply_text = ""
 
             if (
                 streamer
@@ -1074,21 +498,39 @@ async def _run_agent_turn_impl(
                 approval_gate=approval_gate,
             )
 
-            from alfa.bot.helpers import strip_thought_blocks as _strip2
+            from alfa.bot.helpers import clean_telegram_markdown as _clean2
 
-            reply_text = _strip2(str(reply_text))
+            reply_text = _clean2(str(reply_text))
             await _db.save_chat_message(user_id, "model", reply_text)
             return str(reply_text)
 
         except Exception as e:
             logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
             last_error = e
+            err_msg = str(e)
+            if any(err_k in err_msg for err_k in ("429", "RESOURCE_EXHAUSTED", "503", "UNAVAILABLE")):
+                try:
+                    from alfa.core.brain.circuit_breaker import (
+                        mark_model_exhausted,
+                        parse_retry_delay,
+                    )
+
+                    delay = parse_retry_delay(e)
+                    mark_model_exhausted(model_name, cooldown_seconds=delay, reason=err_msg[:100])
+                except (ImportError, ValueError, TypeError, AttributeError, KeyError) as cb_err:
+                    logger.debug(f"Circuit breaker mark error: {cb_err}")
 
     logger.error(
         f"All Gemini candidates failed: {last_error}. Mencoba kunci vault lain..."
     )
     alt_reply = await _try_alt_provider_keys(
-        _db, _mb, full_system_instruction, user_prompt, history_msgs, user_id
+        _db,
+        _mb,
+        full_system_instruction,
+        user_prompt,
+        history_msgs,
+        user_id,
+        approval_gate=approval_gate,
     )
     if alt_reply:
         return alt_reply
@@ -1135,3 +577,18 @@ async def run_agent_turn(
         raise
     note_turn_finished(ok=not result.startswith(("❌", "⚠️")))
     return result
+
+
+__all__ = [
+    "_audit_correction_pass",
+    "_build_memory_block",
+    "_build_system_instruction",
+    "_format_compaction",
+    "_maybe_compact_history",
+    "_openai_compat_turn",
+    "_prepare_tools_and_configs",
+    "_run_agent_turn_impl",
+    "_summarize_chunk",
+    "_try_alt_provider_keys",
+    "run_agent_turn",
+]

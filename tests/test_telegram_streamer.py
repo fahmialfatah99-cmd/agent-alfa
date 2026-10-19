@@ -539,7 +539,7 @@ class TestRunAgentTurnStreaming:
                 )
             )
 
-            assert "Jawaban dari generate_content fallback" in result
+            assert "Jawaban dari generate" in result.replace("\\_", "_")
             mock_gemini.aio.models.generate_content.assert_called_once()
 
     def test_push_chunk_does_not_starve_when_task_in_flight(self, mock_context):

@@ -15,9 +15,12 @@ from alfa.tools.system.constants import (
     _check_docker_available,
     _clean_code_snippet,
     _ensure_sandbox_image,
+    _is_within,
     _sandbox_network,
     generate_self_heal_hint,
     is_unrestricted,
+    resolve_sandbox_working_dir,
+    sandbox_allowed_roots,
 )
 
 logger = logging.getLogger("AgentTools.System")
@@ -119,31 +122,37 @@ def execute_bash_command(
                     "#!/bin/bash\nset -o pipefail\n" + (command or "").strip() + "\n"
                 )
 
-            wd_abs = (
-                os.path.realpath(os.path.expanduser(working_dir)) if working_dir else ""
-            )
+            wd_abs, wd_err = resolve_sandbox_working_dir(working_dir)
+            if wd_err:
+                logger.warning(f"[SECURITY] working_dir ditolak: {wd_err}")
+                return {
+                    "status": "error",
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"[KEAMANAN] {wd_err}",
+                    "isolation": "rejected",
+                }
             cmd = ["docker", *_docker_common_args(stamp)]
             cmd += ["-v", f"{SANDBOX_DIR}:/sandbox"]
-            if wd_abs and os.path.isdir(wd_abs):
+            if wd_abs:
+                # Hanya working dir yang sudah lolos containment check yang
+                # di-mount. TIDAK ada lagi mount `host:host` (yang membuat
+                # container bisa mencapai path host di luar workspace).
                 cmd += ["-v", f"{wd_abs}:/workspace", "-w", "/workspace"]
                 cmd += ["-v", f"{wd_abs}:{wd_abs}"]
             else:
                 cmd += ["-w", "/sandbox"]
 
-            tf = os.getenv("ALFA_TARGET_FOLDER", "").strip()
-            if tf and os.path.isdir(tf) and tf != wd_abs:
-                cmd += ["-v", f"{tf}:{tf}"]
-
-            user_home = os.path.expanduser("~")
-            project_dirs = [
-                os.path.join(user_home, "alfa_projects"),
-                os.path.join(user_home, "ALFA_WORKSPACE"),
-                os.path.join(user_home, "Dokumen", "ALFA_SWARM_OUTPUTS"),
-                os.path.join(user_home, "output"),
-            ]
-            for pdir in project_dirs:
-                if os.path.isdir(pdir) and pdir != wd_abs and pdir != tf:
-                    cmd += ["-v", f"{pdir}:{pdir}"]
+            # Root lain yang diizinkan di-mount pada path sisi-container
+            # (/alfa/rootN) supaya model tetap bisa menjangkau folder kerja
+            # ALFA tanpa membuka path host secara bebas.
+            for idx, root in enumerate(sandbox_allowed_roots()):
+                if not os.path.isdir(root):
+                    continue
+                if wd_abs and _is_within(root, wd_abs):
+                    continue  # sudah ter-mount lewat /workspace
+                cmd += ["-v", f"{root}:/alfa/root{idx}"]
+                cmd += ["-e", f"ALFA_SANDBOX_ROOT_{idx}={root}"]
 
             cmd += [_SANDBOX_IMAGE, "bash", f"/sandbox/{script_name}"]
             timeout_secs = int(os.getenv("SANDBOX_BASH_TIMEOUT", "55"))
@@ -171,13 +180,25 @@ def execute_bash_command(
                 logger.warning(
                     "[SECURITY] Docker tidak tersedia — eksekusi bash dialihkan ke HOST (ALFA_ALLOW_HOST_EXEC=true). Pastikan ALLOWED_USER_IDS terkonfigurasi ketat."
                 )
+            # Containment check juga berlaku untuk eksekusi di host: working_dir
+            # tetap harus berada di dalam root yang diizinkan.
+            wd_abs, wd_err = resolve_sandbox_working_dir(working_dir)
+            if wd_err:
+                logger.warning(f"[SECURITY] working_dir ditolak: {wd_err}")
+                return {
+                    "status": "error",
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"[KEAMANAN] {wd_err}",
+                    "isolation": "rejected",
+                }
             target_dir = (
-                os.path.expanduser(working_dir)
-                if working_dir
-                else os.path.expanduser("~")
+                wd_abs
+                if wd_abs
+                else os.path.realpath(os.path.expanduser("~"))
             )
             if not os.path.exists(target_dir):
-                target_dir = os.path.expanduser("~")
+                target_dir = os.path.realpath(os.path.expanduser("~"))
             if os.name == "nt":
                 git_bash = r"C:\Program Files\Git\bin\bash.exe"
                 if os.path.exists(git_bash):
@@ -337,6 +358,33 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
         and _ensure_sandbox_image()
     )
 
+    # Fail-CLOSED: tanpa Docker, Python TIDAK boleh jatuh ke host kecuali
+    # operator opting-in eksplisit (ALFA_ALLOW_HOST_EXEC=true). Sebelumnya
+    # jalur ini diam-diam berjalan di host tanpa izin — hanya beda
+    # perlakuan dengan execute_bash_command. Dicek SEBELUM file script
+    # ditulis supaya tidak ada sisa kode di disk.
+    allow_host = unrestricted or (
+        os.getenv("ALFA_ALLOW_HOST_EXEC", "false").strip().lower() == "true"
+    )
+    if not use_docker and not allow_host:
+        logger.warning(
+            "[SECURITY] Host execution blocked (Python): Docker unavailable "
+            "and ALFA_ALLOW_HOST_EXEC != true."
+        )
+        return {
+            "status": "error",
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": (
+                "[SECURITY] Eksekusi Python di host diblokir karena Docker "
+                "tidak tersedia. Set ALFA_ALLOW_HOST_EXEC=true di .env untuk "
+                "mengizinkan eksekusi langsung di host. PERINGATAN: Ini "
+                "memungkinkan kode AI berjalan dengan hak akses penuh mesin ini."
+            ),
+            "isolation": "blocked",
+            "has_plot": False,
+        }
+
     stamp = f"{os.getpid()}_{int(time.time() * 1000) % 10**9}"
     script_name = f"sandbox_run_{stamp}.py"
     plot_name = f"generated_plot_{stamp}.png"
@@ -374,16 +422,16 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
         if use_docker:
             cmd = ["docker", *_docker_common_args(stamp)]
             cmd += ["-v", f"{SANDBOX_DIR}:/sandbox", "-w", "/sandbox"]
-            user_home = os.path.expanduser("~")
-            project_dirs = [
-                os.path.join(user_home, "alfa_projects"),
-                os.path.join(user_home, "ALFA_WORKSPACE"),
-                os.path.join(user_home, "Dokumen", "ALFA_SWARM_OUTPUTS"),
-                os.path.join(user_home, "output"),
-            ]
-            for pdir in project_dirs:
-                if os.path.isdir(pdir):
-                    cmd += ["-v", f"{pdir}:{pdir}"]
+            # Root yang diizinkan di-mount pada path sisi-container saja —
+            # TIDAK ada mount `host:host` yang membuka path host di dalam
+            # container.
+            for idx, root in enumerate(sandbox_allowed_roots()):
+                if not os.path.isdir(root):
+                    continue
+                if _is_within(root, SANDBOX_DIR):
+                    continue  # sudah ter-mount lewat /sandbox
+                cmd += ["-v", f"{root}:/alfa/root{idx}"]
+                cmd += ["-e", f"ALFA_SANDBOX_ROOT_{idx}={root}"]
 
             cmd += [_SANDBOX_IMAGE, "python", f"/sandbox/{script_name}"]
             timeout_secs = 45
@@ -394,10 +442,10 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
                 os.getenv("ALFA_HOST_TIMEOUT", "600" if unrestricted else "30")
             )
             isolation = "none"
-            if backend_pref in ("auto", "docker"):
-                logger.warning(
-                    "Docker sandbox unavailable - falling back to DIRECT execution (no isolation)."
-                )
+            logger.warning(
+                "[SECURITY] Docker sandbox unavailable - menjalankan Python "
+                "di HOST (ALFA_ALLOW_HOST_EXEC=true). Tidak ada isolasi."
+            )
 
         try:
             res = sub.run(cmd, capture_output=True, text=True, timeout=timeout_secs)

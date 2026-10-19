@@ -27,6 +27,11 @@ from alfa.dashboard.routes.system.workspace_vault import (
 system_router = APIRouter(tags=["system"])
 
 # Flatten all sub-routes directly onto system_router for full backward-compatibility with tests & introspectors
+#
+# Catatan: `system_router.routes.extend(_sub.routes)` MELEWATI dependency router
+# (objek APIRoute sudah terbentuk saat sub-router dibuat). Karena itu
+# default-deny diterapkan per-endpoint sensitif di masing-masing sub-router
+# memakai `dependencies=[Depends(require_admin)]`.
 _sub_routers = [
     telemetry_router,
     pipelines_memory_router,

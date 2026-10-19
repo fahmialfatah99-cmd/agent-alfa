@@ -19,6 +19,12 @@ import pytest
 # operator-set DASHBOARD_AUTH_TOKEN would switch the dashboard to auth mode and
 # break unauthenticated TestClient calls, while CI (no .env) stays green.
 os.environ["DASHBOARD_AUTH_TOKEN"] = ""
+# Dashboard API sekarang fail-CLOSED: tanpa DASHBOARD_AUTH_TOKEN, /api/* wajib
+# login (tidak lagi terbuka untuk semua orang). Test suite dashboard memakai
+# TestClient (host "testclient") yang diperlakukan sebagai klien lokal, jadi
+# mode development lokal eksplisit diaktifkan agar endpoint tetap bisa diuji.
+# Perilaku fail-closed-nya sendiri diuji terpisah di test_security_hardening.
+os.environ["ALFA_INSECURE_LOCAL"] = "true"
 # Operator-local ALFA_UNRESTRICTED=true would disable every safety guard the
 # security tests assert on; force the safe default for the test session.
 os.environ["ALFA_UNRESTRICTED"] = "false"

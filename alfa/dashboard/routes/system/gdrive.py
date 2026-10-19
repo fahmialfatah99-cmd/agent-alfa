@@ -4,12 +4,13 @@ import os
 import sqlite3
 from typing import Any, cast
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 
 from alfa import tools
 from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, logger, safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -57,7 +58,7 @@ async def gdrive_status_endpoint():
         return {"status": "error", "connected": False, "message": str(e)}
 
 
-@router.post("/api/gdrive/folder")
+@router.post("/api/gdrive/folder", dependencies=[Depends(require_admin)])
 async def gdrive_set_default_folder(payload: dict[str, Any]):
     """Set default Google Drive folder ID and name."""
     folder_id = payload.get("folder_id", "").strip()
@@ -88,7 +89,7 @@ async def gdrive_set_default_folder(payload: dict[str, Any]):
     }
 
 
-@router.post("/api/gdrive/credentials")
+@router.post("/api/gdrive/credentials", dependencies=[Depends(require_admin)])
 async def gdrive_save_credentials(
     file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
     raw_json: str | None = Form(None),
@@ -141,7 +142,7 @@ async def gdrive_save_credentials(
         }
 
 
-@router.delete("/api/gdrive/credentials")
+@router.delete("/api/gdrive/credentials", dependencies=[Depends(require_admin)])
 async def gdrive_delete_credentials():
     """Remove stored Google Drive credentials (vault + file)."""
     from alfa.integrations.gdrive import secret_store
@@ -182,7 +183,7 @@ async def gdrive_oauth_secret_check():
     return result
 
 
-@router.post("/api/gdrive/oauth/upload-secret")
+@router.post("/api/gdrive/oauth/upload-secret", dependencies=[Depends(require_admin)])
 async def gdrive_oauth_upload_secret(
     file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
     raw_json: str | None = Form(None),
@@ -274,7 +275,7 @@ async def gdrive_oauth_callback(
         """)
 
 
-@router.post("/api/gdrive/oauth/exchange-code")
+@router.post("/api/gdrive/oauth/exchange-code", dependencies=[Depends(require_admin)])
 async def gdrive_oauth_exchange_code_endpoint(
     payload: dict[str, Any], request: Request
 ):
@@ -287,7 +288,7 @@ async def gdrive_oauth_exchange_code_endpoint(
     return tools.gdrive_oauth_exchange_code(auth_code=code, redirect_uri=redirect_uri)
 
 
-@router.post("/api/gdrive/oauth/start")
+@router.post("/api/gdrive/oauth/start", dependencies=[Depends(require_admin)])
 async def gdrive_oauth_start():
     """Start the OAuth login flow."""
     try:
@@ -305,7 +306,7 @@ async def gdrive_oauth_start():
         return {"status": "error", "message": f"OAuth error: {str(oauth_err)}"}
 
 
-@router.post("/api/gdrive/oauth/logout")
+@router.post("/api/gdrive/oauth/logout", dependencies=[Depends(require_admin)])
 async def gdrive_oauth_logout_endpoint():
     """Remove OAuth tokens and fall back to service-account auth."""
     return tools.gdrive_oauth_logout()
@@ -319,7 +320,7 @@ async def gdrive_list_files_endpoint(
     return tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
 
 
-@router.post("/api/gdrive/upload")
+@router.post("/api/gdrive/upload", dependencies=[Depends(require_admin)])
 async def gdrive_upload_endpoint(
     file: UploadFile | None = File(None),  # noqa: B008 - canonical FastAPI upload pattern
     filepath: str | None = Form(None),
@@ -341,7 +342,7 @@ async def gdrive_upload_endpoint(
         )
 
 
-@router.post("/api/gdrive/create-folder")
+@router.post("/api/gdrive/create-folder", dependencies=[Depends(require_admin)])
 async def gdrive_create_folder_endpoint(payload: dict[str, Any]):
     """Create a folder in Google Drive."""
     folder_name = payload.get("name")
@@ -353,7 +354,7 @@ async def gdrive_create_folder_endpoint(payload: dict[str, Any]):
     )
 
 
-@router.post("/api/gdrive/sync-brain")
+@router.post("/api/gdrive/sync-brain", dependencies=[Depends(require_admin)])
 async def gdrive_sync_brain_endpoint(payload: dict[str, Any] | None = None):
     """Sync Google Drive documents to Neural Vector Brain."""
     folder_id = (payload or {}).get("folder_id", "")

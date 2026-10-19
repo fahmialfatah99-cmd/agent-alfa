@@ -230,9 +230,32 @@ AVAILABLE_TOOLS = [
 ]
 
 
-# Synchronize with registry.AVAILABLE_TOOLS
+# Sinkronkan dengan registry.
+#
+# registry.AVAILABLE_TOOLS adalah sumber kebenaran tunggal. Tiga hal harus benar:
+#   1. Tool yang diregistrasi lewat dekorator tapi belum ada di daftar ini
+#      (mis. seluruh layer RAG/vector) ikut ditambahkan.
+#   2. Tool yang ada di daftar ini tapi belum punya entri registry didaftarkan
+#      otomatis agar punya metadata (kategori/tags/schema).
+#   3. registry.AVAILABLE_TOOLS disamakan dengan daftar final.
 registry.AVAILABLE_TOOLS.clear()
 registry.AVAILABLE_TOOLS.extend(AVAILABLE_TOOLS)
+_added = registry.sync_available_from_registry()
+for _fn in list(registry.AVAILABLE_TOOLS):
+    _n = getattr(_fn, "__name__", None)
+    if _n and not any(getattr(t, "__name__", None) == _n for t in AVAILABLE_TOOLS):
+        AVAILABLE_TOOLS.append(_fn)
+registry.sync_registry_from_available(AVAILABLE_TOOLS)
+registry.AVAILABLE_TOOLS.clear()
+registry.AVAILABLE_TOOLS.extend(AVAILABLE_TOOLS)
+# Selaraskan peta domain statis dengan registry (SSOT).
+registry.sync_domains_from_registry()
+if _added:
+    logger.info(
+        "Registry sinkron: %d tool ditambahkan ke AVAILABLE_TOOLS (%s)",
+        len(_added),
+        ", ".join(sorted(_added)[:8]),
+    )
 
 
 __all__ = [

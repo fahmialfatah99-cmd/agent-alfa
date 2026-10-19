@@ -30,6 +30,173 @@ def strip_thought_blocks(text: str) -> str:
     return cleaned if cleaned.strip() else text
 
 
+def clean_telegram_markdown(text: str) -> str:
+    """Format and sanitize markdown text for optimal Telegram rendering.
+
+    - Strips raw <thought> blocks
+    - Strips internal audit disclaimers / apologies
+    - Formats ### / #### headers as bold emoji titles
+    - Formats bullets (*, -) to unicode bullets (•, ▫️)
+    - Replaces raw divider dashes with clean spacing
+    - Converts **bold** to Telegram *bold* outside code blocks
+    - Wraps raw markdown tables into monospace code blocks
+    - Escapes isolated identifier underscores (e.g. data_2026.xlsx)
+    - Balances asterisks to prevent Telegram Markdown v1 entity parse errors
+    """
+    if not text:
+        return ""
+
+    import re as _re
+
+    # 1. Thought blocks
+    if "<thought" in text.lower():
+        text = _re.sub(r"<thought\b[^>]*>.*?</thought\s*>", "", text, flags=_re.S | _re.I)
+
+    # 2. Audit apologies / disclaimer leaks
+    text = _re.sub(
+        r"^(?:Siap|Maaf)[^\n]*?(?:terima kasih auditnya|aku jujur akui|audit)[^\n]*?\n+",
+        "",
+        text,
+        flags=_re.IGNORECASE | _re.MULTILINE,
+    )
+    text = _re.sub(
+        r"\n*Status:\s*\*{1,2}SELESAI\*{1,2}\s*\([^)]*belum ada berkas[^)]*\)[^\n]*",
+        "",
+        text,
+        flags=_re.IGNORECASE,
+    )
+    text = _re.sub(
+        r"\n*Kalau kamu mau ringkasan ini diexport jadi file PDF[^\n]*",
+        "",
+        text,
+        flags=_re.IGNORECASE,
+    )
+    text = _re.sub(
+        r"⛔\s*SISTEM AUDIT KEBENARAN:[\s\S]*?(?:Dilarang klaim palsu\.|$)",
+        "",
+        text,
+        flags=_re.IGNORECASE,
+    )
+
+    # 3. Process line-by-line (preserving code blocks)
+    lines = text.split("\n")
+    processed_lines: list[str] = []
+    table_buf: list[str] = []
+    in_code_block = False
+
+    def flush_table():
+        nonlocal table_buf
+        if table_buf:
+            if len(table_buf) >= 2 and any("|" in tb_line for tb_line in table_buf):
+                processed_lines.append("```\n" + "\n".join(table_buf) + "\n```")
+            else:
+                processed_lines.extend(table_buf)
+            table_buf = []
+
+    for line in lines:
+        if line.strip().startswith("```"):
+            flush_table()
+            in_code_block = not in_code_block
+            processed_lines.append(line)
+            continue
+
+        if in_code_block:
+            processed_lines.append(line)
+            continue
+
+        stripped = line.strip()
+
+        # Check for markdown table row: | a | b |
+        if stripped.startswith("|") and stripped.endswith("|") and "|" in stripped[1:-1]:
+            table_buf.append(line)
+            continue
+        else:
+            flush_table()
+
+        # Horizontal rules: ---, ***, ___
+        if _re.match(r"^(\s*[-*_]\s*){3,}$", line):
+            processed_lines.append("")
+            continue
+
+        # Header 1-2 (#, ##)
+        m_h1 = _re.match(r"^#{1,2}\s+(.*)$", line)
+        if m_h1:
+            title = m_h1.group(1).strip()
+            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
+            if emoji_match:
+                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
+            else:
+                processed_lines.append(f"📌 *{title}*")
+            continue
+
+        # Header 3 (###)
+        m_h3 = _re.match(r"^#{3}\s+(.*)$", line)
+        if m_h3:
+            title = m_h3.group(1).strip()
+            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
+            if emoji_match:
+                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
+            else:
+                processed_lines.append(f"📌 *{title}*")
+            continue
+
+        # Header 4-6 (####)
+        m_h4 = _re.match(r"^#{4,6}\s+(.*)$", line)
+        if m_h4:
+            title = m_h4.group(1).strip()
+            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
+            if emoji_match:
+                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
+            else:
+                processed_lines.append(f"🔹 *{title}*")
+            continue
+
+        # Nested bullets (2+ spaces followed by * or - or +)
+        m_nested = _re.match(r"^(\s{2,})[*+-]\s+(.*)$", line)
+        if m_nested:
+            indent = m_nested.group(1)
+            content = m_nested.group(2)
+            processed_lines.append(f"{indent}▫️ {content}")
+            continue
+
+        # Top-level bullets (*, -, +)
+        m_top = _re.match(r"^[*+-]\s+(.*)$", line)
+        if m_top:
+            content = m_top.group(1)
+            processed_lines.append(f"• {content}")
+            continue
+
+        processed_lines.append(line)
+
+    flush_table()
+    res = "\n".join(processed_lines)
+
+    # 4. Inline formatting outside code blocks
+    parts = _re.split(r"(```[\s\S]*?```|`[^`]+`)", res)
+    for i in range(0, len(parts), 2):
+        # Convert **bold** to *bold*
+        parts[i] = _re.sub(r"\*\*([^*]+)\*\*", r"*\1*", parts[i])
+        # Escape isolated underscores in identifiers (e.g. abc_def.xlsx -> abc\_def.xlsx)
+        parts[i] = _re.sub(r"(?<=\w)_(?=\w)", r"\_", parts[i])
+
+    res = "".join(parts)
+
+    # 5. Asterisk pairing check (Telegram Markdown v1 will reject odd asterisks)
+    parts = _re.split(r"(```[\s\S]*?```|`[^`]+`)", res)
+    total_stars = sum(parts[i].count("*") for i in range(0, len(parts), 2))
+    if total_stars % 2 != 0:
+        # Escape the last rogue asterisk
+        for i in range(len(parts) - 1, -1, -2):
+            if "*" in parts[i]:
+                idx = parts[i].rfind("*")
+                parts[i] = parts[i][:idx] + "\\*" + parts[i][idx + 1:]
+                break
+        res = "".join(parts)
+
+    res = _re.sub(r"\n{3,}", "\n\n", res).strip()
+    return res
+
+
 # --- Edit-in-place target untuk tombol menu -------------------------------
 # Saat user menekan tombol inline, output perintah diedit ke pesan menu itu
 # sendiri (rapi, satu pesan) alih-alih kirim pesan baru. Target di-key per
@@ -187,7 +354,8 @@ async def safe_send_message(
     Safely send message to Telegram with automatic chunking and fallback to plain text
     if Markdown parsing fails.
     """
-    chunks = split_message(text)
+    cleaned = clean_telegram_markdown(text)
+    chunks = split_message(cleaned)
 
     # Jika dipanggil dari siklus tombol menu → edit pesan menu di tempat
     target = _pop_menu_target(context, chat_id)

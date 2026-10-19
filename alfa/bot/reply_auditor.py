@@ -50,6 +50,114 @@ FIX_INSTRUCTION = (
 )
 
 
+TEXT_SUMMARY_MARKERS = (
+    "ringkas",
+    "ringkasan",
+    "rangkum",
+    "rangkuman",
+    "kesimpulan",
+    "analisis",
+    "analisa",
+    "penjelasan",
+    "ulasan",
+    "rekapitulasi",
+    "rekap",
+    "poin",
+    "baca",
+    "lihat",
+    "cek",
+    "pahami",
+    "jelaskan",
+    "isi file",
+    "apa isi",
+)
+
+EXPLICIT_FILE_CREATION_MARKERS = (
+    "buat file",
+    "buatkan file",
+    "bikin file",
+    "bikinkan file",
+    "generate file",
+    "buat berkas",
+    "buatkan berkas",
+    "bikin berkas",
+    "buat pdf",
+    "buatkan pdf",
+    "bikin pdf",
+    "generate pdf",
+    "export pdf",
+    "jadikan pdf",
+    "ekspor pdf",
+    "buat excel",
+    "buatkan excel",
+    "bikin excel",
+    "generate excel",
+    "export excel",
+    "jadikan excel",
+    "ekspor excel",
+    "buat csv",
+    "buatkan csv",
+    "bikin csv",
+    "generate csv",
+    "export csv",
+    "jadikan csv",
+    "buat docx",
+    "buatkan docx",
+    "buat word",
+    "buatkan word",
+    "export word",
+    "buat pptx",
+    "buatkan pptx",
+    "buat presentasi",
+    "buat laporan pdf",
+    "buatkan laporan pdf",
+    "buat laporan excel",
+    "buatkan laporan excel",
+    "export ke",
+    "ekspor ke",
+    "simpan ke file",
+    "simpan sebagai file",
+    "save to file",
+    "save as",
+)
+
+ARTIFACT_CREATION_MARKERS = (
+    "buat",
+    "buatkan",
+    "bikin",
+    "bikinkan",
+    "generate",
+    "ciptakan",
+    "export",
+    "ekspor",
+    "jadikan",
+    "render",
+    "create",
+)
+
+
+def _extract_user_instruction(prompt_low: str) -> str:
+    """Isolate actual user instruction from prompt, discarding system scaffolding."""
+    import re as _re
+
+    p = prompt_low.lower()
+    if "instruksi pengguna:" in p:
+        part = p.split("instruksi pengguna:", 1)[1]
+        part = _re.split(r"\[panduan\b|\[file tersimpan\b|\n\n\[", part)[0]
+        return part.strip()
+    cleaned_lines = []
+    for line in p.splitlines():
+        line_str = line.strip()
+        if line_str.startswith("[") and line_str.endswith("]"):
+            continue
+        if line_str.startswith("*(") and line_str.endswith(")*"):
+            continue
+        if line_str.startswith("|") and line_str.endswith("|"):
+            continue
+        cleaned_lines.append(line)
+    return "\n".join(cleaned_lines).strip()
+
+
 def evaluate_reply_audits(
     *,
     prompt_low: str,
@@ -72,12 +180,32 @@ def evaluate_reply_audits(
         and ("rapat" in reply_low or "meeting" in reply_low)
         and any(mk in reply_low for mk in MEETING_FABRICATION_MARKERS)
     )
+
+    user_inst = _extract_user_instruction(prompt_low)
+    has_explicit_file_creation = any(
+        ef in user_inst for ef in EXPLICIT_FILE_CREATION_MARKERS
+    )
+    is_text_request = any(ts in user_inst for ts in TEXT_SUMMARY_MARKERS)
+
+    if has_explicit_file_creation:
+        has_creation_intent = True
+    elif is_text_request:
+        has_creation_intent = False
+    else:
+        has_creation_intent = any(
+            v in user_inst for v in ARTIFACT_CREATION_MARKERS
+        ) and any(n in user_inst for n in ARTIFACT_NOUNS)
+
+    # Claim in reply must match completion verb AND artifact noun
+    claims_file_done = any(v in reply_low for v in COMPLETION_VERBS) and any(
+        n in reply_low for n in ARTIFACT_NOUNS
+    )
+
     need_artifact_audit = (
-        any(n in prompt_low for n in ARTIFACT_NOUNS)
+        has_creation_intent
         and art_after == art_before
         and new_meetings == 0
-        and any(v in reply_low for v in COMPLETION_VERBS)
-        and any(n in reply_low for n in ARTIFACT_NOUNS)
+        and claims_file_done
     )
     need_action_audit = (
         action_intent

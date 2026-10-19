@@ -1,8 +1,11 @@
 """Agentic tool-argument sanitizing and sandboxed sync execution."""
 
+import concurrent.futures
+import inspect
 import json
 import logging
 import re
+import threading
 import time
 from typing import Any
 
@@ -10,6 +13,36 @@ from alfa.core.brain.config import MAX_TOOL_OUTPUT, TOOL_EXEC_TIMEOUT
 from alfa.core.brain.tool_schema import _find_tool
 
 logger = logging.getLogger("MainBrain")
+
+# Pool eksekusi tool yang dipakai ulang antar-panggilan.
+#
+# Sebelumnya tiap tool call membuat `ThreadPoolExecutor` baru di dalam blok
+# `with`, dan `__exit__` memanggil `shutdown(wait=True)` — sehingga timeout
+# TIDAK membatalkan tool: pemanggil tetap terblokir sampai worker selesai
+# (300 detik × 24 iterasi = 2 jam untuk satu turn). Pool modul-level +
+# `shutdown(wait=False)` membuat pemanggil kembali tepat waktu.
+_EXEC_POOL: concurrent.futures.ThreadPoolExecutor | None = None
+_EXEC_POOL_LOCK = threading.Lock()
+
+
+def _get_exec_pool() -> concurrent.futures.ThreadPoolExecutor:
+    """Pool thread eksekusi tool (dibuat sekali, dipakai ulang)."""
+    global _EXEC_POOL
+    with _EXEC_POOL_LOCK:
+        if _EXEC_POOL is None:
+            _EXEC_POOL = concurrent.futures.ThreadPoolExecutor(
+                max_workers=4, thread_name_prefix="alfa-tool"
+            )
+        return _EXEC_POOL
+
+
+def shutdown_exec_pool(wait: bool = False) -> None:
+    """Tutup pool eksekusi tool (dipanggil saat shutdown aplikasi)."""
+    global _EXEC_POOL
+    with _EXEC_POOL_LOCK:
+        pool, _EXEC_POOL = _EXEC_POOL, None
+    if pool is not None:
+        pool.shutdown(wait=wait, cancel_futures=True)
 
 
 def _clean_json_args(raw_json: str) -> dict[str, Any]:
@@ -72,14 +105,15 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
     # Streaming aktivitas tool ke live feed rapat (jika sedang berjalan)
     try:
-        from alfa.swarm import engine as _se
+        from alfa.swarm import live_logger as _ll
+        from alfa.swarm import workspace_hygiene as _wh
 
-        if getattr(_se, "MEETING_RUNNING", False):
+        if _wh.any_session_running():
             arg_hint = (
                 ", ".join(f"{k}={str(v)[:40]}" for k, v in list(args.items())[:2])
                 or "-"
             )
-            _se.log_tool_live(f"⚙️ menjalankan `{name}` ({arg_hint}) ...")
+            _ll.log_tool_live(f"⚙️ menjalankan `{name}` ({arg_hint}) ...")
     except (ImportError, AttributeError, OSError, TypeError):
         pass
 
@@ -91,36 +125,56 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         _span = None
 
     def _call():
+        # Panggil tool dengan argumen yang sudah tervalidasi terhadap
+        # signature-nya. Pemeriksaan dilakukan SEBELUM pemanggilan supaya
+        # tool TIDAK pernah dieksekusi dua kali: sebelumnya `except TypeError`
+        # tidak bisa membedakan "signature mismatch" dari "TypeError di dalam
+        # body tool", sehingga tool dengan efek samping (write file, kirim
+        # email) berjalan dua kali.
         try:
-            return fn(**args)
-        except TypeError as te:
-            # Model OpenAI-compatible sering mengirim keyword ekstra (misal: 'reason', 'delay', 'dummy')
-            # Saring otomatis agar hanya parameter yang valid yang diteruskan ke fungsi tool.
-            try:
-                import inspect
+            sig = inspect.signature(fn)
+        except (TypeError, ValueError):
+            sig = None
 
-                sig = inspect.signature(fn)
-                has_var_kw = any(
-                    p.kind == inspect.Parameter.VAR_KEYWORD
-                    for p in sig.parameters.values()
-                )
-                if has_var_kw:
-                    return fn(**args)
-                valid_args = {k: v for k, v in args.items() if k in sig.parameters}
-                return fn(**valid_args)
-            except (ValueError, TypeError, KeyError):
-                return f"[ERROR tool] {te}"
+        call_args = args
+        if sig is not None:
+            has_var_kw = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+            )
+            if not has_var_kw:
+                try:
+                    sig.bind(**args)
+                except TypeError:
+                    # Buang hanya keyword yang tidak dikenal.
+                    call_args = {k: v for k, v in args.items() if k in sig.parameters}
+                    try:
+                        sig.bind(**call_args)
+                    except TypeError as bind_err:
+                        return f"[ERROR tool] argumen tidak cocok: {bind_err}"
+        try:
+            return fn(**call_args)
         except Exception as e:
             return f"[ERROR tool] {e}"
 
+    _t0 = time.perf_counter()
     try:
-        # Jalankan di thread terpisah agar event loop tetap hidup
-        import concurrent.futures
-
-        _t0 = time.perf_counter()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            fut = pool.submit(_call)
+        # Jalankan di thread terpisah agar event loop tetap hidup.
+        pool = _get_exec_pool()
+        fut = pool.submit(_call)
+        try:
             raw = fut.result(timeout=TOOL_EXEC_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            fut.cancel()
+            logger.warning(
+                "[ToolTimeout] %s melewati batas %ss — pemanggil dilepas, "
+                "worker mungkin masih berjalan.",
+                name,
+                TOOL_EXEC_TIMEOUT,
+            )
+            return (
+                f"[ERROR timeout] Tool '{name}' melebihi batas waktu eksekusi "
+                f"({TOOL_EXEC_TIMEOUT} detik) dan dibatalkan."
+            )
         _ok = not str(raw).startswith("[ERROR")
         try:
             from alfa.core.metrics import note_tool_call
@@ -150,10 +204,11 @@ def _execute_tool(name: str, arguments_json: str) -> str:
 
     # Laporkan hasil ke live feed juga
     try:
-        from alfa.swarm import engine as _se
+        from alfa.swarm import live_logger as _ll
+        from alfa.swarm import workspace_hygiene as _wh
 
-        if getattr(_se, "MEETING_RUNNING", False):
-            _se.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
+        if _wh.any_session_running():
+            _ll.log_tool_live(f"✅ `{name}` selesai -> {raw[:90]}")
     except (ImportError, AttributeError, OSError, TypeError):
         pass
 

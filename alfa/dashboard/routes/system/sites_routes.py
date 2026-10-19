@@ -1,8 +1,9 @@
 """Galeri situs hasil kerja agent untuk dashboard web."""
-
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ async def api_sites() -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/api/sites/{slug}/{action}")
+@router.post("/api/sites/{slug}/{action}", dependencies=[Depends(require_admin)])
 async def api_site_action(slug: str, action: str) -> dict[str, Any]:
     if action not in ("start", "stop"):
         raise HTTPException(status_code=400, detail="aksi harus start|stop")

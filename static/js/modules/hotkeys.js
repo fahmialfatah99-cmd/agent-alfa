@@ -1,3 +1,7 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { closeCreatePluginModal, closeMediaPreviewModal, closeSuperpowerDetailModal, closeVectorIngestModal } from '../app.js';
+import { switchTab, toggleTheme } from './state.js';
 /**
  * ==============================================================================
  * ALFA COMMAND CENTER - KEYBOARD HOTKEYS & SHORTCUTS MODULE (hotkeys.js)
@@ -57,7 +61,7 @@ function handleQuickFocus(e) {
     }
 
     // Default: switch to console tab and focus chat
-    if (typeof switchTab === 'function') {
+    {
         switchTab('console');
         setTimeout(() => {
             const chatInput = document.getElementById('chat-input-text') || document.getElementById('chat-input');
@@ -78,7 +82,7 @@ function handleEscapeKey(e) {
     }
 
     // 2. Close Vector Ingest modal
-    if (typeof closeVectorIngestModal === 'function') {
+    {
         const vecModal = document.getElementById('vector-ingest-modal');
         if (vecModal && !vecModal.classList.contains('hidden')) {
             closeVectorIngestModal();
@@ -87,7 +91,7 @@ function handleEscapeKey(e) {
     }
 
     // 3. Close Superpower Detail modal
-    if (typeof closeSuperpowerDetailModal === 'function') {
+    {
         const spModal = document.getElementById('superpower-detail-modal');
         if (spModal && !spModal.classList.contains('hidden')) {
             closeSuperpowerDetailModal();
@@ -96,7 +100,7 @@ function handleEscapeKey(e) {
     }
 
     // 4. Close Media Preview modal
-    if (typeof closeMediaPreviewModal === 'function') {
+    {
         const mediaModal = document.getElementById('media-preview-modal');
         if (mediaModal && !mediaModal.classList.contains('hidden')) {
             closeMediaPreviewModal();
@@ -105,7 +109,7 @@ function handleEscapeKey(e) {
     }
 
     // 5. Close Create Plugin modal
-    if (typeof closeCreatePluginModal === 'function') {
+    {
         const pluginModal = document.getElementById('create-plugin-modal');
         if (pluginModal && !pluginModal.classList.contains('hidden')) {
             closeCreatePluginModal();
@@ -221,7 +225,7 @@ function openHotkeysModal() {
     modal.classList.remove('hidden');
 }
 
-function closeHotkeysModal() {
+export function closeHotkeysModal() {
     const modal = document.getElementById('alfa-hotkeys-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -272,7 +276,7 @@ function handleKeyDown(e) {
     // 4. Alt+T quick theme toggle
     if (e.altKey && e.key.toLowerCase() === 't') {
         e.preventDefault();
-        if (typeof toggleTheme === 'function') {
+        {
             toggleTheme();
         }
         return;
@@ -282,7 +286,7 @@ function handleKeyDown(e) {
     if (e.altKey && tabNumberMap[e.key]) {
         e.preventDefault();
         const tabId = tabNumberMap[e.key];
-        if (typeof switchTab === 'function') {
+        {
             switchTab(tabId);
         }
         return;
@@ -299,7 +303,7 @@ function handleKeyDown(e) {
 /**
  * Initialize hotkey event listeners on the window.
  */
-function initHotkeys() {
+export function initHotkeys() {
     if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
         window.removeEventListener('keydown', handleKeyDown);
     }
@@ -328,3 +332,6 @@ window.AlfaHotkeys = {
     toggleHotkeysModal,
     registerHotkey
 };
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.closeHotkeysModal = closeHotkeysModal;

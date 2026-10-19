@@ -2,17 +2,18 @@ import json
 import sqlite3
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from alfa.core import database
 from alfa.dashboard.common import safe_int
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
 # --- Multi-Agent Round-Table Meeting Endpoints ---
 
 
-@router.post("/api/meetings/start")
+@router.post("/api/meetings/start", dependencies=[Depends(require_admin)])
 async def start_agent_meeting(payload: dict[str, Any]):
     """Launch a swarm session: mode 'plan' (diskusi) atau 'execute'."""
     topic = payload.get("topic")
@@ -36,7 +37,7 @@ async def start_agent_meeting(payload: dict[str, Any]):
     return result
 
 
-@router.post("/api/meetings/cancel")
+@router.post("/api/meetings/cancel", dependencies=[Depends(require_admin)])
 async def cancel_agent_meeting():
     """Minta pembatalan eksekusi swarm yang sedang berjalan (lintas proses)."""
     from alfa.swarm import engine as swarm_engine

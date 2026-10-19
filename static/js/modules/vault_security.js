@@ -1,8 +1,11 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { escHtml, showToast } from './state.js';
 // ==================== ALFA SECURE VAULT & CYBER SENTRY JS ====================
 let currentVaultCategory = 'all';
 let allVaultSecretsData = [];
 
-function switchVaultSubTab(sub) {
+export function switchVaultSubTab(sub) {
     document.querySelectorAll('.vault-subview').forEach(el => el.classList.add('hidden'));
     ['secrets', 'scanner', 'settings'].forEach(s => {
         const btn = document.getElementById(`vault-subtab-btn-${s}`);
@@ -22,7 +25,7 @@ function switchVaultSubTab(sub) {
     lucide.createIcons();
 }
 
-async function fetchVaultSecrets(category = null) {
+export async function fetchVaultSecrets(category = null) {
     if (category) currentVaultCategory = category;
     try {
         const res = await fetch(`/api/vault/list?category=${currentVaultCategory}`);
@@ -38,7 +41,7 @@ async function fetchVaultSecrets(category = null) {
     }
 }
 
-function filterVaultSecrets(cat) {
+export function filterVaultSecrets(cat) {
     currentVaultCategory = cat;
     ['all', 'api_key', 'affiliate', 'password', 'note'].forEach(c => {
         const btn = document.getElementById(`vfilter-btn-${c}`);
@@ -89,9 +92,9 @@ function renderVaultSecretsList() {
                     <div class="space-y-0.5">
                         <div class="font-bold text-xs text-white font-mono flex items-center gap-1.5 truncate">
                             <i data-lucide="${catIcon}" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0"></i>
-                            <span class="truncate">${sec.name}</span>
+                            <span class="truncate">${escHtml(sec.name)}</span>
                         </div>
-                        <div class="text-[10px] text-slate-400 truncate">${sec.notes || 'Enkripsi AES-256-GCM'}</div>
+                        <div class="text-[10px] text-slate-400 truncate">${escHtml(sec.notes || 'Enkripsi AES-256-GCM')}</div>
                     </div>
                     ${catBadge}
                 </div>
@@ -121,7 +124,7 @@ function renderVaultSecretsList() {
     lucide.createIcons();
 }
 
-async function storeVaultSecretForm(e) {
+export async function storeVaultSecretForm(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-store-vault');
     btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Mengenkripsi (AES-256-GCM)...';
@@ -156,7 +159,7 @@ async function storeVaultSecretForm(e) {
     }
 }
 
-async function revealVaultSecret(id) {
+export async function revealVaultSecret(id) {
     const valSpan = document.getElementById(`vault-val-${id}`);
     if (valSpan && valSpan.dataset.revealed === 'true') {
         valSpan.innerText = '••••••••••••••••';
@@ -185,7 +188,7 @@ async function revealVaultSecret(id) {
     }
 }
 
-async function copyVaultSecret(id) {
+export async function copyVaultSecret(id) {
     const valSpan = document.getElementById(`vault-val-${id}`);
     if (valSpan && valSpan.dataset.raw) {
         navigator.clipboard.writeText(valSpan.dataset.raw);
@@ -208,7 +211,7 @@ async function copyVaultSecret(id) {
     }
 }
 
-async function deleteVaultSecret(id, name) {
+export async function deleteVaultSecret(id, name) {
     if (!confirm(`Hapus permanen secret '${name}' dari αlfa Secure Vault?`)) return;
     try {
         const res = await fetch(`/api/vault/${id}`, { method: 'DELETE' });
@@ -225,7 +228,7 @@ async function deleteVaultSecret(id, name) {
 }
 
 // ==================== CYBER SENTRY SECURITY AUDITOR JS ====================
-async function runCyberSentryAudit(e) {
+export async function runCyberSentryAudit(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-run-sentry');
     const targetUrl = document.getElementById('sentry-target-url').value.trim();
@@ -293,11 +296,11 @@ function renderCyberSentryResults(data) {
         return `
             <div class="p-3 rounded-xl bg-dark-950 border border-white/5 space-y-1.5">
                 <div class="flex items-center justify-between">
-                    <span class="font-bold text-xs text-white font-mono uppercase">${k.replace(/_/g, ' ')}</span>
+                    <span class="font-bold text-xs text-white font-mono uppercase">${escHtml(k.replace(/_/g, ' '))}</span>
                     ${badge}
                 </div>
-                <p class="text-[11px] text-slate-400 font-sans">${c.desc}</p>
-                ${c.value ? `<div class="text-[10px] font-mono text-slate-500 truncate bg-dark-900 p-1 rounded">${c.value}</div>` : ''}
+                <p class="text-[11px] text-slate-400 font-sans">${escHtml(c.desc)}</p>
+                ${c.value ? `<div class="text-[10px] font-mono text-slate-500 truncate bg-dark-900 p-1 rounded">${escHtml(c.value)}</div>` : ''}
             </div>
         `;
     }).join('');
@@ -319,12 +322,12 @@ function renderCyberSentryResults(data) {
             return `
                 <div class="p-3.5 rounded-xl bg-dark-950 border border-white/5 space-y-1.5 text-xs">
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-white font-mono">${f.header}</span>
+                        <span class="font-bold text-white font-mono">${escHtml(f.header)}</span>
                         ${sevBadge}
                     </div>
-                    <p class="text-slate-300">${f.issue}</p>
+                    <p class="text-slate-300">${escHtml(f.issue)}</p>
                     <div class="text-[11px] font-mono text-cyan-300 bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/20">
-                        💡 Solusi: ${f.recommendation}
+                        💡 Solusi: ${escHtml(f.recommendation)}
                     </div>
                 </div>
             `;
@@ -334,7 +337,7 @@ function renderCyberSentryResults(data) {
 }
 
 // ==================== PASSKEY & SECURITY SETTINGS JS ====================
-async function fetchPasskeyStatus() {
+export async function fetchPasskeyStatus() {
     try {
         const res = await fetch('/api/vault/passkey/status');
         const data = await res.json();
@@ -347,7 +350,7 @@ async function fetchPasskeyStatus() {
     }
 }
 
-async function togglePasskeySwitch() {
+export async function togglePasskeySwitch() {
     const toggle = document.getElementById('passkey-lock-toggle');
     const enabled = toggle.checked;
     try {
@@ -364,3 +367,14 @@ async function togglePasskeySwitch() {
     }
 }
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.copyVaultSecret = copyVaultSecret;
+window.deleteVaultSecret = deleteVaultSecret;
+window.fetchVaultSecrets = fetchVaultSecrets;
+window.filterVaultSecrets = filterVaultSecrets;
+window.revealVaultSecret = revealVaultSecret;
+window.runCyberSentryAudit = runCyberSentryAudit;
+window.storeVaultSecretForm = storeVaultSecretForm;
+window.switchVaultSubTab = switchVaultSubTab;
+window.togglePasskeySwitch = togglePasskeySwitch;

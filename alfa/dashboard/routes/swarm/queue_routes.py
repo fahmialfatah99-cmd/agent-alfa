@@ -2,15 +2,16 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from alfa.dashboard.common import safe_int
+from alfa.dashboard.routes.auth import require_admin
 from alfa.swarm import queue as swarm_queue
 
 router = APIRouter()
 
 
-@router.post("/api/swarm/queue/enqueue")
+@router.post("/api/swarm/queue/enqueue", dependencies=[Depends(require_admin)])
 async def enqueue_mission(payload: dict[str, Any]):
     """Daftarkan misi swarm durable (dieksekusi worker terpisah)."""
     topic = (payload.get("topic") or "").strip()
@@ -48,7 +49,7 @@ async def get_queued_mission(mission_id: int):
     return {"status": "success", "mission": mission}
 
 
-@router.post("/api/swarm/queue/{mission_id}/cancel")
+@router.post("/api/swarm/queue/{mission_id}/cancel", dependencies=[Depends(require_admin)])
 async def cancel_queued_mission(mission_id: int):
     """Batalkan misi queued/running."""
     if swarm_queue.cancel_mission(mission_id):

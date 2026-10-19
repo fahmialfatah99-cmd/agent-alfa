@@ -7,6 +7,7 @@ lookups and global AVAILABLE_TOOLS list.
 
 import inspect
 import logging
+import typing
 from collections.abc import Callable
 from typing import Any, ParamSpec, TypeVar
 
@@ -126,11 +127,92 @@ def get_tools_by_domain(domain: str) -> list[str]:
 
 
 def get_domain_for_tool(tool_name: str) -> str | None:
-    """Mengembalikan domain untuk tool tertentu."""
+    """Return domain/category for a given tool.
+
+    Peta statis ``TOOL_DOMAINS`` adalah sumber kebenaran untuk domain;
+    ``sync_domains_from_registry()`` menjaganya sinkron dengan registry.
+    """
     return TOOL_DOMAIN_MAP.get(tool_name)
 
 
-_JSON_TYPES = {int: "integer", float: "number", bool: "boolean"}
+def sync_domains_from_registry() -> int:
+    """Selaraskan peta domain statis dengan TOOL_REGISTRY.
+
+    Registry adalah sumber kebenaran; peta statis (``TOOL_DOMAINS`` /
+    ``TOOL_DOMAIN_MAP``) sebelumnya bisa stale sehingga tool muncul di
+    domain yang salah. Tool yang ter-register dipindahkan ke kategori
+    registry-nya, dan kategori itu ikut ditulis ke ``TOOL_DOMAIN_MAP``.
+
+    Return jumlah tool yang dipindahkan.
+    """
+    moved = 0
+    for tool_name, entry in list(TOOL_REGISTRY.items()):
+        cat = entry.get("category")
+        if not cat:
+            continue
+        for domain, tool_list in list(TOOL_DOMAINS.items()):
+            if domain == cat:
+                continue
+            if tool_name in tool_list:
+                tool_list.remove(tool_name)
+                moved += 1
+        target = TOOL_DOMAINS.setdefault(cat, [])
+        if tool_name not in target:
+            target.append(tool_name)
+        TOOL_DOMAIN_MAP[tool_name] = cat
+    for tool_list in TOOL_DOMAINS.values():
+        tool_list.sort()
+    # Buang domain yang jadi kosong setelah sinkronisasi (tool-nya pindah ke
+    # kategori registry-nya) supaya tidak ada domain hantu.
+    for domain in [d for d, lst in TOOL_DOMAINS.items() if not lst]:
+        del TOOL_DOMAINS[domain]
+    return moved
+
+
+_JSON_TYPES = {int: "integer", float: "number", bool: "boolean", str: "string"}
+
+
+def _json_type_for(annotation: Any) -> str:
+    """Petakan anotasi Python ke tipe JSON Schema.
+
+    Versi lama hanya memetakan `int/float/bool`; `list[str]`, `dict[str, Any]`
+    dan `str | None` semuanya jatuh ke "string" — sehingga model mengirim
+    "a,b,c" untuk parameter list dan tool gagal dengan TypeError.
+    """
+    if annotation is inspect.Parameter.empty or annotation is None:
+        return "string"
+    if isinstance(annotation, type):
+        if annotation is bool:
+            return "boolean"
+        if annotation is int:
+            return "integer"
+        if annotation is float:
+            return "number"
+        if annotation is str:
+            return "string"
+        if annotation is list:
+            return "array"
+        if annotation is dict:
+            return "object"
+        return "string"
+
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is typing.Literal:
+        return "string"
+    if origin is not None:
+        if origin in (list, set, frozenset, tuple):
+            return "array"
+        if origin is dict:
+            return "object"
+        if origin is typing.Union or str(origin) == "types.UnionType":
+            non_none = [a for a in args if a is not type(None)]
+            if len(non_none) == 1:
+                return _json_type_for(non_none[0])
+            return "string"
+        if isinstance(origin, type):
+            return _JSON_TYPES.get(origin, "string")
+    return "string"
 
 
 def _parse_docstring_params(doc: str) -> dict[str, str]:
@@ -172,15 +254,7 @@ def _fn_to_schema(fn: Callable) -> dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        if isinstance(ann, type):
-            jtype = _JSON_TYPES.get(ann, "string")
-        else:
-            _origin = getattr(ann, "__origin__", None)
-            jtype = (
-                _JSON_TYPES.get(_origin, "string")
-                if isinstance(_origin, type)
-                else "string"
-            )
+        jtype = _json_type_for(ann)
         pdesc = argdocs.get(pname, pname)
         props[pname] = {"type": jtype, "description": pdesc}
         is_req = p.default is inspect.Parameter.empty
@@ -218,6 +292,62 @@ def _fn_to_schema(fn: Callable) -> dict[str, Any]:
     }
 
 
+def _register_entry(
+    fn: Callable,
+    *,
+    name: str | None = None,
+    category: str | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
+) -> str:
+    """Daftarkan satu tool ke ``TOOL_REGISTRY`` + ``AVAILABLE_TOOLS``.
+
+    Dipakai oleh dekorator :func:`register_tool` maupun
+    :func:`sync_registry_from_available` (sinkronisasi daftar legacy).
+    """
+    actual_name = str(
+        (name if isinstance(name, str) else None) or getattr(fn, "__name__", "")
+    )
+    actual_cat = category or get_domain_for_tool(actual_name) or "general"
+    try:
+        schema = _fn_to_schema(fn)
+    except Exception:
+        schema = {
+            "name": actual_name,
+            "short_description": (
+                (fn.__doc__ or "").strip().splitlines()[0]
+                if fn.__doc__
+                else actual_name
+            ),
+            "full_docstring": fn.__doc__ or "",
+            "signature": f"{actual_name}()",
+            "parameters": [],
+            "openai_spec": {"type": "function", "function": {"name": actual_name}},
+        }
+    actual_desc = description or schema["short_description"]
+
+    entry = {
+        "name": actual_name,
+        "func": fn,
+        "category": actual_cat,
+        "description": actual_desc,
+        "tags": tags or [],
+        "schema": schema,
+    }
+    TOOL_REGISTRY[actual_name] = entry
+
+    setattr(fn, "_tool_name", actual_name)  # noqa: B010
+    setattr(fn, "_tool_category", actual_cat)  # noqa: B010
+    setattr(fn, "_tool_description", actual_desc)  # noqa: B010
+    setattr(fn, "_tool_tags", tags or [])  # noqa: B010
+
+    # Add to AVAILABLE_TOOLS if not present
+    if all(getattr(t, "__name__", None) != actual_name for t in AVAILABLE_TOOLS):
+        AVAILABLE_TOOLS.append(fn)
+
+    return actual_name
+
+
 def register_tool(
     name: Any | None = None,
     category: str | None = None,
@@ -235,46 +365,13 @@ def register_tool(
     """
 
     def decorator(fn: Callable[_P, _R]) -> Callable[_P, _R]:
-        actual_name = str(
-            (name if isinstance(name, str) else None) or getattr(fn, "__name__", "")
+        _register_entry(
+            fn,
+            name=name if isinstance(name, str) else None,
+            category=category,
+            description=description,
+            tags=tags,
         )
-        actual_cat = category or get_domain_for_tool(actual_name) or "general"
-        try:
-            schema = _fn_to_schema(fn)
-        except Exception:
-            schema = {
-                "name": actual_name,
-                "short_description": (
-                    (fn.__doc__ or "").strip().splitlines()[0]
-                    if fn.__doc__
-                    else actual_name
-                ),
-                "full_docstring": fn.__doc__ or "",
-                "signature": f"{actual_name}()",
-                "parameters": [],
-                "openai_spec": {"type": "function", "function": {"name": actual_name}},
-            }
-        actual_desc = description or schema["short_description"]
-
-        entry = {
-            "name": actual_name,
-            "func": fn,
-            "category": actual_cat,
-            "description": actual_desc,
-            "tags": tags or [],
-            "schema": schema,
-        }
-        TOOL_REGISTRY[actual_name] = entry
-
-        setattr(fn, "_tool_name", actual_name)  # noqa: B010
-        setattr(fn, "_tool_category", actual_cat)  # noqa: B010
-        setattr(fn, "_tool_description", actual_desc)  # noqa: B010
-        setattr(fn, "_tool_tags", tags or [])  # noqa: B010
-
-        # Add to AVAILABLE_TOOLS if not present
-        if all(getattr(t, "__name__", None) != actual_name for t in AVAILABLE_TOOLS):
-            AVAILABLE_TOOLS.append(fn)
-
         return fn
 
     if callable(name):
@@ -284,12 +381,53 @@ def register_tool(
     return decorator
 
 
+def sync_registry_from_available(tools: list[Callable]) -> list[str]:
+    """Daftarkan tool yang ada di daftar legacy tapi belum ada di registry.
+
+    ``TOOL_REGISTRY`` adalah sumber kebenaran tunggal. Tanpa sinkronisasi ini
+    ada tool yang punya callable tapi tidak punya metadata (kategori, tags,
+    schema) — sehingga tidak pernah muncul di ``get_tool_definitions()``.
+
+    Return daftar nama tool yang baru terdaftar.
+    """
+    newly: list[str] = []
+    for t in tools:
+        fn_name = getattr(t, "__name__", None)
+        if not fn_name or fn_name in TOOL_REGISTRY:
+            continue
+        _register_entry(t, name=fn_name)
+        newly.append(fn_name)
+    return newly
+
+
+def sync_available_from_registry() -> list[str]:
+    """Tambahkan tool yang sudah ter-register tapi belum ada di AVAILABLE_TOOLS.
+
+    Tanpa ini, tool yang diregistrasi lewat dekorator (mis. seluruh layer
+    RAG/vector) hilang dari daftar tool yang dilihat model.
+
+    Return daftar nama tool yang ditambahkan.
+    """
+    present = {getattr(t, "__name__", None) for t in AVAILABLE_TOOLS}
+    added: list[str] = []
+    for tool_name, entry in TOOL_REGISTRY.items():
+        if tool_name in present:
+            continue
+        fn = entry.get("func")
+        if callable(fn):
+            AVAILABLE_TOOLS.append(fn)
+            present.add(tool_name)
+            added.append(tool_name)
+    return added
+
+
 def get_tool(name: str) -> Callable | None:
     """Retrieve a tool callable by name from TOOL_REGISTRY or AVAILABLE_TOOLS."""
     if name in TOOL_REGISTRY:
         func = TOOL_REGISTRY[name]["func"]
-        assert callable(func)
-        # Registry stores untyped callables by design.
+        # `assert` dihapus saat python -O — gunakan pemeriksaan eksplisit.
+        if not callable(func):
+            return None
         return func  # type: ignore[no-any-return]
     for t in AVAILABLE_TOOLS:
         if getattr(t, "__name__", None) == name:

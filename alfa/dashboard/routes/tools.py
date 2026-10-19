@@ -7,7 +7,7 @@ import re
 import time
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from alfa import tools
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, logger
@@ -189,10 +189,9 @@ async def get_tools_list():
     }
 
 
-@tools_router.post("/api/tools/execute")
+@tools_router.post("/api/tools/execute", dependencies=[Depends(require_admin)])
 async def execute_tool(request: Request, payload: dict[str, Any]):
     """Execute any tool directly with supplied arguments (hanya admin)."""
-    require_admin(request)
     tool_name = payload.get("tool_name")
     args = payload.get("args", {})
 
@@ -231,11 +230,15 @@ async def execute_tool(request: Request, payload: dict[str, Any]):
             "duration_ms": duration_ms,
             "result": result,
         }
+    except HTTPException:
+        # Penolakan izin harus tetap 403 — sebelumnya tertelan `except
+        # Exception` dan dikembalikan sebagai HTTP 200 dengan status "error".
+        raise
     except Exception as e:
         return {"status": "error", "tool": tool_name, "message": str(e)}
 
 
-@tools_router.post("/api/tools/upload")
+@tools_router.post("/api/tools/upload", dependencies=[Depends(require_admin)])
 async def upload_files_for_tools(files: list[UploadFile] = File(...)):  # noqa: B008 - canonical FastAPI upload pattern
     """Upload one or more files from user computer for tool processing."""
     upload_dir = tools.get_pdf_output_dir("Uploads")
@@ -290,10 +293,9 @@ async def api_plugins_list():
     }
 
 
-@tools_router.post("/api/plugins/create")
+@tools_router.post("/api/plugins/create", dependencies=[Depends(require_admin)])
 async def api_plugins_create(payload: dict[str, Any], request: Request):
     """Compile, sandbox-test, and hot-load a new dynamic plugin tool."""
-    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()
@@ -312,10 +314,9 @@ async def api_plugins_create(payload: dict[str, Any], request: Request):
     return res
 
 
-@tools_router.post("/api/plugins/delete")
+@tools_router.post("/api/plugins/delete", dependencies=[Depends(require_admin)])
 async def api_plugins_delete(payload: dict[str, Any], request: Request):
     """Permanently remove a dynamic plugin tool."""
-    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()
@@ -324,10 +325,9 @@ async def api_plugins_delete(payload: dict[str, Any], request: Request):
     return plugins.delete_plugin(tool_name)
 
 
-@tools_router.post("/api/plugins/execute")
+@tools_router.post("/api/plugins/execute", dependencies=[Depends(require_admin)])
 async def api_plugins_execute(request: Request, payload: dict[str, Any]):
     """Execute a dynamic plugin tool directly (hanya admin)."""
-    require_admin(request)
     import plugins
 
     tool_name = payload.get("tool_name", "").strip()
@@ -533,7 +533,7 @@ def api_ui_ux_search(q: str = "", domain: str = "auto"):
     return ui_ux_pro_max_search(query=q, domain=domain, action="search")
 
 
-@tools_router.post("/api/skills/ui-ux-pro-max/design-system")
+@tools_router.post("/api/skills/ui-ux-pro-max/design-system", dependencies=[Depends(require_admin)])
 def api_ui_ux_design_system(payload: dict[str, Any]):
     """Generate comprehensive Design System for any product or niche."""
     from plugins.ui_ux_pro_max import ui_ux_pro_max_search

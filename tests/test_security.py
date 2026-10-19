@@ -145,19 +145,48 @@ class TestBashExecution:
         r = execute_bash_command("true")
         assert r.get("isolation") in ("docker", "none")
 
-    def test_working_dir_mount(self, tmp_path):
+    def test_working_dir_mount(self, tmp_path, monkeypatch):
+        """working_dir di dalam root yang diizinkan → di-mount sebagai /workspace."""
         from alfa.tools import execute_bash_command
 
+        # tmp_path pytest berada di luar root default → gagal closed.
         r = execute_bash_command("pwd", working_dir=str(tmp_path))
-        if r.get("isolation") == "docker":
-            assert "/workspace" in (r.get("stdout") or "")
-        else:
-            assert r["status"] == "success"
-            # Host execution: stdout contains directory path
+        assert r["status"] == "error"
+        assert r["isolation"] == "rejected"
+
+        # Root yang diizinkan secara eksplisit → boleh dipakai.
+        monkeypatch.setenv("ALFA_SANDBOX_ROOT", str(tmp_path))
+        r2 = execute_bash_command("pwd", working_dir=str(tmp_path))
+        if r2.get("isolation") == "docker":
+            assert "/workspace" in (r2.get("stdout") or "")
+        elif r2["status"] == "success":
+            # Host execution: stdout berisi path direktori
             assert (
                 str(tmp_path.name).lower()
-                in (r.get("stdout") or "").replace("\\", "/").lower()
+                in (r2.get("stdout") or "").replace("\\", "/").lower()
             )
+
+    def test_working_dir_di_luar_root_ditolak(self, tmp_path, monkeypatch):
+        """Regresi keamanan: working_dir='/' dulu membuat container mendapat
+        mount -v /:/workspace -v /:/ → seluruh host FS read-write."""
+        from alfa.tools import execute_bash_command
+
+        monkeypatch.setenv("ALFA_SANDBOX_ROOT", str(tmp_path))
+        for bad in ("/", "/etc", "/root"):
+            r = execute_bash_command("pwd", working_dir=bad)
+            assert r["status"] == "error", bad
+            assert r["isolation"] == "rejected", bad
+
+    def test_root_sandbox_yang_terlalu_luas_ditolak(self, tmp_path, monkeypatch):
+        """ALFA_SANDBOX_ROOT=$HOME atau '/' harus diabaikan (fail-closed)."""
+        from alfa.tools.system.constants import sandbox_allowed_roots
+
+        monkeypatch.setenv("ALFA_SANDBOX_ROOT", "/")
+        roots = sandbox_allowed_roots()
+        assert "/" not in roots
+        monkeypatch.setenv("ALFA_SANDBOX_ROOT", str(tmp_path))
+        roots2 = sandbox_allowed_roots()
+        assert str(tmp_path) in roots2
 
 
 # ── 4. Subset tools aman swarm ───────────────────────────────────────────────

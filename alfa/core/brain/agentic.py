@@ -5,12 +5,65 @@ import json
 import logging
 from typing import Any
 
-from alfa.core.brain.config import MAX_ITERATIONS
+from alfa.core.brain.config import MAX_ITERATIONS, TOOL_EXEC_TIMEOUT
 from alfa.core.brain.convo import _compact_convo
 from alfa.core.brain.tool_exec import _execute_tool
 from alfa.core.brain.tool_schema import build_openai_tools
 
 logger = logging.getLogger("MainBrain")
+
+# Pesan penolakan ketika tool dipanggil tanpa approval gate yang tersambung.
+# Deny-by-default: pemanggil WAJIB menyambungkan gate (interaktif Telegram,
+# headless policy dashboard, atau ALLOW_ALL_GATE saat operator mematikan gate).
+# Tanpa ini, tool apa pun bisa dieksekusi tanpa human-in-the-loop.
+_NO_GATE_DENIAL = (
+    "[DITOLAK] Tool '{name}' tidak dieksekusi karena tidak ada permission gate "
+    "yang tersambung pada jalur ini (deny-by-default). Minta persetujuan "
+    "pemilik, atau jalankan lewat jalur yang menyambungkan gate."
+)
+
+
+async def _resolve_tool_outcome(
+    approval_gate,
+    name: str,
+    raw_args: str,
+) -> str:
+    """Jalankan gate untuk satu tool call; kembalikan output tool.
+
+    Fail-CLOSED: bila gate melempar error, tool TIDAK dieksekusi. Bila gate
+    tidak tersambung (None), tool juga ditolak.
+    """
+    if approval_gate is None:
+        logger.error(
+            "[MainBrain] tool %s ditolak: approval_gate tidak tersambung "
+            "(deny-by-default).",
+            name,
+        )
+        return _NO_GATE_DENIAL.format(name=name)
+    try:
+        denial = await approval_gate(name, raw_args)
+    except Exception as gate_err:  # noqa: BLE001 - fail-closed on gate failure
+        logger.exception(
+            "[MainBrain] tool %s ditolak: permission gate error (fail-closed)",
+            name,
+        )
+        return (
+            f"[DITOLAK] Tool '{name}' tidak dieksekusi karena permission gate "
+            f"gagal ({gate_err}). Percobaan ulang tidak akan dicoba otomatis."
+        )
+    if denial:
+        return str(denial)
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_execute_tool, name, raw_args),
+            timeout=TOOL_EXEC_TIMEOUT + 5,
+        )
+    except (asyncio.TimeoutError, TimeoutError):
+        return (
+            f"[ERROR timeout] Tool '{name}' melebihi batas waktu eksekusi "
+            f"({TOOL_EXEC_TIMEOUT} detik) dan dibatalkan."
+        )
+    return str(result)
 
 
 async def run_openai_agentic_turn(
@@ -34,7 +87,9 @@ async def run_openai_agentic_turn(
     kirim pesan + tools -> eksekusi tool_calls -> ulangi sampai jawaban final.
     tools_schema=None memakai set lengkap; list kosong = tanpa tools (chat polos).
     approval_gate: callable async (tool_name, args_json)->Optional[str];
-    None = boleh, str = tolak dan pakai teks itu sbg hasil tool.
+    None = TIDAK BOLEH menjalankan tool (deny-by-default), str = tolak dan
+    pakai teks itu sbg hasil tool. Gate yang melempar error juga menolak
+    (fail-closed).
     Return teks jawaban, atau None bila gagal total (pemanggil bisa fallback).
     """
     try:
@@ -42,10 +97,21 @@ async def run_openai_agentic_turn(
 
         from alfa.core import token_usage
         from alfa.core.rate_limiter import check_rate_limit
+        from alfa.core.runtime_ctx import get_current_user_id
 
-        allowed, reason = check_rate_limit(user_id=1, provider=provider)
+        # Rate limit HARUS di-enforce, bukan hanya di-log. Sebelumnya
+        # `allowed` diabaikan sehingga kuota harian tidak pernah membatasi
+        # apa pun. `user_id` diambil dari context runtime (user nyata),
+        # bukan hardcode 1.
+        _uid = get_current_user_id() or 0
+        allowed, reason = check_rate_limit(user_id=_uid, provider=provider)
         if not allowed:
             logger.warning(f"[RateLimit] {provider} {model}: {reason}")
+            return (
+                f"⏳ *Kuota harian tercapai.*\n\n"
+                f"Batas pemakaian untuk hari ini sudah habis ({reason}). "
+                f"Coba lagi besok atau naikkan batasnya di Dashboard > Budget."
+            )
 
         if tools_schema is None:
             txt_low = (user_text or "").lower().strip()
@@ -265,17 +331,8 @@ async def run_openai_agentic_turn(
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
                     raw_args = fn.get("arguments", "{}")
-                    out = None
-                    if approval_gate is not None:
-                        try:
-                            denial = await approval_gate(name, raw_args)
-                            if denial:
-                                out = denial
-                        except Exception as gate_err:
-                            logger.warning(f"[Gate] error (fail-open): {gate_err!r}")
-                    if out is None:
-                        out = await asyncio.to_thread(_execute_tool, name, raw_args)
-                    logger.info(f"[MainBrain] tool {name} -> {out[:80]}")
+                    out = await _resolve_tool_outcome(approval_gate, name, raw_args)
+                    logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
                     convo.append(
                         {
                             "role": "tool",
@@ -350,10 +407,24 @@ async def run_openai_agentic_turn_streaming(
 
         from alfa.core.brain.config import MAX_ITERATIONS
         from alfa.core.brain.convo import _compact_convo
-        from alfa.core.brain.tool_exec import _execute_tool
         from alfa.core.brain.tool_schema import build_openai_tools
+        from alfa.core.rate_limiter import check_rate_limit
+        from alfa.core.runtime_ctx import get_current_user_id
 
         logger = logging.getLogger("MainBrain")
+
+        # Rate limit juga di-enforce pada jalur streaming (lihat fungsi
+        # non-streaming untuk penjelasan).
+        _uid = get_current_user_id() or 0
+        allowed, reason = check_rate_limit(user_id=_uid, provider=provider)
+        if not allowed:
+            logger.warning(f"[RateLimit] {provider} {model}: {reason}")
+            yield (
+                f"⏳ *Kuota harian tercapai.*\n\n"
+                f"Batas pemakaian untuk hari ini sudah habis ({reason}). "
+                f"Coba lagi besok atau naikkan batasnya di Dashboard > Budget."
+            )
+            return
 
         if tools_schema is None:
             txt_low = (user_text or "").lower().strip()
@@ -621,16 +692,7 @@ async def run_openai_agentic_turn_streaming(
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
                     raw_args = fn.get("arguments", "{}")
-                    out = None
-                    if approval_gate is not None:
-                        try:
-                            denial = await approval_gate(name, raw_args)
-                            if denial:
-                                out = denial
-                        except Exception as gate_err:
-                            logger.warning(f"[Gate] error (fail-open): {gate_err!r}")
-                    if out is None:
-                        out = await asyncio.to_thread(_execute_tool, name, raw_args)
+                    out = await _resolve_tool_outcome(approval_gate, name, raw_args)
                     logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
                     convo.append(
                         {

@@ -26,8 +26,8 @@ def init_budgets_table():
                 );
             """)
             conn.commit()
-    except (sqlite3.Error, OSError) as e:
-        logger.error(f"Failed to init user_budgets: {e}")
+    except (sqlite3.Error, OSError):
+        logger.exception("Failed to init user_budgets")
 
 
 # Call init on module load
@@ -45,7 +45,11 @@ def check_rate_limit(user_id: int, provider: str = "") -> tuple[bool, str]:
 
 
 def get_user_usage_today(user_id: int) -> dict[str, Any]:
-    """Returns {total_tokens, total_calls, budget_remaining, budget_limit, call_limit}"""
+    """Returns {total_tokens, total_calls, budget_remaining, budget_limit, call_limit}
+
+    Pemakaian dihitung PER USER. Sebelum kolom `user_id` ada, seluruh pemakaian
+    dijumlahkan global sehingga satu user menghabiskan kuota semua user lain.
+    """
     budget_limit = DEFAULT_TOKEN_LIMIT
     call_limit = DEFAULT_CALL_LIMIT
     total_tokens = 0
@@ -60,19 +64,25 @@ def get_user_usage_today(user_id: int) -> dict[str, Any]:
             if row:
                 budget_limit = row["daily_token_limit"]
                 call_limit = row["daily_call_limit"]
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        logger.exception("Error getting usage")
 
-            # Note: api_token_usage doesn't have user_id, so we sum globally for today
+    # Query usage dipisah dari query budget: tabel `user_budgets` yang belum
+    # ada (mis. DB lama / test tanpa init) tidak boleh ikut menihilkan
+    # pemakaian token — sebelumnya satu try block membuat seluruhnya 0.
+    try:
+        with get_sync_db() as conn:
             usage_row = conn.execute(
                 "SELECT SUM(total_tokens) as total_tokens, COUNT(*) as total_calls "
-                "FROM api_token_usage WHERE date(ts) = date('now')"
+                "FROM api_token_usage "
+                "WHERE date(ts) = date('now') AND COALESCE(user_id, 0) = ?",
+                (int(user_id or 0),),
             ).fetchone()
-
             if usage_row:
                 total_tokens = usage_row["total_tokens"] or 0
                 total_calls = usage_row["total_calls"] or 0
-
-    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
-        logger.error(f"Error getting usage: {e}")
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        logger.exception("Error getting usage")
 
     return {
         "total_tokens": total_tokens,
@@ -101,8 +111,8 @@ def set_user_budget(user_id: int, daily_token_limit: int, daily_call_limit: int)
                 (user_id, daily_token_limit, daily_call_limit),
             )
             conn.commit()
-    except (sqlite3.Error, OSError, ValueError, TypeError) as e:
-        logger.error(f"Error setting user budget: {e}")
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        logger.exception("Error setting user budget")
 
 
 def get_cost_estimate(prompt_text: str, model: str = "") -> dict[str, Any]:

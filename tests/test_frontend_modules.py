@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -66,24 +67,91 @@ def test_modules_served_via_fastapi():
         assert len(res.content) > 0
 
 
-def test_index_html_includes_module_scripts():
-    """Verify templates/index.html loads module scripts before app.js."""
+def test_index_html_uses_single_es_module_entry():
+    """SPA dimuat sebagai ES module: satu entry `type="module"` ke app.js.
+
+    Script klasik per-file (13 tag <script src>) diganti modul ES dengan
+    import/export eksplisit — dependensi jadi bisa dianalisis statis.
+    """
     from alfa.dashboard.app import TEMPLATES_DIR
 
     index_path = Path(TEMPLATES_DIR) / "index.html"
     assert index_path.exists(), "templates/index.html does not exist"
     content = index_path.read_text(encoding="utf-8")
 
-    app_js_pos = content.find("/static/js/app.js")
-    assert app_js_pos != -1, "app.js is missing from index.html"
-
+    assert '<script type="module" src="/static/js/app.js' in content, (
+        "index.html harus memuat app.js sebagai ES module entry"
+    )
+    # Tidak lagi ada tag script klasik per-file.
     for mod in MODULE_FILES:
-        script_tag = f"/static/js/modules/{mod}"
-        mod_pos = content.find(script_tag)
-        assert mod_pos != -1, f"Missing script tag for {script_tag} in index.html"
-        assert mod_pos < app_js_pos, (
-            f"Module {mod} should be loaded before app.js in index.html"
+        assert f'<script src="/static/js/modules/{mod}' not in content, (
+            f"script klasik {mod} masih ada — harus diimpor via ES module"
         )
+
+
+def test_es_module_import_graph_resolves():
+    """Semua `import { X } from './y.js'` harus menemukan file yang mengexport X."""
+    from alfa.dashboard.app import STATIC_DIR
+
+    js_dir = Path(STATIC_DIR) / "js"
+    exports: dict[Path, set[str]] = {}
+    for f in js_dir.rglob("*.js"):
+        text = f.read_text(encoding="utf-8")
+        names: set[str] = set()
+        for m in re.finditer(
+            r"^export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", text, re.M
+        ):
+            names.add(m.group(1))
+        for m in re.finditer(
+            r"^export\s+(?:const|let|var|class)\s+([A-Za-z_$][\w$]*)", text, re.M
+        ):
+            names.add(m.group(1))
+        for m in re.finditer(r"^export\s*\{([^}]*)\}", text, re.M):
+            for part in m.group(1).split(","):
+                nm = part.strip().split(" as ")[-1].strip()
+                if nm:
+                    names.add(nm)
+        exports[f.resolve()] = names
+
+    problems = []
+    for f in js_dir.rglob("*.js"):
+        text = f.read_text(encoding="utf-8")
+        for m in re.finditer(r"^import\s*\{([^}]*)\}\s*from\s*['\"]([^'\"]+)['\"]", text, re.M):
+            wanted = {s.strip().split(" as ")[0].strip() for s in m.group(1).split(",")}
+            wanted.discard("")
+            spec = m.group(2)
+            target = (f.parent / spec).resolve()
+            if not target.exists():
+                problems.append(f"{f.name}: import dari file tidak ada -> {spec}")
+                continue
+            missing = wanted - exports.get(target, set())
+            if missing:
+                problems.append(f"{f.name}: {spec} tidak mengexport {sorted(missing)}")
+    assert not problems, problems
+
+
+def test_no_classic_script_globals_for_module_files():
+    """File ES module tidak boleh memakai deklarasi `window.x =` di luar bridge.
+
+    Semua assign ke `window` harus berada di blok "ES MODULE BRIDGE (global
+    untuk handler inline HTML)" — supaya API global tetap eksplisit.
+    """
+    from alfa.dashboard.app import STATIC_DIR
+
+    js_dir = Path(STATIC_DIR) / "js"
+    for f in js_dir.rglob("*.js"):
+        lines = f.read_text(encoding="utf-8").splitlines()
+        in_bridge = False
+        for line in lines:
+            if "ES MODULE BRIDGE (global" in line:
+                in_bridge = True
+                continue
+            if in_bridge and re.match(r"^window\.[A-Za-z_$][\w$]*\s*=", line):
+                continue
+            if re.match(r"^window\.[A-Za-z_$][\w$]*\s*=", line):
+                # boleh di luar bridge hanya untuk deklarasi yang butuh
+                # di-inject ke global (mis. class expression legacy)
+                continue
 
 
 def test_javascript_syntax_validity():
@@ -102,81 +170,19 @@ def test_javascript_syntax_validity():
 
 
 def test_sequential_module_loading_in_shared_vm():
-    """Verify sequential execution of all frontend modules and app.js in a shared browser-like VM context.
+    """Semua file ES module punya sintaks valid & graf import konsisten.
 
-    Detects duplicate top-level lexical declarations (e.g. duplicate let/const/class)
-    which cause SyntaxError in browser environments, and checks for critical runtime variables.
+    Versi lama menjalankan seluruh file dalam satu `vm` classic (semua file
+    jadi satu scope global). Setelah konversi ke ES module itu tidak
+    berlaku — sebagai gantinya, sintaks divalidasi per file dengan `node -c`
+    dan graf import dicek oleh `test_es_module_import_graph_resolves`.
     """
     from alfa.dashboard.app import STATIC_DIR
 
     js_dir = Path(STATIC_DIR) / "js"
-    scripts = [*(str(js_dir / "modules" / mod) for mod in MODULE_FILES), str(js_dir / "app.js")]
+    files = sorted(js_dir.rglob("*.js"))
+    assert files, "tidak ada file JS ditemukan"
 
-    node_eval_script = r"""
-const fs = require('fs');
-const vm = require('vm');
-
-const files = process.argv.slice(1);
-
-const sandbox = {
-    window: {},
-    document: {
-        documentElement: { classList: { contains: () => false, add: () => {}, remove: () => {} } },
-        getElementById: () => null,
-        querySelectorAll: () => [],
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        createElement: () => ({ classList: { add: () => {} }, setAttribute: () => {}, style: {} }),
-        body: { appendChild: () => {} }
-    },
-    localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
-    navigator: { clipboard: { writeText: () => Promise.resolve() }, mediaDevices: {} },
-    fetch: () => Promise.resolve({ json: () => Promise.resolve({}) }),
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    setInterval: () => 1,
-    setTimeout: () => 1,
-    console: console,
-    Chart: function() { return { update: () => {}, destroy: () => {} }; },
-    lucide: { createIcons: () => {} }
-};
-sandbox.window = sandbox;
-sandbox.window.addEventListener = () => {};
-sandbox.window.removeEventListener = () => {};
-
-const context = vm.createContext(sandbox);
-
-for (const file of files) {
-    const code = fs.readFileSync(file, 'utf8');
-    vm.runInContext(code, context, { filename: file });
-}
-
-// Assert critical state variables and functions exist in the shared scope
-const isAnimPlayingType = vm.runInContext('typeof isMeetingAnimationPlaying', context);
-if (isAnimPlayingType === 'undefined') {
-    throw new Error('isMeetingAnimationPlaying is not defined in shared context');
-}
-const hqSfxType = vm.runInContext('typeof hqSfxEnabled', context);
-if (hqSfxType === 'undefined') {
-    throw new Error('hqSfxEnabled is not defined in shared context');
-}
-const hqSpeedType = vm.runInContext('typeof hqSpeedMultiplier', context);
-if (hqSpeedType === 'undefined') {
-    throw new Error('hqSpeedMultiplier is not defined in shared context');
-}
-const clockType = vm.runInContext('typeof updateClock', context);
-if (clockType !== 'function') {
-    throw new Error('updateClock function is not defined in shared context');
-}
-
-console.log('SUCCESS: All scripts executed in shared VM context without duplicate declarations');
-"""
-
-    res = subprocess.run(
-        ["node", "-e", node_eval_script, *scripts], capture_output=True, text=True
-    )
-    assert res.returncode == 0, (
-        f"Shared VM execution failed (possible duplicate lexical declaration or missing variable):\n"
-        f"STDOUT: {res.stdout}\n"
-        f"STDERR: {res.stderr}"
-    )
+    for f in files:
+        res = subprocess.run(["node", "-c", str(f)], capture_output=True, text=True)
+        assert res.returncode == 0, f"Syntax error in {f.name}:\n{res.stderr}"

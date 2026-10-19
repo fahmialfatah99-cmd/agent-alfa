@@ -9,19 +9,22 @@ from alfa.core.perm.constants import (
     _LABELS,
     APPROVAL_TIMEOUT,
     DEFAULT_TIER,
+    HIGH_TRUST_THRESHOLD,
     NO_CHANNEL_POLICY,
     PERMISSION_GATE_ENABLED,
     SAFE_TOOLS,
+    TIER_MIN_EXPLICIT_APPROVALS,
     TOOL_CLASSIFICATION,
     TRUST_THRESHOLD,
     RiskTier,
     logger,
 )
 from alfa.core.perm.store import (
-    get_trust_score,
+    get_tier_trust,
     is_always_allowed,
     log_permission_decision,
     save_always_allow,
+    update_tier_trust,
     update_trust_score,
 )
 
@@ -37,20 +40,31 @@ def get_tool_tier(tool_name: str) -> RiskTier:
 
 
 def should_auto_approve(chat_id: int, tool_name: str) -> tuple[bool, str]:
-    """Determine if request should be auto-approved based on trust score and tier."""
+    """Tentukan apakah request boleh auto-approve.
+
+    Trust dihitung PER TIER, bukan global. Satu persetujuan tool LOW tidak
+    lagi menaikkan skor tier HIGH/CRITICAL, dan auto-approve sendiri tidak
+    pernah menambah skor. Selain itu, sebuah tier hanya boleh auto-approve
+    setelah jumlah persetujuan eksplisit manusia pada tier tersebut mencapai
+    ``TIER_MIN_EXPLICIT_APPROVALS``.
+    """
     tier = get_tool_tier(tool_name)
-    trust = get_trust_score(chat_id)
 
     # Auto-approve LOW tier always
     if tier == RiskTier.LOW:
         return True, "auto_approved"
+
+    trust, explicit_approvals = get_tier_trust(chat_id, tier.value)
+    minimum = TIER_MIN_EXPLICIT_APPROVALS.get(tier, 0)
+    if explicit_approvals < minimum:
+        return False, ""
 
     # Auto-approve MEDIUM tier if trust >= threshold
     if tier == RiskTier.MEDIUM and trust >= TRUST_THRESHOLD:
         return True, "auto_approved"
 
     # Auto-approve HIGH/CRITICAL only if very high trust
-    if tier in (RiskTier.HIGH, RiskTier.CRITICAL) and trust >= 0.9:
+    if tier in (RiskTier.HIGH, RiskTier.CRITICAL) and trust >= HIGH_TRUST_THRESHOLD:
         return True, "auto_approved"
 
     return False, ""
@@ -100,9 +114,39 @@ def is_enabled() -> bool:
     return PERMISSION_GATE_ENABLED
 
 
+async def _allow_all_gate(tool_name: str, arguments_json: str = "{}") -> str | None:
+    """Gate permisif — selalu mengizinkan.
+
+    Dipakai HANYA ketika operator mematikan permission gate lewat
+    konfigurasi (``PERMISSION_GATE=off`` atau ``ALFA_UNRESTRICTED=true``).
+    Sengaja berupa callable (bukan ``None``) supaya ``approval_gate=None``
+    di sisi brain selalu berarti "panggil lupa menyambungkan gate" dan
+    ditolak fail-closed.
+    """
+    return None
+
+
+#: Sentinel gate permisif — bandingkan dengan ``is`` untuk mendeteksi mode permisif.
+ALLOW_ALL_GATE = _allow_all_gate
+
+
+def gate_is_interactive(gate) -> bool:
+    """True bila gate benar-benar meminta persetujuan manusia.
+
+    ``None`` dan :data:`ALLOW_ALL_GATE` berarti tidak ada kanal approval
+    interaktif (operator mematikan gate, atau tidak ada chat id).
+    """
+    return gate is not None and gate is not ALLOW_ALL_GATE
+
+
 def make_gate(chat_id: int | None):
     """Kembalikan closure async gate(tool_name, args_json)->Optional[str].
-    Return None = boleh jalan; str = pesan penolakan utk dimakan model."""
+    Return None = boleh jalan; str = pesan penolakan utk dimakan model.
+
+    Mengembalikan ``None`` bila gate dimatikan operator — pemanggil wajib
+    menggantinya dengan :data:`ALLOW_ALL_GATE` sebelum meneruskan ke brain
+    (lihat ``alfa.bot.turn_executor``).
+    """
     if not PERMISSION_GATE_ENABLED or chat_id is None:
         return None
 
@@ -188,10 +232,30 @@ def _record(
         )
     except Exception:  # noqa: BLE001
         pass
-    if decision in ("once", "always", "auto_approved"):
+    # Hanya keputusan manusia EKSPLISIT yang mengubah trust. Auto-approve
+    # tidak pernah menambah skor — kalau tidak, satu tool LOW yang
+    # auto-lolos akan menaikkan trust ke 1.0 dan membuka tool CRITICAL.
+    if decision in ("once", "always"):
         try:
+            update_tier_trust(
+                int(chat_id),
+                tier.value,
+                was_safe=True,
+                response_time=rt,
+            )
             update_trust_score(
                 int(chat_id), was_safe=(tier == RiskTier.LOW), response_time=rt
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    elif decision == "deny":
+        # Penolakan eksplisit menurunkan trust tier tsb (bukan sistem deny).
+        try:
+            update_tier_trust(
+                int(chat_id),
+                tier.value,
+                was_safe=False,
+                response_time=rt,
             )
         except Exception:  # noqa: BLE001
             pass

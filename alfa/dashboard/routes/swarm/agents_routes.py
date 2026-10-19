@@ -2,9 +2,10 @@ import json
 import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from alfa.core import database
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ async def get_custom_agents():
     return {"status": "success", "total": len(agents), "agents": agents}
 
 
-@router.post("/api/agents")
+@router.post("/api/agents", dependencies=[Depends(require_admin)])
 async def create_custom_agent(payload: dict[str, Any]):
     """Create a new specialized AI agent."""
     name = payload.get("name")
@@ -48,21 +49,21 @@ async def create_custom_agent(payload: dict[str, Any]):
     return res
 
 
-@router.put("/api/agents/{agent_id}")
+@router.put("/api/agents/{agent_id}", dependencies=[Depends(require_admin)])
 async def update_custom_agent_endpoint(agent_id: int, payload: dict[str, Any]):
     """Update custom agent configuration."""
     res = database.update_custom_agent_sync(agent_id, payload)
     return res
 
 
-@router.delete("/api/agents/{agent_id}")
+@router.delete("/api/agents/{agent_id}", dependencies=[Depends(require_admin)])
 async def delete_custom_agent_endpoint(agent_id: int):
     """Delete a custom agent."""
     res = database.delete_custom_agent_sync(agent_id)
     return res
 
 
-@router.post("/api/agents/{agent_id}/chat")
+@router.post("/api/agents/{agent_id}/chat", dependencies=[Depends(require_admin)])
 async def chat_with_custom_agent(agent_id: int, payload: dict[str, Any]):
     """Send a test message directly to a specific custom agent."""
     prompt = payload.get("message")
@@ -154,7 +155,7 @@ async def get_agent_activity():
     }
 
 
-@router.post("/api/agents/{agent_id}/execute")
+@router.post("/api/agents/{agent_id}/execute", dependencies=[Depends(require_admin)])
 async def execute_agent_task(agent_id: int, payload: dict[str, Any]):
     """Directly dispatch an autonomous task to a specialized agent with real tool execution."""
     instruction = payload.get("instruction")

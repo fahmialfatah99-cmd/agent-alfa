@@ -1,3 +1,6 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { showToast } from './state.js';
 // ==================== PIPELINE CANVAS STUDIO ====================
 const cvState = { nodes: [], edges: [], seq: 1, dragging: null, linking: null, view: 'canvas', toolNames: [],
                   trigger: { enabled: false, minutes: 60 } };
@@ -28,7 +31,7 @@ const cvPresets = {
     ], edges: [ { from: 'cek', to: 'lapor' } ] },
 };
 
-function cvSetView(mode) {
+export function cvSetView(mode) {
     cvState.view = mode;
     document.getElementById('cv-canvas-wrap').classList.toggle('hidden', mode !== 'canvas');
     document.getElementById('cv-list-wrap').classList.toggle('hidden', mode !== 'list');
@@ -112,7 +115,7 @@ function cvValidate() {
     return issues;
 }
 
-function cvLoadPreset(key) {
+export function cvLoadPreset(key) {
     const p = cvPresets[key];
     if (!p) return;
     cvState.nodes = JSON.parse(JSON.stringify(p.nodes));
@@ -123,7 +126,7 @@ function cvLoadPreset(key) {
     if (cvState.view === 'canvas') setTimeout(() => cvSetView('list'), 150), setTimeout(() => cvSetView('canvas'), 1400);
 }
 
-function initCanvas() {
+export function initCanvas() {
     const sel = document.getElementById('cv-load');
     if (!sel || sel.options.length > 1) return;
     fetch('/api/pipelines').then(r => r.json()).then(d => {
@@ -142,14 +145,14 @@ function cvStatus(msg, isErr = false) {
     el.className = isErr ? 'text-xs text-rose-400 ml-auto font-mono' : 'text-xs text-emerald-400 ml-auto font-mono';
 }
 
-function cvNew() {
+export function cvNew() {
     cvState.nodes = []; cvState.edges = []; cvState.seq = 1; cvState.loadedId = '';
     document.getElementById('cv-pid').value = 'my_pipeline';
     cvRender();
     cvStatus('Kanvas baru dibuat');
 }
 
-async function cvLoad(pid) {
+export async function cvLoad(pid) {
     if (!pid) return;
     try {
         const res = await fetch('/api/pipelines/' + encodeURIComponent(pid));
@@ -180,7 +183,7 @@ async function cvLoad(pid) {
     } catch (e) { cvStatus('Gagal muat: ' + e.message, true); }
 }
 
-async function cvSave(silent = false) {
+export async function cvSave(silent = false) {
     const pid = document.getElementById('cv-pid').value.trim();
     if (!pid) return cvStatus('Beri nama pipeline dulu! (kolom kiri atas)', true);
     if (!cvState.nodes.length) return cvStatus('Kanvas masih kosong — tambah step atau pilih ✨ contoh.', true);
@@ -205,7 +208,7 @@ async function cvSave(silent = false) {
     } catch (e) { if (!silent) cvStatus('Simpan gagal: ' + e.message, true); }
 }
 
-async function cvRun() {
+export async function cvRun() {
     const pid = document.getElementById('cv-pid').value.trim();
     if (!pid) return cvStatus('Beri nama pipeline dulu!', true);
     const issues = cvValidate();
@@ -233,7 +236,7 @@ async function cvRun() {
     btn.disabled = false; btn.innerText = '▶ Jalankan';
 }
 
-function cvAddNode(type) {
+export function cvAddNode(type) {
     if (cvState.view !== 'canvas') cvSetView('canvas');
     cvState.seq++;
     const n = { id: `step_${cvState.seq}`, type,
@@ -244,7 +247,7 @@ function cvAddNode(type) {
     cvRender();
 }
 
-function cvDeleteNode(id) {
+export function cvDeleteNode(id) {
     cvState.nodes = cvState.nodes.filter(n => n.id !== id);
     cvState.edges = cvState.edges.filter(e => e.from !== id && e.to !== id);
     cvRender();
@@ -435,7 +438,7 @@ function cvSerialize() {
     });
 }
 
-function cvTriggerChanged() {
+export function cvTriggerChanged() {
     const en = document.getElementById('cv-trig-en').checked;
     const min = parseInt(document.getElementById('cv-trig-min').value) || 60;
     cvState.trigger = { enabled: en, minutes: Math.max(5, min) };
@@ -444,7 +447,7 @@ function cvTriggerChanged() {
         `Webhook: POST /api/pipelines/${pid}/webhook`;
 }
 
-async function cvShowRuns() {
+export async function cvShowRuns() {
     const pid = document.getElementById('cv-pid').value.trim();
     if (!pid) return cvStatus('Beri nama pipeline dulu!', true);
     try {
@@ -471,11 +474,11 @@ fetch("/api/system/home-dir").then(r => r.json()).then(d => {
 
 
 // ==================== GALERI SITUS & KUOTA ====================
-function _escHtml(s) {
+export function _escHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-async function fetchSites(isManual = false) {
+export async function fetchSites(isManual = false) {
     const grid = document.getElementById('sites-grid');
     try {
         const res = await fetch('/api/sites');
@@ -521,7 +524,7 @@ async function fetchSites(isManual = false) {
     }
 }
 
-async function siteAction(slug, action) {
+export async function siteAction(slug, action) {
     try {
         const res = await fetch(`/api/sites/${encodeURIComponent(slug)}/${action}`, { method: 'POST' });
         const data = await res.json();
@@ -533,7 +536,7 @@ async function siteAction(slug, action) {
     fetchSites();
 }
 
-async function fetchBudget(isManual = false) {
+export async function fetchBudget(isManual = false) {
     const box = document.getElementById('budget-box');
     const bar = document.getElementById('budget-bar');
     try {
@@ -548,3 +551,19 @@ async function fetchBudget(isManual = false) {
         box.textContent = 'Kuota error: ' + err.message;
     }
 }
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window._escHtml = _escHtml;
+window.cvAddNode = cvAddNode;
+window.cvDeleteNode = cvDeleteNode;
+window.cvLoad = cvLoad;
+window.cvLoadPreset = cvLoadPreset;
+window.cvNew = cvNew;
+window.cvRun = cvRun;
+window.cvSave = cvSave;
+window.cvSetView = cvSetView;
+window.cvShowRuns = cvShowRuns;
+window.cvTriggerChanged = cvTriggerChanged;
+window.fetchBudget = fetchBudget;
+window.fetchSites = fetchSites;
+window.siteAction = siteAction;

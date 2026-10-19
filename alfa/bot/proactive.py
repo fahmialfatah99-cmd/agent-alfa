@@ -721,9 +721,13 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                             try:
                                 import urllib.error
                                 import urllib.request
-                                req = urllib.request.Request("http://127.0.0.1:3000/health", headers={"User-Agent": "ALFA-Watchdog"})
-                                with urllib.request.urlopen(req, timeout=4) as resp:
-                                    return resp.status == 200
+                                # Healthcheck ke service WA lokal (loopback).
+                                # Skema http+host di-hardcode di bawah, bukan
+                                # dari input pengguna.
+                                url = "http://127.0.0.1:3000/health"
+                                req = urllib.request.Request(url, headers={"User-Agent": "ALFA-Watchdog"})
+                                with urllib.request.urlopen(req, timeout=4) as resp:  # nosec B310 - fixed loopback healthcheck URL
+                                    return bool(resp.status == 200)
                             except (urllib.error.URLError, TimeoutError, OSError):
                                 return False
 

@@ -50,16 +50,60 @@ ALFA Agent implements several security measures:
 - Whitelist-only tool execution
 - User ID verification before operation
 - Owner-level controls for sensitive operations
+- **Deny-by-default**: setiap jalur pemanggilan tool WAJIB menyambungkan
+  permission gate. Tanpa gate, tool ditolak (bukan dijalankan). Gate yang
+  melempar error juga menolak (fail-closed).
+- **Trust per tier**: skor kepercayaan dihitung per `(chat, tier)`, bukan
+  global. Persetujuan tool LOW tidak pernah membuka tool HIGH/CRITICAL, dan
+  auto-approve sendiri tidak menambah skor. Auto-approve sebuah tier juga
+  mensyaratkan jumlah persetujuan eksplisit manusia minimum
+  (`PERMISSION_GATE_MIN_APPROVALS_*`).
+- **Risk tier fail-closed**: tool yang belum masuk `TOOL_CLASSIFICATION`
+  dianggap tier HIGH. Tool vault/kritis diklasifikasi eksplisit
+  (`vault_delete_secret` = CRITICAL, `vault_get_secret`/`vault_store_secret`
+  = HIGH).
 
 ### 3. Sandboxed Execution
 - Git operations run in isolated sandboxes
 - File system access is restricted
 - Network calls are monitored and logged
+- **Containment `working_dir`**: `working_dir` wajib berada di dalam root
+  yang diizinkan (`ALFA_SANDBOX_ROOT`, default: folder kerja ALFA saja).
+  Root `/`, `$HOME`, dan nenek moyang `$HOME` selalu ditolak — mount
+  `host:host` ke path tersebut membuat seluruh host filesystem terbaca
+  di dalam "sandbox".
+- **Fail-closed tanpa Docker**: `execute_bash_command` DAN
+  `execute_python_sandbox` sama-sama menolak eksekusi di host bila Docker
+  tidak tersedia, kecuali operator opting-in eksplisit lewat
+  `ALFA_ALLOW_HOST_EXEC=true`.
+- **Kripto fail-closed**: `encrypt_key` melempar error bila AES-GCM tidak
+  tersedia — API key tidak pernah disimpan plaintext diam-diam.
 
 ### 4. Secure Configuration
 - Environment variables for secrets (never hardcode)
 - `.env.example` provided for safe configuration
 - Sensitive data encrypted at rest
+- **Dashboard fail-closed**: seluruh endpoint `/api/*` wajib memiliki session
+  valid atau token. `DASHBOARD_AUTH_TOKEN` kosong TIDAK lagi membuka API
+  untuk semua orang. Mode development tanpa login hanya lewat escape hatch
+  eksplisit `ALFA_INSECURE_LOCAL=true` (klien lokal saja, dan boot ditolak
+  bila `DASHBOARD_HOST` bind ke `0.0.0.0/::`).
+- **RBAC default-deny**: seluruh endpoint mutating yang menjalankan aksi
+  nyata di host (eksekusi tool/agent/swarm, rapat, antrean misi, broadcast,
+  kredensial Drive, WhatsApp, passkey) memerlukan peran admin.
+  Pencocokan path publik memakai pencocokan PERSIS — prefix match pernah
+  membuat `/docs` dan `/api/v1/*` publik.
+
+### 5. XSS & Content Security Policy
+- Output LLM (rapat, chat, consensus) disanitasi **dua lapis**:
+  1. `safeMarkdown()` → `marked` lalu `DOMPurify.sanitize()` sebelum masuk DOM;
+  2. CSP ketat (`default-src 'self'`, `script-src` berbasis nonce tanpa
+     `'unsafe-inline'`) sebagai jaring pengaman kedua.
+- Semua interpolasi data eksternal (judul rapat, nama agen, ringkasan
+  eksekusi, produk marketplace, secret vault, finding keamanan, katalog
+  tool) di-escape dengan `escHtml()` lengkap (`& < > " '`).
+- SPA dimuat sebagai ES module dengan import/export eksplisit — dependensi
+  antar-file bisa dianalisis statis dan diuji, bukan lagi global implisit.
 
 ### 5. Code Quality & Security
 - Automated linting with Ruff

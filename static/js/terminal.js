@@ -1,3 +1,6 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { escAttr, showToast, updateSwarmArena } from './modules/state.js';
 /* ==========================================================================
    ALFA DASHBOARD — Live Terminal, Log Streaming & ANSI Parser
    ========================================================================== */
@@ -153,7 +156,7 @@ class LogsWebSocketClient {
 }
 window.LogsWebSocketClient = LogsWebSocketClient;
 
-async function fetchServiceLogs() {
+export async function fetchServiceLogs() {
     const svc = document.getElementById('log-service-select').value;
     const lines = document.getElementById('log-lines-select').value;
     const logBox = document.getElementById('service-logs-viewer');
@@ -169,14 +172,14 @@ async function fetchServiceLogs() {
     }
 }
 
-function copyLogsToClipboard() {
+export function copyLogsToClipboard() {
     const text = document.getElementById('service-logs-viewer').innerText;
     navigator.clipboard.writeText(text);
     showToast('Log service disalin ke clipboard!', 'info');
 }
 
 // Toggle Linux CLI Drawer
-function toggleChatCliDrawer(forceState = null) {
+export function toggleChatCliDrawer(forceState = null) {
     const drawer = document.getElementById('chat-cli-drawer');
     if (!drawer) return;
     if (forceState === false || (forceState === null && !drawer.classList.contains('hidden'))) {
@@ -188,14 +191,14 @@ function toggleChatCliDrawer(forceState = null) {
     lucide.createIcons();
 }
 
-function handleCliInputKeyDown(e) {
+export function handleCliInputKeyDown(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         runCliTerminalCommand();
     }
 }
 
-async function runCliTerminalCommand() {
+export async function runCliTerminalCommand() {
     const input = document.getElementById('chat-cli-input');
     const outDiv = document.getElementById('chat-cli-output');
     const btn = document.getElementById('chat-cli-run-btn');
@@ -256,7 +259,7 @@ const SW_TAG_STYLE = {
     ERROR:   'text-rose-400 font-bold',
 };
 
-async function fetchSwarmLive() {
+export async function fetchSwarmLive() {
     if (document.hidden) return;
     const box = document.getElementById('sw-terminal');
     const arena = document.getElementById('swarm-arena');
@@ -266,11 +269,7 @@ async function fetchSwarmLive() {
         const data = await res.json();
 
         // Update Swarm Live Arena Visualizer DOM elements
-        if (typeof updateSwarmArena === 'function') {
-            updateSwarmArena(data);
-        } else if (window.updateSwarmArena) {
-            window.updateSwarmArena(data);
-        }
+        updateSwarmArena(data);
 
         const dot = document.getElementById('sw-live-dot');
         if (dot) {
@@ -302,7 +301,7 @@ async function fetchSwarmLive() {
     } catch (err) { /* silent */ }
 }
 
-function toggleSwLiveScroll() {
+export function toggleSwLiveScroll() {
     _swAutoScroll = !_swAutoScroll;
     const b = document.getElementById('btn-sw-scroll');
     if (b) {
@@ -312,7 +311,7 @@ function toggleSwLiveScroll() {
     }
 }
 
-function clearSwLiveView() {
+export function clearSwLiveView() {
     const box = document.getElementById('sw-terminal');
     if (box) box.innerHTML = '<p class="text-slate-600">// tampilan dibersihkan (log tetap berjalan)</p>';
 }
@@ -418,7 +417,7 @@ function scheduleTelemetryReconnect() {
 let _liveLogsClient = null;
 let _isLiveLogsStreaming = false;
 
-function toggleLiveLogsStream() {
+export function toggleLiveLogsStream() {
     const btn = document.getElementById('btn-toggle-live-logs');
     const dot = document.getElementById('live-logs-dot');
     const label = document.getElementById('live-logs-label');
@@ -441,7 +440,7 @@ function toggleLiveLogsStream() {
         if (label) {
             label.innerText = "Live Stream";
         }
-        if (typeof showToast === 'function') {
+        {
             showToast("Streaming log WebSocket dihentikan.", "info");
         }
     } else {
@@ -464,13 +463,13 @@ function toggleLiveLogsStream() {
             if (!viewer) return;
             const line = data.data || data.line || (typeof data === "string" ? data : "");
             if (!line) return;
-            const parsed = typeof parseAnsiToHtml === 'function' ? parseAnsiToHtml(line) : line;
+            const parsed = parseAnsiToHtml(line);
             viewer.innerHTML += parsed;
             viewer.scrollTop = viewer.scrollHeight;
         });
 
         _liveLogsClient.connect();
-        if (typeof showToast === 'function') {
+        {
             showToast(`Streaming log ${svc} aktif via WebSocket!`, "success");
         }
     }
@@ -485,3 +484,14 @@ if (document.readyState === 'loading') {
     initTelemetryWebSocket();
 }
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.clearSwLiveView = clearSwLiveView;
+window.copyLogsToClipboard = copyLogsToClipboard;
+window.fetchServiceLogs = fetchServiceLogs;
+window.fetchSwarmLive = fetchSwarmLive;
+window.handleCliInputKeyDown = handleCliInputKeyDown;
+window.runCliTerminalCommand = runCliTerminalCommand;
+window.toggleChatCliDrawer = toggleChatCliDrawer;
+window.toggleLiveLogsStream = toggleLiveLogsStream;
+window.toggleSwLiveScroll = toggleSwLiveScroll;

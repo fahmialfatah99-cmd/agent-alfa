@@ -1,10 +1,15 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { decorateArtifactCards, openMediaPreviewModal } from './app.js';
+import { speakTextMessage } from './modules/audio.js';
+import { safeMarkdown, showToast } from './modules/state.js';
 /* ==========================================================================
    ALFA DASHBOARD — Live AI Chat Engine & SSE EventSource Streaming
    ========================================================================== */
 // ==================== MULTIMODAL LIVE AI CONSOLE CONTROLLER ====================
 let attachedChatFiles = [];
 
-async function clearWebChatHistory() {
+export async function clearWebChatHistory() {
     if (!confirm('Apakah kamu yakin ingin menghapus seluruh riwayat percakapan dari layar dan database memori?')) return;
     try {
         const res = await fetch('/api/chat/history', { method: 'DELETE' });
@@ -23,7 +28,7 @@ async function clearWebChatHistory() {
     }
 }
 
-function handleChatFilesSelected(e) {
+export function handleChatFilesSelected(e) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     processIncomingChatFiles(files);
@@ -115,13 +120,13 @@ function renderChatAttachmentsPreview() {
     lucide.createIcons();
 }
 
-function removeChatAttachment(index) {
+export function removeChatAttachment(index) {
     attachedChatFiles.splice(index, 1);
     renderChatAttachmentsPreview();
 }
 
 // ==================== DYNAMIC AI MODEL SELECTOR CONTROLLER ====================
-async function loadChatAvailableModels() {
+export async function loadChatAvailableModels() {
     const selector = document.getElementById('chat-model-selector');
     if (!selector) return;
     try {
@@ -172,7 +177,7 @@ async function loadChatAvailableModels() {
     }
 }
 
-async function onChatModelChanged(selectEl) {
+export async function onChatModelChanged(selectEl) {
     const selectedOpt = selectEl.options[selectEl.selectedIndex];
     const modelId = selectEl.value;
     const keyId = selectedOpt ? selectedOpt.getAttribute('data-key-id') : null;
@@ -197,7 +202,7 @@ let speechRecognition = null;
 let isRecordingVoice = false;
 
 // Auto-grow textarea smoothly as user types
-function autoGrowChatInput(textarea) {
+export function autoGrowChatInput(textarea) {
     if (!textarea) return;
     textarea.style.height = 'auto';
     const newHeight = Math.min(textarea.scrollHeight, 150);
@@ -205,7 +210,7 @@ function autoGrowChatInput(textarea) {
 }
 
 // Handle Enter to send, Shift+Enter for newline
-function handleChatKeyDown(e) {
+export function handleChatKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         const form = document.getElementById('chat-form');
@@ -217,7 +222,7 @@ function handleChatKeyDown(e) {
 }
 
 // Handle slash command popover
-function handleSlashCommandInput(textarea) {
+export function handleSlashCommandInput(textarea) {
     const popover = document.getElementById('chat-slash-popover');
     if (!popover) return;
     const val = textarea.value;
@@ -228,7 +233,7 @@ function handleSlashCommandInput(textarea) {
     }
 }
 
-function insertSlashCommand(cmd) {
+export function insertSlashCommand(cmd) {
     const input = document.getElementById('chat-input-text');
     const popover = document.getElementById('chat-slash-popover');
     if (input) {
@@ -240,7 +245,7 @@ function insertSlashCommand(cmd) {
 }
 
 // Switch Expert Persona Mode
-function setChatExpertMode(mode) {
+export function setChatExpertMode(mode) {
     currentExpertMode = mode;
     document.querySelectorAll('.chat-mode-pill').forEach(pill => {
         pill.classList.remove('bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/30', 'font-bold');
@@ -262,7 +267,7 @@ function setChatExpertMode(mode) {
 }
 
 // Speech-to-Text Voice Recording (Web Speech API)
-function toggleVoiceRecording() {
+export function toggleVoiceRecording() {
     const micBtn = document.getElementById('chat-mic-btn');
     const micLabel = document.getElementById('chat-mic-label');
     const input = document.getElementById('chat-input-text');
@@ -339,49 +344,7 @@ function toggleVoiceRecording() {
 }
 
 // Text-to-Speech (Voice Readout with Natural Voice Selection)
-function speakTextMessage(text) {
-    if (!('speechSynthesis' in window)) {
-        showToast('Browser Anda tidak mendukung Text-to-Speech.', 'warning');
-        return;
-    }
-    try {
-        window.speechSynthesis.cancel();
-        if (!text || !text.trim()) {
-            showToast('Tidak ada teks untuk dibacakan.', 'info');
-            return;
-        }
 
-        // Clean markdown symbols, code blocks, URLs for natural pronunciation
-        const cleanText = text
-            .replace(/```[\s\S]*?```/g, ' [cuplikan kode] ')
-            .replace(/`[^`]*`/g, ' ')
-            .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-            .replace(/https?:\/\/\S+/g, ' ')
-            .replace(/[#*`_\[\]\(\)>~|\\]/g, ' ')
-            .replace(/\n+/g, '. ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 900);
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'id-ID';
-        utterance.rate = 1.05;
-        utterance.pitch = 1.0;
-
-        // Pick best natural voice if available
-        const voices = window.speechSynthesis.getVoices();
-        const idVoice = voices.find(v => v.lang.startsWith('id') || v.name.toLowerCase().includes('indonesia'));
-        if (idVoice) utterance.voice = idVoice;
-
-        utterance.onstart = () => showToast('🔊 Membacakan jawaban AI...', 'info');
-        utterance.onerror = (e) => console.warn('Speech synthesis error:', e);
-
-        window.speechSynthesis.speak(utterance);
-    } catch (err) {
-        console.error('TTS error:', err);
-        showToast('Gagal memutar audio: ' + err.message, 'error');
-    }
-}
 
 // Copy Text with Toast
 function copyTextMessage(text, btnEl = null) {
@@ -399,7 +362,7 @@ function copyTextMessage(text, btnEl = null) {
 }
 
 // Export Conversation to Markdown or JSON
-async function exportCurrentChat(format = 'markdown') {
+export async function exportCurrentChat(format = 'markdown') {
     try {
         showToast('Menyiapkan berkas ekspor percakapan...', 'info');
         window.location.href = `/api/chat/export?format=${format}`;
@@ -475,7 +438,7 @@ function enhanceCodeBlocks(container) {
 }
 
 // Copy Code Helper
-function copyCodeSnippet(btn, preId) {
+export function copyCodeSnippet(btn, preId) {
     const pre = document.getElementById(preId);
     if (!pre) return;
     navigator.clipboard.writeText(pre.innerText).then(() => {
@@ -488,7 +451,7 @@ function copyCodeSnippet(btn, preId) {
 }
 
 // Execute Code in Native Python/Bash Sandbox from Chat
-async function executeInteractiveCode(btn, preId, lang, outputId) {
+export async function executeInteractiveCode(btn, preId, lang, outputId) {
     const pre = document.getElementById(preId);
     const drawer = document.getElementById(outputId);
     if (!pre || !drawer) return;
@@ -551,7 +514,7 @@ async function executeInteractiveCode(btn, preId, lang, outputId) {
 }
 
 // Live Chat AI with Multimodal Payload, Expert Modes & Next-Gen Streaming Display
-async function sendWebChat(e) {
+export async function sendWebChat(e) {
     e.preventDefault();
     const input = document.getElementById('chat-input-text');
     const msg = input.value.trim();
@@ -798,7 +761,7 @@ async function sendWebChat(e) {
                             ensureBubbleWrapper();
                             streamedText += data.chunk;
                             if (bodyEl) {
-                                bodyEl.innerHTML = marked.parse(streamedText);
+                                bodyEl.innerHTML = safeMarkdown(streamedText);
                                 box.scrollTop = box.scrollHeight;
                             }
                         } else if (data.type === 'done') {
@@ -811,7 +774,7 @@ async function sendWebChat(e) {
 
                             const finalReply = streamedText.trim() || data.reply || '';
                             if (bodyEl && finalReply) {
-                                bodyEl.innerHTML = marked.parse(finalReply);
+                                bodyEl.innerHTML = safeMarkdown(finalReply);
                             }
 
                             const toolbar = document.getElementById(`${responseId}-toolbar`);
@@ -858,7 +821,7 @@ async function sendWebChat(e) {
 }
 
 // Start New Clean Chat Session
-function startNewChatSession() {
+export function startNewChatSession() {
     const box = document.getElementById('chat-messages-box');
     if (box) {
         box.innerHTML = `
@@ -883,7 +846,7 @@ function startNewChatSession() {
 }
 
 // Regenerate Last Turn
-function regenerateLastTurn() {
+export function regenerateLastTurn() {
     if (!lastUserMessage && lastUserFiles.length === 0) {
         showToast('Tidak ada pesan sebelumnya untuk diulang.', 'info');
         return;
@@ -894,7 +857,7 @@ function regenerateLastTurn() {
     document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
 }
 
-function sendPresetChat(text) {
+export function sendPresetChat(text) {
     document.getElementById('chat-input-text').value = text;
     autoGrowChatInput(document.getElementById('chat-input-text'));
     document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -1008,3 +971,22 @@ document.addEventListener("DOMContentLoaded", () => {
     loadChatAvailableModels();
 });
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.autoGrowChatInput = autoGrowChatInput;
+window.clearWebChatHistory = clearWebChatHistory;
+window.copyCodeSnippet = copyCodeSnippet;
+window.executeInteractiveCode = executeInteractiveCode;
+window.exportCurrentChat = exportCurrentChat;
+window.handleChatFilesSelected = handleChatFilesSelected;
+window.handleChatKeyDown = handleChatKeyDown;
+window.handleSlashCommandInput = handleSlashCommandInput;
+window.insertSlashCommand = insertSlashCommand;
+window.onChatModelChanged = onChatModelChanged;
+window.regenerateLastTurn = regenerateLastTurn;
+window.removeChatAttachment = removeChatAttachment;
+window.sendPresetChat = sendPresetChat;
+window.sendWebChat = sendWebChat;
+window.setChatExpertMode = setChatExpertMode;
+window.startNewChatSession = startNewChatSession;
+window.toggleVoiceRecording = toggleVoiceRecording;

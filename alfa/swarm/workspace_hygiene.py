@@ -10,7 +10,9 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
+from contextvars import ContextVar
 from typing import Any
 
 from alfa import tools
@@ -102,7 +104,93 @@ _EXEC_FS_SNAPSHOT: dict[str, str] = {}
 LIVE_FEED_FILE = os.path.join(SWARM_OUTPUT_DIR, "live_meeting_feed.jsonl")
 CANCEL_FLAG_FILE = os.path.join(SWARM_OUTPUT_DIR, "swarm_cancel.flag")
 LIVE_LOG: collections.deque = collections.deque(maxlen=400)
+#: Legacy: global tunggal. Digantikan registry per-sesi di bawah.
 MEETING_RUNNING = False
+
+
+# ── Registry sesi swarm (per-sesi, bukan global) ───────────────────────────
+#
+# Sebelumnya `MEETING_RUNNING` dan flag pembatalan bersifat global modul:
+#   * dua sesi paralel → sesi yang selesai pertama mematikan flag, sehingga
+#     `request_cancel_swarm()` untuk sesi yang MASIH berjalan melaporkan
+#     "tidak ada sesi aktif";
+#   * flag pembatalan di path tetap → cancel untuk satu sesi ikut membatalkan
+#     sesi lain.
+#
+# Kini state disimpan per `session_id`.
+class _SwarmSessionState:
+    """State runtime satu sesi swarm."""
+
+    __slots__ = ("session_id", "cancel_flag", "running")
+
+    def __init__(self, session_id: str, cancel_flag: str) -> None:
+        self.session_id = session_id
+        self.cancel_flag = cancel_flag
+        self.running = False
+
+
+_SESSIONS: dict[str, _SwarmSessionState] = {}
+_SESSIONS_LOCK = threading.Lock()
+_current_session_id: ContextVar[str | None] = ContextVar(
+    "alfa_swarm_session_id", default=None
+)
+
+
+def session_cancel_flag_path(session_id: str) -> str:
+    """Path flag pembatalan KHUSUS satu sesi."""
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", str(session_id or "default"))
+    return os.path.join(_get_swarm_output_dir(), f"swarm_cancel_{safe}.flag")
+
+
+def register_session(session_id: str | None) -> str:
+    """Tandai sesi swarm aktif & jadikan sesi konteks saat ini."""
+    global MEETING_RUNNING
+    sid = str(session_id or "default")
+    with _SESSIONS_LOCK:
+        state = _SESSIONS.get(sid)
+        if state is None:
+            state = _SwarmSessionState(sid, session_cancel_flag_path(sid))
+            _SESSIONS[sid] = state
+        state.running = True
+        MEETING_RUNNING = True
+    _current_session_id.set(sid)
+    return sid
+
+
+def unregister_session(session_id: str | None = None) -> None:
+    """Tandai sesi selesai (hanya sesi itu — sesi lain tetap berjalan)."""
+    global MEETING_RUNNING
+    sid = str(session_id) if session_id else _current_session_id.get()
+    if not sid:
+        return
+    with _SESSIONS_LOCK:
+        state = _SESSIONS.get(sid)
+        if state is not None:
+            state.running = False
+        MEETING_RUNNING = any(s.running for s in _SESSIONS.values())
+    if _current_session_id.get() == sid:
+        _current_session_id.set(None)
+
+
+def set_current_session(session_id: str | None) -> None:
+    """Set sesi konteks (dipakai worker/queue agar cancel terarah)."""
+    _current_session_id.set(str(session_id) if session_id else None)
+
+
+def current_session_id() -> str | None:
+    return _current_session_id.get()
+
+
+def active_session_ids() -> list[str]:
+    """Daftar id sesi yang sedang berjalan."""
+    with _SESSIONS_LOCK:
+        return [sid for sid, st in _SESSIONS.items() if st.running]
+
+
+def any_session_running() -> bool:
+    """True bila ada satu pun sesi swarm yang aktif."""
+    with _SESSIONS_LOCK:
+        return any(st.running for st in _SESSIONS.values())
 
 
 def _get_swarm_output_dir() -> str:
@@ -373,17 +461,29 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
         snapshot.update(_sandbox_project_dirs())
 
 
-def request_cancel_swarm() -> bool:
+def request_cancel_swarm(session_id: str | None = None) -> bool:
     """Minta pembatalan eksekusi swarm yang sedang berjalan.
-    Return True bila memang ada sesi aktif untuk dibatalkan."""
+
+    ``session_id`` menunjuk sesi tertentu; bila kosong, sesi konteks (atau
+    sesi aktif pertama) yang dibatalkan. Return True bila sesi yang dituju
+    memang sedang berjalan.
+    """
     from alfa.swarm.live_logger import log_live
 
-    if not MEETING_RUNNING:
+    sid = session_id or _current_session_id.get()
+    if not sid:
+        active = active_session_ids()
+        sid = active[0] if active else None
+    if not sid:
+        return False
+    with _SESSIONS_LOCK:
+        state = _SESSIONS.get(sid)
+        running = bool(state and state.running)
+    if not running:
         return False
     try:
-        output_dir = _get_swarm_output_dir()
-        flag_file = os.path.join(output_dir, "swarm_cancel.flag")
-        os.makedirs(output_dir, exist_ok=True)
+        flag_file = session_cancel_flag_path(sid)
+        os.makedirs(os.path.dirname(flag_file), exist_ok=True)
         with open(flag_file, "w", encoding="utf-8") as f:
             f.write(str(time.time()))
     except OSError:
@@ -395,15 +495,28 @@ def request_cancel_swarm() -> bool:
     return True
 
 
-def _cancel_requested() -> bool:
+def _cancel_requested(session_id: str | None = None) -> bool:
+    """True bila pembatalan diminta untuk sesi tertentu (default: sesi konteks)."""
+    sid = session_id or _current_session_id.get()
+    if sid:
+        # Sesi punya flag sendiri — pembatalan tidak menimpa sesi lain.
+        return os.path.exists(session_cancel_flag_path(sid))
+    # Tanpa konteks sesi (pemanggil legacy) → pakai flag global.
     output_dir = _get_swarm_output_dir()
-    flag_file = os.path.join(output_dir, "swarm_cancel.flag")
-    return os.path.exists(flag_file) or os.path.exists(CANCEL_FLAG_FILE)
+    return os.path.exists(os.path.join(output_dir, "swarm_cancel.flag")) or os.path.exists(
+        CANCEL_FLAG_FILE
+    )
 
 
-def _clear_cancel_flag() -> None:
+def _clear_cancel_flag(session_id: str | None = None) -> None:
+    sid = session_id or _current_session_id.get()
+    targets = []
+    if sid:
+        targets.append(session_cancel_flag_path(sid))
     output_dir = _get_swarm_output_dir()
-    for ff in (os.path.join(output_dir, "swarm_cancel.flag"), CANCEL_FLAG_FILE):
+    targets.append(os.path.join(output_dir, "swarm_cancel.flag"))
+    targets.append(CANCEL_FLAG_FILE)
+    for ff in targets:
         try:
             if os.path.exists(ff):
                 os.remove(ff)

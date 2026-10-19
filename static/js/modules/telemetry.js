@@ -1,3 +1,6 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { AlfaStore, showToast } from './state.js';
 /**
  * ==============================================================================
  * ALFA COMMAND CENTER - SYSTEM TELEMETRY & METRICS MODULE (telemetry.js)
@@ -19,7 +22,7 @@ const chartHistory = {
 /**
  * Initialize Chart.js hardware telemetry chart.
  */
-function initTelemetryChart() {
+export function initTelemetryChart() {
     const canvas = document.getElementById('telemetryChart');
     if (!canvas || !window.Chart) return null;
 
@@ -183,7 +186,7 @@ function updateServiceBadge(prefix, isActive) {
 /**
  * Polling function: Fetch system statistics from /api/stats.
  */
-async function fetchStats(isManual = false) {
+export async function fetchStats(isManual = false) {
     const icon = document.getElementById('refresh-icon');
     if (icon && isManual) icon.classList.add('animate-spin');
 
@@ -194,7 +197,7 @@ async function fetchStats(isManual = false) {
         if (data.status === 'success') {
             applyTelemetryData(data);
             setSyncPill(true, '');
-            if (isManual && typeof showToast === 'function') {
+            if (isManual ) {
                 showToast('Data telemetry diperbarui real-time', 'success');
             }
         } else {
@@ -233,7 +236,7 @@ function setSyncPill(ok, reason) {
 /**
  * Start periodic telemetry polling.
  */
-function startTelemetryPolling(intervalMs = 2000) {
+export function startTelemetryPolling(intervalMs = 2000) {
     stopTelemetryPolling();
     fetchStats();
     telemetryTimer = setInterval(fetchStats, intervalMs);
@@ -270,3 +273,6 @@ window.AlfaTelemetry = {
     startTelemetryPolling,
     stopTelemetryPolling
 };
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.fetchStats = fetchStats;

@@ -3,8 +3,9 @@
 import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from alfa.dashboard.routes.auth import require_admin
 from alfa.dashboard.routes.system.provider_catalog import PROVIDER_MODELS
 
 router = APIRouter()
@@ -101,7 +102,7 @@ async def get_available_models():
     return {"status": "success", "providers": PROVIDER_MODELS}
 
 
-@router.post("/api/keys/validate")
+@router.post("/api/keys/validate", dependencies=[Depends(require_admin)])
 async def validate_raw_api_key(payload: dict[str, Any]):
     """Test ping connection for unsaved raw credentials before saving."""
     provider = payload.get("provider", "gemini")

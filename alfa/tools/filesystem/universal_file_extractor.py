@@ -68,7 +68,7 @@ def process_uploaded_attachment(
     path_header = (
         f"[FILE TERSIMPAN DI DISK: {file_disk_path}]\n" if file_disk_path else ""
     )
-    tool_hint = "*(Gunakan path file nyata di atas jika ada instruksi konversi seperti 'jadikan pdf', 'merge', 'kompres', 'ubah format', dll.)*\n"
+    tool_hint = "[Catatan sistem: berkas tersimpan di path di atas untuk keperluan operasi tool berkas jika diminta pengguna]\n"
 
     # 1. IMAGES (Vision + Real Tool Execution)
     if mime_type.startswith("image/") or ext in (

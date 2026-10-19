@@ -1,8 +1,11 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { escAttr, escHtml, showToast, switchTab } from './state.js';
 // ==================== MASTER SCRAPER PRO JS ====================
 let currentScraperCategory = 'all_marketplace';
 let currentScraperData = [];
 
-function switchScraperSubTab(sub) {
+export function switchScraperSubTab(sub) {
     document.querySelectorAll('.scraper-subview').forEach(el => el.classList.add('hidden'));
     ['keyword', 'modern', 'urls', 'history'].forEach(s => {
         const btn = document.getElementById(`scraper-subtab-btn-${s}`);
@@ -29,7 +32,7 @@ function switchScraperSubTab(sub) {
 
 let modernScraperLastResult = '';
 
-function setModernPreset(presetKey, selectorValue, labelText) {
+export function setModernPreset(presetKey, selectorValue, labelText) {
     const presets = ['all', 'titles', 'prices', 'articles', 'links', 'images', 'tables', 'custom'];
     presets.forEach(p => {
         const btn = document.getElementById(`preset-btn-${p}`);
@@ -56,7 +59,7 @@ function setModernPreset(presetKey, selectorValue, labelText) {
     }
 }
 
-function fillModernSampleUrl(url, selector) {
+export function fillModernSampleUrl(url, selector) {
     const inputUrl = document.getElementById('modern-scraper-url');
     if (inputUrl) {
         inputUrl.value = url;
@@ -70,7 +73,7 @@ function fillModernSampleUrl(url, selector) {
     showToast(`Contoh URL & Preset dimuat!`, 'info');
 }
 
-async function runModernScraperLab(e) {
+export async function runModernScraperLab(e) {
     e.preventDefault();
     const url = document.getElementById('modern-scraper-url').value.trim();
     const engine = document.getElementById('modern-scraper-engine').value;
@@ -122,13 +125,13 @@ async function runModernScraperLab(e) {
     }
 }
 
-function copyModernScraperOutput() {
+export function copyModernScraperOutput() {
     if (!modernScraperLastResult) return;
     navigator.clipboard.writeText(modernScraperLastResult);
     showToast('Hasil scraping berhasil disalin ke clipboard!', 'info');
 }
 
-function downloadModernScraperOutput() {
+export function downloadModernScraperOutput() {
     if (!modernScraperLastResult) return;
     const blob = new Blob([modernScraperLastResult], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -139,7 +142,7 @@ function downloadModernScraperOutput() {
     showToast('File hasil scraping (.md) diunduh!', 'success');
 }
 
-function setScraperCategory(cat) {
+export function setScraperCategory(cat) {
     currentScraperCategory = cat;
     const categories = ['all_marketplace', 'jobs_career', 'leads_contacts', 'news_media', 'property_realestate', 'google_general'];
     categories.forEach(c => {
@@ -154,7 +157,7 @@ function setScraperCategory(cat) {
     });
 }
 
-async function runUniversalScraper(e) {
+export async function runUniversalScraper(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-run-universal-scraper');
     const query = document.getElementById('scraper-input-query').value.trim();
@@ -219,29 +222,29 @@ function renderScraperTableRows(items) {
         <tr class="hover:bg-white/5 transition-all">
             <td class="p-3 text-center text-slate-500 font-mono text-[11px]">${it.no || (idx + 1)}</td>
             <td class="p-3">
-                <div class="font-bold text-white font-sans text-xs line-clamp-1">${it.title}</div>
-                <div class="text-[10px] text-slate-400 font-sans line-clamp-1 mt-0.5">${it.snippet || '-'}</div>
+                <div class="font-bold text-white font-sans text-xs line-clamp-1">${escHtml(it.title)}</div>
+                <div class="text-[10px] text-slate-400 font-sans line-clamp-1 mt-0.5">${escHtml(it.snippet || '-')}</div>
             </td>
             <td class="p-3">
                 <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-mono border border-emerald-500/20 font-bold whitespace-nowrap">
-                    ${it.price || 'N/A'}
+                    ${escHtml(it.price || 'N/A')}
                 </span>
             </td>
             <td class="p-3">
                 <span class="px-2 py-0.5 rounded bg-dark-900 text-slate-300 text-[10px] font-mono border border-white/5">
-                    ${it.domain || 'web'}
+                    ${escHtml(it.domain || 'web')}
                 </span>
             </td>
             <td class="p-3 font-mono text-[11px]">
-                ${it.phone_wa !== 'N/A' ? `<span class="text-cyan-400 block truncate">📱 ${it.phone_wa}</span>` : ''}
-                ${it.email !== 'N/A' ? `<span class="text-amber-300 block truncate">✉️ ${it.email}</span>` : ''}
+                ${it.phone_wa !== 'N/A' ? `<span class="text-cyan-400 block truncate">📱 ${escHtml(it.phone_wa)}</span>` : ''}
+                ${it.email !== 'N/A' ? `<span class="text-amber-300 block truncate">✉️ ${escHtml(it.email)}</span>` : ''}
                 ${it.phone_wa === 'N/A' && it.email === 'N/A' ? '<span class="text-slate-600">-</span>' : ''}
             </td>
             <td class="p-3 text-right whitespace-nowrap space-x-1">
-                <a href="${it.url}" target="_blank" class="px-2 py-1 rounded bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-300 text-[10px] font-mono inline-flex items-center gap-1 transition-all">
+                <a href="${escAttr(it.url)}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded bg-white/5 hover:bg-orange-500/20 text-slate-300 hover:text-orange-300 text-[10px] font-mono inline-flex items-center gap-1 transition-all">
                     <i data-lucide="external-link" class="w-3 h-3"></i> Buka
                 </a>
-                <button onclick="sendItemToAffiliate('${it.title.replace(/'/g, "\\'")}', '${it.price}', '${it.url}')" title="Kirim ke Affiliate War Room" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-mono inline-flex items-center gap-1 transition-all">
+                <button onclick="sendItemToAffiliate('${String(it.title || '').replace(/'/g, "\\'")}', '${escAttr(it.price || '')}', '${escAttr(it.url || '')}')" title="Kirim ke Affiliate War Room" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-mono inline-flex items-center gap-1 transition-all">
                     <i data-lucide="shopping-bag" class="w-3 h-3"></i> Buat Naskah
                 </button>
             </td>
@@ -250,7 +253,7 @@ function renderScraperTableRows(items) {
     lucide.createIcons();
 }
 
-function filterScraperTable() {
+export function filterScraperTable() {
     const q = document.getElementById('scraper-table-search').value.toLowerCase();
     if (!q) {
         renderScraperTableRows(currentScraperData);
@@ -266,7 +269,7 @@ function filterScraperTable() {
     renderScraperTableRows(filtered);
 }
 
-function sendItemToAffiliate(title, price, url) {
+export function sendItemToAffiliate(title, price, url) {
     switchTab('affiliate');
     const nameInput = document.getElementById('aff-product-name') || document.getElementById('affiliate-product-name');
     const priceInput = document.getElementById('aff-disc-price') || document.getElementById('affiliate-price-drop');
@@ -277,7 +280,7 @@ function sendItemToAffiliate(title, price, url) {
     showToast(`Data produk '${(title || '').slice(0, 30)}...' dikirim ke Affiliate War Room!`, 'info');
 }
 
-async function runCustomUrlScraper(e) {
+export async function runCustomUrlScraper(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-run-batch-url-scraper');
     const rawUrls = document.getElementById('scraper-input-urls').value.trim();
@@ -325,7 +328,7 @@ async function runCustomUrlScraper(e) {
     }
 }
 
-async function fetchScraperBatches() {
+export async function fetchScraperBatches() {
     try {
         const res = await fetch('/api/scraper/batches');
         const data = await res.json();
@@ -362,3 +365,17 @@ async function fetchScraperBatches() {
     }
 }
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.copyModernScraperOutput = copyModernScraperOutput;
+window.downloadModernScraperOutput = downloadModernScraperOutput;
+window.fetchScraperBatches = fetchScraperBatches;
+window.fillModernSampleUrl = fillModernSampleUrl;
+window.filterScraperTable = filterScraperTable;
+window.runCustomUrlScraper = runCustomUrlScraper;
+window.runModernScraperLab = runModernScraperLab;
+window.runUniversalScraper = runUniversalScraper;
+window.sendItemToAffiliate = sendItemToAffiliate;
+window.setModernPreset = setModernPreset;
+window.setScraperCategory = setScraperCategory;
+window.switchScraperSubTab = switchScraperSubTab;

@@ -351,6 +351,7 @@ def record_api_usage_sync(
     context: str = "",
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
+    user_id: int = 0,
 ) -> bool:
     """Record one LLM call's token consumption. Never raises."""
     try:
@@ -358,8 +359,9 @@ def record_api_usage_sync(
             conn.execute(
                 """
                 INSERT INTO api_token_usage
-                (provider, model, key_id, key_label, context, prompt_tokens, completion_tokens, total_tokens)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (provider, model, key_id, key_label, context, user_id,
+                 prompt_tokens, completion_tokens, total_tokens)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     provider,
@@ -367,6 +369,7 @@ def record_api_usage_sync(
                     key_id,
                     key_label or "",
                     context or "",
+                    max(0, int(user_id or 0)),
                     max(0, int(prompt_tokens or 0)),
                     max(0, int(completion_tokens or 0)),
                     max(0, int((prompt_tokens or 0) + (completion_tokens or 0))),

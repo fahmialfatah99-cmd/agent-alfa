@@ -16,6 +16,8 @@ from typing import Any
 
 import numpy as np
 
+from alfa.memory.doc_parser import chunk_document_contextual, extract_document_content
+
 logger = logging.getLogger("VectorMemory")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -265,7 +267,7 @@ def get_text_embedding_with_meta(
                 if norm > 1e-6:
                     vec = vec / norm
                 return [float(x) for x in vec.tolist()], "gemini-embedding-001", len(vec)
-        except _VEC_ERR as e:
+        except Exception as e:
             logger.debug(f"Gemini embedding API fallback to local vectorizer: {e}")
 
     # 3. Deterministic local subword fallback
@@ -377,38 +379,21 @@ def ingest_document(
     target_db = _resolve_db_path(db_path)
     init_vector_db(target_db)
     source_type = "text"
-    text_content = content_or_path.strip()
-
     # Check if content_or_path is an existing file
     if os.path.isfile(content_or_path):
-        source_type = os.path.splitext(content_or_path)[1].lstrip(".").lower() or "file"
-        try:
-            if source_type == "pdf":
-                try:
-                    import pypdf
-
-                    reader = pypdf.PdfReader(content_or_path)
-                    pages_text = [page.extract_text() or "" for page in reader.pages]
-                    text_content = "\n\n".join(pages_text)
-                except ImportError:
-                    return {
-                        "status": "error",
-                        "message": "pypdf belum terpasang untuk membaca file PDF.",
-                    }
-            else:
-                with open(content_or_path, encoding="utf-8", errors="ignore") as f:
-                    text_content = f.read()
-        except _VEC_ERR as read_err:
-            return {
-                "status": "error",
-                "message": f"Gagal membaca file {content_or_path}: {read_err}",
-            }
+        text_content, source_type = extract_document_content(content_or_path)
+    else:
+        text_content = content_or_path.strip()
 
     if not text_content:
         return {"status": "error", "message": "Konten dokumen kosong."}
 
-    # Chunk text
-    chunks = chunk_text(text_content, chunk_size=500, overlap=60)
+    # Contextual semantic chunking (preserves Markdown headings, tables, breadcrumbs)
+    chunks = chunk_document_contextual(
+        text_content, doc_title=title, chunk_size=500, overlap=60
+    )
+    if not chunks:
+        chunks = chunk_text(text_content, chunk_size=500, overlap=60)
     if not chunks:
         chunks = [text_content[:1000]]
 
@@ -470,17 +455,115 @@ def ingest_document(
     }
 
 
+def _calculate_bm25_scores(corpus_texts: list[str], query: str) -> list[float]:
+    """Calculate normalized BM25 scores (in [0.0, 1.0]) for a list of texts."""
+    if not corpus_texts or not query.strip():
+        return [0.0] * len(corpus_texts)
+
+    q_tokens = [t.lower() for t in re.findall(r"\b\w+\b", query) if len(t) > 1]
+    if not q_tokens:
+        return [0.0] * len(corpus_texts)
+
+    docs_tokens = [
+        [t.lower() for t in re.findall(r"\b\w+\b", text) if len(t) > 1]
+        for text in corpus_texts
+    ]
+
+    try:
+        from rank_bm25 import BM25Okapi
+
+        bm25 = BM25Okapi(docs_tokens)
+        raw_scores = bm25.get_scores(q_tokens)
+        max_s = (
+            float(max(raw_scores))
+            if len(raw_scores) and max(raw_scores) > 0
+            else 1.0
+        )
+        return [float(max(0.0, s / max_s)) for s in raw_scores]
+    except Exception:
+        q_set = set(q_tokens)
+        scores = []
+        for d in docs_tokens:
+            d_set = set(d)
+            scores.append(len(q_set & d_set) / (len(q_set) or 1))
+        return scores
+
+
+def rerank_results(
+    query: str,
+    candidates: list[dict[str, Any]],
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    """
+    Re-rank candidates using cross-evaluation:
+    - Exact full query / phrase match boost (+0.25).
+    - Heading and document title match boost (+0.15).
+    - Query term coverage ratio (+0.10 to +0.20).
+    """
+    if not candidates or not query.strip():
+        return candidates[:top_k]
+
+    q_tokens = [t.lower() for t in re.findall(r"\b\w+\b", query) if len(t) > 1]
+    q_lower = query.lower().strip()
+    q_set = set(q_tokens)
+
+    reranked = []
+    for c in candidates:
+        text = str(c.get("chunk_text", "")).lower()
+        title = str(c.get("doc_title", "")).lower()
+        sim = float(c.get("similarity_score", 0.0))
+        hybrid = float(c.get("hybrid_score", sim))
+
+        reasons = []
+        score_boost = 0.0
+
+        # Exact phrase match
+        if q_lower in text:
+            score_boost += 0.25
+            reasons.append("Exact phrase match")
+
+        # Title match
+        if any(tok in title for tok in q_tokens):
+            score_boost += 0.15
+            reasons.append("Title keyword match")
+
+        # Token coverage
+        found_tokens = [tok for tok in q_tokens if tok in text]
+        coverage = len(found_tokens) / (len(q_set) or 1)
+        if coverage > 0.7:
+            score_boost += 0.20
+            reasons.append(f"High keyword coverage ({int(coverage*100)}%)")
+        elif coverage > 0.4:
+            score_boost += 0.10
+            reasons.append(f"Moderate keyword coverage ({int(coverage*100)}%)")
+
+        final_rerank_score = round(min(1.0, 0.5 * hybrid + score_boost), 4)
+        c_copy = dict(c)
+        c_copy["rerank_score"] = final_rerank_score
+        c_copy["match_reasons"] = reasons if reasons else ["Vector semantic similarity"]
+        reranked.append(c_copy)
+
+    # Sort primarily by rerank_score, then by similarity_score
+    reranked.sort(
+        key=lambda x: (x.get("rerank_score", 0.0), x.get("similarity_score", 0.0)),
+        reverse=True,
+    )
+    return reranked[:top_k]
+
+
 def semantic_search(
     user_id: int,
     query: str,
     top_k: int = 5,
     category: str | None = None,
     db_path: str | None = None,
+    hybrid: bool = True,
+    alpha: float = 0.65,
+    rerank: bool = True,
 ) -> list[dict[str, Any]]:
     """
-    Perform fast cosine similarity semantic search across all stored vector knowledge chunks.
-    Only compares embeddings with compatible models and matching dimensions to prevent
-    mathematically invalid cross-model comparisons.
+    Perform fast hybrid semantic search (dense vector + sparse BM25 + reranking)
+    across all stored vector knowledge chunks.
     """
     target_db = _resolve_db_path(db_path)
     init_vector_db(target_db)
@@ -526,8 +609,15 @@ def semantic_search(
 
                     rows = conn.execute(sql, params).fetchall()
 
+                    texts_for_bm25 = [r["chunk_text"] for r in rows]
+                    bm25_scores = (
+                        _calculate_bm25_scores(texts_for_bm25, query)
+                        if hybrid
+                        else [0.0] * len(rows)
+                    )
+
                     scored_results = []
-                    for r in rows:
+                    for i, r in enumerate(rows):
                         row_model = r["model"]
                         row_dim = r["dimension"]
                         if not _are_models_compatible(query_model, row_model, query_dim, row_dim):
@@ -535,12 +625,21 @@ def semantic_search(
 
                         stored_emb = json.loads(r["embedding_json"])
                         sim = cosine_similarity(query_emb, stored_emb)
+                        bm25_val = bm25_scores[i]
+                        h_score = (
+                            round(alpha * sim + (1.0 - alpha) * bm25_val, 4)
+                            if hybrid
+                            else round(sim, 4)
+                        )
+
                         scored_results.append({
                             "id": r["id"],
                             "doc_title": r["doc_title"],
                             "chunk_index": r["chunk_index"],
                             "chunk_text": r["chunk_text"],
                             "similarity_score": round(sim, 4),
+                            "hybrid_score": h_score,
+                            "bm25_score": round(bm25_val, 4),
                             "category": r["category"],
                             "source_type": r["source_type"],
                             "model": row_model or query_model,
@@ -548,6 +647,8 @@ def semantic_search(
                             "created_at": r["created_at"],
                         })
 
+                    if rerank:
+                        return rerank_results(query, scored_results, top_k=top_k)
                     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
                     return scored_results[:top_k]
 
@@ -627,10 +728,22 @@ def semantic_search(
     mat = mat / mat_norms[:, np.newaxis]
 
     similarities: Any = np.dot(mat, q_vec)
+    texts_for_bm25 = [r["chunk_text"] for r in valid_rows]
+    bm25_scores = (
+        _calculate_bm25_scores(texts_for_bm25, query)
+        if hybrid
+        else [0.0] * len(valid_rows)
+    )
 
     scored_results = []
     for i, r in enumerate(valid_rows):
         sim = float(similarities[i])
+        bm25_val = bm25_scores[i]
+        h_score = (
+            round(alpha * sim + (1.0 - alpha) * bm25_val, 4)
+            if hybrid
+            else round(sim, 4)
+        )
         row_keys = r.keys()
         row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else len(embeddings_list[i])
         row_model = r["model"] if ("model" in row_keys and r["model"]) else None
@@ -642,6 +755,8 @@ def semantic_search(
                 "chunk_index": r["chunk_index"],
                 "chunk_text": r["chunk_text"],
                 "similarity_score": round(sim, 4),
+                "hybrid_score": h_score,
+                "bm25_score": round(bm25_val, 4),
                 "category": r["category"],
                 "source_type": r["source_type"],
                 "model": row_model or query_model,
@@ -650,8 +765,32 @@ def semantic_search(
             }
         )
 
+    if rerank:
+        return rerank_results(query, scored_results, top_k=top_k)
     scored_results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return scored_results[:top_k]
+
+
+def hybrid_search(
+    user_id: int,
+    query: str,
+    top_k: int = 5,
+    category: str | None = None,
+    alpha: float = 0.65,
+    rerank: bool = True,
+    db_path: str | None = None,
+) -> list[dict[str, Any]]:
+    """Hybrid dense vector + sparse BM25 search with re-ranking."""
+    return semantic_search(
+        user_id=user_id,
+        query=query,
+        top_k=top_k,
+        category=category,
+        db_path=db_path,
+        hybrid=True,
+        alpha=alpha,
+        rerank=rerank,
+    )
 
 
 def list_ingested_documents(

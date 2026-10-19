@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import time
+from typing import Any
 
 from telegram import Update, constants
 from telegram.error import TelegramError
@@ -120,6 +121,86 @@ async def _check_and_send_media_artifacts(
     )
 
 
+_RECENT_DOCS: dict[int, dict[str, Any]] = {}
+
+
+async def handle_doc_action_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, data: str
+) -> bool:
+    """Handle 1-click interactive document export/analysis buttons."""
+    if not data.startswith("docact:"):
+        return False
+
+    action = data.split(":", 1)[1]
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
+
+    doc_info = _RECENT_DOCS.get(chat_id)
+    if not doc_info:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⚠️ Data dokumen referensi sudah kedaluwarsa. Silakan unggah kembali dokumennya.",
+        )
+        return True
+
+    turn_start_time = time.time()
+    file_name = doc_info.get("file_name", "dokumen")
+    txt_ctx = doc_info.get("txt_ctx", "")
+
+    action_prompts = {
+        "pdf": (
+            f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas laporan PDF resmi yang rapi dan profesional "
+            f"dari data dokumen '{file_name}' di atas menggunakan tool generate_pdf_report. Pastikan berkas tersimpan ke disk."
+        ),
+        "excel": (
+            f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas spreadsheet Excel (.xlsx) baru yang terstruktur rapi "
+            f"dari data dokumen '{file_name}' di atas menggunakan tool generate_excel_spreadsheet. Pastikan berkas tersimpan ke disk."
+        ),
+        "deep": (
+            f"{txt_ctx}\n\nInstruksi Pengguna: Lakukan audit data mendalam pada dokumen '{file_name}': hitung total rekonsiliasi, "
+            f"verifikasi varians/selisih angka, dan sajikan rincian matematisnya secara presisi."
+        ),
+    }
+
+    prompt = action_prompts.get(action)
+    if not prompt:
+        return False
+
+    action_labels = {
+        "pdf": "📄 Menyiapkan laporan PDF resmi...",
+        "excel": "📊 Menghasilkan berkas spreadsheet Excel...",
+        "deep": "🔍 Menjalankan analisis data mendalam...",
+    }
+    status_msg = await context.bot.send_message(
+        chat_id=chat_id, text=action_labels.get(action, "Memproses permintaan...")
+    )
+
+    stop_typing = asyncio.Event()
+    typing_task = asyncio.create_task(
+        send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING)
+    )
+
+    try:
+        reply = await _run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            chat_id=chat_id,
+        )
+    finally:
+        stop_typing.set()
+        await typing_task
+        try:
+            await status_msg.delete()
+        except (TelegramError, OSError):
+            pass
+
+    await safe_send_message(context, chat_id, reply)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time
+    )
+    return True
+
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle inline button clicks."""
     query = update.callback_query
@@ -139,6 +220,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     data = query.data or ""
+    try:
+        if await handle_doc_action_callback(update, context, data):
+            return
+    except _HANDLER_ERR as e:
+        logger.debug(f"[callback] doc_action gagal: {e}")
     try:
         from alfa.bot.mode_commands import handle_persona_callback
 
@@ -940,10 +1026,24 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
 
         multimodal_parts = [part] if part is not None else None
+        user_caption = (caption or "").strip()
+        if not user_caption:
+            user_caption = "Baca, pahami, dan ringkas isi dokumen ini."
+
+        doc_summary_guidance = (
+            "\n\n[PANDUAN AI UNTUK DOKUMEN/BERKAS]:\n"
+            "- Tugasmu adalah membaca, memahami, dan menganalisis berkas di atas secara mendalam.\n"
+            "- Berikan RINGKASAN EKSEKUTIF yang terstruktur, padat, dan analitis langsung kepada pengguna.\n"
+            "- Strukturkan dengan rapi: Ringkasan Utama, Metrik & Angka Kunci, Temuan Lapangan/Data, dan Catatan Penting.\n"
+            "- JANGAN hanya menyalin ulang seluruh tabel atau teks mentah tanpa analisis ringkas.\n"
+            "- JANGAN membahas status audit sistem internal atau ketiadaan berkas disk baru kecuali pengguna meminta eksplisit membuat file baru.\n"
+            "- Gunakan format yang bersih, rapi, dan nyaman dibaca di chat Telegram."
+        )
+
         if txt_ctx:
-            prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}"
+            prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {user_caption}{doc_summary_guidance}"
         else:
-            prompt = f"Dokumen/Berkas '{file_name}': {caption}"
+            prompt = f"Dokumen/Berkas '{file_name}': {user_caption}{doc_summary_guidance}"
 
         reply = await _run_agent_turn(
             user_id=user_id,
@@ -952,11 +1052,32 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
             chat_id=chat_id,
         )
 
+        if txt_ctx:
+            _RECENT_DOCS[chat_id] = {
+                "file_name": file_name,
+                "mime_type": mime_type,
+                "txt_ctx": txt_ctx,
+                "time": time.time(),
+            }
+
     finally:
         stop_typing.set()
         await typing_task
 
-    await safe_send_message(context, chat_id, reply)
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    doc_buttons = [
+        [
+            InlineKeyboardButton("📄 Buat PDF Resmi", callback_data="docact:pdf"),
+            InlineKeyboardButton("📊 Buat Excel Baru", callback_data="docact:excel"),
+        ],
+        [
+            InlineKeyboardButton("🔍 Analisis Mendalam", callback_data="docact:deep"),
+        ],
+    ]
+    doc_markup = InlineKeyboardMarkup(doc_buttons)
+
+    await safe_send_message(context, chat_id, reply, reply_markup=doc_markup)
     await _check_and_send_media_artifacts(
         update, context, turn_start_time=turn_start_time
     )

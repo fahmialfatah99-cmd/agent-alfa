@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from alfa import tools
@@ -248,7 +248,7 @@ async def get_guardian_config():
     return {"status": "success", "guardian": g_cfg, "proactive": p_cfg}
 
 
-@router.post("/api/guardian/config")
+@router.post("/api/guardian/config", dependencies=[Depends(require_admin)])
 async def update_guardian_config(payload: dict[str, Any]):
     """Update guardian & proactive configurations."""
     if "guardian" in payload:

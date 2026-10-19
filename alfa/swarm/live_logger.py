@@ -85,7 +85,7 @@ def log_tool_live(text: str) -> None:
     Hanya menulis saat ada rapat berjalan; aman dipanggil lintas modul."""
     from alfa.swarm import workspace_hygiene
 
-    if not workspace_hygiene.MEETING_RUNNING:
+    if not workspace_hygiene.any_session_running():
         return
     log_live("TOOL", text)
 

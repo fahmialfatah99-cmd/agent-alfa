@@ -35,12 +35,9 @@ from alfa.media.tts_engine import (
 )
 from alfa.swarm.engine import (
     _budget_exceeded,
-    _cancel_requested,
-    _clear_cancel_flag,
     _provider_dead_streak,
     _swarm_budget,
     conduct_multi_agent_meeting,
-    request_cancel_swarm,
 )
 from alfa.tools.system.integrations import (
     _wa_api,
@@ -523,11 +520,20 @@ class TestSwarmEngine:
         assert t == 45.0
         assert s == 10
 
+        # Default-nya AKTIF (P1): timeout & batas langkah tidak boleh 0
+        # (misi tanpa payung bisa berjalan selamanya & membakar kuota).
+        monkeypatch.delenv("ALFA_SWARM_TASK_TIMEOUT", raising=False)
+        monkeypatch.delenv("ALFA_SWARM_MAX_STEPS", raising=False)
+        t_default, s_default = _swarm_budget()
+        assert t_default > 0
+        assert s_default > 0
+
+        # Nilai tidak valid → jatuh ke default, bukan 0 (nonaktif).
         monkeypatch.setenv("ALFA_SWARM_TASK_TIMEOUT", "invalid")
         monkeypatch.setenv("ALFA_SWARM_MAX_STEPS", "invalid")
         t, s = _swarm_budget()
-        assert t == 0.0
-        assert s == 0
+        assert t == 1800.0
+        assert s == 40
 
     def test_provider_dead_streak(self):
         # Empty or short
@@ -559,13 +565,19 @@ class TestSwarmEngine:
         assert _budget_exceeded([{}]) == ""
 
     def test_cancel_flag(self):
-        with patch("alfa.swarm.workspace_hygiene.MEETING_RUNNING", True):
-            _clear_cancel_flag()
-            assert _cancel_requested() is False
-            assert request_cancel_swarm() is True
-            assert _cancel_requested() is True
-            _clear_cancel_flag()
-            assert _cancel_requested() is False
+        from alfa.swarm import workspace_hygiene as wh
+
+        # State sesi kini per-session (bukan global MEETING_RUNNING).
+        wh.register_session("uji_phase4")
+        try:
+            wh._clear_cancel_flag("uji_phase4")
+            assert wh._cancel_requested("uji_phase4") is False
+            assert wh.request_cancel_swarm("uji_phase4") is True
+            assert wh._cancel_requested("uji_phase4") is True
+            wh._clear_cancel_flag("uji_phase4")
+            assert wh._cancel_requested("uji_phase4") is False
+        finally:
+            wh.unregister_session("uji_phase4")
 
     @pytest.mark.asyncio
     async def test_conduct_multi_agent_meeting_fast(self):

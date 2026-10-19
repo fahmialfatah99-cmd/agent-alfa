@@ -37,18 +37,28 @@ class TestGateTiers:
         from alfa.core.perm import gate as g
 
         assert g.get_tool_tier("web_search").value == "low"
-        assert g.get_tool_tier("read_local_file").value == "low"
+        assert g.get_tool_tier("get_system_stats").value == "low"
+
+    def test_read_local_file_adalah_medium(self):
+        """read_local_file bisa membaca .env / private key → bukan LOW."""
+        from alfa.core.perm import gate as g
+
+        assert g.get_tool_tier("read_local_file").value == "medium"
 
     def test_known_high_critical(self):
         from alfa.core.perm import gate as g
 
         assert g.get_tool_tier("execute_bash_command").value == "high"
         assert g.get_tool_tier("ssh_execute_command").value == "critical"
+        assert g.get_tool_tier("vault_delete_secret").value == "critical"
+        assert g.get_tool_tier("vault_get_secret").value == "high"
+        assert g.get_tool_tier("execute_python_sandbox").value == "high"
 
-    def test_unknown_defaults_medium(self):
+    def test_unknown_defaults_high(self):
+        """Tool tak terklasifikasi harus fail-closed (HIGH), bukan MEDIUM."""
         from alfa.core.perm import gate as g
 
-        assert g.get_tool_tier("some_future_tool_xyz").value == "medium"
+        assert g.get_tool_tier("some_future_tool_xyz").value == "high"
 
     def test_auto_approve_low_always(self):
         from alfa.core.perm import gate as g
@@ -59,22 +69,62 @@ class TestGateTiers:
     def test_auto_approve_medium_needs_trust(self, monkeypatch):
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(g, "get_trust_score", lambda _cid: 0.95)
-        ok, _ = g.should_auto_approve(4242002, "write_file")
+        # Skor trust dihitung PER TIER dan butuh jumlah persetujuan eksplisit.
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (0.95, 3))
+        ok, _ = g.should_auto_approve(4242002, "read_local_file")
         assert ok is True
-        monkeypatch.setattr(g, "get_trust_score", lambda _cid: 0.10)
-        ok, _ = g.should_auto_approve(4242002, "write_file")
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (0.10, 3))
+        ok, _ = g.should_auto_approve(4242002, "read_local_file")
         assert ok is False
+
+    def test_auto_approve_medium_butuh_minimum_approval(self, monkeypatch):
+        """Trust tinggi saja tidak cukup — harus ada persetujuan eksplisit."""
+        from alfa.core.perm import gate as g
+
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (1.0, 0))
+        ok, _ = g.should_auto_approve(4242002, "read_local_file")
+        assert ok is False
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (1.0, 3))
+        ok, _ = g.should_auto_approve(4242002, "read_local_file")
+        assert ok is True
 
     def test_auto_approve_high_needs_very_high_trust(self, monkeypatch):
         from alfa.core.perm import gate as g
 
-        monkeypatch.setattr(g, "get_trust_score", lambda _cid: 0.95)
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (0.95, 5))
         ok, _ = g.should_auto_approve(4242003, "execute_bash_command")
         assert ok is True
-        monkeypatch.setattr(g, "get_trust_score", lambda _cid: 0.80)
+        monkeypatch.setattr(g, "get_tier_trust", lambda _cid, _tier: (0.80, 5))
         ok, _ = g.should_auto_approve(4242003, "execute_bash_command")
         assert ok is False
+
+    def test_trust_low_tidak_membuka_tier_high(self, isolated_db):
+        """Regresi: approval tier LOW dulu menaikkan trust global ke 1.0 dan
+        membuka ssh_execute_command (CRITICAL). Sekarang trust per-tier."""
+        from alfa.core.perm import gate as g
+        from alfa.core.perm.store import get_tier_trust, update_tier_trust
+
+        update_tier_trust(4242099, "low", was_safe=True, response_time=0.5)
+        low_trust, low_count = get_tier_trust(4242099, "low")
+        assert low_trust >= 0.9
+        assert low_count == 1
+        # Tier HIGH/CRITICAL tetap belum punya catatan sama sekali.
+        assert get_tier_trust(4242099, "high") == (0.0, 0)
+        assert get_tier_trust(4242099, "critical") == (0.0, 0)
+        ok, _ = g.should_auto_approve(4242099, "ssh_execute_command")
+        assert ok is False
+        ok, _ = g.should_auto_approve(4242099, "execute_bash_command")
+        assert ok is False
+
+    def test_auto_approved_tidak_menambah_trust(self, isolated_db, monkeypatch):
+        """Auto-approve tidak boleh menambah skor trust sama sekali."""
+        from alfa.core.perm import gate as g
+        from alfa.core.perm.store import get_tier_trust
+
+        before = get_tier_trust(4242098, "medium")
+        g._record(4242098, "write_file", g.get_tool_tier("write_file"),
+                  "auto_approved", "{}", 0.0)
+        assert get_tier_trust(4242098, "medium") == before
 
     def test_make_gate_disabled_returns_none(self, monkeypatch):
         from alfa.core.perm import gate as g
@@ -87,9 +137,12 @@ class TestGateTiers:
 
         monkeypatch.setattr(g, "PERMISSION_GATE_ENABLED", True)
         assert g.check_headless_approval(4242005, "web_search") is None
-        assert g.check_headless_approval(4242005, "write_file") is None
+        # "write_file" tak terklasifikasi → HIGH → ditolak tanpa kanal approval.
+        assert g.check_headless_approval(4242005, "write_file") is not None
         assert g.check_headless_approval(4242005, "execute_bash_command") is not None
         assert g.check_headless_approval(4242005, "ssh_execute_command") is not None
+        # Tool MEDIUM yang eksplisit terklasifikasi tetap boleh di headless.
+        assert g.check_headless_approval(4242005, "read_local_file") is None
 
     def test_headless_disabled_allows_all(self, monkeypatch, isolated_db):
         from alfa.core.perm import gate as g

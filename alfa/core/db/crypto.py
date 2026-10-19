@@ -14,6 +14,16 @@ logger = logging.getLogger("DB.Crypto")
 _ENC_PREFIX = "enc1:"
 
 
+_CRYPTO_UNAVAILABLE_MSG = (
+    "AES-GCM tidak tersedia (vault gagal diinisialisasi) — menolak menyimpan "
+    "kunci API key tanpa enkripsi."
+)
+
+
+class CryptoUnavailableError(RuntimeError):
+    """Kripto vault tidak tersedia — nilai TIDAK BOLEH disimpan plaintext."""
+
+
 def _get_aesgcm():
     """Kembalikan objek AESGCM dari vault; None bila vault tak tersedia."""
     try:
@@ -25,12 +35,18 @@ def _get_aesgcm():
 
 
 def encrypt_key(plain: str) -> str:
-    """Enkripsi string kunci menjadi 'enc1:<nonce_b64>:<ct_b64>'. Idempoten."""
+    """Enkripsi string kunci menjadi 'enc1:<nonce_b64>:<ct_b64>'. Idempoten.
+
+    Fail-CLOSED: bila kripto tidak tersedia, fungsi ini MELEMPAR
+    :class:`CryptoUnavailableError`. Sebelumnya degrade-nya "selamat" dengan
+    mengembalikan plaintext — sehingga API key tersimpan tanpa enkripsi tanpa
+    error dan tanpa log.
+    """
     if not plain or plain.startswith(_ENC_PREFIX):
         return plain
     aes = _get_aesgcm()
     if aes is None:
-        return plain  # degradasi anggun bila kripto tak tersedia
+        raise CryptoUnavailableError(_CRYPTO_UNAVAILABLE_MSG)
     nonce = os.urandom(12)
     ct = aes.encrypt(nonce, plain.encode("utf-8"), None)
     return (

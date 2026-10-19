@@ -5,10 +5,11 @@ import time
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from alfa import tools
 from alfa.dashboard.common import logger
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -207,7 +208,7 @@ async def get_wa_qr():
     }
 
 
-@router.post("/api/wa/logout")
+@router.post("/api/wa/logout", dependencies=[Depends(require_admin)])
 async def logout_wa():
     """Trigger WhatsApp logout to force new QR generation."""
     import httpx
@@ -286,7 +287,7 @@ async def get_wa_media_rules():
     return result
 
 
-@router.post("/api/wa/media-rules")
+@router.post("/api/wa/media-rules", dependencies=[Depends(require_admin)])
 async def save_wa_media_rules(payload: dict[str, Any]):
     """Save media auto-save rules."""
     rules = payload.get("rules")
@@ -349,7 +350,7 @@ async def get_wa_drive_uploads():
     return result
 
 
-@router.post("/api/wa/media-upload")
+@router.post("/api/wa/media-upload", dependencies=[Depends(require_admin)])
 async def wa_media_upload(
     file: UploadFile = File(...),  # noqa: B008 - canonical FastAPI upload pattern
     format_name: str = Form("Lainnya"),
@@ -423,7 +424,7 @@ async def get_wa_formats():
     return result
 
 
-@router.post("/api/wa/formats")
+@router.post("/api/wa/formats", dependencies=[Depends(require_admin)])
 async def save_wa_formats(payload: dict[str, Any]):
     """Save report formats."""
     formats = payload.get("formats")

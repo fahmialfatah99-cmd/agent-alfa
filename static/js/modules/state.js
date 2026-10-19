@@ -1,3 +1,15 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { fetchAffiliateCampaigns } from './affiliate.js';
+import { fetchAgents, fetchAntigravityAccounts, fetchArtifacts, fetchDynamicPlugins, fetchGuardian, fetchKeys, fetchMemory, fetchServices, fetchSettings, fetchSuperpowersSkills, fetchTokenUsage, fetchWaFormats, fetchWaMediaRules, loadMeetingFolders, wsInit } from '../app.js';
+import { loadChatAvailableModels } from '../chat.js';
+import { fetchGdriveFiles, fetchGdriveStatus } from './gdrive.js';
+import { fetchBudget, fetchSites, initCanvas } from './pipelines_sites.js';
+import { fetchScraperBatches } from './scraper.js';
+import { initTelemetryChart, startTelemetryPolling } from './telemetry.js';
+import { fetchSwarmLive } from '../terminal.js';
+import { allToolsData, fetchTools } from '../tools.js';
+import { fetchPasskeyStatus, fetchVaultSecrets } from './vault_security.js';
 /**
  * ==============================================================================
  * ALFA COMMAND CENTER - STATE & SESSION STORE MODULE (state.js)
@@ -6,13 +18,50 @@
  * dark/light theme switching, and global UI notification state.
  */
 
-// Helper: Escape string for HTML attribute injection
-function escAttr(s) {
-    return String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+// Helper: Escape string untuk konteks HTML (teks node maupun atribut).
+//
+// Escaping lengkap: & < > " ' — versi lama hanya escape & " < sehingga
+// karakter ' dan > bisa keluar dari atribut dan membuka celah injeksi.
+export function escHtml(s) {
+    return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+// Backwards-compatible alias — dipakai luas di seluruh app.
+export function escAttr(s) {
+    return escHtml(s);
+}
+
+// Helper: Render Markdown → HTML → sanitasi (DOMPurify).
+//
+// Output LLM (rapat, chat, consensus) disimpan ke DB lalu dirender ke
+// dashboard. Tanpa sanitasi, satu output LLM berisi
+// `<img src=x onerror=...>` menjadi stored XSS yang mengeksekusi di
+// browser setiap operator. Bila DOMPurify tidak tersedia, jatuh ke escHtml
+// (aman, walau tanpa format markdown).
+export function safeMarkdown(src) {
+    const raw = String(src ?? "");
+    if (typeof marked === "undefined" || !marked.parse) return escHtml(raw);
+    let html;
+    try {
+        html = marked.parse(raw);
+    } catch (e) {
+        return escHtml(raw);
+    }
+    if (typeof DOMPurify === "undefined" || !DOMPurify.sanitize) return escHtml(raw);
+    try {
+        return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    } catch (e) {
+        return escHtml(raw);
+    }
 }
 
 // Helper: Format large token counts into human-readable strings
-function fmtTokens(n) {
+export function fmtTokens(n) {
     n = Number(n) || 0;
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
     if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
@@ -37,7 +86,7 @@ function fmtTokens(n) {
 
 // Central Reactive App Store
 const _initToken = localStorage.getItem("alfa_auth_token") || localStorage.getItem("alfa_session_token") || null;
-const AlfaStore = {
+export const AlfaStore = {
     theme: localStorage.getItem("alfa_theme") || "dark",
     activeTab: localStorage.getItem("alfa_active_tab") || "overview",
     stats: {},
@@ -59,7 +108,10 @@ const tabTitles = {
     'affiliate': 'Affiliate Sales Studio',
     'vault': 'Passkey Vault & Security',
     'keys': 'API Keys Manager',
-    'tools': '126 Tools Catalog & Sandbox',
+    // Jumlah tool TIDAK di-hardcode — diisi dari /api/tools (lihat tools.js).
+    // Nilai lama "126 Tools Catalog & Sandbox" sudah melenceng jauh dari
+    // runtime (173) karena tidak pernah diperbarui.
+    'tools': 'Memuat Tools Catalog...',
     'memory': 'Second Brain Memory',
     'artifacts': 'File Artifacts & Storage',
     'sites': 'Galeri Situs & Kuota',
@@ -73,7 +125,7 @@ const tabTitles = {
 };
 
 // Initialize Alpine.js integration if available or on event
-function initAlpineState() {
+export function initAlpineState() {
     if (window.Alpine) {
         window.Alpine.store("alfa", {
             theme: AlfaStore.theme,
@@ -101,12 +153,12 @@ if (window.Alpine) {
 
 // ==================== THEME SWITCHER LOGIC ====================
 
-function initTheme() {
+export function initTheme() {
     const savedTheme = localStorage.getItem('alfa_theme') || 'dark';
     setTheme(savedTheme, false);
 }
 
-function toggleTheme() {
+export function toggleTheme() {
     const isDark = document.documentElement.classList.contains('dark');
     const newTheme = isDark ? 'light' : 'dark';
     setTheme(newTheme, true);
@@ -151,7 +203,7 @@ initTheme();
 
 // ==================== TAB NAVIGATION & PERSISTENCE ====================
 
-function switchTab(tabId) {
+export function switchTab(tabId) {
     document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(el => {
         el.classList.remove('text-cyan-300', 'bg-cyan-500/10', 'border', 'border-cyan-500/30', 'shadow-glow-cyan', 'active');
@@ -193,57 +245,61 @@ function switchTab(tabId) {
 
     // Lazy load tab data based on active view
     if (tabId === 'overview') {
-        if (typeof initTelemetryChart === 'function') initTelemetryChart();
-        if (typeof startTelemetryPolling === 'function') startTelemetryPolling();
-        if (typeof fetchServices === 'function') fetchServices();
+        initTelemetryChart();
+        startTelemetryPolling();
+        fetchServices();
     }
-    if (tabId === 'console' && typeof loadChatAvailableModels === 'function') loadChatAvailableModels();
+    if (tabId === 'console' ) loadChatAvailableModels();
     if (tabId === 'tools') {
-        if (typeof allToolsData !== 'undefined' && allToolsData.length === 0 && typeof fetchTools === 'function') fetchTools();
-        if (typeof fetchDynamicPlugins === 'function') fetchDynamicPlugins();
-        if (typeof fetchSuperpowersSkills === 'function') fetchSuperpowersSkills();
+        if (typeof allToolsData !== 'undefined' && allToolsData.length === 0 ) fetchTools();
+        fetchDynamicPlugins();
+        fetchSuperpowersSkills();
+        // Judul tab diisi dari jumlah tool runtime (bukan angka hardcode).
+        if (typeof allToolsData !== 'undefined' && allToolsData.length) {
+            tabTitles.tools = `${allToolsData.length} Tools Catalog & Sandbox`;
+        }
     }
-    if (tabId === 'services' && typeof fetchServices === 'function') fetchServices();
-    if (tabId === 'canvas' && typeof initCanvas === 'function') initCanvas();
-    if (tabId === 'memory' && typeof fetchMemory === 'function') fetchMemory();
+    if (tabId === 'services' ) fetchServices();
+    if (tabId === 'canvas' ) initCanvas();
+    if (tabId === 'memory' ) fetchMemory();
     if (tabId === 'sites') {
-        if (typeof fetchSites === 'function') fetchSites();
-        if (typeof fetchBudget === 'function') fetchBudget();
+        fetchSites();
+        fetchBudget();
     }
     if (tabId === 'artifacts') {
-        if (typeof fetchArtifacts === 'function') fetchArtifacts();
-        if (typeof wsInit === 'function' && !wsInit._done) { wsInit._done = true; wsInit(); }
+        fetchArtifacts();
+        if (!wsInit._done) { wsInit._done = true; wsInit(); }
     }
-    if (tabId === 'guardian' && typeof fetchGuardian === 'function') fetchGuardian();
+    if (tabId === 'guardian' ) fetchGuardian();
     if (tabId === 'swarm') {
-        if (typeof fetchAgents === 'function') fetchAgents();
-        if (typeof fetchKeys === 'function') fetchKeys();
-        if (typeof fetchSwarmLive === 'function') fetchSwarmLive();
-        if (typeof loadMeetingFolders === 'function') loadMeetingFolders();
+        fetchAgents();
+        fetchKeys();
+        fetchSwarmLive();
+        loadMeetingFolders();
     }
-    if (tabId === 'affiliate' && typeof fetchAffiliateCampaigns === 'function') fetchAffiliateCampaigns();
+    if (tabId === 'affiliate' ) fetchAffiliateCampaigns();
     if (tabId === 'keys') {
-        if (typeof fetchKeys === 'function') fetchKeys();
-        if (typeof fetchTokenUsage === 'function') fetchTokenUsage();
-        if (typeof fetchAntigravityAccounts === 'function') fetchAntigravityAccounts();
+        fetchKeys();
+        fetchTokenUsage();
+        fetchAntigravityAccounts();
     }
     if (tabId === 'waformat') {
-        if (typeof fetchWaFormats === 'function') fetchWaFormats();
-        if (typeof fetchWaMediaRules === 'function') fetchWaMediaRules();
+        fetchWaFormats();
+        fetchWaMediaRules();
     }
     if (tabId === 'vault') {
-        if (typeof fetchVaultSecrets === 'function') fetchVaultSecrets();
-        if (typeof fetchPasskeyStatus === 'function') fetchPasskeyStatus();
+        fetchVaultSecrets();
+        fetchPasskeyStatus();
     }
-    if (tabId === 'scraper' && typeof fetchScraperBatches === 'function') fetchScraperBatches();
+    if (tabId === 'scraper' ) fetchScraperBatches();
     if (tabId === 'gdrive') {
-        if (typeof fetchGdriveStatus === 'function') fetchGdriveStatus();
-        if (typeof fetchGdriveFiles === 'function') fetchGdriveFiles();
+        fetchGdriveStatus();
+        fetchGdriveFiles();
     }
     if (tabId === 'settings') {
-        if (typeof fetchSettings === 'function') fetchSettings();
-        if (typeof fetchAgents === 'function') fetchAgents();
-        if (typeof fetchKeys === 'function') fetchKeys();
+        fetchSettings();
+        fetchAgents();
+        fetchKeys();
     }
 
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -251,7 +307,7 @@ function switchTab(tabId) {
     }
 }
 
-function restoreActiveTab() {
+export function restoreActiveTab() {
     const savedTab = localStorage.getItem('alfa_active_tab');
     if (savedTab && tabTitles[savedTab]) {
         switchTab(savedTab);
@@ -260,7 +316,7 @@ function restoreActiveTab() {
 
 // ==================== SIDEBAR & UI MODALS ====================
 
-function toggleSidebar(show = null) {
+export function toggleSidebar(show = null) {
     const sidebar = document.getElementById('main-sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     if (!sidebar) return;
@@ -278,7 +334,7 @@ function toggleSidebar(show = null) {
 }
 
 // Toast Notification System
-function showToast(message, type = 'info') {
+export function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -379,7 +435,7 @@ function clearSessionToken() {
 
 // ==================== SWARM LIVE ARENA VISUALIZER HOOK ====================
 
-function updateSwarmArena(data) {
+export function updateSwarmArena(data) {
     if (!data) return;
     const arena = document.getElementById('swarm-arena');
     if (!arena) return;
@@ -585,3 +641,12 @@ window.AlfaState = {
     updateSwarmArena
 };
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.escAttr = escAttr;
+window.escHtml = escHtml;
+window.safeMarkdown = safeMarkdown;
+window.showToast = showToast;
+window.switchTab = switchTab;
+window.toggleSidebar = toggleSidebar;
+window.toggleTheme = toggleTheme;

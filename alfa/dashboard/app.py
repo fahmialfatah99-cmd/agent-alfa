@@ -29,6 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from alfa.core.config import ensure_env_loaded
 from alfa.dashboard.common import (
@@ -134,11 +135,27 @@ async def lifespan(app: FastAPI):
     logger.info("ALFA Sovereign Command Center shutting down...")
 
 
+_ERR_INSECURE_LOCAL_PUBLIC = (
+    "ALFA_INSECURE_LOCAL=true tidak boleh dipakai saat DASHBOARD_HOST "
+    "terbuka ke jaringan (0.0.0.0/::). Set DASHBOARD_HOST=127.0.0.1 "
+    "atau matikan ALFA_INSECURE_LOCAL dan set DASHBOARD_AUTH_TOKEN."
+)
+_ERR_NO_TOKEN_PUBLIC_BIND = (
+    "Dashboard tidak boleh berjalan tanpa autentikasi saat binding ke 0.0.0.0/::. "
+    "Set DASHBOARD_AUTH_TOKEN di environment atau gunakan DASHBOARD_HOST=127.0.0.1 "
+    "untuk localhost-only."
+)
+
+
 def _check_security_config():
     """PRODUCTION SECURITY CHECK: Require DASHBOARD_AUTH_TOKEN di production."""
     token = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
+    insecure_local = os.getenv("ALFA_INSECURE_LOCAL", "false").strip().lower() == "true"
+    dashboard_host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
+    if insecure_local and dashboard_host in ("0.0.0.0", "::"):  # nosec B104 - perbandingan string untuk guard, bukan bind
+        if token:
+            raise RuntimeError(_ERR_INSECURE_LOCAL_PUBLIC)
     if not token:
-        dashboard_host = os.getenv("DASHBOARD_HOST", "127.0.0.1")
         if dashboard_host in ("0.0.0.0", "::"):  # nosec B104 - string comparison for guard check, not a bind
             logger.critical(
                 "⚠️ CRITICAL SECURITY WARNING ⚠️\n"
@@ -146,15 +163,17 @@ def _check_security_config():
                 "Semua endpoint /api/* dapat diakses SIAPA PUN dari jaringan Anda.\n"
                 "SOLUSI CEPAT: Set DASHBOARD_AUTH_TOKEN di .env atau ubah DASHBOARD_HOST=127.0.0.1"
             )
-            raise RuntimeError(
-                "Dashboard tidak boleh berjalan tanpa autentikasi saat binding ke 0.0.0.0/::. "
-                "Set DASHBOARD_AUTH_TOKEN di environment atau gunakan DASHBOARD_HOST=127.0.0.1 untuk localhost-only."
+            raise RuntimeError(_ERR_NO_TOKEN_PUBLIC_BIND)
+        if insecure_local:
+            logger.warning(
+                "ALFA_INSECURE_LOCAL=true: endpoint /api/* dapat diakses tanpa autentikasi "
+                "dari klien lokal (127.0.0.1). HANYA untuk development di localhost."
             )
         else:
             logger.warning(
-                "DASHBOARD_AUTH_TOKEN tidak diset - dashboard TANPA autentikasi. "
-                "Aman HANYA jika DASHBOARD_HOST=127.0.0.1 (localhost). "
-                "Untuk production, WAJIB set DASHBOARD_AUTH_TOKEN di .env!"
+                "DASHBOARD_AUTH_TOKEN tidak diset - endpoint /api/* WAJIB login "
+                "(fail-closed). Gunakan akun admin yang dibuat lewat /api/auth/register, "
+                "atau set ALFA_INSECURE_LOCAL=true untuk mode development localhost tanpa login."
             )
     else:
         logger.info("Dashboard authentication enabled (Bearer token + Basic auth)")
@@ -165,6 +184,50 @@ def _check_security_config():
     check_runtime_security("dashboard")
 
 
+class CSPNonceMiddleware(BaseHTTPMiddleware):
+    """Tambahkan Content-Security-Policy ketat + nonce untuk script inline.
+
+    Tanpa CSP, stored XSS dari output LLM punya jalur eksekusi bebas:
+    `<img src=x onerror=...>` di dalam HTML yang di-render akan berjalan.
+    DOMPurify (P1) membersihkan HTML-nya, CSP adalah lapis kedua:policy ini
+    memblokir script inline maupun handler event yang lolos sanitasi.
+
+    Script inline di `templates/index.html` diberi nonce oleh route `/`.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        nonce = secrets.token_urlsafe(18)
+        request.state.csp_nonce = nonce
+        csp = "; ".join(
+            [
+                "default-src 'self'",
+                (
+                    "script-src 'self' "
+                    f"'nonce-{nonce}' "
+                    "https://cdn.tailwindcss.com "
+                    "https://unpkg.com "
+                    "https://cdn.jsdelivr.net"
+                ),
+                # Tailwind Play CDN menyuntik <style> runtime + template memakai
+                # atribut style inline, jadi 'unsafe-inline' diperlukan di style-src.
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+                "img-src 'self' data: blob: https:",
+                "font-src 'self' data:",
+                "connect-src 'self' ws: wss:",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "object-src 'none'",
+            ]
+        )
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = csp
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        return response
+
+
 def create_app() -> FastAPI:
     """FastAPI application factory."""
     _check_security_config()
@@ -173,7 +236,7 @@ def create_app() -> FastAPI:
         title="ALFA Sovereign Command Center Pro-Max",
         description=(
             "The Autonomous Sovereign AI Operating System & Command Center API.\n\n"
-            "Features 148 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
+            "Features 173 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
             "and external webhook automation integration."
         ),
         version="2.6.0",
@@ -185,6 +248,7 @@ def create_app() -> FastAPI:
 
     # Middleware registration
     app_instance.add_middleware(DashboardAuthMiddleware)
+    app_instance.add_middleware(CSPNonceMiddleware)
 
     _cors_env = os.getenv("ALLOWED_CORS_ORIGINS", "").strip()
     if _cors_env:
@@ -219,6 +283,14 @@ def create_app() -> FastAPI:
         if os.path.exists(index_path):
             with open(index_path, encoding="utf-8") as f:
                 html_content = f.read()
+
+            # Sisipkan nonce pada script inline agar CSP bisa memakai
+            # 'nonce-...' alih-alih 'unsafe-inline' untuk script.
+            nonce = getattr(request.state, "csp_nonce", "")
+            if nonce:
+                html_content = html_content.replace(
+                    "<script>", f'<script nonce="{nonce}">'
+                )
 
             user = getattr(request.state, "user", None)
             auth_token = os.getenv("DASHBOARD_AUTH_TOKEN", "").strip()
@@ -255,9 +327,12 @@ def create_app() -> FastAPI:
                 "testclient",
             )
             existing_session = request.cookies.get("session_token")
+            insecure_local = (
+                os.getenv("ALFA_INSECURE_LOCAL", "false").strip().lower() == "true"
+            )
             if (
                 (is_local or user)
-                and auth_token
+                and (auth_token or (insecure_local and is_local))
                 and not (existing_session and validate_session(existing_session))
             ):
                 try:

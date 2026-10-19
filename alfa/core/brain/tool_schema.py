@@ -2,12 +2,62 @@
 
 import inspect
 import logging
+import typing
 from typing import Any
 
 logger = logging.getLogger("MainBrain")
 
+# Mapping tipe Python -> tipe JSON Schema.
+#
+# Hanya `int/float/bool` yang dipetakan versi lama; `list[str]`, `dict[str, Any]`
+# dan `str | None` semuanya jatuh ke "string". Akibatnya model mengirim
+# "a,b,c" untuk parameter list → TypeError → tool gagal.
+_JSON_TYPES = {int: "integer", float: "number", bool: "boolean", str: "string"}
 
-_JSON_TYPES = {int: "integer", float: "number", bool: "boolean"}
+
+def _json_type_for(annotation: Any) -> str:
+    """Petakan anotasi Python ke tipe JSON Schema.
+
+    Menangani ``list``/``dict``/``Optional``/``Union``/``Literal``.
+    """
+    if annotation is inspect.Parameter.empty or annotation is None:
+        return "string"
+
+    if isinstance(annotation, type):
+        if annotation is bool:
+            return "boolean"
+        if annotation is int:
+            return "integer"
+        if annotation is float:
+            return "number"
+        if annotation is str:
+            return "string"
+        if annotation is list:
+            return "array"
+        if annotation is dict:
+            return "object"
+        return "string"
+
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+
+    if origin is typing.Literal:
+        # Enum literal → string (nilai spesifik diteruskan via description).
+        return "string"
+    if origin is not None:
+        if origin in (list, set, frozenset, tuple):
+            return "array"
+        if origin is dict:
+            return "object"
+        if origin is typing.Union or str(origin) == "types.UnionType":
+            # Optional[X] / X | None → pakai tipe non-None-nya.
+            non_none = [a for a in args if a is not type(None)]
+            if len(non_none) == 1:
+                return _json_type_for(non_none[0])
+            return "string"
+        if isinstance(origin, type):
+            return _JSON_TYPES.get(origin, "string")
+    return "string"
 
 
 def _parse_args_docstring(doc: str) -> dict[str, str]:
@@ -48,15 +98,7 @@ def _fn_to_openai_tool(fn) -> dict[str, Any]:
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         ann = p.annotation
-        if isinstance(ann, type):
-            jtype = _JSON_TYPES.get(ann, "string")
-        else:
-            _origin = getattr(ann, "__origin__", None)
-            jtype = (
-                _JSON_TYPES.get(_origin, "string")
-                if isinstance(_origin, type)
-                else "string"
-            )
+        jtype = _json_type_for(ann)
         props[pname] = {"type": jtype, "description": argdocs.get(pname, pname)}
         if p.default is inspect.Parameter.empty:
             required.append(pname)

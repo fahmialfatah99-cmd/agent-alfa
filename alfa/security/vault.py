@@ -36,22 +36,16 @@ def _vault_db_path() -> str:
 
     1. ATTR ``DB_PATH`` yang di-patch eksplisit (≠ patokan) — pola isolasi lama;
     2. ENV ``ALFA_DB_PATH``/``DATABASE_URL`` saat koneksi — pola test baru;
-    3. resolver ``alfa.core.db.connection`` (database module facade);
+    3. resolver ``alfa.core.db.paths`` (sumber kebenaran tunggal);
     4. ATTR ``DB_PATH`` apa adanya.
     """
     if globals().get("DB_PATH") != _ENV_DB_PATH_AT_IMPORT:
         # DB_PATH di-override eksplisit (monkeypatch attr) → hormati.
         return str(globals().get("DB_PATH"))
-    for env_key in ("ALFA_DB_PATH", "DATABASE_URL"):
-        db_env = os.getenv(env_key, "").strip()
-        if db_env:
-            if db_env.startswith("sqlite:///"):
-                return db_env.replace("sqlite:///", "")
-            return db_env
     try:
-        from alfa.core.db.connection import _get_db_path
+        from alfa.core.db.paths import resolve_db_path
 
-        resolved = _get_db_path()
+        resolved = resolve_db_path(fallback=DB_PATH)
         if resolved:
             return str(resolved)
     except Exception:  # noqa: BLE001 — resolver opsional, fallback statis aman

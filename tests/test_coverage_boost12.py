@@ -191,15 +191,19 @@ class TestWorkspaceHygiene:
     def test_cancel_flag_lifecycle(self, monkeypatch, tmp_path):
         from alfa.swarm import workspace_hygiene as wh
 
-        monkeypatch.setattr(wh, "MEETING_RUNNING", True)
         monkeypatch.setattr(wh, "_get_swarm_output_dir", lambda: str(tmp_path / "out"))
         monkeypatch.setattr(wh, "_get_target_folder", lambda: str(tmp_path / "tgt"))
-        wh._clear_cancel_flag()
-        assert wh._cancel_requested() is False
-        assert wh.request_cancel_swarm() is True
-        assert wh._cancel_requested() is True
-        wh._clear_cancel_flag()
-        assert wh._cancel_requested() is False
+        # State sesi kini per-session (bukan global MEETING_RUNNING).
+        wh.register_session("uji")
+        try:
+            wh._clear_cancel_flag("uji")
+            assert wh._cancel_requested("uji") is False
+            assert wh.request_cancel_swarm("uji") is True
+            assert wh._cancel_requested("uji") is True
+            wh._clear_cancel_flag("uji")
+            assert wh._cancel_requested("uji") is False
+        finally:
+            wh.unregister_session("uji")
 
     def test_accessors_return_strings(self):
         from alfa.swarm import workspace_hygiene as wh

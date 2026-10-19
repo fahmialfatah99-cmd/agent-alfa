@@ -4,12 +4,13 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import secrets
 import threading
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from alfa.dashboard.common import (
@@ -20,6 +21,45 @@ from alfa.dashboard.common import (
 )
 
 auth_router = APIRouter(tags=["auth"])
+
+
+def _insecure_local_enabled() -> bool:
+    """Escape hatch eksplisit: izinkan API tanpa auth untuk klien lokal saja.
+
+    Default-nya MATI. Tanpa escape hatch ini, dashboard yang dijalankan tanpa
+    ``DASHBOARD_AUTH_TOKEN`` sama sekali tidak bisa dipakai — dan itu memang
+    perilaku yang benar (fail-closed).
+    """
+    return os.getenv("ALFA_INSECURE_LOCAL", "false").strip().lower() == "true"
+
+
+def _is_local_client(request: Request) -> bool:
+    client = getattr(request, "client", None)
+    host = getattr(client, "host", None) if client else None
+    return host in ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def flatten_with_default_deny(
+    parent: APIRouter,
+    sub_routers: list[APIRouter],
+    dependency: Any = None,
+) -> None:
+    """Flatten sub-routers ke parent dengan default-deny dependency.
+
+    Cara lama ``parent.routes.extend(sub.routes)`` MELEWATI dependency router:
+    objek APIRoute sudah terbentuk saat sub-router dibuat, sehingga
+    ``APIRouter(dependencies=[...])`` pada parent tidak pernah dievaluasi.
+    include_router() membangun ulang route dengan dependency yang diminta —
+    itulah cara framework-native menerapkan default-deny.
+
+    Semua route yang di-flatten menjadi WAJIB admin kecuali sub-router itu
+    sendiri menandainya bebas (dengan `include_router` + dependency sendiri).
+    """
+    dep = dependency if dependency is not None else Depends(require_admin)
+    for sub in sub_routers:
+        tmp = APIRouter(dependencies=[dep])
+        tmp.include_router(sub)
+        parent.routes.extend(tmp.routes)
 
 
 def _hash_password(password: str, salt: str | None = None) -> tuple:
@@ -302,14 +342,19 @@ def invalidate_session(token: str) -> bool:
 def require_admin(request: Request) -> dict[str, Any]:
     """Dependency ringan untuk endpoint sensitif: hanya admin.
 
-    Mode lokal tanpa auth (DASHBOARD_AUTH_TOKEN kosong) diloloskan agar UX
-    localhost tak berubah; bila auth aktif, user non-admin ditolak 403.
+    Fail-closed: tanpa user terautentikasi, request DITOLAK. pengecualian
+    hanya untuk mode lokal tanpa auth yang diaktifkan operator secara
+    eksplisit lewat ``ALFA_INSECURE_LOCAL=true`` (klien lokal saja).
     """
     user = getattr(getattr(request, "state", None), "user", None)
     if user is None:
-        if DASHBOARD_AUTH_TOKEN:
-            raise HTTPException(status_code=401, detail="Login diperlukan.")
-        return {"username": "local", "is_admin": True}
+        if (
+            not DASHBOARD_AUTH_TOKEN
+            and _insecure_local_enabled()
+            and _is_local_client(request)
+        ):
+            return {"username": "local", "is_admin": True}
+        raise HTTPException(status_code=401, detail="Login diperlukan.")
     if not user.get("is_admin"):
         raise HTTPException(
             status_code=403, detail="Akses ditolak. Hanya admin."
@@ -497,7 +542,11 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
         if path == "/static" or path.startswith("/static/"):
             return await call_next(request)
 
-        public_paths = [
+        # Path publik memakai pencocokan PERSIS, bukan prefix. Dengan prefix,
+        # "/api/v1/webhook" membuat SELURUH /api/v1/* publik, dan "/docs"
+        # membuka /docs/* — termasuk openapi.json yang memetakan seluruh
+        # permukaan API ke publik.
+        public_paths = {
             "/",
             "/health",
             "/healthz",
@@ -508,12 +557,12 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/api/auth/register",
             "/api/mcp/oauth/callback",
             "/api/v1/webhook",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/api/openapi.json",
-        ]
-        if path == "/" or any(path.startswith(pp) for pp in public_paths if pp != "/"):
+            # Passkey LOGIN ceremony — harus publik, karena user belum punya
+            # session saat memulai autentikasi.
+            "/api/auth/webauthn/login/options",
+            "/api/auth/webauthn/login/verify",
+        }
+        if path == "/" or path in public_paths:
             return await call_next(request)
 
         # Cek session token dari cookie atau header
@@ -554,8 +603,25 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
                 }
                 return await call_next(request)
 
-        # Block akses ke API endpoints tanpa auth
-        if DASHBOARD_AUTH_TOKEN and path.startswith("/api/"):
+        # Block akses ke API endpoints tanpa auth.
+        #
+        # Fail-CLOSED: seluruh /api/* WAJIB punya session valid atau token.
+        # Sebelumnya blokade ini hanya aktif bila DASHBOARD_AUTH_TOKEN terisi,
+        # sehingga dashboard tanpa token membiarkan SEMUA /api/* terbuka.
+        if path.startswith("/api/"):
+            # Escape hatch lokal HANYA berlaku bila operator memang
+            # tidak menyiapkan token sama sekali. Bila DASHBOARD_AUTH_TOKEN
+            # diset, mode auth aktif dan escape hatch ini tidak berlaku.
+            if (
+                not DASHBOARD_AUTH_TOKEN
+                and _insecure_local_enabled()
+                and _is_local_client(request)
+            ):
+                logger.warning(
+                    "[SECURITY] Akses API tanpa auth diizinkan (ALFA_INSECURE_LOCAL=true, "
+                    "klien lokal). JANGAN set env ini di produksi."
+                )
+                return await call_next(request)
             return Response(
                 content='{"detail":"Unauthorized: login required"}',
                 status_code=401,

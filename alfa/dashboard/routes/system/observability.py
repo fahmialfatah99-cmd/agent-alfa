@@ -1,6 +1,7 @@
 """Observability (traces) & swarm checkpoint endpoints."""
+from fastapi import APIRouter, Depends
 
-from fastapi import APIRouter
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -100,7 +101,7 @@ async def get_eval_run_detail_endpoint(filename: str):
         return {"status": "error", "message": f"Error reading eval run: {e}"}
 
 
-@router.post("/api/checkpoints/{session_id}/resume")
+@router.post("/api/checkpoints/{session_id}/resume", dependencies=[Depends(require_admin)])
 async def resume_checkpoint_endpoint(session_id: str):
     """Lanjutkan sesi swarm dari checkpoint."""
     try:

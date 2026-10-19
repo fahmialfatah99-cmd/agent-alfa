@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 import aiosqlite
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, safe_int
@@ -79,7 +79,7 @@ async def save_pipeline_endpoint(pid: str, request: Request):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/api/pipelines/{pid}/webhook")
+@router.post("/api/pipelines/{pid}/webhook", dependencies=[Depends(require_admin)])
 async def pipeline_webhook_endpoint(pid: str, request: Request):
     """Trigger webhook ala n8n: POST di sini menjalankan pipeline."""
     from alfa.pipelines import engine as pl

@@ -3,10 +3,11 @@ import re
 import sqlite3
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from alfa.core import database
 from alfa.dashboard.common import logger
+from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ async def get_affiliate_campaign_detail(campaign_id: int):
     return {"status": "success", "campaign": data}
 
 
-@router.post("/api/affiliate/generate")
+@router.post("/api/affiliate/generate", dependencies=[Depends(require_admin)])
 async def generate_affiliate_campaign(payload: dict[str, Any]):
     """Generate viral affiliate campaign: template engine + personalisasi AI oleh agen Content Alchemist."""
     from alfa.tools.web import affiliate_engine
@@ -137,7 +138,7 @@ async def generate_affiliate_campaign(payload: dict[str, Any]):
     return {"status": "success", "result": res}
 
 
-@router.post("/api/affiliate/broadcast")
+@router.post("/api/affiliate/broadcast", dependencies=[Depends(require_admin)])
 async def broadcast_affiliate_campaign(payload: dict[str, Any]):
     """Broadcast an affiliate deal to Telegram / WhatsApp."""
     from alfa.tools.web import affiliate_engine
@@ -156,7 +157,7 @@ async def broadcast_affiliate_campaign(payload: dict[str, Any]):
     return res
 
 
-@router.post("/api/video/generate")
+@router.post("/api/video/generate", dependencies=[Depends(require_admin)])
 async def generate_promo_video(payload: dict[str, Any]):
     """Generate 9:16 vertical promo video from images and script."""
     import alfa.video as video_generator

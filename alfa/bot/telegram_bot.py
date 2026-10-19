@@ -19,10 +19,13 @@ import logging
 import os
 import sys
 
+from telegram import Update
+from telegram.error import TelegramError
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
 )
@@ -345,6 +348,20 @@ def main():
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message)
     )
+
+    async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger.error("Exception while handling an update:", exc_info=context.error)
+        if hasattr(update, "effective_chat") and getattr(update, "effective_chat", None):
+            try:
+                await safe_send_message(
+                    context,
+                    update.effective_chat.id,
+                    f"⚠️ Terjadi kendala saat memproses permintaan:\n`{context.error}`",
+                )
+            except (TelegramError, OSError):
+                pass
+
+    application.add_error_handler(_on_error)
 
     logger.info("Bot Telegram Otonom siap melayani! Menunggu interaksi...")
     application.run_polling(drop_pending_updates=True)

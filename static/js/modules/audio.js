@@ -1,3 +1,7 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { showToast } from './state.js';
+import { ToolAudioRecorder } from '../tools.js';
 /**
  * ==============================================================================
  * ALFA COMMAND CENTER - AUDIO SUBSYSTEM MODULE (audio.js)
@@ -9,8 +13,8 @@
 
 // Global AudioContext singleton
 let audioCtx = null;
-let hqSfxEnabled = true;
-let hqSpeedMultiplier = 1; // 1, 1.5, 2, or 99 (instant)
+export let hqSfxEnabled = true;
+export let hqSpeedMultiplier = 1; // 1, 1.5, 2, or 99 (instant)
 
 /**
  * Lazily retrieve or create the active Web AudioContext.
@@ -34,7 +38,7 @@ function getAudioContext() {
 /**
  * Generate a short synthesized tone for cybernetic UI feedback.
  */
-function playCyberBeep(freq = 600, type = 'sine', duration = 0.08, vol = 0.08) {
+export function playCyberBeep(freq = 600, type = 'sine', duration = 0.08, vol = 0.08) {
     if (!hqSfxEnabled) return;
     try {
         const ctx = getAudioContext();
@@ -57,7 +61,7 @@ function playCyberBeep(freq = 600, type = 'sine', duration = 0.08, vol = 0.08) {
 /**
  * SFX for agent turn starting in swarm deliberation.
  */
-function playTurnStartSfx() {
+export function playTurnStartSfx() {
     playCyberBeep(520, 'sine', 0.06, 0.06);
     setTimeout(() => playCyberBeep(780, 'triangle', 0.12, 0.08), 60);
 }
@@ -65,7 +69,7 @@ function playTurnStartSfx() {
 /**
  * SFX when swarm consensus or debate agreement is reached.
  */
-function playConsensusSfx() {
+export function playConsensusSfx() {
     if (!hqSfxEnabled) return;
     [440, 554.37, 659.25, 880].forEach((freq, idx) => {
         setTimeout(() => playCyberBeep(freq, 'triangle', 0.3, 0.09), idx * 110);
@@ -82,7 +86,7 @@ function toggleHqSfx() {
     if (sfxIcon) sfxIcon.innerText = hqSfxEnabled ? '🔊' : '🔇';
     if (sfxText) sfxText.innerText = hqSfxEnabled ? 'SFX ON' : 'SFX OFF';
     if (hqSfxEnabled) playCyberBeep(800, 'sine', 0.1, 0.08);
-    if (typeof showToast === 'function') {
+    {
         showToast(`Suara Efek UI: ${hqSfxEnabled ? 'AKTIF' : 'NONAKTIF'}`, 'info');
     }
 }
@@ -99,7 +103,7 @@ function cycleHqSpeed() {
     const speedEl = document.getElementById('hq-speed-text') || document.getElementById('hq-speed-btn');
     if (speedEl) speedEl.innerText = labels[hqSpeedMultiplier];
     playCyberBeep(650 + nextIdx * 80, 'sine', 0.05, 0.07);
-    if (typeof showToast === 'function') {
+    {
         showToast(`Kecepatan Rapat: ${labels[hqSpeedMultiplier]}`, 'info');
     }
 }
@@ -214,48 +218,12 @@ class AudioVisualizer {
 /**
  * Helper class for recording audio blobs from microphone.
  */
-window.ToolAudioRecorder = window.ToolAudioRecorder || class ToolAudioRecorder {
-    constructor() {
-        this.mediaRecorder = null;
-        this.audioChunks = [];
-        this.stream = null;
-    }
 
-    async start() {
-        this.audioChunks = [];
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.mediaRecorder = new MediaRecorder(this.stream);
-        this.mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) this.audioChunks.push(e.data);
-        };
-        this.mediaRecorder.start();
-    }
-
-    async stop() {
-        return new Promise((resolve, reject) => {
-            if (!this.mediaRecorder) {
-                return reject(new Error("AudioRecorder not initialized"));
-            }
-            this.mediaRecorder.onstop = () => {
-                if (this.stream) {
-                    this.stream.getTracks().forEach(track => track.stop());
-                }
-                const audioBlob = new Blob(this.audioChunks, { type: "audio/webm" });
-                resolve(audioBlob);
-            };
-            if (this.mediaRecorder.state !== "inactive") {
-                this.mediaRecorder.stop();
-            } else {
-                reject(new Error("AudioRecorder not recording"));
-            }
-        });
-    }
-}
 
 /**
  * Plays an audio file from URL with error handling and toast feedback.
  */
-function playToolAudio(audioUrl) {
+export function playToolAudio(audioUrl) {
     if (!audioUrl) return null;
     const audio = new Audio(audioUrl);
     audio.play().catch(e => {
@@ -273,9 +241,9 @@ function playToolAudio(audioUrl) {
  * Speaks a given text message using Web Speech Synthesis.
  * Automatically strips Markdown symbols, code snippets, and URLs.
  */
-function speakTextMessage(text, options = {}) {
+export function speakTextMessage(text, options = {}) {
     if (!('speechSynthesis' in window)) {
-        if (typeof showToast === 'function') {
+        {
             showToast('Browser Anda tidak mendukung Text-to-Speech.', 'warning');
         }
         return;
@@ -284,7 +252,7 @@ function speakTextMessage(text, options = {}) {
     try {
         window.speechSynthesis.cancel();
         if (!text || !text.trim()) {
-            if (typeof showToast === 'function') {
+            {
                 showToast('Tidak ada teks untuk dibacakan.', 'info');
             }
             return;
@@ -313,7 +281,7 @@ function speakTextMessage(text, options = {}) {
         if (idVoice) utterance.voice = idVoice;
 
         utterance.onstart = () => {
-            if (typeof showToast === 'function') {
+            {
                 showToast('🔊 Membacakan jawaban AI...', 'info');
             }
         };
@@ -322,7 +290,7 @@ function speakTextMessage(text, options = {}) {
         window.speechSynthesis.speak(utterance);
     } catch (err) {
         console.error('TTS error:', err);
-        if (typeof showToast === 'function') {
+        {
             showToast('Gagal memutar audio: ' + err.message, 'error');
         }
     }

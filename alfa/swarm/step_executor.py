@@ -139,9 +139,11 @@ async def _verify_step_result(task: str, step_result: dict[str, Any]) -> tuple:
             )
         changed_sample = step_result.get("changed_sample") or []
 
-    # Judge terkonfigurasi: ALFA_SWARM_JUDGE=mechanical melewati panggilan LLM
-    # dan hanya memakai bukti mekanis (hemat kuota, deterministik, offline-safe).
-    if os.getenv("ALFA_SWARM_JUDGE", "auto").strip().lower() == "mechanical":
+    # Judge terkonfigurasi: ALFA_SWARM_JUDGE=mechanical (DEFAULT) melewati
+    # panggilan LLM dan hanya memakai bukti mekanis (hemat kuota,
+    # deterministik, offline-safe). Opt-in ke judge LLM lewat
+    # ALFA_SWARM_JUDGE=llm.
+    if os.getenv("ALFA_SWARM_JUDGE", "mechanical").strip().lower() == "mechanical":
         if claims_file_work and fs_changed:
             return True, ""
         if step_result.get("status") == "success" and step_result.get("tool_used"):

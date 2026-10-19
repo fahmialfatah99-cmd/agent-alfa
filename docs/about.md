@@ -13,7 +13,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 162 Sovereign Tools, Master Scraper, Passkey Vault, Web Command Center, dan Jembatan Discord.**
+**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 173 Sovereign Tools, Master Scraper, Passkey Vault, Web Command Center, dan Jembatan Discord.**
 
 [Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
 
@@ -23,7 +23,7 @@
 
 ## 🌟 Fitur Unggulan
 
-> Terukur: 162 tools, 46 perintah Telegram, 5 slash Discord, 794 uji hijau —
+> Terukur: 173 tools, 46 perintah Telegram, 5 slash Discord, 1.063 uji hijau —
 > detail historis di [docs/BENCHMARK.md](BENCHMARK.md).
 
 ### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
@@ -68,7 +68,7 @@
 ### 7. 📊 Operasi Terukur: Antrean, Eval & Keamanan Berlapis
 * **Antrean Misi Durable:** Swarm mission queue SQLite (claim atomik, retry backoff) + worker systemd + endpoint `/api/swarm/queue/*`.
 * **Eval & Benchmark:** 20 golden task offline di CI, live eval mingguan berbiaya terukur (`docs/EFFICIENCY.md`), paket head-to-head terbuka.
-* **Keamanan:** Permission gate + trust score, RBAC admin di 15 endpoint sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
+* **Keamanan:** Permission gate + trust score, RBAC admin default-deny di seluruh endpoint mutating sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
 
 ### 8. 💬 Jembatan Discord, Galeri Situs & Digest Cerdas
 * **Bot Discord penuh:** chat (memori bersama Telegram), `!swarm`, `!sites`, `!play` musik VC, mode Jarvis dengar-jawab suara (`!join`), cermin war-room live, digest WA harian, 5 slash command (`/tanya /swarm /situs /misi /gabung`). Service: `alfa-discord-bot.service`.

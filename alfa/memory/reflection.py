@@ -83,6 +83,10 @@ async def reflect_recent_conversation(
             ),
             user_text=_REFLECTION_PROMPT + convo_text,
             context="memory_reflection",
+            # Job background ini tidak butuh tool sama sekali. Tanpa
+            # tools_schema=[] ia akan mendapat akses ke seluruh tool registry
+            # (vault_delete_secret, execute_bash_command, ...) tanpa gate.
+            tools_schema=[],
         )
         if not raw:
             return 0

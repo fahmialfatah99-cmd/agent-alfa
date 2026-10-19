@@ -1,15 +1,19 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { playToolAudio } from './modules/audio.js';
+import { escAttr, escHtml, showToast } from './modules/state.js';
 /* ==========================================================================
    ALFA DASHBOARD — Tools Arsenal, Parameter Modal & Runners
    ========================================================================== */
 
-let allToolsData = [];
+export let allToolsData = [];
 let activeCategory = 'all';
 let currentModalTool = null;
 
 /**
  * Audio Recorder & Player Helpers for Tools Execution
  */
-class ToolAudioRecorder {
+export class ToolAudioRecorder {
     constructor() {
         this.mediaRecorder = null;
         this.audioChunks = [];
@@ -44,19 +48,10 @@ class ToolAudioRecorder {
 }
 window.ToolAudioRecorder = ToolAudioRecorder;
 
-function playToolAudio(audioUrl) {
-    if (!audioUrl) return;
-    const audio = new Audio(audioUrl);
-    audio.play().catch(e => {
-        console.warn("Tool audio playback failed:", e);
-        if (typeof showToast === "function") showToast("Gagal memutar audio: " + e.message, "error");
-    });
-    return audio;
-}
 window.playToolAudio = playToolAudio;
 
 // Tools Arsenal
-async function fetchTools() {
+export async function fetchTools() {
     try {
         const res = await fetch('/api/tools');
         const data = await res.json();
@@ -84,7 +79,7 @@ function renderCategories() {
     `).join('');
 }
 
-function setCategory(cat) {
+export function setCategory(cat) {
     activeCategory = cat;
     const labelEl = document.getElementById('active-cat-name');
     if (labelEl) labelEl.innerText = cat === 'all' ? 'Semua' : cat;
@@ -92,7 +87,7 @@ function setCategory(cat) {
     filterTools();
 }
 
-function filterTools() {
+export function filterTools() {
     const query = document.getElementById('tool-search-input').value.toLowerCase();
     const filtered = allToolsData.filter(t => {
         const matchCat = activeCategory === 'all' || t.category === activeCategory;
@@ -114,13 +109,13 @@ function renderToolsList(toolsToRender = allToolsData) {
             <div>
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <span class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/5 text-cyan-400 border border-cyan-500/20">
-                        ${t.category}
+                        ${escHtml(t.category)}
                     </span>
-                    ${t.is_extra ? `<span title="Optional extra: ${t.extra_group || ''}" class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">Optional</span>` : ``}
-                    <span class="text-[11px] font-mono text-slate-400">${t.parameters.length} params</span>
+                    ${t.is_extra ? `<span title="Optional extra: ${escAttr(t.extra_group || '')}" class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">Optional</span>` : ``}
+                    <span class="text-[11px] font-mono text-slate-400">${escHtml(t.parameters.length)} params</span>
                 </div>
-                <h3 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${t.name}()</h3>
-                <p class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">${t.short_description}</p>
+                <h3 class="text-xs font-bold text-white font-mono group-hover:text-cyan-300 transition-colors">${escHtml(t.name)}()</h3>
+                <p class="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">${escHtml(t.short_description)}</p>
             </div>
             <button onclick="openToolModal('${t.name}')" class="w-full py-2.5 bg-dark-950 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/30 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all">
                 <i data-lucide="play" class="w-3.5 h-3.5"></i> Test / Jalankan Tool
@@ -131,7 +126,7 @@ function renderToolsList(toolsToRender = allToolsData) {
 }
 
 // Tool Modal Runner
-function openToolModal(toolName) {
+export function openToolModal(toolName) {
     currentModalTool = allToolsData.find(t => t.name === toolName);
     if (!currentModalTool) {
         showToast(`Membuka tool: ${toolName}...`, 'info');
@@ -141,7 +136,7 @@ function openToolModal(toolName) {
     document.getElementById('modal-tool-name').innerText = `${currentModalTool.name}()`;
     document.getElementById('modal-tool-desc').innerHTML = `
         <div class="space-y-1">
-            <div>${currentModalTool.full_docstring}</div>
+            <div>${escHtml(currentModalTool.full_docstring)}</div>
             <div class="text-[11px] font-mono text-cyan-400/90 pt-1 border-t border-white/5 flex items-center gap-1.5">
                 <i data-lucide="folder" class="w-3.5 h-3.5"></i> Output otomatis disimpan rapi di: <span class="text-emerald-300 font-bold">~/Dokumen/ALFA_PDF_TOOLS/</span>
             </div>
@@ -197,7 +192,7 @@ function openToolModal(toolName) {
     lucide.createIcons();
 }
 
-async function handleToolFileUpload(e, inputId, isMultiple) {
+export async function handleToolFileUpload(e, inputId, isMultiple) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -237,12 +232,12 @@ async function handleToolFileUpload(e, inputId, isMultiple) {
     }
 }
 
-function closeToolModal() {
+export function closeToolModal() {
     document.getElementById('tool-modal').classList.add('hidden');
     document.getElementById('tool-modal').classList.remove('flex');
 }
 
-async function executeModalTool(e) {
+export async function executeModalTool(e) {
     if (e && e.preventDefault) e.preventDefault();
     if (!currentModalTool) return;
     const btn = document.getElementById('modal-run-btn');
@@ -305,3 +300,12 @@ async function executeModalTool(e) {
         lucide.createIcons();
     }
 }
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.closeToolModal = closeToolModal;
+window.executeModalTool = executeModalTool;
+window.fetchTools = fetchTools;
+window.filterTools = filterTools;
+window.handleToolFileUpload = handleToolFileUpload;
+window.openToolModal = openToolModal;
+window.setCategory = setCategory;

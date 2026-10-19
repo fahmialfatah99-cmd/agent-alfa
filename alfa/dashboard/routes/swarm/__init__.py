@@ -20,6 +20,9 @@ from alfa.dashboard.routes.swarm.queue_routes import router as queue_router
 
 swarm_router = APIRouter(tags=["swarm"])
 
+# Catatan: default-deny diterapkan per-endpoint sensitif di masing-masing
+# sub-router memakai `dependencies=[Depends(require_admin)]` — router-level
+# dependency tidak berlaku karena route di-flatten via `routes.extend()`.
 _sub_routers = [
     affiliate_router,
     agents_router,

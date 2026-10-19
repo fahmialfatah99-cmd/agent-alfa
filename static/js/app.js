@@ -1,3 +1,13 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { hqSfxEnabled, hqSpeedMultiplier, playConsensusSfx, playCyberBeep, playTurnStartSfx } from './modules/audio.js';
+import { fetchGdriveStatus, waClearDirty, waMarkDirty } from './modules/gdrive.js';
+import { initHotkeys } from './modules/hotkeys.js';
+import { escAttr, escHtml, fmtTokens, initAlpineState, initTheme, restoreActiveTab, safeMarkdown, showToast, updateSwarmArena } from './modules/state.js';
+import { initTelemetryChart, startTelemetryPolling } from './modules/telemetry.js';
+import { fetchServiceLogs, fetchSwarmLive } from './terminal.js';
+import { fetchTools, openToolModal } from './tools.js';
+import { fetchPasskeyStatus, fetchVaultSecrets } from './modules/vault_security.js';
 /* ==========================================================================
    ALFA DASHBOARD — Core Application Orchestrator
    Modular frontend architecture:
@@ -77,7 +87,7 @@ function _populateModels(sel, keyId, models) {
 // ── 🛰️ ANTIGRAVITY MULTI-ACCOUNT LOGIN ──
 let _agPollTimer = null;
 
-async function startAntigravityLogin() {
+export async function startAntigravityLogin() {
     const nameInput = document.getElementById('ag-name-input');
     const btn = document.getElementById('btn-ag-login');
     const statusBox = document.getElementById('ag-login-status');
@@ -103,7 +113,7 @@ async function startAntigravityLogin() {
 
         if (data.status !== 'success') {
             showToast(data.message || 'Gagal memulai login.', 'error');
-            if (statusBox) statusBox.innerHTML = '❌ ' + (data.message || 'gagal');
+            if (statusBox) statusBox.innerHTML = '❌ ' + escHtml(data.message || 'gagal');
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
             lucide.createIcons();
@@ -121,8 +131,8 @@ async function startAntigravityLogin() {
                 const sd = await sr.json();
                 if (sd.status === 'success') {
                     clearInterval(_agPollTimer);
-                    showToast(`✅ Akun ${sd.email || name} terhubung!`, 'success');
-                    if (statusBox) statusBox.innerHTML = `✅ <b class="text-emerald-400">Berhasil:</b> ${sd.email || name} masuk rotasi gateway.`;
+                    showToast(`✅ Akun ${escHtml(sd.email || name)} terhubung!`, 'success');
+                    if (statusBox) statusBox.innerHTML = `✅ <b class="text-emerald-400">Berhasil:</b> ${escHtml(sd.email || name)} masuk rotasi gateway.`;
                     btn.disabled = false;
                     btn.innerHTML = '<i data-lucide="log-in" class="w-3.5 h-3.5"></i> Login Google';
                     fetchAntigravityAccounts();
@@ -150,7 +160,7 @@ async function startAntigravityLogin() {
     }
 }
 
-async function removeAntigravityAccount(name) {
+export async function removeAntigravityAccount(name) {
     if (!confirm('Hapus akun "' + name + '" dari gateway?')) return;
     try {
         await fetch('/api/antigravity/logout', {
@@ -163,7 +173,7 @@ async function removeAntigravityAccount(name) {
     } catch (err) { showToast('Error: ' + err.message, 'error'); }
 }
 
-async function fetchAntigravityAccounts() {
+export async function fetchAntigravityAccounts() {
     const list = document.getElementById('ag-accounts-list');
     const badge = document.getElementById('ag-acct-badge');
     if (!list) return;
@@ -192,7 +202,7 @@ async function fetchAntigravityAccounts() {
     } catch (err) { console.error('fetchAntigravityAccounts:', err); }
 }
 
-async function applyAntigravityModel() {
+export async function applyAntigravityModel() {
     const sel = document.getElementById('ag-model-select');
     const chk = document.getElementById('ag-apply-all');
     const btn = document.getElementById('btn-ag-apply');
@@ -224,7 +234,7 @@ async function applyAntigravityModel() {
     }
 }
 
-async function testMainBrainCombo() {
+export async function testMainBrainCombo() {
     const sel = document.getElementById('cfg-main-brain');
     const msel = document.getElementById('cfg-main-brain-model');
     const btn = document.getElementById('btn-test-main-brain');
@@ -254,7 +264,7 @@ async function testMainBrainCombo() {
     }
 }
 
-function mbOnProviderChange() {
+export function mbOnProviderChange() {
     const prov = document.getElementById('cfg-mb-provider')?.value || '';
     const keys = (dataSettingsCache?.vault_keys || []).filter(k => k.provider === prov);
     const keySel = document.getElementById('cfg-main-brain');
@@ -274,7 +284,7 @@ function mbOnProviderChange() {
     mbOnKeyChange(keySel.value);
 }
 
-function mbOnKeyChange(keyId) {
+export function mbOnKeyChange(keyId) {
     const k = (dataSettingsCache?.vault_keys || []).find(x => String(x.id) === String(keyId));
     // Sinkronkan pilihan model dgn kunci/provider baru: pakai default
     // kunci tsb, jangan sisakan model milik provider sebelumnya.
@@ -284,7 +294,7 @@ function mbOnKeyChange(keyId) {
     loadModelsForKey(keyId, prov);
 }
 
-async function saveMainBrain() {
+export async function saveMainBrain() {
     const sel = document.getElementById('cfg-main-brain');
     const modelInput = document.getElementById('cfg-main-brain-model');
     const btn = document.getElementById('btn-save-main-brain');
@@ -314,7 +324,7 @@ async function saveMainBrain() {
     }
 }
 
-async function fetchSettings() {
+export async function fetchSettings() {
     try {
         const res = await fetch('/api/settings');
         const data = await res.json();
@@ -392,7 +402,7 @@ async function fetchSettings() {
     }
 }
 
-async function saveSettings(e) {
+export async function saveSettings(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save-settings');
     if (btn) {
@@ -435,7 +445,7 @@ async function saveSettings(e) {
 // Navigation & Telemetry logic modularized into /static/js/modules/state.js and /static/js/modules/telemetry.js
 
 // Services Hub
-async function fetchServices() {
+export async function fetchServices() {
     try {
         const res = await fetch('/api/services');
         const data = await res.json();
@@ -471,7 +481,7 @@ async function fetchServices() {
     }
 }
 
-async function controlService(service, action) {
+export async function controlService(service, action) {
     try {
         const res = await fetch('/api/services/action', {
             method: 'POST',
@@ -501,7 +511,7 @@ async function controlService(service, action) {
 }
 
 // Second Brain & Memory
-async function fetchMemory() {
+export async function fetchMemory() {
     try {
         const res = await fetch('/api/memory');
         const data = await res.json();
@@ -546,7 +556,7 @@ async function fetchMemory() {
     }
 }
 
-async function submitNewMemory(e) {
+export async function submitNewMemory(e) {
     e.preventDefault();
     const key = document.getElementById('mem-key').value.trim();
     const cat = document.getElementById('mem-cat').value;
@@ -570,7 +580,7 @@ async function submitNewMemory(e) {
     }
 }
 
-async function deleteMemoryFact(key) {
+export async function deleteMemoryFact(key) {
     if (!confirm(`Hapus fakta '${key}' dari Second Brain?`)) return;
     try {
         const res = await fetch('/api/memory/delete', {
@@ -586,7 +596,7 @@ async function deleteMemoryFact(key) {
     }
 }
 
-async function exportSecondBrain() {
+export async function exportSecondBrain() {
     try {
         const res = await fetch('/api/brain/export');
         const data = await res.json();
@@ -603,18 +613,18 @@ async function exportSecondBrain() {
 }
 
 // ==================== NEURAL VECTOR BRAIN JS ====================
-function openVectorIngestModal() {
+export function openVectorIngestModal() {
     document.getElementById('vector-ingest-modal').classList.remove('hidden');
     document.getElementById('vector-ingest-modal').classList.add('flex');
     lucide.createIcons();
 }
 
-function closeVectorIngestModal() {
+export function closeVectorIngestModal() {
     document.getElementById('vector-ingest-modal').classList.add('hidden');
     document.getElementById('vector-ingest-modal').classList.remove('flex');
 }
 
-async function submitVectorIngest(e) {
+export async function submitVectorIngest(e) {
     e.preventDefault();
     const title = document.getElementById('vec-title').value.trim();
     const cat = document.getElementById('vec-cat').value;
@@ -648,7 +658,7 @@ async function submitVectorIngest(e) {
     }
 }
 
-async function runVectorSearch() {
+export async function runVectorSearch() {
     const query = document.getElementById('vector-search-query').value.trim();
     if (!query) {
         showToast('Masukkan kueri pencarian semantik terlebih dahulu.', 'info');
@@ -701,7 +711,7 @@ let allSuperpowersData = [];
 let activeSuperpowersCategory = 'all';
 let currentSuperpowerMarkdown = '';
 
-async function fetchSuperpowersSkills() {
+export async function fetchSuperpowersSkills() {
     const grid = document.getElementById('superpowers-skills-grid');
     if (!grid) return;
     try {
@@ -759,7 +769,7 @@ function renderSuperpowersSkills(skills) {
     lucide.createIcons();
 }
 
-function filterSuperpowersCategory(category, btn) {
+export function filterSuperpowersCategory(category, btn) {
     activeSuperpowersCategory = category;
     document.querySelectorAll('.sp-cat-btn').forEach(b => {
         b.classList.remove('bg-amber-500/20', 'text-amber-300', 'border-amber-500/40', 'active');
@@ -774,7 +784,7 @@ function filterSuperpowersCategory(category, btn) {
     applySuperpowersFilters(category, searchVal);
 }
 
-function handleSuperpowersSearch(query) {
+export function handleSuperpowersSearch(query) {
     applySuperpowersFilters(activeSuperpowersCategory, query.toLowerCase().trim());
 }
 
@@ -793,7 +803,7 @@ function applySuperpowersFilters(category, query) {
     renderSuperpowersSkills(filtered);
 }
 
-async function openSuperpowerDetailModal(skillId) {
+export async function openSuperpowerDetailModal(skillId) {
     const modal = document.getElementById('superpower-detail-modal');
     const body = document.getElementById('sp-modal-body');
     const title = document.getElementById('sp-modal-title');
@@ -815,7 +825,7 @@ async function openSuperpowerDetailModal(skillId) {
 
             let renderedHtml = '';
             if (typeof marked !== 'undefined' && marked.parse) {
-                renderedHtml = marked.parse(data.content);
+                renderedHtml = safeMarkdown(data.content);
             } else {
                 renderedHtml = `<pre class="p-4 bg-dark-950 rounded-xl font-mono text-xs text-slate-300 whitespace-pre-wrap overflow-x-auto">${data.content}</pre>`;
             }
@@ -849,7 +859,7 @@ async function openSuperpowerDetailModal(skillId) {
     }
 }
 
-function closeSuperpowerDetailModal() {
+export function closeSuperpowerDetailModal() {
     const modal = document.getElementById('superpower-detail-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -857,7 +867,7 @@ function closeSuperpowerDetailModal() {
     }
 }
 
-function copySuperpowerContent() {
+export function copySuperpowerContent() {
     if (!currentSuperpowerMarkdown) return;
     navigator.clipboard.writeText(currentSuperpowerMarkdown).then(() => {
         showToast('Panduan Superpower berhasil disalin ke clipboard!', 'success');
@@ -867,7 +877,7 @@ function copySuperpowerContent() {
 }
 
 // ==================== UI/UX PRO MAX DESIGN INTELLIGENCE JS ====================
-async function executeUiUxSearch() {
+export async function executeUiUxSearch() {
     const query = (document.getElementById('uiux-query-input')?.value || '').trim();
     const domain = document.getElementById('uiux-domain-select')?.value || 'auto';
     const body = document.getElementById('uiux-results-body');
@@ -895,7 +905,7 @@ async function executeUiUxSearch() {
     }
 }
 
-async function executeUiUxDesignSystem() {
+export async function executeUiUxDesignSystem() {
     const query = (document.getElementById('uiux-query-input')?.value || '').trim();
     const body = document.getElementById('uiux-results-body');
     const btn = document.getElementById('btn-uiux-ds');
@@ -928,18 +938,18 @@ async function executeUiUxDesignSystem() {
 }
 
 // ==================== SELF-EVOLUTION DYNAMIC PLUGINS JS ====================
-function openCreatePluginModal() {
+export function openCreatePluginModal() {
     document.getElementById('plugin-create-modal').classList.remove('hidden');
     document.getElementById('plugin-create-modal').classList.add('flex');
     lucide.createIcons();
 }
 
-function closeCreatePluginModal() {
+export function closeCreatePluginModal() {
     document.getElementById('plugin-create-modal').classList.add('hidden');
     document.getElementById('plugin-create-modal').classList.remove('flex');
 }
 
-async function fetchDynamicPlugins() {
+export async function fetchDynamicPlugins() {
     const grid = document.getElementById('dynamic-plugins-grid');
     if (!grid) return;
     try {
@@ -976,7 +986,7 @@ async function fetchDynamicPlugins() {
     }
 }
 
-async function submitCreatePlugin(e) {
+export async function submitCreatePlugin(e) {
     e.preventDefault();
     const tool_name = document.getElementById('plugin-name').value.trim();
     const tool_description = document.getElementById('plugin-desc').value.trim();
@@ -1013,7 +1023,7 @@ async function submitCreatePlugin(e) {
     }
 }
 
-async function deleteDynamicPlugin(toolName) {
+export async function deleteDynamicPlugin(toolName) {
     if (!confirm(`Hapus plugin '${toolName}' secara permanen?`)) return;
     try {
         const res = await fetch('/api/plugins/delete', {
@@ -1035,7 +1045,7 @@ async function deleteDynamicPlugin(toolName) {
 }
 
 // Artifacts Gallery
-async function fetchArtifacts() {
+export async function fetchArtifacts() {
     try {
         const res = await fetch('/api/artifacts');
         const data = await res.json();
@@ -1070,7 +1080,7 @@ async function fetchArtifacts() {
 // ── 📁 Workspace Explorer ──
 let wsStack = [];   // tumpukan path untuk breadcrumb
 
-async function wsInit() {
+export async function wsInit() {
     try {
         const res = await fetch('/api/workspace/roots');
         const data = await res.json();
@@ -1091,7 +1101,7 @@ function _fmtSize(n) {
     return n + ' B';
 }
 
-async function wsLoadTree(path, pushStack = true) {
+export async function wsLoadTree(path, pushStack = true) {
     const box = document.getElementById('ws-tree');
     if (!box) return;
     if (!path) { box.innerHTML = '<div class="text-amber-400 text-xs font-mono py-6 text-center">Pilih folder proyek di dropdown atas.</div>'; return; }
@@ -1127,20 +1137,20 @@ async function wsLoadTree(path, pushStack = true) {
     }
 }
 
-function wsGoUp() {
+export function wsGoUp() {
     wsStack.pop();
     const prev = wsStack[wsStack.length - 1];
     if (prev) wsLoadTree(prev.path, false);
 }
 
-async function wsChangeRoot(sel) {
+export async function wsChangeRoot(sel) {
     const p = sel.value;
     if (!p) return;
     wsStack = [];            // root baru: reset navigasi breadcrumb
     await wsLoadTree(p);     // pushStack=true -> stack=[{p}]
 }
 
-async function wsOpenFile(path, name) {
+export async function wsOpenFile(path, name) {
     const view = document.getElementById('ws-file-view');
     const nameEl = document.getElementById('ws-file-name');
     const dl = document.getElementById('ws-file-dl');
@@ -1165,7 +1175,7 @@ async function wsOpenFile(path, name) {
 }
 
 // Guardian & Proactive
-async function fetchGuardian() {
+export async function fetchGuardian() {
     try {
         const res = await fetch('/api/guardian/config');
         const data = await res.json();
@@ -1189,7 +1199,7 @@ async function fetchGuardian() {
     }
 }
 
-async function saveGuardianConfig(e) {
+export async function saveGuardianConfig(e) {
     e.preventDefault();
     const payload = {
         guardian: {
@@ -1217,7 +1227,7 @@ async function saveGuardianConfig(e) {
     }
 }
 
-function openMediaPreviewModal(title, url, type) {
+export function openMediaPreviewModal(title, url, type) {
     const modal = document.getElementById('media-preview-modal');
     const titleEl = document.getElementById('preview-modal-title');
     const downloadEl = document.getElementById('preview-modal-download');
@@ -1242,7 +1252,7 @@ function openMediaPreviewModal(title, url, type) {
     lucide.createIcons();
 }
 
-function closeMediaPreviewModal() {
+export function closeMediaPreviewModal() {
     const modal = document.getElementById('media-preview-modal');
     const bodyEl = document.getElementById('preview-modal-body');
     if (modal) {
@@ -1260,7 +1270,7 @@ function copyPathToClipboard(pathText) {
     });
 }
 
-function decorateArtifactCards(container) {
+export function decorateArtifactCards(container) {
     if (!container) return;
     // Scan for file paths in text or code blocks — uses dynamic home dir to support any username
     const homeDir = window._alfaHomeDir || '/home';
@@ -1285,7 +1295,7 @@ function decorateArtifactCards(container) {
 }
 
 // WhatsApp Live Authentication & QR Controller
-async function fetchWaQr(isManual = false) {
+export async function fetchWaQr(isManual = false) {
     try {
         const res = await fetch('/api/wa/qr');
         const data = await res.json();
@@ -1354,7 +1364,7 @@ async function fetchWaQr(isManual = false) {
     }
 }
 
-async function logoutWa() {
+export async function logoutWa() {
     if (!confirm('Apakah Anda yakin ingin logout sesi WhatsApp? QR code baru akan langsung dibuat.')) return;
     try {
         const res = await fetch('/api/wa/logout', { method: 'POST' });
@@ -1392,7 +1402,7 @@ function waDriveTypeIcon(name) {
     return { icon: 'file', cls: 'text-slate-400' };
 }
 
-async function fetchWaDriveUploads(isManual = false) {
+export async function fetchWaDriveUploads(isManual = false) {
     const list = document.getElementById('wa-drive-uploads-list');
     if (!list) return;
     try {
@@ -1437,7 +1447,7 @@ async function fetchWaDriveUploads(isManual = false) {
     }
 }
 
-async function fetchWaReports(isManual = false) {
+export async function fetchWaReports(isManual = false) {
     try {
         const res = await fetch('/api/wa/reports');
         const data = await res.json();
@@ -1487,7 +1497,7 @@ function renderFormatPills() {
     filterSelect.innerHTML = optionsHtml;
 }
 
-function setFormatFilter(fmt) {
+export function setFormatFilter(fmt) {
     activeFormatFilter = fmt;
     const filterEl = document.getElementById('report-format-filter');
     if (filterEl) filterEl.value = fmt;
@@ -1495,7 +1505,7 @@ function setFormatFilter(fmt) {
     renderReportsTable();
 }
 
-function renderReportsTable() {
+export function renderReportsTable() {
     const queryEl = document.getElementById('report-search-input');
     const filterEl = document.getElementById('report-format-filter');
     const tbody = document.getElementById('reports-table-body');
@@ -1585,7 +1595,7 @@ async function fetchModelsCatalog() {
     }
 }
 
-async function fetchAgents() {
+export async function fetchAgents() {
     try {
         const res = await fetch('/api/agents');
         const data = await res.json();
@@ -1772,7 +1782,7 @@ function renderHqOfficeDesks() {
     }).join('');
 }
 
-function triggerAgentHqClick(agentId) {
+export function triggerAgentHqClick(agentId) {
     playCyberBeep(850, 'sine', 0.08, 0.1);
     openAgentTestModal(agentId);
 }
@@ -1839,7 +1849,7 @@ async function playHqMeetingAnimation(transcript, consensus, actionPlan, topic) 
     if (!transcript || transcript.length === 0) return;
 
     if (!document.getElementById('ai-virtual-hq')) {
-        if (typeof updateSwarmArena === 'function' && document.getElementById('swarm-arena')) {
+        if (document.getElementById('swarm-arena')) {
             isMeetingAnimationPlaying = true;
             try {
                 for (let i = 0; i < transcript.length; i++) {
@@ -1951,7 +1961,7 @@ async function playHqMeetingAnimation(transcript, consensus, actionPlan, topic) 
 
         // Append card to transcript feed
         if (feed) {
-            const parsedMsg = marked.parse(turn.message || '');
+            const parsedMsg = safeMarkdown(turn.message || '');
             const newEntry = document.createElement('div');
             newEntry.className = 'p-4 rounded-2xl bg-dark-900/90 border border-white/5 space-y-2 group hover:border-white/10 transition-all hq-speech-bubble';
             newEntry.innerHTML = `
@@ -1986,7 +1996,7 @@ async function playHqMeetingAnimation(transcript, consensus, actionPlan, topic) 
         const baseDelay = hqSpeedMultiplier === 99 ? 0 : Math.max(8, 20 / hqSpeedMultiplier);
 
         if (hqSpeedMultiplier === 99) {
-            if (bubbleText) bubbleText.innerHTML = marked.parse(fullText);
+            if (bubbleText) bubbleText.innerHTML = safeMarkdown(fullText);
         } else if (bubbleText) {
             bubbleText.innerHTML = '';
             const stepSize = Math.max(1, Math.floor(fullText.length / 40));
@@ -1995,7 +2005,7 @@ async function playHqMeetingAnimation(transcript, consensus, actionPlan, topic) 
                 if (c % (stepSize * 4) === 0) playCyberBeep(900, 'sine', 0.02, 0.02);
                 await new Promise(r => setTimeout(r, baseDelay));
             }
-            bubbleText.innerHTML = marked.parse(fullText);
+            bubbleText.innerHTML = safeMarkdown(fullText);
         }
 
         // Pause for reading
@@ -2074,7 +2084,7 @@ function renderAgentsGrid() {
     lucide.createIcons();
 }
 
-async function toggleAgentTools(id) {
+export async function toggleAgentTools(id) {
     const a = (allAgentsData || []).find(x => x.id === id);
     if (!a) return;
     const next = !(a.enable_tools === 1 || a.enable_tools === true);
@@ -2176,7 +2186,7 @@ async function populateAgentKeySources(selectedKeyId = null) {
     sel.innerHTML = html;
 }
 
-function onAgentKeySourceChange() {
+export function onAgentKeySourceChange() {
     const keySourceVal = document.getElementById('agent-key-source-select').value;
     if (keySourceVal !== 'default') {
         const keyObj = allKeysData.find(k => Number(k.id) === Number(keySourceVal));
@@ -2187,14 +2197,14 @@ function onAgentKeySourceChange() {
     }
 }
 
-function onAgentProviderChange(targetModel = '') {
+export function onAgentProviderChange(targetModel = '') {
     const prov = document.getElementById('agent-provider-input').value;
     const modelSelect = document.getElementById('agent-model-select');
     const customInput = document.getElementById('agent-model-custom');
     populateModelSelect(modelSelect, customInput, prov, targetModel);
 }
 
-function onAgentModelSelectChange() {
+export function onAgentModelSelectChange() {
     const sel = document.getElementById('agent-model-select');
     const custom = document.getElementById('agent-model-custom');
     if (sel.value === '__custom__') {
@@ -2205,7 +2215,7 @@ function onAgentModelSelectChange() {
     }
 }
 
-function openAgentModal(agentId = null) {
+export function openAgentModal(agentId = null) {
     populateAgentKeySources();
     const titleEl = document.getElementById('agent-modal-title');
     const editIdEl = document.getElementById('agent-edit-id');
@@ -2244,12 +2254,12 @@ function openAgentModal(agentId = null) {
     lucide.createIcons();
 }
 
-function closeAgentModal() {
+export function closeAgentModal() {
     document.getElementById('agent-modal').classList.add('hidden');
     document.getElementById('agent-modal').classList.remove('flex');
 }
 
-async function saveCustomAgentForm(e) {
+export async function saveCustomAgentForm(e) {
     e.preventDefault();
     const editId = document.getElementById('agent-edit-id').value;
     const modelSel = document.getElementById('agent-model-select').value;
@@ -2292,7 +2302,7 @@ async function saveCustomAgentForm(e) {
     }
 }
 
-async function toggleAgent(id) {
+export async function toggleAgent(id) {
     try {
         const res = await fetch(`/api/agents/${id}`, {
             method: 'PUT',
@@ -2326,7 +2336,7 @@ function viewAgentPrompt(id) {
     lucide.createIcons();
 }
 
-function closeAgentPromptModal() {
+export function closeAgentPromptModal() {
     document.getElementById('agent-prompt-modal').classList.add('hidden');
     document.getElementById('agent-prompt-modal').classList.remove('flex');
 }
@@ -2349,13 +2359,13 @@ function openAgentTestModal(id) {
     lucide.createIcons();
 }
 
-function closeAgentTestModal() {
+export function closeAgentTestModal() {
     document.getElementById('agent-test-modal').classList.add('hidden');
     document.getElementById('agent-test-modal').classList.remove('flex');
     activeTestingAgentId = null;
 }
 
-async function sendAgentTestMessage(e) {
+export async function sendAgentTestMessage(e) {
     e.preventDefault();
     if (!activeTestingAgentId) return;
     const input = document.getElementById('test-chat-input');
@@ -2398,7 +2408,7 @@ async function sendAgentTestMessage(e) {
         document.getElementById(loadingId)?.remove();
 
         if (data.status === 'success') {
-            const parsedReply = marked.parse(data.reply || '');
+            const parsedReply = safeMarkdown(data.reply || '');
             history.innerHTML += `
                 <div class="flex justify-start">
                     <div class="max-w-[90%] p-3.5 rounded-2xl bg-dark-900/95 border border-white/10 text-slate-200 text-xs leading-relaxed space-y-1">
@@ -2434,7 +2444,7 @@ function scrollToMeetingRoom() {
 // ==================== AI MEETING & SWARM WORKSPACE CONTROLLER ====================
 let currentMeetingMode = 'execute';
 
-async function loadMeetingFolders() {
+export async function loadMeetingFolders() {
     const sel = document.getElementById('meeting-folder-select');
     if (!sel) return;
     try {
@@ -2452,7 +2462,7 @@ async function loadMeetingFolders() {
     } catch (e) { console.warn('gagal muat folder', e); }
 }
 
-function onMeetingFolderChange() {
+export function onMeetingFolderChange() {
     const sel = document.getElementById('meeting-folder-select');
     const custom = document.getElementById('meeting-folder-custom');
     if (!sel || !custom) return;
@@ -2504,7 +2514,7 @@ function setMeetingMode(mode) {
     lucide.createIcons();
 }
 
-async function startAiMeeting() {
+export async function startAiMeeting() {
     const topic = document.getElementById('meeting-topic-input').value.trim();
     if (!topic) {
         showToast('Masukkan topik atau perintah tugas terlebih dahulu.', 'error');
@@ -2581,7 +2591,7 @@ async function startAiMeeting() {
                 renderSwarmExecutionResults(data.execution_results);
                 if (execContainer) execContainer.classList.remove('hidden');
             }
-            const markedConsensusC = marked.parse(data.consensus || 'Eksekusi dibatalkan.');
+            const markedConsensusC = safeMarkdown(data.consensus || 'Eksekusi dibatalkan.');
             const consText = document.getElementById('meeting-consensus-text');
             if (consText) consText.innerHTML = markedConsensusC;
             const actText = document.getElementById('meeting-action-plan-text');
@@ -2611,8 +2621,8 @@ async function startAiMeeting() {
                     : '<i data-lucide="award" class="w-5 h-5 text-emerald-400"></i> LAPORAN HASIL EKSEKUSI SWARM';
             }
 
-            const markedConsensus = marked.parse(data.consensus || 'Tidak ada konsensus.');
-            const markedAction = marked.parse(data.action_plan || '');
+            const markedConsensus = safeMarkdown(data.consensus || 'Tidak ada konsensus.');
+            const markedAction = safeMarkdown(data.action_plan || '');
             const consText = document.getElementById('meeting-consensus-text');
             if (consText) consText.innerHTML = markedConsensus;
             const actText = document.getElementById('meeting-action-plan-text');
@@ -2644,7 +2654,7 @@ async function startAiMeeting() {
     }
 }
 
-async function cancelSwarmMeeting() {
+export async function cancelSwarmMeeting() {
     const btnCancel = document.getElementById('btn-cancel-meeting');
     try {
         if (btnCancel) {
@@ -2675,7 +2685,7 @@ function renderSwarmExecutionResults(steps) {
     if (!feed) return;
 
     feed.innerHTML = steps.map((s, idx) => {
-        const parsedGen = marked.parse(s.generated_content || '');
+        const parsedGen = safeMarkdown(s.generated_content || '');
         return `
             <div class="p-4 rounded-2xl bg-dark-900/90 border border-amber-500/30 hover:border-amber-500/50 space-y-3 transition-all shadow-md">
                 <div class="flex items-center justify-between">
@@ -2742,7 +2752,7 @@ function renderMeetingDialogue(transcript) {
 
     feed.innerHTML = transcript.map(d => {
         const col = colorMaps[d.color_theme] || colorMaps.cyan;
-        const parsedMsg = marked.parse(d.message || '');
+        const parsedMsg = safeMarkdown(d.message || '');
         return `
             <div class="p-4 rounded-2xl bg-dark-900/90 border border-white/5 space-y-2 group hover:border-white/10 transition-all">
                 <div class="flex items-center justify-between">
@@ -2792,12 +2802,12 @@ async function fetchMeetings() {
                             ${m.mode === 'execute' 
                                 ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⚡ EKSEKUSI</span>'
                                 : '<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">📋 PLAN</span>'}
-                            <span class="font-medium text-white max-w-xs truncate" title="${m.topic}">${m.topic}</span>
+                            <span class="font-medium text-white max-w-xs truncate" title="${escAttr(m.topic)}">${escHtml(m.topic)}</span>
                         </div>
                     </td>
                     <td class="py-3">
                         <div class="flex flex-wrap gap-1">
-                            ${(m.participants || []).map(p => `<span class="px-1.5 py-0.2 rounded bg-dark-900 border border-white/5 text-[10px] font-mono text-slate-300">${p}</span>`).join('')}
+                            ${(m.participants || []).map(p => `<span class="px-1.5 py-0.2 rounded bg-dark-900 border border-white/5 text-[10px] font-mono text-slate-300">${escHtml(p)}</span>`).join('')}
                         </div>
                     </td>
                     <td class="py-3 whitespace-nowrap">
@@ -2822,7 +2832,7 @@ async function fetchMeetings() {
 
 let currentActiveModalMeeting = null;
 
-async function viewMeetingDetails(id) {
+export async function viewMeetingDetails(id) {
     try {
         const res = await fetch(`/api/meetings/${id}`);
         const data = await res.json();
@@ -2839,7 +2849,7 @@ async function viewMeetingDetails(id) {
                         <span class="font-bold text-cyan-400">${d.avatar_emoji || '🤖'} ${d.agent_name} (${d.role})</span>
                         <span class="text-slate-500 text-[10px]">R${d.round} • ${d.timestamp}</span>
                     </div>
-                    <div class="text-xs text-slate-200 leading-relaxed font-sans">${marked.parse(d.message || '')}</div>
+                    <div class="text-xs text-slate-200 leading-relaxed font-sans">${safeMarkdown(d.message || '')}</div>
                 </div>
             `).join('');
 
@@ -2847,19 +2857,19 @@ async function viewMeetingDetails(id) {
                 const execCards = m.execution_results.map(s => `
                     <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono space-y-1 my-2">
                         <div class="flex items-center justify-between text-amber-300 font-bold">
-                            <span>${s.avatar_emoji || '🤖'} ${s.agent_name} (${s.role})</span>
-                            <span class="text-[10px] text-cyan-400">Tool: ${s.tool_used} • ${s.duration_ms}ms</span>
+                            <span>${escHtml(s.avatar_emoji || '🤖')} ${escHtml(s.agent_name)} (${escHtml(s.role)})</span>
+                            <span class="text-[10px] text-cyan-400">Tool: ${escHtml(s.tool_used)} • ${escHtml(s.duration_ms)}ms</span>
                         </div>
-                        <div class="text-slate-300 text-[11px] whitespace-pre-wrap">${s.execution_summary}</div>
-                        ${s.deliverable_file ? `<div class="text-emerald-400 text-[10px]">📁 Output: ${s.deliverable_file}</div>` : ''}
+                        <div class="text-slate-300 text-[11px] whitespace-pre-wrap">${escHtml(s.execution_summary)}</div>
+                        ${s.deliverable_file ? `<div class="text-emerald-400 text-[10px]">📁 Output: ${escHtml(s.deliverable_file)}</div>` : ''}
                     </div>
                 `).join('');
                 document.getElementById('m-modal-consensus-text').innerHTML = 
                     '<h4 class="text-xs font-bold text-amber-400 font-mono mb-2">⚡ HASIL EKSEKUSI LANGSUNG OLEH TIM SWARM:</h4>' +
                     execCards + '<div class="border-t border-white/10 my-3 pt-3"></div>' + 
-                    marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+                    safeMarkdown(m.consensus + '\n\n' + (m.action_plan || ''));
             } else {
-                document.getElementById('m-modal-consensus-text').innerHTML = marked.parse(m.consensus + '\n\n' + (m.action_plan || ''));
+                document.getElementById('m-modal-consensus-text').innerHTML = safeMarkdown(m.consensus + '\n\n' + (m.action_plan || ''));
             }
 
             document.getElementById('meeting-modal').classList.remove('hidden');
@@ -2871,7 +2881,7 @@ async function viewMeetingDetails(id) {
     }
 }
 
-function playCurrentModalMeetingAnimation() {
+export function playCurrentModalMeetingAnimation() {
     if (!currentActiveModalMeeting) return;
     closeMeetingModal();
     const transcript = typeof currentActiveModalMeeting.dialogue_transcript === 'string' ? JSON.parse(currentActiveModalMeeting.dialogue_transcript || '[]') : (currentActiveModalMeeting.dialogue_transcript || []);
@@ -2882,7 +2892,7 @@ function playCurrentModalMeetingAnimation() {
     playHqMeetingAnimation(transcript, currentActiveModalMeeting.consensus, currentActiveModalMeeting.action_plan, currentActiveModalMeeting.topic || currentActiveModalMeeting.title);
 }
 
-function replaySpecificMeeting(id) {
+export function replaySpecificMeeting(id) {
     const m = allMeetingsData.find(x => x.id === id);
     if (!m) return;
     const transcript = typeof m.dialogue_transcript === 'string' ? JSON.parse(m.dialogue_transcript || '[]') : (m.dialogue_transcript || []);
@@ -2893,7 +2903,7 @@ function replaySpecificMeeting(id) {
     playHqMeetingAnimation(transcript, m.consensus, m.action_plan, m.topic || m.title);
 }
 
-function closeMeetingModal() {
+export function closeMeetingModal() {
     const modal = document.getElementById('meeting-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -2925,7 +2935,7 @@ function copyConsensus() {
 let _waFormats = [];
 const WA_DYN_SOURCES = ['timestamp', 'sender', 'group', 'body'];
 
-async function fetchWaFormats() {
+export async function fetchWaFormats() {
     try {
         const res = await fetch('/api/wa/formats');
         const data = await res.json();
@@ -3017,25 +3027,26 @@ function waUpdateSummary(i) {
 }
 
 // Mutators: update model WITHOUT full re-render so typing keeps focus
-function waSetF(i, key, val) { if (_waFormats[i]) { _waFormats[i][key] = val; waUpdateSummary(i); } waMarkDirty('formats'); updateWaPreview(); }
-function waSetKeywords(i, val) {
+export function waSetF(i, key, val) { if (_waFormats[i]) { _waFormats[i][key] = val; waUpdateSummary(i); } waMarkDirty('formats'); updateWaPreview(); }
+export function waSetKeywords(i, val) {
     if (!_waFormats[i]) return;
     _waFormats[i].keywords = val.split(',').map(k => k.trim()).filter(Boolean);
     waMarkDirty('formats');
     waUpdateSummary(i);
     updateWaPreview();
 }
-function waSetCol(i, j, key, val) {
+export function waSetCol(i, j, key, val) {
     if (_waFormats[i] && _waFormats[i].columns[j]) _waFormats[i].columns[j][key] = val;
     waMarkDirty('formats');
     updateWaPreview();
 }
 
-function escAttr(s) {
-    return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
+// CATATAN: escAttr/escHtml/safeMarkdown didefinisikan di
+// static/js/modules/state.js (dimuat lebih dulu). Definisi ganda di sini
+// sebelumnya menimpa versi state.js secara diam-diam — dan karena app.js
+// dimuat belakangan, seluruh halaman memakai versi yang salah.
 
-function addWaFormat() {
+export function addWaFormat() {
     waMarkDirty('formats');
     let n = _waFormats.length + 1, name = `Format Baru ${n}`;
     const existing = new Set(_waFormats.map(f => f.name.toLowerCase()));
@@ -3054,7 +3065,7 @@ function addWaFormat() {
     updateWaPreview();
 }
 
-function delWaFormat(i) {
+export function delWaFormat(i) {
     waMarkDirty('formats');
     if (!confirm(`Hapus format "${_waFormats[i]?.name}"? (Belum tersimpan sampai klik Simpan)`)) return;
     _waFormats.splice(i, 1);
@@ -3062,13 +3073,13 @@ function delWaFormat(i) {
     updateWaPreview();
 }
 
-function addWaCol(i) {
+export function addWaCol(i) {
     if (_waFormats[i]) { waMarkDirty('formats'); _waFormats[i].columns.push({ title: '', source: 'body' }); renderWaFormats(); waUpdateSummary(i); updateWaPreview(); }
 }
-function delWaCol(i, j) {
+export function delWaCol(i, j) {
     if (_waFormats[i]) { waMarkDirty('formats'); _waFormats[i].columns.splice(j, 1); renderWaFormats(); waUpdateSummary(i); updateWaPreview(); }
 }
-function moveWaCol(i, j, dir) {
+export function moveWaCol(i, j, dir) {
     const cols = _waFormats[i]?.columns;
     if (!cols) return;
     const t = j + dir;
@@ -3099,7 +3110,7 @@ function waSimulate(msg) {
     return null;
 }
 
-function updateWaPreview() {
+export function updateWaPreview() {
     const box = document.getElementById('wa-preview-result');
     const msg = document.getElementById('wa-preview-msg')?.value || '';
     if (!msg.trim()) { box.innerHTML = '<span class="text-slate-600">Ketik pesan contoh untuk melihat format mana yang cocok...</span>'; return; }
@@ -3121,7 +3132,7 @@ const WA_TYPE_LABELS = {
     excel: 'Excel/CSV', dokumen: 'Dokumen', audio: 'Audio'
 };
 
-async function fetchWaMediaRules() {
+export async function fetchWaMediaRules() {
     try {
         const res = await fetch('/api/wa/media-rules');
         const data = await res.json();
@@ -3190,8 +3201,8 @@ function renderWaRules() {
     lucide.createIcons();
 }
 
-function waRuleSet(i, key, val) { if (_waRules[i]) { _waRules[i][key] = val; waMarkDirty('rules'); } }
-function waRuleToggleType(i, type) {
+export function waRuleSet(i, key, val) { if (_waRules[i]) { _waRules[i][key] = val; waMarkDirty('rules'); } }
+export function waRuleToggleType(i, type) {
     if (!_waRules[i]) return;
     const t = _waRules[i].types || [];
     const idx = t.indexOf(type);
@@ -3199,7 +3210,7 @@ function waRuleToggleType(i, type) {
     waMarkDirty('rules');
     renderWaRules();
 }
-function addWaRule() {
+export function addWaRule() {
     waMarkDirty('rules');
     // Nama default unik agar tidak kena validasi duplikat
     let n = _waRules.length + 1, name = `Aturan ${n}`;
@@ -3208,14 +3219,14 @@ function addWaRule() {
     _waRules.push({ name, enabled: true, types: ['pdf'], keyword: '', folder: 'Dokumen', naming: '{date}_{file}' });
     renderWaRules();
 }
-function delWaRule(i) {
+export function delWaRule(i) {
     waMarkDirty('rules');
     if (!confirm(`Hapus aturan "${_waRules[i]?.name}"?`)) return;
     _waRules.splice(i, 1);
     renderWaRules();
 }
 
-async function saveWaMediaRules(silent = false) {
+export async function saveWaMediaRules(silent = false) {
     const btn = document.getElementById('btn-save-wa-rules');
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i> ...';
@@ -3244,7 +3255,7 @@ async function saveWaMediaRules(silent = false) {
     return result;
 }
 
-async function saveWaFormats(silent = false) {
+export async function saveWaFormats(silent = false) {
     const btn = document.getElementById('btn-save-wa-formats');
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Menyimpan...';
@@ -3280,15 +3291,10 @@ async function saveWaFormats(silent = false) {
 // ==========================================
 // API KEY VAULT CONTROLLER
 // ==========================================
-function fmtTokens(n) {
-    n = Number(n) || 0;
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-    return String(n);
-}
+
 
 let _tuTimer = null;
-async function fetchTokenUsage() {
+export async function fetchTokenUsage() {
     try {
         const hours = document.getElementById('tu-window')?.value || 24;
         const res = await fetch(`/api/keys/usage?hours=${hours}`);
@@ -3352,7 +3358,7 @@ function startTokenUsagePolling() {
     _tuTimer = setInterval(fetchTokenUsage, 10000);
 }
 
-async function fetchKeys() {
+export async function fetchKeys() {
     try {
         const res = await fetch('/api/keys');
         const data = await res.json();
@@ -3425,7 +3431,7 @@ function renderKeysGrid(keys) {
     lucide.createIcons();
 }
 
-async function testKeyPing(keyId) {
+export async function testKeyPing(keyId) {
     const btn = document.getElementById(`btn-ping-${keyId}`);
     const badge = document.getElementById(`key-ping-badge-${keyId}`);
     if (btn) {
@@ -3441,17 +3447,17 @@ async function testKeyPing(keyId) {
 
         if (data.status === 'success') {
             badge.className = 'p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-[10px] flex items-center justify-between';
-            badge.innerHTML = `<span>🟢 Connected (${data.duration_ms}ms)</span><span>${data.response.substring(0, 20)}...</span>`;
+            badge.innerHTML = `<span>🟢 Connected (${escHtml(data.duration_ms)}ms)</span><span>${escHtml(String(data.response).substring(0, 20))}...</span>`;
             showToast('Koneksi API Key terverifikasi aktif!', 'success');
         } else {
             badge.className = 'p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px]';
-            badge.innerHTML = `<span>🔴 Error: ${data.response || 'Gagal'}</span>`;
+            badge.innerHTML = `<span>🔴 Error: ${escHtml(data.response || 'Gagal')}</span>`;
             showToast('Gagal memvalidasi API key.', 'error');
         }
     } catch (err) {
         badge.classList.remove('hidden');
         badge.className = 'p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px]';
-        badge.innerHTML = `<span>🔴 Network Error: ${err.message}</span>`;
+        badge.innerHTML = `<span>🔴 Network Error: ${escHtml(err.message)}</span>`;
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -3461,7 +3467,7 @@ async function testKeyPing(keyId) {
     }
 }
 
-async function validateFormKey() {
+export async function validateFormKey() {
     const prov = document.getElementById('key-provider-select').value;
     const key = document.getElementById('key-secret-input').value.trim();
     const modelSel = document.getElementById('key-model-select').value;
@@ -3510,7 +3516,7 @@ async function validateFormKey() {
     }
 }
 
-async function addApiKeyForm(e) {
+export async function addApiKeyForm(e) {
     e.preventDefault();
     const modelSel = document.getElementById('key-model-select').value;
     const customModel = document.getElementById('key-model-custom').value.trim();
@@ -3546,7 +3552,7 @@ async function addApiKeyForm(e) {
     }
 }
 
-async function activateKey(id) {
+export async function activateKey(id) {
     try {
         const res = await fetch(`/api/keys/${id}/activate`, { method: 'POST' });
         showToast('API Key diaktifkan sebagai default provider!', 'success');
@@ -3556,7 +3562,7 @@ async function activateKey(id) {
     }
 }
 
-async function deleteKey(id, name) {
+export async function deleteKey(id, name) {
     if (!confirm(`Hapus API Key '${name}' dari Vault?`)) return;
     try {
         const res = await fetch(`/api/keys/${id}`, { method: 'DELETE' });
@@ -3567,12 +3573,12 @@ async function deleteKey(id, name) {
     }
 }
 
-function toggleKeyVisibility(inputId) {
+export function toggleKeyVisibility(inputId) {
     const input = document.getElementById(inputId);
     if (input) input.type = input.type === 'password' ? 'text' : 'password';
 }
 
-function onProviderSelectChange() {
+export function onProviderSelectChange() {
     const prov = document.getElementById('key-provider-select').value;
     const modelSelect = document.getElementById('key-model-select');
     const customInput = document.getElementById('key-model-custom');
@@ -3616,7 +3622,7 @@ function onProviderSelectChange() {
     }
 }
 
-function onKeyModelSelectChange() {
+export function onKeyModelSelectChange() {
     const sel = document.getElementById('key-model-select');
     const custom = document.getElementById('key-model-custom');
     if (sel.value === '__custom__') {
@@ -3630,44 +3636,39 @@ function onKeyModelSelectChange() {
 // Master Application Orchestrator Initialization
 window.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize State, Theme & Active Tab
-    if (typeof initTheme === 'function') initTheme();
-    if (typeof restoreActiveTab === 'function') restoreActiveTab();
-    if (typeof initAlpineState === 'function') initAlpineState();
+    initTheme();
+    restoreActiveTab();
+    initAlpineState();
 
     // 2. Initialize Telemetry Chart & Polling
-    if (typeof initTelemetryChart === 'function') initTelemetryChart();
-    if (typeof startTelemetryPolling === 'function') {
-        startTelemetryPolling(2000);
-    } else if (typeof fetchStats === 'function') {
-        fetchStats();
-        setInterval(fetchStats, 2000);
-    }
+    initTelemetryChart();
+    startTelemetryPolling(2000);
 
     // 3. Initialize Global Hotkeys
-    if (typeof initHotkeys === 'function') initHotkeys();
+    initHotkeys();
 
     // 4. Initialize Domain Data & Services
-    if (typeof fetchTools === 'function') fetchTools();
-    if (typeof fetchGdriveStatus === 'function') fetchGdriveStatus();
-    if (typeof fetchVaultSecrets === 'function') fetchVaultSecrets();
-    if (typeof fetchPasskeyStatus === 'function') fetchPasskeyStatus();
-    if (typeof fetchWaQr === 'function') fetchWaQr();
-    if (typeof fetchWaReports === 'function') fetchWaReports();
-    if (typeof fetchModelsCatalog === 'function') fetchModelsCatalog();
-    if (typeof fetchAgents === 'function') fetchAgents();
-    if (typeof fetchKeys === 'function') fetchKeys();
-    if (typeof startTokenUsagePolling === 'function') startTokenUsagePolling();
-    if (typeof fetchAntigravityAccounts === 'function') fetchAntigravityAccounts();
-    if (typeof fetchSettings === 'function') fetchSettings();
+    fetchTools();
+    fetchGdriveStatus();
+    fetchVaultSecrets();
+    fetchPasskeyStatus();
+    fetchWaQr();
+    fetchWaReports();
+    fetchModelsCatalog();
+    fetchAgents();
+    fetchKeys();
+    startTokenUsagePolling();
+    fetchAntigravityAccounts();
+    fetchSettings();
 
     // Periodic Background Timers
     setInterval(fetchWaQr, 4000);
     setInterval(fetchWaReports, 8000);
-    if (typeof fetchWaDriveUploads === 'function') {
+    {
         fetchWaDriveUploads();
         setInterval(fetchWaDriveUploads, 8000);
     }
-    if (typeof fetchSwarmLive === 'function') {
+    {
         setInterval(fetchSwarmLive, 2500);
     }
 
@@ -3677,3 +3678,92 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.activateKey = activateKey;
+window.addApiKeyForm = addApiKeyForm;
+window.addWaCol = addWaCol;
+window.addWaFormat = addWaFormat;
+window.addWaRule = addWaRule;
+window.applyAntigravityModel = applyAntigravityModel;
+window.cancelSwarmMeeting = cancelSwarmMeeting;
+window.closeAgentModal = closeAgentModal;
+window.closeAgentPromptModal = closeAgentPromptModal;
+window.closeAgentTestModal = closeAgentTestModal;
+window.closeCreatePluginModal = closeCreatePluginModal;
+window.closeMediaPreviewModal = closeMediaPreviewModal;
+window.closeMeetingModal = closeMeetingModal;
+window.closeSuperpowerDetailModal = closeSuperpowerDetailModal;
+window.closeVectorIngestModal = closeVectorIngestModal;
+window.controlService = controlService;
+window.copySuperpowerContent = copySuperpowerContent;
+window.delWaCol = delWaCol;
+window.delWaFormat = delWaFormat;
+window.delWaRule = delWaRule;
+window.deleteDynamicPlugin = deleteDynamicPlugin;
+window.deleteKey = deleteKey;
+window.deleteMemoryFact = deleteMemoryFact;
+window.executeUiUxDesignSystem = executeUiUxDesignSystem;
+window.executeUiUxSearch = executeUiUxSearch;
+window.exportSecondBrain = exportSecondBrain;
+window.fetchAgents = fetchAgents;
+window.fetchArtifacts = fetchArtifacts;
+window.fetchKeys = fetchKeys;
+window.fetchSettings = fetchSettings;
+window.fetchTokenUsage = fetchTokenUsage;
+window.fetchWaDriveUploads = fetchWaDriveUploads;
+window.fetchWaQr = fetchWaQr;
+window.fetchWaReports = fetchWaReports;
+window.filterSuperpowersCategory = filterSuperpowersCategory;
+window.handleSuperpowersSearch = handleSuperpowersSearch;
+window.logoutWa = logoutWa;
+window.mbOnKeyChange = mbOnKeyChange;
+window.mbOnProviderChange = mbOnProviderChange;
+window.moveWaCol = moveWaCol;
+window.onAgentKeySourceChange = onAgentKeySourceChange;
+window.onAgentModelSelectChange = onAgentModelSelectChange;
+window.onAgentProviderChange = onAgentProviderChange;
+window.onKeyModelSelectChange = onKeyModelSelectChange;
+window.onMeetingFolderChange = onMeetingFolderChange;
+window.onProviderSelectChange = onProviderSelectChange;
+window.openAgentModal = openAgentModal;
+window.openCreatePluginModal = openCreatePluginModal;
+window.openMediaPreviewModal = openMediaPreviewModal;
+window.openSuperpowerDetailModal = openSuperpowerDetailModal;
+window.openVectorIngestModal = openVectorIngestModal;
+window.playCurrentModalMeetingAnimation = playCurrentModalMeetingAnimation;
+window.removeAntigravityAccount = removeAntigravityAccount;
+window.renderReportsTable = renderReportsTable;
+window.replaySpecificMeeting = replaySpecificMeeting;
+window.runVectorSearch = runVectorSearch;
+window.saveCustomAgentForm = saveCustomAgentForm;
+window.saveGuardianConfig = saveGuardianConfig;
+window.saveMainBrain = saveMainBrain;
+window.saveSettings = saveSettings;
+window.saveWaFormats = saveWaFormats;
+window.saveWaMediaRules = saveWaMediaRules;
+window.sendAgentTestMessage = sendAgentTestMessage;
+window.setFormatFilter = setFormatFilter;
+window.startAiMeeting = startAiMeeting;
+window.startAntigravityLogin = startAntigravityLogin;
+window.submitCreatePlugin = submitCreatePlugin;
+window.submitNewMemory = submitNewMemory;
+window.submitVectorIngest = submitVectorIngest;
+window.testKeyPing = testKeyPing;
+window.testMainBrainCombo = testMainBrainCombo;
+window.toggleAgent = toggleAgent;
+window.toggleAgentTools = toggleAgentTools;
+window.toggleKeyVisibility = toggleKeyVisibility;
+window.triggerAgentHqClick = triggerAgentHqClick;
+window.updateWaPreview = updateWaPreview;
+window.validateFormKey = validateFormKey;
+window.viewMeetingDetails = viewMeetingDetails;
+window.waRuleSet = waRuleSet;
+window.waRuleToggleType = waRuleToggleType;
+window.waSetCol = waSetCol;
+window.waSetF = waSetF;
+window.waSetKeywords = waSetKeywords;
+window.wsChangeRoot = wsChangeRoot;
+window.wsGoUp = wsGoUp;
+window.wsLoadTree = wsLoadTree;
+window.wsOpenFile = wsOpenFile;

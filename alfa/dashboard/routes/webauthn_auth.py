@@ -21,8 +21,9 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
+from alfa.dashboard.routes.auth import require_admin
 from alfa.security import webauthn_store as store
 from alfa.security.webauthn_store import (
     consume_challenge,
@@ -267,7 +268,7 @@ def _parse_client_data(payload: dict[str, Any]) -> dict[str, Any]:
 # ─── registrasi passkey (user yang sedang login, miliknya sendiri) ───────────
 
 
-@webauthn_router.post("/api/auth/webauthn/register/options")
+@webauthn_router.post("/api/auth/webauthn/register/options", dependencies=[Depends(require_admin)])
 async def webauthn_register_options(request: Request):
     """Challenge registrasi passkey untuk user yang sedang login."""
     _require_lib()
@@ -292,7 +293,7 @@ async def webauthn_register_options(request: Request):
     return json.loads(options_to_json(options))
 
 
-@webauthn_router.post("/api/auth/webauthn/register/verify")
+@webauthn_router.post("/api/auth/webauthn/register/verify", dependencies=[Depends(require_admin)])
 async def webauthn_register_verify(request: Request):
     """Verify attestation; challenge harus satu-pakai & bind ke sesi pemanggil."""
     _require_lib()
@@ -455,7 +456,7 @@ async def webauthn_list_credentials(request: Request):
     return list_credentials(int(user["user_id"]))
 
 
-@webauthn_router.delete("/api/auth/webauthn/credentials/{credential_id}")
+@webauthn_router.delete("/api/auth/webauthn/credentials/{credential_id}", dependencies=[Depends(require_admin)])
 async def webauthn_delete_credential(request: Request, credential_id: str):
     """Hapus passkey milik sendiri; admin boleh milik pengguna mana pun."""
     user = _current_user(request)

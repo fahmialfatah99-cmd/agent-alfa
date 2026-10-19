@@ -1,9 +1,12 @@
+
+/* ==== ES MODULE BRIDGE ==== */
+import { escHtml, showToast } from './state.js';
 // ==================== AFFILIATE SALES SWARM FUNCTIONS ====================
 let currentAffiliateCampaign = null;
 let latestScrapedProducts = [];
 
 // Live Scraper Integration
-async function runLiveProductScrape(e) {
+export async function runLiveProductScrape(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-run-scraper');
     const target = document.getElementById('scraper-input-target').value.trim();
@@ -69,11 +72,11 @@ async function runLiveProductScrape(e) {
                     <div class="p-3 bg-dark-950 rounded-xl border border-cyan-500/20 flex flex-col justify-between space-y-2 hover:border-cyan-500/50 transition-all">
                         <div class="space-y-1">
                             <div class="flex items-center justify-between text-[10px] font-mono">
-                                <span class="text-cyan-400 uppercase font-bold">${p.platform}</span>
-                                <span class="text-amber-400 font-bold">⭐ ${p.rating || 4.9}</span>
+                                <span class="text-cyan-400 uppercase font-bold">${escHtml(p.platform)}</span>
+                                <span class="text-amber-400 font-bold">⭐ ${escHtml(p.rating || 4.9)}</span>
                             </div>
-                            <h4 class="text-xs font-semibold text-white line-clamp-2">${p.title}</h4>
-                            <div class="text-xs font-mono font-bold text-emerald-400">${p.price}</div>
+                            <h4 class="text-xs font-semibold text-white line-clamp-2">${escHtml(p.title)}</h4>
+                            <div class="text-xs font-mono font-bold text-emerald-400">${escHtml(p.price)}</div>
                         </div>
                         <button onclick="selectScrapedProduct(${idx})" class="w-full py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 rounded-lg text-[10px] font-mono font-bold flex items-center justify-center gap-1">
                             <i data-lucide="arrow-down-right" class="w-3 h-3"></i> Gunakan Produk Ini
@@ -94,7 +97,7 @@ async function runLiveProductScrape(e) {
     }
 }
 
-function selectScrapedProduct(idx) {
+export function selectScrapedProduct(idx) {
     const p = latestScrapedProducts[idx];
     if (!p) return;
 
@@ -107,7 +110,7 @@ function selectScrapedProduct(idx) {
     showToast(`Produk '${p.title.substring(0, 25)}...' dimuat ke generator!`, 'info');
 }
 
-function setAffiliatePreset(type) {
+export function setAffiliatePreset(type) {
     if (type === 'powerbank') {
         document.getElementById('aff-product-name').value = 'Mini Powerbank Kapsul Fast Charging 5000mAh';
         document.getElementById('aff-features').value = 'Ukuran saku 100g, fast charge 20W, kabel built-in Type-C & Lightning, garansi 1 tahun';
@@ -133,7 +136,7 @@ function setAffiliatePreset(type) {
     showToast(`Preset produk '${type}' berhasil dimuat!`, 'info');
 }
 
-function switchAffTab(subTab) {
+export function switchAffTab(subTab) {
     document.querySelectorAll('.aff-subview').forEach(el => el.classList.add('hidden'));
     ['tiktok', 'video', 'telegram', 'whatsapp', 'spill'].forEach(t => {
         const btn = document.getElementById(`aff-tab-btn-${t}`);
@@ -153,7 +156,7 @@ function switchAffTab(subTab) {
     lucide.createIcons();
 }
 
-function toggleVideoEngineConfig() {
+export function toggleVideoEngineConfig() {
     const engine = document.getElementById('video-engine-select').value;
     const keyInput = document.getElementById('video-api-key-input');
     if (engine === 'local_pro') {
@@ -167,7 +170,7 @@ function toggleVideoEngineConfig() {
     }
 }
 
-async function renderAffiliateVideoNow() {
+export async function renderAffiliateVideoNow() {
     const btn = document.getElementById('btn-render-video');
     btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Rendering Video H.264 (Animasi + Dubbing AI)...';
     lucide.createIcons();
@@ -237,7 +240,7 @@ async function renderAffiliateVideoNow() {
     }
 }
 
-async function runAffiliateGenerator(e) {
+export async function runAffiliateGenerator(e) {
     if (e && e.preventDefault) e.preventDefault();
     const btn = document.getElementById('btn-run-affiliate');
     btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Swarm AI Sedang Bekerja...';
@@ -336,7 +339,7 @@ function renderAffiliateResults(c) {
     lucide.createIcons();
 }
 
-function copyAffiliateContent(elemId) {
+export function copyAffiliateContent(elemId) {
     const el = document.getElementById(elemId);
     if (el) {
         const text = (el.value !== undefined && el.tagName && (el.tagName.toLowerCase() === 'textarea' || el.tagName.toLowerCase() === 'input')) ? el.value : (el.innerText || el.textContent || '');
@@ -345,7 +348,7 @@ function copyAffiliateContent(elemId) {
     }
 }
 
-async function broadcastCurrentAffiliate(channel) {
+export async function broadcastCurrentAffiliate(channel) {
     if (!currentAffiliateCampaign) {
         showToast('Generate campaign terlebih dahulu sebelum broadcast!', 'warning');
         return;
@@ -373,7 +376,7 @@ async function broadcastCurrentAffiliate(channel) {
     }
 }
 
-async function fetchAffiliateCampaigns() {
+export async function fetchAffiliateCampaigns() {
     try {
         const res = await fetch('/api/affiliate/campaigns?limit=15');
         const data = await res.json();
@@ -388,9 +391,9 @@ async function fetchAffiliateCampaigns() {
         tbody.innerHTML = data.campaigns.map(c => `
             <tr class="hover:bg-white/[0.02] transition-colors">
                 <td class="p-3 text-cyan-400 font-bold">#${c.id}</td>
-                <td class="p-3 font-semibold text-white">${c.product_name}</td>
-                <td class="p-3 text-slate-300 uppercase text-[10px]">${c.platform || 'shopee/tiktok'}</td>
-                <td class="p-3 text-slate-400 truncate max-w-xs">${c.target_audience || 'All Audience'}</td>
+                <td class="p-3 font-semibold text-white">${escHtml(c.product_name)}</td>
+                <td class="p-3 text-slate-300 uppercase text-[10px]">${escHtml(c.platform || 'shopee/tiktok')}</td>
+                <td class="p-3 text-slate-400 truncate max-w-xs">${escHtml(c.target_audience || 'All Audience')}</td>
                 <td class="p-3">
                     <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold">
                         ${c.status || 'Active'}
@@ -409,7 +412,7 @@ async function fetchAffiliateCampaigns() {
     }
 }
 
-async function loadCampaignDetail(cid) {
+export async function loadCampaignDetail(cid) {
     try {
         const res = await fetch(`/api/affiliate/campaigns/${cid}`);
         const data = await res.json();
@@ -424,3 +427,16 @@ async function loadCampaignDetail(cid) {
     }
 }
 
+
+// ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
+window.broadcastCurrentAffiliate = broadcastCurrentAffiliate;
+window.copyAffiliateContent = copyAffiliateContent;
+window.fetchAffiliateCampaigns = fetchAffiliateCampaigns;
+window.loadCampaignDetail = loadCampaignDetail;
+window.renderAffiliateVideoNow = renderAffiliateVideoNow;
+window.runAffiliateGenerator = runAffiliateGenerator;
+window.runLiveProductScrape = runLiveProductScrape;
+window.selectScrapedProduct = selectScrapedProduct;
+window.setAffiliatePreset = setAffiliatePreset;
+window.switchAffTab = switchAffTab;
+window.toggleVideoEngineConfig = toggleVideoEngineConfig;

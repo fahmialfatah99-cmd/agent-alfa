@@ -6,7 +6,6 @@ import contextlib
 import logging
 import os
 import sqlite3
-import sys
 import threading
 from collections import deque
 
@@ -20,19 +19,14 @@ _POOL_TIMEOUT = float(os.getenv("ALFA_DB_POOL_TIMEOUT", "30.0"))
 
 
 def _get_db_path() -> str:
-    """Dynamically resolve current DB_PATH, supporting test monkeypatching and DATABASE_URL."""
-    # Explicit env override wins: sys.modules attributes may hold stale copies
-    # bound at import time (facade re-exports), so they are only fallback.
-    db_env = os.getenv("ALFA_DB_PATH") or os.getenv("DATABASE_URL")
-    if db_env:
-        if db_env.startswith("sqlite:///"):
-            return db_env.replace("sqlite:///", "")
-        return db_env
-    for mod_name in ("database", "alfa.core.database"):
-        mod = sys.modules.get(mod_name)
-        if mod and hasattr(mod, "DB_PATH"):
-            return str(mod.DB_PATH)
-    return DB_PATH
+    """Dynamically resolve current DB_PATH, supporting test monkeypatching and DATABASE_URL.
+
+    Resolusi tunggal (lihat ``alfa/core/db/paths.py``) — dipakai juga oleh
+    permission store & vault supaya semua layer menulis ke file yang sama.
+    """
+    from alfa.core.db.paths import resolve_db_path
+
+    return resolve_db_path(fallback=DB_PATH)
 
 
 class ConnectionPool:
@@ -291,6 +285,7 @@ def init_db_sync():
                 key_id INTEGER,
                 key_label TEXT DEFAULT '',
                 context TEXT DEFAULT '',
+                user_id INTEGER DEFAULT 0,
                 prompt_tokens INTEGER DEFAULT 0,
                 completion_tokens INTEGER DEFAULT 0,
                 total_tokens INTEGER DEFAULT 0
@@ -301,6 +296,12 @@ def init_db_sync():
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL DEFAULT ''
             );
+            CREATE TABLE IF NOT EXISTS user_budgets (
+                user_id INTEGER PRIMARY KEY,
+                daily_token_limit INTEGER NOT NULL,
+                daily_call_limit INTEGER NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         """)
 
         # Seed default API key from environment if empty
@@ -308,13 +309,21 @@ def init_db_sync():
         if row and row[0] == 0:
             env_gemini_key = os.getenv("GEMINI_API_KEY", "")
             if env_gemini_key:
-                conn.execute(
-                    """
-                    INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
-                    VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.5-flash', 1)
-                    """,
-                    (encrypt_key(env_gemini_key),),
-                )
+                try:
+                    enc_env_key = encrypt_key(env_gemini_key)
+                except Exception:  # noqa: BLE001 - seed bersifat opsional
+                    logger.exception(
+                        "Seed API key dari env dilewati: enkripsi tidak tersedia"
+                    )
+                    enc_env_key = None
+                if enc_env_key:
+                    conn.execute(
+                        """
+                        INSERT INTO api_keys (name, provider, api_key, default_model, is_active)
+                        VALUES ('Default Gemini Key', 'gemini', ?, 'gemini-3.5-flash', 1)
+                        """,
+                        (enc_env_key,),
+                    )
 
         # Seed default autonomous workforce agents if empty
         agent_count = conn.execute(
@@ -424,24 +433,22 @@ def init_db_sync():
                     (name, role, persona, sys_inst, prov, model, emoji, color),
                 )
 
-        try:
-            conn.execute(
-                "ALTER TABLE agent_meetings ADD COLUMN mode TEXT DEFAULT 'plan'"
-            )
-        except Exception:
-            pass
-        try:
-            conn.execute(
-                "ALTER TABLE agent_meetings ADD COLUMN execution_results TEXT DEFAULT ''"
-            )
-        except Exception:
-            pass
-        try:
-            conn.execute(
-                "ALTER TABLE custom_agents ADD COLUMN enable_tools INTEGER DEFAULT 0"
-            )
-        except Exception:
-            pass
+        # Migrasi kolom ad-hoc. Kegagalan di sini (mis. kolom sudah ada)
+        # aman diabaikan; error lain tetap harus terlihat.
+        for _ddl in (
+            "ALTER TABLE agent_meetings ADD COLUMN mode TEXT DEFAULT 'plan'",
+            "ALTER TABLE agent_meetings ADD COLUMN execution_results TEXT DEFAULT ''",
+            "ALTER TABLE custom_agents ADD COLUMN enable_tools INTEGER DEFAULT 0",
+            # P1: budget rate limit harus PER USER. Tanpa kolom user_id, seluruh
+            # pemakaian dijumlahkan global sehingga satu user menghabiskan kuota
+            # semua user lain.
+            "ALTER TABLE api_token_usage ADD COLUMN user_id INTEGER DEFAULT 0",
+            "CREATE INDEX IF NOT EXISTS idx_atu_user_ts ON api_token_usage(user_id, ts)",
+        ):
+            try:
+                conn.execute(_ddl)
+            except (sqlite3.Error, OSError):
+                pass
 
         conn.commit()
     finally:

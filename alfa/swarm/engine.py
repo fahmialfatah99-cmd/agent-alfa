@@ -84,15 +84,20 @@ _MISSION_START = 0.0
 
 
 def _swarm_budget() -> tuple[float, int]:
-    """Baca budget misi: (timeout_detik, max_langkah). 0 = nonaktif."""
+    """Baca budget misi: (timeout_detik, max_langkah). 0 = nonaktif.
+
+    Default-nya AKTIF (1800s / 40 langkah). Sebelumnya default "0" berarti
+    timeout & batas langkah mati, sehingga satu misi bisa berjalan tanpa
+    henti dan membakar kuota tanpa payung.
+    """
     try:
-        timeout = float(os.getenv("ALFA_SWARM_TASK_TIMEOUT", "0") or 0)
+        timeout = float(os.getenv("ALFA_SWARM_TASK_TIMEOUT", "1800") or 1800)
     except ValueError:
-        timeout = 0
+        timeout = 1800
     try:
-        max_steps = int(os.getenv("ALFA_SWARM_MAX_STEPS", "0") or 0)
+        max_steps = int(os.getenv("ALFA_SWARM_MAX_STEPS", "40") or 40)
     except ValueError:
-        max_steps = 0
+        max_steps = 40
     return max(0.0, timeout), max(0, max_steps)
 
 
@@ -493,7 +498,9 @@ async def conduct_multi_agent_meeting(
     """
     from alfa.swarm import workspace_hygiene
 
-    workspace_hygiene.MEETING_RUNNING = True
+    # State sesi disimpan PER-SESI (bukan global) — dua rapat paralel tidak
+    # lagi saling mematikan flag.
+    _sid = workspace_hygiene.register_session(session_id)
     try:
         return await _conduct_multi_agent_meeting_impl(
             topic=topic,
@@ -504,7 +511,7 @@ async def conduct_multi_agent_meeting(
             session_id=session_id,
         )
     finally:
-        workspace_hygiene.MEETING_RUNNING = False
+        workspace_hygiene.unregister_session(_sid)
 
 
 async def _conduct_multi_agent_meeting_impl(
@@ -618,8 +625,9 @@ async def _conduct_multi_agent_meeting_impl(
     logger.info(
         f"🏛️ Starting AI Session [{mode.upper()}] on topic: '{topic}' with {len(participants)} agents (session: {session_id})."
     )
-    workspace_hygiene.MEETING_RUNNING = True
-    _clear_cancel_flag()
+    workspace_hygiene.register_session(session_id)
+    workspace_hygiene.set_current_session(session_id)
+    _clear_cancel_flag(session_id)
     global _BUDGET_EXCEEDED, _MISSION_START, _PROVIDER_DEAD
     _BUDGET_EXCEEDED = ""
     _PROVIDER_DEAD = ""
@@ -891,7 +899,7 @@ async def _conduct_multi_agent_meeting_impl(
             "Tambahkan minimal satu agen terlebih dahulu (Dashboard > AI Workforce) sebelum menjalankan rapat swarm."
         )
         logger.error(error_msg)
-        workspace_hygiene.MEETING_RUNNING = False
+        workspace_hygiene.unregister_session(session_id)
         log_live("ERROR", "Sesi dibatalkan: tidak ada agen terdaftar.")
         return {
             "status": "error",
@@ -906,9 +914,9 @@ async def _conduct_multi_agent_meeting_impl(
     lead_agent = participants[0]
 
     target_fol = workspace_hygiene._get_target_folder()
-    if swarm_cancelled or _cancel_requested():
-        workspace_hygiene.MEETING_RUNNING = False
-        _clear_cancel_flag()
+    if swarm_cancelled or _cancel_requested(session_id):
+        workspace_hygiene.unregister_session(session_id)
+        _clear_cancel_flag(session_id)
         stop_note = (
             f"Budget misi terlampaui ({_BUDGET_EXCEEDED})."
             if _BUDGET_EXCEEDED
@@ -994,7 +1002,7 @@ async def _conduct_multi_agent_meeting_impl(
     else:
         consensus_text_clean = consensus_text
 
-    workspace_hygiene.MEETING_RUNNING = False
+    workspace_hygiene.unregister_session(session_id)
     harvested_projects = _harvest_new_sandbox_projects(topic)
 
     if target_fol and os.path.isdir(target_fol):
