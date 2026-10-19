@@ -122,6 +122,12 @@ def _prepare_deterministic_page(page, base_url: str, width: int) -> dict:
                 const el = document.getElementById(id);
                 if (el) el.textContent = '00:00:00 WIB';
             }
+            // Badge latensi WebSocket menampilkan angka hasil ukur nyata
+            // ("4ms") → non-deterministik dan bikin snapshot flaky. Bekukan.
+            for (const id of ['ws-latency-text', 'ws-status-text']) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = el.id === 'ws-latency-text' ? '0ms' : 'WS';
+            }
             const toasts = document.getElementById('toast-container');
             if (toasts) toasts.innerHTML = '';
             const style = document.createElement('style');
@@ -129,6 +135,13 @@ def _prepare_deterministic_page(page, base_url: str, width: int) -> dict:
             document.head.appendChild(style);
         }"""
     )
+    # Tunggu font selesai dimuat. Tanpa ini screenshot bisa diambil saat
+    # teks masih dirender dengan font fallback → diff piksel kecil tapi
+    # deterministik (flaky) antar-run.
+    try:
+        page.evaluate("async () => { await document.fonts.ready; }")
+    except Exception:  # noqa: BLE001 - font API mungkin tidak tersedia
+        pass
     page.wait_for_timeout(50)
 
     metrics = page.evaluate(
