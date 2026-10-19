@@ -679,6 +679,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
     status_file = os.path.expanduser("~/.alfa/wa_status.json")
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
     primary_uid = int(allowed_env.split(",")[0].strip()) if allowed_env else None
+    unresponsive_count = 0
 
     while True:
         try:
@@ -714,6 +715,52 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                 text=True,
                             )
                         )
+                        unresponsive_count = 0
+                    elif state == "active":
+                        def _check_wa_http() -> bool:
+                            try:
+                                import urllib.error
+                                import urllib.request
+                                req = urllib.request.Request("http://127.0.0.1:3000/health", headers={"User-Agent": "ALFA-Watchdog"})
+                                with urllib.request.urlopen(req, timeout=4) as resp:
+                                    return resp.status == 200
+                            except (urllib.error.URLError, TimeoutError, OSError):
+                                return False
+
+                        is_responsive = await asyncio.to_thread(_check_wa_http)
+                        if not is_responsive:
+                            unresponsive_count += 1
+                            logger.warning(
+                                f"⚠️ wa-sheets-bot HTTP healthcheck failed ({unresponsive_count}/3)"
+                            )
+                            if unresponsive_count >= 3:
+                                logger.error(
+                                    "🚨 wa-sheets-bot unresponsive after 3 attempts. Auto-restarting..."
+                                )
+                                await asyncio.to_thread(
+                                    lambda: subprocess.run(
+                                        [
+                                            "systemctl",
+                                            "--user",
+                                            "restart",
+                                            "wa-sheets-bot.service",
+                                        ],
+                                        capture_output=True,
+                                        text=True,
+                                    )
+                                )
+                                unresponsive_count = 0
+                                if primary_uid:
+                                    try:
+                                        await application.bot.send_message(
+                                            chat_id=primary_uid,
+                                            text="⚠️ *WhatsApp Bot Auto-Recovery*\n\nLayanan WhatsApp tidak merespons (HTTP timeout). Layanan otomatis di-*restart* oleh watchdog ALFA.",
+                                            parse_mode="Markdown",
+                                        )
+                                    except TelegramError:
+                                        pass
+                        else:
+                            unresponsive_count = 0
 
                 if os.path.exists(status_file) and primary_uid:
                     try:

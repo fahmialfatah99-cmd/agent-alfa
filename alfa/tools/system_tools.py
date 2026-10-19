@@ -16,7 +16,13 @@ from typing import (  # noqa: F401, UP035 - re-exported for backward compatibili
     Optional,
 )
 
-from dotenv import load_dotenv  # noqa: F401 - re-exported for backward compatibility
+try:
+    from dotenv import (
+        load_dotenv,  # noqa: F401 - re-exported for backward compatibility
+    )
+except ImportError:
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:  # type: ignore[misc]
+        return False
 
 from alfa.core import database  # noqa: F401 - re-exported for backward compatibility
 from alfa.core.runtime_ctx import (  # noqa: F401 - re-exported for backward compatibility

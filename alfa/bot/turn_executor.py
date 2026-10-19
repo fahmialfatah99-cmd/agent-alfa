@@ -47,6 +47,25 @@ logger = logging.getLogger("TelegramAIAgent")
 # Lazily-initialized shared Gemini client (set on first turn via _resolve).
 gemini_client: Any = None
 
+try:
+    from google.genai.errors import APIError as _GenAIAPIError
+except ImportError:
+    _GenAIAPIError = RuntimeError  # type: ignore[misc,assignment]
+
+_TURN_EXEC_ERR = (
+    OSError,
+    ValueError,
+    RuntimeError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    TimeoutError,
+    ConnectionError,
+    sqlite3.Error,
+    _GenAIAPIError,
+)
+
 
 def _get_bot():
     return sys.modules.get("alfa.bot.telegram_bot")
@@ -103,7 +122,7 @@ async def _summarize_chunk(prev_summary: str, fresh: list[dict]) -> str:
         except (ImportError, AttributeError, TypeError, ValueError):
             pass
         return (getattr(resp, "text", "") or "").strip()
-    except Exception as e:
+    except _TURN_EXEC_ERR as e:
         logger.debug(f"[compact] ringkas gagal: {e}")
         return ""
 
@@ -161,7 +180,7 @@ async def _maybe_compact_history(_db, user_id: int) -> str:
                         pass
                     prev = new_summary
             return _format_compaction(prev)
-    except Exception as e:
+    except _TURN_EXEC_ERR as e:
         logger.debug(f"[compact] dilewati: {e}")
         return ""
 
@@ -487,7 +506,7 @@ async def _audit_correction_pass(
             response2 = await drive_tool_loop(response2, config)
             if response2.text and response2.text.strip():
                 reply_text = response2.text
-        except Exception as audit_err:
+        except _TURN_EXEC_ERR as audit_err:
             logger.warning(f"[AUDIT] pass koreksi gagal: {audit_err}")
         logger.warning(
             f"[AUDIT] Koreksi selesai ({audit_kind}); "
@@ -543,7 +562,7 @@ async def _openai_compat_turn(
                 streamed_text += chunk
                 await streamer.push_chunk(chunk)
             reply_text = streamed_text
-        except Exception as e:
+        except _TURN_EXEC_ERR as e:
             logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
             reply_text = await mb.run_openai_agentic_turn(
                 provider=brain["provider"],
@@ -659,7 +678,7 @@ async def _try_alt_provider_keys(
                 reply_text = _strip3(str(reply_text))
                 await db.save_chat_message(user_id, "model", reply_text)
                 return str(reply_text)
-        except Exception as fe:
+        except _TURN_EXEC_ERR as fe:
             logger.warning(f"[Fallback] {prov} gagal juga: {fe}")
     return None
 
@@ -703,7 +722,7 @@ async def _run_agent_turn_impl(
     else:
         try:
             gemini_client, gkey_id, gkey_label = _resolve()
-        except Exception as e:
+        except _TURN_EXEC_ERR as e:
             logger.warning(f"Gagal menyiapkan klien Gemini fallback: {e}")
             gemini_client, gkey_id, gkey_label = None, None, ""
 
@@ -720,7 +739,7 @@ async def _run_agent_turn_impl(
     # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
     try:
         _compaction_block = await _maybe_compact_history(_db, user_id)
-    except Exception as _ce:
+    except _TURN_EXEC_ERR as _ce:
         logger.debug(f"compaction dilewati: {_ce}")
         _compaction_block = ""
 
@@ -1019,7 +1038,7 @@ async def _run_agent_turn_impl(
                         context="telegram_chat",
                     )
                     reply_text = (response.text or "").strip()
-                except Exception as wrap_err:
+                except _TURN_EXEC_ERR as wrap_err:
                     logger.warning(f"[WrapUp] gagal: {wrap_err}")
                     reply_text = ""
 

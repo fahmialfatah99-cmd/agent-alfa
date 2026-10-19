@@ -32,6 +32,11 @@ os.environ["DASHBOARD_HOST"] = "127.0.0.1"
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Auto-detect local venv site-packages so running pytest directly outside venv still resolves dependencies
+venv_sp = list(project_root.glob("venv/lib/python*/site-packages"))
+if venv_sp and str(venv_sp[0]) not in sys.path:
+    sys.path.insert(1, str(venv_sp[0]))
+
 
 @pytest.fixture
 def test_env(monkeypatch):

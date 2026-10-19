@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import sqlite3
 import time
 from typing import Any
 
@@ -68,7 +69,7 @@ def _with_back_button(reply_markup):
     """Tambahkan tombol ◀️ Menu ke markup (tanpa merusak markup asli)."""
     try:
         rows = [list(r) for r in (reply_markup.inline_keyboard if reply_markup else [])]
-    except Exception:
+    except (AttributeError, TypeError):
         rows = []
     has_back = any(
         getattr(b, "callback_data", None) == "btn_menu" for row in rows for b in row
@@ -111,7 +112,7 @@ def _meetings_count() -> int:
         with database.get_sync_db() as conn:
             row = conn.execute("SELECT COUNT(*) FROM agent_meetings").fetchone()
             return int(row[0]) if row else 0
-    except Exception:
+    except (sqlite3.Error, OSError, AttributeError):
         return 0
 
 
@@ -128,7 +129,7 @@ def _artifact_signature() -> list:
                         sig.append((p, st.st_size, int(st.st_mtime)))
                     except OSError:
                         pass
-        except Exception:
+        except (OSError, UnicodeDecodeError, ValueError):
             pass
     return sorted(sig)
 
