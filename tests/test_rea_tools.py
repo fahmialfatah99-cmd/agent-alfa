@@ -143,7 +143,9 @@ def test_rea_inspect_binary_or_wasm(tmp_path):
 
         res_bin = rea_inspect_binary_or_wasm(str(bin_file))
         assert res_bin["status"] == "success"
-        assert "inspect-with-objdump" in mock_cmd.call_args_list[1][0][0]
+        call_args = mock_cmd.call_args_list[1][0][0]
+        assert "inspect-with-objdump" in call_args
+        assert "file_headers" in call_args
 
 
 def test_rea_run_command_validation():

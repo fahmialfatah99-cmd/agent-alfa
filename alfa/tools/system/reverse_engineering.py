@@ -158,12 +158,13 @@ def rea_inspect_sqlite_database(db_path: str, table: str = "", row_limit: int = 
 
 
 @register_tool(category="system")
-def rea_inspect_binary_or_wasm(file_path: str) -> dict[str, Any]:
+def rea_inspect_binary_or_wasm(file_path: str, operation: str = "file_headers") -> dict[str, Any]:
     """
     Inspeksi binary native (ELF, SO, DLL, Mach-O) atau artefak WebAssembly (.wasm) menggunakan objdump / WABT.
 
     Args:
         file_path: Jalur absolut atau relatif ke file binary atau .wasm target.
+        operation: Jenis inspeksi objdump ('file_headers', 'section_headers', 'symbols', 'relocations', 'disassemble'). Default: 'file_headers'.
     """
     abs_file = os.path.abspath(os.path.expanduser(file_path))
     if not os.path.exists(abs_file):
@@ -171,7 +172,10 @@ def rea_inspect_binary_or_wasm(file_path: str) -> dict[str, Any]:
 
     if abs_file.lower().endswith(".wasm"):
         return _run_rea_command(["inspect-wasm-artifact", abs_file])
-    return _run_rea_command(["inspect-with-objdump", abs_file])
+
+    valid_ops = {"file_headers", "section_headers", "symbols", "relocations", "dwarf", "disassemble", "disassemble_all"}
+    op = operation if operation in valid_ops else "file_headers"
+    return _run_rea_command(["inspect-with-objdump", abs_file, op])
 
 
 @register_tool(category="system")
