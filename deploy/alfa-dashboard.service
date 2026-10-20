@@ -5,6 +5,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h/telegram-ai-bot
+Environment=DASHBOARD_PORT=8080
 ExecStart=%h/telegram-ai-bot/venv/bin/python3 -m alfa.dashboard.app
 Restart=always
 RestartSec=5

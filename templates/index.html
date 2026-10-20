@@ -133,6 +133,13 @@
                             </div>
                             <span class="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">LIVE AI</span>
                         </button>
+                        <button onclick="switchTab('sovereign')" id="tab-btn-sovereign" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-cyan-300 hover:bg-white/5 font-semibold text-left">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="layout-grid" class="w-4 h-4 text-cyan-400"></i>
+                                <span>Sovereign Console</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-300 border border-cyan-500/30 font-bold">HERMES+REA</span>
+                        </button>
                         <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
                             <div class="flex items-center gap-2.5">
                                 <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
@@ -510,6 +517,37 @@
                         <div class="text-slate-500 text-center py-6 col-span-full">Memuat proses sistem...</div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB: SOVEREIGN CONSOLE (HERMES • OPENCLAW • OPENHUMAN • REA) ==================== -->
+        <section id="view-sovereign" class="tab-view hidden space-y-4">
+            <div class="glass-card p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-dark-900 to-violet-950/30 shadow-2xl relative overflow-hidden">
+                <div class="flex items-center gap-3 relative z-10">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-violet-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-bold text-xl shadow-glow-cyan">
+                        🏛️
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-white flex items-center gap-2 font-mono">
+                            ALFA SOVEREIGN CONSOLE PRO
+                            <span class="px-2 py-0.5 text-[9px] rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">PORT 8100</span>
+                        </h2>
+                        <p class="text-xs text-slate-400">Hermes Transparent Reasoning • OpenClaw Gateway & Swarm Hub • OpenHuman Neocortex Memory • Morluto REA Cloner</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 relative z-10">
+                    <button onclick="const f = document.getElementById('sovereign-frame'); if (f) f.src = 'http://127.0.0.1:8100/?t=' + Date.now();" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 transition-all flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        <span>Reload</span>
+                    </button>
+                    <a href="http://127.0.0.1:8100" target="_blank" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-glow-cyan">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        <span>Buka Layar Penuh ↗</span>
+                    </a>
+                </div>
+            </div>
+            <div class="w-full h-[calc(100vh-13rem)] rounded-2xl border border-white/10 overflow-hidden bg-dark-950 shadow-2xl relative">
+                <iframe id="sovereign-frame" src="http://127.0.0.1:8100" class="w-full h-full border-0" allow="clipboard-read; clipboard-write"></iframe>
             </div>
         </section>
 
