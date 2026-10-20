@@ -208,11 +208,13 @@ class CSPNonceMiddleware(BaseHTTPMiddleware):
                     "https://unpkg.com "
                     "https://cdn.jsdelivr.net"
                 ),
+                # Mengizinkan event listener inline (onclick, onchange, dll.) di elemen UI
+                "script-src-attr 'unsafe-inline'",
                 # Tailwind Play CDN menyuntik <style> runtime + template memakai
                 # atribut style inline, jadi 'unsafe-inline' diperlukan di style-src.
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://fonts.googleapis.com",
                 "img-src 'self' data: blob: https:",
-                "font-src 'self' data:",
+                "font-src 'self' data: https://fonts.gstatic.com",
                 "connect-src 'self' ws: wss:",
                 "frame-ancestors 'none'",
                 "base-uri 'self'",

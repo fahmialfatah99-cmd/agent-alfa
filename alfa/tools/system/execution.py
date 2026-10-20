@@ -180,23 +180,31 @@ def execute_bash_command(
                 logger.warning(
                     "[SECURITY] Docker tidak tersedia — eksekusi bash dialihkan ke HOST (ALFA_ALLOW_HOST_EXEC=true). Pastikan ALLOWED_USER_IDS terkonfigurasi ketat."
                 )
-            # Containment check juga berlaku untuk eksekusi di host: working_dir
-            # tetap harus berada di dalam root yang diizinkan.
-            wd_abs, wd_err = resolve_sandbox_working_dir(working_dir)
-            if wd_err:
-                logger.warning(f"[SECURITY] working_dir ditolak: {wd_err}")
-                return {
-                    "status": "error",
-                    "exit_code": -1,
-                    "stdout": "",
-                    "stderr": f"[KEAMANAN] {wd_err}",
-                    "isolation": "rejected",
-                }
-            target_dir = (
-                wd_abs
-                if wd_abs
-                else os.path.realpath(os.path.expanduser("~"))
-            )
+            if unrestricted:
+                # Mode unrestricted: bebaskan working_dir ke host mana pun tanpa batasan root sandbox
+                if working_dir and str(working_dir).strip():
+                    wd_cand = os.path.realpath(os.path.expanduser(str(working_dir).strip()))
+                    target_dir = wd_cand if os.path.isdir(wd_cand) else os.path.realpath(os.path.expanduser("~"))
+                else:
+                    target_dir = os.path.realpath(os.path.expanduser("~"))
+            else:
+                # Containment check berlaku untuk eksekusi di host biasa: working_dir
+                # tetap harus berada di dalam root yang diizinkan.
+                wd_abs, wd_err = resolve_sandbox_working_dir(working_dir)
+                if wd_err:
+                    logger.warning(f"[SECURITY] working_dir ditolak: {wd_err}")
+                    return {
+                        "status": "error",
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": f"[KEAMANAN] {wd_err}",
+                        "isolation": "rejected",
+                    }
+                target_dir = (
+                    wd_abs
+                    if wd_abs
+                    else os.path.realpath(os.path.expanduser("~"))
+                )
             if not os.path.exists(target_dir):
                 target_dir = os.path.realpath(os.path.expanduser("~"))
             if os.name == "nt":

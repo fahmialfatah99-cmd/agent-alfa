@@ -48,16 +48,23 @@ def check_runtime_security(surface: str = "process") -> None:
     host_exec = _env_true("ALFA_ALLOW_HOST_EXEC")
     bind_public = _dashboard_bind_public()
 
-    # 1. Unrestricted + dashboard publik = RCE publik. Selalu fatal.
+    # 1. Unrestricted + dashboard publik = RCE publik bila tanpa pengakuan sadar operator.
     if unrestricted and bind_public:
-        raise RuntimeError(
-            "⛔ [SECURITY] Kombinasi FATAL: ALFA_UNRESTRICTED=true sementara "
-            "DASHBOARD_HOST mengikat semua interface (0.0.0.0/::).\n"
-            "Semua orang di jaringan bisa mengeksekusi perintah host penuh "
-            "lewat dashboard tanpa blocklist, sandbox, maupun permission gate.\n"
-            "Perbaiki salah satu:\n"
-            "  • Set DASHBOARD_HOST=127.0.0.1 di .env (dashboard hanya lokal), ATAU\n"
-            "  • Set ALFA_UNRESTRICTED=false di .env (sandbox & permission gate aktif)."
+        ack = os.getenv("ALFA_UNRESTRICTED_ACK", "").strip().lower()
+        if ack != "yes":
+            raise RuntimeError(
+                "⛔ [SECURITY] Kombinasi FATAL: ALFA_UNRESTRICTED=true sementara "
+                "DASHBOARD_HOST mengikat semua interface (0.0.0.0/::).\n"
+                "Semua orang di jaringan bisa mengeksekusi perintah host penuh "
+                "lewat dashboard tanpa blocklist, sandbox, maupun permission gate.\n"
+                "Perbaiki salah satu:\n"
+                "  • Set DASHBOARD_HOST=127.0.0.1 di .env (dashboard hanya lokal), ATAU\n"
+                "  • Tambahkan ALFA_UNRESTRICTED_ACK=yes di .env bila Anda secara sadar mengizinkan akses penuh host."
+            )
+        logger.critical(
+            "⚠️ ALFA_UNRESTRICTED=true dengan DASHBOARD_HOST publik disetujui "
+            "oleh operator via ALFA_UNRESTRICTED_ACK=yes. Kode AI berjalan di host "
+            "tanpa pembatasan."
         )
 
     # 2. Unrestricted + host exec wajib disadari operator secara eksplisit.
