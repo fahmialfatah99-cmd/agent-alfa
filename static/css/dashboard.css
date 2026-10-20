@@ -566,3 +566,125 @@ html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(15, 23, 42, 0.75);
 }
 
+/* ==========================================================================
+   HERMES + OPENHUMAN + OPENCLAW MODERN UI EXTENSIONS
+   ========================================================================== */
+
+/* 1. Obsidian Glassmorphism 2.0 (OpenHuman) */
+.glass-card-obsidian {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(7, 9, 14, 0.9) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+    border-radius: 1.25rem;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-card-obsidian:hover {
+    border-color: rgba(6, 182, 212, 0.3);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 16px 36px -8px rgba(6, 182, 212, 0.15);
+}
+
+/* 2. Living Neural Avatar / Lottie Box */
+.lottie-avatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lottie-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+    animation: pulse-scale 3s infinite ease-in-out;
+}
+
+/* 3. Hermes Collapsible Reasoning Accordion */
+.hermes-thought-trace {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(11, 15, 25, 0.6);
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.hermes-thought-trace[open] {
+    border-color: rgba(6, 182, 212, 0.35);
+    background: rgba(11, 15, 25, 0.95);
+}
+
+.hermes-thought-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: #94a3b8;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.hermes-thought-summary:hover {
+    color: #67e8f9;
+}
+
+.hermes-thought-summary::-webkit-details-marker {
+    display: none;
+}
+
+.hermes-thought-body {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    line-height: 1.5;
+    background: rgba(3, 7, 18, 0.4);
+}
+
+/* 4. OpenClaw Multi-Channel Status Pills */
+.claw-channel-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(17, 24, 39, 0.8);
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+}
+
+.claw-channel-pill:hover {
+    border-color: rgba(6, 182, 212, 0.4);
+    transform: translateY(-1px);
+}
+
+/* 5. Omni Command Palette Modal (Ctrl+K) */
+#omni-command-palette {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.cmd-palette-item {
+    transition: all 0.15s ease;
+}
+
+.cmd-palette-item:hover, .cmd-palette-item.active {
+    background: rgba(6, 182, 212, 0.12);
+    border-color: rgba(6, 182, 212, 0.4);
+    transform: translateX(2px);
+}
+
+

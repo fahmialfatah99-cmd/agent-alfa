@@ -103,7 +103,6 @@ export const AlfaStore = {
 // Tab titles mapping for breadcrumbs and headers
 const tabTitles = {
     'overview': 'Telemetry & Live Overview',
-    'sovereign': 'ALFA Sovereign Console (Hermes • OpenClaw • OpenHuman • REA)',
     'swarm': 'AI Swarm — Eksekusi Langsung',
     'scraper': 'Master Scraper Pro Studio',
     'affiliate': 'Affiliate Sales Studio',

@@ -320,3 +320,27 @@ async def get_service_logs(request: Request, service: str = "telegram-ai-bot.ser
         text=True,
     )
     return {"status": "success", "service": service, "logs": res.stdout.strip()}
+
+
+@router.post("/api/system/clean-ram")
+async def clean_ram(request: Request):
+    """Trigger Python garbage collection and OS malloc trim for optimal memory health."""
+    require_admin(request)
+    import gc
+    import ctypes
+
+    collected = gc.collect()
+    try:
+        libc = ctypes.CDLL("libc.so.6")
+        libc.malloc_trim(0)
+    except Exception:
+        pass
+
+    ram = psutil.virtual_memory()
+    return {
+        "status": "success",
+        "message": f"RAM berhasil dirapikan ({collected} objek dibersihkan).",
+        "ram_percent": ram.percent,
+        "ram_used_gb": round((ram.total - ram.available) / (1024**3), 2),
+    }
+

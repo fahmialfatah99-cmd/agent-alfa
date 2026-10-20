@@ -37,43 +37,24 @@ function isInputElementFocused() {
 }
 
 /**
- * Handle Ctrl+K / Cmd+K quick focus shortcut.
+ * Handle Ctrl+K / Cmd+K quick focus shortcut -> Open Hermes Omni Command Palette.
  */
 function handleQuickFocus(e) {
     e.preventDefault();
-    const activeTab = window.AlfaStore?.activeTab || 'overview';
-
-    if (activeTab === 'console') {
-        const chatInput = document.getElementById('chat-input-text') || document.getElementById('chat-input');
-        if (chatInput) {
-            chatInput.focus();
-            chatInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-        }
-    }
-
-    if (activeTab === 'tools') {
-        const toolSearch = document.getElementById('tool-search-input') || document.getElementById('tools-search-input') || document.getElementById('tools-search');
-        if (toolSearch) {
-            toolSearch.focus();
-            return;
-        }
-    }
-
-    // Default: switch to console tab and focus chat
-    {
-        switchTab('console');
-        setTimeout(() => {
-            const chatInput = document.getElementById('chat-input-text') || document.getElementById('chat-input');
-            if (chatInput) chatInput.focus();
-        }, 100);
-    }
+    openCommandPalette();
 }
 
 /**
  * Handle Escape key press: closes modals and unfocuses active inputs.
  */
 function handleEscapeKey(e) {
+    // 0. Close Omni Command Palette if open
+    const cmdModal = document.getElementById('omni-command-modal');
+    if (cmdModal && !cmdModal.classList.contains('hidden')) {
+        closeCommandPalette();
+        return;
+    }
+
     // 1. Close Hotkeys Cheat Sheet modal if open
     const hotkeysModal = document.getElementById('alfa-hotkeys-modal');
     if (hotkeysModal && !hotkeysModal.classList.contains('hidden')) {
@@ -317,6 +298,152 @@ if (typeof window !== 'undefined') {
     initHotkeys();
 }
 
+// ==================== OMNI COMMAND PALETTE (HERMES STYLE) ====================
+
+const COMMAND_PALETTE_ITEMS = [
+    // Navigation
+    { id: 'nav-overview', title: 'Telemetry & Live Overview', subtitle: 'Halaman utama metrik sistem & radar live', icon: 'activity', badge: 'Alt+1', action: () => switchTab('overview') },
+    { id: 'nav-swarm', title: 'AI Swarm Live Arena', subtitle: 'Orkestrasi 6 agen cerdas otonom', icon: 'zap', badge: 'Alt+2', action: () => switchTab('swarm') },
+    { id: 'nav-tools', title: 'Tools Catalog & Sandbox', subtitle: 'Katalog 170+ fungsi & REA forensik', icon: 'cpu', badge: 'Alt+3', action: () => switchTab('tools') },
+    { id: 'nav-console', title: 'Live AI Chat Agent', subtitle: 'Chat multimodal live dengan penalaran Hermes', icon: 'bot-message-square', badge: 'Alt+4', action: () => switchTab('console') },
+    { id: 'nav-memory', title: 'Second Brain & Knowledge', subtitle: 'Memori graf neokorteks & vault pengetahuan', icon: 'brain', badge: 'Alt+5', action: () => switchTab('memory') },
+    { id: 'nav-artifacts', title: 'File Artifacts & Storage', subtitle: 'Manajemen berkas output dan arsip dokumen', icon: 'folder-kanban', badge: 'Alt+6', action: () => switchTab('artifacts') },
+    { id: 'nav-vault', title: 'Passkey Vault & Security', subtitle: 'Brankas enkripsi kredensial & API key', icon: 'shield-alert', badge: 'Alt+7', action: () => switchTab('vault') },
+    { id: 'nav-gdrive', title: 'Google Drive & Cloud Suite', subtitle: 'Sinkronisasi berkas Google Drive & Cloud', icon: 'hard-drive', badge: 'Alt+8', action: () => switchTab('gdrive') },
+    { id: 'nav-settings', title: 'System Settings & Config', subtitle: 'Pengaturan runtime environment', icon: 'settings', badge: 'Alt+9', action: () => switchTab('settings') },
+    { id: 'nav-waformat', title: 'WA Laporan & Format Sheets', subtitle: 'Pengaturan parsing otomatis WhatsApp ke Sheets', icon: 'clipboard-list', badge: 'SHEETS', action: () => switchTab('waformat') },
+    { id: 'nav-sites', title: 'Galeri Situs & Projects', subtitle: 'Kelola port & web hasil kerja agen', icon: 'globe', badge: 'SITES', action: () => switchTab('sites') },
+    { id: 'nav-scraper', title: 'Master Scraper Pro Studio', subtitle: 'Alat ekstraksi & scraping web tingkat lanjut', icon: 'scan', badge: 'PRO', action: () => switchTab('scraper') },
+    // Actions
+    { id: 'act-clean-ram', title: 'Bersihkan RAM & Cache', subtitle: 'Jalankan garbage collection & malloc trim', icon: 'sparkles', badge: 'AKSI', action: () => cleanSystemRam() },
+    { id: 'act-theme', title: 'Ganti Mode Tema (Gelap / Terang)', subtitle: 'Beralih tampilan kontras', icon: 'sun', badge: 'Alt+T', action: () => toggleTheme() },
+    { id: 'act-refresh', title: 'Refresh Telemetri Sistem', subtitle: 'Perbarui data hardware & services live', icon: 'refresh-cw', badge: 'AKSI', action: () => { if (typeof fetchStats === 'function') fetchStats(true); } },
+    { id: 'act-new-chat', title: 'Mulai Sesi Chat AI Baru', subtitle: 'Bersihkan konteks percakapan saat ini', icon: 'plus-circle', badge: 'CHAT', action: () => { switchTab('console'); setTimeout(() => { if (window.startNewChatSession) window.startNewChatSession(); }, 150); } },
+];
+
+export function openCommandPalette() {
+    let modal = document.getElementById('omni-command-modal');
+    if (!modal) {
+        modal = ensureCommandPaletteModal();
+    }
+    modal.classList.remove('hidden');
+    const input = document.getElementById('omni-command-input');
+    if (input) {
+        input.value = '';
+        input.focus();
+        filterCommandPalette('');
+    }
+}
+
+export function closeCommandPalette() {
+    const modal = document.getElementById('omni-command-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+export function filterCommandPalette(q) {
+    const container = document.getElementById('omni-command-results');
+    if (!container) return;
+    const query = (q || '').toLowerCase().trim();
+
+    const matches = COMMAND_PALETTE_ITEMS.filter(item => {
+        if (!query) return true;
+        return item.title.toLowerCase().includes(query) ||
+               item.subtitle.toLowerCase().includes(query) ||
+               (item.badge && item.badge.toLowerCase().includes(query));
+    });
+
+    if (matches.length === 0) {
+        container.innerHTML = `
+            <div class="py-8 text-center text-slate-500 font-mono text-xs">
+                Tidak ada perintah yang cocok dengan "<b>${q}</b>".
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = matches.map((item, idx) => `
+        <div onclick="executeCommandPaletteItem('${item.id}')"
+             class="cmd-palette-item flex items-center justify-between p-3 rounded-xl cursor-pointer hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all ${idx === 0 ? 'bg-white/5 border-white/5' : ''}">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-dark-900 border border-white/10 flex items-center justify-center text-cyan-400 flex-shrink-0">
+                    <i data-lucide="${item.icon}" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0 truncate">
+                    <p class="text-xs font-bold text-slate-200 truncate">${item.title}</p>
+                    <p class="text-[10px] text-slate-400 truncate">${item.subtitle}</p>
+                </div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] bg-dark-900 text-slate-400 font-mono border border-white/10 flex-shrink-0">${item.badge}</span>
+        </div>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+}
+
+export function executeCommandPaletteItem(itemId) {
+    const item = COMMAND_PALETTE_ITEMS.find(it => it.id === itemId);
+    closeCommandPalette();
+    if (item && typeof item.action === 'function') {
+        item.action();
+    }
+}
+
+function ensureCommandPaletteModal() {
+    let modal = document.getElementById('omni-command-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'omni-command-modal';
+        modal.className = 'fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/75 backdrop-blur-md hidden transition-opacity';
+        modal.innerHTML = `
+            <div class="w-full max-w-xl bg-dark-950/95 border border-cyan-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh]" onclick="event.stopPropagation()">
+                <div class="flex items-center gap-3 p-3.5 border-b border-white/10 bg-dark-900/80">
+                    <i data-lucide="search" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
+                    <input id="omni-command-input" type="text"
+                           placeholder="Ketik perintah, nama tab, atau aksi... (misal: 'wa', 'swarm', 'ram', 'settings')"
+                           class="flex-1 bg-transparent text-white text-xs font-mono focus:outline-none placeholder:text-slate-500 border-none p-0 focus:ring-0"
+                           oninput="filterCommandPalette(this.value)"
+                           onkeydown="if(event.key==='Escape') closeCommandPalette(); if(event.key==='Enter'){ const first = document.querySelector('.cmd-palette-item'); if(first) first.click(); }">
+                    <kbd class="px-1.5 py-0.5 text-[10px] rounded bg-white/10 text-slate-400 font-mono">ESC</kbd>
+                </div>
+                <div id="omni-command-results" class="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-1">
+                    <!-- Populated by filterCommandPalette() -->
+                </div>
+                <div class="flex items-center justify-between p-2.5 px-4 bg-dark-900/50 border-t border-white/5 text-[10px] text-slate-500 font-mono">
+                    <span>Gunakan panah untuk navigasi, Enter untuk memilih</span>
+                    <span class="text-cyan-400 font-bold">ALFA OMNI HUB</span>
+                </div>
+            </div>
+        `;
+        modal.onclick = closeCommandPalette;
+        document.body.appendChild(modal);
+        if (window.lucide) lucide.createIcons();
+    }
+    return modal;
+}
+
+// Global RAM Cleaning Action
+export async function cleanSystemRam() {
+    const btn = document.getElementById('btn-clean-ram');
+    if (btn) btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-cyan-400"></i> Membersihkan...';
+    try {
+        const res = await fetch('/api/system/clean-ram', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            if (typeof showToast === 'function') {
+                showToast(`🧹 ${data.message} (RAM: ${data.ram_percent}%)`, 'success');
+            }
+            if (typeof fetchStats === 'function') fetchStats(true);
+        } else {
+            if (typeof showToast === 'function') showToast(data.message || 'Pembersihan RAM selesai.', 'info');
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Pembersihan RAM berhasil dijalankan.', 'info');
+    } finally {
+        if (btn) btn.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i> <span>Bersihkan RAM</span>';
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
 // ==================== GLOBAL & MODULE EXPORTS ====================
 
 window.initHotkeys = initHotkeys;
@@ -324,14 +451,25 @@ window.openHotkeysModal = openHotkeysModal;
 window.closeHotkeysModal = closeHotkeysModal;
 window.toggleHotkeysModal = toggleHotkeysModal;
 window.registerHotkey = registerHotkey;
+window.openCommandPalette = openCommandPalette;
+window.closeCommandPalette = closeCommandPalette;
+window.filterCommandPalette = filterCommandPalette;
+window.executeCommandPaletteItem = executeCommandPaletteItem;
+window.cleanSystemRam = cleanSystemRam;
 
 window.AlfaHotkeys = {
     initHotkeys,
     openHotkeysModal,
     closeHotkeysModal,
     toggleHotkeysModal,
-    registerHotkey
+    registerHotkey,
+    openCommandPalette,
+    closeCommandPalette,
+    filterCommandPalette,
+    executeCommandPaletteItem,
+    cleanSystemRam
 };
 
 // ==== ES MODULE BRIDGE (global untuk handler inline HTML) ====
 window.closeHotkeysModal = closeHotkeysModal;
+

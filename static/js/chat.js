@@ -718,8 +718,18 @@ export async function sendWebChat(e) {
                         <div id="${responseId}" class="p-4 sm:p-5 rounded-xl bg-dark-900 border border-white/10 text-slate-100 leading-relaxed space-y-2 w-full">
                             <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-mono text-slate-400">
                                 <span class="text-cyan-400 font-bold flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i> ALFA // ${activeDisplayName}</span>
-                                <span id="${responseId}-elapsed" class="text-slate-400 font-mono">⚡ Mengetik...</span>
+                                <span id="${responseId}-elapsed" class="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono font-bold">⚡ Mengetik...</span>
                             </div>
+                            <details id="${responseId}-reasoning" class="hermes-thought-trace hidden">
+                                <summary class="hermes-thought-summary">
+                                    <span class="flex items-center gap-1.5 text-cyan-300 font-bold">
+                                        <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
+                                        <span>Hermes Reasoning &amp; Action Trace</span>
+                                    </span>
+                                    <span id="${responseId}-reasoning-status" class="text-[10px] text-slate-400 font-mono">0 steps</span>
+                                </summary>
+                                <div id="${responseId}-reasoning-body" class="hermes-thought-body font-mono text-[11px] space-y-1"></div>
+                            </details>
                             <div id="${responseId}-body" class="prose prose-invert max-w-none text-xs sm:text-[13px] space-y-2 leading-relaxed">
                                 <span class="animate-pulse text-cyan-300">●</span>
                             </div>
@@ -755,6 +765,16 @@ export async function sendWebChat(e) {
                         if (data.type === 'progress') {
                             const s2Text = document.getElementById(`${pendingId}-step2-text`);
                             if (s2Text) s2Text.innerText = data.step;
+                            ensureBubbleWrapper();
+                            const rBox = document.getElementById(`${responseId}-reasoning`);
+                            const rBody = document.getElementById(`${responseId}-reasoning-body`);
+                            if (rBox && rBody && data.step) {
+                                rBox.classList.remove('hidden');
+                                const safeStep = document.createElement('div');
+                                safeStep.className = 'text-cyan-300 flex items-center gap-1.5 py-0.5';
+                                safeStep.innerHTML = `<span class="text-cyan-400 font-bold">›</span> <span>${data.step}</span>`;
+                                rBody.appendChild(safeStep);
+                            }
                         } else if (data.type === 'start') {
                             ensureBubbleWrapper(data.model);
                         } else if (data.type === 'token') {
@@ -771,6 +791,22 @@ export async function sendWebChat(e) {
                             const finalSec = data.execution_time_ms ? (data.execution_time_ms / 1000).toFixed(2) : ((Date.now() - startTime) / 1000).toFixed(2);
                             const elBadge = document.getElementById(`${responseId}-elapsed`);
                             if (elBadge) elBadge.innerText = `⚡ ${finalSec}s`;
+
+                            // Populate Hermes tool traces if available
+                            if (data.tools_called && Array.isArray(data.tools_called) && data.tools_called.length > 0) {
+                                const rBox = document.getElementById(`${responseId}-reasoning`);
+                                const rBody = document.getElementById(`${responseId}-reasoning-body`);
+                                const rStatus = document.getElementById(`${responseId}-reasoning-status`);
+                                if (rBox && rBody) {
+                                    rBox.classList.remove('hidden');
+                                    if (rStatus) rStatus.innerText = `${data.tools_called.length} tools executed`;
+                                    const toolDiv = document.createElement('div');
+                                    toolDiv.className = 'mt-1 pt-1 border-t border-white/5 text-[10px] text-emerald-300 flex flex-wrap gap-1 items-center';
+                                    toolDiv.innerHTML = `<span class="text-slate-400 font-bold">Tools:</span> ` +
+                                        data.tools_called.map(t => `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">${t}</span>`).join('');
+                                    rBody.appendChild(toolDiv);
+                                }
+                            }
 
                             const finalReply = streamedText.trim() || data.reply || '';
                             if (bodyEl && finalReply) {

@@ -60,6 +60,15 @@
     <!-- DOMPurify: sanitasi HTML hasil render Markdown (anti stored XSS dari output LLM) -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
 
+    <!-- LottieFiles Web Player (Local with CDN fallback) -->
+    <script src="/static/vendor/lottie-player.js"></script>
+    <script>
+        if (!window.customElements || !window.customElements.get('lottie-player')) {
+            const s = document.createElement('script');
+            s.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
+            document.head.appendChild(s);
+        }
+    </script>
 
     <!-- Custom Dashboard Styles -->
     <link rel="stylesheet" href="/static/css/dashboard.css">
@@ -95,22 +104,24 @@
         <aside id="main-sidebar" class="w-64 xl:w-72 bg-dark-900/95 backdrop-blur-2xl border-r border-white/10 flex flex-col justify-between p-4 fixed lg:sticky top-0 h-screen z-50 overflow-y-auto custom-scrollbar flex-shrink-0 -translate-x-full lg:translate-x-0 transition-transform duration-300 shadow-2xl">
             <!-- Top Section: Brand & Nav List -->
             <div class="space-y-4">
-                <!-- Brand Header -->
+                <!-- Brand Header (OpenHuman Living Neural Presence) -->
                 <div class="flex items-center justify-between pb-3 border-b border-white/10">
                     <div class="flex items-center space-x-3">
-                        <div class="flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-violet-600 text-white font-mono font-black text-xl shadow-glow-cyan flex-shrink-0">
-                            α
+                        <div class="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 shadow-glow-cyan flex-shrink-0 overflow-hidden">
+                            <lottie-player src="/static/animations/ai_core.json" background="transparent" speed="0.8" style="width: 42px; height: 42px;" loop autoplay aria-label="ALFA AI Core"></lottie-player>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-dark-950 pulse-dot z-10" title="System Live"></span>
                         </div>
                         <div class="truncate">
                             <div class="flex items-center space-x-1.5">
-                                <h1 class="text-sm font-black tracking-wider text-white font-mono">
+                                <h1 class="text-sm font-black tracking-wider text-white font-mono flex items-center gap-1">
                                     ALFA <span class="text-cyan-400 font-light">//</span> HUB
                                 </h1>
-                                <span class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                    <span data-tools-count>130+</span> TOOLS
+                                <span class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                                    <span data-tools-count>170+</span> TOOLS
                                 </span>
                             </div>
-                            <p class="text-[10px] text-slate-400 font-mono truncate">Sovereign Linux Orchestrator</p>
+                            <p class="text-[10px] text-slate-400 font-mono truncate">Sovereign Living Orchestrator</p>
                         </div>
                     </div>
                     <!-- Close button for mobile drawer -->
@@ -132,13 +143,6 @@
                                 <span>Chat Agent</span>
                             </div>
                             <span class="px-2 py-0.5 rounded text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">LIVE AI</span>
-                        </button>
-                        <button onclick="switchTab('sovereign')" id="tab-btn-sovereign" class="tab-btn w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-slate-300 hover:text-cyan-300 hover:bg-white/5 font-semibold text-left">
-                            <div class="flex items-center gap-2.5">
-                                <i data-lucide="layout-grid" class="w-4 h-4 text-cyan-400"></i>
-                                <span>Sovereign Console</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-300 border border-cyan-500/30 font-bold">HERMES+REA</span>
                         </button>
                         <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn active w-full px-3 py-2.5 rounded-xl flex items-center justify-between transition-all text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/30 shadow-glow-cyan text-left">
                             <div class="flex items-center gap-2.5">
@@ -326,8 +330,8 @@
 
         <!-- ==================== MAIN WORKSPACE AREA ==================== -->
         <div class="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-            <!-- Top Command Header with Hamburger & Breadcrumb -->
-            <header class="glass-nav sticky top-0 z-30 px-4 sm:px-6 py-3 flex items-center justify-between shadow-md">
+            <!-- Top Command Header with Hamburger, Breadcrumb, Omni Search & Channel Matrix -->
+            <header class="glass-nav sticky top-0 z-30 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 shadow-md">
                 <div class="flex items-center gap-3">
                     <button onclick="toggleSidebar(true)" class="lg:hidden p-2 rounded-xl bg-white/5 text-slate-300 border border-white/10 hover:text-cyan-400 transition-all">
                         <i data-lucide="menu" class="w-5 h-5"></i>
@@ -339,7 +343,31 @@
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2.5 text-xs font-mono">
+                <!-- Center: Omni Command Palette Quick Trigger (Hermes Style) -->
+                <button type="button" onclick="openCommandPalette()" class="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-dark-950/80 hover:bg-white/5 border border-white/10 hover:border-cyan-500/30 text-xs font-mono text-slate-400 hover:text-slate-200 transition-all shadow-inner group cursor-pointer" title="Buka Omni Command Palette (Ctrl + K)">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden lg:inline">Cari Tools / Navigasi Cepat...</span>
+                    <span class="lg:hidden">Cari...</span>
+                    <kbd class="px-1.5 py-0.5 text-[9px] rounded bg-white/5 border border-white/10 text-cyan-300 font-mono font-bold shadow-sm">Ctrl K</kbd>
+                </button>
+
+                <div class="flex items-center gap-2 text-xs font-mono">
+                    <!-- Multi-Channel Ingress Matrix Pills (OpenClaw Style) -->
+                    <div class="hidden xl:flex items-center gap-1.5">
+                        <div class="claw-channel-pill" title="WhatsApp Multi-Device Gateway: Active on Port 3000">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                            <span class="text-emerald-300">WA:3000</span>
+                        </div>
+                        <div class="claw-channel-pill" title="Telegram AI Bot: Polling Active">
+                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                            <span class="text-cyan-300">TG:BOT</span>
+                        </div>
+                        <div class="claw-channel-pill" title="Swarm Engine: 6 Autonomous Agents Ready">
+                            <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                            <span class="text-violet-300">SWARM</span>
+                        </div>
+                    </div>
+
                     <!-- Live WebSocket Telemetry Indicator Pill -->
                     <div id="ws-status-badge" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 text-slate-400 border border-white/10 font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Status WebSocket Telemetri & Telemetri Real-Time">
                         <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -365,6 +393,47 @@
 
         <!-- ==================== TAB 1: OVERVIEW & TELEMETRY ==================== -->
         <section id="view-overview" class="tab-view space-y-6">
+            <!-- Hero Ingress HUD & Living Radar Banner (OpenClaw + OpenHuman) -->
+            <div class="glass-card-obsidian p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden border border-cyan-500/30">
+                <div class="flex items-center gap-4 relative z-10 min-w-0">
+                    <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-dark-950/90 border border-cyan-500/40 flex items-center justify-center flex-shrink-0 shadow-glow-cyan overflow-hidden">
+                        <lottie-player src="/static/animations/radar.json" background="transparent" speed="1" style="width: 58px; height: 58px;" loop autoplay aria-label="Ingress Radar"></lottie-player>
+                        <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-sm sm:text-base font-black text-white font-mono tracking-wide">
+                                SOVEREIGN COMMAND MATRIX
+                            </h2>
+                            <span class="px-2 py-0.5 text-[9px] rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                CHANNELS ACTIVE
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5 truncate">Pemantauan multi-channel terpadu: WhatsApp Multi-Device (Android), Telegram Gate, &amp; Swarm AI.</p>
+                        <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-400 mt-2">
+                            <span class="text-emerald-400 flex items-center gap-1">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Rate Limit Protection Aktif (3s Gap)
+                            </span>
+                            <span class="text-cyan-400 flex items-center gap-1">
+                                <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Circuit Breaker Ready
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 relative z-10 w-full md:w-auto justify-end flex-shrink-0">
+                    <button type="button" onclick="cleanSystemRam()" id="btn-clean-ram" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-cyan-500/20 text-slate-200 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer" title="Bersihkan RAM Sistem via Garbage Collector Python">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>Bersihkan RAM</span>
+                    </button>
+                    <button type="button" onclick="switchTab('console')" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-mono font-bold transition-all flex items-center gap-2 shadow-glow-cyan cursor-pointer">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                        <span>Buka Chat (Alt+4)</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Top Metric Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <!-- CPU Metric -->
@@ -520,37 +589,6 @@
             </div>
         </section>
 
-        <!-- ==================== TAB: SOVEREIGN CONSOLE (HERMES • OPENCLAW • OPENHUMAN • REA) ==================== -->
-        <section id="view-sovereign" class="tab-view hidden space-y-4">
-            <div class="glass-card p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-dark-900 to-violet-950/30 shadow-2xl relative overflow-hidden">
-                <div class="flex items-center gap-3 relative z-10">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 via-violet-500/20 to-pink-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-bold text-xl shadow-glow-cyan">
-                        🏛️
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-white flex items-center gap-2 font-mono">
-                            ALFA SOVEREIGN CONSOLE PRO
-                            <span class="px-2 py-0.5 text-[9px] rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono font-bold">PORT 8100</span>
-                        </h2>
-                        <p class="text-xs text-slate-400">Hermes Transparent Reasoning • OpenClaw Gateway & Swarm Hub • OpenHuman Neocortex Memory • Morluto REA Cloner</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2 relative z-10">
-                    <button onclick="const f = document.getElementById('sovereign-frame'); if (f) f.src = 'http://127.0.0.1:8100/?t=' + Date.now();" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 transition-all flex items-center gap-1.5">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                        <span>Reload</span>
-                    </button>
-                    <a href="http://127.0.0.1:8100" target="_blank" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-glow-cyan">
-                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        <span>Buka Layar Penuh ↗</span>
-                    </a>
-                </div>
-            </div>
-            <div class="w-full h-[calc(100vh-13rem)] rounded-2xl border border-white/10 overflow-hidden bg-dark-950 shadow-2xl relative">
-                <iframe id="sovereign-frame" src="http://127.0.0.1:8100" class="w-full h-full border-0" allow="clipboard-read; clipboard-write"></iframe>
-            </div>
-        </section>
-
         <!-- ==================== TAB: SWARM LIVE ARENA ==================== -->
         <section id="view-swarm" class="tab-view hidden space-y-6">
             <!-- Hero Header Banner -->
@@ -558,8 +596,8 @@
                 <div class="absolute -right-20 -top-20 w-60 h-60 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div class="space-y-1 relative z-10">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/40 flex items-center justify-center text-xl shadow-glow-violet">
-                            ⚡
+                        <div class="w-12 h-12 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/40 flex items-center justify-center shadow-glow-violet overflow-hidden flex-shrink-0">
+                            <lottie-player src="/static/animations/processing.json" background="transparent" speed="1" style="width: 44px; height: 44px;" loop autoplay aria-label="Swarm Engine Processing"></lottie-player>
                         </div>
                         <div>
                             <div class="flex items-center gap-2.5">
@@ -1926,11 +1964,9 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                 <!-- TOP BAR: Bot Info, Expert Mode Pills, Model Selector & Quick Actions -->
                 <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/10 pb-3">
                     <div class="flex items-center space-x-3">
-                        <div class="relative">
-                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 via-indigo-600 to-violet-600 flex items-center justify-center text-white font-mono font-black text-base shadow-glow-cyan">
-                                α
-                            </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-dark-950 pulse-dot"></span>
+                        <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 flex items-center justify-center shadow-glow-cyan overflow-hidden flex-shrink-0">
+                            <lottie-player src="/static/animations/ai_core.json" background="transparent" speed="0.8" style="width: 38px; height: 38px;" loop autoplay aria-label="ALFA AI Core"></lottie-player>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-dark-950 pulse-dot z-10"></span>
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
@@ -2969,9 +3005,9 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
             <!-- Header Banner -->
             <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/30 bg-amber-500/5">
                 <div class="space-y-1">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold">
-                            <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-glow-amber">
+                            <lottie-player src="/static/animations/scan.json" background="transparent" speed="1" style="width: 40px; height: 40px;" loop autoplay aria-label="Cyber Sentry Scanner"></lottie-player>
                         </div>
                         <h2 class="text-sm font-bold text-white tracking-wide font-mono">αlfa SECURE VAULT & CYBER SENTRY</h2>
                     </div>
@@ -3996,6 +4032,28 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Omni Command Palette Modal (Hermes / Raycast Style - Ctrl+K) -->
+    <div id="omni-command-modal" class="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-20 px-4 bg-black/80 backdrop-blur-md hidden transition-opacity" onclick="if(event.target===this) closeCommandPalette()">
+        <div class="w-full max-w-xl bg-dark-950/95 border border-cyan-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh]" onclick="event.stopPropagation()">
+            <div class="flex items-center gap-3 p-3.5 border-b border-white/10 bg-dark-900/80">
+                <i data-lucide="search" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
+                <input id="omni-command-input" type="text"
+                       placeholder="Ketik perintah, nama tab, atau aksi... (misal: 'wa', 'swarm', 'ram', 'settings')"
+                       class="flex-1 bg-transparent text-white text-xs font-mono focus:outline-none placeholder:text-slate-500 border-none p-0 focus:ring-0"
+                       oninput="filterCommandPalette(this.value)"
+                       onkeydown="if(event.key==='Escape') closeCommandPalette(); if(event.key==='Enter'){ const first = document.querySelector('.cmd-palette-item'); if(first) first.click(); }">
+                <kbd class="px-1.5 py-0.5 text-[10px] rounded bg-white/10 text-slate-400 font-mono">ESC</kbd>
+            </div>
+            <div id="omni-command-results" class="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-1">
+                <!-- Populated by filterCommandPalette() -->
+            </div>
+            <div class="flex items-center justify-between p-2.5 px-4 bg-dark-900/50 border-t border-white/5 text-[10px] text-slate-500 font-mono">
+                <span>Gunakan panah untuk navigasi, Enter untuk memilih</span>
+                <span class="text-cyan-400 font-bold">ALFA OMNI HUB</span>
+            </div>
         </div>
     </div>
 
