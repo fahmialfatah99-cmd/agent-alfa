@@ -4,6 +4,7 @@ Includes reminders, focus sessions, password generation, WhatsApp bot, Android (
 """
 
 import json
+import logging
 import math
 import os
 import secrets
@@ -19,6 +20,8 @@ from typing import Any
 from alfa.core import database
 from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
 from alfa.tools.registry import register_tool
+
+logger = logging.getLogger("AgentTools.Integrations")
 
 
 @register_tool(category="system")
@@ -345,6 +348,7 @@ def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bo
                     pass
 
         res["incoming"] = filtered
+        res["count"] = len(filtered)
         res["total"] = len(filtered)
         res["unread_count"] = sum(1 for it in filtered if not it.get("is_read"))
     return res
@@ -362,7 +366,10 @@ def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False
     """
     marked_db = 0
     try:
-        from alfa.core.db.wa_tracking import mark_chat_read_sync, record_wa_messages_read_sync
+        from alfa.core.db.wa_tracking import (
+            mark_chat_read_sync,
+            record_wa_messages_read_sync,
+        )
 
         if chat:
             marked_db += mark_chat_read_sync(chat)

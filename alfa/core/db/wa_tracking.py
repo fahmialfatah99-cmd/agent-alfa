@@ -8,6 +8,7 @@ repeated reporting of already-processed WhatsApp messages.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
@@ -15,6 +16,7 @@ from alfa.core.db.connection import get_sync_db
 logger = logging.getLogger("DB.WATracking")
 
 LAST_READ_TS_KEY = "wa_last_read_ts"
+_DB_ERR = (sqlite3.Error, OSError, ValueError, TypeError, KeyError)
 
 
 def record_wa_messages_read_sync(messages: list[dict[str, Any]]) -> int:
@@ -50,7 +52,7 @@ def record_wa_messages_read_sync(messages: list[dict[str, Any]]) -> int:
                 )
                 if res.rowcount > 0:
                     inserted += 1
-            except Exception as e:
+            except _DB_ERR as e:
                 logger.debug("Failed to record wa_read_messages for %s: %s", msg_id, e)
 
         if max_ts > 0:
@@ -62,7 +64,7 @@ def record_wa_messages_read_sync(messages: list[dict[str, Any]]) -> int:
                     """,
                     (LAST_READ_TS_KEY, str(max_ts)),
                 )
-            except Exception:
+            except _DB_ERR:
                 pass
 
         conn.commit()
@@ -127,7 +129,7 @@ def get_last_read_wa_ts_sync() -> int:
             ).fetchone()
             if row and row[0]:
                 return int(row[0])
-    except Exception:
+    except _DB_ERR:
         pass
     return 0
 
@@ -144,7 +146,7 @@ def set_last_read_wa_ts_sync(ts: int) -> None:
                 (LAST_READ_TS_KEY, str(ts)),
             )
             conn.commit()
-    except Exception as e:
+    except _DB_ERR as e:
         logger.debug("Failed to set last_read_wa_ts: %s", e)
 
 
@@ -176,7 +178,7 @@ def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
             try:
                 res = conn.execute(
                     """
-                    INSERT OR IGNORE INTO wa_incoming_archive 
+                    INSERT OR IGNORE INTO wa_incoming_archive
                     (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
@@ -184,7 +186,7 @@ def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
                 )
                 if res.rowcount > 0:
                     archived += 1
-            except Exception as e:
+            except _DB_ERR as e:
                 logger.debug("Failed to archive wa message %s: %s", msg_id, e)
 
         conn.commit()

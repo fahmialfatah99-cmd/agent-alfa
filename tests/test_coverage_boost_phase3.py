@@ -387,7 +387,7 @@ async def test_wa_menu_and_advanced_commands(monkeypatch: pytest.MonkeyPatch, tm
     monkeypatch.setattr(
         tools,
         "wa_get_incoming",
-        lambda limit=10: {
+        lambda limit=10, *args, **kwargs: {
             "status": "success",
             "incoming": [
                 {

@@ -470,47 +470,62 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
 def request_cancel_swarm(session_id: str | None = None) -> bool:
     """Minta pembatalan eksekusi swarm yang sedang berjalan.
 
-    Mengeset flag cancel di memori secara instan dan menulis file flag
-    pembatalan untuk seluruh sesi aktif dan global.
+    Mengeset flag cancel di memori secara instan dan menulis file flag pembatalan.
+    Jika session_id diberikan, hanya membatalkan sesi tersebut.
+    Jika None, membatalkan semua sesi aktif dan set flag global.
     """
     global GLOBAL_SWARM_CANCEL
     from alfa.swarm.live_logger import log_live
 
-    GLOBAL_SWARM_CANCEL = True
+    with _SESSIONS_LOCK:
+        if session_id:
+            state = _SESSIONS.get(session_id)
+            if state is None or not state.running:
+                return False
+        else:
+            if not any(st.running for st in _SESSIONS.values()) and not MEETING_RUNNING:
+                return False
+
     output_dir = _get_swarm_output_dir()
     try:
         os.makedirs(output_dir, exist_ok=True)
     except OSError:
         pass
 
-    # 1. Tulis file flag global
-    global_flags = [
-        os.path.join(output_dir, "swarm_cancel.flag"),
-        CANCEL_FLAG_FILE,
-        session_cancel_flag_path("default"),
-    ]
-    for gf in global_flags:
+    if session_id:
+        with _SESSIONS_LOCK:
+            state = _SESSIONS.get(session_id)
+            if state:
+                state.cancelled = True
         try:
-            with open(gf, "w", encoding="utf-8") as f:
+            flag_file = session_cancel_flag_path(session_id)
+            with open(flag_file, "w", encoding="utf-8") as f:
                 f.write(str(time.time()))
         except OSError:
             pass
-
-    # 2. Tandai cancel di memori dan tulis file flag untuk semua sesi aktif
-    with _SESSIONS_LOCK:
-        target_sids = [session_id] if session_id else list(_SESSIONS.keys())
-        for sid in target_sids:
-            if not sid:
-                continue
-            state = _SESSIONS.get(sid)
-            if state:
-                state.cancelled = True
+    else:
+        GLOBAL_SWARM_CANCEL = True
+        global_flags = [
+            os.path.join(output_dir, "swarm_cancel.flag"),
+            CANCEL_FLAG_FILE,
+            session_cancel_flag_path("default"),
+        ]
+        for gf in global_flags:
             try:
-                flag_file = session_cancel_flag_path(sid)
-                with open(flag_file, "w", encoding="utf-8") as f:
+                with open(gf, "w", encoding="utf-8") as f:
                     f.write(str(time.time()))
             except OSError:
                 pass
+
+        with _SESSIONS_LOCK:
+            for sid, state in _SESSIONS.items():
+                state.cancelled = True
+                try:
+                    flag_file = session_cancel_flag_path(sid)
+                    with open(flag_file, "w", encoding="utf-8") as f:
+                        f.write(str(time.time()))
+                except OSError:
+                    pass
 
     log_live(
         "CANCEL",
@@ -521,35 +536,38 @@ def request_cancel_swarm(session_id: str | None = None) -> bool:
 
 def _cancel_requested(session_id: str | None = None) -> bool:
     """True bila pembatalan diminta (prioritas in-memory, flag global, atau flag sesi)."""
-    if not any_session_running() and not MEETING_RUNNING:
-        _clear_cancel_flag(session_id)
-        return False
+    sid = session_id or _current_session_id.get()
+
+    if sid:
+        with _SESSIONS_LOCK:
+            state = _SESSIONS.get(sid)
+            if state and not state.running:
+                return False
+            if state and getattr(state, "cancelled", False):
+                return True
+    else:
+        if not any_session_running() and not MEETING_RUNNING:
+            _clear_cancel_flag(session_id)
+            return False
 
     global GLOBAL_SWARM_CANCEL
     if GLOBAL_SWARM_CANCEL:
         return True
 
-    # 1. Cek in-memory session state
-    sid = session_id or _current_session_id.get()
-    if sid:
-        with _SESSIONS_LOCK:
-            state = _SESSIONS.get(sid)
-            if state and getattr(state, "cancelled", False):
-                return True
-
-    # 2. Cek flag file global
+    # Cek flag file global
     output_dir = _get_swarm_output_dir()
     global_flag = os.path.join(output_dir, "swarm_cancel.flag")
     if os.path.exists(global_flag) or os.path.exists(CANCEL_FLAG_FILE):
         return True
 
-    default_flag = session_cancel_flag_path("default")
-    if os.path.exists(default_flag):
-        return True
-
-    # 3. Cek flag file sesi
-    if sid and os.path.exists(session_cancel_flag_path(sid)):
-        return True
+    # Cek flag file sesi
+    if sid:
+        if os.path.exists(session_cancel_flag_path(sid)):
+            return True
+    else:
+        default_flag = session_cancel_flag_path("default")
+        if os.path.exists(default_flag):
+            return True
 
     return False
 
@@ -576,3 +594,6 @@ def _clear_cancel_flag(session_id: str | None = None) -> None:
     with _SESSIONS_LOCK:
         if sid and sid in _SESSIONS:
             _SESSIONS[sid].cancelled = False
+        elif not sid:
+            for s in _SESSIONS.values():
+                s.cancelled = False
