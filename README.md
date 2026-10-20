@@ -12,7 +12,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Berdaulat: Multi-Agent Swarm, Otomasi WhatsApp & Google Sheets 24/7, Pemrosesan Dokumen DO/Material, Neural Vector Brain, Self-Evolution Tools, Smart Permission Gate, dan Pemantauan RAM Otomatis.**
+**Ekosistem AI Otonom Berdaulat: Multi-Agent Swarm, Otomasi WhatsApp & Google Sheets 24/7, Pengolahan Dokumen Cerdas (Excel, PDF, Word, dll.), Neural Vector Brain, Self-Evolution Tools, Smart Permission Gate, dan Pemantauan RAM Otomatis.**
 
 [Fitur Unggulan](#-fitur-unggulan) • [Otomasi WhatsApp & Sheets](#-otomasi-whatsapp--google-sheets) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Keamanan & RAM](#-keamanan-kontrol-izin--manajemen-ram)
 
@@ -31,16 +31,16 @@
 
 ### 2. 📱 Otomasi WhatsApp, Google Sheets & Drive
 * **Pencatatan Masuk Otomatis:** Merekam pesan WhatsApp dari grup proyek atau chat pribadi langsung ke Google Sheets secara real-time.
-* **Unggah Lampiran Berbasis Aturan:** Media, nota, gambar DO otomatis diunggah ke Google Drive dan dirapikan ke subfolder sesuai aturan `media_rules.json`.
+* **Unggah Lampiran Berbasis Aturan:** Media, berkas dokumen, nota, dan gambar lampiran otomatis diunggah ke Google Drive dan dirapikan ke subfolder sesuai aturan `media_rules.json`.
 * **Pelacak Status Baca Permanen (`wa_read_messages`):** Mencegah pesan dibaca berulang-ulang saat pemilik mengecek pesan masuk baru (`/wamasuk baru` / `wa_get_incoming(only_unread=True)`).
 * **Penyaringan Bersih Status & Saluran:** Membuang otomatis kiriman WhatsApp Status (`status@broadcast`) dan Saluran (`@newsletter`) di tingkat event, menjaga ring buffer tetap bersih dari spam.
 * **Arsip SQLite Permanen (`wa_incoming_archive`):** Seluruh pesan masuk otomatis diarsipkan permanen di database lokal SQLite, memungkinkan pencarian riwayat kilat kapan saja tanpa batas buffer.
 * **Keaslian Pesan 100% (*Verbatim*):** AI dilarang mengubah atau memparafrasekan teks WhatsApp; pesan ditampilkan persis seperti aslinya.
 * **Dukungan Read Receipt (`POST /api/seen`):** Terhubung dengan WhatsApp Web untuk membersihkan unread badge jika diinginkan.
 
-### 3. 📑 Pemrosesan Dokumen DO/Material & Konsolidasi Excel
-* **Format Bersih & Rapi:** Jika dikirimi dokumen (Excel, PDF, Word, DO, nota), AI otomatis menyajikan **Nama Dokumen ➔ Rincian Material (Item : Qty Satuan) ➔ Rekap Total Ringkas di Akhir**, tanpa narasi panjang yang membingungkan.
-* **Konsolidasi Excel 1-Klik:** Saat diminta membuat file Excel dari beberapa dokumen, seluruh rincian langsung digabungkan menjadi **1 file Excel komprehensif** dengan sheet terstruktur, bebas dari duplikasi file output ganda.
+### 3. 📑 Pengolahan Dokumen Cerdas & Konsolidasi Excel (Excel, PDF, Word, dll.)
+* **Ekstraksi & Analisis Rapi:** Ahli dalam membaca, merangkum, dan mengolah berbagai format dokumen (Excel `.xlsx/.csv`, PDF, Word `.docx`, teks). Rincian data, kuantitas item, atau pos inventaris diekstraksi secara presisi dengan format bersih: **Nama Dokumen ➔ Rincian Item/Data (Item : Qty Satuan) ➔ Rekap Total Ringkas**, tanpa narasi berbelit-belit.
+* **Konsolidasi Excel 1-Klik:** Saat dikirimi beberapa dokumen sekaligus dan diminta rekap, seluruh data otomatis digabungkan menjadi **1 file Excel tunggal yang terstruktur rapi** dengan formula kalkulasi, bebas dari file output ganda yang membingungkan.
 
 ### 4. 🧹 Pemantauan RAM & Pemeliharaan Otomatis
 * **Diagnostik RAM Terpadu (`/ram` atau `/bersihkan`):** Menampilkan metrik pemakaian RAM sistem, proses ALFA Bot, dan Chrome/Node.js WA Sheets Bot, serta memicu pembersihan objek memori Python dan file sementara Chromium.
