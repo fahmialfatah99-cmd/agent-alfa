@@ -146,21 +146,62 @@ async def handle_doc_action_callback(
     turn_start_time = time.time()
     file_name = doc_info.get("file_name", "dokumen")
     txt_ctx = doc_info.get("txt_ctx", "")
+    is_batch = doc_info.get("is_batch", False)
+    docs_count = doc_info.get("docs_count", 1)
+    file_names = doc_info.get("file_names", [file_name])
 
-    action_prompts = {
-        "pdf": (
-            f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas laporan PDF resmi yang rapi dan profesional "
-            f"dari data dokumen '{file_name}' di atas menggunakan tool generate_pdf_report. Pastikan berkas tersimpan ke disk."
-        ),
-        "excel": (
-            f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas spreadsheet Excel (.xlsx) baru yang terstruktur rapi "
-            f"dari data dokumen '{file_name}' di atas menggunakan tool generate_excel_spreadsheet. Pastikan berkas tersimpan ke disk."
-        ),
-        "deep": (
-            f"{txt_ctx}\n\nInstruksi Pengguna: Lakukan audit data mendalam pada dokumen '{file_name}': hitung total rekonsiliasi, "
-            f"verifikasi varians/selisih angka, dan sajikan rincian matematisnya secara presisi."
-        ),
-    }
+    # Bersihkan file keluaran lama di sandbox sebelum turn aksi agar tak terjadi double output
+    if os.path.exists(SANDBOX_DIR):
+        target_exts = {
+            "excel": (".xlsx", ".xls", ".csv"),
+            "pdf": (".pdf",),
+        }.get(action, ())
+        for f in os.listdir(SANDBOX_DIR):
+            if any(f.lower().endswith(ext) for ext in target_exts):
+                try:
+                    os.remove(os.path.join(SANDBOX_DIR, f))
+                except OSError:
+                    pass
+
+    if is_batch:
+        file_list_str = ", ".join(file_names)
+        action_prompts = {
+            "pdf": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan SATU (1) berkas laporan PDF resmi gabungan yang rapi dan profesional "
+                f"berisi rincian material dari SELURUH {docs_count} dokumen ({file_list_str}) di atas menggunakan tool generate_pdf_report. "
+                "SATUKAN semua dalam 1 file PDF lengkap dengan rekapitulasi total. Pastikan berkas tersimpan ke disk."
+            ),
+            "excel": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan SATU (1) berkas spreadsheet Excel (.xlsx) gabungan yang komprehensif dan terstruktur rapi "
+                f"berisi rincian material dari SELURUH {docs_count} berkas dokumen ({file_list_str}) di atas menggunakan tool generate_excel_spreadsheet "
+                "dengan filename 'Rekap_Material_Gabungan.xlsx'.\n\n"
+                "ATURAN MUTLAK:\n"
+                "1. SATUKAN SEMUA rincian material dari SELURUH berkas ke dalam SATU file spreadsheet ini (DILARANG membuat file terpisah untuk masing-masing dokumen).\n"
+                "2. Kolom tabel: ['No', 'Nama Dokumen / DO', 'Cluster', 'Nama Material / Item', 'QTY', 'Satuan'].\n"
+                "3. HANYA panggil tool generate_excel_spreadsheet TEPAT SATU KALI untuk menghasilkan file gabungan ini.\n"
+                "4. Pastikan rows_json berupa list of lists sesuai urutan headers di atas."
+            ),
+            "deep": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Lakukan audit dan rekonsiliasi data mendalam untuk SELURUH {docs_count} dokumen "
+                f"({file_list_str}): hitung total akumulasi material antar dokumen, verifikasi varians/anomali, dan sajikan rincian matematisnya secara presisi."
+            ),
+        }
+    else:
+        action_prompts = {
+            "pdf": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas laporan PDF resmi yang rapi dan profesional "
+                f"dari data dokumen '{file_name}' di atas menggunakan tool generate_pdf_report. Pastikan berkas tersimpan ke disk."
+            ),
+            "excel": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Buatkan berkas spreadsheet Excel (.xlsx) baru yang terstruktur rapi "
+                f"dari data dokumen '{file_name}' di atas menggunakan tool generate_excel_spreadsheet. "
+                "Gunakan kolom: ['No', 'Nama Material / Item', 'QTY', 'Satuan'] dan pastikan hanya memanggil tool tepat satu kali. Pastikan berkas tersimpan ke disk."
+            ),
+            "deep": (
+                f"{txt_ctx}\n\nInstruksi Pengguna: Lakukan audit data mendalam pada dokumen '{file_name}': hitung total rekonsiliasi, "
+                f"verifikasi varians/selisih angka, dan sajikan rincian matematisnya secara presisi."
+            ),
+        }
 
     prompt = action_prompts.get(action)
     if not prompt:
@@ -278,6 +319,11 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
             + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
         )
         await safe_send_message(context, chat_id, text)
+
+    elif data == "btn_ram":
+        from alfa.bot.advanced_commands import ram_command
+
+        await ram_command(update, context)
 
     elif data == "btn_memory":
         memories = await database.get_all_memories(user_id)
@@ -532,6 +578,7 @@ async def check_and_send_media_artifacts(
                 except OSError:
                     pass
 
+    raw_candidates = []
     for fname in os.listdir(SANDBOX_DIR):
         fpath = os.path.join(SANDBOX_DIR, fname)
         if tools.is_internal_sandbox_artifact(fname):
@@ -549,27 +596,68 @@ async def check_and_send_media_artifacts(
             except OSError:
                 pass
             continue
+        raw_candidates.append((fname, fpath, mtime))
 
+    # Kelompokkan berkas gambar dan dokumen
+    docs_by_ext: dict[str, list[tuple[str, str, float]]] = {}
+    images_to_send: list[tuple[str, str]] = []
+
+    for fname, fpath, mtime in raw_candidates:
         ext = os.path.splitext(fname)[1].lower()
         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-            caption = (
-                "📊 Grafik Visualisasi Data (Python)"
-                if fname.startswith("generated_plot")
-                else f"📸 Berkas Gambar: {fname}"
-            )
+            images_to_send.append((fname, fpath))
+        else:
+            docs_by_ext.setdefault(ext, []).append((fname, fpath, mtime))
+
+    # Kirim foto / grafik
+    for fname, fpath in images_to_send:
+        caption = (
+            "📊 Grafik Visualisasi Data (Python)"
+            if fname.startswith("generated_plot")
+            else f"📸 Berkas Gambar: {fname}"
+        )
+        try:
+            with open(fpath, "rb") as pf:
+                await context.bot.send_photo(
+                    chat_id=chat_id, photo=pf, caption=caption
+                )
+        except _HANDLER_ERR as img_err:
+            logger.error(f"Failed to send image {fname}: {img_err}")
+        finally:
             try:
-                with open(fpath, "rb") as pf:
-                    await context.bot.send_photo(
-                        chat_id=chat_id, photo=pf, caption=caption
-                    )
-            except _HANDLER_ERR as img_err:
-                logger.error(f"Failed to send image {fname}: {img_err}")
-            finally:
+                os.remove(fpath)
+            except OSError:
+                pass
+
+    # Kirim dokumen dengan proteksi anti-duplicate per tipe berkas (cegah double file Excel/PDF)
+    generic_names = {".xlsx": "data.xlsx", ".pdf": "laporan.pdf", ".pptx": "presentasi.pptx"}
+    for ext, file_list in docs_by_ext.items():
+        if len(file_list) > 1:
+            gen_name = generic_names.get(ext)
+            if gen_name and any(item[0].lower() != gen_name.lower() for item in file_list):
+                # Buang file generic (misal: data.xlsx) jika ada file dengan nama spesifik (misal: Rekap_Material_Gabungan.xlsx)
+                kept = []
+                for item in file_list:
+                    if item[0].lower() == gen_name.lower():
+                        try:
+                            os.remove(item[1])
+                        except OSError:
+                            pass
+                    else:
+                        kept.append(item)
+                file_list = kept
+
+        # Jika masih lebih dari 1 file dengan ekstensi sama, pilih 1 file termutakhir (mtime terbesar)
+        if len(file_list) > 1:
+            file_list.sort(key=lambda x: x[2], reverse=True)
+            for item in file_list[1:]:
                 try:
-                    os.remove(fpath)
+                    os.remove(item[1])
                 except OSError:
                     pass
-        else:
+            file_list = [file_list[0]]
+
+        for fname, fpath, _ in file_list:
             try:
                 with open(fpath, "rb") as df:
                     await context.bot.send_document(
@@ -699,11 +787,16 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     "Coba `/mode single` untuk 1 agen, atau kirim ulang."
                 )
             else:
-                await reporter.stop("✅ Selesai — laporan lengkap di bawah ⬇️")
-                steps_text, final_text, files = format_swarm_result(result)
-                await safe_send_message(context, chat_id, steps_text)
-                reply = final_text
-                swarm_files = files or []
+                if result.get("status") == "cancelled":
+                    await reporter.stop("⏹ Misi swarm dihentikan pengguna.")
+                    reply = "⏹ **Misi swarm telah dihentikan.** Eksekusi dibatalkan sebelum selesai."
+                    swarm_files = []
+                else:
+                    await reporter.stop("✅ Selesai — laporan lengkap di bawah ⬇️")
+                    steps_text, final_text, files = format_swarm_result(result)
+                    await safe_send_message(context, chat_id, steps_text)
+                    reply = final_text
+                    swarm_files = files or []
             finally:
                 ACTIVE_CHAT_TASKS.pop(chat_id, None)
         else:
@@ -986,26 +1079,22 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
-async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handle incoming documents (PDF, TXT, code, Excel, CSV, and long Audio meeting files).
-    """
-    if not update.message:
-        return
-    user_id = update.effective_user.id if update.effective_user else 0
-    chat_id = update.effective_chat.id if update.effective_chat else 0
-    if not _is_authorized(user_id):
-        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
-        return
+_DOC_BATCHES: dict[int, dict[str, Any]] = {}
+_DOC_BATCH_LOCK = asyncio.Lock()
 
-    doc = update.message.document
-    if not doc:
-        return
-    turn_start_time = time.time()
 
-    caption = update.message.caption or "Analisis isi dokumen ini secara mendalam."
-    file_name = doc.file_name or "file.bin"
-    mime_type = doc.mime_type or "application/octet-stream"
+async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
+    docs = batch.get("docs", [])
+    if not docs:
+        return
+    user_id = batch.get("user_id", 0)
+    context = batch.get("context")
+    update = batch.get("latest_update")
+    turn_start_time = batch.get("turn_start_time", time.time())
+    captions = [c for c in batch.get("captions", []) if c]
+
+    # Gabungkan caption pengguna jika ada
+    user_caption = " ".join(captions).strip() if captions else ""
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(
@@ -1016,50 +1105,103 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     reply = "❌ Maaf, terjadi kesalahan saat memproses dokumenmu."
 
     try:
-        doc_file = await context.bot.get_file(doc.file_id)
-        doc_bytes_io = io.BytesIO()
-        await doc_file.download_to_memory(doc_bytes_io)
-        doc_bytes = doc_bytes_io.getvalue()
+        multimodal_parts = []
+        for d in docs:
+            if d.get("part") is not None:
+                multimodal_parts.append(d["part"])
 
-        from alfa.tools.filesystem import universal_file_extractor as ufe
+        if len(docs) > 1:
+            # Multi-dokumen: rangkum langsung jadi SATU laporan rincian terpadu
+            doc_blocks = []
+            file_names = []
+            for idx, d in enumerate(docs, 1):
+                fname = d.get("file_name", f"file_{idx}")
+                file_names.append(fname)
+                tctx = (d.get("txt_ctx") or "").strip()
+                if tctx:
+                    doc_blocks.append(f"--- DOKUMEN {idx}: {fname} ---\n{tctx}")
+                else:
+                    doc_blocks.append(f"--- DOKUMEN {idx}: {fname} (lampiran berkas) ---")
 
-        txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
+            if not user_caption:
+                user_caption = "Analisis dan berikan rincian penting isi seluruh dokumen ini."
 
-        multimodal_parts = [part] if part is not None else None
-        user_caption = (caption or "").strip()
-        if not user_caption:
-            user_caption = "Baca, pahami, dan ringkas isi dokumen ini."
-
-        doc_summary_guidance = (
-            "\n\n[PANDUAN AI UNTUK DOKUMEN/BERKAS]:\n"
-            "- Tugasmu adalah membaca, memahami, dan menganalisis berkas di atas secara mendalam.\n"
-            "- Berikan RINGKASAN EKSEKUTIF yang terstruktur, padat, dan analitis langsung kepada pengguna.\n"
-            "- Strukturkan dengan rapi: Ringkasan Utama, Metrik & Angka Kunci, Temuan Lapangan/Data, dan Catatan Penting.\n"
-            "- JANGAN hanya menyalin ulang seluruh tabel atau teks mentah tanpa analisis ringkas.\n"
-            "- JANGAN membahas status audit sistem internal atau ketiadaan berkas disk baru kecuali pengguna meminta eksplisit membuat file baru.\n"
-            "- Gunakan format yang bersih, rapi, dan nyaman dibaca di chat Telegram."
-        )
-
-        if txt_ctx:
-            prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {user_caption}{doc_summary_guidance}"
+            prompt = (
+                f"[KUMPULAN {len(docs)} BERKAS DOKUMEN DIUNGGAH SEKALIGUS]:\n"
+                f"Daftar Berkas: {', '.join(file_names)}\n\n"
+                + "\n\n".join(doc_blocks)
+                + f"\n\nInstruksi Pengguna: {user_caption}\n\n"
+                "[PANDUAN LAPORAN RINCIAN MULTI-DOKUMEN DARI PENGGUNA]:\n"
+                "- FORMAT WAJIB: CUKUP NAMA DOKUMEN DAN RINCIAN MATERIALNYA SECARA RAPI (JANGAN MEMBINGUNGKAN PEMBACA).\n"
+                "- WAJIB JADIKAN 1 LAPORAN TERPADU DENGAN STRUKTUR RUNUT PER BERKAS:\n"
+                "  📄 Nama Dokumen / Berkas (misal: CLR56-99-263_DOEID26101705.xls)\n"
+                "  • Nama Material / Item : QTY Satuan\n"
+                "- Di bagian akhir, berikan Rekapitulasi Total Material secara ringkas dan bersih.\n"
+                "- DILARANG bertele-tele membuat ringkasan eksekutif panjang, analisis narasi umum, detail gudang/pemohon yang tidak relevan, atau mengacak material tanpa kejelasan dokumen asalnya.\n"
+                "- Sajikan dengan format rapi, bersih, to-the-point, dan nyaman dibaca di Telegram."
+            )
         else:
-            prompt = f"Dokumen/Berkas '{file_name}': {user_caption}{doc_summary_guidance}"
+            # Dokumen tunggal
+            d = docs[0]
+            fname = d.get("file_name", "file.bin")
+            tctx = (d.get("txt_ctx") or "").strip()
+            if not user_caption:
+                user_caption = "Berikan rincian material/isi dari dokumen ini."
+
+            doc_summary_guidance = (
+                "\n\n[PANDUAN FORMAT LAPORAN DOKUMEN]:\n"
+                "- FORMAT WAJIB: CUKUP NAMA DOKUMEN DAN RINCIAN MATERIAL / ITEMNYA SECARA RAPI.\n"
+                "- Tampilkan per butir jelas: • Nama Material / Item : QTY Satuan.\n"
+                "- DILARANG bertele-tele membuat pembuka/penutup panjang, analisis narasi teoritis, atau status audit internal.\n"
+                "- Sajikan dengan format yang padat, bersih, to-the-point, dan nyaman dibaca di Telegram."
+            )
+            if tctx:
+                prompt = f"{tctx}\n\nInstruksi Pengguna: {user_caption}{doc_summary_guidance}"
+            else:
+                prompt = f"Dokumen/Berkas '{fname}': {user_caption}{doc_summary_guidance}"
 
         reply = await _run_agent_turn(
             user_id=user_id,
             user_prompt=prompt,
-            multimodal_parts=multimodal_parts,
+            multimodal_parts=multimodal_parts or None,
             chat_id=chat_id,
         )
 
-        if txt_ctx:
+        if len(docs) > 1:
+            file_names = [d.get("file_name", "file") for d in docs]
+            combined_blocks = []
+            for idx, d in enumerate(docs, 1):
+                fname = d.get("file_name", f"file_{idx}")
+                tctx = (d.get("txt_ctx") or "").strip()
+                if tctx:
+                    combined_blocks.append(f"--- DOKUMEN {idx}: {fname} ---\n{tctx}")
+                else:
+                    combined_blocks.append(f"--- DOKUMEN {idx}: {fname} (lampiran berkas) ---")
+            combined_txt = "\n\n".join(combined_blocks)
+
             _RECENT_DOCS[chat_id] = {
-                "file_name": file_name,
-                "mime_type": mime_type,
-                "txt_ctx": txt_ctx,
+                "is_batch": True,
+                "docs_count": len(docs),
+                "file_name": f"{len(docs)} Berkas Gabungan ({file_names[0]} dkk)",
+                "file_names": file_names,
+                "mime_type": "multipart/batch",
+                "txt_ctx": combined_txt,
+                "summary_reply": reply,
                 "time": time.time(),
             }
-
+        elif docs:
+            d = docs[0]
+            if d.get("txt_ctx"):
+                _RECENT_DOCS[chat_id] = {
+                    "is_batch": False,
+                    "docs_count": 1,
+                    "file_name": d["file_name"],
+                    "file_names": [d["file_name"]],
+                    "mime_type": d["mime_type"],
+                    "txt_ctx": d["txt_ctx"],
+                    "summary_reply": reply,
+                    "time": time.time(),
+                }
     finally:
         stop_typing.set()
         await typing_task
@@ -1078,6 +1220,94 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     doc_markup = InlineKeyboardMarkup(doc_buttons)
 
     await safe_send_message(context, chat_id, reply, reply_markup=doc_markup)
-    await _check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
-    )
+    if update:
+        await _check_and_send_media_artifacts(
+            update, context, turn_start_time=turn_start_time
+        )
+
+
+async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle incoming documents (PDF, TXT, code, Excel, CSV, and long Audio meeting files).
+    Batches documents uploaded in rapid succession / albums into a single analysis turn.
+    """
+    if not update.message:
+        return
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user_id):
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
+        return
+
+    doc = update.message.document
+    if not doc:
+        return
+
+    caption = (update.message.caption or "").strip()
+    file_name = doc.file_name or "file.bin"
+    mime_type = doc.mime_type or "application/octet-stream"
+
+    try:
+        doc_file = await context.bot.get_file(doc.file_id)
+        doc_bytes_io = io.BytesIO()
+        await doc_file.download_to_memory(doc_bytes_io)
+        doc_bytes = doc_bytes_io.getvalue()
+    except Exception as e:
+        logger.error(f"[handle_document] Gagal unduh file '{file_name}': {e}")
+        await safe_send_message(
+            context, chat_id, f"❌ Gagal mengunduh berkas `{file_name}`: {e}"
+        )
+        return
+
+    from alfa.tools.filesystem import universal_file_extractor as ufe
+
+    try:
+        txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
+    except Exception as e:
+        logger.warning(f"[handle_document] Gagal ekstraksi '{file_name}': {e}")
+        txt_ctx, part = "", None
+
+    doc_item = {
+        "file_name": file_name,
+        "mime_type": mime_type,
+        "txt_ctx": txt_ctx,
+        "part": part,
+        "caption": caption,
+    }
+
+    async with _DOC_BATCH_LOCK:
+        if chat_id not in _DOC_BATCHES:
+            _DOC_BATCHES[chat_id] = {
+                "docs": [],
+                "captions": [],
+                "task": None,
+                "user_id": user_id,
+                "context": context,
+                "latest_update": update,
+                "turn_start_time": time.time(),
+            }
+        batch = _DOC_BATCHES[chat_id]
+        batch["docs"].append(doc_item)
+        if caption:
+            batch["captions"].append(caption)
+        batch["latest_update"] = update
+
+        if batch["task"] and not batch["task"].done():
+            batch["task"].cancel()
+
+        async def _delayed_batch_runner():
+            try:
+                # Jeda 1.2 detik untuk menampung album atau berkas yang dikirim bersamaan
+                await asyncio.sleep(1.2)
+            except asyncio.CancelledError:
+                return
+
+            async with _DOC_BATCH_LOCK:
+                ready_batch = _DOC_BATCHES.pop(chat_id, None)
+
+            if not ready_batch or not ready_batch.get("docs"):
+                return
+
+            await _execute_document_batch(chat_id, ready_batch)
+
+        batch["task"] = asyncio.create_task(_delayed_batch_runner())

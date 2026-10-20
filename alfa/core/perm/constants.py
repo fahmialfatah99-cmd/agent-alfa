@@ -16,6 +16,18 @@ PERMISSION_GATE_ENABLED = (
     and os.getenv("ALFA_UNRESTRICTED", "false").strip().lower() != "true"
 )
 
+# Policy izin:
+# "true" (default): Izin interaktif hanya diminta untuk perintah berisiko berbahaya (HIGH & CRITICAL).
+#                   Tool membaca dokumen/berkas (read_local_file, markitdown, pdf, excel, dll)
+#                   serta operasi MEDIUM/LOW lainnya di-auto-approve otomatis sehingga tidak
+#                   merepotkan pengguna dengan konfirmasi satu per satu.
+# "false": Mode ketat — semua tool non-LOW (termasuk MEDIUM) membutuhkan akumulasi persetujuan
+#          eksplisit manusia & trust score sebelum di-auto-approve.
+PERMISSION_GATE_DANGEROUS_ONLY = (
+    os.getenv("PERMISSION_GATE_DANGEROUS_ONLY", "true").strip().lower()
+    in ("true", "1", "yes")
+)
+
 
 def _safe_int_env(name: str, default: int) -> int:
     try:
@@ -145,6 +157,7 @@ TOOL_CLASSIFICATION = {
         RiskTier.HIGH,
         "Broadcast promosi ke kanal eksternal - mengirim pesan tanpa izin pemilik",
     ),
+    "delete_dynamic_plugin": (RiskTier.HIGH, "Hapus plugin dinamis - modifikasi instalasi"),
     # ── MEDIUM - write operations / reads of sensitive-but-benign data ──────
     "read_local_file": (
         RiskTier.MEDIUM,
@@ -175,7 +188,6 @@ TOOL_CLASSIFICATION = {
     "send_file_to_chat": (RiskTier.MEDIUM, "Kirim file ke chat - membocorkan file"),
     "write_to_clipboard": (RiskTier.MEDIUM, "Tulis clipboard - bisa menimpa data"),
     "start_focus_session": (RiskTier.MEDIUM, "Mode fokus - ubah state aplikasi"),
-    "delete_dynamic_plugin": (RiskTier.MEDIUM, "Hapus plugin dinamis"),
     "manage_custom_agents": (RiskTier.MEDIUM, "Kelola definisi custom agent"),
     "proactive_ambient_agent_config": (RiskTier.MEDIUM, "Ubah konfigurasi ambient agent"),
     "proactive_system_guardian_config": (RiskTier.MEDIUM, "Ubah konfigurasi guardian"),
@@ -230,18 +242,21 @@ TOOL_CLASSIFICATION = {
     "firecrawl_scrape_and_crawl": (RiskTier.MEDIUM, "Firecrawl scrape - traffic keluar"),
     "scrcpy_android_control": (RiskTier.MEDIUM, "Kontrol Android via scrcpy"),
     "wa_send_message": (RiskTier.MEDIUM, "Kirim pesan WhatsApp - kirim atas nama user"),
-    "wa_get_chats": (RiskTier.MEDIUM, "Baca daftar chat WA - data privat"),
-    "wa_get_incoming": (RiskTier.MEDIUM, "Baca pesan masuk WA - data privat"),
-    "wa_get_me": (RiskTier.MEDIUM, "Baca profil WA"),
-    "wa_get_messages": (RiskTier.MEDIUM, "Baca pesan WA - data privat"),
-    "wa_get_records": (RiskTier.MEDIUM, "Baca riwayat panggilan WA - data privat"),
-    "wa_search_messages": (RiskTier.MEDIUM, "Cari pesan WA - data privat"),
-    "wa_list_formats": (RiskTier.MEDIUM, "Daftar format WA"),
     "wa_add_format": (RiskTier.MEDIUM, "Tambah format WA"),
     "wa_delete_format": (RiskTier.MEDIUM, "Hapus format WA"),
     "wa_toggle_format": (RiskTier.MEDIUM, "Toggle format WA"),
     # ── LOW - read-only, safe operations ───────────────────────────────────
+    "wa_get_chats": (RiskTier.LOW, "Baca daftar chat WA - read-only"),
+    "wa_get_incoming": (RiskTier.LOW, "Baca pesan masuk WA - read-only"),
+    "wa_get_me": (RiskTier.LOW, "Baca profil WA - read-only"),
+    "wa_get_messages": (RiskTier.LOW, "Baca pesan WA - read-only"),
+    "wa_get_records": (RiskTier.LOW, "Baca riwayat panggilan WA - read-only"),
+    "wa_search_messages": (RiskTier.LOW, "Cari pesan WA - read-only"),
+    "wa_list_formats": (RiskTier.LOW, "Daftar format WA - read-only"),
+    "wa_mark_read": (RiskTier.LOW, "Tandai pesan WA sudah dibaca"),
+    "wa_get_history_archive": (RiskTier.LOW, "Baca arsip pesan WA lokal - read-only"),
     "auto_diagnose_and_heal_system": (RiskTier.LOW, "Diagnostic read-only - safe"),
+    "system_clean_memory_and_cache": (RiskTier.LOW, "Optimasi RAM dan bersihkan cache sistem"),
     "open_url_in_system_browser": (RiskTier.LOW, "Buka URL di browser - read-only"),
     "play_youtube_music": (RiskTier.LOW, "Putar musik YouTube - hiburan"),
     "browser_open_url": (RiskTier.LOW, "Buka URL di browser stealth - read-only"),

@@ -29,9 +29,46 @@ def generate_excel_spreadsheet(
         safe_name = filename if filename.endswith(".xlsx") else f"{filename}.xlsx"
         target_path = os.path.join(SANDBOX_DIR, safe_name)
 
+        # Bersihkan file .xlsx lama di sandbox agar hanya 1 file excel mutakhir yang dikirim
+        if os.path.exists(SANDBOX_DIR):
+            for old_f in os.listdir(SANDBOX_DIR):
+                if old_f.endswith(".xlsx"):
+                    try:
+                        os.remove(os.path.join(SANDBOX_DIR, old_f))
+                    except OSError:
+                        pass
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = sheet_title[:30]
+
+        # Normalisasi headers bila dikirim sebagai string JSON atau teks CSV
+        headers_list: list[str] = []
+        if isinstance(headers, str):
+            try:
+                parsed_h = json.loads(headers)
+                if isinstance(parsed_h, list):
+                    headers_list = [str(x) for x in parsed_h]
+                else:
+                    headers_list = [h.strip() for h in headers.split(",") if h.strip()]
+            except Exception:
+                headers_list = [h.strip() for h in headers.split(",") if h.strip()]
+        elif isinstance(headers, (list, tuple)):
+            headers_list = [str(h) for h in headers]
+
+        # Normalisasi rows_data
+        rows_data = []
+        if isinstance(rows_json, str):
+            try:
+                rows_data = json.loads(rows_json)
+            except Exception:
+                rows_data = []
+        elif isinstance(rows_json, list):
+            rows_data = rows_json
+
+        # Jika headers kosong tapi rows_data berisi dict, ambil key dari baris pertama
+        if not headers_list and rows_data and isinstance(rows_data[0], dict):
+            headers_list = list(rows_data[0].keys())
 
         header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
         header_fill = PatternFill(
@@ -44,27 +81,43 @@ def generate_excel_spreadsheet(
             bottom=Side(style="thin", color="CBD5E1"),
         )
 
-        ws.append(headers)
-        for col_num in range(1, len(headers) + 1):
-            cell = ws.cell(row=1, column=col_num)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-            cell.border = thin_border
+        if headers_list:
+            ws.append(headers_list)
+            for col_num in range(1, len(headers_list) + 1):
+                cell = ws.cell(row=1, column=col_num)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.border = thin_border
 
-        rows_data = []
-        if isinstance(rows_json, str):
-            try:
-                rows_data = json.loads(rows_json)
-            except Exception:
-                rows_data = []
-        elif isinstance(rows_json, list):
-            rows_data = rows_json
+        for item in rows_data:
+            if isinstance(item, dict):
+                if headers_list:
+                    row_vals = []
+                    item_keys_lower = {str(k).lower().strip(): v for k, v in item.items()}
+                    for h in headers_list:
+                        h_clean = str(h).strip()
+                        if h_clean in item:
+                            row_vals.append(item[h_clean])
+                        elif h_clean.lower() in item_keys_lower:
+                            row_vals.append(item_keys_lower[h_clean.lower()])
+                        else:
+                            matched = None
+                            for k, v in item.items():
+                                if str(k).lower() in h_clean.lower() or h_clean.lower() in str(k).lower():
+                                    matched = v
+                                    break
+                            row_vals.append(matched if matched is not None else "")
+                else:
+                    row_vals = list(item.values())
+            elif isinstance(item, (list, tuple)):
+                row_vals = list(item)
+            else:
+                row_vals = [item]
 
-        for row_data in rows_data:
-            ws.append(row_data)
+            ws.append(row_vals)
             row_idx = ws.max_row
-            for col_num in range(1, len(row_data) + 1):
+            for col_num in range(1, len(row_vals) + 1):
                 cell = ws.cell(row=row_idx, column=col_num)
                 cell.border = thin_border
 

@@ -66,6 +66,7 @@ def _main_menu_markup() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton("🌐 Sites", callback_data="btn_sites"),
                 InlineKeyboardButton("💰 Budget", callback_data="btn_budget"),
+                InlineKeyboardButton("🧹 RAM", callback_data="btn_ram"),
             ],
             [
                 InlineKeyboardButton("🖥️ Server", callback_data="btn_stats"),

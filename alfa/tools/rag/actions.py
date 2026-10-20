@@ -86,6 +86,19 @@ _TOOL_FAMILIES: dict[str, set[str]] = {
         "read_local_file",
         "write_local_file",
     },
+    "wa_get_chats": {
+        "wa_get_messages",
+        "wa_send_message",
+        "wa_get_incoming",
+    },
+    "wa_get_messages": {
+        "wa_get_chats",
+        "wa_send_message",
+    },
+    "wa_send_message": {
+        "wa_get_chats",
+        "wa_get_messages",
+    },
 }
 
 
@@ -198,6 +211,18 @@ def get_required_action_tools(user_text: str) -> set[str]:
                 "write_local_file",
                 "edit_file_precise",
                 "execute_python_sandbox",
+            ]
+        )
+    if any(
+        k in txt_low for k in ["wa", "whatsapp", "washeets", "waringkas", "pesan wa", "chat wa"]
+    ):
+        required.update(
+            [
+                "wa_get_chats",
+                "wa_get_messages",
+                "wa_get_incoming",
+                "wa_send_message",
+                "wa_get_records",
             ]
         )
     return required

@@ -28,6 +28,8 @@ os.environ["ALFA_INSECURE_LOCAL"] = "true"
 # Operator-local ALFA_UNRESTRICTED=true would disable every safety guard the
 # security tests assert on; force the safe default for the test session.
 os.environ["ALFA_UNRESTRICTED"] = "false"
+# Test suite verifies strict per-tier trust calculation by default unless overridden
+os.environ["PERMISSION_GATE_DANGEROUS_ONLY"] = "false"
 # Same hermetic reason: an operator .env with DASHBOARD_HOST=0.0.0.0 would fire
 # the fatal boot guard (_check_security_config) at import time of
 # alfa.dashboard.* because token above is forced empty in tests. Force the

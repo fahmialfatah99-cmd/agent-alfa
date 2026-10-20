@@ -52,6 +52,7 @@ from alfa.core import permissions as permission_gate
 from alfa.tools import (
     current_chat_id_var,
     current_user_id_var,
+    current_user_prompt_var,
 )
 
 logger = logging.getLogger("TelegramAIAgent")
@@ -136,6 +137,7 @@ async def _run_agent_turn_impl(
     # Set context variables for tools
     current_user_id_var.set(user_id)
     current_chat_id_var.set(chat_id or user_id)
+    current_user_prompt_var.set(user_prompt or "")
 
     # Permission Gate (human-in-the-loop) utk tool berbahaya.
     # `make_gate` mengembalikan None saat operator mematikan gate; pada kasus

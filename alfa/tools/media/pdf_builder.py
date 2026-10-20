@@ -120,9 +120,25 @@ def generate_pdf_report(
             elements.append(t)
 
         doc.build(elements)
+
+        # Salin juga ke SANDBOX_DIR agar otomatis terkirim ke chat Telegram user
+        try:
+            import shutil
+            from alfa.tools.system_tools import SANDBOX_DIR
+            if os.path.exists(SANDBOX_DIR):
+                for old_f in os.listdir(SANDBOX_DIR):
+                    if old_f.endswith(".pdf"):
+                        try:
+                            os.remove(os.path.join(SANDBOX_DIR, old_f))
+                        except OSError:
+                            pass
+                shutil.copy2(target_path, os.path.join(SANDBOX_DIR, safe_name))
+        except Exception as copy_err:
+            logger.debug(f"[generate_pdf_report] Gagal salin ke sandbox: {copy_err}")
+
         return {
             "status": "success",
-            "message": f"Dokumen PDF '{safe_name}' tersimpan di Dokumen/ALFA_PDF_TOOLS/Reports/.",
+            "message": f"Dokumen PDF '{safe_name}' tersimpan di Dokumen/ALFA_PDF_TOOLS/Reports/ dan dikirim ke Telegram.",
             "file_path": target_path,
             "filename": safe_name,
         }

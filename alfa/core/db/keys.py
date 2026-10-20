@@ -359,23 +359,25 @@ def get_active_api_key_sync(provider: str = "gemini") -> dict[str, Any] | None:
     """Get active API key record for a given provider."""
     with get_sync_db() as conn:
         cursor = conn.execute(
-            "SELECT * FROM api_keys WHERE provider = ? AND is_active = 1 LIMIT 1",
+            "SELECT * FROM api_keys WHERE provider = ? AND is_active = 1 ORDER BY id DESC",
             (provider.lower(),),
         )
-        row = cursor.fetchone()
-        if row:
+        for row in cursor.fetchall():
             d = dict(row)
-            d["api_key"] = decrypt_key(d.get("api_key") or "")
-            return d
+            dec = decrypt_key(d.get("api_key") or "")
+            if dec and len(dec.strip()) >= 5 and dec.strip() != "your_gemini_api_key_here":
+                d["api_key"] = dec
+                return d
         cursor = conn.execute(
-            "SELECT * FROM api_keys WHERE provider = ? ORDER BY is_active DESC, id ASC LIMIT 1",
+            "SELECT * FROM api_keys WHERE provider = ? ORDER BY is_active DESC, id DESC",
             (provider.lower(),),
         )
-        row = cursor.fetchone()
-        if row:
+        for row in cursor.fetchall():
             d = dict(row)
-            d["api_key"] = decrypt_key(d.get("api_key") or "")
-            return d
+            dec = decrypt_key(d.get("api_key") or "")
+            if dec and len(dec.strip()) >= 5 and dec.strip() != "your_gemini_api_key_here":
+                d["api_key"] = dec
+                return d
     return None
 
 
@@ -393,7 +395,14 @@ def list_active_keys_sync(exclude_provider: str = "") -> list[dict[str, Any]]:
                 if excl and (d.get("provider") or "").lower() == excl:
                     continue
                 try:
-                    d["api_key"] = decrypt_key(d.get("api_key") or "")
+                    dec = decrypt_key(d.get("api_key") or "")
+                    if (
+                        not dec
+                        or len(dec.strip()) < 5
+                        or dec.strip() == "your_gemini_api_key_here"
+                    ):
+                        continue
+                    d["api_key"] = dec
                 except (KeyError, TypeError, ValueError):
                     continue
                 out.append(d)

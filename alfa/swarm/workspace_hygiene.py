@@ -118,15 +118,19 @@ MEETING_RUNNING = False
 #     sesi lain.
 #
 # Kini state disimpan per `session_id`.
+GLOBAL_SWARM_CANCEL: bool = False
+
+
 class _SwarmSessionState:
     """State runtime satu sesi swarm."""
 
-    __slots__ = ("session_id", "cancel_flag", "running")
+    __slots__ = ("session_id", "cancel_flag", "running", "cancelled")
 
     def __init__(self, session_id: str, cancel_flag: str) -> None:
         self.session_id = session_id
         self.cancel_flag = cancel_flag
         self.running = False
+        self.cancelled = False
 
 
 _SESSIONS: dict[str, _SwarmSessionState] = {}
@@ -144,7 +148,7 @@ def session_cancel_flag_path(session_id: str) -> str:
 
 def register_session(session_id: str | None) -> str:
     """Tandai sesi swarm aktif & jadikan sesi konteks saat ini."""
-    global MEETING_RUNNING
+    global MEETING_RUNNING, GLOBAL_SWARM_CANCEL
     sid = str(session_id or "default")
     with _SESSIONS_LOCK:
         state = _SESSIONS.get(sid)
@@ -152,7 +156,9 @@ def register_session(session_id: str | None) -> str:
             state = _SwarmSessionState(sid, session_cancel_flag_path(sid))
             _SESSIONS[sid] = state
         state.running = True
+        state.cancelled = False
         MEETING_RUNNING = True
+    GLOBAL_SWARM_CANCEL = False
     _current_session_id.set(sid)
     return sid
 
@@ -464,61 +470,109 @@ def _harvest_new_sandbox_projects(topic: str = "") -> list[str]:
 def request_cancel_swarm(session_id: str | None = None) -> bool:
     """Minta pembatalan eksekusi swarm yang sedang berjalan.
 
-    ``session_id`` menunjuk sesi tertentu; bila kosong, sesi konteks (atau
-    sesi aktif pertama) yang dibatalkan. Return True bila sesi yang dituju
-    memang sedang berjalan.
+    Mengeset flag cancel di memori secara instan dan menulis file flag
+    pembatalan untuk seluruh sesi aktif dan global.
     """
+    global GLOBAL_SWARM_CANCEL
     from alfa.swarm.live_logger import log_live
 
-    sid = session_id or _current_session_id.get()
-    if not sid:
-        active = active_session_ids()
-        sid = active[0] if active else None
-    if not sid:
-        return False
-    with _SESSIONS_LOCK:
-        state = _SESSIONS.get(sid)
-        running = bool(state and state.running)
-    if not running:
-        return False
+    GLOBAL_SWARM_CANCEL = True
+    output_dir = _get_swarm_output_dir()
     try:
-        flag_file = session_cancel_flag_path(sid)
-        os.makedirs(os.path.dirname(flag_file), exist_ok=True)
-        with open(flag_file, "w", encoding="utf-8") as f:
-            f.write(str(time.time()))
+        os.makedirs(output_dir, exist_ok=True)
     except OSError:
         pass
+
+    # 1. Tulis file flag global
+    global_flags = [
+        os.path.join(output_dir, "swarm_cancel.flag"),
+        CANCEL_FLAG_FILE,
+        session_cancel_flag_path("default"),
+    ]
+    for gf in global_flags:
+        try:
+            with open(gf, "w", encoding="utf-8") as f:
+                f.write(str(time.time()))
+        except OSError:
+            pass
+
+    # 2. Tandai cancel di memori dan tulis file flag untuk semua sesi aktif
+    with _SESSIONS_LOCK:
+        target_sids = [session_id] if session_id else list(_SESSIONS.keys())
+        for sid in target_sids:
+            if not sid:
+                continue
+            state = _SESSIONS.get(sid)
+            if state:
+                state.cancelled = True
+            try:
+                flag_file = session_cancel_flag_path(sid)
+                with open(flag_file, "w", encoding="utf-8") as f:
+                    f.write(str(time.time()))
+            except OSError:
+                pass
+
     log_live(
         "CANCEL",
-        "⏹ Permintaan pembatalan diterima — menghentikan setelah langkah berjalan selesai...",
+        "⏹ Permintaan pembatalan diterima — menghentikan swarm segera...",
     )
     return True
 
 
 def _cancel_requested(session_id: str | None = None) -> bool:
-    """True bila pembatalan diminta untuk sesi tertentu (default: sesi konteks)."""
+    """True bila pembatalan diminta (prioritas in-memory, flag global, atau flag sesi)."""
+    if not any_session_running() and not MEETING_RUNNING:
+        _clear_cancel_flag(session_id)
+        return False
+
+    global GLOBAL_SWARM_CANCEL
+    if GLOBAL_SWARM_CANCEL:
+        return True
+
+    # 1. Cek in-memory session state
     sid = session_id or _current_session_id.get()
     if sid:
-        # Sesi punya flag sendiri — pembatalan tidak menimpa sesi lain.
-        return os.path.exists(session_cancel_flag_path(sid))
-    # Tanpa konteks sesi (pemanggil legacy) → pakai flag global.
+        with _SESSIONS_LOCK:
+            state = _SESSIONS.get(sid)
+            if state and getattr(state, "cancelled", False):
+                return True
+
+    # 2. Cek flag file global
     output_dir = _get_swarm_output_dir()
-    return os.path.exists(os.path.join(output_dir, "swarm_cancel.flag")) or os.path.exists(
-        CANCEL_FLAG_FILE
-    )
+    global_flag = os.path.join(output_dir, "swarm_cancel.flag")
+    if os.path.exists(global_flag) or os.path.exists(CANCEL_FLAG_FILE):
+        return True
+
+    default_flag = session_cancel_flag_path("default")
+    if os.path.exists(default_flag):
+        return True
+
+    # 3. Cek flag file sesi
+    if sid and os.path.exists(session_cancel_flag_path(sid)):
+        return True
+
+    return False
 
 
 def _clear_cancel_flag(session_id: str | None = None) -> None:
+    global GLOBAL_SWARM_CANCEL
+    GLOBAL_SWARM_CANCEL = False
     sid = session_id or _current_session_id.get()
     targets = []
     if sid:
         targets.append(session_cancel_flag_path(sid))
     output_dir = _get_swarm_output_dir()
-    targets.append(os.path.join(output_dir, "swarm_cancel.flag"))
-    targets.append(CANCEL_FLAG_FILE)
+    targets.extend([
+        os.path.join(output_dir, "swarm_cancel.flag"),
+        CANCEL_FLAG_FILE,
+        session_cancel_flag_path("default"),
+    ])
     for ff in targets:
         try:
             if os.path.exists(ff):
                 os.remove(ff)
         except OSError:
             pass
+    with _SESSIONS_LOCK:
+        if sid and sid in _SESSIONS:
+            _SESSIONS[sid].cancelled = False

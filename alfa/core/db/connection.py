@@ -302,6 +302,30 @@ def init_db_sync():
                 daily_call_limit INTEGER NOT NULL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS wa_read_messages (
+                msg_id TEXT PRIMARY KEY,
+                chat_id TEXT,
+                sender TEXT,
+                msg_ts INTEGER,
+                read_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_wrm_chat ON wa_read_messages(chat_id);
+            CREATE INDEX IF NOT EXISTS idx_wrm_ts ON wa_read_messages(msg_ts);
+            CREATE TABLE IF NOT EXISTS wa_incoming_archive (
+                msg_id TEXT PRIMARY KEY,
+                chat_id TEXT NOT NULL,
+                chat_name TEXT,
+                sender_name TEXT,
+                is_group INTEGER DEFAULT 0,
+                msg_type TEXT,
+                body TEXT,
+                has_media INTEGER DEFAULT 0,
+                msg_ts INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_wia_chat ON wa_incoming_archive(chat_id);
+            CREATE INDEX IF NOT EXISTS idx_wia_ts ON wa_incoming_archive(msg_ts);
+            CREATE INDEX IF NOT EXISTS idx_wia_body ON wa_incoming_archive(body);
         """)
 
         # Seed default API key from environment if empty

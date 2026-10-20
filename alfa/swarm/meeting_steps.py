@@ -63,6 +63,15 @@ async def _execute_agent_step(
     topic: str,
     intent_info: dict[str, Any],
 ):
+    if _cancel_requested():
+        log_live("CANCEL", f"⏹ {agent['name']} dibatalkan sebelum eksekusi.")
+        return {
+            "agent_name": agent["name"],
+            "tool_used": None,
+            "execution_summary": "[DIBATALKAN] Eksekusi dihentikan atas permintaan pengguna.",
+            "deliverable_file": None,
+        }, False, "Dibatalkan pengguna"
+
     log_live("EXEC", f"⚙️ {agent['name']} mulai eksekusi: {task_desc[:90]}")
     step_result = await execute_swarm_task_step(agent, task_desc, topic, intent_info)
     if step_result.get("deliverable_file"):

@@ -301,9 +301,11 @@ def conduct_ai_meeting(
     """
     try:
         from alfa.bot.mode_commands import get_telegram_mode_sync
+        from alfa.core.runtime_ctx import get_current_user_prompt
 
         current_mode = get_telegram_mode_sync()
         if current_mode == "single":
+            user_prompt = get_current_user_prompt().strip().lower()
             topic_lower = (topic or "").lower()
             explicit_swarm_keywords = (
                 "rapat",
@@ -314,7 +316,9 @@ def conduct_ai_meeting(
                 "musyawarah",
                 "war room",
             )
-            if not any(k in topic_lower for k in explicit_swarm_keywords):
+            # Prioritaskan validasi dari instruksi asli pengguna jika tersedia
+            target_check = user_prompt if user_prompt else topic_lower
+            if not any(k in target_check for k in explicit_swarm_keywords):
                 return {
                     "status": "skipped",
                     "message": (
@@ -599,3 +603,83 @@ def mcp_call(server: str, tool: str, args_json: str = "{}") -> dict[str, Any]:
         return _mc.call_tool_sync(server, tool, args)
     except _MGMT_ERR as e:
         return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[str, Any]:
+    """
+    Diagnostik dan optimasi pembersihan RAM & cache sistem (ALFA bot, Chromium, & WA Sheets Bot).
+
+    Args:
+        recycle_wa_if_needed: True = restart otomatis wa-sheets-bot jika penggunaan RAM > 1.2 GB.
+    """
+    import gc
+    import os
+    import shutil
+    import subprocess
+    import psutil
+
+    collected = gc.collect()
+
+    # Get system memory
+    vm = psutil.virtual_memory()
+    total_mb = vm.total // (1024 * 1024)
+    available_mb = vm.available // (1024 * 1024)
+    used_mb = vm.used // (1024 * 1024)
+    percent = vm.percent
+
+    # Get ALFA bot process memory
+    current_proc = psutil.Process(os.getpid())
+    alfa_rss_mb = current_proc.memory_info().rss // (1024 * 1024)
+
+    # Get wa-sheets-bot & chrome processes memory
+    wa_rss_mb = 0
+    wa_pids = []
+    for p in psutil.process_iter(["pid", "name", "cmdline", "memory_info"]):
+        try:
+            cmd = " ".join(p.info["cmdline"] or [])
+            if "wa-sheets-bot" in cmd or ("chrome" in cmd and "session-bot-session" in cmd):
+                mem = (p.info["memory_info"].rss if p.info["memory_info"] else 0) // (1024 * 1024)
+                wa_rss_mb += mem
+                wa_pids.append(p.info["pid"])
+        except Exception:
+            continue
+
+    # Clean orphaned /tmp/org.chromium.* directories
+    cleaned_tmp = 0
+    try:
+        for fname in os.listdir("/tmp"):
+            if fname.startswith("org.chromium.") or fname.startswith(".org.chromium."):
+                fpath = os.path.join("/tmp", fname)
+                try:
+                    if os.path.isdir(fpath):
+                        shutil.rmtree(fpath, ignore_errors=True)
+                        cleaned_tmp += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    wa_recycled = False
+    if recycle_wa_if_needed and wa_rss_mb > 1200:
+        try:
+            subprocess.run(["systemctl", "--user", "restart", "wa-sheets-bot.service"], check=False, timeout=10)
+            wa_recycled = True
+        except Exception as e:
+            logger.warning("Failed to recycle wa-sheets-bot: %s", e)
+
+    return {
+        "status": "success",
+        "system_ram": {
+            "total_mb": total_mb,
+            "used_mb": used_mb,
+            "available_mb": available_mb,
+            "used_percent": percent,
+        },
+        "alfa_bot_mb": alfa_rss_mb,
+        "wa_sheets_bot_mb": wa_rss_mb,
+        "wa_process_count": len(wa_pids),
+        "python_gc_objects_collected": collected,
+        "cleaned_orphaned_tmp_dirs": cleaned_tmp,
+        "wa_recycled": wa_recycled,
+    }

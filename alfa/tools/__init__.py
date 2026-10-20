@@ -9,8 +9,10 @@ import logging
 import plugins
 from alfa.core.runtime_ctx import current_chat_id_var as current_chat_id_var
 from alfa.core.runtime_ctx import current_user_id_var as current_user_id_var
+from alfa.core.runtime_ctx import current_user_prompt_var as current_user_prompt_var
 from alfa.core.runtime_ctx import get_current_chat_id as get_current_chat_id
 from alfa.core.runtime_ctx import get_current_user_id as get_current_user_id
+from alfa.core.runtime_ctx import get_current_user_prompt as get_current_user_prompt
 from alfa.tools import (
     academic_tools,
     desktop_tools,
@@ -175,9 +177,11 @@ AVAILABLE_TOOLS = [
     wa_list_formats,
     wa_toggle_format,
     wa_get_chats,
+    wa_get_history_archive,
     wa_get_incoming,
     wa_get_me,
     wa_get_messages,
+    wa_mark_read,
     wa_search_messages,
     wa_send_message,
     open_web_dashboard,

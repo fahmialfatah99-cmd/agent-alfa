@@ -9,6 +9,7 @@ from contextvars import ContextVar
 
 current_user_id_var: ContextVar[int] = ContextVar("current_user_id", default=0)
 current_chat_id_var: ContextVar[int] = ContextVar("current_chat_id", default=0)
+current_user_prompt_var: ContextVar[str] = ContextVar("current_user_prompt", default="")
 
 
 def get_current_user_id() -> int:
@@ -23,9 +24,16 @@ def get_current_chat_id() -> int:
     return cid if cid else get_current_user_id()
 
 
+def get_current_user_prompt() -> str:
+    """Get active prompt/instruction for the current agent turn."""
+    return current_user_prompt_var.get() or ""
+
+
 __all__ = [
     "current_user_id_var",
     "current_chat_id_var",
+    "current_user_prompt_var",
     "get_current_user_id",
     "get_current_chat_id",
+    "get_current_user_prompt",
 ]

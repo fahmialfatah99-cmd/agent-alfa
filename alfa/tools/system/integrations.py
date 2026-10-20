@@ -178,37 +178,211 @@ def wa_get_chats(limit: int = 15, only_unread: bool = False) -> dict[str, Any]:
 
 
 @register_tool(category="system")
-def wa_get_messages(chat: str, limit: int = 20) -> dict[str, Any]:
+def wa_get_messages(chat: str, limit: int = 20, mark_as_seen: bool = False) -> dict[str, Any]:
     """
     Baca riwayat pesan sebuah chat WhatsApp (terlama → terbaru).
+
+    ATURAN PRESENTASI KE PENGGUNA: Sampaikan PESAN ASLI apa adanya (verbatim).
+    DILARANG mengubah, mengedit, atau memparafrasekan teks isi pesan WhatsApp.
+    Tampilkan pengirim, waktu, dan teks pesan persis seperti aslinya.
 
     Args:
         chat: ID/nomor/nama chat (mis. '62812xxxx', 'Keluarga', 'xxx@g.us').
         limit: Jumlah pesan (1-60, default 20).
+        mark_as_seen: True = tandai pesan chat ini sebagai sudah dibaca di WhatsApp Web (sendSeen).
     """
-    return _wa_api("GET", "/api/messages", {"chat": chat, "limit": limit})
+    params: dict[str, Any] = {"chat": chat, "limit": limit}
+    if mark_as_seen:
+        params["mark_seen"] = "1"
+    res = _wa_api("GET", "/api/messages", params)
+    if isinstance(res, dict) and res.get("status") == "success":
+        msgs = res.get("messages", [])
+        if isinstance(msgs, list) and msgs:
+            try:
+                from alfa.core.db.wa_tracking import record_wa_messages_read_sync
+
+                record_wa_messages_read_sync(msgs)
+            except Exception:
+                pass
+    return res
 
 
 @register_tool(category="system")
-def wa_search_messages(query: str) -> dict[str, Any]:
+def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any]:
     """
-    Cari kata kunci di pesan-pesan WhatsApp terbaru (8 chat teratas).
+    Cari kata kunci di riwayat pesan WhatsApp (arsip lokal permanen & live WA Web).
 
     Args:
         query: Kata kunci pencarian.
+        search_live_wa: True = cari juga di sesi aktif WhatsApp Web (default True).
     """
-    return _wa_api("GET", "/api/search", {"q": query})
+    local_hits = []
+    try:
+        from alfa.core.db.wa_tracking import search_wa_archive_sync
+
+        local_hits = search_wa_archive_sync(query=query, limit=20)
+    except Exception:
+        local_hits = []
+
+    live_hits = []
+    if search_live_wa:
+        res = _wa_api("GET", "/api/search", {"q": query})
+        if isinstance(res, dict) and res.get("status") == "success":
+            live_hits = res.get("hits", []) or []
+
+    seen_keys = set()
+    combined = []
+    for h in local_hits + live_hits:
+        key = str(h.get("msg_id") or h.get("id") or f"{h.get('sender')}_{h.get('ts')}_{h.get('body')}")
+        if key not in seen_keys:
+            seen_keys.add(key)
+            combined.append(h)
+
+    return {
+        "status": "success",
+        "query": query,
+        "total": len(combined),
+        "local_archive_hits": len(local_hits),
+        "live_wa_hits": len(live_hits),
+        "hits": combined[:30],
+    }
 
 
 @register_tool(category="system")
-def wa_get_incoming(limit: int = 20) -> dict[str, Any]:
+def wa_get_history_archive(chat: str = "", query: str = "", sender: str = "", limit: int = 20) -> dict[str, Any]:
     """
-    Pesan WhatsApp MASUK terbaru yang terekam bot (ring buffer 80).
+    Cari dan baca riwayat arsip pesan WhatsApp lokal di database SQLite permanen.
+    Sangat cepat, tidak terikat batas buffer 250, dan tidak bergantung pada beban browser.
+
+    ATURAN PRESENTASI: Tampilkan kutipan teks asli secara verbatim.
 
     Args:
-        limit: Jumlah pesan (default 20).
+        chat: Filter berdasarkan nama grup / nomor chat (opsional).
+        query: Kata kunci isi pesan (opsional).
+        sender: Filter nama pengirim (opsional).
+        limit: Jumlah pesan maksimal (default 20, max 100).
     """
-    return _wa_api("GET", "/api/incoming", {"limit": limit})
+    try:
+        from alfa.core.db.wa_tracking import search_wa_archive_sync
+
+        records = search_wa_archive_sync(query=query, chat_id=chat, sender=sender, limit=limit)
+        return {
+            "status": "success",
+            "total": len(records),
+            "chat": chat,
+            "query": query,
+            "messages": records,
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membaca arsip WA: {e}"}
+
+
+@register_tool(category="system")
+def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bool = True) -> dict[str, Any]:
+    """
+    Pesan WhatsApp MASUK terbaru yang terekam bot.
+
+    ATURAN PRESENTASI KE PENGGUNA: Sampaikan PESAN ASLI apa adanya (verbatim).
+    DILARANG mengubah, mengedit, atau memparafrasekan teks isi pesan WhatsApp.
+    Tampilkan pengirim, grup/kontak, waktu, dan teks pesan persis seperti aslinya.
+
+    Args:
+        limit: Jumlah pesan (default 20, max 100).
+        only_unread: True = HANYA ambil pesan yang belum pernah dibaca/dilaporkan oleh bot (mencegah pesan dibaca berulang-ulang).
+        mark_as_read: True = Otomatis catat pesan yang dibaca ke database agar tidak dibaca ulang pada pengecekan pesan baru berikutnya.
+    """
+    fetch_limit = max(limit * 2, 40) if only_unread else limit
+    res = _wa_api("GET", "/api/incoming", {"limit": fetch_limit})
+    if isinstance(res, dict) and "incoming" in res and isinstance(res["incoming"], list):
+        filtered = [
+            it
+            for it in res["incoming"]
+            if isinstance(it, dict)
+            and not any(
+                bad in str(it.get("chat", "")) or bad in str(it.get("sender", "")) or bad in str(it.get("author", ""))
+                for bad in ("@broadcast", "@newsletter")
+            )
+        ]
+
+        # Permanently archive all genuine incoming messages into SQLite
+        try:
+            from alfa.core.db.wa_tracking import archive_wa_messages_sync
+
+            archive_wa_messages_sync(filtered)
+        except Exception:
+            pass
+
+        # Check read status in SQLite
+        msg_ids = [str(it.get("msg_id") or it.get("id") or "").strip() for it in filtered]
+        read_ids: set[str] = set()
+        try:
+            from alfa.core.db.wa_tracking import (
+                get_read_wa_msg_ids_sync,
+                record_wa_messages_read_sync,
+            )
+
+            read_ids = get_read_wa_msg_ids_sync(msg_ids)
+        except Exception:
+            read_ids = set()
+
+        for it in filtered:
+            mid = str(it.get("msg_id") or it.get("id") or "").strip()
+            it["is_read"] = bool(mid in read_ids)
+
+        if only_unread:
+            filtered = [it for it in filtered if not it.get("is_read")]
+
+        filtered = filtered[-limit:] if len(filtered) > limit else filtered
+
+        if mark_as_read and filtered:
+            to_mark = [it for it in filtered if not it.get("is_read")]
+            if to_mark:
+                try:
+                    record_wa_messages_read_sync(to_mark)
+                    for it in to_mark:
+                        it["is_read"] = True
+                except Exception:
+                    pass
+
+        res["incoming"] = filtered
+        res["total"] = len(filtered)
+        res["unread_count"] = sum(1 for it in filtered if not it.get("is_read"))
+    return res
+
+
+@register_tool(category="system")
+def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False) -> dict[str, Any]:
+    """
+    Tandai pesan WhatsApp atau chat tertentu sebagai sudah dibaca, agar bot tidak membacanya ulang.
+
+    Args:
+        chat: ID/nama chat yang ingin ditandai sudah dibaca (misal nama grup atau nomor).
+        msg_id: ID pesan tertentu jika ingin menandai satu pesan spesifik.
+        send_seen_to_wa: True = kirim juga sinyal 'read receipt' (centang biru) ke WhatsApp Web.
+    """
+    marked_db = 0
+    try:
+        from alfa.core.db.wa_tracking import mark_chat_read_sync, record_wa_messages_read_sync
+
+        if chat:
+            marked_db += mark_chat_read_sync(chat)
+        if msg_id:
+            record_wa_messages_read_sync([{"msg_id": msg_id, "chat": chat}])
+            marked_db += 1
+    except Exception as e:
+        logger.debug("Failed local mark read: %s", e)
+
+    wa_result: dict[str, Any] = {}
+    if send_seen_to_wa and chat:
+        wa_result = _wa_api("POST", "/api/seen", body={"chat": chat})
+
+    return {
+        "status": "success",
+        "chat": chat,
+        "msg_id": msg_id,
+        "marked_in_db": marked_db,
+        "wa_seen_result": wa_result,
+    }
 
 
 @register_tool(category="system")

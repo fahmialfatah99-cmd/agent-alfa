@@ -307,12 +307,10 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 def _wa_esc(text: str) -> str:
-    """Netralkan karakter Markdown pada konten chat WA agar tidak merusak parse."""
+    """Netralkan karakter Markdown yang rentan merusak entity parse Telegram."""
     return (
         str(text or "")
         .replace("`", "'")
-        .replace("*", "·")
-        .replace("_", "‑")
         .replace("[", "(")
         .replace("]", ")")
     )
@@ -435,27 +433,33 @@ async def wachat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/wamasuk [limit] — pesan WA masuk terbaru yang terekam bot."""
+    """/wamasuk [limit|baru] — pesan WA masuk terbaru yang terekam bot."""
     user_id = update.effective_user.id if update.effective_user else 0
     chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
     lim = 10
-    if context.args and context.args[0].isdigit():
-        lim = max(1, min(int(context.args[0]), 40))
-    res = tools.wa_get_incoming(limit=lim)
+    only_unread = False
+    if context.args:
+        for a in context.args:
+            if a.isdigit():
+                lim = max(1, min(int(a), 40))
+            elif a.lower() in ("baru", "unread", "new"):
+                only_unread = True
+
+    res = tools.wa_get_incoming(limit=lim, only_unread=only_unread, mark_as_read=True)
     err = _wa_not_ready(res)
     if err:
         await safe_send_message(context, chat_id, f"📵 {err}")
         return
     items = res.get("incoming", []) or []
     if not items:
-        await safe_send_message(
-            context, chat_id, "📥 Belum ada pesan WA masuk terekam (bot mencatat sejak restart terakhir)."
-        )
+        msg_empty = "📥 Tidak ada pesan WA baru yang belum dibaca." if only_unread else "📥 Belum ada pesan WA masuk terekam."
+        await safe_send_message(context, chat_id, msg_empty)
         return
-    lines = [f"📥 **{len(items)} Pesan WA Masuk Terbaru:**\n"]
+    header = f"📥 **{len(items)} Pesan WA Masuk ({'Hanya Baru' if only_unread else 'Terbaru'}):**\n"
+    lines = [header]
     for it in items:
         icon = _WA_TYPE_ICON.get(str(it.get("msg_type") or ""), "")
         icon = icon or ("👥" if it.get("is_group") else "👤")
@@ -465,10 +469,11 @@ async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat = ("…" + raw[-4:]) if raw.isdigit() and len(raw) > 8 else (raw or "?")
         when = _wa_time_iso(it.get("ts", ""))
         body = _wa_esc(it.get("body", ""))[:200] or "_(kosong)_"
+        status_tag = "" if it.get("is_read") else " `[BARU]`"
         if it.get("is_group") and not it.get("from_me"):
-            lines.append(f"{icon} **{chat}** — {_wa_sender(it)} · {when}\n   {body}")
+            lines.append(f"{icon} **{chat}** — {_wa_sender(it)} · {when}{status_tag}\n   {body}")
         else:
-            lines.append(f"{icon} **{chat}** · {when}\n   {body}")
+            lines.append(f"{icon} **{chat}** · {when}{status_tag}\n   {body}")
     await safe_send_message(context, chat_id, "\n".join(lines))
 
 
@@ -1132,3 +1137,43 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(
             context, chat_id, f"❌ Terjadi kesalahan saat resume: {str(e)}"
         )
+
+
+async def ram_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ram atau /bersihkan — pantau dan optimalkan pemakaian RAM (ALFA Bot, Chromium, & WA Sheets Bot)."""
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user_id):
+        return
+
+    from alfa.tools.system.management import system_clean_memory_and_cache
+
+    do_recycle = False
+    if context.args and any(a.lower() in ("wa", "restart", "full", "recycle") for a in context.args):
+        do_recycle = True
+
+    res = system_clean_memory_and_cache(recycle_wa_if_needed=do_recycle)
+    sys_ram = res.get("system_ram", {})
+    alfa_mb = res.get("alfa_bot_mb", 0)
+    wa_mb = res.get("wa_sheets_bot_mb", 0)
+    wa_procs = res.get("wa_process_count", 0)
+    gc_objs = res.get("python_gc_objects_collected", 0)
+    cleaned_tmp = res.get("cleaned_orphaned_tmp_dirs", 0)
+    recycled = res.get("wa_recycled", False)
+
+    lines = [
+        "🧹 **Optimasi & Diagnostik Memori (RAM)**\n",
+        f"🖥️ **Sistem:** {sys_ram.get('used_mb', 0)} MB / {sys_ram.get('total_mb', 0)} MB ({sys_ram.get('used_percent', 0)}% terpakai)",
+        f"   • Tersedia: `{sys_ram.get('available_mb', 0)} MB`\n",
+        f"🤖 **ALFA Python Bot:** `{alfa_mb} MB`",
+        f"📱 **WA Sheets Bot & Chrome:** `{wa_mb} MB` ({wa_procs} proses)\n",
+        "♻️ **Hasil Pembersihan:**",
+        f"   • Python GC: {gc_objs} objek dibebaskan",
+        f"   • Temp Chromium: {cleaned_tmp} direktori yatim dibersihkan",
+    ]
+    if recycled:
+        lines.append("   • WA Sheets Bot: **Berhasil di-recycle & RAM di-reset fresh!** ✅")
+    elif wa_mb > 1000:
+        lines.append(f"\n⚠️ _Pemakaian RAM WA Bot cukup tinggi ({wa_mb} MB). Ketik `/ram full` untuk me-restart fresh._")
+
+    await safe_send_message(context, chat_id, "\n".join(lines))

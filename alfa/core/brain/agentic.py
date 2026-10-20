@@ -250,9 +250,34 @@ async def run_openai_agentic_turn(
                 messages.append({"role": role, "content": h["content"]})
         messages.append({"role": "user", "content": user_text})
 
-        url = f"{(base_url or '').rstrip('/')}/chat/completions"
+        prov = (provider or "").lower().strip()
+        eff_base_url = (base_url or "").strip()
+        if not eff_base_url:
+            eff_base_url = {
+                "openai": "https://api.openai.com/v1",
+                "groq": "https://api.groq.com/openai/v1",
+                "openrouter": "https://openrouter.ai/api/v1",
+                "deepseek": "https://api.deepseek.com/v1",
+                "nvidia": "https://integrate.api.nvidia.com/v1",
+                "nim": "https://integrate.api.nvidia.com/v1",
+                "minimax": "https://api.minimax.chat/v1",
+                "moonshot": "https://api.moonshot.cn/v1",
+                "kimi": "https://api.moonshot.cn/v1",
+                "qwen": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                "dashscope": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                "9router": "http://127.0.0.1:20128/v1",
+                "ollama": "http://localhost:11434/v1",
+            }.get(prov, "")
+
+        if not eff_base_url or not (api_key or "").strip():
+            logger.warning(
+                f"[MainBrain:{provider}] Base URL atau API key kosong untuk {provider} ({model}) -> batal"
+            )
+            return None
+
+        url = f"{eff_base_url.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {api_key.strip()}",
             "Content-Type": "application/json",
         }
         payload_base = {
@@ -319,9 +344,10 @@ async def run_openai_agentic_turn(
                         "tool_calls": tool_calls,
                     }
                 )
-                from alfa.swarm.workspace_hygiene import _cancel_requested
+                from alfa.swarm.workspace_hygiene import _cancel_requested, current_session_id
 
-                if _cancel_requested():
+                sess_id = current_session_id()
+                if sess_id and _cancel_requested(sess_id):
                     logger.info(
                         f"[MainBrain] pembatalan terdeteksi sebelum tool call (iterasi {_iteration})"
                     )
@@ -559,9 +585,34 @@ async def run_openai_agentic_turn_streaming(
                 messages.append({"role": role, "content": h["content"]})
         messages.append({"role": "user", "content": user_text})
 
-        url = f"{(base_url or '').rstrip('/')}/chat/completions"
+        prov = (provider or "").lower().strip()
+        eff_base_url = (base_url or "").strip()
+        if not eff_base_url:
+            eff_base_url = {
+                "openai": "https://api.openai.com/v1",
+                "groq": "https://api.groq.com/openai/v1",
+                "openrouter": "https://openrouter.ai/api/v1",
+                "deepseek": "https://api.deepseek.com/v1",
+                "nvidia": "https://integrate.api.nvidia.com/v1",
+                "nim": "https://integrate.api.nvidia.com/v1",
+                "minimax": "https://api.minimax.chat/v1",
+                "moonshot": "https://api.moonshot.cn/v1",
+                "kimi": "https://api.moonshot.cn/v1",
+                "qwen": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                "dashscope": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                "9router": "http://127.0.0.1:20128/v1",
+                "ollama": "http://localhost:11434/v1",
+            }.get(prov, "")
+
+        if not eff_base_url or not (api_key or "").strip():
+            logger.warning(
+                f"[MainBrain:{provider}] Base URL atau API key kosong untuk {provider} ({model}) -> batal streaming"
+            )
+            return
+
+        url = f"{eff_base_url.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {api_key.strip()}",
             "Content-Type": "application/json",
         }
         payload_base = {
@@ -679,9 +730,10 @@ async def run_openai_agentic_turn_streaming(
                     }
                 )
 
-                from alfa.swarm.workspace_hygiene import _cancel_requested
+                from alfa.swarm.workspace_hygiene import _cancel_requested, current_session_id
 
-                if _cancel_requested():
+                sess_id = current_session_id()
+                if sess_id and _cancel_requested(sess_id):
                     logger.info(
                         "[MainBrain] pembatalan terdeteksi sebelum streaming tool call"
                     )

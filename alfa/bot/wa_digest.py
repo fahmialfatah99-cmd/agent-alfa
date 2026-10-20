@@ -92,17 +92,17 @@ async def summarize_records(records: list[dict]) -> str:
         return ""
     lines = []
     for r in records[:20]:
-        body = str(r.get("body", ""))[:300].replace("\n", " ")
+        body = " ".join(str(r.get("body", "")).split())[:300]
         lines.append(
             f"- [{r.get('format_name', r.get('tab', '?'))}] "
             f"{r.get('timestamp', '')} | {r.get('sender', '?')} di {r.get('group', '?')}: {body}"
         )
     prompt = (
         "[RINGKASAN WA] Berikut catatan laporan WhatsApp terbaru. Buat ringkasan "
-        "cerdas Bahasa Indonesia santai, MAKS 12 baris:\n"
+        "cerdas Bahasa Indonesia santai, rapi, dan terstruktur (maksimal 12 baris):\n"
         "1) 3-5 hal PALING PENTING/mendesak (apa, siapa, di mana)\n"
         "2) Pola/masalah berulang bila ada\n"
-        "3) Satu saran tindak lanjut.\n"
+        "3) Satu saran tindak lanjut konkret.\n"
         "Fakta saja — DILARANG mengarang.\n\n" + "\n".join(lines)
     )
     try:
@@ -135,16 +135,21 @@ async def build_digest_text(report_format: str = "", limit: int = 15) -> str:
     ]
     ai = await summarize_records(recs)
     if ai:
+        from alfa.bot.helpers import clean_telegram_markdown
+
         lines.append("🧠 **Sorotan AI:**")
-        lines.append(_esc(ai)[:1500])
+        lines.append(clean_telegram_markdown(ai).strip()[:1500])
         lines.append("")
-    lines.append("📌 **Terbaru:**")
+    lines.append("📌 **Catatan Terbaru:**")
     for r in recs[:5]:
-        body = _esc(str(r.get("body", ""))[:160]).replace("\n", " ")
-        lines.append(
-            f"• **{_esc(r.get('format_name', r.get('tab', '?')))}** · "
-            f"{_esc(r.get('timestamp', ''))} — {_esc(r.get('sender', '?'))}: _{body}_"
-        )
+        fmt_name = _esc(r.get("format_name", r.get("tab", "?")))
+        ts = _esc(r.get("timestamp", ""))
+        sender = _esc(r.get("sender", "?"))
+        group = _esc(r.get("group", ""))
+        from_str = f"{sender} ({group})" if group and group != "?" else sender
+        raw_body = " ".join(str(r.get("body", "")).split())
+        body_snippet = _esc(raw_body[:140] + ("…" if len(raw_body) > 140 else ""))
+        lines.append(f"• **{fmt_name}** · {ts} — {from_str}:\n  {body_snippet}")
     return "\n".join(lines)
 
 

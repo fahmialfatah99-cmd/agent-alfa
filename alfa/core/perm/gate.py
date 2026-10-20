@@ -11,6 +11,7 @@ from alfa.core.perm.constants import (
     DEFAULT_TIER,
     HIGH_TRUST_THRESHOLD,
     NO_CHANNEL_POLICY,
+    PERMISSION_GATE_DANGEROUS_ONLY,
     PERMISSION_GATE_ENABLED,
     SAFE_TOOLS,
     TIER_MIN_EXPLICIT_APPROVALS,
@@ -53,6 +54,12 @@ def should_auto_approve(chat_id: int, tool_name: str) -> tuple[bool, str]:
     # Auto-approve LOW tier always
     if tier == RiskTier.LOW:
         return True, "auto_approved"
+
+    # Bila kebijakan dangerous_only aktif (default), tier MEDIUM otomatis lolos
+    # tanpa menanyakan izin berulang kali per berkas/dokumen ke pengguna.
+    # Hanya perintah berisiko berbahaya (HIGH & CRITICAL) yang meminta izin.
+    if PERMISSION_GATE_DANGEROUS_ONLY and tier == RiskTier.MEDIUM:
+        return True, "auto_approved:dangerous_only_policy"
 
     trust, explicit_approvals = get_tier_trust(chat_id, tier.value)
     minimum = TIER_MIN_EXPLICIT_APPROVALS.get(tier, 0)

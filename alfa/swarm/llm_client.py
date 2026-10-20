@@ -159,7 +159,6 @@ def get_agent_api_client(
             base_url = active_key.get("base_url") or ""
             key_id = active_key.get("id")
 
-    if not api_key:
         if provider == "gemini":
             api_key = os.getenv("GEMINI_API_KEY", "")
         elif provider == "openai":
@@ -168,8 +167,35 @@ def get_agent_api_client(
             api_key = os.getenv("GROQ_API_KEY", "")
         elif provider in ["nvidia", "nim"]:
             api_key = os.getenv("NVIDIA_API_KEY", "")
+        elif provider == "deepseek":
+            api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        elif provider == "openrouter":
+            api_key = os.getenv("OPENROUTER_API_KEY", "")
+        elif provider == "minimax":
+            api_key = os.getenv("MINIMAX_API_KEY", "")
+        elif provider in ["moonshot", "kimi"]:
+            api_key = os.getenv("MOONSHOT_API_KEY", "")
+        elif provider in ["qwen", "dashscope"]:
+            api_key = os.getenv("DASHSCOPE_API_KEY", os.getenv("QWEN_API_KEY", ""))
         elif provider == "9router":
             api_key = os.getenv("NINEROUTER_API_KEY", os.getenv("ROUTER_API_KEY", ""))
+
+    if not base_url:
+        base_url = {
+            "openai": "https://api.openai.com/v1",
+            "groq": "https://api.groq.com/openai/v1",
+            "openrouter": "https://openrouter.ai/api/v1",
+            "deepseek": "https://api.deepseek.com/v1",
+            "nvidia": "https://integrate.api.nvidia.com/v1",
+            "nim": "https://integrate.api.nvidia.com/v1",
+            "minimax": "https://api.minimax.chat/v1",
+            "moonshot": "https://api.moonshot.cn/v1",
+            "kimi": "https://api.moonshot.cn/v1",
+            "qwen": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            "dashscope": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            "9router": "http://127.0.0.1:20128/v1",
+            "ollama": "http://localhost:11434/v1",
+        }.get(provider, "")
 
     if provider == "9router":
         if not base_url:
@@ -630,28 +656,34 @@ async def generate_agent_response(
         )
     else:
         if enable_tools:
-            try:
-                from alfa.core import brain as _mb
-
-                result = await _mb.run_openai_agentic_turn(
-                    provider=provider,
-                    base_url=base_url or "",
-                    api_key=api_key,
-                    model=model,
-                    system_instruction=final_instruction,
-                    user_text=prompt,
-                    key_id=key_id,
-                    key_label=key_label,
-                    context="swarm",
-                    tools_schema=_mb.build_openai_tools(safe_only=True),
-                    # Tanpa gate, jalur swarm bisa menjalankan tool apa pun
-                    # tanpa human-in-the-loop (deny-by-default di brain).
-                    approval_gate=swarm_headless_gate,
-                    raw_errors=True,
+            if not api_key:
+                logger.warning(
+                    f"Agen ber-tool '{agent_name}' tidak punya API key untuk provider '{provider}' -> langsung fallback Gemini."
                 )
-            except Exception as agentic_err:
-                logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
                 result = None
+            else:
+                try:
+                    from alfa.core import brain as _mb
+
+                    result = await _mb.run_openai_agentic_turn(
+                        provider=provider,
+                        base_url=base_url or "",
+                        api_key=api_key,
+                        model=model,
+                        system_instruction=final_instruction,
+                        user_text=prompt,
+                        key_id=key_id,
+                        key_label=key_label,
+                        context="swarm",
+                        tools_schema=_mb.build_openai_tools(safe_only=True),
+                        # Tanpa gate, jalur swarm bisa menjalankan tool apa pun
+                        # tanpa human-in-the-loop (deny-by-default di brain).
+                        approval_gate=swarm_headless_gate,
+                        raw_errors=True,
+                    )
+                except Exception as agentic_err:
+                    logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
+                    result = None
             if isinstance(result, str) and (
                 result.startswith("(provider tidak mengirim teks)")
                 or not result.strip()

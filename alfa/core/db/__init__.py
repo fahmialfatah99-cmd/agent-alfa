@@ -88,6 +88,14 @@ from alfa.core.db.tasks import (
     update_cron_job_after_run,
     update_subagent_task_sync,
 )
+from alfa.core.db.wa_tracking import (
+    get_last_read_wa_ts_sync,
+    get_read_wa_msg_ids_sync,
+    is_wa_message_read_sync,
+    mark_chat_read_sync,
+    record_wa_messages_read_sync,
+    set_last_read_wa_ts_sync,
+)
 
 __all__ = [
     # connection
@@ -163,4 +171,11 @@ __all__ = [
     "mark_focus_session_completed",
     "record_api_usage_sync",
     "get_api_usage_summary_sync",
+    # wa_tracking
+    "record_wa_messages_read_sync",
+    "get_read_wa_msg_ids_sync",
+    "is_wa_message_read_sync",
+    "mark_chat_read_sync",
+    "get_last_read_wa_ts_sync",
+    "set_last_read_wa_ts_sync",
 ]

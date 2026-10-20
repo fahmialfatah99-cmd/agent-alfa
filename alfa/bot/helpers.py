@@ -52,6 +52,11 @@ def clean_telegram_markdown(text: str) -> str:
     if "<thought" in text.lower():
         text = _re.sub(r"<thought\b[^>]*>.*?</thought\s*>", "", text, flags=_re.S | _re.I)
 
+    # 1b. LaTeX math blocks ($$...$$, \[...\], \(...\))
+    text = _re.sub(r"\$\$([\s\S]*?)\$\$", r"```\n\1\n```", text)
+    text = _re.sub(r"\\\[([\s\S]*?)\\\]", r"```\n\1\n```", text)
+    text = _re.sub(r"\\\(([\s\S]*?)\\\)", r"`\1`", text)
+
     # 2. Audit apologies / disclaimer leaks
     text = _re.sub(
         r"^(?:Siap|Maaf)[^\n]*?(?:terima kasih auditnya|aku jujur akui|audit)[^\n]*?\n+",
@@ -107,7 +112,7 @@ def clean_telegram_markdown(text: str) -> str:
         stripped = line.strip()
 
         # Check for markdown table row: | a | b |
-        if stripped.startswith("|") and stripped.endswith("|") and "|" in stripped[1:-1]:
+        if stripped.startswith("|") and stripped.count("|") >= 2:
             table_buf.append(line)
             continue
         else:
@@ -118,37 +123,33 @@ def clean_telegram_markdown(text: str) -> str:
             processed_lines.append("")
             continue
 
-        # Header 1-2 (#, ##)
-        m_h1 = _re.match(r"^#{1,2}\s+(.*)$", line)
-        if m_h1:
-            title = m_h1.group(1).strip()
-            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
-            if emoji_match:
-                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
-            else:
-                processed_lines.append(f"📌 *{title}*")
-            continue
+        def _format_header(raw_title: str, default_icon: str) -> str:
+            t = raw_title.strip()
+            if t.startswith("**") and t.endswith("**") and len(t) > 4:
+                t = t[2:-2].strip()
+            elif t.startswith("*") and t.endswith("*") and len(t) > 2:
+                t = t[1:-1].strip()
+            emoji_m = _re.match(r"^([^\w\s*#_~`\"'\(\)\[\]\-]+)\s*(.*)$", t)
+            if emoji_m and emoji_m.group(1).strip():
+                emoji = emoji_m.group(1).strip()
+                rest = emoji_m.group(2).strip()
+                if rest.startswith("**") and rest.endswith("**") and len(rest) > 4:
+                    rest = rest[2:-2].strip()
+                elif rest.startswith("*") and rest.endswith("*") and len(rest) > 2:
+                    rest = rest[1:-1].strip()
+                return f"{emoji} *{rest}*"
+            return f"{default_icon} *{t}*"
 
-        # Header 3 (###)
-        m_h3 = _re.match(r"^#{3}\s+(.*)$", line)
-        if m_h3:
-            title = m_h3.group(1).strip()
-            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
-            if emoji_match:
-                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
-            else:
-                processed_lines.append(f"📌 *{title}*")
+        # Header 1-3 (#, ##, ###)
+        m_h13 = _re.match(r"^#{1,3}\s+(.*)$", line)
+        if m_h13:
+            processed_lines.append(_format_header(m_h13.group(1), "📌"))
             continue
 
         # Header 4-6 (####)
         m_h4 = _re.match(r"^#{4,6}\s+(.*)$", line)
         if m_h4:
-            title = m_h4.group(1).strip()
-            emoji_match = _re.match(r"^([^\w\s]+\s*)(.*)$", title)
-            if emoji_match:
-                processed_lines.append(f"{emoji_match.group(1)}*{emoji_match.group(2)}*")
-            else:
-                processed_lines.append(f"🔹 *{title}*")
+            processed_lines.append(_format_header(m_h4.group(1), "🔹"))
             continue
 
         # Nested bullets (2+ spaces followed by * or - or +)

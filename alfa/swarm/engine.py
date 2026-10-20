@@ -411,7 +411,18 @@ async def _execute_agents_parallel(
                     queue.append(neighbor)
         wave_num += 1
 
+        if _cancel_requested(session_id):
+            log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna setelah gelombang {wave_num - 1}.")
+            if _CHECKPOINT_AVAILABLE:
+                try:
+                    _SwarmCheckpoint.mark_cancelled(session_id)
+                except (OSError, ValueError, TypeError):
+                    pass
+            return True
+
     if len(completed) < len(agent_names):
+        if _cancel_requested(session_id):
+            return True
         remaining = [name for name in agent_names if name not in completed]
         log_live("WARN", f"⚠️ Agen tersisa karena dependensi macet: {remaining}. Menjalankan fallback!")
         wave = [agent_by_name[n] for n in remaining]
@@ -519,9 +530,10 @@ async def conduct_multi_agent_meeting(
     """
     from alfa.swarm import workspace_hygiene
 
-    # State sesi disimpan PER-SESI (bukan global) — dua rapat paralel tidak
-    # lagi saling mematikan flag.
+    # State sesi disimpan PER-SESI (bukan global) — pastikan session_id definitif sebelum didaftarkan
+    session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     _sid = workspace_hygiene.register_session(session_id)
+    workspace_hygiene._clear_cancel_flag(session_id)
     try:
         return await _conduct_multi_agent_meeting_impl(
             topic=topic,
@@ -533,6 +545,7 @@ async def conduct_multi_agent_meeting(
         )
     finally:
         workspace_hygiene.unregister_session(_sid)
+        workspace_hygiene._clear_cancel_flag(_sid)
 
 
 async def _conduct_multi_agent_meeting_impl(
@@ -547,6 +560,7 @@ async def _conduct_multi_agent_meeting_impl(
 
     mode = _normalize_swarm_mode(mode)
     session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+    workspace_hygiene.set_current_session(session_id)
 
     # Folder target kerja agen
     global _TARGET_FOLDER
@@ -808,34 +822,37 @@ async def _conduct_multi_agent_meeting_impl(
             _d = ", ".join(sorted({x["voter"] for x in vote_tally["dissent"]}))
             log_live("VOTE", f"⚖️ Dissenting agents: {_d}")
 
-    swarm_cancelled = False
-    if mode in ["execute", "plan_and_execute"]:
+    swarm_cancelled = _cancel_requested(session_id)
+    if not swarm_cancelled and mode in ["execute", "plan_and_execute"]:
         logger.info(
             f"⚡ Launching Live Autonomous Swarm Execution for {len(participants)} agents..."
         )
 
         subtask_map = await _decompose_task(topic, participants)
-        if subtask_map:
-            logger.info("Task decomposition OK: %s", list(subtask_map.keys()))
-            for _n, _t in subtask_map.items():
-                tk = _t["task"] if isinstance(_t, dict) else _t
-                deps = _t.get("depends_on", []) if isinstance(_t, dict) else []
-                log_live("PLAN", f"🗂️ {_n}: {tk[:90]} (Deps: {deps})")
+        if _cancel_requested(session_id):
+            swarm_cancelled = True
+        else:
+            if subtask_map:
+                logger.info("Task decomposition OK: %s", list(subtask_map.keys()))
+                for _n, _t in subtask_map.items():
+                    tk = _t["task"] if isinstance(_t, dict) else _t
+                    deps = _t.get("depends_on", []) if isinstance(_t, dict) else []
+                    log_live("PLAN", f"🗂️ {_n}: {tk[:90]} (Deps: {deps})")
 
-        failed_steps: list[dict[str, Any]] = []
-        ctx_lines: list[str] = []
+            failed_steps: list[dict[str, Any]] = []
+            ctx_lines: list[str] = []
 
-        swarm_cancelled = await _execute_agents_parallel(
-            participants,
-            subtask_map,
-            topic,
-            intent_info,
-            session_id,
-            mode,
-            execution_steps,
-            ctx_lines,
-            failed_steps
-        )
+            swarm_cancelled = await _execute_agents_parallel(
+                participants,
+                subtask_map,
+                topic,
+                intent_info,
+                session_id,
+                mode,
+                execution_steps,
+                ctx_lines,
+                failed_steps
+            )
 
     # Sentinel QA Loop
     if (

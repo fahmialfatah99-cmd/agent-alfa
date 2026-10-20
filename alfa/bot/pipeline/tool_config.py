@@ -43,6 +43,21 @@ def prepare_tools_and_configs(
             deduped_tools.append(tool_fn)
     all_tools = deduped_tools
 
+    try:
+        from alfa.bot.mode_commands import get_telegram_mode_sync
+
+        if get_telegram_mode_sync() == "single":
+            prompt_low = (user_prompt or "").lower()
+            if not any(
+                k in prompt_low
+                for k in ("rapat", "meeting", "swarm", "musyawarah", "war room", "tim agen")
+            ):
+                all_tools = [
+                    t for t in all_tools if getattr(t, "__name__", "") != "conduct_ai_meeting"
+                ]
+    except Exception:
+        pass
+
     gemini_tools: Any = all_tools
     try:
         from alfa.tools.rag import select_relevant_functions

@@ -157,6 +157,8 @@ _SYNONYMS = {
     "terjemah": "translate translation language convert text",
     "fokus": "focus session pomodoro timer work",
     "download": "download fetch save file url",
+    "wa": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets",
+    "whatsapp": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -246,6 +248,20 @@ _CATEGORY_BOOSTS = {
         "conduct_ai_meeting",
         "manage_custom_agents",
     ],
+    "whatsapp": [
+        "wa_get_chats",
+        "wa_get_messages",
+        "wa_search_messages",
+        "wa_get_incoming",
+        "wa_get_me",
+        "wa_send_message",
+        "wa_list_formats",
+        "wa_get_records",
+        "wa_mark_read",
+        "wa_get_history_archive",
+        "manage_wa_sheets_bot",
+        "list_wa_drive_uploads",
+    ],
 }
 
 _CATEGORY_TRIGGERS = {
@@ -311,6 +327,7 @@ _CATEGORY_TRIGGERS = {
     },
     "memory": {"memory", "ingat", "catat", "simpan", "vektor", "knowledge"},
     "agent": {"agent", "agen", "swarm", "rapat", "subagent", "workforce"},
+    "whatsapp": {"wa", "whatsapp", "chat", "pesan", "washeets", "waringkas", "wamenu", "wabot"},
 }
 
 _ACTION_TRIGGERS = {
@@ -388,6 +405,10 @@ _ACTION_TRIGGERS = {
     "perintah",
     "terminal",
     "kirim",
+    "wa",
+    "whatsapp",
+    "washeets",
+    "waringkas",
 }
 
 

@@ -177,6 +177,9 @@ class TelegramStreamer:
         if not target_text or not target_text.strip():
             target_text = "✅ Selesai."
 
+        from alfa.bot.helpers import clean_telegram_markdown
+        target_text = clean_telegram_markdown(target_text)
+
         if not self.message_id:
             await safe_send_message(self.context, self.chat_id, target_text)
             return

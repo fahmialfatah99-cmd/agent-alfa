@@ -8,12 +8,13 @@
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Google Gemini](https://img.shields.io/badge/Google-Gemini%203.x-4285F4?style=for-the-badge&logo=google&logoColor=white)
 ![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API%20v21-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
+![WhatsApp Web Automation](https://img.shields.io/badge/WhatsApp-Live%20Puppeteer-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Terpadu & Multi-Platform: Multi-Agent Swarm, Self-Evolution Plugins, Neural Vector Brain (Hybrid RAG), 173 Sovereign Tools, Master Scraper, Passkey Vault, Web Command Center, dan Jembatan Discord.**
+**Ekosistem AI Otonom Berdaulat: Multi-Agent Swarm, Otomasi WhatsApp & Google Sheets 24/7, Pemrosesan Dokumen DO/Material, Neural Vector Brain, Self-Evolution Tools, Smart Permission Gate, dan Pemantauan RAM Otomatis.**
 
-[Fitur Unggulan](#-fitur-unggulan) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Tools & Workbench](#-tools-catalog--interactive-workbench) • [Keamanan](#-keamanan--privasi)
+[Fitur Unggulan](#-fitur-unggulan) • [Otomasi WhatsApp & Sheets](#-otomasi-whatsapp--google-sheets) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Konfigurasi .env](#-konfigurasi-environment-env) • [Perintah Telegram](#-daftar-perintah-telegram) • [Keamanan & RAM](#-keamanan-kontrol-izin--manajemen-ram)
 
 </div>
 
@@ -21,66 +22,84 @@
 
 ## 🌟 Fitur Unggulan
 
-> Terukur: 173 tools, 46 perintah Telegram, 5 slash Discord, 1.063 uji hijau —
-> detail historis di [docs/BENCHMARK.md](docs/BENCHMARK.md).
+> **Skor & Pengujian Sistem:** 83.000+ baris kode, 80+ tools sovereign, 70+ berkas test otomatis, 48 perintah Telegram, dan evaluasi operasional nyata 8.8/10.
 
-### 1. 🤖 Multi-Agent Swarm & War Room (Dual Mode)
-* **Mode 1 (Rapat Perencanaan Strategis):** 6 AI Agent spesialis (*Alpha Lead, Code Crafter, System Auditor, Researcher Prime, Strategic Planner, Laguna Co-Pilot*) berdiskusi otonom membedah masalah dan merumuskan Action Plan.
-* **Mode 2 (Eksekusi Nyata Otonom):** Agen AI langsung mengeksekusi kode, scraping data, menulis skrip, dan membuat file deliverable (`CSV`, `JSON`, `Python`) yang otomatis tersimpan di `~/Dokumen/ALFA_SWARM_OUTPUTS` dan langsung dikirimkan ke chat Telegram.
+### 1. 🤖 Multi-Agent Swarm & Rapat Otonom (Dengan Pembatalan Instan)
+* **Mode Rapat Perencanaan (`/rapat`):** Tim agen AI spesialis (*Lead Coordinator, Code Crafter, Auditor, Researcher, Planner*) berdiskusi otonom merumuskan konsensus dan Action Plan.
+* **Mode Eksekusi Nyata (`/swarm`):** Agen langsung bekerja di latar belakang: menulis kode, membaca file, scraping, membuat spreadsheet, dan menghasilkan deliverable nyata.
+* **Pembatalan Seketika (`/batal`):** Dilengkapi sinyal `GLOBAL_SWARM_CANCEL` dan pelacak status pembatalan sehingga seluruh loop rapat dan eksekusi berhenti seketika saat diperintahkan, tanpa meninggalkan file sampah (*workspace hygiene*).
 
-### 2. 🧬 Self-Evolution & Dynamic Plugin Generator
-* **Hot-Reloading Tanpa Restart:** Kemampuan ALFA untuk menciptakan alat Python baru secara otonom saat menghadapi tugas baru.
-* **Sandbox Verification:** Kode plugin baru otomatis divalidasi via AST Parser, diuji di sandbox, dan langsung aktif di RAM tanpa perlu mematikan bot.
+### 2. 📱 Otomasi WhatsApp, Google Sheets & Drive
+* **Pencatatan Masuk Otomatis:** Merekam pesan WhatsApp dari grup proyek atau chat pribadi langsung ke Google Sheets secara real-time.
+* **Unggah Lampiran Berbasis Aturan:** Media, nota, gambar DO otomatis diunggah ke Google Drive dan dirapikan ke subfolder sesuai aturan `media_rules.json`.
+* **Pelacak Status Baca Permanen (`wa_read_messages`):** Mencegah pesan dibaca berulang-ulang saat pemilik mengecek pesan masuk baru (`/wamasuk baru` / `wa_get_incoming(only_unread=True)`).
+* **Penyaringan Bersih Status & Saluran:** Membuang otomatis kiriman WhatsApp Status (`status@broadcast`) dan Saluran (`@newsletter`) di tingkat event, menjaga ring buffer tetap bersih dari spam.
+* **Arsip SQLite Permanen (`wa_incoming_archive`):** Seluruh pesan masuk otomatis diarsipkan permanen di database lokal SQLite, memungkinkan pencarian riwayat kilat kapan saja tanpa batas buffer.
+* **Keaslian Pesan 100% (*Verbatim*):** AI dilarang mengubah atau memparafrasekan teks WhatsApp; pesan ditampilkan persis seperti aslinya.
+* **Dukungan Read Receipt (`POST /api/seen`):** Terhubung dengan WhatsApp Web untuk membersihkan unread badge jika diinginkan.
 
-### 3. ⚡ Neural Vector Memory & Hybrid RAG (Super Second Brain)
-* **Pencarian Semantik Kontekstual:** Menggunakan vector embedding (`gemini-embedding-001` + fallback lokal) dan cosine similarity ranking.
-* **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.py`) ke dalam memori semantik permanen untuk pencarian berbasis makna.
+### 3. 📑 Pemrosesan Dokumen DO/Material & Konsolidasi Excel
+* **Format Bersih & Rapi:** Jika dikirimi dokumen (Excel, PDF, Word, DO, nota), AI otomatis menyajikan **Nama Dokumen ➔ Rincian Material (Item : Qty Satuan) ➔ Rekap Total Ringkas di Akhir**, tanpa narasi panjang yang membingungkan.
+* **Konsolidasi Excel 1-Klik:** Saat diminta membuat file Excel dari beberapa dokumen, seluruh rincian langsung digabungkan menjadi **1 file Excel komprehensif** dengan sheet terstruktur, bebas dari duplikasi file output ganda.
 
-### 4. 📁 Google Drive & Google Cloud Suite (Drive API v3)
-* **Integrasi Resmi Google Cloud IAM:** Mendukung Service Account JSON Key dan OAuth2 untuk akses cloud sovereign tanpa batasan.
-* **Auto-Upload & Cloud Backup:** Mengunggah file laporan (`.pdf`, `.xlsx`, `.docx`, gambar, zip) otomatis ke Google Drive dan mengembalikan tautan sharing publik.
-* **1-Click Sync ke Second Brain:** Mengunduh dan mengindeks dokumen dari folder Google Drive langsung ke Neural Vector Brain untuk pencarian semantik instan.
-* **Web Drive Explorer:** File manager interaktif di dashboard untuk membuat folder, mengunggah file langsung dari browser, dan mengelola izin berbagi.
+### 4. 🧹 Pemantauan RAM & Pemeliharaan Otomatis
+* **Diagnostik RAM Terpadu (`/ram` atau `/bersihkan`):** Menampilkan metrik pemakaian RAM sistem, proses ALFA Bot, dan Chrome/Node.js WA Sheets Bot, serta memicu pembersihan objek memori Python dan file sementara Chromium.
+* **Batas Memori Aman:** Unit systemd dibatasi (`MemoryHigh=1.4G`, `MemoryMax=1.8G`, dan Node heap `--max-old-space-size=512`).
+* **Timer Pemeliharaan Malam (03:30 WIB):** Unit `wa-sheets-bot-daily-recycle.timer` me-restart proses browser secara otomatis setiap malam untuk membuang kebocoran memori browser jangka panjang.
 
-### 5. 🛠️ 140+ Real Sovereign Tools & Interactive Workbench
-* **Scraping & Modern Web Intelligence:**
-  * 📄 **MarkItDown (Microsoft):** Konversi dokumen Word/PowerPoint/Excel, PDF, Audio, HTML ke Markdown LLM.
-  * 🛡️ **Scrapling:** Stealth scraper anti-deteksi untuk bypass Cloudflare & Akamai.
-  * 🕷️ **Scrapy & Parsel:** Ekstraksi dataset terstruktur berkecepatan tinggi via CSS/XPath.
-  * 🌐 **Crawlee (Apify):** Crawler tangguh dengan request queueing dan deduplikasi otomatis.
-  * 🤖 **Crawl4AI:** Web crawler khusus LLM dengan ekstraksi fit-markdown, link, dan media.
-  * 🧭 **Browser-Use Agent:** Agen AI otonom untuk navigasi multi-step browser & pengisian form.
-  * 🔥 **Firecrawl:** Scraper cerdas cloud + sovereign local engine fallback.
-  * 📱 **Scrcpy & ADB:** Kontrol penuh smartphone Android (Screenshot, Touch Tap, Keyevents, Screen Mirroring).
-* **System & Diagnostic:** Live telemetri CPU/RAM, storage vacuum, service manager.
-* **Network & Security:** Speedtest benchmark CDN, WHOIS & SSL expiry inspector, audit port jaringan.
-* **Marketplace & Finance:** Real-time crypto & forex ticker (CoinGecko + ExchangeRate API), generator QR Code resolusi tinggi.
-* **Vision & Media:** Screenshot desktop, koordinat klik AI, Edge-TTS audio, konversi media FFmpeg.
+### 5. 🛡️ Kebijakan Izin Cerdas (*Smart Permission Gate*)
+* **Filter Operasi Aman:** Mode `PERMISSION_GATE_DANGEROUS_ONLY` otomatis menyetujui pembacaan berkas lokal, penarikan data WhatsApp, dan diagnostik sistem tanpa pop-up konfirmasi berulang.
+* **Proteksi Bahaya Tinggi:** Perintah berbahaya (`rm -rf`, eksekusi shell berisiko, modifikasi sistem kritis) tetap memerlukan persetujuan eksplisit pemilik melalui tombol inline interaktif Telegram.
 
-### 6. 🌐 Web Command Center & Live Telemetry (Port 8080)
-* **Light / Dark Mode:** Pilihan tema Obsidian Cyberpunk dan Clean SaaS Putih dengan penyimpanan preferensi otomatis (`localStorage`).
-* **Settings Hub:** Pengaturan Bot Token, Gemini Key, Model AI, dan System Instruction langsung dari browser.
-* **Encrypted Credential Vault:** Penyimpanan kredensial terenkripsi AES-256-GCM dengan proteksi admin-gate. Passkey/WebAuthn end-to-end aktif (`static/webauthn.html`, challenge kriptografis via python-webauthn).
-* **Google Drive Cloud Hub:** Manajemen kredensial Google Cloud, upload & download file, serta sinkronisasi memori RAG.
+### 6. 🧬 Self-Evolution & Dynamic Plugin Generator
+* **Hot-Reloading Python:** Kemampuan ALFA untuk menciptakan alat baru secara otonom saat menghadapi tugas baru tanpa perlu me-restart bot.
+* **Sandbox Verification:** Kode plugin baru otomatis divalidasi via AST Parser, diuji di sandbox, dan langsung aktif di memori.
 
-### 7. 📊 Operasi Terukur: Antrean, Eval & Keamanan Berlapis
-* **Antrean Misi Durable:** Swarm mission queue SQLite (claim atomik, retry backoff) + worker systemd + endpoint `/api/swarm/queue/*`.
-* **Eval & Benchmark:** 20 golden task offline di CI, live eval mingguan berbiaya terukur (`docs/EFFICIENCY.md`), paket head-to-head terbuka.
-* **Keamanan:** Permission gate + trust score, RBAC admin default-deny di seluruh endpoint mutating sensitif, webhook HMAC-SHA256, rotasi + versioning vault, sandbox Docker.
+### 7. ⚡ Neural Vector Memory & Hybrid RAG (Super Second Brain)
+* **Pencarian Semantik Kontekstual:** Menggunakan vector embedding dan cosine similarity ranking di SQLite.
+* **Sliding-Window Document Chunker:** Memecah dan mengindeks dokumen panjang (`.pdf`, `.txt`, `.md`, `.csv`, `.xlsx`, `.py`) ke dalam memori semantik permanen.
 
-### 8. 💬 Jembatan Discord, Galeri Situs & Digest Cerdas
-* **Bot Discord penuh:** chat (memori bersama Telegram), `!swarm`, `!sites`, `!play` musik VC, mode Jarvis dengar-jawab suara (`!join`), cermin war-room live, digest WA harian, 5 slash command (`/tanya /swarm /situs /misi /gabung`). Service: `alfa-discord-bot.service`.
-* **Galeri Situs (`/sites`):** semua website/proyek hasil agent (swarm outputs + `~/alfa_projects`) otomatis terdaftar, bisa dihidupkan/dimatikan/lihat log dari Telegram. Situs baru memicu notifikasi instan.
-* **Digest WA Cerdas (`/waringkas`):** statistik + sorotan AI + terbaru, otomatis tiap 07:00 ke Telegram & Discord. Tanpa autoreply.
-* **Kejujuran Berlapis:** HUKUM JUJUR di prompt (label SELESAI/SEBAGIAN/GAGAL), verifier mekanis swarm, circuit breaker provider, scanner dummy `audit_project_honesty`.
+### 8. 🛠️ 80+ Real Sovereign Tools
+* **Scraping & Web:** MarkItDown (Microsoft), Scrapling, Scrapy, Crawlee, Crawl4AI, Firecrawl.
+* **Perangkat Keras & OS:** Kontrol Android via Scrcpy & ADB, telemetri live CPU/RAM, inspeksi proses Linux.
+* **Finansial & Media:** Ticker crypto & forex real-time, generator QR Code, konversi media FFmpeg, Edge-TTS audio sintetis.
+
+---
+
+## 📱 Otomasi WhatsApp & Google Sheets
+
+Arsitektur jembatan antara **ALFA** dan **`wa-sheets-bot`** (berjalan pada port `3000` via Puppeteer):
+
+```
+                       ┌────────────────────────┐
+                       │  Pemilik (Telegram)   │
+                       └───────────┬────────────┘
+                                   │ /wamasuk, /wachat, /wakirim, /ram
+                                   ▼
+                       ┌────────────────────────┐
+                       │       ALFA Engine      │
+                       │   (Python / FastAPI)   │
+                       └─────┬────────────┬─────┘
+   wa_read_messages / archive│            │ HTTP API (Port 3000)
+                             ▼            ▼
+                   ┌────────────────────────────────────┐
+                   │        wa-sheets-bot (Node.js)     │
+                   │        Puppeteer & Chrome          │
+                   └─────────┬────────────────┬─────────┘
+                             │                │
+            ┌────────────────▼───┐        ┌───▼────────────────┐
+            │   WhatsApp Web     │        │ Google Sheets /    │
+            │   (Event Ingestion)│        │ Google Drive Sync  │
+            └────────────────────┘        └────────────────────┘
+```
 
 ---
 
 ## 💻 Panduan Instalasi & Menjalankan (Multi-OS)
 
 > 📖 **Panduan Lengkap:**
-> * Tutorial awal dari nol sampai bot siap pakai: **[docs/INSTALL.md](docs/INSTALL.md)** (BotFather, API key, whitelist, setup lokal).
-> * Panduan deployment server produksi: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (Docker Compose, Systemd 24/7, Reverse Proxy Caddy/Nginx, WebSockets, SSL).
+> * Setup awal dari nol: **[docs/INSTALL.md](docs/INSTALL.md)** (BotFather, API key, whitelist, setup lokal).
+> * Panduan server produksi: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (Docker Compose, Systemd 24/7, Nginx/Caddy, WebSockets, SSL).
 
 ### 🐧 1. Linux (Ubuntu, Debian, Arch, Fedora)
 ```bash
@@ -95,41 +114,18 @@ cd telegram-ai-bot
 chmod +x setup.sh run.sh
 ./setup.sh
 
-# Jalankan langsung di terminal:
+# Menjalankan manual:
 ./run.sh
 
-# Atau aktifkan service background 24/7 (Systemd):
-mkdir -p ~/.config/systemd/user && cp deploy/*.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now telegram-ai-bot.service alfa-dashboard.service alfa-discord-bot.service
+# Atau aktifkan service background 24/7 (Systemd User Service):
+systemctl --user enable --now telegram-ai-bot.service
+systemctl --user enable --now wa-sheets-bot.service
+systemctl --user enable --now wa-sheets-bot-daily-recycle.timer
 ```
 
----
-
-### 🍏 2. macOS (MacBook, Mac Mini, iMac)
-```bash
-# Prasyarat: Python 3.10+, Git; Docker Desktop disarankan untuk sandbox
-git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git telegram-ai-bot
-cd telegram-ai-bot
-
-# Beri izin eksekusi dan jalankan
-chmod +x setup.sh run.sh
-./run.sh
-```
-* Buka Web Dashboard di Safari/Chrome: **[http://localhost:8080](http://localhost:8080)**.
-* Notifikasi desktop otomatis menggunakan **AppleScript Native macOS**.
-
----
-
-### 🪟 3. Windows (Windows 10 / 11)
-1. **Clone repository:**
-   ```cmd
-   git clone https://github.com/fahmialfatah99-cmd/agent-alfa.git
-   cd agent-alfa
-   ```
-2. **Double-Click (Klik 2x) file `setup.bat`** untuk panduan setup otomatis interaktif pertama kali.
-3. Setelah setup selesai, cukup **Double-Click `run.bat`** kapan saja untuk langsung meluncurkan Command Center & Bot!
-4. Notifikasi desktop otomatis menggunakan **PowerShell Windows Toast Notification**.
+### 🍏 2. macOS & 🪟 3. Windows
+* **macOS:** Jalankan `./run.sh`. Notifikasi desktop otomatis via AppleScript native.
+* **Windows:** Klik 2x `setup.bat` untuk inisialisasi, lalu klik 2x `run.bat` untuk menjalankan. Notifikasi via Windows Toast.
 
 ---
 
@@ -141,148 +137,74 @@ Salin `.env.example` menjadi `.env` dan isi token Anda:
 # Token dari @BotFather di Telegram (Wajib)
 TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
 
-# API Key Google Gemini (Wajib - Dapatkan gratis di https://aistudio.google.com)
+# API Key Google Gemini (Wajib - Dapatkan di https://aistudio.google.com)
 GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
 
-# Model Gemini default (hanya yang terverifikasi hidup)
-GEMINI_MODEL="gemini-3.5-flash-lite"
+# Model Gemini default
+GEMINI_MODEL="gemini-3.5-flash"
 
-# Telegram User ID yang diizinkan (WAJIB DIISI - fail-safe: kosong = semua akses ditolak.
-# Jangan pernah jalankan bot ini publik tanpa whitelist karena bot bisa mengeksekusi
-# perintah di mesin Anda!)
+# Telegram User ID yang diizinkan (Fail-safe: tanpa ini semua akses ditolak)
 ALLOWED_USER_IDS="123456789"
 
-# Nama Anda — AI akan menyapa & mempersonalisasi prompt dengan nama ini
+# Nama Pemilik (AI menyapa & mempersonalisasi respon)
 OWNER_NAME="Nama Kamu"
 
-# Persona / Karakter Utama AI
-SYSTEM_INSTRUCTION="Kamu adalah ALFA Sovereign AI Assistant yang cerdas, solutif, proaktif, dan handal."
+# Kebijakan Izin Cerdas (true = izin hanya diminta untuk perintah berisiko tinggi)
+PERMISSION_GATE_DANGEROUS_ONLY="true"
 ```
-
-*(Atau Anda bisa mengaturnya langsung melalui menu **`⚙️ System Settings`** di browser [http://localhost:8080](http://localhost:8080))*
 
 ---
 
 ## 📌 Daftar Perintah Telegram
 
+### 🤖 Perintah Utama & Kontrol AI
 | Perintah | Deskripsi |
 | :--- | :--- |
 | `/start` | Membuka pesan selamat datang & status kesiapan agen |
-| `/menu` | Membuka Menu Interaktif dengan tombol navigasi cepat |
-| `/swarm <tugas>` | **Mode Eksekusi:** Menugaskan tim AI Swarm untuk langsung bekerja dan menghasilkan deliverable nyata |
-| `/rapat <topik>` | **Mode Rapat:** Diskusi strategis antar 6 agen spesialis untuk merumuskan Action Plan |
-| `/stats` | Menampilkan metrik performa CPU, RAM, Disk, Uptime, dan Baterai laptop |
+| `/menu` | Membuka Panel Menu Interaktif dengan tombol shortcut lengkap |
+| `/swarm <tugas>` | **Mode Eksekusi Nyata:** Menugaskan tim AI Swarm untuk bekerja & menghasilkan deliverable |
+| `/rapat <topik>` | **Mode Rapat:** Diskusi strategis antar 6 agen untuk merumuskan Action Plan |
+| `/batal` | Membatalkan rapat atau misi Swarm yang sedang berjalan seketika |
+| `/resume_swarm` | Melanjutkan kembali sesi Swarm yang sempat terjeda |
+| `/mode <single\|swarm>` | Mengubah mode berpikir agen (Single cepat vs Swarm kolaboratif) |
+| `/clear` | Mereset riwayat percakapan saat ini |
+| `/help` | Menampilkan panduan lengkap penggunaan seluruh fitur |
+
+### 📱 Perintah WhatsApp & Laporan
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `/wamasuk [limit\|baru]` | Membaca pesan WA masuk terbaru (opsi `baru` = hanya yang belum dibaca) |
+| `/wachat <nama/nomor>` | Membaca riwayat pesan chat personal atau grup WA |
+| `/wakirim <tujuan> <pesan>` | Mengirim pesan WhatsApp ke kontak atau grup |
+| `/wacari <kata kunci>` | Mencari kata kunci di pesan WhatsApp (arsip lokal + WA Web) |
+| `/waringkas [format]` | Menghasilkan ringkasan cerdas laporan WhatsApp + sorotan AI |
+| `/wareport [limit]` | Membaca catatan laporan WA yang tersinkronisasi ke Google Sheets |
+| `/waformat` | Mengelola format kata kunci pencatatan otomatis WA ke Sheets |
+
+### ⚙️ Sistem, RAM & Utilitas
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `/ram` atau `/bersihkan` | Laporan diagnostik RAM & pembersihan cache / GC otomatis |
+| `/ram full` | Me-restart proses WA Sheets Bot secara instan untuk me-refresh RAM |
+| `/stats` | Menampilkan metrik performa CPU, RAM, Disk, Baterai, dan Uptime |
+| `/cekagen` | Audit integritas konfigurasi model AI & kunci API |
 | `/vault` | Membuka brankas Passkey Vault & melihat kredensial tersimpan |
 | `/memory` | Menampilkan ingatan fakta jangka panjang (Second Brain) |
-| `/clear` | Mereset riwayat chat percakapan saat ini |
-| `/help` | Menampilkan panduan lengkap penggunaan seluruh fitur |
-| `/sites` | Galeri website/proyek hasil agent + hidupkan/matikan dari Telegram |
-| `/budget` | Monitor kuota token harian |
-| `/waringkas [format]` | Digest cerdas WA + sorotan AI |
-| `/swarm template [nama]` | Misi swarm siap pakai (audit-server, bersih-cache, …) |
+| `/budget` | Memantau kuota dan pemakaian token API harian |
+| `/sites` | Galeri website/proyek hasil agen (hidupkan/matikan dari bot) |
+| `/cron` | Mengelola jadwal tugas otomatis berkala |
+| `/voice` | Mengaktifkan/menonaktifkan balasan suara sintetis Edge-TTS |
 
 ---
 
-## 🧰 Tools Catalog & Interactive Workbench
+## 🔒 Keamanan, Kontrol Izin & Manajemen RAM
 
-Setiap tool di **Tools Catalog** ([http://localhost:8080](http://localhost:8080)) **100% interaktif dan dapat dieksekusi langsung**:
-1. Klik kartu tool mana saja di web dashboard.
-2. Form parameter akan otomatis digenerate sesuai signature fungsi Python.
-3. Klik tombol **Eksekusi Tool Sekarang** untuk melihat output JSON dan durasi eksekusi dalam milidetik (ms).
-
----
-
-## 🔒 Keamanan & Privasi
-
-* **Whitelist Wajib:** Bot menolak semua akses bila `ALLOWED_USER_IDS` kosong (fail-safe). Satu instance = satu pemilik. JANGAN jalankan publik tanpa whitelist.
-* **Sandbox Docker:** Eksekusi bash/python berjalan terisolasi dengan limit resource; tanpa Docker, eksekusi jatuh ke host tanpa isolasi (instal Docker!).
-* **Zero Cloud Leak:** Database, memori vektor, dan log tersimpan 100% lokal di SQLite (`agent_data.db`).
-* **Dashboard Auth & Audit:** Sesi cookie aman + HMAC webhook + log audit akses; login passkey WebAuthn end-to-end: challenge salah-pakai, verifikasi kripto ES256, anti-klon via sign_count.
-* **Grounded ReAct Engine:** AI dilarang berasumsi atau berhalusinasi tanpa grounding fakta dari eksekusi tool nyata.
+* **Whitelist Akses Ketat:** Bot hanya merespons ID pengguna yang terdaftar di `ALLOWED_USER_IDS`. Akses dari pihak lain ditolak otomatis.
+* **Smart Permission Gate:** Tool dengan tier `MEDIUM` dan `LOW` (baca dokumen, pembacaan WA, status sistem) dieksekusi tanpa pop-up persetujuan berulang. Hanya perintah `HIGH` dan `CRITICAL` yang memicu konfirmasi inline.
+* **Penyimpanan Lokal Berdaulat:** Database SQLite (`agent_data.db`), arsip chat WA, dan memori vektor tersimpan 100% lokal di mesin pemilik.
+* **Pengendalian Memori Proaktif:** Dilengkapi timer restart harian pada jam sepi (`03:30 WIB`), batas alokasi memori systemd, dan perintah manual `/ram` untuk mencegah penumpukan memori browser.
 
 ---
 
 ## 📄 Lisensi
-Didistribusikan di bawah lisensi **MIT License**. Silakan gunakan, modifikasi, dan kembangkan untuk kebutuhan pribadi maupun komersial.
-
----
-
-## 💻 Mode CLI Interaktif: Panduan Cepat
-
-Mode ini adalah **Terminal Client** untuk berinteraksi dengan ALFA Agent melalui command line.
-
-### ✨ Cara Menggunakan
-
-1. **Instalasi Paket ALFA:**
-   ```bash
-   cd /path/to/agent-alfa
-   pip install -e .
-   ```
-
-2. **Jalankan CLI:**
-   ```bash
-   # Menggunakan command yang terinstall
-   alfa-cli
-   
-   # Atau menggunakan module Python
-   python -m alfa.cli
-   
-   # Dengan server custom
-   alfa-cli --server http://192.168.1.100:8080
-   ```
-
-3. **Login dan Mulai Chat:**
-   ```bash
-   alfa> register  # Daftar akun baru
-   alfa> login     # Login ke akun
-   alfa> Halo, apa kabar?  # Chat dengan AI
-   alfa> stats     # Lihat statistik sistem
-   alfa> exit      # Keluar
-   ```
-
-### 📋 Perintah CLI Tersedia
-
-| Perintah | Deskripsi |
-|----------|-----------|
-| `register` | Daftar akun baru di server ALFA |
-| `login` | Login ke akun Anda |
-| `logout` | Logout dari akun saat ini |
-| `stats` | Tampilkan statistik sistem ALFA |
-| `tools` | Daftar tools yang tersedia |
-| `clear` | Bersihkan layar terminal |
-| `exit` / `q` | Keluar dari aplikasi CLI |
-| *chat biasa* | Kirim pesan teks ke AI untuk diproses |
-
-### 🔧 Environment Variables
-
-- `ALFA_SERVER`: URL server ALFA (default: `http://localhost:8080`)
-
-### 📦 Struktur Paket alfa
-
-```
-alfa/
-├── __init__.py       # Package metadata & exports
-├── __main__.py       # Entry point untuk python -m alfa
-├── cli.py            # Command-line interface implementation
-└── core/
-    ├── __init__.py   # Core module initialization
-    └── brain.py      # Main reasoning engine
-```
-
-Untuk dokumentasi lengkap, lihat **[alfa-cli/README.md](alfa-cli/README.md)**
-
----
-
-## 🚀 Script Instalasi Cepat (Sekali Copas)
-
-Untuk memastikan semua tools terinstal dengan benar di sistem Anda, gunakan script berikut:
-
-### 🐧 Linux (Ubuntu/Debian/Mint)
-```bash
-sudo apt update && sudo apt upgrade -y && sudo apt install -y build-essential cmake gdb valgrind git curl wget unzip pkg-config libssl-dev libffi-dev python3-pip python3-venv software-properties-common && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo pip3 install --break-system-packages pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab && sudo npm install -g typescript ts-node nodemon eslint prettier && echo "=== VERIFIKASI ===" && python3 --version && node --version && g++ --version | head -n 1 && tsc --version && python3 -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')" && echo "🚀 Setup Selesai! Siap untuk Coding Berat."
-```
-
-### 🪟 Windows (PowerShell - Run as Administrator)
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); choco install -y git python nodejs-lts visualstudio2022buildtools cmake --params "--includeRecommended"; refreshenv; pip install pytest black flake8 mypy pylint numpy pandas scipy scikit-learn matplotlib jupyterlab; npm install -g typescript ts-node nodemon eslint prettier; Write-Host "=== VERIFIKASI ===" -ForegroundColor Green; python --version; node --version; g++ --version | Select-Object -First 1; tsc --version; python -c "import numpy, pandas, sklearn; print('✅ Python Data Stack OK')"; Write-Host "🚀 Setup Selesai! Siap untuk Coding Berat." -ForegroundColor Green
-```
+Didistribusikan di bawah lisensi **MIT License**. Silakan gunakan, kembangkan, dan sesuaikan untuk kebutuhan operasional maupun riset Anda.

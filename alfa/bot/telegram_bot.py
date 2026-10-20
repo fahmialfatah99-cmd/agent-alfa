@@ -59,6 +59,7 @@ from alfa.bot.commands import (
     swarm_command,
     tools_command,
     tugas_command,
+    ram_command,
     voice_command,
     wa_command,
     wacari_command,
@@ -210,6 +211,8 @@ async def post_init(application: Application):
                 BotCommand("waformat", "Atur format pencatatan WA"),
                 BotCommand("wareport", "Baca laporan WA terekam"),
                 BotCommand("voice", "Toggle balasan suara"),
+                BotCommand("ram", "Pantau & optimasi RAM bot/WA"),
+                BotCommand("bersihkan", "Bersihkan memori & cache"),
                 BotCommand("clear", "Reset riwayat chat"),
                 BotCommand("id", "ID Telegram & chat"),
             ]
@@ -296,6 +299,8 @@ def main():
     application.add_handler(CommandHandler("waformat", waformat_command))
     application.add_handler(CommandHandler("wareport", wareport_command))
     application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("ram", ram_command))
+    application.add_handler(CommandHandler("bersihkan", ram_command))
     application.add_handler(CommandHandler("cekagen", cekagen_command))
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("cron", cron_command))

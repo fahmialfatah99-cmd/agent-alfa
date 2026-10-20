@@ -276,6 +276,13 @@ async def run_swarm_task(topic: str) -> dict:
 
 def format_swarm_result(result: dict) -> tuple[str, str, list[str]]:
     """Format (steps_text, final_text, files) dari dict hasil swarm engine."""
+    if result.get("status") == "cancelled":
+        return (
+            "⏹ Misi dibatalkan pengguna.",
+            "⏹ **Misi swarm telah dihentikan.** Eksekusi tidak dilanjutkan.",
+            [],
+        )
+
     steps = result.get("execution_results", []) or []
     if steps:
         lines = ["⚡ **Laporan Eksekusi Tiap Agen:**\n"]
@@ -331,10 +338,13 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
         # 2. Batalkan Swarm engine jika sedang berjalan
-        if workspace_hygiene.MEETING_RUNNING or request_cancel_swarm():
+        if workspace_hygiene.MEETING_RUNNING or workspace_hygiene.any_session_running():
             request_cancel_swarm()
-            workspace_hygiene.MEETING_RUNNING = False
             cancelled_items.append("misi Swarm dihentikan")
+        else:
+            # Tetap pasang sinyal cancel agar swarm di thread latar belakang segera berhenti
+            if request_cancel_swarm():
+                cancelled_items.append("sinyal pembatalan swarm dikirim")
 
         if cancelled_items:
             await safe_send_message(
