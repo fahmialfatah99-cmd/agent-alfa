@@ -7,6 +7,7 @@ from alfa.integrations.gdrive.auth import (
     _detect_gdrive_auth_mode,
     _get_default_gdrive_folder_id,
     _get_gdrive_service,
+    _detect_mounted_gdrives,
     gdrive_oauth_exchange_code,
     gdrive_oauth_get_auth_url,
     gdrive_oauth_login,
@@ -15,9 +16,12 @@ from alfa.integrations.gdrive.auth import (
     gdrive_status,
 )
 from alfa.integrations.gdrive.operations import (
+    gdrive_copy_from_drive,
+    gdrive_copy_to_drive,
     gdrive_create_folder,
     gdrive_download_file,
     gdrive_list_files,
+    gdrive_list_mounted_files,
     gdrive_sync_to_second_brain,
     gdrive_upload_file,
 )
@@ -29,6 +33,7 @@ __all__ = [
     "_get_default_gdrive_folder_id",
     "_get_gdrive_service",
     "_detect_gdrive_auth_mode",
+    "_detect_mounted_gdrives",
     "gdrive_oauth_login",
     "gdrive_save_oauth_client_secret",
     "gdrive_oauth_get_auth_url",
@@ -40,4 +45,7 @@ __all__ = [
     "gdrive_download_file",
     "gdrive_create_folder",
     "gdrive_sync_to_second_brain",
+    "gdrive_list_mounted_files",
+    "gdrive_copy_to_drive",
+    "gdrive_copy_from_drive",
 ]

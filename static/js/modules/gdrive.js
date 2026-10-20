@@ -75,6 +75,28 @@ export async function fetchGdriveStatus() {
                     document.getElementById('gdrive-target-folder-id').placeholder = `Default: ${data.default_folder_name || 'alfa agent'}`;
                 }
             }
+        } else if (data.has_local_mounts) {
+            if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5';
+            if (pillText) pillText.innerText = 'TERHUBUNG (MOUNT G-DRIVE)';
+            if (badge) badge.className = 'px-2 py-0.5 bg-cyan-500/20 text-[10px] rounded text-cyan-300 border border-cyan-500/30 font-bold';
+            if (authInd) {
+                authInd.className = 'text-[10px] px-2 py-0.5 rounded font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                authInd.innerText = 'LOCAL MOUNT (RCLONE) 🟢';
+            }
+            if (connInfo) {
+                connInfo.classList.remove('hidden');
+                const mountInfo = (data.mounted_drives || []).map(m => `${m.name} (${m.items_count} item)`).join(', ');
+                document.getElementById('gdrive-email-val').innerText = mountInfo || 'Local Rclone Mount';
+                document.getElementById('gdrive-project-val').innerText = 'Local Storage Mount';
+                if (document.getElementById('gdrive-folder-val')) {
+                    document.getElementById('gdrive-folder-val').innerText = 'GDrive1 / ~/GDrive1';
+                }
+            }
+            const statusBox = document.getElementById('gdrive-oauth-status');
+            if (statusBox && data.error && (data.error.includes('kedaluwarsa') || data.error.includes('expired') || data.error.includes('invalid_grant'))) {
+                statusBox.classList.remove('hidden');
+                statusBox.innerHTML = `ℹ️ <b class="text-cyan-400">Akses Google Drive Aktif via Local Mount.</b> Token REST API Google Cloud kedaluwarsa (7 hari limit mode testing), namun sistem membaca & menulis langsung ke <code>~/GDrive1</code> secara real-time. Klik <i>Login dengan Akun Google</i> jika ingin memperbarui token REST API.`;
+            }
         } else {
             if (pill) pill.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5';
             if (pillText) pillText.innerText = 'BELUM TERHUBUNG';
@@ -156,8 +178,22 @@ export async function startGdriveOauth() {
     lucide.createIcons();
     if (statusBox) {
         statusBox.classList.remove('hidden');
-        statusBox.innerHTML = '⏳ Browser akan terbuka di laptop ini. Silakan pilih akun Google Anda dan klik <b>Allow</b>. Halaman ini menunggu sampai selesai (maks 5 menit)...';
+        statusBox.innerHTML = '⏳ Menyiapkan otorisasi Google...';
     }
+
+    // Ambil auth URL agar user bisa klik langsung jika browser tidak otomatis terbuka
+    fetch('/api/gdrive/oauth/auth-url').then(r => r.json()).then(urlData => {
+        if (urlData && urlData.auth_url && statusBox && !statusBox.innerHTML.includes('Login berhasil')) {
+            statusBox.innerHTML = `
+                <div class="space-y-2">
+                    <p class="text-slate-300">⏳ Browser di laptop akan terbuka otomatis. Jika tidak terbuka, klik tombol di bawah:</p>
+                    <a href="${escAttr(urlData.auth_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs transition-all shadow-md">
+                        👉 Buka Halaman Login Akun Google ↗
+                    </a>
+                </div>
+            `;
+        }
+    }).catch(() => {});
 
     try {
         const res = await fetch('/api/gdrive/oauth/start', { method: 'POST' });

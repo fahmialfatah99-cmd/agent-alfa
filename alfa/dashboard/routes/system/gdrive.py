@@ -52,6 +52,8 @@ async def gdrive_status_endpoint():
                 "default_folder_url",
                 "https://drive.google.com/drive/folders/1WTQuU2lbAQy438Whnhtn95jld-1d17lE",
             ),
+            "mounted_drives": res.get("mounted_drives", []),
+            "has_local_mounts": res.get("has_local_mounts", False),
             "error": res.get("message", "") if not res.get("connected") else "",
         }
     except (OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
@@ -316,8 +318,28 @@ async def gdrive_oauth_logout_endpoint():
 async def gdrive_list_files_endpoint(
     folder_id: str = "", query: str = "", limit: int = 30
 ):
-    """List and search files in Google Drive."""
-    return tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
+    """List and search files in Google Drive (with automatic fallback to mounted drives)."""
+    res = tools.gdrive_list_files(folder_id=folder_id, query=query, limit=limit)
+    if res.get("status") == "error":
+        mounted_res = tools.gdrive_list_mounted_files(drive_index=1, query=query, limit=limit)
+        if mounted_res.get("status") == "success":
+            return {
+                "status": "success",
+                "total_found": mounted_res.get("total_found", 0),
+                "folder_id": "local_mount",
+                "source": "local_mount",
+                "files": [
+                    {
+                        "id": f["path"],
+                        "name": f["name"],
+                        "mimeType": "application/vnd.google-apps.folder" if f["is_dir"] else "application/octet-stream",
+                        "size": f["size"],
+                        "source": "local_mount",
+                    }
+                    for f in mounted_res.get("files", [])
+                ],
+            }
+    return res
 
 
 @router.post("/api/gdrive/upload", dependencies=[Depends(require_admin)])
@@ -326,16 +348,26 @@ async def gdrive_upload_endpoint(
     filepath: str | None = Form(None),
     folder_id: str | None = Form(""),
 ):
-    """Upload a file to Google Drive."""
+    """Upload a file to Google Drive (with automatic fallback to local mount sync)."""
     if file:
         upload_dir = tools.get_pdf_output_dir("Uploads")
         safe_name = os.path.basename(file.filename or "upload.bin") or "upload.bin"
         target_path = os.path.join(upload_dir, safe_name)
         with open(target_path, "wb") as f:
             f.write(await file.read())
-        return tools.gdrive_upload_file(filepath=target_path, folder_id=folder_id or "")
+        res = tools.gdrive_upload_file(filepath=target_path, folder_id=folder_id or "")
+        if res.get("status") == "error":
+            copy_res = tools.gdrive_copy_to_drive(source_path=target_path, drive_index=1)
+            if copy_res.get("status") == "success":
+                return copy_res
+        return res
     elif filepath:
-        return tools.gdrive_upload_file(filepath=filepath, folder_id=folder_id or "")
+        res = tools.gdrive_upload_file(filepath=filepath, folder_id=folder_id or "")
+        if res.get("status") == "error":
+            copy_res = tools.gdrive_copy_to_drive(source_path=filepath, drive_index=1)
+            if copy_res.get("status") == "success":
+                return copy_res
+        return res
     else:
         raise HTTPException(
             status_code=400, detail="File atau path file wajib ditentukan."

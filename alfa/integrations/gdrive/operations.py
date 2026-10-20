@@ -310,3 +310,130 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> dict[st
             "status": "error",
             "message": f"Gagal sinkronisasi Google Drive ke Second Brain: {str(e)}",
         }
+
+
+def gdrive_list_mounted_files(
+    drive_index: int = 1, subpath: str = "", query: str = "", limit: int = 50
+) -> dict[str, Any]:
+    """
+    List files directly from locally mounted Google Drives (GDrive1, GDrive2, GDrive3 via rclone).
+    Bypasses API quotas and provides real-time local filesystem access.
+    """
+    import os
+
+    drive_dir = os.path.expanduser(f"~/GDrive{drive_index}")
+    if not os.path.isdir(drive_dir):
+        return {
+            "status": "error",
+            "message": f"Direktori Google Drive ~/GDrive{drive_index} tidak ditemukan atau belum dimount.",
+        }
+    target_path = os.path.join(drive_dir, subpath.lstrip("/")) if subpath else drive_dir
+    if not os.path.exists(target_path):
+        return {
+            "status": "error",
+            "message": f"Path '{subpath}' tidak ditemukan di GDrive{drive_index}.",
+        }
+
+    files = []
+    try:
+        for entry in sorted(os.listdir(target_path)):
+            if query and query.lower() not in entry.lower():
+                continue
+            full_p = os.path.join(target_path, entry)
+            is_d = os.path.isdir(full_p)
+            files.append(
+                {
+                    "name": entry,
+                    "is_dir": is_d,
+                    "path": full_p,
+                    "size": os.path.getsize(full_p) if not is_d else 0,
+                }
+            )
+            if len(files) >= limit:
+                break
+        return {
+            "status": "success",
+            "drive": f"GDrive{drive_index}",
+            "mount_path": target_path,
+            "total_found": len(files),
+            "files": files,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Gagal membaca direktori GDrive{drive_index}: {str(e)}",
+        }
+
+
+def gdrive_copy_to_drive(
+    source_path: str, drive_index: int = 1, subpath: str = ""
+) -> dict[str, Any]:
+    """
+    Copy a local file or directory into Google Drive via local rclone mount.
+    Automatically synced to the Google Cloud in real-time.
+    """
+    import os
+    import shutil
+
+    drive_dir = os.path.expanduser(f"~/GDrive{drive_index}")
+    if not os.path.isdir(drive_dir):
+        return {
+            "status": "error",
+            "message": f"Direktori Google Drive ~/GDrive{drive_index} tidak ditemukan atau belum dimount.",
+        }
+
+    src = os.path.expanduser(source_path)
+    if not os.path.exists(src):
+        return {"status": "error", "message": f"File sumber '{source_path}' tidak ditemukan."}
+
+    dest_dir = os.path.join(drive_dir, subpath.lstrip("/")) if subpath else drive_dir
+    os.makedirs(dest_dir, exist_ok=True)
+    dest_path = os.path.join(dest_dir, os.path.basename(src))
+
+    try:
+        if os.path.isdir(src):
+            shutil.copytree(src, dest_path, dirs_exist_ok=True)
+        else:
+            shutil.copy2(src, dest_path)
+        return {
+            "status": "success",
+            "message": f"File berhasil disalin ke Google Drive (~/GDrive{drive_index}/{subpath}) dan otomatis tersinkronkan ke cloud!",
+            "drive": f"GDrive{drive_index}",
+            "destination": dest_path,
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menyalin ke Google Drive: {str(e)}"}
+
+
+def gdrive_copy_from_drive(
+    filename_or_relpath: str, drive_index: int = 1, destination_dir: str = ""
+) -> dict[str, Any]:
+    """
+    Copy a file from mounted Google Drive to local destination (or sandbox dir).
+    """
+    import os
+    import shutil
+
+    drive_dir = os.path.expanduser(f"~/GDrive{drive_index}")
+    src_path = os.path.join(drive_dir, filename_or_relpath.lstrip("/"))
+    if not os.path.exists(src_path):
+        return {
+            "status": "error",
+            "message": f"File '{filename_or_relpath}' tidak ditemukan di ~/GDrive{drive_index}.",
+        }
+
+    target_dir = os.path.expanduser(destination_dir) if destination_dir else SANDBOX_DIR
+    os.makedirs(target_dir, exist_ok=True)
+    dest_path = os.path.join(target_dir, os.path.basename(src_path))
+
+    try:
+        shutil.copy2(src_path, dest_path)
+        return {
+            "status": "success",
+            "message": f"File '{os.path.basename(src_path)}' berhasil disalin dari Google Drive!",
+            "saved_path": dest_path,
+            "size": os.path.getsize(dest_path),
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal menyalin dari Google Drive: {str(e)}"}
+

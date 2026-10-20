@@ -49,7 +49,7 @@ def _get_gdrive_service():
         "https://www.googleapis.com/auth/drive.file",
     ]
 
-    creds = None
+    oauth_error = None
 
     # 1. Check OAuth 2.0 User Token (allows uploading to personal Google Drive with user's quota)
     oauth_file = os.path.join(PROJECT_DIR, "gdrive_oauth_token.json")
@@ -71,6 +71,7 @@ def _get_gdrive_service():
                 creds.refresh(Request())
         except Exception as e:
             logger.error(f"Error loading gdrive_oauth_token.json: {e}")
+            oauth_error = str(e)
             creds = None
 
     if not creds:
@@ -124,6 +125,11 @@ def _get_gdrive_service():
             logger.error(f"Error loading gdrive credentials from vault/database: {e}")
 
     if not creds:
+        if oauth_error and ("invalid_grant" in oauth_error or "revoked" in oauth_error or "expired" in oauth_error):
+            raise ValueError(
+                "Token OAuth Google Drive telah kedaluwarsa atau dicabut oleh Google (kebijakan refresh token Google Cloud Testing berlaku 7 hari). "
+                "Silakan klik 'Login dengan Akun Google' di dashboard atau menu Google Drive untuk memperbarui otorisasi dalam 1 klik."
+            )
         raise ValueError(
             "Google Drive credentials belum dikonfigurasi! "
             "Unggah Service Account JSON dari Google Cloud Console ke menu Google Drive Hub atau simpan file 'gdrive_credentials.json'."
@@ -229,7 +235,7 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> dict[str, A
             open_browser=True,
             timeout_seconds=wait_timeout,
             authorization_prompt_message=(
-                "\n🔐 Buka link berikut di browser untuk login Google Drive:\n%s\n"
+                "\n🔐 Buka link berikut di browser untuk login Google Drive:\n{url}\n"
                 "Menunggu konfirmasi...\n"
             ),
             success_message="✅ Login Google Drive berhasil! Jendela boleh ditutup.\n",
@@ -467,10 +473,30 @@ def gdrive_oauth_logout() -> dict[str, Any]:
     return {"status": "success", "removed": removed, "message": "Token OAuth dihapus."}
 
 
+def _detect_mounted_gdrives() -> list[dict[str, Any]]:
+    """Detect active local Google Drive mounts (e.g. rclone mounts ~/GDrive1, ~/GDrive2, ~/GDrive3)."""
+    mounts = []
+    for idx in range(1, 10):
+        drive_path = os.path.expanduser(f"~/GDrive{idx}")
+        if os.path.isdir(drive_path):
+            try:
+                entries = len(os.listdir(drive_path))
+                mounts.append({
+                    "name": f"GDrive{idx}",
+                    "path": drive_path,
+                    "items_count": entries,
+                    "active": True,
+                })
+            except Exception:
+                pass
+    return mounts
+
+
 def gdrive_status() -> dict[str, Any]:
     """
     Check the connection status of Google Drive Integration, storage quota, and default folder info.
     """
+    mounted = _detect_mounted_gdrives()
     try:
         service = _get_gdrive_service()
         about = service.about().get(fields="user, storageQuota").execute()
@@ -496,6 +522,8 @@ def gdrive_status() -> dict[str, Any]:
             "default_folder_id": def_folder,
             "default_folder_name": folder_name,
             "default_folder_url": f"https://drive.google.com/drive/folders/{def_folder}",
+            "mounted_drives": mounted,
+            "has_local_mounts": bool(mounted),
         }
     except Exception as e:
         return {
@@ -503,4 +531,6 @@ def gdrive_status() -> dict[str, Any]:
             "connected": False,
             "message": str(e),
             "default_folder_id": _get_default_gdrive_folder_id(),
+            "mounted_drives": mounted,
+            "has_local_mounts": bool(mounted),
         }
