@@ -124,6 +124,14 @@ from alfa.tools.system.sites import (
     list_managed_sites,
     serve_site,
 )
+from alfa.tools.system.reverse_engineering import (
+    rea_inspect_android_package,
+    rea_inspect_binary_or_wasm,
+    rea_inspect_js_app,
+    rea_inspect_sqlite_database,
+    rea_recover_js_sources,
+    rea_run_command,
+)
 
 logger = logging.getLogger("AgentTools.System")
 
@@ -208,4 +216,11 @@ __all__ = [
     "list_wa_drive_uploads",
     "scrcpy_android_control",
     "query_database",
+    # reverse engineering
+    "rea_inspect_android_package",
+    "rea_inspect_binary_or_wasm",
+    "rea_inspect_js_app",
+    "rea_inspect_sqlite_database",
+    "rea_recover_js_sources",
+    "rea_run_command",
 ]

@@ -4,7 +4,7 @@
 
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA-Sovereign%20AI%20v3.5-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
 [![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
-![Tests Passing](https://img.shields.io/badge/Tests-1366%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Tests Passing](https://img.shields.io/badge/Tests-1376%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
 ![Google Gemini](https://img.shields.io/badge/Google-Gemini%203.x-4285F4?style=for-the-badge&logo=google&logoColor=white)
@@ -13,7 +13,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-Dashboard-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)
 
-**Ekosistem AI Otonom Berdaulat: Multi-Agent Swarm, Otomasi WhatsApp & Google Sheets 24/7, Pengolahan Dokumen Cerdas (Excel, PDF, Word, dll.), Neural Vector Brain, Self-Evolution Tools, Smart Permission Gate, dan Pemantauan RAM Otomatis.**
+**Ekosistem AI Otonom Berdaulat: Multi-Agent Swarm, Otomasi WhatsApp & Google Sheets 24/7, Pengolahan Dokumen Cerdas (Excel, PDF, Word, dll.), Reverse Engineering & Bedah Software (REA), Neural Vector Brain, Self-Evolution Tools, Smart Permission Gate, dan Pemantauan RAM Otomatis.**
 
 [Arsitektur Sistem](#-arsitektur-sistem) • [Fitur Unggulan](#-fitur-unggulan) • [Otomasi WhatsApp & Sheets](#-otomasi-whatsapp--google-sheets) • [Struktur Proyek](#-struktur-direktori-proyek) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Perintah Telegram](#-daftar-perintah-telegram)
 
@@ -131,6 +131,13 @@ flowchart LR
 * **Perangkat Keras & OS:** Kontrol Android via Scrcpy & ADB, telemetri live CPU/RAM, inspeksi proses Linux.
 * **Finansial & Media:** Ticker crypto & forex real-time, generator QR Code, konversi media FFmpeg, Edge-TTS audio sintetis.
 
+### 9. 🔍 Reverse Engineering & Bedah Software (Powered by REA / `morluto/rea`)
+* **Inspeksi APK Android (`rea_inspect_android_package`):** Menganalisis berkas APK tanpa menjalankannya, mengekstrak deklarasi package, izin (permissions), exported activities, services, dan arsitektur aplikasi.
+* **Analisis Aplikasi JavaScript/Electron (`rea_inspect_js_app`):** Merekonstruksi struktur statis aplikasi Electron (.asar) atau bundle JavaScript.
+* **Pemulihan Source Code (`rea_recover_js_sources`):** Mengurai kembali bundle JavaScript yang terminifikasi menjadi modul-modul sumber yang terstruktur dan mudah dibaca.
+* **Forensik Snapshot Database (`rea_inspect_sqlite_database`):** Mengekstrak skema database, indeks, dan baris data secara non-intrusif tanpa mengunci database aktif.
+* **Bedah Binary & WASM (`rea_inspect_binary_or_wasm`):** Inspeksi binary native (ELF, SO, DLL) menggunakan objdump dan artefak WebAssembly (.wasm) via WABT.
+
 ---
 
 ## 📂 Struktur Direktori Proyek
@@ -151,13 +158,13 @@ agent-alfa/
 │   │   ├── engine.py             # Swarm meeting conductor & execution loops
 │   │   ├── meeting_steps.py      # Turn-by-turn execution & cancel listener
 │   │   └── workspace_hygiene.py  # Sandbox isolation & instant cancel cleanup
-│   └── tools/               # 80+ Sovereign tools terintegrasi
+│   └── tools/               # 86+ Sovereign tools terintegrasi
 │       ├── filesystem/           # Operasi berkas aman, search, universal extractor
 │       ├── media/                # Image-to-PDF, PDF builder/editor, FFmpeg, player
-│       ├── system/               # Telemetri RAM, process guardian, WhatsApp bridge
+│       ├── system/               # Telemetri RAM, WhatsApp bridge, Reverse Engineering (REA)
 │       └── web/                  # Live web search, Crawl4AI, deep scrapers
 ├── docs/                    # Panduan instalasi dan deployment server
-├── tests/                   # 1.366+ unit dan integration test suite
+├── tests/                   # 1.376+ unit dan integration test suite
 ├── setup.sh / run.sh        # Skrip inisialisasi & startup runner otomatis
 └── pyproject.toml           # Konfigurasi dependensi Python & linter
 ```

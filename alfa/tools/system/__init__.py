@@ -75,6 +75,14 @@ from alfa.tools.system.network import (
     send_email,
     ssh_execute_command,
 )
+from alfa.tools.system.reverse_engineering import (
+    rea_inspect_android_package,
+    rea_inspect_binary_or_wasm,
+    rea_inspect_js_app,
+    rea_inspect_sqlite_database,
+    rea_recover_js_sources,
+    rea_run_command,
+)
 
 # Alias for convenience if needed
 SYSTEM_SANDBOX_DIR = SANDBOX_DIR
@@ -141,4 +149,11 @@ __all__ = [
     "list_wa_drive_uploads",
     "scrcpy_android_control",
     "query_database",
+    # reverse engineering
+    "rea_inspect_android_package",
+    "rea_inspect_binary_or_wasm",
+    "rea_inspect_js_app",
+    "rea_inspect_sqlite_database",
+    "rea_recover_js_sources",
+    "rea_run_command",
 ]
