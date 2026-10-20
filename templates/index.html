@@ -62,35 +62,35 @@
 
     <!-- LottieFiles Web Player (Local with CDN fallback) -->
     <script src="/static/vendor/lottie-player.js"></script>
+
+    <!-- Custom Dashboard Styles -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
     <script>
         if (!window.customElements || !window.customElements.get('lottie-player')) {
             const s = document.createElement('script');
             s.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
             document.head.appendChild(s);
         }
+        if (localStorage.getItem("alfa_theme") === "light") document.documentElement.classList.remove("dark");
     </script>
-
-    <!-- Custom Dashboard Styles -->
-    <link rel="stylesheet" href="/static/css/dashboard.css">
-    <script>if (localStorage.getItem("alfa_theme") === "light") document.documentElement.classList.remove("dark");</script>
 </head>
 <body class="font-sans antialiased text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
     <!-- Bottom nav HP: 5 tab utama, hanya tampil di layar kecil -->
     <nav class="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-dark-950/95 backdrop-blur border-t border-white/10 px-2 pt-1.5" style="padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));">
         <div class="grid grid-cols-5 gap-1">
-            <button onclick="switchTab('overview')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400" data-mtab="overview">
+            <button onclick="switchTab('overview')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400 hover:text-cyan-300 active:scale-95 transition-all cursor-pointer" data-mtab="overview" title="Halaman Utama Telemetri">
                 <i data-lucide="activity" class="w-5 h-5"></i><span class="text-[9px] font-bold">Home</span>
             </button>
-            <button onclick="switchTab('swarm')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400" data-mtab="swarm">
+            <button onclick="switchTab('swarm')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400 hover:text-violet-300 active:scale-95 transition-all cursor-pointer" data-mtab="swarm" title="Swarm Live Arena">
                 <i data-lucide="zap" class="w-5 h-5"></i><span class="text-[9px] font-bold">Swarm</span>
             </button>
-            <button onclick="switchTab('sites')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400" data-mtab="sites">
+            <button onclick="switchTab('sites')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400 hover:text-cyan-300 active:scale-95 transition-all cursor-pointer" data-mtab="sites" title="Galeri Situs & Projects">
                 <i data-lucide="globe" class="w-5 h-5"></i><span class="text-[9px] font-bold">Situs</span>
             </button>
-            <button onclick="switchTab('waformat')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400" data-mtab="waformat">
+            <button onclick="switchTab('waformat')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400 hover:text-emerald-300 active:scale-95 transition-all cursor-pointer" data-mtab="waformat" title="WA Laporan & Format">
                 <i data-lucide="message-circle" class="w-5 h-5"></i><span class="text-[9px] font-bold">WA</span>
             </button>
-            <button onclick="switchTab('console')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400" data-mtab="console">
+            <button onclick="switchTab('console')" class="mnav flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-slate-400 hover:text-cyan-300 active:scale-95 transition-all cursor-pointer" data-mtab="console" title="Live AI Chat Console">
                 <i data-lucide="terminal" class="w-5 h-5"></i><span class="text-[9px] font-bold">Chat</span>
             </button>
         </div>
@@ -106,26 +106,26 @@
             <div class="space-y-4">
                 <!-- Brand Header (OpenHuman Living Neural Presence) -->
                 <div class="flex items-center justify-between pb-3 border-b border-white/10">
-                    <div class="flex items-center space-x-3">
-                        <div class="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 shadow-glow-cyan flex-shrink-0 overflow-hidden">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <button type="button" onclick="switchTab('overview')" class="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 hover:border-cyan-400 shadow-glow-cyan flex-shrink-0 overflow-hidden cursor-pointer transition-transform hover:scale-105" title="Buka Halaman Utama / Telemetri">
                             <lottie-player src="/static/animations/ai_core.json" background="transparent" speed="0.8" style="width: 42px; height: 42px;" loop autoplay aria-label="ALFA AI Core"></lottie-player>
                             <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-dark-950 pulse-dot z-10" title="System Live"></span>
-                        </div>
+                        </button>
                         <div class="truncate">
                             <div class="flex items-center space-x-1.5">
-                                <h1 class="text-sm font-black tracking-wider text-white font-mono flex items-center gap-1">
+                                <button type="button" onclick="switchTab('overview')" class="text-sm font-black tracking-wider text-white hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer transition-colors" title="Buka Overview">
                                     ALFA <span class="text-cyan-400 font-light">//</span> HUB
-                                </h1>
-                                <span class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                </button>
+                                <button type="button" onclick="switchTab('tools')" class="px-1.5 py-0.5 text-[8px] font-black uppercase rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 flex items-center gap-1 cursor-pointer transition-all" title="Klik untuk lihat 170+ Tools Katalog">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
                                     <span data-tools-count>170+</span> TOOLS
-                                </span>
+                                </button>
                             </div>
                             <p class="text-[10px] text-slate-400 font-mono truncate">Sovereign Living Orchestrator</p>
                         </div>
                     </div>
                     <!-- Close button for mobile drawer -->
-                    <button onclick="toggleSidebar(false)" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white bg-white/5">
+                    <button onclick="toggleSidebar(false)" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white bg-white/5 cursor-pointer" title="Tutup Menu">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -277,39 +277,39 @@
                     <button onclick="switchTab('services')" class="text-xs text-cyan-400 hover:underline font-bold">Semua ⚙️</button>
                 </div>
                 
-                <div class="p-3 rounded-2xl bg-dark-950/90 border border-white/10 space-y-2 text-xs shadow-inner">
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                <div class="p-2 rounded-2xl bg-dark-950/90 border border-white/10 space-y-1 text-xs shadow-inner">
+                    <button type="button" onclick="switchTab('services')" class="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-emerald-500/30 transition-all text-left group cursor-pointer" title="Kelola status Service Agent ALFA">
+                        <span class="text-slate-200 group-hover:text-emerald-300 font-medium flex items-center gap-1.5 truncate">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                             Agent ALFA
                         </span>
                         <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">ONLINE</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                    </button>
+                    <button type="button" onclick="switchTab('waformat')" class="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-emerald-500/30 transition-all text-left group cursor-pointer" title="Buka WA Laporan & Integrasi Sheets (:3000)">
+                        <span class="text-slate-200 group-hover:text-emerald-300 font-medium flex items-center gap-1.5 truncate">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
                             WA Sheets Sync
                         </span>
                         <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">:3000</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                    </button>
+                    <button type="button" onclick="switchTab('services')" class="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-cyan-500/30 transition-all text-left group cursor-pointer" title="Lihat Status Web Dashboard Host (:8080)">
+                        <span class="text-slate-200 group-hover:text-cyan-300 font-medium flex items-center gap-1.5 truncate">
                             <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                             Web Dashboard
                         </span>
                         <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">:8080</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                    </button>
+                    <button type="button" onclick="switchTab('swarm')" class="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 border border-transparent hover:border-violet-500/30 transition-all text-left group cursor-pointer" title="Buka Swarm Live Arena (6 Agents)">
+                        <span class="text-slate-200 group-hover:text-violet-300 font-medium flex items-center gap-1.5 truncate">
                             <span class="w-2 h-2 rounded-full bg-violet-400"></span>
                             Swarm Engine
                         </span>
                         <span class="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 font-bold">6 AGENTS</span>
-                    </div>
+                    </button>
                 </div>
 
                 <!-- Theme Switcher Button in Sidebar -->
-                <button onclick="toggleTheme()" class="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold flex items-center justify-between text-slate-200 transition-all shadow-sm" title="Klik untuk beralih mode gelap / terang">
+                <button onclick="toggleTheme()" class="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold flex items-center justify-between text-slate-200 transition-all shadow-sm cursor-pointer" title="Klik untuk beralih mode gelap / terang">
                     <div class="flex items-center gap-2">
                         <span id="sidebar-theme-icon">🌙</span>
                         <span class="text-slate-400">Mode Tema:</span>
@@ -319,9 +319,9 @@
 
                 <!-- Clock & Quick Refresh -->
                 <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                    <span id="header-clock" class="text-slate-300">--:--:-- WIB</span>
-                    <span id="sync-pill" class="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 font-bold" title="Status sinkronisasi data">SYNC…</span>
-                    <button onclick="fetchStats(true)" class="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 transition-all shadow-sm min-w-[40px] min-h-[40px] flex items-center justify-center" title="Refresh Live Telemetry">
+                    <span id="header-clock" class="text-slate-300 font-mono">--:--:-- WIB</span>
+                    <button type="button" onclick="fetchStats(true); if(typeof showToast==='function') showToast('Menyinkronkan telemetri sistem...', 'info');" id="sync-pill" class="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30 font-bold font-mono cursor-pointer transition-all" title="Klik untuk paksa sinkronisasi data telemetri">SYNC…</button>
+                    <button onclick="fetchStats(true)" class="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 transition-all shadow-sm min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer" title="Refresh Live Telemetry">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
                     </button>
                 </div>
@@ -354,26 +354,26 @@
                 <div class="flex items-center gap-2 text-xs font-mono">
                     <!-- Multi-Channel Ingress Matrix Pills (OpenClaw Style) -->
                     <div class="hidden xl:flex items-center gap-1.5">
-                        <div class="claw-channel-pill" title="WhatsApp Multi-Device Gateway: Active on Port 3000">
+                        <button type="button" onclick="switchTab('waformat')" class="claw-channel-pill cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all" title="Klik untuk kelola WhatsApp & Format Sheets (Port 3000)">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
                             <span class="text-emerald-300">WA:3000</span>
-                        </div>
-                        <div class="claw-channel-pill" title="Telegram AI Bot: Polling Active">
+                        </button>
+                        <button type="button" onclick="switchTab('services')" class="claw-channel-pill cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/10 transition-all" title="Klik untuk lihat Status Service Telegram & Background Bot">
                             <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
                             <span class="text-cyan-300">TG:BOT</span>
-                        </div>
-                        <div class="claw-channel-pill" title="Swarm Engine: 6 Autonomous Agents Ready">
+                        </button>
+                        <button type="button" onclick="switchTab('swarm')" class="claw-channel-pill cursor-pointer hover:border-violet-500/50 hover:bg-violet-500/10 transition-all" title="Klik untuk buka Swarm Live Arena">
                             <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                             <span class="text-violet-300">SWARM</span>
-                        </div>
+                        </button>
                     </div>
 
                     <!-- Live WebSocket Telemetry Indicator Pill -->
-                    <div id="ws-status-badge" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 text-slate-400 border border-white/10 font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Status WebSocket Telemetri & Telemetri Real-Time">
+                    <button type="button" onclick="if(typeof fetchStats==='function') fetchStats(true); if(typeof showToast==='function') showToast('Sinkronisasi telemetri real-time...', 'info');" id="ws-status-badge" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10 font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer" title="Klik untuk paksa refresh koneksi telemetri">
                         <span id="ws-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                         <span id="ws-status-text" class="hidden sm:inline">WS Connect...</span>
                         <span id="ws-latency-text" class="text-[10px] text-slate-400 opacity-90 hidden md:inline"></span>
-                    </div>
+                    </button>
 
                     <!-- Theme Toggle Button in Top Header -->
                     <button onclick="toggleTheme()" id="theme-toggle-btn" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer" title="Ganti Mode Gelap / Terang">
@@ -381,10 +381,10 @@
                         <span id="theme-label" class="text-slate-300 font-bold hidden sm:inline">Dark Mode</span>
                     </button>
 
-                    <span class="hidden sm:inline-flex px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold items-center gap-1.5 shadow-sm">
+                    <button type="button" onclick="switchTab('guardian')" class="hidden sm:inline-flex px-3 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold items-center gap-1.5 shadow-sm cursor-pointer transition-all" title="Klik untuk buka Guardian Defense & Integrity">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
                         SYSTEM NORMAL
-                    </span>
+                    </button>
                 </div>
             </header>
 
@@ -396,28 +396,28 @@
             <!-- Hero Ingress HUD & Living Radar Banner (OpenClaw + OpenHuman) -->
             <div class="glass-card-obsidian p-4 sm:p-5 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden border border-cyan-500/30">
                 <div class="flex items-center gap-4 relative z-10 min-w-0">
-                    <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-dark-950/90 border border-cyan-500/40 flex items-center justify-center flex-shrink-0 shadow-glow-cyan overflow-hidden">
+                    <button type="button" onclick="if(typeof fetchStats==='function') fetchStats(true); if(typeof showToast==='function') showToast('Radar telemetri real-time direfresh...', 'info');" class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-dark-950/90 border border-cyan-500/40 hover:border-cyan-300 flex items-center justify-center flex-shrink-0 shadow-glow-cyan overflow-hidden cursor-pointer transition-transform hover:scale-105" title="Klik untuk refresh radar telemetri">
                         <lottie-player src="/static/animations/radar.json" background="transparent" speed="1" style="width: 58px; height: 58px;" loop autoplay aria-label="Ingress Radar"></lottie-player>
                         <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
-                    </div>
+                    </button>
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <h2 class="text-sm sm:text-base font-black text-white font-mono tracking-wide">
                                 SOVEREIGN COMMAND MATRIX
                             </h2>
-                            <span class="px-2 py-0.5 text-[9px] rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <button type="button" onclick="switchTab('services')" class="px-2 py-0.5 text-[9px] rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 hover:border-emerald-400 font-mono font-bold flex items-center gap-1 cursor-pointer transition-all" title="Klik untuk lihat rincian channel background service">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
                                 CHANNELS ACTIVE
-                            </span>
+                            </button>
                         </div>
                         <p class="text-xs text-slate-400 mt-0.5 truncate">Pemantauan multi-channel terpadu: WhatsApp Multi-Device (Android), Telegram Gate, &amp; Swarm AI.</p>
                         <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-400 mt-2">
-                            <span class="text-emerald-400 flex items-center gap-1">
+                            <button type="button" onclick="switchTab('waformat')" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition-colors" title="Buka pengaturan proteksi pesan & rate limit WA">
                                 <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Rate Limit Protection Aktif (3s Gap)
-                            </span>
-                            <span class="text-cyan-400 flex items-center gap-1">
+                            </button>
+                            <button type="button" onclick="switchTab('guardian')" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer transition-colors" title="Buka Guardian Watchdogs & Circuit Breaker">
                                 <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Circuit Breaker Ready
-                            </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -434,13 +434,13 @@
                 </div>
             </div>
 
-            <!-- Top Metric Cards -->
+            <!-- Top Metric Cards (Fully Clickable & Interactive) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <!-- CPU Metric -->
-                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <!-- CPU Metric Card -->
+                <div onclick="const el = document.getElementById('top-processes-list'); if(el) el.scrollIntoView({behavior: 'smooth'}); if(typeof showToast==='function') showToast('Menampilkan proses kernel CPU...', 'info');" class="glass-card p-5 rounded-2xl relative overflow-hidden group cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/[0.04] transition-all" title="Klik untuk scroll ke daftar proses yang memakan CPU">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">CPU Processor</span>
-                        <div class="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        <div class="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 group-hover:scale-110 transition-transform">
                             <i data-lucide="cpu" class="w-4 h-4"></i>
                         </div>
                     </div>
@@ -453,11 +453,11 @@
                     </div>
                 </div>
 
-                <!-- RAM Metric -->
-                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <!-- RAM Metric Card -->
+                <div onclick="cleanSystemRam();" class="glass-card p-5 rounded-2xl relative overflow-hidden group cursor-pointer hover:border-violet-500/50 hover:bg-violet-500/[0.04] transition-all" title="Klik untuk membersihkan RAM sistem sekarang">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Memory RAM</span>
-                        <div class="p-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                        <div class="p-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 group-hover:scale-110 transition-transform">
                             <i data-lucide="hard-drive" class="w-4 h-4"></i>
                         </div>
                     </div>
@@ -470,11 +470,11 @@
                     </div>
                 </div>
 
-                <!-- Storage Disk Metric -->
-                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <!-- Storage Disk Metric Card -->
+                <div onclick="switchTab('artifacts');" class="glass-card p-5 rounded-2xl relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/[0.04] transition-all" title="Klik untuk membuka File Artifacts & Explorer">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">SSD Storage</span>
-                        <div class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <div class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition-transform">
                             <i data-lucide="database" class="w-4 h-4"></i>
                         </div>
                     </div>
@@ -487,11 +487,11 @@
                     </div>
                 </div>
 
-                <!-- Power & Uptime -->
-                <div class="glass-card p-5 rounded-2xl relative overflow-hidden group">
+                <!-- Power & Uptime Card -->
+                <div onclick="switchTab('guardian');" class="glass-card p-5 rounded-2xl relative overflow-hidden group cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/[0.04] transition-all" title="Klik untuk membuka Guardian Watchdogs & Status Daya">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Battery & Power</span>
-                        <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-110 transition-transform">
                             <i data-lucide="zap" class="w-4 h-4"></i>
                         </div>
                     </div>
@@ -538,38 +538,38 @@
                     </h2>
                     
                     <div class="space-y-3">
-                        <div class="p-3.5 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                        <button type="button" onclick="switchTab('services')" class="w-full p-3.5 rounded-xl bg-dark-900/80 hover:bg-white/5 border border-white/5 hover:border-emerald-500/40 flex items-center justify-between text-left transition-all cursor-pointer group" title="Buka detail service Telegram AI Bot">
                             <div class="flex items-center space-x-3">
                                 <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot" id="dot-tb-service"></div>
                                 <div>
-                                    <h3 class="text-xs font-bold text-white font-mono">telegram-ai-bot.service</h3>
+                                    <h3 class="text-xs font-bold text-white group-hover:text-emerald-300 font-mono transition-colors">telegram-ai-bot.service</h3>
                                     <p class="text-[11px] text-slate-400">72 Tools • God Mode</p>
                                 </div>
                             </div>
                             <span id="badge-tb-service" class="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
-                        </div>
+                        </button>
 
-                        <div class="p-3.5 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                        <button type="button" onclick="switchTab('waformat')" class="w-full p-3.5 rounded-xl bg-dark-900/80 hover:bg-white/5 border border-white/5 hover:border-emerald-500/40 flex items-center justify-between text-left transition-all cursor-pointer group" title="Buka WA Laporan & Sinkronisasi Sheets">
                             <div class="flex items-center space-x-3">
                                 <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot" id="dot-wa-service"></div>
                                 <div>
-                                    <h3 class="text-xs font-bold text-white font-mono">wa-sheets-bot.service</h3>
+                                    <h3 class="text-xs font-bold text-white group-hover:text-emerald-300 font-mono transition-colors">wa-sheets-bot.service</h3>
                                     <p class="text-[11px] text-slate-400">WhatsApp Web.js • Sheets</p>
                                 </div>
                             </div>
                             <span id="badge-wa-service" class="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIVE</span>
-                        </div>
+                        </button>
 
-                        <div class="p-3.5 rounded-xl bg-dark-900/80 border border-white/5 flex items-center justify-between">
+                        <button type="button" onclick="switchTab('services')" class="w-full p-3.5 rounded-xl bg-dark-900/80 hover:bg-white/5 border border-white/5 hover:border-cyan-500/40 flex items-center justify-between text-left transition-all cursor-pointer group" title="Buka status Web Dashboard host :8080">
                             <div class="flex items-center space-x-3">
                                 <div class="w-2.5 h-2.5 rounded-full bg-cyan-400"></div>
                                 <div>
-                                    <h3 class="text-xs font-bold text-white font-mono">alfa-dashboard.service</h3>
+                                    <h3 class="text-xs font-bold text-white group-hover:text-cyan-300 font-mono transition-colors">alfa-dashboard.service</h3>
                                     <p class="text-[11px] text-slate-400">Web Command Center :8080</p>
                                 </div>
                             </div>
                             <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">ACTIVE</span>
-                        </div>
+                        </button>
                     </div>
                 </div>
 
@@ -630,21 +630,21 @@
                             <span class="text-xs font-bold uppercase tracking-wider font-mono text-slate-300">STAGE PROGRESS TRACKER</span>
                         </div>
                         <div id="swarm-stage-pills" class="flex items-center gap-2 flex-wrap">
-                            <span id="stage-pill-plan" data-stage="plan" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                            <button type="button" onclick="inspectSwarmStage('plan')" id="stage-pill-plan" data-stage="plan" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk penjelasan tahap Planning">
                                 <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 1. Planning
-                            </span>
-                            <span id="stage-pill-debate" data-stage="debate" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                            </button>
+                            <button type="button" onclick="inspectSwarmStage('debate')" id="stage-pill-debate" data-stage="debate" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk penjelasan tahap Debate">
                                 <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 2. Debate
-                            </span>
-                            <span id="stage-pill-vote" data-stage="vote" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                            </button>
+                            <button type="button" onclick="inspectSwarmStage('vote')" id="stage-pill-vote" data-stage="vote" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk penjelasan tahap Voting">
                                 <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 3. Voting
-                            </span>
-                            <span id="stage-pill-consensus" data-stage="consensus" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                            </button>
+                            <button type="button" onclick="inspectSwarmStage('consensus')" id="stage-pill-consensus" data-stage="consensus" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk penjelasan tahap Consensus">
                                 <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 4. Consensus
-                            </span>
-                            <span id="stage-pill-execute" data-stage="execute" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5">
+                            </button>
+                            <button type="button" onclick="inspectSwarmStage('execute')" id="stage-pill-execute" data-stage="execute" class="stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk penjelasan tahap Execution">
                                 <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 5. Execution
-                            </span>
+                            </button>
                         </div>
                     </div>
 
@@ -853,16 +853,16 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <h2 class="text-sm font-bold text-white tracking-wide font-mono">100% REAL SOVEREIGN TOOLS & PDF WORKBENCH</h2>
-                                <span class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
+                                <button type="button" onclick="if(typeof showToast==='function') showToast('100% Real Execution: Terhubung langsung ke host Linux & Python kernel', 'success');" class="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono cursor-pointer transition-all" title="Verifikasi integritas eksekusi real">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> 0% DUMMY • 100% REAL EXECUTION
-                                </span>
+                                </button>
                             </div>
                             <p class="text-xs text-slate-400">Seluruh fungsi terhubung langsung ke Python, Linux Shell, PDF Toolkit, dan sistem host komputer kamu.</p>
                         </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span id="tool-count-pill" class="px-3 py-1.5 bg-dark-950 text-cyan-400 rounded-xl border border-white/10 font-mono text-xs font-bold">-- Tools</span>
+                    <button type="button" onclick="const searchInput = document.getElementById('tool-search'); if(searchInput){ searchInput.focus(); searchInput.scrollIntoView({behavior:'smooth'}); }" id="tool-count-pill" class="px-3 py-1.5 bg-dark-950 hover:bg-white/5 text-cyan-400 rounded-xl border border-white/10 hover:border-cyan-500/40 font-mono text-xs font-bold cursor-pointer transition-all" title="Klik untuk fokus ke kotak pencarian tools">-- Tools</button>
                 </div>
             </div>
 
@@ -876,17 +876,17 @@
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <h3 class="text-sm font-bold text-white font-mono tracking-wide">SUPERPOWERS AGENTIC SKILLS FRAMEWORK</h3>
-                                <span class="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                <button type="button" onclick="if(typeof showToast==='function') showToast('14 Superpowers aktif serentak di seluruh agen', 'info');" class="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 cursor-pointer transition-all">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> 100% ACTIVE ON ALL AGENTS
-                                </span>
+                                </button>
                             </div>
                             <p class="text-xs text-slate-300 font-sans mt-0.5">Metodologi otonom kelas dunia (Iron Law Systematic Debugging, TDD, Spec Brainstorming, Plan Execution, & Parallel Swarm) yang diterapkan secara serentak di Otak Utama, 6 Spesialis Swarm, dan Subagen.</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2 flex-wrap font-mono text-xs">
-                        <span id="superpowers-count-pill" class="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1.5">
+                        <button type="button" onclick="filterSuperpowersCategory('all', document.querySelector('.sp-cat-btn'));" id="superpowers-count-pill" class="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk menampilkan semua 14 Superpower Skills">
                             ⚡ 14 Superpower Skills
-                        </span>
+                        </button>
                     </div>
                 </div>
 
@@ -1563,10 +1563,10 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                     <div>
                         <div class="flex items-center gap-2.5">
                             <h2 class="text-base font-extrabold text-white tracking-wide">GOOGLE DRIVE & GOOGLE CLOUD SUITE</h2>
-                            <span id="gdrive-status-pill" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-500/20 text-slate-300 border border-slate-500/30 flex items-center gap-1.5">
+                            <button type="button" onclick="fetchGdriveStatus(); fetchGdriveFiles();" id="gdrive-status-pill" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-500/20 hover:bg-blue-500/20 text-slate-300 hover:text-blue-300 border border-slate-500/30 hover:border-blue-500/40 flex items-center gap-1.5 cursor-pointer transition-all" title="Klik untuk refresh status Google Drive">
                                 <span class="w-2 h-2 rounded-full bg-slate-400"></span>
                                 <span id="gdrive-status-pill-text">MEMERIKSA...</span>
-                            </span>
+                            </button>
                         </div>
                         <p class="text-xs text-slate-400 mt-1">Integrasi Google Drive API v3 resmi dari Google Cloud Console untuk auto-backup dokumen AI, sinkronisasi file cloud, dan ingest Second Brain.</p>
                     </div>
@@ -1590,7 +1590,7 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                                 <i data-lucide="key" class="w-4 h-4 text-blue-400"></i>
                                 Kredensial Google Cloud
                             </h3>
-                            <span id="gdrive-auth-indicator" class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">BELUM TERHUBUNG</span>
+                            <button type="button" onclick="const input = document.getElementById('gdrive-creds-input'); if(input){ input.focus(); input.scrollIntoView({behavior:'smooth'}); }" id="gdrive-auth-indicator" class="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 cursor-pointer transition-all" title="Klik untuk pasang kredensial Service Account">BELUM TERHUBUNG</button>
                         </div>
 
                         <!-- Active Connection Info -->
@@ -1964,19 +1964,19 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                 <!-- TOP BAR: Bot Info, Expert Mode Pills, Model Selector & Quick Actions -->
                 <div class="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/10 pb-3">
                     <div class="flex items-center space-x-3">
-                        <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 flex items-center justify-center shadow-glow-cyan overflow-hidden flex-shrink-0">
+                        <button type="button" onclick="switchTab('overview')" class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-950/80 via-dark-900 to-indigo-950/80 border border-cyan-500/40 hover:border-cyan-300 flex items-center justify-center shadow-glow-cyan overflow-hidden flex-shrink-0 cursor-pointer transition-transform hover:scale-105" title="Buka Dashboard Overview">
                             <lottie-player src="/static/animations/ai_core.json" background="transparent" speed="0.8" style="width: 38px; height: 38px;" loop autoplay aria-label="ALFA AI Core"></lottie-player>
                             <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-dark-950 pulse-dot z-10"></span>
-                        </div>
+                        </button>
                         <div>
                             <div class="flex items-center gap-2">
                                 <h3 class="text-sm font-black text-white font-mono tracking-wide">AGENT ALFA</h3>
-                                <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">v2.5 PRO-MAX</span>
+                                <button type="button" onclick="openCommandPalette()" class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 cursor-pointer transition-all" title="Buka Omni Command Palette (Ctrl+K)">v2.5 PRO-MAX</button>
                             </div>
-                            <p class="text-[11px] text-slate-400 font-sans flex items-center gap-1.5">
+                            <button type="button" onclick="switchTab('tools')" class="text-[11px] text-slate-400 hover:text-cyan-300 font-sans flex items-center gap-1.5 cursor-pointer transition-colors" title="Buka Katalog Tools">
                                 <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                                <span><span data-tools-count>130+</span> Tools Otonom &amp; Multimodal Vision</span>
-                            </p>
+                                <span><span data-tools-count>170+</span> Tools Otonom &amp; Multimodal Vision</span>
+                            </button>
                         </div>
                     </div>
 
@@ -2060,12 +2060,15 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                 <!-- QUICK PRESET CHIPS BAR -->
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-[11px] font-mono flex-shrink-0">
                     <span class="text-[10px] uppercase font-bold text-slate-400 px-1">Saran:</span>
-                    <button type="button" onclick="sendPresetChat('/swarm Buatkan website landing page interaktif lengkap dengan styling modern')" class="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 whitespace-nowrap transition-all">👥 Eksekusi Swarm</button>
-                    <button type="button" onclick="sendPresetChat('Cek status performa laptop real-time')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">📊 Cek Performa</button>
-                    <button type="button" onclick="sendPresetChat('Riset paper ilmiah terbaru tentang autonomous AI reasoning')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">📚 Riset Paper</button>
-                    <button type="button" onclick="sendPresetChat('Ambil screenshot desktop sekarang')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">📸 Screenshot Layar</button>
-                    <button type="button" onclick="sendPresetChat('Apa saja yang kamu ingat tentang saya di Second Brain?')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">🧠 Cek Memori</button>
-                    <button type="button" onclick="sendPresetChat('Buat ringkasan tren komoditas terbaru dari web')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all">🌐 Web Search</button>
+                    <button type="button" onclick="sendPresetChat('/swarm Bedah dan reverse-engineer struktur aplikasi target secara modular dan rapi')" class="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 whitespace-nowrap transition-all cursor-pointer">🔬 Bedah Target (REA)</button>
+                    <button type="button" onclick="sendPresetChat('Cek antrean pesan masuk WhatsApp terakhir dan rekap formatnya')" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap transition-all cursor-pointer">📱 Cek Pesan Masuk WA</button>
+                    <button type="button" onclick="sendPresetChat('Bantu buatkan format rekap data otomatis dan sinkronkan dengan spreadsheet')" class="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 whitespace-nowrap transition-all cursor-pointer">📊 Rekap Format Excel</button>
+                    <button type="button" onclick="sendPresetChat('/swarm Buatkan website landing page interaktif lengkap dengan styling modern')" class="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 whitespace-nowrap transition-all cursor-pointer">👥 Eksekusi Swarm</button>
+                    <button type="button" onclick="sendPresetChat('Cek status performa laptop real-time')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all cursor-pointer">📊 Cek Performa</button>
+                    <button type="button" onclick="sendPresetChat('Riset paper ilmiah terbaru tentang autonomous AI reasoning')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all cursor-pointer">📚 Riset Paper</button>
+                    <button type="button" onclick="sendPresetChat('Ambil screenshot desktop sekarang')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all cursor-pointer">📸 Screenshot Layar</button>
+                    <button type="button" onclick="sendPresetChat('Apa saja yang kamu ingat tentang saya di Second Brain?')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all cursor-pointer">🧠 Cek Memori</button>
+                    <button type="button" onclick="sendPresetChat('Buat ringkasan tren komoditas terbaru dari web')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 whitespace-nowrap transition-all cursor-pointer">🌐 Web Search</button>
                 </div>
 
                 <!-- ATTACHMENT PREVIEW TRAY -->
@@ -3006,20 +3009,20 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
             <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/30 bg-amber-500/5">
                 <div class="space-y-1">
                     <div class="flex items-center space-x-3">
-                        <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-glow-amber">
+                        <button type="button" onclick="switchVaultSubTab('scanner')" class="w-11 h-11 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-glow-amber cursor-pointer transition-transform hover:scale-105" title="Buka Cyber Sentry Web Security Scanner">
                             <lottie-player src="/static/animations/scan.json" background="transparent" speed="1" style="width: 40px; height: 40px;" loop autoplay aria-label="Cyber Sentry Scanner"></lottie-player>
-                        </div>
-                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">αlfa SECURE VAULT & CYBER SENTRY</h2>
+                        </button>
+                        <h2 class="text-sm font-bold text-white tracking-wide font-mono">αlfa SECURE VAULT &amp; CYBER SENTRY</h2>
                     </div>
-                    <p class="text-xs text-slate-400">Brankas Kredensial Terenkripsi Militer (AES-256-GCM) & Suite Audit Keamanan Website Defensif oleh Fahmi Alfatah.</p>
+                    <p class="text-xs text-slate-400">Brankas Kredensial Terenkripsi Militer (AES-256-GCM) &amp; Suite Audit Keamanan Website Defensif oleh Fahmi Alfatah.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 font-mono text-xs">
-                    <span class="px-3 py-1.5 rounded-xl bg-dark-900 border border-amber-500/30 text-amber-300 font-bold flex items-center gap-1.5">
+                    <button type="button" onclick="switchVaultSubTab('secrets')" class="px-3 py-1.5 rounded-xl bg-dark-900 hover:bg-amber-500/15 border border-amber-500/30 hover:border-amber-500/60 text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer transition-all" title="Buka Brankas Kredensial AES-256-GCM">
                         <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-400"></i> AES-256-GCM Active
-                    </span>
-                    <span class="px-3 py-1.5 rounded-xl bg-dark-900 border border-emerald-500/30 text-emerald-300 font-bold flex items-center gap-1.5">
+                    </button>
+                    <button type="button" onclick="switchVaultSubTab('settings')" class="px-3 py-1.5 rounded-xl bg-dark-900 hover:bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer transition-all" title="Kelola Master Key &amp; Passkey Vault">
                         <i data-lucide="key-round" class="w-3.5 h-3.5 text-emerald-400"></i> 256-Bit Master Key
-                    </span>
+                    </button>
                 </div>
             </div>
 

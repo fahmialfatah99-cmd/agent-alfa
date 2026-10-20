@@ -475,7 +475,7 @@ export function updateSwarmArena(data) {
         const dot = pill.querySelector('span');
 
         if (!isRunning && stage === 'idle') {
-            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5';
+            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all';
             if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-500';
         } else if (idx === currentStageIdx) {
             pill.classList.add('is-active-stage');
@@ -484,7 +484,7 @@ export function updateSwarmArena(data) {
             pill.classList.add('is-completed-stage');
             if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
         } else {
-            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-400 font-mono text-xs flex items-center gap-1.5';
+            pill.className = 'stage-pill px-3 py-1.5 rounded-full border border-white/10 hover:border-violet-500/40 bg-white/5 hover:bg-violet-500/10 text-slate-400 hover:text-violet-300 font-mono text-xs flex items-center gap-1.5 cursor-pointer transition-all';
             if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-600';
         }
     });
@@ -622,6 +622,27 @@ window.setSessionToken = setSessionToken;
 window.clearSessionToken = clearSessionToken;
 window.updateSwarmArena = updateSwarmArena;
 
+export function inspectSwarmStage(stg) {
+    const stageDescriptions = {
+        'plan': '📋 Tahap 1: Planning — Alpha Lead memetakan strategi, memecah tugas, dan mengalokasikan tool spesialis.',
+        'debate': '💬 Tahap 2: Debate — Deliberasi multi-agent persona menguji asumsi, menganalisis risiko, dan mengajukan opsi.',
+        'vote': '🗳️ Tahap 3: Voting — Seluruh agen mengevaluasi dan memberikan skor pada proposal terbaik.',
+        'consensus': '🤝 Tahap 4: Consensus — Menyatukan kesepakatan akhir dengan threshold konsensus minimal.',
+        'execute': '⚡ Tahap 5: Execution — Eksekusi tool native, penulisan kode real, dan penyusunan deliverable.'
+    };
+    const desc = stageDescriptions[stg] || `Tahap Swarm: ${stg}`;
+    if (typeof showToast === 'function') {
+        showToast(desc, 'info');
+    }
+    const logEl = document.getElementById('swarm-meeting-log');
+    if (logEl) {
+        logEl.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+window.inspectSwarmStage = inspectSwarmStage;
+window.filterSwarmStage = inspectSwarmStage;
+
 window.AlfaState = {
     store: AlfaStore,
     tabTitles,
@@ -638,7 +659,8 @@ window.AlfaState = {
     getSessionToken,
     setSessionToken,
     clearSessionToken,
-    updateSwarmArena
+    updateSwarmArena,
+    inspectSwarmStage
 };
 
 
