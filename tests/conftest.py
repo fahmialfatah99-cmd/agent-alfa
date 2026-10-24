@@ -36,6 +36,64 @@ os.environ["PERMISSION_GATE_DANGEROUS_ONLY"] = "false"
 # localhost default; tests exercising the guard set their own env per-test.
 os.environ["DASHBOARD_HOST"] = "127.0.0.1"
 
+# ---------------------------------------------------------------------------
+# PROTEKSI DATA PRODUKSI (insiden 2026-10-23):
+# Test `wa_clear_history(target="all")` pernah berjalan terhadap agent_data.db
+# produksi dan API wa-sheets-bot live, sehingga arsip WA asli terhapus.
+# Dua lapis pengaman berikut membuat test suite TIDAK MUNGKIN menyentuh data asli:
+#   1. Setiap sqlite3.connect() ke file DB produksi dialihkan ke DB test sementara
+#      (precedence ALFA_DB_PATH / DATABASE_URL / patch DB_PATH milik test tetap utuh).
+#   2. WA_BOT_URL diarahkan ke port mati + urlopen ke port wa-sheets-bot diblokir.
+# ---------------------------------------------------------------------------
+import sqlite3 as _sqlite3  # noqa: E402
+import urllib.request as _urllib_request  # noqa: E402
+
+_TEST_DB_DIR = tempfile.mkdtemp(prefix="alfa_testdb_")
+_TEST_DB_PATH = os.path.join(_TEST_DB_DIR, "agent_data_test.db")
+_PROTECTED_DB_PATHS = {
+    os.path.realpath(p)
+    for p in (
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "agent_data.db"),
+        os.path.expanduser("~/.alfa/alfa.db"),
+        os.path.expanduser("~/telegram-ai-bot/agent_data.db"),
+    )
+}
+_real_sqlite_connect = _sqlite3.connect
+
+
+def _guarded_sqlite_connect(database, *args, **kwargs):
+    try:
+        raw = os.fspath(database)
+    except TypeError:
+        raw = None
+    if isinstance(raw, str) and raw and raw != ":memory:" and not raw.startswith("file:"):
+        if os.path.realpath(raw) in _PROTECTED_DB_PATHS:
+            database = _TEST_DB_PATH
+    return _real_sqlite_connect(database, *args, **kwargs)
+
+
+_sqlite3.connect = _guarded_sqlite_connect
+
+# Lindungi recent_incoming.json produksi dari direct file write di tests
+_TEST_INCOMING_FILE = os.path.join(_TEST_DB_DIR, "recent_incoming_test.json")
+with open(_TEST_INCOMING_FILE, "w", encoding="utf-8") as _f:
+    _f.write("[]")
+os.environ["WA_BOT_INCOMING_FILE"] = _TEST_INCOMING_FILE
+
+os.environ["WA_BOT_URL"] = "http://127.0.0.1:9"  # discard port: selalu gagal konek
+_PROTECTED_WA_PORTS = (":3000",)
+_real_urlopen = _urllib_request.urlopen
+
+
+def _guarded_urlopen(req, *args, **kwargs):
+    url = req.full_url if hasattr(req, "full_url") else str(req)
+    if any(f"127.0.0.1{p}" in url or f"localhost{p}" in url for p in _PROTECTED_WA_PORTS):
+        raise ConnectionRefusedError(f"[test-guard] akses ke wa-sheets-bot live diblokir: {url}")
+    return _real_urlopen(req, *args, **kwargs)
+
+
+_urllib_request.urlopen = _guarded_urlopen
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -245,3 +303,14 @@ def cache_fixture():
             cache.clear()
 
     return Cache()
+
+
+@pytest.fixture(autouse=True)
+def _ensure_single_telegram_mode():
+    yield
+    try:
+        from alfa.bot.mode_commands import set_telegram_mode_sync
+        set_telegram_mode_sync("single")
+    except Exception:
+        pass
+
