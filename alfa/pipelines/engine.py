@@ -310,27 +310,39 @@ async def run_pipeline(
 
     try:
         for wave in _topological_waves(steps):
-            results = await asyncio.gather(
-                *[_run_step(s, variables, sid=s["id"]) for s in wave],
-                return_exceptions=True,
-            )
-            for s, res in zip(wave, results, strict=True):
-                # Kondisi n8n-style: skip bila "if" tidak terpenuhi
+            active_steps: list[dict[str, Any]] = []
+            for s in wave:
                 cond = s.get("if")
-                if isinstance(res, Exception) and cond:
-                    pass  # biarkan error tetap dilaporkan
-                elif cond and isinstance(cond, dict):
+                if cond and isinstance(cond, dict):
                     try:
                         if not _eval_condition(cond, variables):
                             step_outputs[s["id"]] = (
                                 "(dilewati: kondisi tidak terpenuhi)"
                             )
+                            variables[s["id"]] = "(dilewati: kondisi tidak terpenuhi)"
                             trace.append({"step": s["id"], "status": "skipped"})
                             continue
                     except (KeyError, TypeError, ValueError) as ce:
                         logger.warning(
                             f"[Pipeline] kondisi '{s['id']}' gagal dievaluasi: {ce}"
                         )
+                active_steps.append(s)
+
+            if not active_steps:
+                continue
+
+            async def _run_with_timeout(step: dict[str, Any]) -> Any:
+                timeout_s = min(300, max(3, int(step.get("timeout", 60))))
+                return await asyncio.wait_for(
+                    _run_step(step, variables, sid=step["id"]),
+                    timeout=timeout_s,
+                )
+
+            results = await asyncio.gather(
+                *[_run_with_timeout(s) for s in active_steps],
+                return_exceptions=True,
+            )
+            for s, res in zip(active_steps, results, strict=True):
                 if isinstance(res, Exception):
                     step_outputs[s["id"]] = f"[ERROR] {res}"
                     trace.append(
