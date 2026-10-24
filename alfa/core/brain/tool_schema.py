@@ -2,6 +2,7 @@
 
 import inspect
 import logging
+import types
 import typing
 from typing import Any
 
@@ -49,7 +50,7 @@ def _json_type_for(annotation: Any) -> str:
             return "array"
         if origin is dict:
             return "object"
-        if origin is typing.Union or str(origin) == "types.UnionType":
+        if origin is typing.Union or origin is types.UnionType:
             # Optional[X] / X | None → pakai tipe non-None-nya.
             non_none = [a for a in args if a is not type(None)]
             if len(non_none) == 1:

@@ -387,7 +387,10 @@ def _run_plugin_in_sandbox(module_stem: str, fn_name: str, kwargs: dict) -> Any:
     if not os.path.isfile(plugin_path):
         raise FileNotFoundError(f"Modul plugin tidak ditemukan: {plugin_path}")
 
-    repo_root = os.path.dirname(PLUGINS_DIR)
+    # Root repo diambil dari path modul ASLI (bukan PLUGINS_DIR yang bisa
+    # dipatch ke sandbox tmp saat uji) agar subprocess selalu bisa
+    # mengimpor `plugins.runner` di environment CI maupun lokal.
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     payload = json.dumps(
         {
             "file": plugin_path,
