@@ -158,27 +158,27 @@ def get_agent_api_client(
             api_key = active_key["api_key"]
             base_url = active_key.get("base_url") or ""
             key_id = active_key.get("id")
-
-        if provider == "gemini":
-            api_key = os.getenv("GEMINI_API_KEY", "")
-        elif provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY", "")
-        elif provider == "groq":
-            api_key = os.getenv("GROQ_API_KEY", "")
-        elif provider in ["nvidia", "nim"]:
-            api_key = os.getenv("NVIDIA_API_KEY", "")
-        elif provider == "deepseek":
-            api_key = os.getenv("DEEPSEEK_API_KEY", "")
-        elif provider == "openrouter":
-            api_key = os.getenv("OPENROUTER_API_KEY", "")
-        elif provider == "minimax":
-            api_key = os.getenv("MINIMAX_API_KEY", "")
-        elif provider in ["moonshot", "kimi"]:
-            api_key = os.getenv("MOONSHOT_API_KEY", "")
-        elif provider in ["qwen", "dashscope"]:
-            api_key = os.getenv("DASHSCOPE_API_KEY", os.getenv("QWEN_API_KEY", ""))
-        elif provider == "9router":
-            api_key = os.getenv("NINEROUTER_API_KEY", os.getenv("ROUTER_API_KEY", ""))
+        if not api_key:
+            if provider == "gemini":
+                api_key = os.getenv("GEMINI_API_KEY", "")
+            elif provider == "openai":
+                api_key = os.getenv("OPENAI_API_KEY", "")
+            elif provider == "groq":
+                api_key = os.getenv("GROQ_API_KEY", "")
+            elif provider in ["nvidia", "nim"]:
+                api_key = os.getenv("NVIDIA_API_KEY", "")
+            elif provider == "deepseek":
+                api_key = os.getenv("DEEPSEEK_API_KEY", "")
+            elif provider == "openrouter":
+                api_key = os.getenv("OPENROUTER_API_KEY", "")
+            elif provider == "minimax":
+                api_key = os.getenv("MINIMAX_API_KEY", "")
+            elif provider in ["moonshot", "kimi"]:
+                api_key = os.getenv("MOONSHOT_API_KEY", "")
+            elif provider in ["qwen", "dashscope"]:
+                api_key = os.getenv("DASHSCOPE_API_KEY", os.getenv("QWEN_API_KEY", ""))
+            elif provider == "9router":
+                api_key = os.getenv("NINEROUTER_API_KEY", os.getenv("ROUTER_API_KEY", ""))
 
     if not base_url:
         base_url = {
@@ -261,9 +261,14 @@ async def _generate_with_gemini(
         return None
     for m in unique_models:
         try:
-            cfg_kw = dict(
+            cfg_kw: dict[str, Any] = dict(
                 system_instruction=final_instruction,
-                temperature=0.7,
+                # Gemini 3.x: None -> default server 1.0 (rekomendasi Google).
+                temperature=(
+                    None
+                    if str(m).lower().removeprefix("models/").startswith("gemini-3")
+                    else 0.7
+                ),
                 max_output_tokens=max_tokens,
             )
             if thinking_budget is not None:

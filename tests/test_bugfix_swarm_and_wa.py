@@ -5,18 +5,19 @@
 4. wa_get_incoming noise filtering (@broadcast, @newsletter)
 """
 
-import asyncio
 import json
 import os
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from alfa.core.runtime_ctx import current_user_prompt_var, get_current_user_prompt
-from alfa.tools.system.management import conduct_ai_meeting
-from alfa.tools.system.integrations import wa_get_incoming
-from alfa.swarm import workspace_hygiene
-from alfa.bot.wa_digest import build_digest_text, summarize_records
+
 from alfa.bot.pipeline.tool_config import prepare_tools_and_configs
+from alfa.bot.wa_digest import build_digest_text
+from alfa.core.runtime_ctx import current_user_prompt_var
+from alfa.swarm import workspace_hygiene
+from alfa.tools.system.integrations import wa_get_incoming
+from alfa.tools.system.management import conduct_ai_meeting
 
 
 @pytest.fixture
@@ -163,8 +164,9 @@ def test_get_agent_api_client_provides_default_base_url():
 
 @pytest.mark.asyncio
 async def test_multi_document_batching_executes_single_report():
-    from alfa.bot.handlers import _execute_document_batch
     from unittest.mock import AsyncMock
+
+    from alfa.bot.handlers import _execute_document_batch
 
     mock_docs = [
         {"file_name": "laporan_a.pdf", "mime_type": "application/pdf", "txt_ctx": "Data Omzet: Rp 50jt", "part": None},
@@ -213,7 +215,6 @@ def test_permission_gate_dangerous_only_policy(monkeypatch):
     dan tool MEDIUM/LOW lainnya di-auto-approve tanpa merepotkan user satu per satu.
     """
     from alfa.core.perm import gate as g
-    from alfa.core.perm.constants import RiskTier
 
     # 1. Saat PERMISSION_GATE_DANGEROUS_ONLY aktif (kondisi default di bot)
     monkeypatch.setattr(g, "PERMISSION_GATE_DANGEROUS_ONLY", True)
@@ -288,8 +289,9 @@ def test_permission_gate_strict_mode_when_dangerous_only_false(monkeypatch):
 def test_generate_excel_spreadsheet_dict_rows(tmp_path, monkeypatch):
     """Memverifikasi generate_excel_spreadsheet menerima rows_json bertipe list of dicts tanpa error openpyxl."""
     import openpyxl
-    from alfa.tools.media.documents import generate_excel_spreadsheet
+
     import alfa.tools.media.documents as doc_mod
+    from alfa.tools.media.documents import generate_excel_spreadsheet
 
     monkeypatch.setattr(doc_mod, "SANDBOX_DIR", str(tmp_path))
 
@@ -319,7 +321,7 @@ def test_generate_excel_spreadsheet_dict_rows(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_handle_doc_action_callback_multi_doc_consolidated_prompt(monkeypatch):
     """Memverifikasi handle_doc_action_callback menghasilkan prompt konsolidasi 1 file Excel untuk batch multi-dokumen."""
-    from alfa.bot.handlers import handle_doc_action_callback, _RECENT_DOCS
+    from alfa.bot.handlers import _RECENT_DOCS, handle_doc_action_callback
 
     chat_id = 998877
     _RECENT_DOCS[chat_id] = {

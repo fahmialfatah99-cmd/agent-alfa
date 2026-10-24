@@ -202,7 +202,7 @@ async def _execute_agents_parallel(
                         pass
                 return True
             wave = participants[wave_start : wave_start + _wave_size]
-            if _cancel_requested():
+            if _cancel_requested(session_id):
                 log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_start // _wave_size + 1}.")
                 if _CHECKPOINT_AVAILABLE:
                     try:
@@ -275,7 +275,7 @@ async def _execute_agents_parallel(
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
-                if _cancel_requested():
+                if _cancel_requested(session_id):
                     log_live("CANCEL", "⏹ Eksekusi dihentikan pengguna setelah langkah gelombang selesai.")
                     return True
         return False
@@ -303,7 +303,7 @@ async def _execute_agents_parallel(
 
     wave_num = 1
     while queue:
-        if _cancel_requested():
+        if _cancel_requested(session_id):
             log_live("CANCEL", f"⏹ Eksekusi dihentikan pengguna sebelum gelombang {wave_num}.")
             if _CHECKPOINT_AVAILABLE:
                 try:
