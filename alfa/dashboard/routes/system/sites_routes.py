@@ -44,3 +44,15 @@ async def api_budget_today() -> dict[str, Any]:
         return get_budget_report()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/budget/reset")
+async def api_budget_reset() -> dict[str, Any]:
+    try:
+        from alfa.core.rate_limiter import reset_user_usage_today
+
+        deleted = reset_user_usage_today()
+        return {"status": "ok", "deleted": deleted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+

@@ -183,6 +183,10 @@ def create_user(
 
     from alfa.core import database as db
 
+    # Idempoten (guard _auth_db_initialized): jalur CLI/test bisa memanggil
+    # create_user tanpa melewati app factory, jadi tabel harus dijamin sudah ada.
+    init_auth_db()
+
     if len(username) < 3:
         raise ValueError("Username minimal 3 karakter")
     if len(password) < 6:
@@ -559,6 +563,7 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/api/auth/register",
             "/api/mcp/oauth/callback",
             "/api/v1/webhook",
+            "/api/wa/parse-material",
             # Passkey LOGIN ceremony — harus publik, karena user belum punya
             # session saat memulai autentikasi.
             "/api/auth/webauthn/login/options",

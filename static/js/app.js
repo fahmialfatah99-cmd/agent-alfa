@@ -1305,59 +1305,79 @@ export async function fetchWaQr(isManual = false) {
         if (data.status === 'READY' || data.status === 'AUTHENTICATED' || data.is_ready) {
             badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold';
             badge.innerText = 'ONLINE (Logged In)';
-            container.innerHTML = `
-                <div class="p-5 flex flex-col items-center space-y-2">
-                    <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-glow-emerald">
-                        <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+            if (container.dataset.status !== 'READY') {
+                container.dataset.status = 'READY';
+                container.innerHTML = `
+                    <div class="p-5 flex flex-col items-center space-y-2">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xl shadow-glow-emerald">
+                            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-white">Akun WhatsApp Berhasil Terhubung!</h4>
+                        <p class="text-xs text-slate-400 max-w-md">Bot WhatsApp aktif memantau pesan dan mengeksekusi integrasi Google Sheets 24/7.</p>
                     </div>
-                    <h4 class="text-sm font-bold text-white">Akun WhatsApp Berhasil Terhubung!</h4>
-                    <p class="text-xs text-slate-400 max-w-md">Bot WhatsApp aktif memantau pesan dan mengeksekusi integrasi Google Sheets 24/7.</p>
-                </div>
-            `;
+                `;
+                lucide.createIcons();
+            }
         } else if (data.status === 'QR_READY' || data.qr_data_url) {
             badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold pulse-dot';
             badge.innerText = 'PERLU SCAN QR (Waiting)';
-            container.innerHTML = `
-                <div class="flex flex-col items-center space-y-3">
-                    <div class="p-3 bg-white rounded-2xl shadow-2xl inline-block border-4 border-emerald-400">
-                        <img src="${data.qr_data_url}" alt="WhatsApp QR Code" class="w-64 h-64 object-contain rounded-lg">
+            const existingImg = container.querySelector('#wa-qr-img');
+            if (existingImg && data.qr_data_url) {
+                if (existingImg.src !== data.qr_data_url) {
+                    existingImg.src = data.qr_data_url;
+                }
+            } else {
+                container.dataset.status = 'QR_READY';
+                container.innerHTML = `
+                    <div class="flex flex-col items-center space-y-3">
+                        <div class="p-3 bg-white rounded-2xl shadow-2xl inline-block border-4 border-emerald-400">
+                            <img id="wa-qr-img" src="${data.qr_data_url || ''}" alt="WhatsApp QR Code" class="w-64 h-64 object-contain rounded-lg">
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-bold text-amber-400">Silakan Scan QR Code di Atas</h4>
+                            <p class="text-xs text-slate-400">Buka WhatsApp di HP > Menu Perangkat Tertaut > Tautkan Perangkat</p>
+                            <p class="text-[11px] text-emerald-400 font-mono">⚡ Auto-refresh aktif (sinkron otomatis realtime)</p>
+                        </div>
                     </div>
-                    <div class="space-y-1">
-                        <h4 class="text-sm font-bold text-amber-400">Silakan Scan QR Code di Atas</h4>
-                        <p class="text-xs text-slate-400">Buka WhatsApp di HP > Menu Perangkat Tertaut > Tautkan Perangkat</p>
-                        <p class="text-[11px] text-slate-500 font-mono">QR refresh otomatis setiap 20 detik.</p>
-                    </div>
-                </div>
-            `;
+                `;
+                lucide.createIcons();
+            }
         } else if (data.status === 'INITIALIZING' || data.status === 'AUTHENTICATING') {
             badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold pulse-dot';
             badge.innerText = 'MENGHUBUNGKAN (Loading)';
-            container.innerHTML = `
-                <div class="p-5 flex flex-col items-center space-y-3">
-                    <div class="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl animate-pulse">
-                        <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
+            if (container.dataset.status !== 'INITIALIZING') {
+                container.dataset.status = 'INITIALIZING';
+                container.innerHTML = `
+                    <div class="p-5 flex flex-col items-center space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl animate-pulse">
+                            <i data-lucide="loader" class="w-6 h-6 animate-spin"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-white">Menghubungkan ke WhatsApp Web...</h4>
+                        <p class="text-xs text-slate-400 max-w-md">Memuat sesi tersimpan dan sinkronisasi enkripsi chat. Mohon tunggu beberapa detik...</p>
                     </div>
-                    <h4 class="text-sm font-bold text-white">Menghubungkan ke WhatsApp Web...</h4>
-                    <p class="text-xs text-slate-400 max-w-md">Memuat sesi tersimpan dan sinkronisasi enkripsi chat. Mohon tunggu beberapa detik...</p>
-                </div>
-            `;
+                `;
+                lucide.createIcons();
+            }
         } else {
             badge.className = 'px-3 py-1 text-xs font-mono rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold';
             badge.innerText = `${data.status} (Disconnected)`;
-            container.innerHTML = `
-                <div class="p-5 flex flex-col items-center space-y-3">
-                    <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xl">
-                        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            if (container.dataset.status !== data.status) {
+                container.dataset.status = data.status;
+                container.innerHTML = `
+                    <div class="p-5 flex flex-col items-center space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-xl">
+                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-white">Sesi WhatsApp Terputus / Belum Siap</h4>
+                        <p class="text-xs text-slate-400 max-w-md">Klik tombol di bawah untuk membuat QR code baru atau cek service.</p>
+                        <button onclick="controlService('wa-sheets-bot.service', 'restart')" class="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all">
+                            🔄 Restart Service & Buat QR Code
+                        </button>
                     </div>
-                    <h4 class="text-sm font-bold text-white">Sesi WhatsApp Terputus / Belum Siap</h4>
-                    <p class="text-xs text-slate-400 max-w-md">Klik tombol di bawah untuk membuat QR code baru atau cek service.</p>
-                    <button onclick="controlService('wa-sheets-bot.service', 'restart')" class="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all">
-                        🔄 Restart Service & Buat QR Code
-                    </button>
-                </div>
-            `;
+                `;
+                lucide.createIcons();
+            }
         }
-        lucide.createIcons();
         if (isManual) showToast(`Status WhatsApp: ${data.status}`, 'info');
     } catch (err) {
         console.error('WA QR fetch error:', err);
@@ -1460,9 +1480,59 @@ export async function fetchWaReports(isManual = false) {
             renderReportsTable();
             if (isManual) showToast('Data laporan WhatsApp Google Sheets dimuat!', 'success');
         }
+
+        try {
+            const sidRes = await fetch('/api/wa/spreadsheet-id');
+            const sidData = await sidRes.json();
+            if (sidData.spreadsheet_id) {
+                const sheetBtn = document.getElementById('wa-sheet-btn');
+                if (sheetBtn) {
+                    sheetBtn.href = `https://docs.google.com/spreadsheets/d/${sidData.spreadsheet_id}/edit`;
+                }
+            }
+        } catch (_) {}
     } catch (err) {
         console.error('Error fetching WA reports:', err);
         if (isManual) showToast(`Gagal memuat laporan: ${err.message}`, 'error');
+    }
+}
+
+export async function promptChangeSpreadsheet() {
+    let currentId = '';
+    try {
+        const curRes = await fetch('/api/wa/spreadsheet-id');
+        const curData = await curRes.json();
+        currentId = curData.spreadsheet_id || '';
+    } catch (_) {}
+
+    const input = prompt(
+        "Masukkan Link URL atau ID Google Spreadsheet Baru:\n\n" +
+        "PENTING: Pastikan Spreadsheet baru sudah di-SHARE ke email Service Account:\n" +
+        "ais-gemini-key-557267392dac418@30020894332.iam.gserviceaccount.com (sebagai Editor)",
+        currentId
+    );
+    if (!input || input.trim() === '' || input.trim() === currentId) return;
+
+    showToast('Sedang memverifikasi & menghubungkan Spreadsheet baru...', 'info');
+    try {
+        const res = await fetch('/api/wa/spreadsheet-id', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spreadsheet_id: input.trim() })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(`Spreadsheet baru terhubung: ${data.spreadsheet_title || data.spreadsheet_id}`, 'success');
+            const sheetBtn = document.getElementById('wa-sheet-btn');
+            if (sheetBtn) {
+                sheetBtn.href = `https://docs.google.com/spreadsheets/d/${data.spreadsheet_id}/edit`;
+            }
+            fetchWaReports(true);
+        } else {
+            showToast(`Peringatan: ${data.message || data.error}`, 'error');
+        }
+    } catch (err) {
+        showToast(`Koneksi gagal: ${err.message}`, 'error');
     }
 }
 
@@ -3065,12 +3135,14 @@ export function addWaFormat() {
     updateWaPreview();
 }
 
-export function delWaFormat(i) {
-    waMarkDirty('formats');
-    if (!confirm(`Hapus format "${_waFormats[i]?.name}"? (Belum tersimpan sampai klik Simpan)`)) return;
+export async function delWaFormat(i) {
+    const fmt = _waFormats[i];
+    if (!fmt) return;
+    if (!confirm(`Hapus format "${fmt.name}"?`)) return;
     _waFormats.splice(i, 1);
     renderWaFormats();
     updateWaPreview();
+    await saveWaFormats(false);
 }
 
 export function addWaCol(i) {
@@ -3219,11 +3291,13 @@ export function addWaRule() {
     _waRules.push({ name, enabled: true, types: ['pdf'], keyword: '', folder: 'Dokumen', naming: '{date}_{file}' });
     renderWaRules();
 }
-export function delWaRule(i) {
-    waMarkDirty('rules');
-    if (!confirm(`Hapus aturan "${_waRules[i]?.name}"?`)) return;
+export async function delWaRule(i) {
+    const r = _waRules[i];
+    if (!r) return;
+    if (!confirm(`Hapus aturan "${r.name}"?`)) return;
     _waRules.splice(i, 1);
     renderWaRules();
+    await saveWaMediaRules(false);
 }
 
 export async function saveWaMediaRules(silent = false) {
@@ -3732,6 +3806,7 @@ window.openMediaPreviewModal = openMediaPreviewModal;
 window.openSuperpowerDetailModal = openSuperpowerDetailModal;
 window.openVectorIngestModal = openVectorIngestModal;
 window.playCurrentModalMeetingAnimation = playCurrentModalMeetingAnimation;
+window.promptChangeSpreadsheet = promptChangeSpreadsheet;
 window.removeAntigravityAccount = removeAntigravityAccount;
 window.renderReportsTable = renderReportsTable;
 window.replaySpecificMeeting = replaySpecificMeeting;

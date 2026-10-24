@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from alfa.dashboard.routes.system.gdrive import router as gdrive_router
 from alfa.dashboard.routes.system.keys_models import router as keys_models_router
+from alfa.dashboard.routes.system.map_viewer import router as map_viewer_router
 from alfa.dashboard.routes.system.mcp_routes import router as mcp_router
 from alfa.dashboard.routes.system.pipelines_memory import (
     router as pipelines_memory_router,
@@ -43,6 +44,7 @@ _sub_routers = [
     whatsapp_router,
     gdrive_router,
     keys_models_router,
+    map_viewer_router,
 ]
 for _sub in _sub_routers:
     system_router.routes.extend(_sub.routes)

@@ -326,8 +326,8 @@ async def get_service_logs(request: Request, service: str = "telegram-ai-bot.ser
 async def clean_ram(request: Request):
     """Trigger Python garbage collection and OS malloc trim for optimal memory health."""
     require_admin(request)
-    import gc
     import ctypes
+    import gc
 
     collected = gc.collect()
     try:

@@ -13,6 +13,7 @@ from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
 
+
 # ==================== WHATSAPP SUITE ====================
 
 WA_BOT_FORMATS_FILE = os.path.expanduser("~/wa-sheets-bot/formats.json")
@@ -107,31 +108,69 @@ def _gdrive_ensure_subfolder(folder_name: str) -> str:
     service = tools._get_gdrive_service()
     q = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     if parent:
-        q += f" and '{parent}' in parents"
-    found = (
-        service.files()
-        .list(
-            q=q,
-            fields="files(id, name)",
-            spaces="drive",
-            supportsAllDrives=True,
-            pageSize=5,
+        q_parent = q + f" and '{parent}' in parents"
+    else:
+        q_parent = q
+
+    files = []
+    try:
+        found = (
+            service.files()
+            .list(
+                q=q_parent,
+                fields="files(id, name)",
+                spaces="drive",
+                supportsAllDrives=True,
+                pageSize=5,
+            )
+            .execute()
         )
-        .execute()
-    )
-    files = found.get("files", [])
+        files = found.get("files", [])
+    except Exception:
+        # Fallback jika parent folder ID 404 / tidak valid
+        if parent:
+            try:
+                found = (
+                    service.files()
+                    .list(
+                        q=q,
+                        fields="files(id, name)",
+                        spaces="drive",
+                        supportsAllDrives=True,
+                        pageSize=5,
+                    )
+                    .execute()
+                )
+                files = found.get("files", [])
+            except Exception:
+                files = []
+        else:
+            files = []
+
     if files:
         return str(files[0]["id"])
+
     meta: dict[str, Any] = {
         "name": folder_name,
         "mimeType": "application/vnd.google-apps.folder",
     }
     if parent:
         meta["parents"] = [parent]
-    created = (
-        service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
-    )
-    return str(created["id"])
+
+    try:
+        created = (
+            service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+        )
+        return str(created["id"])
+    except Exception as e:
+        # Jika create gagal karena parent 404, coba buat di root Drive
+        if parent and "notFound" in str(e):
+            meta.pop("parents", None)
+            created = (
+                service.files().create(body=meta, fields="id", supportsAllDrives=True).execute()
+            )
+            return str(created["id"])
+        raise
 
 
 def _log_wa_drive_upload(entry: dict[str, Any]):
@@ -256,14 +295,51 @@ async def get_wa_reports():
         except (OSError, ValueError, AttributeError):
             pass
 
+    from alfa.integrations import google_sheets
+
     return {
         "status": "success",
-        "spreadsheet_id": "1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ",
+        "spreadsheet_id": google_sheets.get_spreadsheet_id(),
         "formats": formats_data,
         "total_recorded": len(reports_data),
         "pending_queue_count": 0,
         "reports": reports_data,
     }
+
+
+@router.post("/api/wa/spreadsheet-id", dependencies=[Depends(require_admin)])
+async def set_wa_spreadsheet_id(payload: dict[str, Any]):
+    """Set and validate new Google Sheets spreadsheet ID."""
+    sid = str(payload.get("spreadsheet_id", "")).strip()
+    if not sid:
+        return {"status": "error", "message": "Field 'spreadsheet_id' wajib diisi."}
+    from alfa.integrations import google_sheets
+    return google_sheets.set_spreadsheet_id(sid)
+
+
+@router.post("/api/wa/parse-material")
+async def parse_material_from_wa(payload: dict[str, Any]):
+    """Parse raw material WhatsApp messages using AI and append structured rows to Google Sheets."""
+    body = str(payload.get("body", "")).strip()
+    sender = str(payload.get("sender", "WhatsApp")).strip()
+    group = str(payload.get("group", "Grup WhatsApp")).strip()
+    timestamp = str(payload.get("timestamp", "")).strip()
+    tab_name = str(payload.get("tab_name", "")).strip()
+
+    if not body:
+        return {"status": "error", "message": "Body pesan kosong."}
+
+    from alfa.integrations import google_sheets
+    context = f"Pengirim: {sender}, Grup: {group}, Waktu: {timestamp}"
+    res = google_sheets.parse_and_record_material_text(
+        text=body,
+        source=f"WA: {group}",
+        context=context,
+        tab_name=tab_name,
+        sender=sender,
+        group=group,
+    )
+    return res
 
 
 @router.get("/api/wa/media-rules")

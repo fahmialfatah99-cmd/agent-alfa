@@ -1345,9 +1345,12 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                     </div>
                     <div class="flex items-center gap-3">
                         <span id="reports-total-badge" class="px-2.5 py-1 text-xs font-mono rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold">0 Laporan</span>
-                        <a href="https://docs.google.com/spreadsheets/d/1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ/edit" target="_blank" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all">
+                        <a id="wa-sheet-btn" href="https://docs.google.com/spreadsheets/d/1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ/edit" target="_blank" class="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all">
                             <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Buka Google Sheets
                         </a>
+                        <button onclick="promptChangeSpreadsheet()" class="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all" title="Ganti ID atau URL Google Sheets">
+                            <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Ganti Sheet
+                        </button>
                         <button onclick="fetchWaReports(true)" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300" title="Refresh Laporan">
                             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         </button>
