@@ -16,7 +16,12 @@ import json
 import logging
 import os
 import re
-import xml.etree.ElementTree as ET
+
+try:
+    # defusedxml: guard XML serangan (XXE/billion-laughs) utk berkas KML untrusted
+    from defusedxml.ElementTree import fromstring as _xml_fromstring
+except ImportError:  # fallback stdlib bila dependency ekstra belum terpasang
+    from xml.etree.ElementTree import fromstring as _xml_fromstring
 import zipfile
 from datetime import datetime
 from typing import Any
@@ -936,7 +941,7 @@ def render_cluster_kml_map(
 
         # Parse XML (stripping namespaces for cleaner navigation)
         raw_xml = re.sub(r'xmlns(:\w+)?="[^"]+"', '', kml_bytes.decode("utf-8", errors="ignore"))
-        root = ET.fromstring(raw_xml)
+        root = _xml_fromstring(raw_xml)
 
         markers: list[dict[str, Any]] = []
         polylines: list[dict[str, Any]] = []

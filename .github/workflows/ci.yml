@@ -133,7 +133,8 @@ jobs:
             "pytest==9.1.1" "pytest-cov==7.1.0" "pytest-asyncio==1.4.0" \
             cryptography numpy pydantic click rich pyyaml jinja2 \
             aiofiles websockets pygments ddgs \
-            python-multipart requests webauthn
+            python-multipart requests webauthn openpyxl pandas \
+            bs4 defusedxml
       - name: Jalankan seluruh suite dengan coverage (threshold gate)
         # Threshold dinaikkan dari 44% ke 50% (terukur 51.62% per 2026-10-19).
         run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=50
