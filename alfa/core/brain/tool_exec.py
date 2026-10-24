@@ -4,6 +4,7 @@ import concurrent.futures
 import inspect
 import json
 import logging
+import os
 import re
 import threading
 import time
@@ -11,6 +12,7 @@ from typing import Any
 
 from alfa.core.brain.config import MAX_TOOL_OUTPUT, TOOL_EXEC_TIMEOUT
 from alfa.core.brain.tool_schema import _find_tool
+from alfa.core.tuning import truncate_middle
 
 logger = logging.getLogger("MainBrain")
 
@@ -30,8 +32,9 @@ def _get_exec_pool() -> concurrent.futures.ThreadPoolExecutor:
     global _EXEC_POOL
     with _EXEC_POOL_LOCK:
         if _EXEC_POOL is None:
+            workers = max(8, min(32, int(os.getenv("ALFA_TOOL_POOL_WORKERS", "16"))))
             _EXEC_POOL = concurrent.futures.ThreadPoolExecutor(
-                max_workers=4, thread_name_prefix="alfa-tool"
+                max_workers=workers, thread_name_prefix="alfa-tool"
             )
         return _EXEC_POOL
 
@@ -154,7 +157,16 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         try:
             return fn(**call_args)
         except Exception as e:
-            return f"[ERROR tool] {e}"
+            hint = ""
+            try:
+                from alfa.tools.system.constants import generate_self_heal_hint
+
+                h = generate_self_heal_hint(name, str(e))
+                if h:
+                    hint = f"\n{h}"
+            except Exception:
+                pass
+            return f"[ERROR tool] {e}{hint}"
 
     _t0 = time.perf_counter()
     try:
@@ -176,6 +188,20 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                 f"({TOOL_EXEC_TIMEOUT} detik) dan dibatalkan."
             )
         _ok = not str(raw).startswith("[ERROR")
+        if _ok:
+            try:
+                from alfa.core.runtime_ctx import (
+                    record_executed_tool,
+                    record_turn_artifact,
+                )
+                record_executed_tool(name)
+                if isinstance(raw, dict):
+                    for k in ("file_path", "output_path", "zip_path", "target_path", "image_path", "pdf_path"):
+                        v = raw.get(k)
+                        if isinstance(v, str) and os.path.exists(v):
+                            record_turn_artifact(v)
+            except Exception:
+                pass
         try:
             from alfa.core.metrics import note_tool_call
 
@@ -198,6 +224,16 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     if not isinstance(raw, str):
         raw = json.dumps(raw, ensure_ascii=False, default=str)
 
+    if raw.startswith("[ERROR") and "[SELF_HEAL_HINT]" not in raw:
+        try:
+            from alfa.tools.system.constants import generate_self_heal_hint
+
+            h = generate_self_heal_hint(name, raw)
+            if h:
+                raw = f"{raw}\n{h}"
+        except Exception:
+            pass
+
     if _span:
         _status = "error" if raw.startswith("[ERROR") else "success"
         _span.finish(status=_status)
@@ -212,7 +248,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
     except (ImportError, AttributeError, OSError, TypeError):
         pass
 
-    return str(raw)[:MAX_TOOL_OUTPUT]
+    return truncate_middle(str(raw), MAX_TOOL_OUTPUT)
 
 
 # ── Kompaksi konteks agentic loop ────────────────────────────────────────────

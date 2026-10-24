@@ -3,12 +3,14 @@
 import asyncio
 import json
 import logging
+import os
 from typing import Any
 
 from alfa.core.brain.config import MAX_ITERATIONS, TOOL_EXEC_TIMEOUT
 from alfa.core.brain.convo import _compact_convo
 from alfa.core.brain.tool_exec import _execute_tool
 from alfa.core.brain.tool_schema import build_openai_tools
+from alfa.core.tuning import tool_temperature
 
 logger = logging.getLogger("MainBrain")
 
@@ -21,6 +23,53 @@ _NO_GATE_DENIAL = (
     "yang tersambung pada jalur ini (deny-by-default). Minta persetujuan "
     "pemilik, atau jalankan lewat jalur yang menyambungkan gate."
 )
+
+
+def _with_temperature(payload: dict[str, Any], model: str) -> dict[str, Any]:
+    """Pasang temperature hanya bila perlu (Gemini 3.x → default server)."""
+    temp = tool_temperature(model)
+    if temp is not None:
+        payload["temperature"] = temp
+    return payload
+
+
+def _parallel_tools_allowed(approval_gate) -> bool:
+    """Paralel hanya bila tidak ada prompt approval interaktif.
+
+    Approval interaktif (Telegram) harus berurutan agar pemilik tidak
+    dibanjiri prompt bersamaan. ``ALFA_PARALLEL_TOOLS=false`` mematikan.
+    """
+    if os.getenv("ALFA_PARALLEL_TOOLS", "true").strip().lower() in ("false", "0", "no"):
+        return False
+    try:
+        from alfa.core.perm.gate import gate_is_interactive
+    except ImportError:
+        return False
+    return approval_gate is not None and not gate_is_interactive(approval_gate)
+
+
+async def _run_tool_calls(approval_gate, tool_calls: list[dict]) -> list[str]:
+    """Eksekusi semua tool call satu giliran; urutan hasil = urutan input."""
+
+    async def _one(tc: dict) -> str:
+        fn = tc.get("function", {}) or {}
+        name = fn.get("name", "")
+        out = await _resolve_tool_outcome(approval_gate, name, fn.get("arguments", "{}"))
+        logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
+        return out
+
+    if len(tool_calls) > 1 and _parallel_tools_allowed(approval_gate):
+        results = await asyncio.gather(
+            *(_one(tc) for tc in tool_calls), return_exceptions=True
+        )
+        for r in results:
+            if isinstance(r, asyncio.CancelledError):
+                raise r
+        return [
+            f"[ERROR eksekusi] {r}" if isinstance(r, BaseException) else str(r)
+            for r in results
+        ]
+    return [await _one(tc) for tc in tool_calls]
 
 
 async def _resolve_tool_outcome(
@@ -280,17 +329,21 @@ async def run_openai_agentic_turn(
             "Authorization": f"Bearer {api_key.strip()}",
             "Content-Type": "application/json",
         }
-        payload_base = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.75,
-            "stream": False,
-        }
+        payload_base = _with_temperature(
+            {
+                "model": model,
+                "messages": messages,
+                "stream": False,
+            },
+            model,
+        )
 
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout, connect=15.0)
         ) as client:
             convo = list(messages)
+            executed_signatures: list[tuple[str, str]] = []
+            repetition_count = 0
             for _iteration in range(MAX_ITERATIONS):
                 _compact_convo(convo)
                 payload = dict(payload_base, messages=convo)
@@ -302,6 +355,20 @@ async def run_openai_agentic_turn(
                     logger.error(
                         f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}"
                     )
+                    if res.status_code in (429, 503):
+                        try:
+                            from alfa.core.brain.circuit_breaker import (
+                                mark_model_exhausted,
+                                parse_retry_delay,
+                            )
+                            delay = parse_retry_delay(err_text)
+                            mark_model_exhausted(
+                                model,
+                                cooldown_seconds=delay,
+                                reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
+                            )
+                        except Exception:
+                            pass
                     if raw_errors:
                         return None  # pemanggil swarm: teruskan ke fallback provider
                     if res.status_code == 402:
@@ -337,6 +404,30 @@ async def run_openai_agentic_turn(
                     content = (msg.get("content") or "").strip()
                     return content or "(provider tidak mengirim teks)"
 
+                # Ensure non-empty tool_call IDs for strict providers
+                for i_tc, tc in enumerate(tool_calls):
+                    if not tc.get("id"):
+                        tc["id"] = f"call_{_iteration}_{i_tc}"
+
+                # Detect repeated tool-calling loops
+                turn_signatures = [
+                    (
+                        tc.get("function", {}).get("name", ""),
+                        tc.get("function", {}).get("arguments", ""),
+                    )
+                    for tc in tool_calls
+                ]
+                if turn_signatures and all(sig in executed_signatures for sig in turn_signatures):
+                    repetition_count += 1
+                    if repetition_count >= 2:
+                        logger.warning(
+                            f"[MainBrain] model terjebak perulangan tool call yang sama ({turn_signatures[:1]}) -> hentikan loop untuk wrap-up."
+                        )
+                        break
+                else:
+                    repetition_count = 0
+                executed_signatures.extend(turn_signatures)
+
                 convo.append(
                     {
                         "role": "assistant",
@@ -344,7 +435,10 @@ async def run_openai_agentic_turn(
                         "tool_calls": tool_calls,
                     }
                 )
-                from alfa.swarm.workspace_hygiene import _cancel_requested, current_session_id
+                from alfa.swarm.workspace_hygiene import (
+                    _cancel_requested,
+                    current_session_id,
+                )
 
                 sess_id = current_session_id()
                 if sess_id and _cancel_requested(sess_id):
@@ -353,16 +447,12 @@ async def run_openai_agentic_turn(
                     )
                     return "⏹ Misi dihentikan atas permintaan pengguna (/cancel)."
 
-                for tc in tool_calls:
-                    fn = tc.get("function", {})
-                    name = fn.get("name", "")
-                    raw_args = fn.get("arguments", "{}")
-                    out = await _resolve_tool_outcome(approval_gate, name, raw_args)
-                    logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
+                outs = await _run_tool_calls(approval_gate, tool_calls)
+                for tc, out in zip(tool_calls, outs, strict=True):
                     convo.append(
                         {
                             "role": "tool",
-                            "tool_call_id": tc.get("id", ""),
+                            "tool_call_id": tc["id"],
                             "content": out,
                         }
                     )
@@ -615,12 +705,14 @@ async def run_openai_agentic_turn_streaming(
             "Authorization": f"Bearer {api_key.strip()}",
             "Content-Type": "application/json",
         }
-        payload_base = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.75,
-            "stream": True,
-        }
+        payload_base = _with_temperature(
+            {
+                "model": model,
+                "messages": messages,
+                "stream": True,
+            },
+            model,
+        )
 
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(180.0, connect=15.0)
@@ -642,6 +734,20 @@ async def run_openai_agentic_turn_streaming(
                             logger.error(
                                 f"[MainBrain:{provider}] HTTP {res.status_code}: {err_text}"
                             )
+                            if res.status_code in (429, 503):
+                                try:
+                                    from alfa.core.brain.circuit_breaker import (
+                                        mark_model_exhausted,
+                                        parse_retry_delay,
+                                    )
+                                    delay = parse_retry_delay(err_text)
+                                    mark_model_exhausted(
+                                        model,
+                                        cooldown_seconds=delay,
+                                        reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
+                                    )
+                                except Exception:
+                                    pass
                             # fallback if streaming completely fails at connection
                             raise Exception(f"HTTP {res.status_code}")
 
@@ -694,25 +800,28 @@ async def run_openai_agentic_turn_streaming(
                     logger.warning(
                         f"[MainBrain] streaming err: {stream_err!r}, falling back to non-streaming"
                     )
-                    # Fallback to non-streaming
-                    from alfa.core.brain.agentic import run_openai_agentic_turn
+                    # Hanya fallback jika gagal di iterasi awal sebelum output/tool dijalankan
+                    if _iteration == 0 and not current_text:
+                        from alfa.core.brain.agentic import run_openai_agentic_turn
 
-                    fallback_res = await run_openai_agentic_turn(
-                        provider,
-                        base_url,
-                        api_key,
-                        model,
-                        system_instruction,
-                        user_text,
-                        history,
-                        key_id,
-                        key_label,
-                        context,
-                        tools_schema,
-                        approval_gate,
-                    )
-                    if fallback_res:
-                        yield fallback_res
+                        fallback_res = await run_openai_agentic_turn(
+                            provider,
+                            base_url,
+                            api_key,
+                            model,
+                            system_instruction,
+                            user_text,
+                            history,
+                            key_id,
+                            key_label,
+                            context,
+                            tools_schema,
+                            approval_gate,
+                        )
+                        if fallback_res:
+                            yield fallback_res
+                        return
+                    yield f"\n\n[Koneksi streaming terputus: {stream_err}]"
                     return
 
                 # After stream finishes, check if we had tool calls
@@ -722,6 +831,10 @@ async def run_openai_agentic_turn_streaming(
                     return  # Done
 
                 tool_calls = list(tool_calls_buffer.values())
+                for i_tc, tc in enumerate(tool_calls):
+                    if not tc.get("id"):
+                        tc["id"] = f"call_{_iteration}_{i_tc}"
+
                 convo.append(
                     {
                         "role": "assistant",
@@ -730,7 +843,10 @@ async def run_openai_agentic_turn_streaming(
                     }
                 )
 
-                from alfa.swarm.workspace_hygiene import _cancel_requested, current_session_id
+                from alfa.swarm.workspace_hygiene import (
+                    _cancel_requested,
+                    current_session_id,
+                )
 
                 sess_id = current_session_id()
                 if sess_id and _cancel_requested(sess_id):
@@ -740,16 +856,12 @@ async def run_openai_agentic_turn_streaming(
                     yield "⏹ Misi dihentikan atas permintaan pengguna (/cancel)."
                     return
 
-                for tc in tool_calls:
-                    fn = tc.get("function", {})
-                    name = fn.get("name", "")
-                    raw_args = fn.get("arguments", "{}")
-                    out = await _resolve_tool_outcome(approval_gate, name, raw_args)
-                    logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
+                outs = await _run_tool_calls(approval_gate, tool_calls)
+                for tc, out in zip(tool_calls, outs, strict=True):
                     convo.append(
                         {
                             "role": "tool",
-                            "tool_call_id": tc.get("id", ""),
+                            "tool_call_id": tc["id"],
                             "content": out,
                         }
                     )

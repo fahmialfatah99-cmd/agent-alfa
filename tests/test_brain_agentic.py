@@ -437,3 +437,52 @@ class TestRunAgenticTurnStreaming:
         ):
             out.append(c)
         assert "fallback works" in "".join(out)
+
+
+class TestCircuitBreakerAndAntiLoop:
+    @pytest.mark.asyncio
+    async def test_openai_turn_notifies_circuit_breaker_on_429(self, fake_httpx, monkeypatch):
+        from alfa.core.brain import agentic as ag
+        from alfa.core.brain import circuit_breaker as cb
+
+        cb.reset_circuit_breaker()
+        fake_httpx.responses = [_FakeResponse(429, {"error": "rate limit exceeded"})]
+        res = await ag.run_openai_agentic_turn(
+            provider="openai",
+            base_url="http://x/v1",
+            api_key="k",
+            model="test-exhausted-model",
+            system_instruction="s",
+            user_text="hi",
+        )
+        assert res is not None
+        assert "Rate Limit" in res
+        # Circuit breaker should know model is cooling down
+        assert not cb.is_model_available("test-exhausted-model")
+        cb.reset_circuit_breaker()
+
+    @pytest.mark.asyncio
+    async def test_openai_turn_anti_repetition_loop(self, fake_httpx, monkeypatch):
+        from alfa.core.brain import agentic as ag
+
+        monkeypatch.setattr(ag, "_execute_tool", lambda n, a: "tool result")
+        # Model returns the same tool call 3 times in a row
+        fake_httpx.responses = [
+            _tool_response("get_system_stats", {}),
+            _tool_response("get_system_stats", {}),
+            _tool_response("get_system_stats", {}),
+            _text_response("wrap-up final summary"),
+        ]
+        res = await ag.run_openai_agentic_turn(
+            provider="openai",
+            base_url="http://x/v1",
+            api_key="k",
+            model="m",
+            system_instruction="s",
+            user_text="cek status",
+            approval_gate=_allow_gate,
+        )
+        # Should have stopped the loop and requested wrap-up without running all iterations
+        assert res is not None
+        assert "wrap-up final summary" in res
+

@@ -426,6 +426,11 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
 
                 tool_calls = filtered_calls
 
+                # Append assistant turn once for all tool calls in this turn
+                conversation_history.append(
+                    {"role": "assistant", "content": response}
+                )
+
                 # Execute discovered tool calls with real-time visual output
                 for call in tool_calls:
                     tool_name = call.get("tool", "")
@@ -441,9 +446,6 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
 
                     self._display_tool_result(tool_name, args, tool_result)
 
-                    conversation_history.append(
-                        {"role": "assistant", "content": response}
-                    )
                     conversation_history.append(
                         {
                             "role": "user",

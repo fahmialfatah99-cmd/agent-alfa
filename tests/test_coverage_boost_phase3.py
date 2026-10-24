@@ -109,10 +109,11 @@ async def test_mode_commands_full_suite(monkeypatch: pytest.MonkeyPatch) -> None
     with pytest.raises(ValueError):
         mc.set_telegram_mode_sync("invalid_mode")
 
-    # 2. /mode command branches
-    for args in ([], ["status"], ["single"], ["swarm"], ["unknown"]):
+    # 2. /mode command branches (ensure 'single' is last so DB state is preserved)
+    for args in ([], ["status"], ["swarm"], ["single"], ["unknown"]):
         u, c, _, _ = _make_update_ctx(args=args)
         await mc.mode_command(u, c)
+    assert mc.get_telegram_mode_sync() == "single"
     # Unauthorized
     u_unauth, c_unauth, _, _ = _make_update_ctx(user_id=999)
     await mc.mode_command(u_unauth, c_unauth)
@@ -222,6 +223,7 @@ async def test_mode_commands_full_suite(monkeypatch: pytest.MonkeyPatch) -> None
         await mc.pipeline_command(u, c)
 
     assert len(sent_messages) >= 15
+    mc.set_telegram_mode_sync("single")
 
 
 @pytest.mark.asyncio
@@ -376,7 +378,7 @@ async def test_wa_menu_and_advanced_commands(monkeypatch: pytest.MonkeyPatch, tm
     monkeypatch.setattr(
         tools,
         "wa_get_messages",
-        lambda chat="", limit=15: {
+        lambda chat="", limit=15, *args, **kwargs: {
             "status": "success",
             "chat_name": "Budi",
             "messages": [
@@ -601,8 +603,8 @@ async def test_wa_menu_and_advanced_commands(monkeypatch: pytest.MonkeyPatch, tm
         ["model", "tidak_ada"],
         ["status"],
         ["cancel"],
-        ["single"],
         ["swarm"],
+        ["single"],
         ["template"],
         ["template", "tidak_ada"],
         ["template", "audit-server"],
@@ -614,6 +616,9 @@ async def test_wa_menu_and_advanced_commands(monkeypatch: pytest.MonkeyPatch, tm
     for args in ([], ["sess_123"]):
         u, c, _, _ = _make_update_ctx(args=args)
         await ac.resume_swarm_command(u, c)
+
+    from alfa.bot.mode_commands import set_telegram_mode_sync
+    set_telegram_mode_sync("single")
 
 
 @pytest.mark.asyncio

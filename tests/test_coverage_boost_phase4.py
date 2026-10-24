@@ -150,7 +150,7 @@ class TestIntegrationsTools:
             mock_api.assert_called_with("GET", "/api/search", {"q": "invoice"})
 
             wa_get_incoming(15)
-            mock_api.assert_called_with("GET", "/api/incoming", {"limit": 15})
+            mock_api.assert_called_with("GET", "/api/incoming", {"limit": 250})
 
             wa_get_me()
             mock_api.assert_called_with("GET", "/api/me")

@@ -110,8 +110,35 @@ def test_budget_report_shape(isolated_db):
 
     rep = get_budget_report(1)
     assert rep["status"] == "ok"
-    assert rep["remaining"] == rep["budget_limit"] - rep["total_tokens"]
+    if rep["budget_limit"] > 0:
+        assert rep["remaining"] == max(0, rep["budget_limit"] - rep["total_tokens"])
+    else:
+        # Semantik baru: budget_limit 0 = tanpa batas (unlimited), sentinel -1
+        assert rep["remaining"] == -1
     assert "by_key" in rep and "warn" in rep
+
+
+def test_reset_user_usage_today(isolated_db):
+    from alfa.core.db.connection import get_sync_db
+    from alfa.core.rate_limiter import get_user_usage_today, reset_user_usage_today
+
+    uid = 424242
+    with get_sync_db() as conn:
+        conn.execute(
+            "INSERT INTO api_token_usage (provider, total_tokens, user_id) VALUES (?, ?, ?)",
+            ("gemini", 50000, uid),
+        )
+        conn.commit()
+
+    usage = get_user_usage_today(uid)
+    assert usage["total_tokens"] >= 50000
+
+    deleted = reset_user_usage_today(uid)
+    assert deleted >= 1
+
+    usage_after = get_user_usage_today(uid)
+    assert usage_after["total_tokens"] == 0
+    assert usage_after["total_calls"] == 0
 
 
 # --- digest helpers ----------------------------------------------------------
@@ -171,6 +198,9 @@ def test_dashboard_sites_and_budget(monkeypatch):
     r = c.get("/api/budget/today")
     assert r.status_code == 200
     assert "total_tokens" in r.json()
+    r = c.post("/api/budget/reset")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
     r = c.post("/api/sites/slug-tak-ada/start")
     assert r.status_code in (404, 500)
     r = c.post("/api/sites/x/bakar")

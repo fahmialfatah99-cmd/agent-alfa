@@ -188,3 +188,33 @@ class TestMalformedSelfHeal:
         out = r.run("cek folder")
         assert calls["n"] == 2
         assert "```tool_call" not in out
+
+
+class TestSecurityAndDeduplication:
+    def test_path_confinement_blocks_traversal(self, tmp_path):
+        r = _runner(tmp_path)
+        out = r._execute_tool("read_file", {"path": "/etc/passwd"})
+        assert "Akses ditolak" in out or "Error" in out
+
+        out_write = r._execute_tool("write_file", {"path": "../../outside.txt", "content": "bad"})
+        assert "Akses ditolak" in out_write or "Error" in out_write
+
+    def test_multi_tool_call_does_not_duplicate_assistant_turn(self, tmp_path):
+        r = _runner(tmp_path)
+        calls = {"n": 0}
+
+        def fake_generate(prompt_text, stream=False):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return (
+                    '```tool_call\n{"tool": "list_directory", "args": {"path": "."}}\n```\n'
+                    '```tool_call\n{"tool": "list_directory", "args": {"path": "sub"}}\n```'
+                )
+            return "Final Answer: kedua folder selesai diperiksa."
+
+        r.direct_ai.generate.side_effect = fake_generate
+        out = r.run("periksa kedua direktori")
+        assert "selesai diperiksa" in out
+        # Check that assistant response was not duplicated N times
+        assert calls["n"] == 2
+

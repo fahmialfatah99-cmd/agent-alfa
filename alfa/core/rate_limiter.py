@@ -9,8 +9,8 @@ from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("RateLimiter")
 
-DEFAULT_TOKEN_LIMIT = int(os.getenv("ALFA_DAILY_TOKEN_LIMIT", "500000"))
-DEFAULT_CALL_LIMIT = int(os.getenv("ALFA_DAILY_CALL_LIMIT", "200"))
+DEFAULT_TOKEN_LIMIT = int(os.getenv("ALFA_DAILY_TOKEN_LIMIT", "0"))
+DEFAULT_CALL_LIMIT = int(os.getenv("ALFA_DAILY_CALL_LIMIT", "0"))
 
 
 def init_budgets_table():
@@ -37,9 +37,10 @@ init_budgets_table()
 def check_rate_limit(user_id: int, provider: str = "") -> tuple[bool, str]:
     """Checks against configurable limits. Returns (allowed, reason)."""
     usage = get_user_usage_today(user_id)
-    if usage["total_tokens"] >= usage["budget_limit"]:
+    # Pembatasan token dinonaktifkan jika budget_limit <= 0 (unlimited)
+    if usage["budget_limit"] > 0 and usage["total_tokens"] >= usage["budget_limit"]:
         return False, f"Daily token limit reached ({usage['total_tokens']}/{usage['budget_limit']})"
-    if usage["total_calls"] >= usage["call_limit"]:
+    if usage["call_limit"] > 0 and usage["total_calls"] >= usage["call_limit"]:
         return False, f"Daily call limit reached ({usage['total_calls']}/{usage['call_limit']})"
     return True, "OK"
 
@@ -84,12 +85,13 @@ def get_user_usage_today(user_id: int) -> dict[str, Any]:
     except (sqlite3.Error, OSError, ValueError, TypeError):
         logger.exception("Error getting usage")
 
+    budget_remaining = -1 if budget_limit <= 0 else max(0, budget_limit - total_tokens)
     return {
         "total_tokens": total_tokens,
         "total_calls": total_calls,
         "budget_limit": budget_limit,
         "call_limit": call_limit,
-        "budget_remaining": max(0, budget_limit - total_tokens),
+        "budget_remaining": budget_remaining,
     }
 
 
@@ -113,6 +115,32 @@ def set_user_budget(user_id: int, daily_token_limit: int, daily_call_limit: int)
             conn.commit()
     except (sqlite3.Error, OSError, ValueError, TypeError):
         logger.exception("Error setting user budget")
+
+
+def reset_user_usage_today(user_id: int | None = None) -> int:
+    """Reset daily token usage records for today.
+
+    If user_id is provided and > 0, resets for that specific user.
+    If user_id is None or 0, resets all usage records for today.
+    Returns the number of deleted records.
+    """
+    deleted_count = 0
+    try:
+        with get_sync_db() as conn:
+            if user_id:
+                cur = conn.execute(
+                    "DELETE FROM api_token_usage WHERE date(ts) = date('now') AND COALESCE(user_id, 0) = ?",
+                    (int(user_id),),
+                )
+            else:
+                cur = conn.execute(
+                    "DELETE FROM api_token_usage WHERE date(ts) = date('now')"
+                )
+            deleted_count = cur.rowcount
+            conn.commit()
+    except (sqlite3.Error, OSError, ValueError, TypeError):
+        logger.exception("Error resetting user usage today")
+    return deleted_count
 
 
 def get_cost_estimate(prompt_text: str, model: str = "") -> dict[str, Any]:

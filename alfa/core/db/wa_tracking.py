@@ -34,11 +34,16 @@ def record_wa_messages_read_sync(messages: list[dict[str, Any]]) -> int:
             if not isinstance(m, dict):
                 continue
             msg_id = str(m.get("msg_id") or m.get("id") or "").strip()
-            if not msg_id:
-                continue
             chat_id = str(m.get("chat") or m.get("chat_id") or "").strip()
             sender = str(m.get("sender_name") or m.get("sender") or m.get("author") or "").strip()
             msg_ts = int(m.get("msg_ts") or m.get("ts") or 0)
+            if not msg_id:
+                body_sub = str(m.get("body") or "")[:40]
+                if not body_sub and not sender:
+                    continue
+                import hashlib
+                hash_key = f"{chat_id}_{sender}_{msg_ts}_{body_sub}"
+                msg_id = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
             if msg_ts > max_ts:
                 max_ts = msg_ts
 
@@ -117,7 +122,7 @@ def mark_chat_read_sync(chat_id: str) -> int:
             (cid,),
         )
         conn.commit()
-        return res.rowcount
+        return int(res.rowcount)
 
 
 def get_last_read_wa_ts_sync() -> int:
@@ -164,16 +169,27 @@ def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
             if not isinstance(m, dict):
                 continue
             msg_id = str(m.get("msg_id") or m.get("id") or "").strip()
-            if not msg_id:
-                continue
             chat_id = str(m.get("chat") or m.get("chat_id") or "").strip()
             chat_name = str(m.get("chat_name") or "").strip()
             sender_name = str(m.get("sender_name") or m.get("sender") or m.get("author") or "").strip()
             is_group = 1 if m.get("is_group") else 0
-            msg_type = str(m.get("msg_type") or "chat")
+            msg_type = str(m.get("msg_type") or "chat").lower()
             body = str(m.get("body") or "")
+            if msg_type in ("e2e_notification", "notification_template", "notification", "protocol", "gp2", "ciphertext", "revoked"):
+                continue
+            if body.strip().lower() in ("[e2e_notification]", "[notification_template]", "[protocol]", "[ciphertext]", "[gp2]"):
+                continue
             has_media = 1 if m.get("has_media") else 0
+            if not body and not has_media and msg_type != "chat":
+                continue
             msg_ts = int(m.get("msg_ts") or m.get("ts") or 0)
+            if not msg_id:
+                body_sub = body[:40]
+                if not body_sub and not sender_name:
+                    continue
+                import hashlib
+                hash_key = f"{chat_id}_{sender_name}_{msg_ts}_{body_sub}"
+                msg_id = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
 
             try:
                 res = conn.execute(
@@ -245,3 +261,24 @@ def search_wa_archive_sync(
                 "created_at": r["created_at"],
             })
     return results
+
+
+def clear_wa_archive_sync() -> int:
+    """Hapus semua rekaman di wa_incoming_archive."""
+    with get_sync_db() as conn:
+        res = conn.execute("DELETE FROM wa_incoming_archive")
+        conn.commit()
+        return int(res.rowcount)
+
+
+def clear_wa_read_state_sync() -> int:
+    """Hapus semua rekaman status baca di wa_read_messages dan reset timestamp."""
+    with get_sync_db() as conn:
+        res = conn.execute("DELETE FROM wa_read_messages")
+        try:
+            conn.execute("DELETE FROM system_settings WHERE key = ?", (LAST_READ_TS_KEY,))
+        except Exception:
+            pass
+        conn.commit()
+        return int(res.rowcount)
+

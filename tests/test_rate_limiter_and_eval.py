@@ -41,11 +41,27 @@ def test_check_rate_limit_within_budget():
     assert allowed is True
     assert reason == "OK"
 
-def test_check_rate_limit_exceeded_calls():
+def test_check_rate_limit_unlimited_when_limit_zero():
+    """Semantik baru: limit 0 = tanpa batas (fail-open), TIDAK memblokir."""
     test_user_id = 99993
-    # If we set call limit to 0 and we have made any calls globally today, or even 0 calls,
-    # if total_calls >= 0, it will trigger limit.
     set_user_budget(test_user_id, 99999999, 0)
+    allowed, reason = check_rate_limit(test_user_id)
+    assert allowed is True
+    assert reason == "OK"
+
+def test_check_rate_limit_exceeded_calls():
+    test_user_id = 99994
+    # Limit panggilan nyata: 1 call; catat 1 pemakaian hari ini untuk user tsb,
+    # sehingga total_calls(1) >= call_limit(1) -> harus diblokir.
+    set_user_budget(test_user_id, 99999999, 1)
+    from alfa.core.db.connection import get_sync_db
+
+    with get_sync_db() as conn:
+        conn.execute(
+            "INSERT INTO api_token_usage (provider, total_tokens, user_id) VALUES (?, ?, ?)",
+            ("gemini", 0, test_user_id),
+        )
+        conn.commit()
     allowed, reason = check_rate_limit(test_user_id)
     assert allowed is False
     assert "Daily call limit reached" in reason

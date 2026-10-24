@@ -32,7 +32,7 @@ async def get_recent_chat_history(
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT role, content FROM chat_history
+            SELECT id, role, content FROM chat_history
             WHERE user_id = ?
             ORDER BY id DESC LIMIT ?
             """,
@@ -40,7 +40,7 @@ async def get_recent_chat_history(
         ) as cursor:
             rows = await cursor.fetchall()
             return [
-                {"role": row["role"], "content": row["content"]}
+                {"id": row["id"], "role": row["role"], "content": row["content"]}
                 for row in reversed(list(rows))
             ]
 

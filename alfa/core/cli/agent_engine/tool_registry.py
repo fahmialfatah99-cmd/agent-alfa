@@ -42,7 +42,16 @@ class LocalToolRegistry:
         p = Path(path_str.strip())
         if not p.is_absolute():
             p = self.root / p
-        return p
+        resolved = p.resolve()
+        unrestricted = os.getenv("ALFA_UNRESTRICTED", "false").strip().lower() == "true"
+        if not unrestricted:
+            try:
+                resolved.relative_to(self.root.resolve())
+            except ValueError:
+                raise PermissionError(  # noqa: TRY003
+                    f"Akses ditolak: Path '{path_str}' berada di luar workspace root ('{self.root}')."
+                ) from None
+        return resolved
 
     def search_code(self, query: str, path: str = ".") -> str:
         """Search text/regex across codebase using ripgrep if available, or python fallback."""
@@ -179,13 +188,13 @@ class LocalToolRegistry:
 
     def read_file(self, path: str, start_line: int = 1, end_line: int = 200) -> str:
         """Read content of a file with line numbers."""
-        p = self._resolve(path)
-        if not p.exists():
-            return f"Error: File '{path}' tidak ditemukan."
-        if not p.is_file():
-            return f"Error: '{path}' bukan file reguler."
-
         try:
+            p = self._resolve(path)
+            if not p.exists():
+                return f"Error: File '{path}' tidak ditemukan."
+            if not p.is_file():
+                return f"Error: '{path}' bukan file reguler."
+
             lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
             total = len(lines)
             start = max(1, start_line)
@@ -201,8 +210,11 @@ class LocalToolRegistry:
             return f"Error membaca '{path}': {e}"
 
     def write_file(self, path: str, content: str) -> str:
-        """Create or overwrite a file with automatic backup."""
-        p = self._resolve(path)
+        """Create or overwrite a file with automatic backup and atomic write."""
+        try:
+            p = self._resolve(path)
+        except _TOOL_ERR as e:
+            return f"Error: {e}"
         old_content = ""
         if p.exists() and p.is_file():
             try:
@@ -212,7 +224,9 @@ class LocalToolRegistry:
 
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(content, encoding="utf-8")
+            tmp_p = p.with_suffix(f"{p.suffix}.tmp.{os.getpid()}")
+            tmp_p.write_text(content, encoding="utf-8")
+            tmp_p.replace(p)
             record = self.patch_manager.record_patch(path, old_content, content)
             return f"Sukses: File '{path}' berhasil ditulis (Backup ID: #{record.id})."
         except _TOOL_ERR as e:
@@ -301,8 +315,11 @@ class LocalToolRegistry:
     def patch_file(
         self, path: str, target_content: str, replacement_content: str
     ) -> str:
-        """Replace a specific substring / block of code in a file with resilient 3-layer matching."""
-        p = self._resolve(path)
+        """Replace a specific substring / block of code in a file with resilient 3-layer matching and atomic write."""
+        try:
+            p = self._resolve(path)
+        except _TOOL_ERR as e:
+            return f"Error: {e}"
         if not p.exists():
             return f"Error: File '{path}' tidak ditemukan."
 
@@ -317,7 +334,9 @@ class LocalToolRegistry:
                     "Pastikan karakter target sesuai dengan isi file asli."
                 )
 
-            p.write_text(new_content, encoding="utf-8")
+            tmp_p = p.with_suffix(f"{p.suffix}.tmp.{os.getpid()}")
+            tmp_p.write_text(new_content, encoding="utf-8")
+            tmp_p.replace(p)
             record = self.patch_manager.record_patch(path, old_content, new_content)
             return (
                 f"Sukses: Patch berhasil diterapkan ke '{path}' "
@@ -333,7 +352,7 @@ class LocalToolRegistry:
             r"\brm\s+-rf\s+/(?:\s|$)",
             r"\bmkfs\b",
             r"\bdd\s+if=",
-            r"\b:(){ :|:& };:\b",
+            r":\s*\(\s*\)\s*\{.*\}\s*;",
         ]
         unrestricted = os.getenv("ALFA_UNRESTRICTED", "false").strip().lower() == "true"
         for pat in [] if unrestricted else dangerous_patterns:
@@ -422,11 +441,14 @@ class LocalToolRegistry:
 
     def list_directory(self, path: str = ".") -> str:
         """List files and folders in specified directory."""
-        p = self._resolve(path)
-        if not p.exists():
-            return f"Error: Path '{path}' tidak ditemukan."
-        if not p.is_dir():
-            return f"Error: '{path}' bukan direktori."
+        try:
+            p = self._resolve(path)
+            if not p.exists():
+                return f"Error: Path '{path}' tidak ditemukan."
+            if not p.is_dir():
+                return f"Error: '{path}' bukan direktori."
+        except _TOOL_ERR as e:
+            return f"Error membaca direktori: {e}"
 
         items = []
         try:

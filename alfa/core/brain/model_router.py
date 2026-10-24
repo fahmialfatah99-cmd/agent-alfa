@@ -63,17 +63,18 @@ HEAVY_INTENT_MARKERS = (
 
 # Priority model lists
 DEFAULT_LIGHT_MODELS = [
-    "gemini-flash-lite-latest",
-    "gemini-2.5-flash-lite",
     "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
     "gemini-3.8-flash",
 ]
 
 DEFAULT_HEAVY_MODELS = [
     "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
-    "gemini-flash-lite-latest",
-    "gemini-2.5-flash-lite",
 ]
 
 
@@ -126,12 +127,12 @@ def route_candidate_models(
         # Prioritize reasoning / tool-heavy models
         if base_model:
             ordered.append(base_model)
-        for hm in DEFAULT_HEAVY_MODELS:
-            if hm not in ordered:
-                ordered.append(hm)
         for fb in fallback_chain:
             if fb not in ordered:
                 ordered.append(fb)
+        for hm in DEFAULT_HEAVY_MODELS:
+            if hm not in ordered:
+                ordered.append(hm)
 
     else:  # BALANCED
         if base_model:
