@@ -346,15 +346,38 @@ def schedule_threads_watch_task(
         enabled: True aktif/perbarui jadwal; False hapus.
         interval_minutes: minimal 60 (default 360 = tiap 6 jam).
     """
+    try:
+        from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
+
+        user_id = get_current_user_id()
+        chat_id = get_current_chat_id()
+        if not user_id:
+            user_id = _primary_chat_id()
+        if not chat_id:
+            chat_id = user_id
+        if not chat_id:
+            return {"status": "error", "message": "chat id tidak diketahui"}
+        return schedule_threads_watch(
+            user_id=int(user_id), chat_id=int(chat_id),
+            handle=handle, enabled=enabled,
+            interval_minutes=interval_minutes,
+        )
+    except Exception as exc:  # noqa: BLE001 — scheduler refleksif gagal-lembut
+        logger.exception("schedule_threads_watch_task gagal")
+        return {"status": "error", "message": str(exc)[:120]}
+
+
+def schedule_threads_watch(
+    user_id: int, chat_id: int, handle: str = "", enabled: bool = True,
+    interval_minutes: int = 360,
+) -> dict[str, Any]:
+    """Inti scheduler (pola guardian) — user/chat id eksplisit, uji-hermetik."""
     target = _handle_norm(handle) or _default_handle()
     try:
         from alfa.core.db import tasks as cron_tasks
-        from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
 
-        user_id = get_current_user_id() or _primary_chat_id()
-        chat_id = get_current_chat_id() or user_id
-        if not chat_id:
-            return {"status": "error", "message": "chat id tidak diketahui"}
+        if not int(user_id) or not int(chat_id):
+            return {"status": "error", "message": "user/chat id tidak diketahui"}
 
         title = f"Threads Watch (@{target})"
         existing = [
@@ -390,7 +413,7 @@ def schedule_threads_watch_task(
             kind="single",
         )
     except Exception as exc:  # noqa: BLE001 — scheduler gagal-lembut
-        logger.exception("schedule_threads_watch_task gagal")
+        logger.exception("schedule_threads_watch gagal")
         return {"status": "error", "message": str(exc)[:120]}
     return {
         "status": "ok",

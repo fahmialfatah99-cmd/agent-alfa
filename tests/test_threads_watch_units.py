@@ -87,7 +87,8 @@ def test_handle_norm():
     assert threads_watch._handle_norm(" XALf._1/extra ") == "XALf._1"
 
 
-def test_schedule_threads_watch_task_enable_and_disable(monkeypatch):
+def test_schedule_threads_watch_explicit_ids(monkeypatch):
+    """Pola guardian: uji fungsi inti dengan user/chat id eksplisit."""
     calls: list = []
 
     monkeypatch.setattr(cron_tasks, "list_cron_jobs_sync",
@@ -98,17 +99,34 @@ def test_schedule_threads_watch_task_enable_and_disable(monkeypatch):
     monkeypatch.setattr(cron_tasks, "add_cron_job_sync",
                         lambda **kw: calls.append(kw) or 9001)
 
-    res = threads_watch.schedule_threads_watch_task(
-        handle="@xalf._1", enabled=True, interval_minutes=360
+    res = threads_watch.schedule_threads_watch(
+        9, 9, handle="@xalf._1", enabled=True, interval_minutes=360
     )
     assert res["status"] == "ok" and res["job_id"] == 9001
     assert deleted == [41]
     assert calls[0]["interval_minutes"] == 360
+    assert calls[0]["user_id"] == 9 and calls[0]["chat_id"] == 9
     assert "threads_watch_check" in calls[0]["prompt_instruction"]
     assert "xalf._1" in calls[0]["prompt_instruction"]
 
-    off = threads_watch.schedule_threads_watch_task(handle="xalf._1", enabled=False)
+    off = threads_watch.schedule_threads_watch(
+        9, 9, handle="xalf._1", enabled=False
+    )
     assert off["status"] == "ok" and off["removed"] == 1
+
+
+def test_schedule_threads_watch_task_requires_real_ids(monkeypatch):
+    """Wrapper tool tanpa konteks runtime & tanpa ALLOWED_USER_IDS → error lembut."""
+    from alfa.core import runtime_ctx as rt
+
+    monkeypatch.setattr(rt, "get_current_user_id", lambda: None, raising=True)
+    monkeypatch.setattr(rt, "get_current_chat_id", lambda: None, raising=True)
+    monkeypatch.setattr(
+        threads_watch, "_primary_chat_id", lambda: 0, raising=True
+    )
+    res = threads_watch.schedule_threads_watch_task("xalf._1")
+    assert res["status"] == "error"
+    assert "chat id" in res["message"]
 
 
 def test_tools_registered():
