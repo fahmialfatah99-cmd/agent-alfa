@@ -59,6 +59,12 @@ from alfa.tools.system.smart_search import (  # noqa: F401 — registrasi tool r
     memory_search_ranked,
     wa_search_ranked,
 )
+from alfa.tools.system.threads_watch import (  # noqa: F401 — registrasi Threads
+    schedule_threads_watch_task,
+    threads_fetch_profile,
+    threads_watch_check,
+    threads_watch_last,
+)
 
 # Explicit re-exports for private helpers and constants starting with _
 from alfa.tools.system_tools import *  # noqa: F401, F403
@@ -274,6 +280,10 @@ AVAILABLE_TOOLS = [
     memory_search_ranked,
     guardian_daily_report,
     schedule_daily_guardian_task,
+    threads_watch_check,
+    threads_fetch_profile,
+    threads_watch_last,
+    schedule_threads_watch_task,
     *plugins.load_all_plugin_tools(),
 ]
 

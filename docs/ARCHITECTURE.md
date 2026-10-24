@@ -122,3 +122,25 @@ Lapor-kesehatan otomatis tanpa diminta (read-only; sesi WA tak disentuh):
   `ALFA_GUARDIAN_WATCH_MINUTES` (default 20).
 - Prinsip: semua kolektor gagal-lembut — satu sumber mati tak pernah
   mematikan laporan atau alarm.
+
+## 11. Threads Watch — `alfa/tools/system/threads_watch.py`
+
+Pantau akun Threads publik `@xalf._1` (Fase A — baca publik, tanpa login):
+
+- **Cara baca**: HTML SSR profil publik (domain `threads.net` → `threads.com`,
+  UA crawler mirip Googlebot/Bingbot). Hanya halaman `@profil` — hormat
+  robots.txt (tanpa `/p/`, `/comments/`, `/liked_by/`). Rate rendah
+  (default 1 cek / 6 jam).
+- **Parser**: meta `og:*` — `og:title` (nama), `og:description`
+  ("N Followers • M Threads"), pasangan `og:url` `/post/<ID>` +
+  `og:description` berikut (teks post). Profil kosong → 0 post, tetap sehat.
+- **Tools**: `threads_fetch_profile` (snapshot mentah), `threads_watch_check`
+  (fetch + diff DB + digest), `threads_watch_last` (daftar terekam DB),
+  `schedule_threads_watch_task(enabled, interval_minutes=360)` (jadwal cron,
+  laporan HANYA Telegram, digest dikirim verbatim).
+- **DB additive**: tabel `threads_posts` (post_id PK, dedupe) +
+  `threads_profile_state` (followers/threads_n terakhir). Dibuat on-demand,
+  tak menyentuh tabel lama.
+- **Fase B (posting aktif)**: hanya lewat Threads API resmi Meta
+  (token di vault terenkripsi, KADALUWARSA: rate 250 post/24 jam).
+  Fase A tidak pernah posting apa pun.
