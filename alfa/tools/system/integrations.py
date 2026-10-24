@@ -395,7 +395,10 @@ def wa_get_incoming(
                 body_sub = body[:40]
                 import hashlib
                 hash_key = f"{chat_id}_{sender}_{msg_ts}_{body_sub}"
-                mid = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
+                # md5 HANYA utk id dedup deterministik (bukan kriptografi)
+                mid = "wa_" + hashlib.md5(
+                    hash_key.encode("utf-8"), usedforsecurity=False
+                ).hexdigest()[:16]
                 it["msg_id"] = mid
 
             dedup_key = mid if mid else f"{it.get('chat')}_{body}_{it.get('msg_ts')}"

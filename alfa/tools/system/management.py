@@ -728,9 +728,12 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
     # Clean orphaned /tmp/org.chromium.* directories
     cleaned_tmp = 0
     try:
-        for fname in os.listdir("/tmp"):
+        import tempfile
+
+        tmp_dir = tempfile.gettempdir()
+        for fname in os.listdir(tmp_dir):
             if fname.startswith("org.chromium.") or fname.startswith(".org.chromium."):
-                fpath = os.path.join("/tmp", fname)
+                fpath = os.path.join(tmp_dir, fname)
                 try:
                     if os.path.isdir(fpath):
                         shutil.rmtree(fpath, ignore_errors=True)

@@ -16,15 +16,12 @@ import json
 import logging
 import os
 import re
-
-try:
-    # defusedxml: guard XML serangan (XXE/billion-laughs) utk berkas KML untrusted
-    from defusedxml.ElementTree import fromstring as _xml_fromstring
-except ImportError:  # fallback stdlib bila dependency ekstra belum terpasang
-    from xml.etree.ElementTree import fromstring as _xml_fromstring
 import zipfile
 from datetime import datetime
 from typing import Any
+
+# defusedxml: guard XML serangan (XXE/billion-laughs) utk berkas KML untrusted
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR

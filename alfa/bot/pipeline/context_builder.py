@@ -24,6 +24,21 @@ from alfa.bot.config import (
 
 logger = logging.getLogger("ContextBuilder")
 
+# SQL recall arsip material (bandit B608-safe: konstanta polos, interpolasi
+# hanya daftar '?' placeholders via .replace — nilai user selalu parameterized).
+_MATERIAL_RECALL_SQL = """
+                SELECT id, role, content FROM chat_history
+                WHERE user_id = ?
+                  AND id NOT IN ({EX_IDS})
+                  AND (
+                      content LIKE '%mandor%' OR content LIKE '%cluster%' OR content LIKE '%kabel%'
+                      OR content LIKE '%pole%' OR content LIKE '%tiang%' OR content LIKE '%pengambilan%'
+                      OR content LIKE '%dead end%' OR content LIKE '%clamp%' OR content LIKE '%habib%'
+                      OR content LIKE '%kasambe%' OR content LIKE '%jany%'
+                  )
+                ORDER BY id DESC LIMIT 10
+                """
+
 _COMPACT_KEEP = 12
 _COMPACT_WINDOW = 40
 _COMPACT_MIN_NEW = 8
@@ -303,18 +318,7 @@ def build_memory_block(
             with get_conn() as conn:
                 ex_ids = list(exclude_history_ids or [])
                 placeholders = ",".join("?" for _ in ex_ids) if ex_ids else "0"
-                query = f"""
-                SELECT id, role, content FROM chat_history
-                WHERE user_id = ?
-                  AND id NOT IN ({placeholders})
-                  AND (
-                      content LIKE '%mandor%' OR content LIKE '%cluster%' OR content LIKE '%kabel%'
-                      OR content LIKE '%pole%' OR content LIKE '%tiang%' OR content LIKE '%pengambilan%'
-                      OR content LIKE '%dead end%' OR content LIKE '%clamp%' OR content LIKE '%habib%'
-                      OR content LIKE '%kasambe%' OR content LIKE '%jany%'
-                  )
-                ORDER BY id DESC LIMIT 10
-                """
+                query = _MATERIAL_RECALL_SQL.replace("{EX_IDS}", placeholders)
                 params = [user_id] + ex_ids
                 mat_rows = conn.execute(query, params).fetchall()
                 if mat_rows:

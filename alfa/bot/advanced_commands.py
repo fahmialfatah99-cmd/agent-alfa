@@ -73,7 +73,8 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "http://127.0.0.1:3000/api/qr?refresh=1",
             headers={"User-Agent": "ALFA-Bot"},
         )
-        with urllib.request.urlopen(req, timeout=4.0) as resp:
+        # URL hardcoded localhost terpercaya (wa-sheets-bot), timeout diset
+        with urllib.request.urlopen(req, timeout=4.0) as resp:  # nosec B310 — 127.0.0.1 hardcoded
             data = json.loads(resp.read().decode())
             wa_auth_status = data.get("status", "UNKNOWN")
             qr_str = data.get("qr_string", "")

@@ -15,6 +15,16 @@ from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("DB.WATracking")
 
+# Konstanta pencarian arsip WA (bandit B608-safe: polos + interpolasi
+# via .replace); WHERE berisi hanya klausa '?', nilai user ter-parameterize.
+_WA_ARCHIVE_SEARCH_SQL = """
+        SELECT msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts, created_at
+        FROM wa_incoming_archive
+        {WHERE_CLAUSE}
+        ORDER BY msg_ts DESC, created_at DESC
+        LIMIT ?
+    """
+
 LAST_READ_TS_KEY = "wa_last_read_ts"
 _DB_ERR = (sqlite3.Error, OSError, ValueError, TypeError, KeyError)
 
@@ -43,7 +53,10 @@ def record_wa_messages_read_sync(messages: list[dict[str, Any]]) -> int:
                     continue
                 import hashlib
                 hash_key = f"{chat_id}_{sender}_{msg_ts}_{body_sub}"
-                msg_id = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
+                # md5 HANYA utk id dedup deterministik (bukan kriptografi)
+                msg_id = "wa_" + hashlib.md5(
+                    hash_key.encode("utf-8"), usedforsecurity=False
+                ).hexdigest()[:16]
             if msg_ts > max_ts:
                 max_ts = msg_ts
 
@@ -91,7 +104,7 @@ def get_read_wa_msg_ids_sync(msg_ids: list[str]) -> set[str]:
             chunk = clean_ids[i : i + chunk_size]
             placeholders = ",".join("?" for _ in chunk)
             rows = conn.execute(
-                f"SELECT msg_id FROM wa_read_messages WHERE msg_id IN ({placeholders})",
+                f"SELECT msg_id FROM wa_read_messages WHERE msg_id IN ({placeholders})",  # nosec B608 — placeholder hanya '?'
                 chunk,
             ).fetchall()
             for r in rows:
@@ -189,7 +202,10 @@ def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
                     continue
                 import hashlib
                 hash_key = f"{chat_id}_{sender_name}_{msg_ts}_{body_sub}"
-                msg_id = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
+                # md5 HANYA utk id dedup deterministik (bukan kriptografi)
+                msg_id = "wa_" + hashlib.md5(
+                    hash_key.encode("utf-8"), usedforsecurity=False
+                ).hexdigest()[:16]
 
             try:
                 res = conn.execute(
@@ -235,13 +251,9 @@ def search_wa_archive_sync(
         params.append(f"%{sender.strip()}%")
 
     where_str = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-    sql = f"""
-        SELECT msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts, created_at
-        FROM wa_incoming_archive
-        {where_str}
-        ORDER BY msg_ts DESC, created_at DESC
-        LIMIT ?
-    """
+    # Konstanta + .replace (bandit B608-safe): WHERE hanya klausa '?',
+    # nilai user selalu ter-parameterize.
+    sql = _WA_ARCHIVE_SEARCH_SQL.replace("{WHERE_CLAUSE}", where_str)
     params.append(limit)
 
     results: list[dict[str, Any]] = []
