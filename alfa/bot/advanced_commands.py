@@ -64,15 +64,31 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     wa_auth_status = "UNKNOWN"
     qr_str = ""
-    status_file = os.path.expanduser("~/.alfa/wa_status.json")
-    if os.path.exists(status_file):
-        try:
-            with open(status_file) as f:
-                wa_data = json.load(f)
-            wa_auth_status = wa_data.get("status", "UNKNOWN")
-            qr_str = wa_data.get("qr", "")
-        except (OSError, ValueError, TypeError):
-            pass
+    qr_data_url = None
+
+    # Ambil live QR segar langsung dari HTTP API wa-sheets-bot
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            "http://127.0.0.1:3000/api/qr?refresh=1",
+            headers={"User-Agent": "ALFA-Bot"},
+        )
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            data = json.loads(resp.read().decode())
+            wa_auth_status = data.get("status", "UNKNOWN")
+            qr_str = data.get("qr_string", "")
+            qr_data_url = data.get("qr_data_url")
+    except Exception:
+        # Fallback ke cache file lokal jika HTTP API belum merespons
+        status_file = os.path.expanduser("~/.alfa/wa_status.json")
+        if os.path.exists(status_file):
+            try:
+                with open(status_file) as f:
+                    wa_data = json.load(f)
+                wa_auth_status = wa_data.get("status", "UNKNOWN")
+                qr_str = wa_data.get("qr", "")
+            except (OSError, ValueError, TypeError):
+                pass
 
     keyboard = [
         [
@@ -101,11 +117,14 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    auth_desc = (
-        "✅ Terhubung (Logged In)"
-        if wa_auth_status == "READY"
-        else f"⚠️ {wa_auth_status} (Perlu Scan QR)"
-    )
+    if wa_auth_status in ("READY", "AUTHENTICATED"):
+        auth_desc = "✅ Terhubung (Logged In)"
+    elif wa_auth_status == "INITIALIZING":
+        auth_desc = "⏳ Menyiapkan QR Code baru..."
+    elif wa_auth_status == "QR_READY":
+        auth_desc = "⚠️ Menunggu Scan QR Code"
+    else:
+        auth_desc = f"⚠️ {wa_auth_status} (Perlu Scan QR)"
 
     text = (
         f"📱 **Manajer WhatsApp Google Sheets Bot:**\n\n"
@@ -117,28 +136,116 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💡 _Bot WhatsApp ini otomatis aktif saat laptop online dan diawasi 24/7 oleh Ecosystem Watchdog._"
     )
 
-    if wa_auth_status == "QR_READY" and qr_str:
+    if (wa_auth_status == "QR_READY" or qr_str or qr_data_url) and wa_auth_status not in ("READY", "AUTHENTICATED"):
         try:
+            import base64
             import io
 
-            import qrcode
-
-            img = qrcode.make(qr_str)
             buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            buf.seek(0)
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=buf,
-                caption=f"📲 **SCAN QR CODE WHATSAPP SEKARANG**\n\n{text}",
-                reply_markup=reply_markup,
-                parse_mode="Markdown",
-            )
-            return
+            if qr_data_url and "base64," in qr_data_url:
+                raw_b64 = qr_data_url.split("base64,")[1]
+                buf.write(base64.b64decode(raw_b64))
+            elif qr_str:
+                import qrcode
+                img = qrcode.make(qr_str)
+                img.save(buf, format="PNG")
+
+            if buf.tell() > 0 or len(buf.getvalue()) > 0:
+                buf.seek(0)
+                qr_caption = (
+                    f"📲 **SCAN QR CODE WHATSAPP SEKARANG** ⚡\n"
+                    f"⏱️ _QR Code baru aktif (berlaku ~20 detik)_\n\n"
+                    f"1️⃣ Buka WhatsApp di ponsel Anda\n"
+                    f"2️⃣ Buka menu **Perangkat Tertaut** > **Tautkan Perangkat**\n"
+                    f"3️⃣ Arahkan kamera ke gambar QR di atas\n\n"
+                    f"{text}"
+                )
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=buf,
+                    caption=qr_caption,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown",
+                )
+                return
         except _ADV_ERR as e:
             logger.error(f"Failed to generate QR photo: {e}")
 
     await safe_send_message(context, chat_id, text, reply_markup=reply_markup)
+
+
+async def setsheet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /setsheet [URL or ID] command to configure Google Spreadsheet for material logging."""
+    user_id = update.effective_user.id if update.effective_user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    if not _is_authorized(user_id):
+        await safe_send_message(context, chat_id, "⛔ Akses ditolak.")
+        return
+
+    args = context.args if context and context.args else []
+    from alfa.integrations import google_sheets
+
+    sa_email = "ais-gemini-key-557267392dac418@30020894332.iam.gserviceaccount.com"
+
+    if not args:
+        curr_id = google_sheets.get_spreadsheet_id()
+        tab_name = google_sheets.DEFAULT_TAB_NAME
+
+        status_text = "Belum Terhubung 🔴"
+        title_text = "-"
+        if curr_id:
+            check_res = google_sheets.ensure_material_sheet_tab(spreadsheet_id=curr_id)
+            if check_res.get("status") == "success":
+                status_text = "Terhubung 🟢"
+                title_text = check_res.get("title", "-")
+            else:
+                status_text = f"Peringatan Akses ⚠️ ({check_res.get('message', '')[:100]})"
+
+        msg = (
+            f"📊 **Konfigurasi Google Sheets Pencatatan Material**\n\n"
+            f"• **Status Koneksi:** {status_text}\n"
+            f"• **Judul Spreadsheet:** `{title_text}`\n"
+            f"• **Spreadsheet ID Saat Ini:**\n`{curr_id or 'Belum disetel'}`\n"
+            f"• **Tab Target:** `{tab_name}`\n"
+            f"• **Local GDrive Backup:** `~/GDrive1/PENCATATAN_MATERIAL/Rekap_Pengambilan_Material.xlsx`\n\n"
+            f"🔧 **Panduan Menyambungkan Google Sheets Baru:**\n"
+            f"1️⃣ Buat spreadsheet baru di Google Sheets (atau buka yang ingin digunakan).\n"
+            f"2️⃣ Klik tombol **Bagikan (Share)** di pojok kanan atas.\n"
+            f"3️⃣ Tambahkan email Service Account sebagai **Editor**:\n"
+            f"`{sa_email}`\n"
+            f"4️⃣ Kirim perintah berikut ke bot:\n"
+            f"`/setsheet <Link_URL_atau_ID_Spreadsheet>`\n\n"
+            f"_Contoh:_\n"
+            f"`/setsheet https://docs.google.com/spreadsheets/d/1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ/edit`"
+        )
+        await safe_send_message(context, chat_id, msg)
+        return
+
+    raw_input = " ".join(args).strip()
+    await safe_send_message(context, chat_id, "⏳ Memverifikasi dan mengonfigurasi Google Sheets baru...")
+
+    res = google_sheets.set_spreadsheet_id(raw_input)
+    if res.get("status") == "success":
+        reply = (
+            f"🎉 **Google Sheets Baru Berhasil Dikonfigurasi!**\n\n"
+            f"• **Judul:** `{res.get('spreadsheet_title', '-')}`\n"
+            f"• **ID:** `{res.get('spreadsheet_id')}`\n"
+            f"• **Tab Otomatis:** `{res.get('tab_name')}` (Kolom standar sudah siap)\n"
+            f"• **Sinkronisasi Telegram:** Aktif 🟢\n"
+            f"• **Sinkronisasi WhatsApp:** Aktif 🟢 (Service di-reload)\n"
+            f"• **Backup GDrive Lokal:** Aktif 🟢\n\n"
+            f"💡 _Mulai sekarang, seluruh dokumen/foto/pesan pengambilan material yang masuk ke Telegram maupun WhatsApp akan otomatis dirapikan oleh AI dan dicatat ke spreadsheet ini._"
+        )
+    else:
+        reply = (
+            f"⚠️ **Pengaturan Spreadsheet Gagal / Ada Masalah:**\n\n"
+            f"{res.get('message')}\n\n"
+            f"📌 **Pastikan:**\n"
+            f"Email Service Account sudah ditambahkan sebagai **Editor**:\n"
+            f"`{sa_email}`"
+        )
+
+    await safe_send_message(context, chat_id, reply)
 
 
 # --- /sites: registry + hidupkan situs hasil kerja agent -------------------
@@ -311,6 +418,8 @@ def _wa_esc(text: str) -> str:
     return (
         str(text or "")
         .replace("`", "'")
+        .replace("*", "")
+        .replace("_", " ")
         .replace("[", "(")
         .replace("]", ")")
     )
@@ -418,33 +527,62 @@ async def wachat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_send_message(context, chat_id, "\n".join(lines))
         return
 
-    res = tools.wa_get_messages(chat=arg, limit=15)
+    only_unread = False
+    clean_parts = []
+    if context and context.args:
+        for a in context.args:
+            if a.lower() in ("baru", "unread", "new"):
+                only_unread = True
+            else:
+                clean_parts.append(a)
+    arg = " ".join(clean_parts).strip() if clean_parts else arg
+
+    try:
+        res = tools.wa_get_messages(chat=arg, limit=15, only_unread=only_unread, mark_as_read=True)
+    except TypeError:
+        res = tools.wa_get_messages(chat=arg, limit=15)
     err = _wa_not_ready(res)
     if err:
         await safe_send_message(context, chat_id, f"📵 {err}")
         return
     msgs = res.get("messages", []) or []
-    lines = [f"💬 **{res.get('chat_name', arg)}** ({len(msgs)} pesan):\n"]
+    if not msgs:
+        if only_unread:
+            await safe_send_message(
+                context,
+                chat_id,
+                f"💬 **{res.get('chat_name', arg)}**: Tidak ada pesan baru yang belum dibaca.\n"
+                f"Ketik `/wachat {arg}` untuk melihat seluruh riwayat.",
+            )
+        else:
+            await safe_send_message(context, chat_id, f"💬 **{res.get('chat_name', arg)}**: Riwayat kosong.")
+        return
+
+    tag_str = " (Hanya Baru 🟢)" if only_unread else ""
+    lines = [f"💬 **{res.get('chat_name', arg)}** ({len(msgs)} pesan{tag_str}):\n"]
     for m in msgs:
         who = "kamu" if m.get("from_me") else _wa_esc(m.get("sender", "?"))
         body = _wa_esc(m.get("body", ""))[:300]
-        lines.append(f"[{_wa_time(m.get('ts', 0))}] **{who}:** {body}")
+        status_tag = "" if only_unread else ("" if m.get("is_read") else " `[BARU]`")
+        lines.append(f"[{_wa_time(m.get('ts', 0))}] **{who}:**{status_tag} {body}")
     await safe_send_message(context, chat_id, "\n".join(lines) or "💬 Kosong.")
 
 
 async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/wamasuk [limit|baru] — pesan WA masuk terbaru yang terekam bot."""
+    """/wamasuk [limit|semua|baru] — pesan WA masuk terbaru yang terekam bot."""
     user_id = update.effective_user.id if update.effective_user else 0
     chat_id = update.effective_chat.id if update.effective_chat else 0
     if not _is_authorized(user_id):
         return
 
     lim = 10
-    only_unread = False
+    only_unread = True
     if context.args:
         for a in context.args:
             if a.isdigit():
                 lim = max(1, min(int(a), 40))
+            elif a.lower() in ("semua", "all", "history", "riwayat"):
+                only_unread = False
             elif a.lower() in ("baru", "unread", "new"):
                 only_unread = True
 
@@ -453,12 +591,23 @@ async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if err:
         await safe_send_message(context, chat_id, f"📵 {err}")
         return
-    items = res.get("incoming", []) or []
+    items = [it for it in (res.get("incoming", []) or []) if not it.get("from_me")]
+    warn = res.get("warning")
     if not items:
-        msg_empty = "📥 Tidak ada pesan WA baru yang belum dibaca." if only_unread else "📥 Belum ada pesan WA masuk terekam."
+        msg_empty = (
+            "📥 **Semua pesan WA sudah dilihat.**\n"
+            "Tidak ada pesan baru yang belum dibaca.\n\n"
+            "💡 _Ketik `/wamasuk semua` untuk melihat riwayat pesan masuk sebelumnya._"
+            if only_unread
+            else "📥 Belum ada pesan WA masuk terekam."
+        )
+        if warn:
+            msg_empty = f"{warn}\n\n{msg_empty}"
         await safe_send_message(context, chat_id, msg_empty)
         return
-    header = f"📥 **{len(items)} Pesan WA Masuk ({'Hanya Baru' if only_unread else 'Terbaru'}):**\n"
+    header = f"📥 *{len(items)} Pesan WA Masuk ({'Hanya Baru 🟢' if only_unread else 'Terbaru'}):*\n"
+    if warn:
+        header = f"{warn}\n\n{header}"
     lines = [header]
     for it in items:
         icon = _WA_TYPE_ICON.get(str(it.get("msg_type") or ""), "")
@@ -467,13 +616,13 @@ async def wamasuk_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not chat:
             raw = str(it.get("chat") or "").split("@")[0]
             chat = ("…" + raw[-4:]) if raw.isdigit() and len(raw) > 8 else (raw or "?")
-        when = _wa_time_iso(it.get("ts", ""))
-        body = _wa_esc(it.get("body", ""))[:200] or "_(kosong)_"
-        status_tag = "" if it.get("is_read") else " `[BARU]`"
+        when = _wa_time(int(it.get("msg_ts") or 0)) if it.get("msg_ts") else _wa_time_iso(it.get("ts", ""))
+        body = _wa_esc(it.get("body", ""))[:200] or "(kosong)"
+        status_tag = "" if only_unread else ("" if it.get("is_read") else " *(BARU)*")
         if it.get("is_group") and not it.get("from_me"):
-            lines.append(f"{icon} **{chat}** — {_wa_sender(it)} · {when}{status_tag}\n   {body}")
+            lines.append(f"{icon} *{chat}* — {_wa_sender(it)} · {when}{status_tag}\n   {body}")
         else:
-            lines.append(f"{icon} **{chat}** · {when}{status_tag}\n   {body}")
+            lines.append(f"{icon} *{chat}* · {when}{status_tag}\n   {body}")
     await safe_send_message(context, chat_id, "\n".join(lines))
 
 

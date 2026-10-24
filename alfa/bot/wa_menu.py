@@ -79,21 +79,30 @@ def _nav_row(prefix: str, page: int, total_pages: int, extra: str = "") -> list:
 async def _edit_or_send(
     query, context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: str, markup=None
 ) -> None:
+    from alfa.bot.helpers import clean_telegram_markdown
+
+    cleaned = clean_telegram_markdown(text)
     try:
-        await query.edit_message_text(text=text, reply_markup=markup, parse_mode="Markdown")
+        await query.edit_message_text(text=cleaned, reply_markup=markup, parse_mode="Markdown")
         return
     except BadRequest as e:
         if "message is not modified" in str(e).lower():
             return
+        if "can't parse entities" in str(e).lower():
+            try:
+                await query.edit_message_text(text=text, reply_markup=markup)
+                return
+            except Exception:
+                pass
     except RetryAfter:
         return
     except Exception:
         pass
     try:
-        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=markup, parse_mode="Markdown")
+        await context.bot.send_message(chat_id=chat_id, text=cleaned, reply_markup=markup, parse_mode="Markdown")
     except Exception:
         try:
-            await context.bot.send_message(chat_id=chat_id, text=text)
+            await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=markup)
         except Exception as e2:
             logger.warning(f"[wa_menu] kirim gagal: {e2}")
 
@@ -162,39 +171,64 @@ async def render_chat_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
     await _edit_or_send(query, context, chat_id, "\n".join(lines) or "💬 Kosong.", InlineKeyboardMarkup(kb))
 
 
-async def render_incoming(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0) -> None:
+async def render_incoming(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0, only_new: int = 0) -> None:
     from alfa import tools as _tools
 
     query = update.callback_query
     chat_id = update.effective_chat.id if update.effective_chat else 0
-    res = _tools.wa_get_incoming(limit=30)
+    is_only_new = bool(only_new == 1)
+    res = _tools.wa_get_incoming(limit=60, only_unread=is_only_new, mark_as_read=False)
     if isinstance(res, dict) and res.get("status") == "error":
         await _edit_or_send(query, context, chat_id, f"📵 {res.get('message')}")
         return
     items = res.get("incoming", []) or []
     if not items:
-        kb = [[InlineKeyboardButton("🔄 Refresh", callback_data="wx|in|0")],
-              [InlineKeyboardButton("🏠 Menu WA", callback_data="wx|home")]]
-        await _edit_or_send(query, context, chat_id, "📥 Belum ada pesan masuk terekam.", InlineKeyboardMarkup(kb))
+        toggle_btn = (
+            InlineKeyboardButton("📋 Lihat Riwayat Semua", callback_data="wx|in|0|0")
+            if is_only_new
+            else InlineKeyboardButton("🟢 Hanya Pesan Baru", callback_data="wx|in|0|1")
+        )
+        kb = [
+            [toggle_btn],
+            [InlineKeyboardButton("🔄 Refresh", callback_data=f"wx|in|0|{only_new}")],
+            [InlineKeyboardButton("🏠 Menu WA", callback_data="wx|home")],
+        ]
+        empty_text = "📥 **Tidak ada pesan WA baru yang belum dibaca.**" if is_only_new else "📥 Belum ada pesan WA masuk terekam."
+        await _edit_or_send(query, context, chat_id, empty_text, InlineKeyboardMarkup(kb))
         return
-    ordered = list(reversed(items))
+
+    # items is already newest-first
+    ordered = items
     pages = max(1, (len(ordered) + _PAGE_IN - 1) // _PAGE_IN)
     page = max(0, min(page, pages - 1))
     chunk = ordered[page * _PAGE_IN : page * _PAGE_IN + _PAGE_IN]
-    lines = ["📥 **Pesan WA Masuk**\n"]
+
+    tag_title = " (Hanya Baru 🟢)" if is_only_new else " (Terbaru)"
+    lines = [f"📥 *Pesan WA Masuk{tag_title}* — {_wa_esc(f'{len(ordered)} pesan')}:\n"]
     for it in chunk:
         icon = _WA_TYPE_ICON.get(str(it.get("msg_type") or ""), "") or ("👥" if it.get("is_group") else "👤")
         chat = _wa_esc(it.get("chat_name") or "")
         if not chat:
             raw = str(it.get("chat") or "").split("@")[0]
             chat = ("…" + raw[-4:]) if raw.isdigit() and len(raw) > 8 else (raw or "?")
-        body = _wa_esc(it.get("body", ""))[:160] or "_(kosong)_"
+        body = _wa_esc(it.get("body", ""))[:160] or "(kosong)"
+        status_tag = "" if is_only_new else ("" if it.get("is_read") else " *(BARU)*")
+        when = _wa_time(int(it.get("msg_ts") or 0)) if it.get("msg_ts") else _wa_time_iso(it.get("ts", ""))
         if it.get("is_group") and not it.get("from_me"):
-            lines.append(f"{icon} **{chat}** — {_wa_sender(it)} · {_wa_time_iso(it.get('ts', ''))}\n   {body}")
+            lines.append(f"{icon} *{chat}* — {_wa_sender(it)} · {when}{status_tag}\n   {body}")
         else:
-            lines.append(f"{icon} **{chat}** · {_wa_time_iso(it.get('ts', ''))}\n   {body}")
-    kb = [[InlineKeyboardButton("🔄 Refresh", callback_data="wx|in|0")]]
-    kb.append(_nav_row("in", page, pages))
+            lines.append(f"{icon} *{chat}* · {when}{status_tag}\n   {body}")
+
+    toggle_btn = (
+        InlineKeyboardButton("📋 Tampilkan Semua", callback_data="wx|in|0|0")
+        if is_only_new
+        else InlineKeyboardButton("🟢 Filter Hanya Baru", callback_data="wx|in|0|1")
+    )
+    kb = [
+        [toggle_btn, InlineKeyboardButton("🔄 Refresh", callback_data=f"wx|in|{page}|{only_new}")],
+    ]
+    if pages > 1:
+        kb.append(_nav_row("in", page, pages, f"|{only_new}"))
     kb.append([InlineKeyboardButton("🏠 Menu WA", callback_data="wx|home")])
     await _edit_or_send(query, context, chat_id, "\n".join(lines), InlineKeyboardMarkup(kb))
 
@@ -336,7 +370,9 @@ async def handle_wa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif action == "chat":
             await render_chat_detail(update, context, int(parts[2]) if len(parts) > 2 else -1)
         elif action == "in":
-            await render_incoming(update, context, int(parts[2]) if len(parts) > 2 else 0)
+            p = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            onew = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+            await render_incoming(update, context, p, onew)
         elif action == "fmt":
             await render_formats(update, context)
         elif action == "ft":

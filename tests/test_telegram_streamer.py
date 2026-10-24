@@ -23,6 +23,22 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _plain_message_mock() -> MagicMock:
+    """MagicMock message yang TIDAK terdeteksi sebagai pesan terusan.
+
+    Fitur forward-batching (get_forward_info) harus di-non-aktifkan pada mock:
+    MagicMock membuat atribut `.forward_origin` berupa MagicMock truthy, sehingga
+    handle_text_message salah mengira pesan biasa sebagai pesan terusan.
+    """
+    msg = MagicMock()
+    msg.forward_origin = None
+    msg.forward_date = None
+    msg.forward_from = None
+    msg.forward_from_chat = None
+    msg.forward_sender_name = None
+    return msg
+
+
 @pytest.fixture
 def mock_context():
     """Mock Telegram ContextTypes.DEFAULT_TYPE with an async bot."""
@@ -279,7 +295,7 @@ class TestHandleTextMessageStreamingIntegration:
     def test_handle_text_message_uses_streamer(self, mock_context):
         """handle_text_message uses TelegramStreamer and completes with agent reply."""
         update = MagicMock()
-        update.message = MagicMock()
+        update.message = _plain_message_mock()
         update.message.text = "Jelaskan arsitektur bot"
         update.effective_user.id = 111
         update.effective_chat.id = 222
@@ -334,7 +350,7 @@ class TestHandleTextMessageStreamingIntegration:
     def test_handle_text_message_non_streaming_delivers_safely(self, mock_context):
         """If run_agent_turn does not push chunks (e.g. non-streaming), finalize() safely delivers via safe_send_message."""
         update = MagicMock()
-        update.message = MagicMock()
+        update.message = _plain_message_mock()
         update.message.text = "Info sistem"
         update.effective_user.id = 111
         update.effective_chat.id = 222
@@ -370,7 +386,7 @@ class TestHandleTextMessageStreamingIntegration:
     def test_handle_text_message_fallback_on_streamer_failure(self, mock_context):
         """If TelegramStreamer fails, handle_text_message gracefully falls back to safe_send_message."""
         update = MagicMock()
-        update.message = MagicMock()
+        update.message = _plain_message_mock()
         update.message.text = "Tes error streamer"
         update.effective_user.id = 111
         update.effective_chat.id = 222

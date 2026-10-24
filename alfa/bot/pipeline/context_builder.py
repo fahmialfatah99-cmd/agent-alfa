@@ -74,25 +74,43 @@ async def summarize_chunk(
             if (prev_summary or "").strip()
             else ""
         )
-        resp = await gemini_client.aio.models.generate_content(
-            model=_COMPACT_MODEL,
-            contents=(
-                base
-                + "Percakapan lanjutan:\n"
-                + convo
-                + "\n\nRingkas gabungan jadi MAKS 15 baris: fakta penting, "
-                "keputusan, janji/tugas terbuka, preferensi user. Bahasa Indonesia, fakta saja."
-            ),
-            config=types.GenerateContentConfig(
-                system_instruction="Kamu peringkas memori percakapan. Fakta saja, tanpa basa-basi."
-            ),
-        )
+        candidate_models = [
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            _COMPACT_MODEL,
+        ]
+        resp = None
+        used_model = _COMPACT_MODEL
+        for cand in candidate_models:
+            try:
+                resp = await gemini_client.aio.models.generate_content(
+                    model=cand,
+                    contents=(
+                        base
+                        + "Percakapan lanjutan:\n"
+                        + convo
+                        + "\n\nRingkas gabungan jadi MAKS 20 baris: fakta penting, "
+                        "keputusan, janji/tugas terbuka, catatan material lapangan (nama mandor, cluster, jumlah kabel/tiang/aksesoris), preferensi user. Bahasa Indonesia, fakta saja."
+                    ),
+                    config=types.GenerateContentConfig(
+                        system_instruction="Kamu peringkas memori percakapan. Fakta saja, tanpa basa-basi."
+                    ),
+                )
+                if resp and (getattr(resp, "text", "") or "").strip():
+                    used_model = cand
+                    break
+            except Exception:
+                continue
+
+        if resp is None:
+            return ""
+
         try:
             from alfa.core import token_usage as _tu
 
             _tu.from_gemini_response(
                 resp,
-                model=f"{_COMPACT_MODEL}:compact",
+                model=f"{used_model}:compact",
                 context="telegram_chat:compact",
             )
         except (ImportError, AttributeError, TypeError, ValueError):
@@ -176,10 +194,12 @@ def build_memory_block(
     user_memories: list,
     kg_triples: list,
     compaction_block: str,
+    db: Any = None,
+    exclude_history_ids: set[int] | None = None,
 ) -> str:
-    """Rakit blok ingatan jangka panjang + Auto-RAG + ringkasan kompaksi.
+    """Rakit blok ingatan jangka panjang + Auto-RAG + ringkasan kompaksi + Session Material Recall.
 
-    Tanpa akses DB (data diambil pemanggil); vector_memory diimpor lazy.
+    Mendukung penarikan catatan material lawas dalam sesi ini agar rekapitulasi tidak memotong mandor.
     """
     memory_context_parts = []
     if user_memories:
@@ -265,6 +285,53 @@ def build_memory_block(
             KeyError,
         ) as rag_err:
             logger.debug(f"Auto-RAG skipped: {rag_err}")
+
+    # MATERIAL SESSION RECALL: Jika prompt terkait material/mandor/rekap, tarik arsip material sesi terdahulu
+    p_check_mat = (user_prompt or "").lower()
+    mat_keywords = [
+        "mandor", "material", "rekap", "rangkuman", "surat jalan",
+        "habib", "jany", "kasambe", "yanto", "apied", "delima", "swadayan",
+        "tiang", "pole", "kabel", "pengambilan", "retur", "pengembalian",
+        "dead end", "clamp", "stopping", "suspension",
+    ]
+    if db and any(kw in p_check_mat for kw in mat_keywords):
+        try:
+            get_conn = getattr(db, "get_sync_db", None)
+            if get_conn is None:
+                from alfa.core import database as _ddb
+                get_conn = _ddb.get_sync_db
+            with get_conn() as conn:
+                ex_ids = list(exclude_history_ids or [])
+                placeholders = ",".join("?" for _ in ex_ids) if ex_ids else "0"
+                query = f"""
+                SELECT id, role, content FROM chat_history
+                WHERE user_id = ?
+                  AND id NOT IN ({placeholders})
+                  AND (
+                      content LIKE '%mandor%' OR content LIKE '%cluster%' OR content LIKE '%kabel%'
+                      OR content LIKE '%pole%' OR content LIKE '%tiang%' OR content LIKE '%pengambilan%'
+                      OR content LIKE '%dead end%' OR content LIKE '%clamp%' OR content LIKE '%habib%'
+                      OR content LIKE '%kasambe%' OR content LIKE '%jany%'
+                  )
+                ORDER BY id DESC LIMIT 10
+                """
+                params = [user_id] + ex_ids
+                mat_rows = conn.execute(query, params).fetchall()
+                if mat_rows:
+                    mat_lines = []
+                    for r in reversed(mat_rows):
+                        r_id = r[0] if isinstance(r, (tuple, list)) else r["id"]
+                        r_role = r[1] if isinstance(r, (tuple, list)) else r["role"]
+                        r_content = r[2] if isinstance(r, (tuple, list)) else r["content"]
+                        mat_lines.append(f"- [ID {r_id} | {r_role}]: {str(r_content)[:350]}")
+                    memory_context_parts.append(
+                        "📦 [ARSIP MATERIAL & SURAT JALAN SESI SEBELUMNYA HARI INI]:\n"
+                        "Gunakan catatan material terdahulu ini jika pengguna meminta rekapitulasi menyeluruh atau "
+                        "menyinggung mandor yang pernah dicatat sebelumnya (agar TIDAK ADA mandor atau rincian material yang terlewat):\n"
+                        + "\n".join(mat_lines)
+                    )
+        except Exception as mat_err:
+            logger.debug(f"[material_recall] gagal: {mat_err}")
 
     memory_block = ""
     if memory_context_parts:

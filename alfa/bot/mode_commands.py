@@ -80,8 +80,11 @@ def _read_mode_from_db() -> str | None:
             ).fetchone()
         finally:
             conn.close()
-        if not row:
+        if os.getenv("ALFA_LOCK_SINGLE_MODE", "").strip().lower() in ("true", "1", "yes"):
             return "single"
+        if not row:
+            def_m = os.getenv("ALFA_EXEC_MODE", "single").strip().lower()
+            return def_m if def_m in VALID_MODES else "single"
         mode = (row["value"] or "single").strip().lower()
         return mode if mode in VALID_MODES else "single"
     except _MODE_ERR:

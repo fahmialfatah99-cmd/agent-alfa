@@ -274,3 +274,137 @@ class TestCredentialHygiene:
         assert not forbidden, forbidden
         assert os.path.isfile(repo / ".gitignore")
         assert ".env" in (repo / ".gitignore").read_text(encoding="utf-8")
+
+
+# ── Artifacts Dispatch Gating: pencegahan kebocoran berkas tanpa intent ───────
+
+
+class TestMediaArtifactsGating:
+    import pytest
+
+    @pytest.mark.asyncio
+    async def test_conversational_turn_does_not_send_sandbox_files(
+        self, tmp_path, monkeypatch
+    ):
+        """Turn percakapan tanpa tool/intent tidak boleh mengirim berkas zip atau gambar dari sandbox."""
+        import time
+        from unittest.mock import MagicMock
+
+        import alfa.bot.handlers as h_mod
+        from alfa.core.runtime_ctx import reset_turn_context
+
+        reset_turn_context()
+        monkeypatch.setattr(h_mod, "SANDBOX_DIR", str(tmp_path))
+
+        zip_file = tmp_path / "hasil.zip"
+        zip_file.write_text("dummy zip content")
+        img_file = tmp_path / "desktop_screen.png"
+        img_file.write_text("dummy image content")
+
+        sent_photos = []
+        sent_docs = []
+
+        mock_update = MagicMock()
+        mock_update.effective_chat.id = 12345
+        mock_context = MagicMock()
+
+        async def fake_send_photo(chat_id, photo, caption):
+            sent_photos.append(caption)
+
+        async def fake_send_doc(chat_id, document, caption):
+            sent_docs.append(caption)
+
+        mock_context.bot.send_photo = fake_send_photo
+        mock_context.bot.send_document = fake_send_doc
+
+        await h_mod.check_and_send_media_artifacts(
+            mock_update,
+            mock_context,
+            turn_start_time=time.time() - 5.0,
+            user_prompt='[PESAN SUARA PENGGUNA (Transkripsi): "Apa yang kamu bisa"]',
+            executed_tools=[],
+        )
+
+        assert len(sent_photos) == 0
+        assert len(sent_docs) == 0
+
+    @pytest.mark.asyncio
+    async def test_artifact_turn_dispatches_matching_files_only(
+        self, tmp_path, monkeypatch
+    ):
+        """Turn dengan tool screenshot hanya mengirim gambar screenshot, tidak membocorkan berkas zip."""
+        import time
+        from unittest.mock import MagicMock
+
+        import alfa.bot.handlers as h_mod
+        from alfa.core.runtime_ctx import reset_turn_context
+
+        reset_turn_context()
+        monkeypatch.setattr(h_mod, "SANDBOX_DIR", str(tmp_path))
+
+        zip_file = tmp_path / "hasil.zip"
+        zip_file.write_text("dummy zip content")
+        img_file = tmp_path / "desktop_screen.png"
+        img_file.write_text("dummy image content")
+
+        sent_photos = []
+        sent_docs = []
+
+        mock_update = MagicMock()
+        mock_update.effective_chat.id = 12345
+        mock_context = MagicMock()
+
+        async def fake_send_photo(chat_id, photo, caption):
+            sent_photos.append(caption)
+
+        async def fake_send_doc(chat_id, document, caption):
+            sent_docs.append(caption)
+
+        mock_context.bot.send_photo = fake_send_photo
+        mock_context.bot.send_document = fake_send_doc
+
+        await h_mod.check_and_send_media_artifacts(
+            mock_update,
+            mock_context,
+            turn_start_time=time.time() - 5.0,
+            user_prompt="tolong ambilkan screenshot layar desktop",
+            executed_tools=["capture_desktop_screenshot"],
+        )
+
+        assert len(sent_photos) == 1
+        assert "Desktop" in sent_photos[0]
+        assert len(sent_docs) == 0
+
+    @pytest.mark.asyncio
+    async def test_try_handle_fast_wa(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from alfa.bot.handlers import try_handle_fast_wa
+
+        called_wamasuk = []
+        async def fake_wamasuk(update, context):
+            called_wamasuk.append(True)
+
+        monkeypatch.setattr("alfa.bot.advanced_commands.wamasuk_command", fake_wamasuk)
+
+        mock_update = MagicMock()
+        mock_update.effective_user.id = 123
+        mock_update.effective_chat.id = 456
+        mock_context = MagicMock()
+
+        # Test "cek wa masuk" triggers fast wa
+        res = await try_handle_fast_wa(mock_update, mock_context, "cek wa masuk")
+        assert res is True
+        assert len(called_wamasuk) == 1
+
+        # Test "wa masuk" triggers fast wa
+        res = await try_handle_fast_wa(mock_update, mock_context, "tolong cek wa masuk dong!")
+        assert res is True
+        assert len(called_wamasuk) == 2
+
+        # Test non-wa text does NOT trigger
+        res = await try_handle_fast_wa(mock_update, mock_context, "buatkan puisi cinta")
+        assert res is False
+        assert len(called_wamasuk) == 2
+
+

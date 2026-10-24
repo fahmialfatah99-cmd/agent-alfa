@@ -82,6 +82,12 @@ def greeting_reply(text: str) -> str | None:
 
 def _get_bot_module():
     """Retrieve telegram_bot module to support mocking in tests."""
+    if "alfa.bot.telegram_bot" not in sys.modules:
+        try:
+            import importlib
+            return importlib.import_module("alfa.bot.telegram_bot")
+        except Exception:
+            pass
     return sys.modules.get("alfa.bot.telegram_bot")
 
 
@@ -103,6 +109,8 @@ async def _check_and_send_media_artifacts(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     turn_start_time: float | None = None,
+    user_prompt: str | None = None,
+    executed_tools: list[str] | None = None,
 ):
     mod = _get_bot_module()
     if (
@@ -112,12 +120,25 @@ async def _check_and_send_media_artifacts(
     ):
         try:
             return await mod.check_and_send_media_artifacts(
-                update, context, turn_start_time=turn_start_time
+                update,
+                context,
+                turn_start_time=turn_start_time,
+                user_prompt=user_prompt,
+                executed_tools=executed_tools,
             )
         except TypeError:
-            return await mod.check_and_send_media_artifacts(update, context)
+            try:
+                return await mod.check_and_send_media_artifacts(
+                    update, context, turn_start_time=turn_start_time
+                )
+            except TypeError:
+                return await mod.check_and_send_media_artifacts(update, context)
     return await check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
+        update,
+        context,
+        turn_start_time=turn_start_time,
+        user_prompt=user_prompt,
+        executed_tools=executed_tools,
     )
 
 
@@ -237,7 +258,232 @@ async def handle_doc_action_callback(
 
     await safe_send_message(context, chat_id, reply)
     await _check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
+        update, context, turn_start_time=turn_start_time, user_prompt=prompt
+    )
+    return True
+
+
+_FORWARD_BATCHES: dict[int, dict[str, Any]] = {}
+_FORWARD_BATCH_LOCK = asyncio.Lock()
+_RECENT_FORWARD_BATCHES: dict[int, dict[str, Any]] = {}
+
+
+def get_forward_info(msg: Any) -> dict[str, Any] | None:
+    """Deteksi apakah pesan Telegram adalah pesan terusan (forwarded message)."""
+    if not msg:
+        return None
+    origin = getattr(msg, "forward_origin", None)
+    if not origin:
+        if (
+            getattr(msg, "forward_date", None)
+            or getattr(msg, "forward_from", None)
+            or getattr(msg, "forward_from_chat", None)
+            or getattr(msg, "forward_sender_name", None)
+        ):
+            sender = ""
+            if getattr(msg, "forward_from", None):
+                sender = msg.forward_from.full_name or msg.forward_from.username or ""
+            elif getattr(msg, "forward_from_chat", None):
+                sender = msg.forward_from_chat.title or ""
+            elif getattr(msg, "forward_sender_name", None):
+                sender = msg.forward_sender_name
+            return {"sender": sender or "Pengirim", "type": "legacy"}
+        return None
+
+    sender = ""
+    otype = str(getattr(origin, "type", "") or "")
+    if otype == "user":
+        u = getattr(origin, "sender_user", None)
+        if u:
+            sender = getattr(u, "full_name", "") or getattr(u, "username", "")
+    elif otype == "hidden_user":
+        sender = getattr(origin, "sender_user_name", "")
+    elif otype == "chat":
+        c = getattr(origin, "sender_chat", None)
+        if c:
+            sender = getattr(c, "title", "")
+    elif otype == "channel":
+        ch = getattr(origin, "chat", None)
+        if ch:
+            sender = getattr(ch, "title", "")
+    else:
+        # Fallback check
+        if getattr(origin, "sender_user", None):
+            sender = getattr(origin.sender_user, "full_name", "") or getattr(origin.sender_user, "username", "")
+        elif getattr(origin, "sender_user_name", None):
+            sender = origin.sender_user_name
+        elif getattr(origin, "sender_chat", None):
+            sender = getattr(origin.sender_chat, "title", "")
+        elif getattr(origin, "chat", None):
+            sender = getattr(origin.chat, "title", "")
+
+    return {"sender": sender or "Pengirim", "type": str(otype)}
+
+
+async def _execute_forward_batch(chat_id: int, batch: dict[str, Any]) -> None:
+    """Eksekusi setelah seluruh batch pesan terusan selesai terkirim (debounced)."""
+    items = batch.get("items", [])
+    if not items:
+        return
+
+    user_id = batch.get("user_id", 0)
+    context = batch.get("context")
+
+    count = len(items)
+    senders = list(dict.fromkeys(item["sender"] for item in items if item.get("sender")))
+    senders_str = ", ".join(senders) if senders else "seseorang"
+
+    # Format seluruh pesan terusan
+    formatted_messages = []
+    for i, it in enumerate(items, 1):
+        sender = it.get("sender", "Seseorang")
+        txt = it.get("text", "")
+        formatted_messages.append(f"[{i}. Dari: {sender}]\n{txt}")
+    full_forward_text = "\n\n".join(formatted_messages)
+
+    # Simpan ke cache referensi agar bisa diakses via tombol 1-click atau chat lanjutan
+    _RECENT_FORWARD_BATCHES[chat_id] = {
+        "count": count,
+        "senders": senders,
+        "senders_str": senders_str,
+        "full_text": full_forward_text,
+        "items": items,
+        "user_id": user_id,
+        "context": context,
+        "created_at": time.time(),
+        "consumed": False,
+    }
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    if count == 1:
+        msg_header = f"📩 Aku terima 1 pesan terusan dari *{senders_str}*."
+    else:
+        msg_header = f"📩 Aku sudah menampung *{count} pesan terusan* dari *{senders_str}*."
+
+    question_text = (
+        f"{msg_header}\n\n"
+        "Semua pesan sudah selesai terkirim. Mau diapakan nih?\n\n"
+        "• Mau dirangkum poin pentingnya?\n"
+        "• Dianalisis masalah / isinya?\n"
+        "• Dibuatkan draf balasannya?\n"
+        "• Disimpan ke catatan / memori?\n\n"
+        "_Ketik langsung perintahmu, atau pilih opsi di bawah:_"
+    )
+
+    kb = [
+        [
+            InlineKeyboardButton("📝 Rangkum Poin Penting", callback_data="fwdact:summarize"),
+            InlineKeyboardButton("🔍 Analisis Isi", callback_data="fwdact:analyze"),
+        ],
+        [
+            InlineKeyboardButton("✉️ Draf Balasan", callback_data="fwdact:reply"),
+            InlineKeyboardButton("💾 Simpan ke Catatan", callback_data="fwdact:save"),
+        ],
+    ]
+
+    await safe_send_message(
+        context,
+        chat_id,
+        question_text,
+        reply_markup=InlineKeyboardMarkup(kb),
+    )
+
+
+async def handle_forward_action_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, data: str
+) -> bool:
+    """Handle 1-click interactive action buttons for forwarded message batch."""
+    if not data.startswith("fwdact:"):
+        return False
+
+    action = data.split(":", 1)[1]
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = update.effective_user.id if update.effective_user else 0
+
+    batch_info = _RECENT_FORWARD_BATCHES.get(chat_id)
+    if not batch_info:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⚠️ Kumpulan pesan terusan sudah kedaluwarsa. Silakan teruskan kembali pesannya.",
+        )
+        return True
+
+    batch_info["consumed"] = True
+
+    turn_start_time = time.time()
+    count = batch_info.get("count", 1)
+    senders_str = batch_info.get("senders_str", "seseorang")
+    full_text = batch_info.get("full_text", "")
+
+    action_prompts = {
+        "summarize": (
+            f"Berikut kumpulan {count} pesan terusan dari {senders_str}:\n\n"
+            f"{full_text}\n\n"
+            "Instruksi Pengguna: Rangkum seluruh poin penting, keputusan, dan informasi kunci "
+            "dari pesan-pesan terusan di atas secara padat, jelas, terstruktur, dan mudah dipahami. "
+            "Jika pesan berisi catatan material/surat jalan lapangan: WAJIB buat 1 LAPORAN TUNGGAL TERPADU "
+            "yang menyajikan Rincian Harian per tanggal dan Rekapitulasi Total Global lengkap seluruh item "
+            "(kabel, tiang, dan semua aksesoris penunjang tanpa ada yang terpotong/dihilangkan)."
+        ),
+        "analyze": (
+            f"Berikut kumpulan {count} pesan terusan dari {senders_str}:\n\n"
+            f"{full_text}\n\n"
+            "Instruksi Pengguna: Analisis isi pesan-pesan terusan di atas secara mendalam. "
+            "Identifikasi konteks masalah, pihak yang terlibat, urgensi, dan saran langkah tindak lanjut yang tepat."
+        ),
+        "reply": (
+            f"Berikut kumpulan {count} pesan terusan dari {senders_str}:\n\n"
+            f"{full_text}\n\n"
+            "Instruksi Pengguna: Buatkan draf balasan pesan yang profesional, ramah, dan solutif "
+            f"untuk menanggapi pesan terusan dari {senders_str} di atas."
+        ),
+        "save": (
+            f"Berikut kumpulan {count} pesan terusan dari {senders_str}:\n\n"
+            f"{full_text}\n\n"
+            "Instruksi Pengguna: Simpan fakta dan informasi penting dari pesan-pesan terusan di atas "
+            "ke memori jangka panjang ALFA menggunakan tool save_knowledge_memory."
+        ),
+    }
+
+    prompt = action_prompts.get(action)
+    if not prompt:
+        return False
+
+    action_labels = {
+        "summarize": "📝 Merangkum poin-poin penting pesan terusan...",
+        "analyze": "🔍 Menganalisis konteks & fakta pesan terusan...",
+        "reply": "✉️ Menyiapkan draf balasan pesan...",
+        "save": "💾 Menyimpan informasi penting ke memori ALFA...",
+    }
+    status_msg = await context.bot.send_message(
+        chat_id=chat_id, text=action_labels.get(action, "Memproses pesan terusan...")
+    )
+
+    stop_typing = asyncio.Event()
+    typing_task = asyncio.create_task(
+        send_typing_loop(chat_id, context, stop_typing, constants.ChatAction.TYPING)
+    )
+
+    try:
+        reply = await _run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            chat_id=chat_id,
+        )
+    finally:
+        stop_typing.set()
+        await typing_task
+        try:
+            del_res = status_msg.delete()
+            if asyncio.iscoroutine(del_res):
+                await del_res
+        except Exception:
+            pass
+
+    await safe_send_message(context, chat_id, reply)
+    await _check_and_send_media_artifacts(
+        update, context, turn_start_time=turn_start_time, user_prompt=prompt
     )
     return True
 
@@ -261,11 +507,31 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     data = query.data or ""
+    if data == "budget:reset":
+        from alfa.core import rate_limiter
+
+        deleted = rate_limiter.reset_user_usage_today(user_id)
+        usage = rate_limiter.get_user_usage_today(user_id)
+        msg = (
+            "🔄 **Kuota harian berhasil di-reset!**\n\n"
+            f"• Token terpakai hari ini: **0** / {usage['budget_limit']:,} token\n"
+            f"• Panggilan terpakai: **0** / {usage['call_limit']:,} panggilan\n"
+            f"• Catatan pemakaian dihapus: {deleted} entri\n\n"
+            "Sekarang Anda bisa kembali menggunakan AI secara normal tanpa batasan kuota."
+        )
+        await safe_send_message(context, chat_id, msg)
+        return
+
     try:
         if await handle_doc_action_callback(update, context, data):
             return
     except _HANDLER_ERR as e:
         logger.debug(f"[callback] doc_action gagal: {e}")
+    try:
+        if await handle_forward_action_callback(update, context, data):
+            return
+    except _HANDLER_ERR as e:
+        logger.debug(f"[callback] forward_action gagal: {e}")
     try:
         from alfa.bot.mode_commands import handle_persona_callback
 
@@ -287,6 +553,13 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             return
     except _HANDLER_ERR as e:
         logger.debug(f"[callback] sites router gagal: {e}")
+    try:
+        from alfa.bot.cloud_menu import handle_cloud_callback
+
+        if await handle_cloud_callback(update, context):
+            return
+    except _HANDLER_ERR as e:
+        logger.debug(f"[callback] cloud_menu router gagal: {e}")
 
     # Tombol menu utama → output perintah mengedit pesan menu di tempat
     from alfa.bot.helpers import clear_menu_target, set_menu_target
@@ -303,6 +576,20 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
         from alfa.bot.basic_commands import menu_command
 
         await menu_command(update, context)
+
+    elif data in ("btn_sheets", "btn_gdrive", "btn_cloud"):
+        from alfa.bot.cloud_menu import (
+            render_cloud_hub,
+            render_drive_home,
+            render_sheets_home,
+        )
+
+        if data == "btn_sheets":
+            await render_sheets_home(update, context, 0)
+        elif data == "btn_gdrive":
+            await render_drive_home(update, context)
+        else:
+            await render_cloud_hub(update, context)
 
     elif data == "btn_stats":
         stats = get_system_stats()
@@ -381,6 +668,11 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
             "• `/persona [nama|id|reset]` - Persona single-mode\n"
             "• `/tools` - 148 tools real\n"
             "• `/cekagen` - Audit kesehatan konfigurasi\n\n"
+            "☁️ **Google Sheets & Drive:**\n"
+            "• `/sheets` (`/sheet`) - Panel file & tab Google Sheets terhubung\n"
+            "• `/drive` (`/gdrive`) - Jelajahi Google Drive cloud & mount lokal\n"
+            "• `/cloud` - Hub terpadu Google Sheets & Google Drive\n"
+            "• `/setsheet [link|id]` - Konfigurasi spreadsheet aktif\n\n"
             "🔁 **Otomasi:**\n"
             "• `/pipeline [list|run <id>]` - Workflow DAG\n"
             "• `/tugas` - Subagent latar & checkpoint\n"
@@ -532,29 +824,89 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
         )
 
 
+def is_artifact_producing_tool(tool_name: str) -> bool:
+    """Check if a tool's purpose is to produce deliverable media/documents."""
+    t = (tool_name or "").lower()
+    return any(
+        k in t
+        for k in (
+            "screenshot", "screen", "webcam", "camera", "photo", "recording", "video",
+            "chart", "plot", "excel", "spreadsheet", "pdf", "powerpoint", "presentation",
+            "pptx", "zip", "archive", "compress", "download", "transcode", "export"
+        )
+    )
+
+
+_ARTIFACT_INTENT_KEYWORDS = (
+    "screenshot", "tangkapan layar", "ss layar", "capture layar",
+    "webcam", "foto kamera", "potret",
+    "grafik", "chart", "diagram", "visualisasi data", "plot",
+    "excel", "spreadsheet", "xlsx", "xls", "rekap excel",
+    "pdf", "dokumen pdf", "laporan pdf",
+    "powerpoint", "presentasi", "pptx",
+    "zip", "arsip zip", "kompres", "arsip",
+    "unduh", "download", "rekam layar", "video layar",
+)
+
+
+def has_artifact_intent(prompt: str) -> bool:
+    """Check if prompt text asks for a file, media, or visual deliverable."""
+    if not prompt:
+        return False
+    p = prompt.lower()
+    return any(k in p for k in _ARTIFACT_INTENT_KEYWORDS)
+
+
 async def check_and_send_media_artifacts(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     turn_start_time: float | None = None,
+    user_prompt: str | None = None,
+    executed_tools: list[str] | None = None,
 ):
     """
     Checks if any screenshot, webcam frame, Python chart, or document (PDF, Excel, PPTX, ZIP)
     was created during this turn and dispatches it directly to the Telegram user.
-    Stale artifacts created before turn_start_time are pruned and never dispatched.
+    Pure conversational turns (greetings, general QA, voice notes like "apa yang kamu bisa")
+    never dispatch raw files from SANDBOX_DIR.
     """
     chat_id = update.effective_chat.id if update.effective_chat else 0
     if not os.path.exists(SANDBOX_DIR):
         return
 
+    from alfa.core.runtime_ctx import (
+        get_current_executed_tools,
+        get_current_turn_artifacts,
+        get_current_user_prompt,
+    )
+
+    if executed_tools is None:
+        executed_tools = get_current_executed_tools()
+    recorded_artifacts = get_current_turn_artifacts()
+    prompt = (user_prompt or get_current_user_prompt() or "").lower()
+
+    has_prompt_intent = has_artifact_intent(prompt)
+    has_tool_artifact = any(is_artifact_producing_tool(t) for t in executed_tools)
+    has_recorded = len(recorded_artifacts) > 0
+
+    # Gate check: When turn_start_time is specified (live turn context), skip artifact dispatching
+    # if the turn was purely conversational without artifact intent and no artifact tool was executed.
+    if turn_start_time is not None and not (has_tool_artifact or has_recorded or has_prompt_intent):
+        logger.debug(
+            "[check_and_send_media_artifacts] Skipping: no artifact intent or tool "
+            f"(tools={executed_tools}, prompt={prompt[:50]!r})"
+        )
+        return
+
     named_media = [
-        ("desktop_screen.png", "🖥️ Tangkapan Layar Desktop"),
-        ("webcam_frame.jpg", "📷 Foto Kamera Webcam"),
-        ("generated_plot.png", "📊 Grafik Visualisasi Data (Python)"),
-        ("dataset_analysis_chart.png", "📊 Grafik Analisis Dataset"),
-        ("browser_screenshot.png", "🌐 Tangkapan Layar Browser (Camofox)"),
+        ("desktop_screen.png", "🖥️ Tangkapan Layar Desktop", ("screenshot", "screen", "tangkapan")),
+        ("webcam_frame.jpg", "📷 Foto Kamera Webcam", ("webcam", "kamera", "camera")),
+        ("generated_plot.png", "📊 Grafik Visualisasi Data (Python)", ("chart", "grafik", "plot", "diagram")),
+        ("dataset_analysis_chart.png", "📊 Grafik Analisis Dataset", ("chart", "grafik", "dataset", "analisis")),
+        ("browser_screenshot.png", "🌐 Tangkapan Layar Browser (Camofox)", ("browser", "screenshot", "web")),
     ]
 
-    for filename, caption in named_media:
+    for filename, caption, triggers in named_media:
         full_path = os.path.join(SANDBOX_DIR, filename)
         if os.path.exists(full_path) and os.path.getsize(full_path) > 0:
             mtime = os.path.getmtime(full_path)
@@ -565,6 +917,15 @@ async def check_and_send_media_artifacts(
                 except OSError:
                     pass
                 continue
+
+            # In live turns, verify that this named media matches the turn's tool execution, recorded artifacts, or intent
+            if turn_start_time is not None and full_path not in recorded_artifacts:
+                matched = any(
+                    trig in t.lower() for trig in triggers for t in executed_tools
+                ) or any(trig in prompt for trig in triggers)
+                if not matched:
+                    continue
+
             try:
                 with open(full_path, "rb") as photo_file:
                     await context.bot.send_photo(
@@ -605,8 +966,42 @@ async def check_and_send_media_artifacts(
     for fname, fpath, mtime in raw_candidates:
         ext = os.path.splitext(fname)[1].lower()
         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
+            if turn_start_time is not None and fpath not in recorded_artifacts:
+                matched_img = (
+                    any(is_artifact_producing_tool(t) for t in executed_tools)
+                    or any(k in prompt for k in ("foto", "gambar", "image", "chart", "grafik", "plot", "screenshot"))
+                )
+                if not matched_img:
+                    continue
             images_to_send.append((fname, fpath))
         else:
+            if turn_start_time is not None and fpath not in recorded_artifacts:
+                if ext == ".zip":
+                    matched_doc = (
+                        any(any(k in t.lower() for k in ("zip", "compress", "archive")) for t in executed_tools)
+                        or any(k in prompt for k in ("zip", "kompres", "arsip"))
+                    )
+                elif ext in [".xlsx", ".xls", ".csv"]:
+                    matched_doc = (
+                        any(any(k in t.lower() for k in ("excel", "spreadsheet", "sheet")) for t in executed_tools)
+                        or any(k in prompt for k in ("excel", "xlsx", "spreadsheet", "tabel"))
+                    )
+                elif ext == ".pdf":
+                    matched_doc = (
+                        any("pdf" in t.lower() for t in executed_tools)
+                        or "pdf" in prompt
+                    )
+                elif ext in [".pptx", ".ppt"]:
+                    matched_doc = (
+                        any(any(k in t.lower() for k in ("powerpoint", "presentation", "pptx")) for t in executed_tools)
+                        or any(k in prompt for k in ("pptx", "powerpoint", "presentasi"))
+                    )
+                else:
+                    matched_doc = has_tool_artifact or has_prompt_intent
+
+                if not matched_doc:
+                    continue
+
             docs_by_ext.setdefault(ext, []).append((fname, fpath, mtime))
 
     # Kirim foto / grafik
@@ -677,25 +1072,91 @@ async def _long_turn_nudge(
     chat_id: int,
     turn_task: "asyncio.Task",
     streamer,
-    delay: float = 45.0,
+    first_delay: float = 12.0,
 ) -> None:
-    """Kirim SATU pesan penenang bila turn single-mode lama tanpa update terlihat."""
+    """Kirim pesan penenang bertahap bila turn single-mode lama tanpa update agar pengguna tahu bot aktif bekerja."""
     try:
-        await asyncio.sleep(delay)
+        await asyncio.sleep(first_delay)
         if turn_task.done():
             return
-        if streamer is not None and getattr(streamer, "message_id", None):
-            return  # streaming sudah tampil -> tak perlu nudge
-        await safe_send_message(
-            context,
-            chat_id,
-            "🧠 Masih diproses (menjalankan tools + menalar) — mohon tunggu, "
-            "hasil dikirim utuh setelah selesai.",
-        )
+        has_content = bool(streamer and getattr(streamer, "buffer", "").strip())
+        if not has_content:
+            await safe_send_message(
+                context,
+                chat_id,
+                "⏳ Sedang menghubungkan ke server AI & memproses... Mohon tunggu sebentar ya!",
+            )
+        await asyncio.sleep(45.0)
+        if turn_task.done():
+            return
+        has_content = bool(streamer and getattr(streamer, "buffer", "").strip())
+        if not has_content:
+            await safe_send_message(
+                context,
+                chat_id,
+                "🧠 Masih diproses (server AI membutuhkan waktu respons lebih lama dari biasanya). Hasil segera dikirim setelah selesai.",
+            )
     except asyncio.CancelledError:
         pass
     except _HANDLER_ERR as e:
         logger.debug(f"[nudge] gagal: {e}")
+
+
+_WA_INCOMING_TRIGGERS = {
+    "cek wa masuk", "cek wa", "wa masuk", "baca wa masuk", "baca wa",
+    "chat wa masuk", "pesan wa masuk", "pesan wa baru", "ada wa masuk",
+    "ada wa baru", "lihat wa masuk", "cek whatsapp masuk", "baca whatsapp masuk",
+    "whatsapp masuk", "chat whatsapp masuk", "ada whatsapp masuk",
+    "cek pesan wa", "baca pesan wa", "cek chat wa", "baca chat wa",
+    "cek wa baru", "baca wa baru", "ada pesan wa", "ada pesan wa baru",
+    "tolong cek wa masuk", "tolong cek wa", "tolong baca wa masuk",
+    "cek wa ada apa", "cek pesan whatsapp", "baca pesan whatsapp",
+}
+
+
+async def try_handle_fast_wa(update: Update, context: ContextTypes.DEFAULT_TYPE, user_text: str) -> bool:
+    """Deteksi perintah WA instan untuk eksekusi sub-detik tanpa membebani antrean LLM cloud."""
+    norm = (user_text or "").lower().strip()
+    for ch in "!?.,-—…":
+        norm = norm.replace(ch, " ")
+    norm = " ".join(norm.split())
+
+    # 1. Cek Pesan Masuk WA (wamasuk)
+    is_incoming = norm in _WA_INCOMING_TRIGGERS or (
+        any(k in norm for k in ("wa masuk", "whatsapp masuk"))
+        and any(k in norm for k in ("cek", "baca", "lihat", "ada", "ambil", "tolong"))
+    )
+    if is_incoming:
+        from alfa.bot.advanced_commands import wamasuk_command
+        await wamasuk_command(update, context)
+        try:
+            uid = update.effective_user.id if update.effective_user else 0
+            await database.save_chat_message(uid, "user", user_text)
+            await database.save_chat_message(uid, "model", "[Pesan WhatsApp masuk diperiksa via fast-path /wamasuk]")
+        except Exception as dbe:
+            logger.debug(f"[fast_wa] save_chat_message error: {dbe}")
+        return True
+
+    # 2. Pembersihan / Reset Buffer WA
+    is_clear = (
+        any(k in norm for k in ("wa", "whatsapp"))
+        and any(k in norm for k in ("hapus riwayat", "bersihkan riwayat", "reset riwayat", "hapus chat", "bersihkan chat", "hapus buffer", "clear"))
+    )
+    if is_clear:
+        chat_id = update.effective_chat.id if update.effective_chat else 0
+        from alfa import tools
+        tools.wa_clear_history(target="all", clear_archive=True, clear_read_state=True)
+        msg = "🗑️ **Riwayat pesan WhatsApp berhasil dibersihkan!**\nBuffer pesan masuk lokal dan arsip sudah dikosongkan."
+        await safe_send_message(context, chat_id, msg)
+        try:
+            uid = update.effective_user.id if update.effective_user else 0
+            await database.save_chat_message(uid, "user", user_text)
+            await database.save_chat_message(uid, "model", msg)
+        except Exception as dbe:
+            logger.debug(f"[fast_wa] save_chat_message error: {dbe}")
+        return True
+
+    return False
 
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -714,6 +1175,84 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     turn_start_time = time.time()
     swarm_files: list[str] = []
 
+    # 1. Deteksi apakah pesan ini adalah pesan terusan (forwarded message)
+    fwd_info = get_forward_info(update.message)
+    if fwd_info is not None:
+        async with _FORWARD_BATCH_LOCK:
+            if chat_id not in _FORWARD_BATCHES:
+                _FORWARD_BATCHES[chat_id] = {
+                    "items": [],
+                    "task": None,
+                    "user_id": user_id,
+                    "context": context,
+                    "latest_update": update,
+                    "turn_start_time": turn_start_time,
+                }
+            batch = _FORWARD_BATCHES[chat_id]
+            batch["items"].append({
+                "text": user_text,
+                "sender": fwd_info.get("sender") or "Pengirim",
+                "msg_id": update.message.message_id,
+            })
+            batch["latest_update"] = update
+
+            if batch.get("task") and not batch["task"].done():
+                batch["task"].cancel()
+
+            async def _delayed_forward_batch_runner():
+                try:
+                    # Debounce 1.8 detik: tunggu seluruh rentetan pesan terusan selesai dikirim
+                    await asyncio.sleep(1.8)
+                except asyncio.CancelledError:
+                    return
+
+                async with _FORWARD_BATCH_LOCK:
+                    ready_batch = _FORWARD_BATCHES.pop(chat_id, None)
+
+                if ready_batch and ready_batch.get("items"):
+                    await _execute_forward_batch(chat_id, ready_batch)
+
+            batch["task"] = asyncio.create_task(_delayed_forward_batch_runner())
+            return
+
+    # 2. Jika bukan pesan terusan, periksa apakah ada batch pesan terusan yang sedang menunggu debounce
+    #    (misal: pengguna meneruskan pesan lalu langsung mengetik instruksi tanpa menunggu jeda)
+    active_forward_batch = None
+    async with _FORWARD_BATCH_LOCK:
+        if chat_id in _FORWARD_BATCHES:
+            active_forward_batch = _FORWARD_BATCHES.pop(chat_id)
+            if active_forward_batch.get("task") and not active_forward_batch["task"].done():
+                active_forward_batch["task"].cancel()
+
+    if active_forward_batch and active_forward_batch.get("items"):
+        items = active_forward_batch["items"]
+        count = len(items)
+        senders = list(dict.fromkeys(item["sender"] for item in items if item.get("sender")))
+        senders_str = ", ".join(senders) if senders else "seseorang"
+        formatted_messages = []
+        for i, it in enumerate(items, 1):
+            s = it.get("sender", "Seseorang")
+            txt = it.get("text", "")
+            formatted_messages.append(f"[{i}. Dari: {s}]\n{txt}")
+        full_forward_text = "\n\n".join(formatted_messages)
+
+        _RECENT_FORWARD_BATCHES[chat_id] = {
+            "count": count,
+            "senders": senders,
+            "senders_str": senders_str,
+            "full_text": full_forward_text,
+            "items": items,
+            "user_id": user_id,
+            "context": context,
+            "created_at": time.time(),
+            "consumed": True,
+        }
+        user_text = (
+            f"[Kumpulan {count} Pesan Terusan dari {senders_str}]:\n\n"
+            f"{full_forward_text}\n\n"
+            f"Instruksi Pengguna: {user_text}"
+        )
+
     # Sapaan murni → jawab instan, JANGAN lewat agent (hemat token + anti tool nyasar).
     fast = greeting_reply(user_text)
     if fast is not None:
@@ -724,6 +1263,49 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.debug(f"[greeting] simpan riwayat gagal: {db_err}")
         await safe_send_message(context, chat_id, fast)
         return
+
+    # Fast-Path WhatsApp: eksekusi sub-detik tanpa membebani antrean LLM cloud.
+    if await try_handle_fast_wa(update, context, user_text):
+        return
+
+    # Fast-Path Reset Kuota: eksekusi instan tanpa membebani LLM
+    norm_cmd = user_text.lower().strip()
+    for ch in "!?.,-—…":
+        norm_cmd = norm_cmd.replace(ch, " ")
+    norm_cmd = " ".join(norm_cmd.split())
+    if norm_cmd in (
+        "reset kuota",
+        "reset kuota harian",
+        "reset budget",
+        "nolkan kuota",
+        "nolkan kuota harian",
+        "clear kuota",
+    ):
+        from alfa.core import rate_limiter
+
+        deleted = rate_limiter.reset_user_usage_today(user_id)
+        usage = rate_limiter.get_user_usage_today(user_id)
+        msg = (
+            "🔄 **Kuota harian berhasil di-reset!**\n\n"
+            f"• Token terpakai hari ini: **0** / {usage['budget_limit']:,} token\n"
+            f"• Panggilan terpakai: **0** / {usage['call_limit']:,} panggilan\n"
+            f"• Catatan pemakaian dihapus: {deleted} entri\n\n"
+            "Sekarang Anda bisa kembali menggunakan AI secara normal tanpa batasan kuota."
+        )
+        await safe_send_message(context, chat_id, msg)
+        return
+
+    # 3. Periksa apakah ada batch pesan terusan terbaru yang menunggu instruksi pengguna
+    if not (active_forward_batch and active_forward_batch.get("items")):
+        recent_fwd = _RECENT_FORWARD_BATCHES.get(chat_id)
+        if recent_fwd and not recent_fwd.get("consumed", False):
+            if time.time() - recent_fwd.get("created_at", 0) < 600:
+                recent_fwd["consumed"] = True
+                user_text = (
+                    f"[Kumpulan {recent_fwd['count']} Pesan Terusan dari {recent_fwd['senders_str']}]:\n\n"
+                    f"{recent_fwd['full_text']}\n\n"
+                    f"Instruksi Pengguna: {user_text}"
+                )
 
     streamer = None
     stop_typing = None
@@ -747,6 +1329,10 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             from alfa.bot.mode_commands import get_telegram_mode_sync
 
             use_swarm = get_telegram_mode_sync() == "swarm"
+            if use_swarm:
+                _st = user_text.strip().lower()
+                if len(_st.split()) <= 2 or _st.startswith(("/", "perbaiki", "tes", "halo", "ok", "batal")):
+                    use_swarm = False
         except _HANDLER_ERR:
             use_swarm = False
 
@@ -849,7 +1435,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await safe_send_message(context, chat_id, reply)
 
     await _check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
+        update, context, turn_start_time=turn_start_time, user_prompt=user_text
     )
 
     for fpath in swarm_files:
@@ -961,17 +1547,36 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 except _HANDLER_ERR as tr_err:
                     logger.debug(f"Fast transcription skipped ({model_id}): {tr_err}")
 
+        fast = None
         if transcription_text:
-            prompt = f'[PESAN SUARA PENGGUNA (Transkripsi): "{transcription_text}"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat.'
+            fast = greeting_reply(transcription_text)
+            if fast is not None:
+                mod = _get_bot_module()
+                db_mod = getattr(mod, "database", database) if mod else database
+                try:
+                    await db_mod.save_chat_message(
+                        user_id, "user", f'[PESAN SUARA: "{transcription_text}"]'
+                    )
+                    await db_mod.save_chat_message(user_id, "model", fast)
+                except _HANDLER_ERR:
+                    pass
+                reply = fast
+            else:
+                prompt = f'[PESAN SUARA PENGGUNA (Transkripsi): "{transcription_text}"]\nPahami instruksi di atas dan berikan jawaban yang lengkap dan akurat.'
+                reply = await _run_agent_turn(
+                    user_id=user_id,
+                    user_prompt=prompt,
+                    multimodal_parts=[audio_part],
+                    chat_id=chat_id,
+                )
         else:
             prompt = "Dengarkan rekaman suara ini dengan teliti, pahami instruksi/pertanyaannya, dan berikan jawaban yang lengkap dan akurat."
-
-        reply = await _run_agent_turn(
-            user_id=user_id,
-            user_prompt=prompt,
-            multimodal_parts=[audio_part],
-            chat_id=chat_id,
-        )
+            reply = await _run_agent_turn(
+                user_id=user_id,
+                user_prompt=prompt,
+                multimodal_parts=[audio_part],
+                chat_id=chat_id,
+            )
     except _HANDLER_ERR as e:
         logger.error(f"[handle_voice] turn gagal untuk {user_id}: {e}", exc_info=True)
         reply = (
@@ -983,8 +1588,13 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         stop_typing.set()
         await typing_task
 
+    active_prompt = (
+        (transcription_text or "")
+        if "fast" in locals() and fast is not None
+        else (prompt if "prompt" in locals() else (transcription_text or ""))
+    )
     await _check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
+        update, context, turn_start_time=turn_start_time, user_prompt=active_prompt
     )
 
     prefer_text = should_reply_with_text_instead_of_voice(reply)
@@ -1014,8 +1624,96 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         await safe_send_message(context, chat_id, reply)
 
 
+_PHOTO_BATCHES: dict[int, dict[str, Any]] = {}
+_PHOTO_BATCH_LOCK = asyncio.Lock()
+
+
+async def _execute_photo_batch(chat_id: int, batch: dict[str, Any]):
+    photos = batch.get("photos", [])
+    if not photos:
+        return
+    user_id = batch.get("user_id", 0)
+    context = batch.get("context")
+    update = batch.get("latest_update")
+    turn_start_time = batch.get("turn_start_time", time.time())
+    captions = [c for c in batch.get("captions", []) if c]
+    user_caption = " ".join(captions).strip() if captions else ""
+
+    # Selalu di-set saat batch dibuat (lihat _PHOTO_BATCHES.get_or_create);
+    # assert ini hanya narrowing utk mypy: CallbackContext non-opsional.
+    assert context is not None
+
+    stop_typing = asyncio.Event()
+    typing_task = asyncio.create_task(
+        send_typing_loop(
+            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO
+        )
+    )
+    reply = "❌ Maaf, terjadi kesalahan saat memproses foto-fotomu."
+
+    try:
+        multimodal_parts = []
+        for p in photos:
+            if p.get("part") is not None:
+                multimodal_parts.append(p["part"])
+
+        if len(photos) > 1:
+            photo_blocks = []
+            for idx, p in enumerate(photos, 1):
+                fname = p.get("file_name", f"foto_{idx}.jpg")
+                tctx = (p.get("txt_ctx") or "").strip()
+                if tctx:
+                    photo_blocks.append(f"--- FOTO {idx}: {fname} ---\n{tctx}")
+                else:
+                    photo_blocks.append(f"--- FOTO {idx}: {fname} ---")
+
+            if not user_caption:
+                user_caption = "Analisis dan berikan rangkuman terpadu isi seluruh foto ini."
+
+            prompt = (
+                f"[KUMPULAN {len(photos)} FOTO/GAMBAR DIUNGGAH SEKALIGUS]:\n"
+                + "\n\n".join(photo_blocks)
+                + f"\n\nInstruksi Pengguna: {user_caption}\n\n"
+                "[PANDUAN LAPORAN TERPADU MULTI-FOTO]:\n"
+                "- WAJIB jadikan 1 LAPORAN TUNGGAL yang rapi, padat, dan terstruktur.\n"
+                "- Rincikan informasi dari setiap foto (tanggal/waktu watermark, lokasi koordinat, aktivitas, mandor, dan daftar item/material).\n"
+                "- Di bagian akhir, sajikan Rekapitulasi Total Akumulasi secara bersih dan nyaman dibaca di Telegram.\n"
+                "- DILARANG membuat laporan terpisah-pisah untuk masing-masing foto.\n"
+                "- ANTI-OMISI: Cantumkan seluruh item material dan aksesoris (Poolclam, Dead End, Suspension, Stoping, Hanger, Plat Belt, dll.) tanpa ada yang terpotong."
+            )
+        else:
+            p = photos[0]
+            txt_ctx = p.get("txt_ctx", "")
+            prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {user_caption}" if txt_ctx else user_caption
+            if not user_caption:
+                prompt = f"{txt_ctx}\n\nAnalisis gambar ini secara detail." if txt_ctx else "Analisis gambar ini secara detail."
+
+        reply = await _run_agent_turn(
+            user_id=user_id,
+            user_prompt=prompt,
+            multimodal_parts=multimodal_parts if multimodal_parts else None,
+            chat_id=chat_id,
+        )
+    except _HANDLER_ERR as e:
+        logger.error(f"[_execute_photo_batch] turn gagal untuk {user_id}: {e}", exc_info=True)
+        reply = (
+            "❌ Maaf, foto-fotonya gagal diproses "
+            f"({type(e).__name__}: {str(e)[:200]}). "
+            "Coba kirim ulang."
+        )
+    finally:
+        stop_typing.set()
+        await typing_task
+
+    await safe_send_message(context, chat_id, reply)
+    if update:
+        await _check_and_send_media_artifacts(
+            update, context, turn_start_time=turn_start_time, user_prompt=user_caption
+        )
+
+
 async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle incoming photos & images for vision analysis."""
+    """Handle incoming photos & images for vision analysis (with multi-photo debouncing)."""
     if not update.message:
         return
     user_id = update.effective_user.id if update.effective_user else 0
@@ -1027,18 +1725,8 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     photos = update.message.photo
     if not photos:
         return
-    turn_start_time = time.time()
 
-    caption = update.message.caption or "Analisis gambar ini secara detail."
     best_photo = photos[-1]
-
-    stop_typing = asyncio.Event()
-    typing_task = asyncio.create_task(
-        send_typing_loop(
-            chat_id, context, stop_typing, constants.ChatAction.UPLOAD_PHOTO
-        )
-    )
-    reply = "❌ Maaf, terjadi kesalahan saat memproses gambarmu."
 
     try:
         photo_file = await context.bot.get_file(best_photo.file_id)
@@ -1053,30 +1741,52 @@ async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYP
             photo_filename, "image/jpeg", photo_bytes, save_disk=True
         )
 
-        prompt = f"{txt_ctx}\n\nInstruksi Pengguna: {caption}" if txt_ctx else caption
-        multimodal_parts = [image_part] if image_part is not None else None
+        photo_item = {
+            "file_name": photo_filename,
+            "txt_ctx": txt_ctx,
+            "part": image_part,
+            "caption": (update.message.caption or "").strip(),
+        }
 
-        reply = await _run_agent_turn(
-            user_id=user_id,
-            user_prompt=prompt,
-            multimodal_parts=multimodal_parts,
-            chat_id=chat_id,
-        )
+        async with _PHOTO_BATCH_LOCK:
+            if chat_id not in _PHOTO_BATCHES:
+                _PHOTO_BATCHES[chat_id] = {
+                    "photos": [],
+                    "captions": [],
+                    "task": None,
+                    "user_id": user_id,
+                    "context": context,
+                    "latest_update": update,
+                    "turn_start_time": time.time(),
+                }
+            batch = _PHOTO_BATCHES[chat_id]
+            batch["photos"].append(photo_item)
+            if update.message.caption:
+                batch["captions"].append(update.message.caption.strip())
+            batch["latest_update"] = update
+
+            if batch.get("task") and not batch["task"].done():
+                batch["task"].cancel()
+
+            async def _delayed_photo_runner():
+                try:
+                    # Jeda 1.8 detik untuk menampung album atau rentetan foto berurutan
+                    await asyncio.sleep(1.8)
+                except asyncio.CancelledError:
+                    return
+
+                async with _PHOTO_BATCH_LOCK:
+                    ready_batch = _PHOTO_BATCHES.pop(chat_id, None)
+
+                if not ready_batch or not ready_batch.get("photos"):
+                    return
+
+                await _execute_photo_batch(chat_id, ready_batch)
+
+            batch["task"] = asyncio.create_task(_delayed_photo_runner())
     except _HANDLER_ERR as e:
-        logger.error(f"[handle_photo] turn gagal untuk {user_id}: {e}", exc_info=True)
-        reply = (
-            "❌ Maaf, fotonya gagal diproses "
-            f"({type(e).__name__}: {str(e)[:200]}). "
-            "Coba kirim ulang."
-        )
-    finally:
-        stop_typing.set()
-        await typing_task
-
-    await safe_send_message(context, chat_id, reply)
-    await _check_and_send_media_artifacts(
-        update, context, turn_start_time=turn_start_time
-    )
+        logger.error(f"[handle_photo] download/ekstraksi gagal untuk {user_id}: {e}", exc_info=True)
+        await safe_send_message(context, chat_id, f"❌ Gagal memproses berkas foto: {e}")
 
 
 _DOC_BATCHES: dict[int, dict[str, Any]] = {}
@@ -1095,6 +1805,9 @@ async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
 
     # Gabungkan caption pengguna jika ada
     user_caption = " ".join(captions).strip() if captions else ""
+
+    # Selalu di-set saat batch dibuat; assert untuk narrowing mypy.
+    assert context is not None
 
     stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(
@@ -1222,7 +1935,7 @@ async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
     await safe_send_message(context, chat_id, reply, reply_markup=doc_markup)
     if update:
         await _check_and_send_media_artifacts(
-            update, context, turn_start_time=turn_start_time
+            update, context, turn_start_time=turn_start_time, user_prompt=user_caption
         )
 
 

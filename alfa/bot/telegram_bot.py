@@ -39,8 +39,10 @@ from alfa.bot.commands import (
     cancel_command,
     cekagen_command,
     clear_command,
+    cloud_command,
     cron_command,
     dashboard_command,
+    drive_command,
     id_command,
     keys_command,
     memory_command,
@@ -49,8 +51,11 @@ from alfa.bot.commands import (
     persona_command,
     pipeline_command,
     proactive_command,
+    ram_command,
     rapat_command,
     resume_swarm_command,
+    setsheet_command,
+    sheets_command,
     single_command,
     sites_command,
     start_command,
@@ -59,7 +64,6 @@ from alfa.bot.commands import (
     swarm_command,
     tools_command,
     tugas_command,
-    ram_command,
     voice_command,
     wa_command,
     wacari_command,
@@ -200,6 +204,10 @@ async def post_init(application: Application):
                 BotCommand("web", "Dashboard (alias)"),
                 BotCommand("app", "Dashboard (alias)"),
                 BotCommand("washeets", "Bot WA Sheets (alias)"),
+                BotCommand("sheets", "Lihat file & tab Google Sheets"),
+                BotCommand("drive", "Lihat file Google Drive & mount"),
+                BotCommand("cloud", "Hub Google Sheets & Drive"),
+                BotCommand("setsheet", "Setel Google Sheets material"),
                 BotCommand("batal", "Batalkan misi (alias)"),
                 BotCommand("resume_swarm", "Lanjut swarm (alias)"),
                 BotCommand("reset", "Reset konteks (alias)"),
@@ -292,6 +300,12 @@ def main():
     application.add_handler(CommandHandler("app", dashboard_command))
     application.add_handler(CommandHandler("wa", wa_command))
     application.add_handler(CommandHandler("washeets", wa_command))
+    application.add_handler(CommandHandler("setsheet", setsheet_command))
+    application.add_handler(CommandHandler("sheets", sheets_command))
+    application.add_handler(CommandHandler("sheet", sheets_command))
+    application.add_handler(CommandHandler("drive", drive_command))
+    application.add_handler(CommandHandler("gdrive", drive_command))
+    application.add_handler(CommandHandler("cloud", cloud_command))
     application.add_handler(CommandHandler("wachat", wachat_command))
     application.add_handler(CommandHandler("wamasuk", wamasuk_command))
     application.add_handler(CommandHandler("wakirim", wakirim_command))

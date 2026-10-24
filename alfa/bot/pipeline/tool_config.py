@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import plugins
@@ -55,6 +56,15 @@ def prepare_tools_and_configs(
                 all_tools = [
                     t for t in all_tools if getattr(t, "__name__", "") != "conduct_ai_meeting"
                 ]
+            if not any(
+                k in prompt_low
+                for k in ("subagent", "sub-agent", "background worker", "latar belakang")
+            ):
+                all_tools = [
+                    t
+                    for t in all_tools
+                    if getattr(t, "__name__", "") != "spawn_background_subagent"
+                ]
     except Exception:
         pass
 
@@ -69,15 +79,36 @@ def prepare_tools_and_configs(
         pass
 
     _afc_off = types.AutomaticFunctionCallingConfig(disable=True)
+    # Gemini 3.x: temperature None -> default server (1.0), sesuai rekomendasi
+    # Google (nilai < 1.0 bisa memicu looping). Override via ALFA_TEMPERATURE.
+    from alfa.core.tuning import tool_temperature
+
+    _temp = tool_temperature(model_name)
+    _thinking_cfg = None
+    _thinking_level = os.getenv("ALFA_THINKING_LEVEL", "").strip().lower()
+    if _thinking_level in ("low", "medium", "high", "minimal"):
+        try:
+            # cast: Literal 4-nilai sudah difilter di atas, stub google-genai
+            # mengetiknya sebagai ThinkingLevel.
+            _thinking_cfg = types.ThinkingConfig(
+                thinking_level=_thinking_level,  # type: ignore[arg-type]
+            )
+        except Exception:
+            pass
+
+    _base_kwargs: dict[str, Any] = {
+        "system_instruction": system_instruction,
+        "temperature": _temp,
+        "tools": gemini_tools,
+        "automatic_function_calling": _afc_off,
+    }
+    if _thinking_cfg is not None:
+        _base_kwargs["thinking_config"] = _thinking_cfg
+
     # AUTO: model bebas memanggil tool ATAU menjawab teks (dipakai semua
     # putaran sesudah panggilan pertama agar giliran selalu ditutup
     # dengan jawaban teks nyata, bukan loop tool tanpa akhir).
-    config = types.GenerateContentConfig(
-        system_instruction=system_instruction,
-        temperature=0.75,
-        tools=gemini_tools,
-        automatic_function_calling=_afc_off,
-    )
+    config = types.GenerateContentConfig(**_base_kwargs)
     # ANY: HANYA dipakai pada panggilan PERTAMA bila ini permintaan aksi,
     # supaya model tidak cukup menjawab basa-basi tanpa menjalankan tool.
     if action_intent:
@@ -88,24 +119,20 @@ def prepare_tools_and_configs(
                 if getattr(t, "__name__", "")
             }
         )
-        config_force = types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=0.75,
-            tools=gemini_tools,
-            automatic_function_calling=_afc_off,
-            tool_config=types.ToolConfig(
-                function_calling_config=types.FunctionCallingConfig(
-                    mode=types.FunctionCallingConfigMode.ANY,
-                    allowed_function_names=_allowed,
-                )
-            ),
+        _force_kwargs = dict(_base_kwargs)
+        _force_kwargs["tool_config"] = types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.ANY,
+                allowed_function_names=_allowed,
+            )
         )
+        config_force = types.GenerateContentConfig(**_force_kwargs)
     else:
         config_force = config
     # Tanpa tool: dipakai untuk wrap-up agar model WAJIB merangkum hasil
     # nyata dalam teks saat iterasi tool habis / jawaban kosong.
     config_wrapup = types.GenerateContentConfig(
         system_instruction=system_instruction,
-        temperature=0.7,
+        temperature=_temp,
     )
     return gemini_tools, config, config_force, config_wrapup

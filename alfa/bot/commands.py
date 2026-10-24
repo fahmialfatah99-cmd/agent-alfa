@@ -7,12 +7,13 @@ from alfa.bot.advanced_commands import (
     agents_command,
     dashboard_command,
     keys_command,
+    ram_command,
     rapat_command,
     resume_swarm_command,
+    setsheet_command,
     sites_command,
     swarm_command,
     wa_command,
-    ram_command,
     wacari_command,
     wachat_command,
     waformat_command,
@@ -35,6 +36,11 @@ from alfa.bot.basic_commands import (
     start_command,
     stats_command,
     voice_command,
+)
+from alfa.bot.cloud_menu import (
+    cloud_command,
+    drive_command,
+    sheets_command,
 )
 from alfa.bot.mode_commands import (
     cancel_command,
@@ -79,6 +85,10 @@ __all__ = [
     "mode_command",
     "single_command",
     "ram_command",
+    "setsheet_command",
+    "sheets_command",
+    "drive_command",
+    "cloud_command",
     "cancel_command",
     "status_command",
     "tools_command",
@@ -86,3 +96,4 @@ __all__ = [
     "pipeline_command",
     "tugas_command",
 ]
+

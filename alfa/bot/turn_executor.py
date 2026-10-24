@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 import sys
 from typing import Any
@@ -49,6 +50,7 @@ from alfa.bot.streamer import TelegramStreamer
 from alfa.core import brain as main_brain
 from alfa.core import database, token_usage
 from alfa.core import permissions as permission_gate
+from alfa.core.runtime_ctx import reset_turn_context
 from alfa.tools import (
     current_chat_id_var,
     current_user_id_var,
@@ -138,6 +140,33 @@ async def _run_agent_turn_impl(
     current_user_id_var.set(user_id)
     current_chat_id_var.set(chat_id or user_id)
     current_user_prompt_var.set(user_prompt or "")
+    reset_turn_context()
+
+    display_user_text = user_prompt or "[Lampiran Media]"
+
+    # 0. Check Fast-Path Executor for sub-second deterministic file conversions
+    if user_prompt and "[FILE TERSIMPAN DI DISK:" in user_prompt:
+        try:
+            from alfa.core.fast_path_executor import try_execute_fast_path
+
+            saved_paths = re.findall(
+                r"\[FILE TERSIMPAN DI DISK:\s*([^\]]+)\]", user_prompt
+            )
+            clean_paths = [
+                p.strip() for p in saved_paths if p.strip() and os.path.exists(p.strip())
+            ]
+            if clean_paths:
+                fast_res = try_execute_fast_path(user_prompt, clean_paths)
+                if fast_res and fast_res.get("status") == "success" and fast_res.get("reply"):
+                    reply_text = fast_res["reply"]
+                    await _db.save_chat_message(user_id, "user", display_user_text)
+                    await _db.save_chat_message(user_id, "model", reply_text)
+                    logger.info(
+                        f"[FastPath:TurnExecutor] Handled {fast_res.get('tool_name')} in {fast_res.get('execution_time_ms', 0)}ms"
+                    )
+                    return str(reply_text)
+        except Exception as fp_err:
+            logger.debug(f"[FastPath:TurnExecutor] Error: {fp_err}")
 
     # Permission Gate (human-in-the-loop) utk tool berbahaya.
     # `make_gate` mengembalikan None saat operator mematikan gate; pada kasus
@@ -145,8 +174,8 @@ async def _run_agent_turn_impl(
     # menolaknya dengan deny-by-default.
     approval_gate = _pg.make_gate(chat_id or user_id) or _pg.ALLOW_ALL_GATE
 
-    # 1. Fetch recent chat history from SQLite
-    history_rows = await _db.get_recent_chat_history(user_id, limit=12)
+    # 1. Fetch recent chat history from SQLite (24 pesan = 12 giliran lengkap)
+    history_rows = await _db.get_recent_chat_history(user_id, limit=24)
 
     # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
     try:
@@ -183,8 +212,15 @@ async def _run_agent_turn_impl(
     user_memories = await _db.get_all_memories(user_id)
     kg_triples = _db.get_all_knowledge_graph_sync(user_id)
 
+    kept_history_ids = {row["id"] for row in history_rows if "id" in row}
     memory_block = _build_memory_block(
-        user_id, user_prompt, user_memories, kg_triples, _compaction_block
+        user_id,
+        user_prompt,
+        user_memories,
+        kg_triples,
+        _compaction_block,
+        db=_db,
+        exclude_history_ids=kept_history_ids,
     )
 
     full_system_instruction, preferred_model, current_active_model = (
@@ -243,7 +279,7 @@ async def _run_agent_turn_impl(
             display_user_text,
         )
         if reply_text:
-            return reply_text
+            return str(reply_text)
 
     if gemini_client is None:
         gemini_client, gkey_id, gkey_label = _resolve()
@@ -296,56 +332,84 @@ async def _run_agent_turn_impl(
                             _contents.append(model_content)
                     except (AttributeError, IndexError, TypeError, ValueError):
                         pass
-                    for fc in fcs:
-                        _executed.append(fc.name)
+                    async def _run_fc(fc) -> str:
                         args_json = json.dumps(
                             dict(fc.args or {}), ensure_ascii=False, default=str
                         )
                         if approval_gate is None:
                             # Deny-by-default: tanpa gate, tool tidak boleh jalan.
-                            denial = (
+                            return (
                                 f"[DITOLAK] Tool '{fc.name}' tidak dieksekusi karena "
                                 "tidak ada permission gate yang tersambung."
                             )
-                        else:
-                            try:
-                                denial = await approval_gate(fc.name, args_json)
-                            except Exception as gate_err:  # noqa: BLE001 - fail-closed
-                                logger.exception(
-                                    "[GatePath] gate error (fail-closed) for %s",
-                                    fc.name,
-                                )
-                                denial = (
-                                    f"[DITOLAK] Tool '{fc.name}' tidak dieksekusi "
-                                    f"karena permission gate gagal ({gate_err})."
-                                )
+                        try:
+                            denial = await approval_gate(fc.name, args_json)
+                        except Exception as gate_err:  # noqa: BLE001 - fail-closed
+                            logger.exception(
+                                "[GatePath] gate error (fail-closed) for %s",
+                                fc.name,
+                            )
+                            return (
+                                f"[DITOLAK] Tool '{fc.name}' tidak dieksekusi "
+                                f"karena permission gate gagal ({gate_err})."
+                            )
                         if denial:
-                            out = denial
-                        else:
-                            try:
-                                out = await asyncio.wait_for(
-                                    asyncio.to_thread(
-                                        _mb._execute_tool, fc.name, args_json
-                                    ),
-                                    timeout=180.0,
-                                )
-                            except TimeoutError:
-                                out = f"[ERROR timeout] Tool '{fc.name}' melebihi batas waktu eksekusi (180 detik)."
-                                logger.exception(f"[ToolTimeout] {fc.name} timed out after 180s")
+                            return str(denial)
+                        _cfg_t = getattr(_mb, "TOOL_EXEC_TIMEOUT", None)
+                        if not isinstance(_cfg_t, (int, float)):
+                            _cfg_t = main_brain.TOOL_EXEC_TIMEOUT
+                        _limit = _cfg_t + 5
+                        try:
+                            out = await asyncio.wait_for(
+                                asyncio.to_thread(
+                                    _mb._execute_tool, fc.name, args_json
+                                ),
+                                timeout=_limit,
+                            )
+                        except TimeoutError:
+                            logger.exception(
+                                f"[ToolTimeout] {fc.name} timed out after {_limit}s"
+                            )
+                            out = (
+                                f"[ERROR timeout] Tool '{fc.name}' melebihi batas "
+                                f"waktu eksekusi ({_limit} detik)."
+                            )
                         logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
-                        _contents.append(
-                            types.Content(
-                                role="user",
-                                parts=[
-                                    types.Part(
-                                        function_response=types.FunctionResponse(
-                                            name=fc.name,
-                                            response={"result": str(out)[:4000]},
-                                        )
-                                    )
-                                ],
+                        return str(out)
+
+                    for fc in fcs:
+                        _executed.append(fc.name)
+                    from alfa.core.brain.agentic import _parallel_tools_allowed
+                    from alfa.core.tuning import truncate_middle
+
+                    if len(fcs) > 1 and _parallel_tools_allowed(approval_gate):
+                        _outs = await asyncio.gather(
+                            *(_run_fc(fc) for fc in fcs), return_exceptions=True
+                        )
+                        for _o in _outs:
+                            if isinstance(_o, asyncio.CancelledError):
+                                raise _o
+                    else:
+                        _outs = [await _run_fc(fc) for fc in fcs]
+                    _parts = []
+                    for fc, out in zip(fcs, _outs, strict=True):
+                        if isinstance(out, BaseException):
+                            out = f"[ERROR eksekusi] {out}"
+                        _fr_kwargs: dict[str, Any] = {
+                            "name": fc.name,
+                            "response": {
+                                "result": truncate_middle(str(out), main_brain.MAX_TOOL_OUTPUT)
+                            },
+                        }
+                        if getattr(fc, "id", None):
+                            _fr_kwargs["id"] = fc.id
+                        _parts.append(
+                            types.Part(
+                                function_response=types.FunctionResponse(**_fr_kwargs)
                             )
                         )
+                    # Semua respons fungsi paralel dikirim dalam SATU Content.
+                    _contents.append(types.Content(role="user", parts=_parts))
                     resp = await gemini_client.aio.models.generate_content(
                         model=_model, contents=_contents, config=cfg
                     )

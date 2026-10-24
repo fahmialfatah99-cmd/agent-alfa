@@ -204,6 +204,38 @@ def test_pipeline_if_skip_dan_foreach(tmp_path):
     assert statuses["cabang"] == "skipped"
 
 
+def test_pipeline_if_condition_blocks_side_effect(tmp_path):
+    import alfa.pipelines.engine as pl
+
+    file_that_should_not_exist = tmp_path / "never_write.txt"
+    data = {
+        "id": "_test_cond_side_effect",
+        "vars": {"enable_write": "false"},
+        "steps": [
+            {
+                "id": "write_step",
+                "type": "tool",
+                "tool": "write_local_file",
+                "args": {
+                    "file_path": str(file_that_should_not_exist),
+                    "content": "BAD_CONTENT",
+                },
+                "if": {"left": "{{enable_write}}", "op": "eq", "right": "true"},
+            }
+        ],
+    }
+    pl.save_pipeline(data)
+    try:
+        result = asyncio.run(pl.run_pipeline("_test_cond_side_effect"))
+        assert result["status"] == "success"
+        assert not file_that_should_not_exist.exists(), "Step with false if-condition must NOT execute!"
+        assert result["outputs"]["write_step"].startswith("(dilewati")
+    finally:
+        p_file = os.path.join(pl.PIPELINE_DIR, "_test_cond_side_effect.json")
+        if os.path.exists(p_file):
+            os.remove(p_file)
+
+
 def test_pipeline_runs_history_roundtrip():
     import alfa.pipelines.engine as pl
 

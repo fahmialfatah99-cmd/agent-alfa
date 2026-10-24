@@ -175,6 +175,20 @@ def clean_telegram_markdown(text: str) -> str:
     # 4. Inline formatting outside code blocks
     parts = _re.split(r"(```[\s\S]*?```|`[^`]+`)", res)
     for i in range(0, len(parts), 2):
+        # Convert <a href=...>text</a> to [text](url)
+        def _rep_a(m):
+            url = m.group(1).strip()
+            body = _re.sub(r"<[^>]+>", "", m.group(2)).strip()
+            return f"[{body}]({url})" if body else f"({url})"
+
+        parts[i] = _re.sub(
+            r"""<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""",
+            _rep_a,
+            parts[i],
+            flags=_re.DOTALL | _re.IGNORECASE,
+        )
+        # Strip remaining raw HTML tags outside code blocks
+        parts[i] = _re.sub(r"<[^>]+>", "", parts[i])
         # Convert **bold** to *bold*
         parts[i] = _re.sub(r"\*\*([^*]+)\*\*", r"*\1*", parts[i])
         # Escape isolated underscores in identifiers (e.g. abc_def.xlsx -> abc\_def.xlsx)

@@ -61,21 +61,22 @@ def _main_menu_markup() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton("📱 WA", callback_data="btn_wa"),
-                InlineKeyboardButton("🌐 Dash", callback_data="btn_dashboard"),
+                InlineKeyboardButton("📊 Sheets", callback_data="btn_sheets"),
+                InlineKeyboardButton("☁️ Drive", callback_data="btn_gdrive"),
             ],
             [
+                InlineKeyboardButton("🌐 Dash", callback_data="btn_dashboard"),
                 InlineKeyboardButton("🌐 Sites", callback_data="btn_sites"),
                 InlineKeyboardButton("💰 Budget", callback_data="btn_budget"),
-                InlineKeyboardButton("🧹 RAM", callback_data="btn_ram"),
             ],
             [
+                InlineKeyboardButton("🧹 RAM", callback_data="btn_ram"),
                 InlineKeyboardButton("🖥️ Server", callback_data="btn_stats"),
                 InlineKeyboardButton("🧠 Memori", callback_data="btn_memory"),
-                InlineKeyboardButton("🎙️ Voice", callback_data="btn_toggle_voice"),
             ],
             [
+                InlineKeyboardButton("🎙️ Voice", callback_data="btn_toggle_voice"),
                 InlineKeyboardButton("🧹 Reset", callback_data="btn_clear"),
-                InlineKeyboardButton("📈 Plot", callback_data="btn_python_info"),
                 InlineKeyboardButton("❓ Help", callback_data="btn_help"),
             ],
         ]
@@ -108,9 +109,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "\n\n🎉 **Selamat datang, pengguna baru! Tur 30 detik:**\n"
             "1. Ketik apa saja — saya agen AI dengan akses mesin + 160 tools.\n"
             "2. `/menu` — semua tombol fitur.\n"
-            "3. `/swarm <tugas>` — kerjakan tugas berat multi-agen.\n"
-            "4. `/cekagen` — cek kesehatan konfigurasi bila ada yang aneh.\n"
-            "5. `/sites` — galeri hasil kerja (website/proyek).\n"
+            "3. `/sheets` & `/drive` — pantau file Google Sheets & Drive.\n"
+            "4. `/swarm <tugas>` — kerjakan tugas berat multi-agen.\n"
+            "5. `/cekagen` — cek kesehatan konfigurasi bila ada yang aneh.\n"
+            "6. `/sites` — galeri hasil kerja (website/proyek).\n"
         )
 
     first_name = user.first_name if user else ""
@@ -121,6 +123,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Panggil swarm kapan saja via `/swarm <tugas>`.\n\n"
         f"⚡ **Kemampuan & Tools Aktif (100% Real):**\n"
         f"• 🐍 **Python Sandbox & Data Plotter:** Eksekusi script & pembuatan grafik visual otomatis.\n"
+        f"• 📊 **Google Sheets & Drive:** `/sheets` & `/drive` untuk melihat file & isi data terhubung.\n"
         f"• 🖥️ **Desktop & Webcam Vision:** Screenshot layar desktop & snapshot webcam real-time.\n"
         f"• 🎙️ **Voice Notes (STT & TTS):** Kirim suara, AI membalas dengan suara natural Edge-TTS.\n"
         f"• 🌐 **Deep Web Intelligence:** DuckDuckGo search & ekstraksi konten artikel web.\n"
@@ -339,6 +342,19 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from alfa.core import rate_limiter
 
     args = list(context.args) if context.args else []
+    if args and args[0].lower() in ("reset", "clear"):
+        deleted = rate_limiter.reset_user_usage_today(user_id)
+        usage = rate_limiter.get_user_usage_today(user_id)
+        msg = (
+            "🔄 **Kuota harian berhasil di-reset!**\n\n"
+            f"• Token terpakai hari ini: **0** / {usage['budget_limit']:,} token\n"
+            f"• Panggilan terpakai: **0** / {usage['call_limit']:,} panggilan\n"
+            f"• Catatan pemakaian dihapus: {deleted} entri\n\n"
+            "Sekarang Anda bisa kembali menggunakan AI secara normal tanpa batasan kuota."
+        )
+        await safe_send_message(context, chat_id, msg)
+        return
+
     if len(args) >= 3 and args[0].lower() == "set":
         try:
             tok = max(1000, int(args[1]))
@@ -367,17 +383,23 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"`[{bar}]` {pct:.0f}%",
         f"• Terpakai: **{rep['total_tokens']:,}** / {rep['budget_limit']:,} token",
         f"• Sisa: **{rep['remaining']:,}** • Panggilan: {rep['total_calls']}/{rep['call_limit']}",
-        "• Reset: tengah malam WIB",
+        "• Reset otomatis: tengah malam WIB",
     ]
     for k in (rep.get("by_key") or [])[:5]:
         label = k.get("key_label") or k.get("provider") or "?"
         lines.append(f"  - {label}: {(k.get('total_tokens') or 0):,} ({k.get('calls', 0)}×)")
     if rep["exceeded"]:
-        lines.append("\n🔴 Di atas batas — pantau pemakaian, tidak ada penahanan misi.")
+        lines.append("\n🔴 Di atas batas — ketik `/budget reset` atau naikkan batas kuota.")
     elif rep["warn"]:
         lines.append("\n🟡 Di atas 80% — hemat: utamakan chat single, tunda misi swarm besar.")
-    lines.append("\nUbah batas: `/budget set <token> <call>`")
-    await safe_send_message(context, chat_id, "\n".join(lines))
+    lines.append("\n• Reset sekarang: `/budget reset`\n• Ubah batas: `/budget set <token> <call>`")
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 Reset Kuota Sekarang", callback_data="budget:reset")]
+    ])
+    await safe_send_message(context, chat_id, "\n".join(lines), reply_markup=kb)
 
 
 async def cron_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
