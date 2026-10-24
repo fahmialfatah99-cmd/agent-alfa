@@ -50,7 +50,7 @@ jobs:
         run: echo "⏭ GEMINI_API_KEY belum diset di repo secrets — live eval dilewati."
       - name: Upload hasil live eval
         if: env.HAS_GEMINI == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-live-results
           path: |
