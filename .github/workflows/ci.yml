@@ -78,7 +78,7 @@ jobs:
           pip install "bandit==1.9.4"
           bandit -r alfa plugins -ll
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
