@@ -134,7 +134,9 @@ jobs:
             cryptography numpy pydantic click rich pyyaml jinja2 \
             aiofiles websockets pygments ddgs \
             python-multipart requests webauthn openpyxl pandas \
-            bs4 defusedxml
+            bs4 defusedxml inquirerpy "prompt-toolkit" \
+            "google-api-python-client>=2.100.0,<3.0.0" \
+            "google-auth-oauthlib>=1.2.0,<2.0.0" "google-auth-httplib2"
       - name: Jalankan seluruh suite dengan coverage (threshold gate)
         # Threshold dinaikkan dari 44% ke 50% (terukur 51.62% per 2026-10-19).
         run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=50
