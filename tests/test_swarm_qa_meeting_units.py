@@ -505,3 +505,69 @@ async def test_plan_rounds_garbage_falls_back(_engine_clean, monkeypatch):
     # rounds tak valid → default 2 putaran; 1 agen → 2 dialog.
     assert len(res["dialogue_transcript"]) == 2
     assert res["consensus"] == "KONSENSUS MINIMAL SAJA."
+
+
+# ── Fase-3: DAG _execute_agents_parallel — jalur lanjutan ────────────────────
+def _dag_env(monkeypatch):
+    """Lingkungan DAG: checkpoint aktif, util error/logger dimata-matai."""
+    monkeypatch.setattr(engine, "_CHECKPOINT_AVAILABLE", True, raising=True)
+    monkeypatch.setattr(engine, "_record_step_error", MagicMock())
+    monkeypatch.setattr(engine, "_budget_exceeded", lambda steps: "")
+    monkeypatch.setattr(engine, "_provider_dead_streak", lambda steps: "")
+
+
+async def test_dag_post_wave_cancel_hits_checkpoint(_engine_clean, monkeypatch):
+    """Cancel di antara dua gelombang DAG → mark_cancelled, agen kedua tak jalan."""
+    _dag_env(monkeypatch)
+    cancel_state = {"flag": False}
+    monkeypatch.setattr(
+        engine, "_cancel_requested", lambda *a, **k: cancel_state["flag"]
+    )
+    agents = _agents(("A", "dev"), ("B", "dev"))
+    subtask_map = {
+        "A": {"task": "tugas A", "depends_on": []},
+        "B": {"task": "tugas B", "depends_on": ["A"]},
+    }
+    calls = {"n": 0}
+
+    async def fake_step(agent, task_desc="", topic="", intent_info=None, **kw):
+        calls["n"] += 1
+        if calls["n"] >= 1:  # flip setelah gelombang pertama tuntas
+            cancel_state["flag"] = True
+        return _step(agent), True, ""
+
+    monkeypatch.setattr(engine, "_execute_agent_step", fake_step)
+
+    steps: list = []
+    ctx: list = []
+    failed: list = []
+    result = await engine._execute_agents_parallel(
+        agents, subtask_map, "audit laporan Q3", {}, "dag-cancel", "execute",
+        steps, ctx, failed,
+    )
+    assert result is True
+    assert [s["agent_name"] for s in steps] == ["A"]
+    engine._SwarmCheckpoint.mark_cancelled.assert_called_once_with("dag-cancel")
+
+
+async def test_dag_invalid_wave_env_falls_back_defaults(_engine_clean, monkeypatch):
+    """Env max-concurrent kotor → default 3; PARALLEL=off → gelombang 1."""
+    _dag_env(monkeypatch)
+    monkeypatch.setenv("ALFA_SWARM_MAX_CONCURRENT", "tiga")
+    monkeypatch.setenv("ALFA_SWARM_PARALLEL", "off")
+    agents = _agents(("A", "dev"), ("B", "dev"))
+
+    async def fake_step(agent, task_desc="", topic="", intent_info=None, **kw):
+        return _step(agent), True, ""
+
+    monkeypatch.setattr(engine, "_execute_agent_step", fake_step)
+
+    steps: list = []
+    ctx: list = []
+    failed: list = []
+    result = await engine._execute_agents_parallel(
+        agents, {}, "audit laporan Q3", {}, "dag-env", "execute",
+        steps, ctx, failed,
+    )
+    assert result is False
+    assert [s["agent_name"] for s in steps] == ["A", "B"]
