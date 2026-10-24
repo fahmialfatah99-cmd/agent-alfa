@@ -79,7 +79,7 @@ googleapis-common-protos==1.75.1
 google-auth==2.48.0
 google-auth-httplib2==0.4.1
 google-auth-oauthlib==1.2.4
-google-genai==1.65.0
+google-genai==2.31.0
 greenlet==3.5.5
 groq==1.0.0
 gTTS==2.5.4
