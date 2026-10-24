@@ -2,9 +2,9 @@
 
 from alfa.integrations.gdrive import (
     _detect_gdrive_auth_mode,
+    _detect_mounted_gdrives,
     _get_default_gdrive_folder_id,
     _get_gdrive_service,
-    _detect_mounted_gdrives,
     gdrive_copy_from_drive,
     gdrive_copy_to_drive,
     gdrive_create_folder,
@@ -61,6 +61,7 @@ from alfa.tools.filesystem.office_convert import (
     libreoffice_extract_document_text,
     libreoffice_render_page_previews,
     markitdown_convert_document,
+    smart_excel_inspector,
 )
 from alfa.tools.filesystem.search import (
     compress_folder_to_zip,
@@ -107,6 +108,7 @@ __all__ = [
     "libreoffice_render_page_previews",
     "libreoffice_create_document",
     "libreoffice_extract_document_text",
+    "smart_excel_inspector",
     "vault_store_secret",
     "vault_get_secret",
     "vault_list_secrets",

@@ -1,9 +1,8 @@
-"""Real online playback: resolve a YouTube track and actually play it.
+"""Real online playback: resolve a YouTube track and play it in the background.
 
-Tool `play_youtube_music` does the two things users literally ask for:
-1. opens the real YouTube page in the user's visible desktop browser, and
-2. actually streams the audio through the speakers (ffplay), with honest
-   reporting of what did / did not work.
+Tool `play_youtube_music`:
+- streams the audio through the speakers in the background (ffplay/yt-dlp)
+- does NOT automatically open the desktop browser so audio does not play double.
 """
 
 import json
@@ -320,19 +319,18 @@ def _start_playback(video_id: str, watch_url: str) -> tuple[bool, str, str]:
 @register_tool(category="media")
 def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
     """
-    Find a song/video on YouTube and PLAY it for real (not just talk about it).
+    Find a song/video on YouTube and PLAY it in the background (speaker only, no double audio).
 
-    It really resolves the track with yt-dlp, opens the actual youtube.com watch
-    page in the user's visible desktop browser, and streams the audio through the
-    speakers. Returns the resolved video id/title/url and playback PID as proof.
+    Resolves the track with yt-dlp and streams the audio in the background through
+    the speakers. Does NOT open the desktop browser automatically so audio does not play double.
 
     Args:
         query: Song/artist/video title (e.g. 'bohemian rhapsody queen') or a full YouTube URL.
             Required for mode auto/browser/audio; optional for mode 'stop'.
-        mode: 'auto' = open the YouTube page AND play audio locally (default),
-              'browser' = only open the YouTube page in the visible browser,
-              'audio' = only play the audio through the speakers,
-              'stop' = stop the local audio playback (query not needed).
+        mode: 'auto' = only play audio in the background (default, prevents double audio),
+              'audio' = only play audio in the background through speakers,
+              'browser' = only open the YouTube page in the visible desktop browser (no background audio),
+              'stop' = stop the local background audio playback (query not needed).
     """
     if _HOST_PLAY_BLOCKED:
         return {
@@ -383,7 +381,7 @@ def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
     notes: list[str] = []
 
     opened = False
-    if md in {"auto", "browser"}:
+    if md == "browser":
         try:
             from alfa.tools.desktop.input_automation import open_url_in_default_browser
 
@@ -402,32 +400,13 @@ def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
         played, detail, pid = _start_playback(video_id, watch_url)
         result["audio"] = {"playing": played, "detail": detail, "pid": pid}
         if played:
-            notes.append(f" audio lagu sedang diputar lewat speaker (PID {pid}).")
+            notes.append(f" audio lagu sedang diputar di latar belakang lewat speaker (PID {pid}).")
         else:
-            notes.append(f" pemutaran audio GAGAL: {detail}.")
-            if md == "auto" and opened:
-                try:
-                    from alfa.tools.desktop.input_automation import (
-                        open_url_in_default_browser,
-                    )
-
-                    autoplay_ok, autoplay_how = open_url_in_default_browser(
-                        _watch_url(video_id, autoplay=True)
-                    )
-                    result["browser"] = {
-                        "opened": bool(autoplay_ok),
-                        "mechanism": f"autoplay fallback: {autoplay_how}",
-                    }
-                    if autoplay_ok:
-                        notes.append(" browser diminta memutar otomatis (autoplay=1).")
-                except Exception:  # noqa: BLE001
-                    pass
+            notes.append(f" pemutaran audio di latar belakang GAGAL: {detail}.")
 
     if md == "browser" and not opened:
         result["status"] = "error"
-    elif md == "audio" and not played:
-        result["status"] = "error"
-    elif md == "auto" and not opened and not played:
+    elif md in {"auto", "audio"} and not played:
         result["status"] = "error"
 
     result["message"] = f"🎵 {label}." + (

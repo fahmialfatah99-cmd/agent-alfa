@@ -153,7 +153,7 @@ def _wa_api(method: str, path: str, params: dict | None = None, body: dict | Non
             data = json.dumps(body).encode("utf-8")
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
-        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 - localhost only
+        with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 - localhost only
             res_data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
             return res_data
     except Exception as e:
@@ -181,9 +181,16 @@ def wa_get_chats(limit: int = 15, only_unread: bool = False) -> dict[str, Any]:
 
 
 @register_tool(category="system")
-def wa_get_messages(chat: str, limit: int = 20, mark_as_seen: bool = False) -> dict[str, Any]:
+def wa_get_messages(
+    chat: str,
+    limit: int = 20,
+    mark_as_seen: bool = False,
+    only_unread: bool = False,
+    mark_as_read: bool = True,
+    order: str = "desc",
+) -> dict[str, Any]:
     """
-    Baca riwayat pesan sebuah chat WhatsApp (terlama → terbaru).
+    Baca riwayat pesan sebuah chat WhatsApp (terbaru didahulukan).
 
     ATURAN PRESENTASI KE PENGGUNA: Sampaikan PESAN ASLI apa adanya (verbatim).
     DILARANG mengubah, mengedit, atau memparafrasekan teks isi pesan WhatsApp.
@@ -193,20 +200,65 @@ def wa_get_messages(chat: str, limit: int = 20, mark_as_seen: bool = False) -> d
         chat: ID/nomor/nama chat (mis. '62812xxxx', 'Keluarga', 'xxx@g.us').
         limit: Jumlah pesan (1-60, default 20).
         mark_as_seen: True = tandai pesan chat ini sebagai sudah dibaca di WhatsApp Web (sendSeen).
+        only_unread: True = HANYA ambil pesan yang belum pernah dibaca/dilihat (mencegah membaca ulang).
+        mark_as_read: True = otomatis catat pesan ke database SQLite sebagai sudah dibaca.
+        order: Urutan pesan: 'desc' = terbaru di awal (default), 'asc' = terlama di awal.
     """
-    params: dict[str, Any] = {"chat": chat, "limit": limit}
+    fetch_limit = min(60, max(limit * 2, 30)) if only_unread else limit
+    params: dict[str, Any] = {"chat": chat, "limit": fetch_limit}
     if mark_as_seen:
         params["mark_seen"] = "1"
     res = _wa_api("GET", "/api/messages", params)
     if isinstance(res, dict) and res.get("status") == "success":
         msgs = res.get("messages", [])
-        if isinstance(msgs, list) and msgs:
+        if isinstance(msgs, list):
+            # Check read state in SQLite
+            msg_ids = [str(m.get("id") or m.get("msg_id") or "").strip() for m in msgs]
+            read_ids: set[str] = set()
             try:
-                from alfa.core.db.wa_tracking import record_wa_messages_read_sync
+                from alfa.core.db.wa_tracking import (
+                    get_read_wa_msg_ids_sync,
+                    record_wa_messages_read_sync,
+                )
 
-                record_wa_messages_read_sync(msgs)
+                read_ids = get_read_wa_msg_ids_sync(msg_ids)
             except Exception:
-                pass
+                read_ids = set()
+
+            for m in msgs:
+                mid = str(m.get("id") or m.get("msg_id") or "").strip()
+                m["is_read"] = bool(mid in read_ids)
+
+            # Sort by timestamp (default desc: newest first)
+            reverse = (order.lower() != "asc")
+            msgs.sort(key=lambda m: int(m.get("ts") or 0), reverse=reverse)
+
+            unread_count = sum(1 for m in msgs if not m.get("is_read") and not m.get("from_me"))
+
+            if only_unread:
+                msgs = [m for m in msgs if not m.get("is_read") and not m.get("from_me")]
+                if not msgs:
+                    res["messages"] = []
+                    res["total"] = 0
+                    res["unread_count"] = 0
+                    res["message"] = f"Tidak ada pesan baru di chat '{res.get('chat_name', chat)}'. Semua pesan sudah dibaca."
+                    return res
+
+            msgs = msgs[:limit]
+
+            if mark_as_read and msgs:
+                to_mark = [m for m in msgs if not m.get("is_read")]
+                if to_mark:
+                    try:
+                        record_wa_messages_read_sync(to_mark)
+                        for m in to_mark:
+                            m["is_read"] = True
+                    except Exception:
+                        pass
+
+            res["messages"] = msgs
+            res["total"] = len(msgs)
+            res["unread_count"] = unread_count
     return res
 
 
@@ -227,7 +279,7 @@ def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any
     except Exception:
         local_hits = []
 
-    live_hits = []
+    live_hits: list[dict[str, Any]] = []
     if search_live_wa:
         res = _wa_api("GET", "/api/search", {"q": query})
         if isinstance(res, dict) and res.get("status") == "success":
@@ -281,7 +333,12 @@ def wa_get_history_archive(chat: str = "", query: str = "", sender: str = "", li
 
 
 @register_tool(category="system")
-def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bool = True) -> dict[str, Any]:
+def wa_get_incoming(
+    limit: int = 20,
+    only_unread: bool = True,
+    mark_as_read: bool = True,
+    order: str = "desc",
+) -> dict[str, Any]:
     """
     Pesan WhatsApp MASUK terbaru yang terekam bot.
 
@@ -291,21 +348,61 @@ def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bo
 
     Args:
         limit: Jumlah pesan (default 20, max 100).
-        only_unread: True = HANYA ambil pesan yang belum pernah dibaca/dilaporkan oleh bot (mencegah pesan dibaca berulang-ulang).
+        only_unread: True (default) = HANYA ambil pesan yang belum pernah dibaca/dilaporkan oleh bot (mencegah pesan dibaca berulang-ulang). Set False untuk melihat riwayat pesan masuk lama.
         mark_as_read: True = Otomatis catat pesan yang dibaca ke database agar tidak dibaca ulang pada pengecekan pesan baru berikutnya.
+        order: Urutan pesan: 'desc' = terbaru di awal (default), 'asc' = terlama di awal.
     """
-    fetch_limit = max(limit * 2, 40) if only_unread else limit
+    fetch_limit = max(limit, 250) if only_unread else limit
     res = _wa_api("GET", "/api/incoming", {"limit": fetch_limit})
     if isinstance(res, dict) and "incoming" in res and isinstance(res["incoming"], list):
-        filtered = [
-            it
-            for it in res["incoming"]
-            if isinstance(it, dict)
-            and not any(
+        client_status = str(res.get("client_status") or "").upper()
+        is_offline = (res.get("is_ready") is False) or (client_status in ("QR_READY", "INITIALIZING", "DISCONNECTED"))
+
+        ignored_types = {
+            "e2e_notification",
+            "notification_template",
+            "notification",
+            "protocol",
+            "gp2",
+            "broadcast_notification",
+            "ciphertext",
+            "revoked",
+        }
+
+        filtered = []
+        seen_keys = set()
+        for it in res["incoming"]:
+            if not isinstance(it, dict) or it.get("from_me"):
+                continue
+            mtype = str(it.get("msg_type") or "chat").lower()
+            if mtype in ignored_types:
+                continue
+            body = str(it.get("body") or "").strip()
+            if body.lower() in ("[e2e_notification]", "[notification_template]", "[protocol]", "[ciphertext]", "[gp2]"):
+                continue
+            if not body and not it.get("has_media") and mtype != "chat":
+                continue
+            if any(
                 bad in str(it.get("chat", "")) or bad in str(it.get("sender", "")) or bad in str(it.get("author", ""))
                 for bad in ("@broadcast", "@newsletter")
-            )
-        ]
+            ):
+                continue
+            mid = str(it.get("msg_id") or it.get("id") or "").strip()
+            if not mid:
+                chat_id = str(it.get("chat") or it.get("chat_id") or "").strip()
+                sender = str(it.get("sender_name") or it.get("sender") or it.get("author") or "").strip()
+                msg_ts = int(it.get("msg_ts") or it.get("ts") or 0)
+                body_sub = body[:40]
+                import hashlib
+                hash_key = f"{chat_id}_{sender}_{msg_ts}_{body_sub}"
+                mid = "wa_" + hashlib.md5(hash_key.encode("utf-8")).hexdigest()[:16]
+                it["msg_id"] = mid
+
+            dedup_key = mid if mid else f"{it.get('chat')}_{body}_{it.get('msg_ts')}"
+            if dedup_key in seen_keys:
+                continue
+            seen_keys.add(dedup_key)
+            filtered.append(it)
 
         # Permanently archive all genuine incoming messages into SQLite
         try:
@@ -330,12 +427,49 @@ def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bo
 
         for it in filtered:
             mid = str(it.get("msg_id") or it.get("id") or "").strip()
-            it["is_read"] = bool(mid in read_ids)
+            is_read = bool(mid in read_ids)
+            it["is_read"] = is_read
+            it["status_dibaca"] = "SUDAH DIBACA" if is_read else "BELUM DIBACA"
+
+        # Sort by timestamp (default: newest first)
+        reverse = (order.lower() != "asc")
+        filtered.sort(
+            key=lambda m: (int(m.get("msg_ts") or 0), str(m.get("ts") or "")),
+            reverse=reverse,
+        )
+
+        total_unread = sum(1 for it in filtered if not it.get("is_read"))
+
+        # Check offline / QR_READY warning
+        if is_offline:
+            if client_status == "QR_READY":
+                res["warning"] = "⚠️ WhatsApp bot saat ini BELUM TERHUBUNG (Status: QR_READY). Sesi WhatsApp terputus atau menunggu scan QR via /wa."
+            else:
+                res["warning"] = f"⚠️ WhatsApp bot saat ini BELUM SIAP (Status: {client_status or 'OFFLINE'})."
 
         if only_unread:
-            filtered = [it for it in filtered if not it.get("is_read")]
+            # If the WhatsApp bot is not live/connected, never report cached buffer as fresh unread messages
+            if is_offline:
+                res["incoming"] = []
+                res["count"] = 0
+                res["total"] = 0
+                res["unread_count"] = 0
+                if client_status == "QR_READY":
+                    res["message"] = "Tidak ada pesan baru. Perhatian: WhatsApp bot saat ini BELUM TERHUBUNG (Status: QR_READY). Silakan scan QR via /wa."
+                else:
+                    res["message"] = f"Tidak ada pesan baru. Perhatian: WhatsApp bot saat ini BELUM SIAP (Status: {client_status or 'OFFLINE'})."
+                return res
 
-        filtered = filtered[-limit:] if len(filtered) > limit else filtered
+            filtered = [it for it in filtered if not it.get("is_read")]
+            if not filtered:
+                res["incoming"] = []
+                res["count"] = 0
+                res["total"] = 0
+                res["unread_count"] = 0
+                res["message"] = "Semua pesan WhatsApp masuk sudah dibaca. Tidak ada pesan baru."
+                return res
+
+        filtered = filtered[:limit]
 
         if mark_as_read and filtered:
             to_mark = [it for it in filtered if not it.get("is_read")]
@@ -344,14 +478,81 @@ def wa_get_incoming(limit: int = 20, only_unread: bool = False, mark_as_read: bo
                     record_wa_messages_read_sync(to_mark)
                     for it in to_mark:
                         it["is_read"] = True
+                        it["status_dibaca"] = "SUDAH DIBACA"
                 except Exception:
                     pass
 
         res["incoming"] = filtered
         res["count"] = len(filtered)
         res["total"] = len(filtered)
-        res["unread_count"] = sum(1 for it in filtered if not it.get("is_read"))
+        res["unread_count"] = total_unread
+        if not only_unread and all(it.get("is_read") for it in filtered):
+            res["note"] = "Semua pesan di atas adalah RIWAYAT PESAN LAMA yang SUDAH DIBACA sebelumnya. Tidak ada pesan baru."
     return res
+
+
+@register_tool(category="system")
+def wa_clear_history(
+    target: str = "incoming",
+    clear_archive: bool = False,
+    clear_read_state: bool = False,
+) -> dict[str, Any]:
+    """
+    Hapus atau bersihkan riwayat buffer pesan WhatsApp dan/atau arsip lokal.
+    Gunakan saat pengguna meminta menghapus riwayat chat WA, membersihkan pesan masuk lama, atau mereset buffer pesan.
+
+    Args:
+        target: 'incoming' = bersihkan buffer pesan masuk (recent_incoming.json) di bot WA lokal.
+                'all' = bersihkan buffer incoming sekaligus arsip SQLite.
+        clear_archive: True = bersihkan juga arsip pesan di SQLite (wa_incoming_archive).
+        clear_read_state: True = reset riwayat status baca di SQLite (wa_read_messages).
+    """
+    results: dict[str, Any] = {"status": "success", "cleared_targets": []}
+
+    # 1. Clear incoming buffer via WA API
+    try:
+        api_res = _wa_api("POST", "/api/incoming/clear")
+        if isinstance(api_res, dict) and api_res.get("status") == "success":
+            results["cleared_targets"].append("buffer_incoming_api")
+    except Exception as e:
+        logger.debug("Failed to call wa /api/incoming/clear: %s", e)
+
+    # Fallback/Direct disk clear of recent_incoming.json
+    try:
+        wa_bot_incoming_file = os.getenv(
+            "WA_BOT_INCOMING_FILE", "/home/fahmial/wa-sheets-bot/recent_incoming.json"
+        )
+        if os.path.exists(wa_bot_incoming_file):
+            with open(wa_bot_incoming_file, "w", encoding="utf-8") as f:
+                json.dump([], f)
+            results["cleared_targets"].append("buffer_incoming_file")
+    except Exception as e:
+        logger.debug("Failed to clear recent_incoming.json: %s", e)
+
+    # 2. Clear SQLite archive if requested or target == 'all'
+    if clear_archive or target.lower() == "all":
+        try:
+            from alfa.core.db.wa_tracking import clear_wa_archive_sync
+
+            count = clear_wa_archive_sync()
+            results["cleared_archive_count"] = count
+            results["cleared_targets"].append("sqlite_archive")
+        except Exception as e:
+            results["archive_error"] = str(e)
+
+    # 3. Clear read state if requested or target == 'all'
+    if clear_read_state or target.lower() == "all":
+        try:
+            from alfa.core.db.wa_tracking import clear_wa_read_state_sync
+
+            count = clear_wa_read_state_sync()
+            results["cleared_read_state_count"] = count
+            results["cleared_targets"].append("sqlite_read_state")
+        except Exception as e:
+            results["read_state_error"] = str(e)
+
+    results["message"] = "Riwayat pesan WhatsApp berhasil dibersihkan/dikosongkan."
+    return results
 
 
 @register_tool(category="system")
@@ -408,6 +609,21 @@ def wa_send_message(to: str, message: str) -> dict[str, Any]:
         message: Isi pesan (max 2000 karakter).
     """
     return _wa_api("POST", "/api/send", body={"to": to, "message": message})
+
+
+@register_tool(category="system")
+def wa_post_status(text: str, background_color: str = "") -> dict[str, Any]:
+    """
+    Posting status / story teks ke WhatsApp pribadi (feed status@broadcast).
+
+    Args:
+        text: Isi teks status (max 700 karakter).
+        background_color: Kode warna heksadesimal latar belakang (opsional, misal '#0b3296', '#075E54', '#702963').
+    """
+    body: dict[str, Any] = {"text": text}
+    if background_color:
+        body["backgroundColor"] = background_color
+    return _wa_api("POST", "/api/status", body=body)
 
 
 @register_tool(category="system")

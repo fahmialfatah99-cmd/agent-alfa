@@ -393,3 +393,102 @@ def libreoffice_extract_document_text(document_path: str) -> dict[str, Any]:
             "status": "error",
             "message": f"LibreOffice extract text error: {str(e)}",
         }
+
+
+@register_tool(category="file")
+def smart_excel_inspector(
+    file_path: str,
+    sheet_name: str = "",
+    search_keyword: str = "",
+    min_qty: float = 0.0,
+    max_rows: int = 150,
+) -> dict[str, Any]:
+    """
+    Inspeksi dan ekstrak data tabel Excel (.xlsx/.xls) secara cerdas, cepat, dan presisi tinggi.
+    Mendeteksi otomatis header kolom (walaupun ada merged cells/header bertingkat), memindai seluruh sheet,
+    serta memfilter item material bernilai kuantitas > 0 atau berdasarkan kata kunci pencarian.
+
+    Args:
+        file_path: Lokasi absolut atau relatif file Excel (.xlsx / .xls).
+        sheet_name: Nama sheet spesifik yang ingin diinspeksi (kosong = inspeksi semua sheet).
+        search_keyword: Kata kunci opsional untuk memfilter baris (misal: 'tiang', 'adss', 'fat', 'fdt').
+        min_qty: Filter kuantitas minimal (default 0.0: hanya ambil baris yang ada angkanya > 0).
+        max_rows: Batas maksimal baris data per sheet (default 150).
+    """
+    try:
+        import openpyxl
+
+        expanded = os.path.realpath(os.path.expanduser(file_path.strip()))
+        if not os.path.exists(expanded):
+            return {"status": "error", "message": f"Berkas Excel '{file_path}' tidak ditemukan."}
+
+        wb = openpyxl.load_workbook(expanded, data_only=True)
+        target_sheets = [sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.sheetnames
+
+        result: dict[str, Any] = {
+            "status": "success",
+            "file": os.path.basename(expanded),
+            "sheet_names": wb.sheetnames,
+            "sheets_data": {},
+            "total_items": 0,
+        }
+
+        total_extracted = 0
+        for sname in target_sheets:
+            ws = wb[sname]
+            rows = list(ws.iter_rows(values_only=True))
+            if not rows:
+                continue
+
+            # Deteksi baris header
+            h_idx = -1
+            for i, r in enumerate(rows[:15]):
+                line = " ".join(str(c) for c in r if c is not None).lower()
+                if any(k in line for k in ["description", "item", "uraian", "nama barang", "material qty"]):
+                    h_idx = i
+                    break
+
+            start_row = h_idx + 1 if h_idx >= 0 else 0
+            sheet_items: list[dict[str, Any]] = []
+            for r_idx, r in enumerate(rows[start_row:], start_row):
+                if len(sheet_items) >= max_rows:
+                    break
+                line_str = " ".join(str(c) for c in r if c is not None)
+                if not line_str.strip():
+                    continue
+                if search_keyword and search_keyword.lower() not in line_str.lower():
+                    continue
+
+                desc_val = None
+                qty_val = None
+                unit_val = ""
+                for idx, c in enumerate(r):
+                    if desc_val is None and isinstance(c, str) and len(c.strip()) > 2 and not c.strip().replace(".", "").isdigit():
+                        desc_val = c.strip()
+                    elif isinstance(c, (int, float)) and c > min_qty and c < 100000000:
+                        if idx in (3, 4, 2, 5) or qty_val is None:
+                            qty_val = c
+                    elif isinstance(c, str) and c.strip().lower() in ("meter", "m", "pcs", "unit", "set", "ls", "core", "roll"):
+                        unit_val = c.strip()
+
+                if desc_val and (qty_val is not None or not min_qty):
+                    sheet_items.append({
+                        "row": r_idx + 1,
+                        "item": desc_val[:80],
+                        "qty": qty_val,
+                        "unit": unit_val,
+                    })
+
+            if sheet_items:
+                result["sheets_data"][sname] = {
+                    "header_row": h_idx + 1 if h_idx >= 0 else 1,
+                    "item_count": len(sheet_items),
+                    "items": sheet_items,
+                }
+                total_extracted += len(sheet_items)
+
+        result["total_items"] = total_extracted
+        return result
+    except Exception as e:
+        return {"status": "error", "message": f"smart_excel_inspector error: {str(e)}"}
+

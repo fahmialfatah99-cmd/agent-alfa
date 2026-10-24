@@ -192,6 +192,7 @@ TOOL_CLASSIFICATION = {
     "proactive_ambient_agent_config": (RiskTier.MEDIUM, "Ubah konfigurasi ambient agent"),
     "proactive_system_guardian_config": (RiskTier.MEDIUM, "Ubah konfigurasi guardian"),
     "manage_wa_sheets_bot": (RiskTier.MEDIUM, "Kelola bot WhatsApp sheet"),
+    "record_material_to_sheets": (RiskTier.MEDIUM, "Pencatatan material ke Google Sheets"),
     "affiliate_generate_viral_content": (RiskTier.MEDIUM, "Generate konten promosi"),
     "affiliate_hunt_trending_products": (RiskTier.MEDIUM, "Cari produk tren"),
     "affiliate_list_campaigns": (RiskTier.MEDIUM, "Daftar kampanye promosi"),
@@ -244,6 +245,7 @@ TOOL_CLASSIFICATION = {
     "firecrawl_scrape_and_crawl": (RiskTier.MEDIUM, "Firecrawl scrape - traffic keluar"),
     "scrcpy_android_control": (RiskTier.MEDIUM, "Kontrol Android via scrcpy"),
     "wa_send_message": (RiskTier.MEDIUM, "Kirim pesan WhatsApp - kirim atas nama user"),
+    "wa_post_status": (RiskTier.MEDIUM, "Posting status teks ke WhatsApp Story"),
     "wa_add_format": (RiskTier.MEDIUM, "Tambah format WA"),
     "wa_delete_format": (RiskTier.MEDIUM, "Hapus format WA"),
     "wa_toggle_format": (RiskTier.MEDIUM, "Toggle format WA"),
@@ -256,6 +258,7 @@ TOOL_CLASSIFICATION = {
     "wa_search_messages": (RiskTier.LOW, "Cari pesan WA - read-only"),
     "wa_list_formats": (RiskTier.LOW, "Daftar format WA - read-only"),
     "wa_mark_read": (RiskTier.LOW, "Tandai pesan WA sudah dibaca"),
+    "wa_clear_history": (RiskTier.LOW, "Bersihkan/reset riwayat buffer pesan WA"),
     "wa_get_history_archive": (RiskTier.LOW, "Baca arsip pesan WA lokal - read-only"),
     "rea_inspect_android_package": (RiskTier.LOW, "Inspeksi paket APK Android - read-only"),
     "rea_inspect_binary_or_wasm": (RiskTier.LOW, "Inspeksi binary atau WASM - read-only"),
@@ -348,6 +351,59 @@ TOOL_CLASSIFICATION = {
     "ui_ux_pro_max_search": (RiskTier.LOW, "Cari panduan UI/UX - read-only"),
     "whois_dns_domain_lookup": (RiskTier.LOW, "Lookup WHOIS/DNS - read-only"),
     "open_web_dashboard": (RiskTier.LOW, "Buka dashboard di browser - read-only"),
+    # ── Telekom / BOQ / Lapangan (reg Wave 2026-10) ─────────────────────────
+    "generate_daily_executive_briefing": (
+        RiskTier.LOW,
+        "Buat ringkasan briefing proyek - baca data, tanpa efek samping",
+    ),
+    "calculate_material_return_and_scrap": (
+        RiskTier.LOW,
+        "Kalkulasi material return & scrap - tanpa efek samping",
+    ),
+    "boq_check_project_anomalies": (
+        RiskTier.MEDIUM,
+        "Analisis anomali BOQ proyek - isi dokumen ke konteks model",
+    ),
+    "boq_compare_and_diff": (
+        RiskTier.MEDIUM,
+        "Bandingkan / diff dokumen BOQ - isi dokumen ke konteks model",
+    ),
+    "boq_consolidate_master_workbook": (
+        RiskTier.MEDIUM,
+        "Konsolidasi workbook BOQ - tulis file Excel",
+    ),
+    "boq_reconcile_with_field_reports": (
+        RiskTier.MEDIUM,
+        "Rekonsiliasi BOQ vs laporan lapangan - isi dokumen ke konteks model",
+    ),
+    "consolidate_delivery_orders_to_stock_ledger": (
+        RiskTier.MEDIUM,
+        "Konsolidasi Surat Jalan/DO ke stock ledger - tulis Excel",
+    ),
+    "parse_delivery_order_document": (
+        RiskTier.MEDIUM,
+        "Parsin dokumen DO/PDF - isi dokumen ke konteks model",
+    ),
+    "render_cluster_kml_map": (
+        RiskTier.MEDIUM,
+        "Render peta KML/KMZ ke HTML interaktif - tulis file",
+    ),
+    "schedule_daily_briefing_task": (
+        RiskTier.MEDIUM,
+        "Buat jadwal briefing harian - tulis cron job ke store",
+    ),
+    "smart_excel_inspector": (
+        RiskTier.MEDIUM,
+        "Inspeksi file Excel - isi dokumen ke konteks model",
+    ),
+    "transcribe_field_voice_note": (
+        RiskTier.MEDIUM,
+        "Transkripsi voice note lapangan - isi konten ke konteks model",
+    ),
+    "wa_relay_send_from_telegram": (
+        RiskTier.MEDIUM,
+        "Relay pesan Telegram ke WhatsApp - kirim atas nama user",
+    ),
 }
 
 # Default tier untuk tool yang TIDAK terklasifikasi.

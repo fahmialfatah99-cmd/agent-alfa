@@ -67,6 +67,7 @@ from alfa.tools.system.integrations import (
     scrcpy_android_control,
     start_focus_session,
     wa_add_format,
+    wa_clear_history,
     wa_delete_format,
     wa_get_chats,
     wa_get_history_archive,
@@ -76,6 +77,7 @@ from alfa.tools.system.integrations import (
     wa_get_records,
     wa_list_formats,
     wa_mark_read,
+    wa_post_status,
     wa_search_messages,
     wa_send_message,
     wa_toggle_format,
@@ -120,10 +122,6 @@ from alfa.tools.system.network import (
     send_email,
     ssh_execute_command,
 )
-from alfa.tools.system.sites import (
-    list_managed_sites,
-    serve_site,
-)
 from alfa.tools.system.reverse_engineering import (
     rea_inspect_android_package,
     rea_inspect_binary_or_wasm,
@@ -131,6 +129,10 @@ from alfa.tools.system.reverse_engineering import (
     rea_inspect_sqlite_database,
     rea_recover_js_sources,
     rea_run_command,
+)
+from alfa.tools.system.sites import (
+    list_managed_sites,
+    serve_site,
 )
 
 logger = logging.getLogger("AgentTools.System")
@@ -201,6 +203,7 @@ __all__ = [
     "start_focus_session",
     "manage_wa_sheets_bot",
     "wa_add_format",
+    "wa_clear_history",
     "wa_delete_format",
     "wa_get_records",
     "wa_list_formats",
@@ -211,6 +214,7 @@ __all__ = [
     "wa_get_me",
     "wa_get_messages",
     "wa_mark_read",
+    "wa_post_status",
     "wa_search_messages",
     "wa_send_message",
     "list_wa_drive_uploads",

@@ -2,11 +2,13 @@
 
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
 from typing import Any
 
+from alfa.core.tuning import host_exec_timeout, truncate_middle
 from alfa.tools.registry import register_tool
 from alfa.tools.system.constants import (
     _SANDBOX_IMAGE,
@@ -119,7 +121,7 @@ def execute_bash_command(
             script_path = os.path.join(SANDBOX_DIR, script_name)
             with open(script_path, "w", encoding="utf-8") as f:
                 f.write(
-                    "#!/bin/bash\nset -o pipefail\n" + (command or "").strip() + "\n"
+                    "#!/bin/bash\nset -o pipefail\n" + clean_cmd + "\n"
                 )
 
             wd_abs, wd_err = resolve_sandbox_working_dir(working_dir)
@@ -207,17 +209,19 @@ def execute_bash_command(
                 )
             if not os.path.exists(target_dir):
                 target_dir = os.path.realpath(os.path.expanduser("~"))
+            # Proteksi: cegah find merambah ke remote cloud mounts (rclone FUSE di /mnt/.remotes dan ~/GDrive)
+            if re.search(r"\bfind\s+", clean_cmd) and "-xdev" not in clean_cmd:
+                clean_cmd = re.sub(r"(\bfind\s+)([~/][^\s\-]*|\$HOME[^\s\-]*)(\s+)", r"\1\2 -xdev\3", clean_cmd)
+
             if os.name == "nt":
                 git_bash = r"C:\Program Files\Git\bin\bash.exe"
                 if os.path.exists(git_bash):
-                    cmd = [git_bash, "-lc", command]
+                    cmd = [git_bash, "-lc", clean_cmd]
                 else:
-                    cmd = ["powershell", "-NoProfile", "-Command", command]
+                    cmd = ["powershell", "-NoProfile", "-Command", clean_cmd]
             else:
-                cmd = ["bash", "-c", command]
-            timeout_secs = int(
-                os.getenv("ALFA_HOST_TIMEOUT", "600" if unrestricted else "45")
-            )
+                cmd = ["bash", "-c", clean_cmd]
+            timeout_secs = host_exec_timeout(unrestricted, default_restricted=45)
             isolation = "none"
 
         logger.info(f"Executing bash ({isolation}): {command[:150]}")
@@ -285,16 +289,14 @@ def execute_bash_command(
                 except OSError:
                     pass
 
-        stdout = (
-            result.stdout.strip() if hasattr(result, "stdout") and result.stdout else ""
+        stdout = truncate_middle(
+            result.stdout.strip() if hasattr(result, "stdout") and result.stdout else "",
+            3500,
         )
-        stderr = (
-            result.stderr.strip() if hasattr(result, "stderr") and result.stderr else ""
+        stderr = truncate_middle(
+            result.stderr.strip() if hasattr(result, "stderr") and result.stderr else "",
+            1200,
         )
-        if len(stdout) > 3500:
-            stdout = stdout[:3500] + "\n...[Output terpotong karena terlalu panjang]"
-        if len(stderr) > 1200:
-            stderr = stderr[:1200] + "\n...[Stderr terpotong]"
 
         warn = (
             ""
@@ -446,9 +448,7 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             isolation = "docker"
         else:
             cmd = [sys.executable, script_path]
-            timeout_secs = int(
-                os.getenv("ALFA_HOST_TIMEOUT", "600" if unrestricted else "30")
-            )
+            timeout_secs = host_exec_timeout(unrestricted, default_restricted=30)
             isolation = "none"
             logger.warning(
                 "[SECURITY] Docker sandbox unavailable - menjalankan Python "
@@ -456,15 +456,75 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             )
 
         try:
-            res = sub.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+            if hasattr(sub, "run") and sub.run is not subprocess.run:
+                res = sub.run(cmd, capture_output=True, text=True, timeout=timeout_secs)
+            else:
+                popen_kwargs: dict[str, Any] = {
+                    "stdout": subprocess.PIPE,
+                    "stderr": subprocess.PIPE,
+                    "text": True,
+                    "cwd": None,
+                }
+                if os.name == "nt":
+                    popen_kwargs["creationflags"] = getattr(
+                        subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+                    )
+                else:
+                    popen_kwargs["start_new_session"] = True
+
+                proc = subprocess.Popen(cmd, **popen_kwargs)
+                try:
+                    out, errout = proc.communicate(timeout=timeout_secs)
+                    res = subprocess.CompletedProcess(
+                        cmd, proc.returncode if proc.returncode is not None else 0, out, errout
+                    )
+                except subprocess.TimeoutExpired:
+                    try:
+                        if os.name == "nt":
+                            subprocess.run(
+                                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                capture_output=True,
+                                timeout=10,
+                            )
+                        else:
+                            import signal as _sig
+
+                            try:
+                                pgid = os.getpgid(proc.pid)
+                                if pgid != os.getpgrp():
+                                    os.killpg(pgid, _sig.SIGKILL)
+                                else:
+                                    proc.kill()
+                            except Exception:
+                                proc.kill()
+                    except Exception:
+                        pass
+                    try:
+                        out, errout = proc.communicate(timeout=5)
+                    except Exception:
+                        out, errout = "", ""
+                    return {
+                        "status": "error",
+                        "exit_code": -1,
+                        "stdout": truncate_middle(out or "", 3500),
+                        "stderr": f"[TIMEOUT] Eksekusi Python melebihi {timeout_secs}s — pohon proses dihentikan paksa.",
+                        "has_plot": False,
+                        "isolation": isolation,
+                    }
         finally:
             try:
                 os.remove(script_path)
             except OSError:
                 pass
 
-        stdout = res.stdout.strip() if hasattr(res, "stdout") and res.stdout else ""
-        stderr = res.stderr.strip() if hasattr(res, "stderr") and res.stderr else ""
+        stdout = truncate_middle(
+            res.stdout.strip() if hasattr(res, "stdout") and res.stdout else "",
+            3500,
+        )
+        stderr = truncate_middle(
+            res.stderr.strip() if hasattr(res, "stderr") and res.stderr else "",
+            1200,
+        )
         returncode = res.returncode if hasattr(res, "returncode") else 0
         has_plot = os.path.exists(plot_path) and os.path.getsize(plot_path) > 0
         hint = (

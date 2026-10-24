@@ -117,12 +117,51 @@ def query_token_usage(hours: int = 24) -> dict[str, Any]:
         }
 
 
+def _ensure_lan_bridge(local_ip: str, port: int) -> None:
+    """Pastikan koneksi LAN ke (local_ip, port) dapat menjangkau dashboard 127.0.0.1:port."""
+    if local_ip in ("127.0.0.1", "localhost", ""):
+        return
+    import shutil
+    import socket
+
+    # Cek apakah port di local_ip sudah terbuka/merespons
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0.3)
+    try:
+        if sock.connect_ex((local_ip, port)) == 0:
+            return
+    except OSError:
+        pass
+    finally:
+        sock.close()
+
+    # Bila belum terbuka, aktifkan forwarder socat
+    socat_bin = shutil.which("socat")
+    if socat_bin:
+        try:
+            subprocess.Popen(
+                [
+                    socat_bin,
+                    f"TCP-LISTEN:{port},bind={local_ip},reuseaddr,fork",
+                    f"TCP:127.0.0.1:{port}",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError:
+            pass
+
+
 @register_tool(category="system")
 def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
     """
     ALFA OS: Web Command Center Dashboard Controller.
     """
     try:
+        import socket
+        import time
+
         res = subprocess.run(
             ["systemctl", "--user", "is-active", "alfa-dashboard.service"],
             capture_output=True,
@@ -134,8 +173,19 @@ def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
                 capture_output=True,
                 text=True,
             )
-
-        import socket
+            # Tunggu hingga uvicorn aktif merespons di loopback
+            for _ in range(15):
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(0.2)
+                try:
+                    if s.connect_ex(("127.0.0.1", port)) == 0:
+                        s.close()
+                        break
+                except OSError:
+                    pass
+                finally:
+                    s.close()
+                time.sleep(0.2)
 
         local_ip = "127.0.0.1"
         try:
@@ -145,6 +195,9 @@ def open_web_dashboard(port: int = 8080) -> dict[str, Any]:
             s.close()
         except OSError:
             pass
+
+        if local_ip != "127.0.0.1":
+            _ensure_lan_bridge(local_ip, port)
 
         return {
             "status": "success",
@@ -375,8 +428,34 @@ def spawn_background_subagent(
 ) -> dict[str, Any]:
     """
     Spawn an autonomous background subagent worker to solve a complex task.
+    HANYA panggil jika pengguna SECARA EKSPLISIT meminta subagent atau eksekusi di latar belakang (background).
+    DILARANG meluncurkan subagent untuk tugas biasa.
     """
     try:
+        from alfa.bot.mode_commands import get_telegram_mode_sync
+        from alfa.core.runtime_ctx import get_current_user_prompt
+
+        current_mode = get_telegram_mode_sync()
+        if current_mode == "single":
+            user_prompt = get_current_user_prompt().strip().lower()
+            explicit_keywords = (
+                "subagent",
+                "sub-agent",
+                "background worker",
+                "pekerja latar belakang",
+                "latar belakang",
+                "di background",
+                "jalankan di background",
+            )
+            if not any(k in user_prompt for k in explicit_keywords):
+                return {
+                    "status": "skipped",
+                    "message": (
+                        "Mode Telegram saat ini adalah SINGLE AGENT. Pengguna tidak meminta subagent/background worker. "
+                        "DILARANG meluncurkan subagent! Selesaikan tugas ini sendiri secara langsung menggunakan tools native Anda."
+                    ),
+                }
+
         from alfa.swarm import subagents
 
         user_id = get_current_user_id()
@@ -617,6 +696,7 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
     import os
     import shutil
     import subprocess
+
     import psutil
 
     collected = gc.collect()

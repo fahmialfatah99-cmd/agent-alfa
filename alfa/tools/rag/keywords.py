@@ -9,9 +9,9 @@ logger = logging.getLogger("ToolRAG")
 
 _ENABLED = os.getenv("ALFA_TOOL_RAG", "on").strip().lower() != "off"
 try:
-    TOP_K = max(4, int(os.getenv("ALFA_TOOL_RAG_TOPK", "14")))
+    TOP_K = max(4, int(os.getenv("ALFA_TOOL_RAG_TOPK", "24")))
 except ValueError:
-    TOP_K = 14
+    TOP_K = 24
 
 # Tool fondasi yang SELALU disuntikkan walau tak relevan dengan pesan.
 CORE_ALWAYS: set[str] = {

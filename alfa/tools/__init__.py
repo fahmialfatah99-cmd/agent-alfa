@@ -66,6 +66,20 @@ from alfa.tools.system_tools import _clean_code_snippet as _clean_code_snippet
 from alfa.tools.system_tools import _docker_available as _docker_available
 from alfa.tools.system_tools import _ensure_sandbox_image as _ensure_sandbox_image
 from alfa.tools.system_tools import _sandbox_base as _sandbox_base
+from alfa.tools.telecom_tools import (
+    boq_check_project_anomalies,
+    boq_compare_and_diff,
+    boq_consolidate_master_workbook,
+    boq_reconcile_with_field_reports,
+    calculate_material_return_and_scrap,
+    consolidate_delivery_orders_to_stock_ledger,
+    generate_daily_executive_briefing,
+    parse_delivery_order_document,
+    render_cluster_kml_map,
+    schedule_daily_briefing_task,
+    transcribe_field_voice_note,
+    wa_relay_send_from_telegram,
+)
 from alfa.tools.web_tools import *  # noqa: F401, F403
 
 logger = logging.getLogger("AgentTools")
@@ -129,6 +143,18 @@ AVAILABLE_TOOLS = [
     marketplace_search_products,
     generate_promo_video_from_images,
     generate_excel_spreadsheet,
+    boq_consolidate_master_workbook,
+    boq_compare_and_diff,
+    boq_reconcile_with_field_reports,
+    boq_check_project_anomalies,
+    generate_daily_executive_briefing,
+    schedule_daily_briefing_task,
+    parse_delivery_order_document,
+    consolidate_delivery_orders_to_stock_ledger,
+    calculate_material_return_and_scrap,
+    render_cluster_kml_map,
+    transcribe_field_voice_note,
+    wa_relay_send_from_telegram,
     generate_presentation_pptx,
     control_linux_hardware,
     send_file_to_chat,
@@ -172,6 +198,7 @@ AVAILABLE_TOOLS = [
     proactive_ambient_agent_config,
     manage_wa_sheets_bot,
     wa_add_format,
+    wa_clear_history,
     wa_delete_format,
     wa_get_records,
     wa_list_formats,
@@ -182,6 +209,7 @@ AVAILABLE_TOOLS = [
     wa_get_me,
     wa_get_messages,
     wa_mark_read,
+    wa_post_status,
     wa_search_messages,
     wa_send_message,
     open_web_dashboard,
@@ -194,6 +222,7 @@ AVAILABLE_TOOLS = [
     self_restart_service,
     proactive_system_guardian_config,
     markitdown_convert_document,
+    smart_excel_inspector,
     scrapling_stealth_fetch,
     scrapy_spider_quick_scrape,
     crawlee_web_scraper,

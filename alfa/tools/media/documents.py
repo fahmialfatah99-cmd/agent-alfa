@@ -350,3 +350,34 @@ def translate_text(
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal menerjemahkan: {str(e)}"}
+
+
+@register_tool(category="office")
+def record_material_to_sheets(
+    material_text: str,
+    context: str = "",
+    source: str = "",
+) -> dict[str, Any]:
+    """
+    PERINGATAN INTEGRASI: Spreadsheet Pengambilan Material HANYA diperuntukkan bagi sinkronisasi otomatis dari chat grup WhatsApp 'Pengambilan Material'.
+    DILARANG menggunakan tool ini untuk mencatat isi file/dokumen (PDF/Excel/Surat Jalan/DO) atau chat Telegram ke Google Sheets.
+    Jika dipanggil untuk dokumen atau sumber selain grup WhatsApp 'Pengambilan Material', pencatatan akan otomatis ditolak.
+    """
+    from alfa.integrations.google_sheets import (
+        is_pengambilan_material_group,
+        is_whatsapp_source,
+        parse_and_record_material_text,
+    )
+
+    if not source or not is_whatsapp_source(source) or not is_pengambilan_material_group(source, context=context):
+        return {
+            "status": "error",
+            "message": (
+                "Penyimpanan ke spreadsheet ditolak. Sesuai aturan sistem, spreadsheet Pengambilan Material "
+                "HANYA mencatat otomatis dari chat WhatsApp grup yang memuat keterangan 'pengambilan material', "
+                "bukan dari file/dokumen atau percakapan lain."
+            ),
+        }
+
+    return parse_and_record_material_text(text=material_text, context=context, source=source)
+
