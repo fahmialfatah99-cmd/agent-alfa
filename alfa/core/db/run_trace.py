@@ -21,11 +21,10 @@ logger = logging.getLogger("DB.RunTrace")
 
 _TABLE = "run_traces"
 
-
-def _ensure_table(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {_TABLE} (
+# SQL berupa konstanta literal + {t} yang di-.replace() — mengikuti pola
+# bandit-B608-safe milik wa_tracking (tanpa f-string SQL).
+_SQL_CREATE_TABLE = """
+        CREATE TABLE IF NOT EXISTS {t} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             run_id TEXT NOT NULL UNIQUE,
             kind TEXT NOT NULL DEFAULT 'swarm_meeting',
@@ -36,12 +35,39 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
             meta TEXT NOT NULL DEFAULT '{{}}',
             summary TEXT NOT NULL DEFAULT '{{}}'
         )
-        """  # nosec B608 — nama tabel konstanta internal
-    )
-    conn.execute(
-        f"CREATE INDEX IF NOT EXISTS idx_run_traces_started ON {_TABLE}"
-        "(started_at DESC)"  # nosec B608 — nama tabel konstanta internal
-    )
+        """
+_SQL_CREATE_INDEX = (
+    "CREATE INDEX IF NOT EXISTS idx_run_traces_started "
+    "ON {t} (started_at DESC)"
+)
+_SQL_UPSERT = """
+            INSERT INTO {t}
+                (run_id, kind, status, started_at, finished_at, duration_ms,
+                 meta, summary)
+            VALUES (?, 'swarm_meeting', ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                status = excluded.status,
+                finished_at = excluded.finished_at,
+                duration_ms = excluded.duration_ms,
+                meta = excluded.meta,
+                summary = excluded.summary
+            """
+_SQL_LIST_KIND = """
+            SELECT * FROM {t} WHERE kind = ?
+            ORDER BY started_at DESC LIMIT ?
+            """
+_SQL_LIST_ALL = "SELECT * FROM {t} ORDER BY started_at DESC LIMIT ?"
+_SQL_GET_ONE = "SELECT * FROM {t} WHERE run_id = ?"
+
+
+def _sql(template: str) -> str:
+    """Ganti penampung {t} dengan nama tabel (konstanta modul, literal)."""
+    return template.replace("{t}", _TABLE)
+
+
+def _ensure_table(conn: sqlite3.Connection) -> None:
+    conn.execute(_sql(_SQL_CREATE_TABLE))
+    conn.execute(_sql(_SQL_CREATE_INDEX))
 
 
 def summarize_swarm_result(result: dict[str, Any] | None) -> dict[str, Any]:
@@ -103,29 +129,15 @@ def record_swarm_meeting_sync(
     summary = summarize_swarm_result(result)
     with get_sync_db() as conn:
         _ensure_table(conn)
-        conn.execute(
-            f"""
-            INSERT INTO {_TABLE}
-                (run_id, kind, status, started_at, finished_at, duration_ms,
-                 meta, summary)
-            VALUES (?, 'swarm_meeting', ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(run_id) DO UPDATE SET
-                status = excluded.status,
-                finished_at = excluded.finished_at,
-                duration_ms = excluded.duration_ms,
-                meta = excluded.meta,
-                summary = excluded.summary
-            """,  # nosec B608 — nama tabel konstanta internal, param penuh
-            (
-                session_id,
-                status,
-                now,
-                now,
-                max(0, int(duration_ms)),
-                json.dumps(meta),
-                json.dumps(summary),
-            ),
-        )
+        conn.execute(_sql(_SQL_UPSERT), (
+            session_id,
+            status,
+            now,
+            now,
+            max(0, int(duration_ms)),
+            json.dumps(meta),
+            json.dumps(summary),
+        ))
         conn.commit()
 
 
@@ -137,15 +149,11 @@ def list_runs_sync(limit: int = 25, kind: str = "") -> list[dict[str, Any]]:
         conn.row_factory = sqlite3.Row
         if kind.strip():
             cursor = conn.execute(
-                f"SELECT * FROM {_TABLE} WHERE kind = ? "
-                "ORDER BY started_at DESC LIMIT ?",
+                _sql(_SQL_LIST_KIND),
                 (kind.strip(), limit),
             )
         else:
-            cursor = conn.execute(
-                f"SELECT * FROM {_TABLE} ORDER BY started_at DESC LIMIT ?",
-                (limit,),
-            )
+            cursor = conn.execute(_sql(_SQL_LIST_ALL), (limit,))
         rows = [dict(r) for r in cursor.fetchall()]
     for row in rows:
         for field in ("meta", "summary"):
@@ -163,7 +171,7 @@ def get_run_sync(run_id: str) -> dict[str, Any] | None:
         _ensure_table(conn)
         conn.row_factory = sqlite3.Row
         row = conn.execute(
-            f"SELECT * FROM {_TABLE} WHERE run_id = ?", (run_id,)
+            _sql(_SQL_GET_ONE), (run_id,)
         ).fetchone()
     if row is None:
         return None

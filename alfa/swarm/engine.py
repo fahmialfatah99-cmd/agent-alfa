@@ -598,7 +598,7 @@ def _record_swarm_trace_safely(
             result=result,
             error=error,
         )
-    except Exception:  # pragma: no cover — tracing ≠ jalur kritis
+    except Exception:  # noqa: BLE001 — tracing gagal-lembut (bukan jalur kritis)
         logger.debug("run-trace gagal (diabaikan): %s", session_id)
 
 
