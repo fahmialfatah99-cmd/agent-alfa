@@ -410,12 +410,28 @@ def test_servers_slash_command(capsys):
     assert "9Router" in captured.out
 
 
-def test_sync_external_api_keys(capsys):
+def test_sync_external_api_keys(capsys, tmp_path, monkeypatch):
+    # Hermetik: isolasi HOME + seed mini SQLite 9Router (schema tempat
+    # sync_external_api_keys_sync membaca: apiKeys(key, name, isActive)).
+    # Tanpa ini tes bergantung pada ~/.9router db mesin Fahmi.
+    import sqlite3
+
     from alfa.core import database
+
+    home = tmp_path / "home"
+    (home / ".9router" / "db").mkdir(parents=True)
+    conn = sqlite3.connect(home / ".9router" / "db" / "data.sqlite")
+    conn.execute("CREATE TABLE apiKeys (key TEXT, name TEXT, isActive INTEGER)")
+    conn.execute("INSERT INTO apiKeys VALUES ('sk-9router-test-abc123', 'Gateway Utama', 1)")
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # varian Windows-expanduser
 
     # Verify sync function runs cleanly
     synced = database.sync_external_api_keys_sync()
     assert isinstance(synced, list)
+    assert any(s["provider"] == "9router" for s in synced)
 
     keys = database.list_api_keys_sync(auto_sync=True)
     assert len(keys) > 0

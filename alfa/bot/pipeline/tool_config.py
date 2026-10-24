@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import plugins
 from alfa.tools import AVAILABLE_TOOLS
@@ -91,7 +91,7 @@ def prepare_tools_and_configs(
             # cast: Literal 4-nilai sudah difilter di atas, stub google-genai
             # mengetiknya sebagai ThinkingLevel.
             _thinking_cfg = types.ThinkingConfig(
-                thinking_level=_thinking_level,  # type: ignore[arg-type]
+                thinking_level=cast(Any, _thinking_level),
             )
         except Exception:
             pass

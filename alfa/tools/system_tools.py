@@ -9,20 +9,12 @@ import logging
 import os  # noqa: F401 - re-exported for backward-compat attribute access (e.g. system_tools.subprocess)
 import subprocess  # noqa: F401 - re-exported for backward-compat (tests monkeypatch system_tools.subprocess)
 import sys  # noqa: F401 - re-exported for backward compatibility
-from typing import (  # noqa: F401, UP035 - re-exported for backward compatibility
-    Any,
-    Dict,
-    List,
-    Optional,
-)
+from typing import Any, Optional, cast  # noqa: F401, UP035 - re-export
 
 try:
-    from dotenv import (
-        load_dotenv,  # noqa: F401 - re-exported for backward compatibility
-    )
+    from dotenv import load_dotenv as _dotenv_load
 except ImportError:
-    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:  # type: ignore[misc]
-        return False
+    _dotenv_load = cast("Any", None)
 
 from alfa.core import database  # noqa: F401 - re-exported for backward compatibility
 from alfa.core.runtime_ctx import (  # noqa: F401 - re-exported for backward compatibility
@@ -134,6 +126,23 @@ from alfa.tools.system.sites import (
     list_managed_sites,
     serve_site,
 )
+
+
+def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+    """Re-export python-dotenv.load_dotenv (no-op bila tidak terpasang).
+
+    `cast(Any, None)` + try/TypeError: stub dotenv bervariasi antar runner,
+    sedangkan pemanggil bebas — kontrak legacy (bool) tetap terjaga.
+    """
+    if _dotenv_load is None:
+        return False
+    try:
+        return bool(_dotenv_load(*_args, **_kwargs))
+    except TypeError:
+        try:
+            return bool(_dotenv_load())
+        except Exception:  # noqa: BLE001 -- kontrak legacy: fallback selalu False
+            return False
 
 logger = logging.getLogger("AgentTools.System")
 

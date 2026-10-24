@@ -125,7 +125,13 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install dependencies lengkap (best-effort)
-        run: pip install -r requirements.txt || true
+        # requirements gagal di runner (gtts<click>=8.2) dulu — kini di-cap
+        # di requirements; jangan sembunyikan penyebab: jejak insiden log.
+        run: |
+          pip install -r requirements.txt > pip_requirements.log 2>&1 || {
+            echo "::warning::requirements.txt gagal terpasang penuh (best-effort, lanjut)"
+            tail -25 pip_requirements.log
+          }
       - name: Pastikan dependensi inti terpasang
         run: |
           pip install python-telegram-bot google-genai python-dotenv \
@@ -135,6 +141,7 @@ jobs:
             aiofiles websockets pygments ddgs \
             python-multipart requests webauthn openpyxl pandas \
             bs4 defusedxml inquirerpy "prompt-toolkit" \
+            parsel markdownify mcp reportlab \
             "google-api-python-client>=2.100.0,<3.0.0" \
             "google-auth-oauthlib>=1.2.0,<2.0.0" "google-auth-httplib2"
       - name: Jalankan seluruh suite dengan coverage (threshold gate)

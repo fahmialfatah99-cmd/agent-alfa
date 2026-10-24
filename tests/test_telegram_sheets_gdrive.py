@@ -164,7 +164,7 @@ async def test_render_drive_home():
         "mounted_drives": [{"name": "GDrive1", "active": True, "items_count": 50}],
     }
 
-    with patch("alfa.integrations.gdrive.gdrive_status", return_value=mock_st), \
+    with patch("alfa.bot.cloud_menu.gdrive_status", return_value=mock_st), \
          patch("alfa.bot.cloud_menu._edit_or_send", new_callable=AsyncMock) as mock_edit:
         await render_drive_home(update, context)
         mock_edit.assert_called_once()

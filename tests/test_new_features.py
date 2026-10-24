@@ -218,8 +218,83 @@ def test_dead_models_rejected(isolated_db):
 
 
 # --- pipeline: 4 template + vars override ------------------------------------
-def test_pipeline_templates_and_overrides():
+def test_pipeline_templates_and_overrides(tmp_path, monkeypatch):
+    """Hermetik: sandbox PIPELINE_DIR sendiri; storage/pipelines repo berisi
+    data mesin (tidak dikomit), jadi CI fresh tidak boleh bergantung padanya."""
     from alfa.pipelines import engine as pipe
+
+    monkeypatch.setattr(pipe, "PIPELINE_DIR", str(tmp_path))
+    templates = [
+        {
+            "id": "riset_dan_ringkas",
+            "name": "Riset lalu Ringkas",
+            "description": "Cari topik di web -> rangkum 3 poin -> simpan ke sandbox.",
+            "vars": {"topik": "AI Indonesia", "out_dir": "/dev/shm/alfa_sandbox/pipeline_out"},
+            "steps": [
+                {"id": "cari", "type": "tool", "tool": "web_search",
+                 "args": {"query": "berita {{topik}} terbaru"}},
+                {"id": "rangkum", "type": "prompt",
+                 "text": "Ringkas hasil pencarian ini menjadi 3 poin utama:\n{{cari}}",
+                 "depends_on": ["cari"]},
+                {"id": "simpan", "type": "tool", "tool": "write_local_file",
+                 "args": {"file_path": "{{out_dir}}/ringkasan_{{topik}}.md",
+                          "content": "# Ringkasan {{topik}}\n\n{{rangkum}}"},
+                 "depends_on": ["rangkum"]},
+            ],
+        },
+        {
+            "id": "cek_kesehatan",
+            "name": "Cek Kesehatan Server",
+            "description": "Ambil telemetri -> ringkas status + 3 tindakan bila ada anomali -> simpan.",
+            "vars": {"out_dir": "/dev/shm/alfa_sandbox/pipeline_out"},
+            "steps": [
+                {"id": "telemetri", "type": "tool", "tool": "get_system_stats", "args": {}},
+                {"id": "ringkas", "type": "prompt",
+                 "text": "Dari telemetri berikut, jawab SINGKAT: status (SEHAT/WASPADA/KRITIS) "
+                         "+ maksimal 3 tindakan konkret bila tidak sehat. Bahasa Indonesia:\n{{telemetri}}",
+                 "depends_on": ["telemetri"]},
+                {"id": "simpan", "type": "tool", "tool": "write_local_file",
+                 "args": {"file_path": "{{out_dir}}/kesehatan_server.md",
+                          "content": "# Kesehatan Server\n\n{{ringkas}}"},
+                 "depends_on": ["ringkas"]},
+            ],
+        },
+        {
+            "id": "audit_situs",
+            "name": "Audit Galeri Situs",
+            "description": "Daftar situs terkelola -> nilai kesehatan tiap situs -> simpan laporan.",
+            "vars": {"out_dir": "/dev/shm/alfa_sandbox/pipeline_out"},
+            "steps": [
+                {"id": "daftar", "type": "tool", "tool": "list_managed_sites", "args": {}},
+                {"id": "nilai", "type": "prompt",
+                 "text": "Dari data registry situs berikut, nilai tiap situs "
+                         "(jalan/mati/butuh perhatian) dan tulis 3 rekomendasi konkret:\n{{daftar}}",
+                 "depends_on": ["daftar"]},
+                {"id": "simpan", "type": "tool", "tool": "write_local_file",
+                 "args": {"file_path": "{{out_dir}}/audit_situs.md",
+                          "content": "# Audit Galeri Situs\n\n{{nilai}}"},
+                 "depends_on": ["nilai"]},
+            ],
+        },
+        {
+            "id": "arsip_outputs",
+            "name": "Arsip Outputs",
+            "description": "Arsipkan folder outputs swarm + catat ukuran hasil.",
+            "vars": {"src": "/dev/shm/alfa_sandbox/swarm_outputs",
+                     "dst": "/dev/shm/alfa_sandbox/swarm_outputs.zip"},
+            "steps": [
+                {"id": "arsip", "type": "tool", "tool": "execute_bash_command",
+                 "args": {"command": "zip -qr {{dst}} {{src}} -x '*/node_modules/*' "
+                                     "'*/__pycache__/*' && du -h {{dst}}"}},
+                {"id": "catat", "type": "tool", "tool": "write_local_file",
+                 "args": {"file_path": "/dev/shm/alfa_sandbox/pipeline_out/arsip_terakhir.md",
+                          "content": "# Arsip Outputs\n\n{{arsip}}"},
+                 "depends_on": ["arsip"]},
+            ],
+        },
+    ]
+    for t in templates:
+        pipe.save_pipeline(t)
 
     ids = {p["id"] for p in pipe.list_pipelines()}
     assert {"riset_dan_ringkas", "audit_situs", "cek_kesehatan", "arsip_outputs"} <= ids

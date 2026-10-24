@@ -20,9 +20,18 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt || true
-          # Pastikan deps inti yang dipakai suite test (import module level)
-          pip install requests python-multipart webauthn
+          pip install -r requirements.txt > pip_requirements.log 2>&1 || {
+            echo "::warning::requirements.txt gagal terpasang penuh (best-effort, lanjut)"
+            tail -25 pip_requirements.log
+          }
+          # Daftar inti identik ci.yml (suite utuh ikut diukur di sini):
+          pip install requests python-multipart webauthn openpyxl pandas \
+            bs4 defusedxml inquirerpy "prompt-toolkit" parsel markdownify \
+            mcp reportlab "google-api-python-client>=2.100.0,<3.0.0" \
+            "google-auth-oauthlib>=1.2.0,<2.0.0" "google-auth-httplib2"
+          pip install python-telegram-bot google-genai python-dotenv aiosqlite \
+            psutil httpx fastapi uvicorn pillow pypdf tabulate cryptography numpy \
+            pydantic click rich pyyaml jinja2 aiofiles websockets pygments ddgs
           pip install pytest pytest-cov pytest-asyncio ruff "mypy==1.8.0" black
       
       - name: Generate coverage report
