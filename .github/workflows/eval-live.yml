@@ -15,8 +15,10 @@ jobs:
     name: Live eval via Gemini
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: ${{ secrets.GEMINI_API_KEY != '' }}
     env:
+      # Context `secrets` TIDAK valid di job-level `if` (startup failure 0s);
+      # jalur yang benar: evaluasi sekali di sini, lalu dibaca via `env`.
+      HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
       TELEGRAM_BOT_TOKEN: "000000000:CI_DUMMY_TOKEN"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       ALLOWED_USER_IDS: "123456789"
@@ -36,13 +38,18 @@ jobs:
             cryptography pygments ddgs
       - name: Jalankan live eval (tak menggagalkan CI)
         id: liveeval
+        if: env.HAS_GEMINI == 'true'
         continue-on-error: true
         run: |
           mkdir -p storage/eval_runs
           STAMP=$(date -u +%Y%m%dT%H%M%SZ)
           python evals/run_evals.py --live ${{ inputs.filter }} \
             --output-json "storage/eval_runs/live_${STAMP}.json" | tee eval_live.log
+      - name: Lewati live eval (GEMINI_API_KEY belum diset)
+        if: env.HAS_GEMINI != 'true'
+        run: echo "⏭ GEMINI_API_KEY belum diset di repo secrets — live eval dilewati."
       - name: Upload hasil live eval
+        if: env.HAS_GEMINI == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eval-live-results
