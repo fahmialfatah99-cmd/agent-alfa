@@ -38,7 +38,7 @@ jobs:
           fail_ci_if_error: false
       
       - name: Upload HTML coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-html
           path: htmlcov/
@@ -94,7 +94,7 @@ jobs:
         run: bandit -r alfa/ -ll -f json -o bandit-report.json
       
       - name: Upload security report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-scan-results
           path: bandit-report.json
@@ -117,7 +117,7 @@ jobs:
         run: safety check --json > safety-report.json
       
       - name: Upload dependency report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-scan-results
           path: safety-report.json
