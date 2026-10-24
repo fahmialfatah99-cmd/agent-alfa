@@ -67,6 +67,7 @@ from alfa.dashboard.routes.system import (
     system_router,
 )
 from alfa.dashboard.routes.tools import categorize_tool, tools_router
+from alfa.dashboard.routes.trace import trace_router
 from alfa.dashboard.routes.webauthn_auth import webauthn_router
 from alfa.dashboard.routes.webhook import webhook_router
 from alfa.dashboard.schemas import HealthCheckResponse, SystemMetricsResponse
@@ -469,6 +470,7 @@ def create_app() -> FastAPI:
     app_instance.include_router(swarm_router)
     app_instance.include_router(system_router)
     app_instance.include_router(webhook_router)
+    app_instance.include_router(trace_router)
     app_instance.include_router(websocket_router)
 
     return app_instance
@@ -529,4 +531,5 @@ __all__ = [
     "ws_manager",
     "ConnectionManager",
     "webhook_router",
+    "trace_router",
 ]

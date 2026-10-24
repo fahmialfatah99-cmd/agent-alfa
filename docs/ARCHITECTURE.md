@@ -82,3 +82,26 @@ for r in rows: print(r.get('msg_ts'), r.get('sender_name'), str(r.get('body'))[:
 - `twisted` menunggu rilis stabil 26.x (pin CI pakai `--ignore-vuln` per CVE).
 - Refactor god-module (`handlers.py`, `engine.py`) direncanakan bertahap — HANYA setelah
   coverage file itu cukup tinggi agar refactor beresiko-rendah.
+
+## 8. Pencarian ranked (FTS5) — `alfa/core/db/wa_index.py`
+
+Additive-only. Jika FTS5 tersedia, `wa_search_ranked` (tool) & `memory_search_ranked`
+(menang) mengembalikan hasil ber-BM25 + highlight; bila tidak, otomatis seperti LIKE
+yang lama. Index dibangun lazy per call (`ensure_*_index_sync`) dengan cek kesegaran
+(jumlah baris / max updated_at) — dataset besar → status `skipped` (tetap LIKE).
+
+Live CLI cepat:
+
+```bash
+venv/bin/python -c "from alfa.core.db.wa_index import ensure_wa_index_sync; print(ensure_wa_index_sync())"
+```
+
+## 9. Run-trace — `alfa/core/db/run_trace.py`
+
+Satu tabel `run_traces` di agent_data.db; wrapper publik `conduct_multi_agent_meeting`
+menulis jejak post-hoc (status, durasi, jumlah langkah/tool, error) — SELALU
+gagal-lembut, tak pernah memengaruhi jalur utama swarm. Dibaca via:
+
+- Dashboard: `GET /api/v1/trace/runs?limit=25` dan `GET /api/v1/trace/runs/{run_id}`
+  (`alfa/dashboard/routes/trace.py`).
+- CLI: `venv/bin/python -m alfa.core.db.run_trace --last 10`.

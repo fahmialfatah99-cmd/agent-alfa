@@ -534,8 +534,9 @@ async def conduct_multi_agent_meeting(
     session_id = session_id or f"swarm_{int(time.time())}_{uuid.uuid4().hex[:6]}"
     _sid = workspace_hygiene.register_session(session_id)
     workspace_hygiene._clear_cancel_flag(session_id)
+    _t0 = time.monotonic()
     try:
-        return await _conduct_multi_agent_meeting_impl(
+        result = await _conduct_multi_agent_meeting_impl(
             topic=topic,
             participant_names=participant_names,
             rounds=rounds,
@@ -543,9 +544,62 @@ async def conduct_multi_agent_meeting(
             target_folder=target_folder,
             session_id=session_id,
         )
+    except Exception:
+        _record_swarm_trace_safely(
+            session_id,
+            topic,
+            mode,
+            rounds,
+            _t0,
+            participant_names,
+            error="exception",
+        )
+        raise
     finally:
         workspace_hygiene.unregister_session(_sid)
         workspace_hygiene._clear_cancel_flag(_sid)
+    _record_swarm_trace_safely(
+        session_id,
+        topic,
+        mode,
+        rounds,
+        _t0,
+        participant_names,
+        result=result,
+    )
+    return result
+
+
+def _record_swarm_trace_safely(
+    session_id: str,
+    topic: str,
+    mode: str,
+    rounds: int,
+    started_monotonic: float,
+    participant_names: list[str] | None,
+    result: dict[str, Any] | None = None,
+    error: str = "",
+) -> None:
+    """Tulis jejak run utk observability — SELALU di-swallow.
+
+    Tracing adalah fitur sampingan: kegagalan apa pun (DB dll.) TIDAK boleh
+    memengaruhi jalur utama (zero-regression).
+    """
+    try:
+        from alfa.core.db.run_trace import record_swarm_meeting_sync
+
+        record_swarm_meeting_sync(
+            session_id=session_id,
+            topic=topic,
+            mode=mode,
+            rounds=rounds,
+            duration_ms=int((time.monotonic() - started_monotonic) * 1000),
+            participants=list(participant_names or []),
+            result=result,
+            error=error,
+        )
+    except Exception:  # pragma: no cover — tracing ≠ jalur kritis
+        logger.debug("run-trace gagal (diabaikan): %s", session_id)
 
 
 async def _conduct_multi_agent_meeting_impl(
