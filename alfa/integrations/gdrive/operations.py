@@ -15,7 +15,12 @@ def gdrive_list_files(
     folder_id: str = "", query: str = "", limit: int = 20
 ) -> dict[str, Any]:
     """
-    List, search, and browse files and folders stored in Google Drive.
+    List, search, and browse files and folders stored in Google Drive cloud.
+
+    PERINGATAN PEMANGGILAN:
+    HANYA panggil tool ini jika pengguna secara eksplisit meminta mencari/melihat file di Google Drive
+    (misal: 'cari file di drive ...', 'cari di gdrive ...', 'cek google drive').
+    DILARANG memanggil tool ini untuk pencarian dokumen/file umum atau riwayat WhatsApp.
 
     Args:
         folder_id: Optional ID of the Google Drive folder to list (defaults to configured folder).
@@ -24,12 +29,20 @@ def gdrive_list_files(
     """
     try:
         service = _get_gdrive_service()
-        target_folder = (
-            folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
-        )
+        target_folder = folder_id.strip() if folder_id else _get_default_gdrive_folder_id()
         q_parts = ["trashed = false"]
+
         if target_folder:
-            q_parts.append(f"'{target_folder}' in parents")
+            tf_lower = target_folder.lower()
+            if tf_lower == "all":
+                pass
+            elif tf_lower == "shared":
+                q_parts.append("sharedWithMe = true")
+            elif tf_lower == "root":
+                q_parts.append("'root' in parents")
+            else:
+                q_parts.append(f"'{target_folder}' in parents")
+
         if query:
             q_parts.append(f"(name contains '{query}' or fullText contains '{query}')")
         q_str = " and ".join(q_parts)
@@ -41,12 +54,31 @@ def gdrive_list_files(
                 pageSize=min(limit, 100),
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True,
-                fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink)",
+                fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink, parents)",
             )
             .execute()
         )
 
         files = results.get("files", [])
+
+        # Fallback: if default folder was requested but returned 0 items, fetch all accessible items
+        if not files and not query and target_folder and target_folder.lower() not in ("all", "shared", "root"):
+            fallback_res = (
+                service.files()
+                .list(
+                    q="trashed = false",
+                    pageSize=min(limit, 100),
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
+                    fields="nextPageToken, files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink, iconLink, parents)",
+                )
+                .execute()
+            )
+            fallback_files = fallback_res.get("files", [])
+            if fallback_files:
+                files = fallback_files
+                target_folder = "all"
+
         return {
             "status": "success",
             "total_found": len(files),
@@ -58,6 +90,7 @@ def gdrive_list_files(
             "status": "error",
             "message": f"Gagal mengambil daftar file Google Drive: {str(e)}",
         }
+
 
 
 def gdrive_upload_file(
@@ -317,7 +350,7 @@ def gdrive_list_mounted_files(
 ) -> dict[str, Any]:
     """
     List files directly from locally mounted Google Drives (GDrive1, GDrive2, GDrive3 via rclone).
-    Bypasses API quotas and provides real-time local filesystem access.
+    HANYA panggil tool ini jika pengguna secara eksplisit meminta mencari file di drive/gdrive.
     """
     import os
 

@@ -49,6 +49,7 @@ def _get_gdrive_service():
         "https://www.googleapis.com/auth/drive.file",
     ]
 
+    creds = None
     oauth_error = None
 
     # 1. Check OAuth 2.0 User Token (allows uploading to personal Google Drive with user's quota)
@@ -123,6 +124,32 @@ def _get_gdrive_service():
                 )
         except (sqlite3.Error, OSError, ValueError, TypeError, KeyError) as e:
             logger.error(f"Error loading gdrive credentials from vault/database: {e}")
+
+    if not creds:
+        wa_sa = os.path.expanduser("~/wa-sheets-bot/service-account.json")
+        if os.path.exists(wa_sa):
+            try:
+                creds = service_account.Credentials.from_service_account_file(
+                    wa_sa, scopes=scopes
+                )
+            except Exception as e:
+                logger.debug(f"Could not load wa-sheets-bot service-account: {e}")
+
+    if not creds:
+        try:
+            import configparser
+
+            rclone_cfg = os.path.expanduser("~/.config/rclone/rclone.conf")
+            if os.path.exists(rclone_cfg):
+                cfg = configparser.ConfigParser()
+                cfg.read(rclone_cfg)
+                if "gdrive1" in cfg and "token" in cfg["gdrive1"]:
+                    tok_data = json.loads(cfg["gdrive1"]["token"])
+                    acc_token = tok_data.get("access_token")
+                    if acc_token:
+                        creds = Credentials(token=acc_token, scopes=scopes)
+        except Exception as e:
+            logger.debug(f"Could not load rclone gdrive1 token: {e}")
 
     if not creds:
         if oauth_error and ("invalid_grant" in oauth_error or "revoked" in oauth_error or "expired" in oauth_error):
