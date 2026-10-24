@@ -149,6 +149,7 @@ from alfa.tools import (
     current_user_id_var,
     get_system_stats,
 )
+from alfa.tools.system.guardian import guardian_wa_watchdog_loop
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -255,6 +256,7 @@ async def post_init(application: Application):
         asyncio.create_task(proactive_focus_session_loop(application)),
         asyncio.create_task(proactive_ambient_agent_loop(application)),
         asyncio.create_task(proactive_ecosystem_watchdog_loop(application)),
+        asyncio.create_task(guardian_wa_watchdog_loop(application)),
     ]
 
 

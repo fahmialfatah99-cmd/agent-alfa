@@ -296,6 +296,8 @@ TOOL_CLASSIFICATION = {
     "list_running_processes": (RiskTier.LOW, "Daftar proses - read-only"),
     "search_knowledge_memory": (RiskTier.LOW, "Cari memori - read-only"),
     "memory_search_ranked": (RiskTier.LOW, "Cari memori ber-ranking BM25 - read-only"),
+    "guardian_daily_report": (RiskTier.LOW, "Rangkum kesehatan sistem/WA/CI aktivitas ALFA - read-only"),
+    "schedule_daily_guardian_task": (RiskTier.LOW, "Atur jadwal laporan Penjaga Harian ke Telegram"),
     "save_knowledge_memory": (RiskTier.LOW, "Simpan fakta ke memori - dampak rendah"),
     "semantic_search_vector_brain": (RiskTier.LOW, "Cari semantik di memori - read-only"),
     "search_vector_memory": (RiskTier.LOW, "Cari di memori vektor - read-only"),

@@ -96,12 +96,29 @@ Live CLI cepat:
 venv/bin/python -c "from alfa.core.db.wa_index import ensure_wa_index_sync; print(ensure_wa_index_sync())"
 ```
 
-## 9. Run-trace — `alfa/core/db/run_trace.py`
-
-Satu tabel `run_traces` di agent_data.db; wrapper publik `conduct_multi_agent_meeting`
+## 9. Run-trace — `alfa/core/db/run_trace.py`Satu tabel `run_traces` di agent_data.db; wrapper publik `conduct_multi_agent_meeting`
 menulis jejak post-hoc (status, durasi, jumlah langkah/tool, error) — SELALU
 gagal-lembut, tak pernah memengaruhi jalur utama swarm. Dibaca via:
 
 - Dashboard: `GET /api/v1/trace/runs?limit=25` dan `GET /api/v1/trace/runs/{run_id}`
   (`alfa/dashboard/routes/trace.py`).
 - CLI: `venv/bin/python -m alfa.core.db.run_trace --last 10`.
+
+## 10. Penjaga Harian — `alfa/tools/system/guardian.py`
+
+Lapor-kesehatan otomatis tanpa diminta (read-only; sesi WA tak disentuh):
+
+- **Guardian daily report**: `guardian_daily_report` — merangkum 4 layanan
+  systemd, status klien WA + arsip 24 jam, baris merah journal 24 jam
+  (anter bedah dari **guncangan jaringan transit** — httpx/NetworkError/DNS),
+  aktivitas run ALFA hari ini (run_traces), status CI. Laporan HANYA ke Telegram
+  (prompt guard di instruksi cron).
+- **Jadwal**: `schedule_daily_guardian_task(enabled, interval_minutes=1440)` —
+  bikin/matiin job cron di infra `scheduled_cron_jobs` yang sudah hidup
+  (pola briefing). Jadwal berbasis interval.
+- **Alarm segera WA**: `guardian_wa_watchdog_loop` di proses telegram
+  (loop native tanpa LLM): WA tidak-READY beruntun (threshold 2) → kirim
+  peringatan SEKALI per gelombang (cooldown 1 jam). Env:
+  `ALFA_GUARDIAN_WATCH_MINUTES` (default 20).
+- Prinsip: semua kolektor gagal-lembut — satu sumber mati tak pernah
+  mematikan laporan atau alarm.

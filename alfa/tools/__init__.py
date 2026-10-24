@@ -51,6 +51,10 @@ from alfa.tools.filesystem_tools import _resolve_host_path as _resolve_host_path
 from alfa.tools.media_tools import *  # noqa: F401, F403
 from alfa.tools.memory_tools import *  # noqa: F401, F403
 from alfa.tools.registry import *  # noqa: F401, F403
+from alfa.tools.system.guardian import (  # noqa: F401 — registrasi tool Penjaga
+    guardian_daily_report,
+    schedule_daily_guardian_task,
+)
 from alfa.tools.system.smart_search import (  # noqa: F401 — registrasi tool ranked
     memory_search_ranked,
     wa_search_ranked,
@@ -268,6 +272,8 @@ AVAILABLE_TOOLS = [
     scan_local_network,
     wa_search_ranked,
     memory_search_ranked,
+    guardian_daily_report,
+    schedule_daily_guardian_task,
     *plugins.load_all_plugin_tools(),
 ]
 
