@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from alfa.core.cli.app import AlfaCLI
 from alfa.core.cli.constants import VERSION
 from alfa.core.cli.direct_ai import PRESETS, PROVIDERS_CATALOG, DirectAIClient
@@ -153,14 +155,41 @@ def test_normalize_provider_aliases():
     assert normalize_provider("router") == "9router"
 
 
-def test_database_vault_key_resolution():
-    from alfa.core.cli.direct_ai import DirectAIClient
 
-    # In agent_data.db, there is an active Gemini key
+
+# AESGCM deterministik khusus unit-vault (tidak menyentuh singleton vault real):
+_TEST_AESGCM = AESGCM(bytes(range(32)))
+
+
+def test_database_vault_key_resolution(monkeypatch, tmp_path):
+    from alfa.core import database
+    from alfa.core.cli.direct_ai import DirectAIClient
+    from alfa.core.db.keys import encrypt_key
+
+    # Hermetik St: kontrak eksplisit "di bawah perlakuan tanpa env" —
+    # hapus env var & seed kunci aktif ke vault DB (conftest suda di-redirek
+    # ganti temp; seed via mekanisme produk: encrypt_key + api_keys).
+    # Env di-set kosong (bukan delenv): tier-1 falsy WALAU ada pemanggilan
+    # load_dotenv ulang dari .env repo (default dotenv tidak override).
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setattr("alfa.core.db.crypto._get_aesgcm", lambda: _TEST_AESGCM)
+    monkeypatch.setenv("HOME", str(tmp_path))   # serta config-cli juga hermetik
+    with database.get_sync_db() as conn:
+        conn.execute("DELETE FROM api_keys WHERE provider = 'gemini'")
+        conn.execute(
+            "INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)"
+            " VALUES ('Seed Gemini CI', 'gemini', ?, NULL, 'default', 1)",
+            (encrypt_key("test-vault-gemini-key-99"),),
+        )
+        conn.commit()
+
     client = DirectAIClient(provider="gemini")
+    # Bypass tier CLI-config: cache konfigurasi singleton bisa memuat kunci
+    # asli mesin ("AQ....") — kontrak tes memang resolusi dari Vault DB.
+    monkeypatch.setattr(client, "config", {})
     key = client.get_api_key()
     # It should resolve from SQLite DB vault even if GEMINI_API_KEY env is not set
-    assert key != ""
+    assert key == "test-vault-gemini-key-99"
 
 
 def test_sync_providers_catalog_integration():
@@ -177,7 +206,29 @@ def test_sync_providers_catalog_integration():
     assert len(cat["9router"]["models"]) >= 10
 
 
-def test_slash_keys_display(capsys):
+def test_slash_keys_display(capsys, tmp_path, monkeypatch):
+    from alfa.core import database
+    from alfa.core.db.keys import encrypt_key
+
+    # Hermetik: seed kunci vault agar display path/DB vault deterministik
+    # (lokal kebiasaan punya kunci ~9router mesin; CI kosong). AESGCM test
+    # deterministik — tanpa menyentuh singleton vault runtime protektif.
+    monkeypatch.setattr("alfa.core.db.crypto._get_aesgcm", lambda: _TEST_AESGCM)
+    monkeypatch.setenv("HOME", str(tmp_path))   # config-cli hermetik
+    with database.get_sync_db() as conn:
+        conn.execute("DELETE FROM api_keys WHERE provider IN ('gemini','9router')")
+        conn.execute(
+            "INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)"
+            " VALUES ('Seed Vault Display', 'gemini', ?, NULL, 'default', 1)",
+            (encrypt_key("sk-vault-display-gemini-123456"),),
+        )
+        conn.execute(
+            "INSERT INTO api_keys (name, provider, api_key, base_url, default_model, is_active)"
+            " VALUES ('Seed 9Router', '9router', ?, 'http://127.0.0.1:20128/v1', 'default', 1)",
+            (encrypt_key("sk-9router-vault-display-99"),),
+        )
+        conn.commit()
+
     from alfa.core.cli.app import AlfaCLI
 
     cli = AlfaCLI(mode="standalone")
