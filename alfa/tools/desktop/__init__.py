@@ -1,5 +1,6 @@
 """Desktop tools package re-exporting screenshot, webcam, input automation, and clipboard tools."""
 
+from alfa.tools.desktop.app_manager import install_or_update_desktop_app
 from alfa.tools.desktop.capture import (
     capture_desktop_screenshot,
     capture_webcam_frame,
@@ -26,6 +27,7 @@ __all__ = [
     "desktop_click_coordinate",
     "desktop_type_keys",
     "desktop_launch_app",
+    "install_or_update_desktop_app",
     "vision_click_target",
     "open_url_in_system_browser",
     "open_url_in_default_browser",

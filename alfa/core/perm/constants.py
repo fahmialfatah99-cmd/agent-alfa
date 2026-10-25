@@ -170,6 +170,10 @@ TOOL_CLASSIFICATION = {
     "desktop_click_coordinate": (RiskTier.MEDIUM, "Automasi klik - unintended actions"),
     "desktop_type_keys": (RiskTier.MEDIUM, "Automasi keyboard - unintended input"),
     "desktop_launch_app": (RiskTier.MEDIUM, "Launch aplikasi - resource usage"),
+    "install_or_update_desktop_app": (
+        RiskTier.MEDIUM,
+        "Pasang/perbarui aplikasi desktop Linux - menyalin binari dan shortcut desktop",
+    ),
     "browser_click_element": (RiskTier.MEDIUM, "Interaksi browser - aksi di situs"),
     "browser_type_text": (RiskTier.MEDIUM, "Input teks browser - submit form"),
     "browser_use_autonomous_task": (

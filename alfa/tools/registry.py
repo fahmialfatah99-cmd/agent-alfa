@@ -79,6 +79,7 @@ TOOL_DOMAINS: dict[str, list[str]] = {
         "record_desktop_screen",
         "desktop_click_coordinate",
         "desktop_launch_app",
+        "install_or_update_desktop_app",
         "desktop_type_keys",
         "show_desktop_notification",
         "read_clipboard",
