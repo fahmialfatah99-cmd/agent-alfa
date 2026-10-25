@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 from typing import Any
@@ -203,3 +204,133 @@ def rea_run_command(subcommand: str, args_json: str = "[]") -> dict[str, Any]:
             extra_args = [args_json.strip()]
 
     return _run_rea_command([subcmd, *extra_args])
+
+
+@register_tool(category="system")
+def rea_android_device_control(
+    action: str = "capture_screen",
+    package_name: str = "",
+    extra_arg: str = "",
+) -> dict[str, Any]:
+    """
+    KONTROL PERANGKAT ANDROID JARAK JAUH VIA ADB & REA (FITUR SELEVEL OPENCLAW):
+    Mengambil screenshot layar HP Android, meluncurkan atau menghentikan aplikasi Android,
+    membaca logcat sistem, mengunduh file, atau mengecek daftar paket aplikasi yang terpasang.
+
+    Args:
+        action: Jenis aksi kontrol ('capture_screen', 'start_app', 'stop_app', 'read_logcat', 'list_packages', 'read_setting').
+        package_name: Nama package aplikasi Android (misal: 'com.whatsapp', 'com.google.android.apps.maps').
+        extra_arg: Parameter tambahan (misal: nama setting untuk 'read_setting', atau kata kunci untuk 'list_packages').
+
+    Returns:
+        Dict hasil eksekusi status, path file screenshot, atau teks respon dari perangkat.
+    """
+    act = action.strip().lower()
+    try:
+        if act == "capture_screen":
+            res = _run_rea_command(["capture-adb-screen"])
+            return res
+
+        elif act == "start_app":
+            if not package_name:
+                return {"status": "error", "message": "Parameter 'package_name' wajib diisi untuk aksi 'start_app'."}
+            return _run_rea_command(["start-adb-app", package_name])
+
+        elif act == "stop_app":
+            if not package_name:
+                return {"status": "error", "message": "Parameter 'package_name' wajib diisi untuk aksi 'stop_app'."}
+            return _run_rea_command(["stop-adb-app", package_name])
+
+        elif act == "read_logcat":
+            buffer_name = extra_arg or "main"
+            return _run_rea_command(["read-adb-logcat", buffer_name])
+
+        elif act == "list_packages":
+            query = extra_arg or package_name
+            return _run_rea_command(["resolve-adb-packages", query] if query else ["resolve-adb-packages", ""])
+
+        elif act == "read_setting":
+            setting_name = extra_arg or "airplane_mode_on"
+            return _run_rea_command(["read-adb-setting", "system", setting_name])
+
+        else:
+            return {
+                "status": "error",
+                "message": f"Aksi '{action}' tidak dikenali. Gunakan: 'capture_screen', 'start_app', 'stop_app', 'read_logcat', 'list_packages', atau 'read_setting'.",
+            }
+    except Exception as e:
+        logger.exception("Gagal eksekusi REA Android control: %s", e)
+        return {"status": "error", "message": f"REA Android control error: {str(e)}"}
+
+
+@register_tool(category="agent")
+def rea_synthesize_skill_from_code(
+    target_path: str,
+    skill_topic: str = "",
+    trigger_pattern: str = "",
+) -> dict[str, Any]:
+    """
+    SINTESIS SKILL DARI REVERSE ENGINEERING KODE/APLIKASI LUAR (REA + HERMES LEARNING LOOP):
+    Menganalisis bundle JavaScript, modul Python, atau artefak aplikasi lokal menggunakan REA,
+    mengekstrak arsitektur, fungsi kunci, dan alur kerjanya, lalu secara otomatis mendaftarkannya
+    menjadi Learned Skill di ALFA OS agar AI dapat menggunakannya di masa depan.
+
+    Args:
+        target_path: Jalur absolut/relatif ke file bundle JS, skrip Python, atau folder modul target.
+        skill_topic: Topik atau nama kemampuan (misal: 'TELEGRAM_BOT_FLOW', 'EXCEL_EXPORT_ENGINE').
+        trigger_pattern: Kata kunci pemicu aturan (misal: 'telegram bot export excel').
+
+    Returns:
+        Dict status sintesis, skill_id, dan rangkuman aturan yang dipelajari.
+    """
+    try:
+        from alfa.core.brain.learning_loop import synthesize_skill_from_experience
+
+        clean_path = os.path.abspath(os.path.expanduser(target_path))
+        if not os.path.exists(clean_path):
+            return {"status": "error", "message": f"Target path '{clean_path}' tidak ditemukan."}
+
+        topic = (skill_topic or os.path.basename(clean_path)).strip().upper()
+        topic = re.sub(r"[^A-Z0-9_]+", "_", topic).strip("_")
+
+        # 1. Analisis menggunakan REA bila target adalah JavaScript / Bundle / SQLite
+        analysis_summary = ""
+        if clean_path.endswith((".js", ".asar", ".json")) or os.path.isdir(clean_path):
+            rea_res = _run_rea_command(["analyze-javascript-application", clean_path])
+            if rea_res.get("status") == "success":
+                norm = rea_res.get("normalized", {})
+                analysis_summary = f"REA Analysis: framework={norm.get('framework')}, exports={list(norm.get('exports', {}).keys())[:10]}"
+
+        # 2. Ekstraksi kode atau dokumen teks langsung
+        if not analysis_summary:
+            if os.path.isfile(clean_path):
+                try:
+                    with open(clean_path, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = [line.strip() for line in f if line.strip() and not line.startswith(("#", "//"))]
+                    analysis_summary = f"Source summary ({len(lines)} lines): " + " | ".join(lines[:10])
+                except Exception as e:
+                    analysis_summary = f"File inspection: {e}"
+            else:
+                analysis_summary = f"Directory target with {len(os.listdir(clean_path))} files."
+
+        rule_text = (
+            f"Aturan Rekonstruksi dari '{os.path.basename(clean_path)}': "
+            f"{analysis_summary[:400]}. Gunakan pola ini saat menangani tugas terkait modul {topic}."
+        )
+
+        res = synthesize_skill_from_experience(
+            topic=topic,
+            learned_rule=rule_text,
+            trigger_pattern=trigger_pattern or topic.lower().replace("_", " "),
+        )
+
+        return {
+            "status": "success",
+            "skill_id": res["skill_id"],
+            "topic": res["topic"],
+            "learned_rule": rule_text,
+            "message": f"Skill '{res['topic']}' berhasil direverse-engineer dan disintesis ke memori permanen ALFA OS.",
+        }
+    except Exception as e:
+        logger.exception("Gagal mensintesis skill dari kode: %s", e)
+        return {"status": "error", "message": f"REA skill synthesis error: {str(e)}"}

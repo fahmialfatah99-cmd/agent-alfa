@@ -32,6 +32,7 @@ TOOL_DOMAINS: dict[str, list[str]] = {
         "scan_local_network",
         "ssh_execute_command",
         "wa_relay_send_from_telegram",
+        "rea_android_device_control",
     ],
     "file": [
         "read_local_file",
@@ -123,6 +124,9 @@ TOOL_DOMAINS: dict[str, list[str]] = {
         "manage_custom_agents",
         "spawn_background_subagent",
         "check_subagent_status",
+        "record_agent_experience",
+        "query_learned_skills",
+        "rea_synthesize_skill_from_code",
     ],
     "affiliate": [
         "affiliate_hunt_trending_products",

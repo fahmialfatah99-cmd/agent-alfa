@@ -59,6 +59,10 @@ from alfa.tools.system.smart_search import (  # noqa: F401 — registrasi tool r
     memory_search_ranked,
     wa_search_ranked,
 )
+from alfa.core.brain.learning_loop import (
+    query_learned_skills,
+    record_agent_experience,
+)
 from alfa.tools.system.threads_watch import (  # noqa: F401 — registrasi Threads
     schedule_threads_watch_task,
     threads_fetch_profile,
@@ -291,6 +295,10 @@ AVAILABLE_TOOLS = [
     threads_fetch_profile,
     threads_watch_last,
     schedule_threads_watch_task,
+    record_agent_experience,
+    query_learned_skills,
+    rea_android_device_control,
+    rea_synthesize_skill_from_code,
     *plugins.load_all_plugin_tools(),
 ]
 

@@ -116,12 +116,14 @@ from alfa.tools.system.network import (
     ssh_execute_command,
 )
 from alfa.tools.system.reverse_engineering import (
+    rea_android_device_control,
     rea_inspect_android_package,
     rea_inspect_binary_or_wasm,
     rea_inspect_js_app,
     rea_inspect_sqlite_database,
     rea_recover_js_sources,
     rea_run_command,
+    rea_synthesize_skill_from_code,
 )
 from alfa.tools.system.sites import (
     list_managed_sites,
@@ -232,10 +234,12 @@ __all__ = [
     "scrcpy_android_control",
     "query_database",
     # reverse engineering
+    "rea_android_device_control",
     "rea_inspect_android_package",
     "rea_inspect_binary_or_wasm",
     "rea_inspect_js_app",
     "rea_inspect_sqlite_database",
     "rea_recover_js_sources",
     "rea_run_command",
+    "rea_synthesize_skill_from_code",
 ]

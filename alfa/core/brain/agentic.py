@@ -290,8 +290,17 @@ async def run_openai_agentic_turn(
                 except (ImportError, ValueError, TypeError, KeyError):
                     pass  # fail-open: set lengkap
 
+        learned_skills_prompt = ""
+        try:
+            from alfa.core.brain.learning_loop import format_learned_skills_prompt
+
+            learned_skills_prompt = format_learned_skills_prompt(user_text)
+        except Exception as e:
+            logger.debug("Learning loop prompt format bypass: %s", e)
+
+        full_sys_inst = system_instruction + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": system_instruction}
+            {"role": "system", "content": full_sys_inst}
         ]
         for h in (history or [])[-10:]:
             role = "assistant" if h.get("role") == "model" else "user"
@@ -666,8 +675,17 @@ async def run_openai_agentic_turn_streaming(
                 except (ImportError, ValueError, TypeError, KeyError):
                     pass
 
+        learned_skills_prompt = ""
+        try:
+            from alfa.core.brain.learning_loop import format_learned_skills_prompt
+
+            learned_skills_prompt = format_learned_skills_prompt(user_text)
+        except Exception as e:
+            logger.debug("Learning loop prompt format bypass: %s", e)
+
+        full_sys_inst = system_instruction + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": system_instruction}
+            {"role": "system", "content": full_sys_inst}
         ]
         for h in (history or [])[-10:]:
             role = "assistant" if h.get("role") == "model" else "user"

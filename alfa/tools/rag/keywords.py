@@ -177,6 +177,10 @@ _SYNONYMS = {
     "surat_jalan": "inspect_field_surat_jalan_image surat jalan do delivery order foto fisik tanda terima",
     "anomali": "dispatch_instant_material_anomaly_alert boq_check_project_anomalies alert anomali selisih retur",
     "alert": "dispatch_instant_material_anomaly_alert instant alert notifikasi peringatan",
+    "belajar": "record_agent_experience query_learned_skills synthesize learning hermes self improving",
+    "pengalaman": "record_agent_experience query_learned_skills aturan pelajaran koreksi masa lalu",
+    "android": "rea_android_device_control scrcpy_android_control adb capture screen start app hp",
+    "rea": "rea_android_device_control rea_synthesize_skill_from_code rea_run_command rea_inspect_android_package reverse engineering",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -202,6 +206,7 @@ _CATEGORY_BOOSTS = {
         "clean_system_storage",
         "auto_diagnose_and_heal_system",
         "manage_crontab_jobs",
+        "rea_android_device_control",
     ],
     "code": [
         "execute_python_sandbox",
@@ -269,6 +274,9 @@ _CATEGORY_BOOSTS = {
         "check_subagent_status",
         "conduct_ai_meeting",
         "manage_custom_agents",
+        "record_agent_experience",
+        "query_learned_skills",
+        "rea_synthesize_skill_from_code",
     ],
     "whatsapp": [
         "wa_get_chats",

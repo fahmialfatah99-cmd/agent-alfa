@@ -6,12 +6,14 @@ from unittest.mock import MagicMock, patch
 
 from alfa.tools.system.reverse_engineering import (
     _run_rea_command,
+    rea_android_device_control,
     rea_inspect_android_package,
     rea_inspect_binary_or_wasm,
     rea_inspect_js_app,
     rea_inspect_sqlite_database,
     rea_recover_js_sources,
     rea_run_command,
+    rea_synthesize_skill_from_code,
 )
 
 
@@ -161,3 +163,50 @@ def test_rea_run_command_validation():
         assert res["status"] == "success"
         call_args = mock_cmd.call_args[0][0]
         assert call_args == ["instructions", "--target", "main"]
+
+
+def test_rea_android_device_control():
+    # Validasi aksi tidak valid
+    res_inv = rea_android_device_control(action="invalid_action")
+    assert res_inv["status"] == "error"
+    assert "tidak dikenali" in res_inv["message"]
+
+    # Validasi butuh package_name
+    res_pkg = rea_android_device_control(action="start_app", package_name="")
+    assert res_pkg["status"] == "error"
+    assert "wajib diisi" in res_pkg["message"]
+
+    with patch(
+        "alfa.tools.system.reverse_engineering._run_rea_command",
+        return_value={"status": "success", "artifact": "screenshot.png"},
+    ) as mock_cmd:
+        res = rea_android_device_control(action="capture_screen")
+        assert res["status"] == "success"
+        assert mock_cmd.call_args[0][0] == ["capture-adb-screen"]
+
+        res_start = rea_android_device_control(action="start_app", package_name="com.whatsapp")
+        assert res_start["status"] == "success"
+        assert mock_cmd.call_args[0][0] == ["start-adb-app", "com.whatsapp"]
+
+        res_stop = rea_android_device_control(action="stop_app", package_name="com.whatsapp")
+        assert res_stop["status"] == "success"
+        assert mock_cmd.call_args[0][0] == ["stop-adb-app", "com.whatsapp"]
+
+        res_log = rea_android_device_control(action="read_logcat", extra_arg="main")
+        assert res_log["status"] == "success"
+        assert mock_cmd.call_args[0][0] == ["read-adb-logcat", "main"]
+
+
+def test_rea_synthesize_skill_from_code(tmp_path):
+    dummy_script = tmp_path / "engine_demo.py"
+    dummy_script.write_text("def run_task():\n    return 'done'\n")
+
+    res = rea_synthesize_skill_from_code(
+        target_path=str(dummy_script),
+        skill_topic="DEMO_TASK_ENGINE",
+        trigger_pattern="demo task engine run",
+    )
+    assert res["status"] == "success"
+    assert "DEMO_TASK_ENGINE" in res["topic"]
+    assert "skill_id" in res
+
