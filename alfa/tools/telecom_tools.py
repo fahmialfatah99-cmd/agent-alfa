@@ -2572,12 +2572,28 @@ def reconcile_whatsapp_material_group(
                 "message": f"Ditemukan {len(messages)} pesan di grup '{chat_name}', namun tidak ada data pengambilan material yang terdeteksi.",
             }
 
-        # 3. Tentukan Lokasi Berkas Excel
+        # 3. Tentukan Lokasi Berkas Excel (Master Ledger Kumulatif)
+        # Menjamin single master file per cluster agar tidak membuat file baru setiap hari
         cluster_slug = re.sub(r"[^a-zA-Z0-9_]+", "_", chat_name).strip("_")
         if not output_excel_path:
-            project_dir = os.path.expanduser(f"~/alfa_projects/{cluster_slug}")
-            os.makedirs(project_dir, exist_ok=True)
-            output_excel_path = os.path.join(project_dir, f"Rekap_Pengambilan_Material_{cluster_slug}.xlsx")
+            candidates = [
+                os.path.expanduser(f"~/alfa_projects/{cluster_slug}/Rekap_Pengambilan_Material_{cluster_slug}.xlsx"),
+            ]
+            if "lahat" in chat_name.lower():
+                candidates.insert(0, os.path.expanduser("~/alfa_projects/lahat_material/Rekap_Pengambilan_Material_Lahat.xlsx"))
+
+            found_master = None
+            for cand in candidates:
+                if os.path.exists(cand):
+                    found_master = cand
+                    break
+
+            if found_master:
+                output_excel_path = found_master
+            else:
+                project_dir = os.path.expanduser(f"~/alfa_projects/{cluster_slug}")
+                os.makedirs(project_dir, exist_ok=True)
+                output_excel_path = os.path.join(project_dir, f"Rekap_Pengambilan_Material_{cluster_slug}.xlsx")
         else:
             output_excel_path = os.path.abspath(os.path.expanduser(output_excel_path))
             os.makedirs(os.path.dirname(output_excel_path), exist_ok=True)
