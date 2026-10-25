@@ -425,6 +425,14 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Rekapitulasi resmi material grup WhatsApp - tulis file Excel",
     ),
+    "inspect_field_surat_jalan_image": (
+        RiskTier.MEDIUM,
+        "Inspeksi gambar/PDF Surat Jalan atau DO lapangan via Computer Vision",
+    ),
+    "dispatch_instant_material_anomaly_alert": (
+        RiskTier.MEDIUM,
+        "Kirim alert instan insidental anomali material ke Telegram dan DB",
+    ),
     "consolidate_delivery_orders_to_stock_ledger": (
         RiskTier.MEDIUM,
         "Konsolidasi Surat Jalan/DO ke stock ledger - tulis Excel",

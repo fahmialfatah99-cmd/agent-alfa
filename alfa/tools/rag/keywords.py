@@ -169,11 +169,14 @@ _SYNONYMS = {
     "download": "download fetch save file url",
     "wa": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
     "whatsapp": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
-    "material": "reconcile_whatsapp_material_group pengambilan material boq tiang pole kabel ftth",
-    "pengambilan": "reconcile_whatsapp_material_group pengambilan material tiang pole mandor",
+    "material": "reconcile_whatsapp_material_group inspect_field_surat_jalan_image dispatch_instant_material_anomaly_alert pengambilan material boq tiang pole kabel ftth",
+    "pengambilan": "reconcile_whatsapp_material_group inspect_field_surat_jalan_image pengambilan material tiang pole mandor",
     "tiang": "reconcile_whatsapp_material_group tiang pole boq pengambilan",
     "mandor": "reconcile_whatsapp_material_group mandor pengambilan material lapangan",
     "rekap": "reconcile_whatsapp_material_group rekapitulasi ringkasan material excel",
+    "surat_jalan": "inspect_field_surat_jalan_image surat jalan do delivery order foto fisik tanda terima",
+    "anomali": "dispatch_instant_material_anomaly_alert boq_check_project_anomalies alert anomali selisih retur",
+    "alert": "dispatch_instant_material_anomaly_alert instant alert notifikasi peringatan",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -281,6 +284,8 @@ _CATEGORY_BOOSTS = {
         "manage_wa_sheets_bot",
         "list_wa_drive_uploads",
         "reconcile_whatsapp_material_group",
+        "inspect_field_surat_jalan_image",
+        "dispatch_instant_material_anomaly_alert",
     ],
 }
 

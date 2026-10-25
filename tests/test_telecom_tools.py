@@ -13,6 +13,9 @@ from alfa.tools.telecom_tools import (
     boq_consolidate_master_workbook,
     boq_reconcile_with_field_reports,
     render_cluster_kml_map,
+    reconcile_whatsapp_material_group,
+    inspect_field_surat_jalan_image,
+    dispatch_instant_material_anomaly_alert,
 )
 
 
@@ -400,6 +403,89 @@ def test_reconcile_whatsapp_material_group():
     assert ws["D37"].value == "=SUM(D33:D36)"
     assert ws["E37"].value == "=SUM(E33:E36)"
     assert ws["F37"].value == "=SUM(F33:F36)"
+
+
+def test_inspect_field_surat_jalan_image_nonexistent():
+    res = inspect_field_surat_jalan_image("/tmp/file_surat_jalan_nonexistent_xyz.png")
+    assert res["status"] == "error"
+    assert "tidak ditemukan" in res["message"]
+
+
+def test_inspect_field_surat_jalan_image_unsupported_format(tmp_path):
+    dummy_txt = tmp_path / "dummy.txt"
+    dummy_txt.write_text("dummy content")
+    res = inspect_field_surat_jalan_image(str(dummy_txt))
+    assert res["status"] == "error"
+    assert "tidak didukung" in res["message"]
+
+
+def test_inspect_field_surat_jalan_image_valid(tmp_path):
+    # Buat file dummy PNG
+    dummy_png = tmp_path / "surat_jalan_lahat.png"
+    # Minimal 1x1 PNG header
+    dummy_png.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82")
+
+    res = inspect_field_surat_jalan_image(str(dummy_png), cluster_hint="Lahat")
+    assert res["status"] == "success"
+    assert "document_number" in res
+    assert "items" in res
+    assert "total_poles" in res
+    assert res["cluster"] == "Lahat"
+
+
+def test_dispatch_instant_material_anomaly_alert():
+    from alfa.core.db.connection import get_sync_db
+
+    # 1. Panggilan pertama -> berhasil dikirim & dicatat
+    res1 = dispatch_instant_material_anomaly_alert(
+        cluster_name="Lahat",
+        anomaly_type="RETUR_MATERIAL",
+        details="Mandor Mugi mengembalikan 7 batang tiang T7.3",
+        mandor_name="Mandor Mugi",
+        send_telegram=False,
+    )
+    assert res1["status"] == "success"
+    assert res1["cluster"] == "LAHAT"
+    assert res1["anomaly_type"] == "RETUR_MATERIAL"
+    assert "preview_card" in res1
+    alert_id = res1["alert_id"]
+
+    # 2. Panggilan kedua dengan isi identik tanpa force_send -> status skipped (anti-duplikasi)
+    res2 = dispatch_instant_material_anomaly_alert(
+        cluster_name="Lahat",
+        anomaly_type="RETUR_MATERIAL",
+        details="Mandor Mugi mengembalikan 7 batang tiang T7.3",
+        mandor_name="Mandor Mugi",
+        send_telegram=False,
+        force_send=False,
+    )
+    assert res2["status"] == "skipped"
+    assert res2["alert_id"] == alert_id
+
+    # 3. Panggilan ketiga dengan force_send=True -> bypass deduplikasi berhasil
+    res3 = dispatch_instant_material_anomaly_alert(
+        cluster_name="Lahat",
+        anomaly_type="RETUR_MATERIAL",
+        details="Mandor Mugi mengembalikan 7 batang tiang T7.3",
+        mandor_name="Mandor Mugi",
+        send_telegram=False,
+        force_send=True,
+    )
+    assert res3["status"] == "success"
+
+    # 4. Pastikan wa_instant_alerts mencatat alert ini
+    with get_sync_db() as conn:
+        row = conn.execute("SELECT cluster, anomaly_type FROM wa_instant_alerts WHERE alert_id = ?", (alert_id,)).fetchone()
+        assert row is not None
+        assert row[0] == "LAHAT"
+        assert row[1] == "RETUR_MATERIAL"
+
+        # 5. Verifikasi Anti-Collision: wa_reported_messages TIDAK terpengaruh sama sekali
+        has_table = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='wa_reported_messages'").fetchone()
+        if has_table:
+            count = conn.execute("SELECT COUNT(*) FROM wa_reported_messages WHERE msg_id = ?", (alert_id,)).fetchone()[0]
+            assert count == 0
+
 
 
 
