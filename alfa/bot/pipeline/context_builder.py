@@ -372,6 +372,7 @@ async def build_system_instruction(
     brain: dict,
     override_model: str | None,
     memory_block: str,
+    user_prompt: str = "",
 ) -> tuple[str, str, str]:
     """Muat settings pengguna & file prompt; rakit instruksi sistem final.
 
@@ -431,10 +432,20 @@ async def build_system_instruction(
         else ""
     )
 
+    learned_skills_prompt = ""
+    if user_prompt:
+        try:
+            from alfa.core.brain.learning_loop import format_learned_skills_prompt
+
+            learned_skills_prompt = format_learned_skills_prompt(user_prompt)
+        except Exception as e:
+            logger.debug("Learning loop prompt format bypass: %s", e)
+
     full_system_instruction = (
         base_instruction
         + active_identity_block
         + memory_block
+        + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
         + ENFORCEMENT_BLOCK
         + HONESTY_BLOCK
         + CODING_DELIVERY_BLOCK

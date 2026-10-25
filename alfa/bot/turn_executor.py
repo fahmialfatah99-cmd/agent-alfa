@@ -225,7 +225,7 @@ async def _run_agent_turn_impl(
 
     full_system_instruction, preferred_model, current_active_model = (
         await _build_system_instruction(
-            _db, user_id, brain, override_model, memory_block
+            _db, user_id, brain, override_model, memory_block, user_prompt=user_prompt
         )
     )
 

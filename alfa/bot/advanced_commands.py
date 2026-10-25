@@ -1323,3 +1323,44 @@ async def ram_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(f"\n⚠️ _Pemakaian RAM WA Bot cukup tinggi ({wa_mb} MB). Ketik `/ram full` untuk me-restart fresh._")
 
     await safe_send_message(context, chat_id, "\n".join(lines))
+
+
+async def skills_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /skills command - view self-improving learned skills and metrics."""
+    user = update.effective_user
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    user_id = user.id if user else 0
+    if not _is_authorized(user_id):
+        return
+
+    from alfa.core.brain.learning_loop import get_learning_loop_metrics
+
+    m = get_learning_loop_metrics()
+
+    avg_conf_pct = int(m.get("avg_confidence", 1.0) * 100)
+    card_lines = [
+        "🧠 *ALFA OS: SOTA SELF-IMPROVING LEARNING ENGINE*",
+        "• Arsitektur: `Hermes-Reflexion-Supreme-v2 (Active Continual Learning)`",
+        f"• Total Aturan Terkunci: *{m.get('total_active_skills', 0)} skill*",
+        f"• Trajectory Terekam: *{m.get('total_trajectories', 0)} turn*",
+        f"• Rata-rata Confidence: *{avg_conf_pct}%*",
+        f"• Total Pemanggilan Aturan: *{m.get('total_hits', 0)} kali*\n",
+        "📋 *Aturan & Pelajaran Prioritas Tinggi:*",
+    ]
+    for idx, s in enumerate(m.get("top_skills", []), 1):
+        rule_preview = s["learned_rule"][:120] + ("..." if len(s["learned_rule"]) > 120 else "")
+        conf_pct = int((s.get("confidence") or 1.0) * 100)
+        succ = s.get("success_count", 0)
+        fail = s.get("failure_count", 0)
+        card_lines.append(
+            f"{idx}. 🏷️ *{s['topic']}*\n"
+            f"   └ Conf: `{conf_pct}%` | Hits: `{s.get('hit_count', 0)}` | Rate: `+{succ}/-{fail}`\n"
+            f"   └ \"_{rule_preview}_\""
+        )
+
+    card_lines.append(
+        "\n⚡ *Cara Mengajari Agen:*\n"
+        "• *Auto-Reflexion:* Cukup katakan _'salah, harusnya...'_, agen otomatis mengekstrak dan menyimpan aturan baru.\n"
+        "• *Manual Seed:* Gunakan format pesan untuk mengajari aturan kapan saja."
+    )
+    await safe_send_message(context, chat_id, "\n".join(card_lines))

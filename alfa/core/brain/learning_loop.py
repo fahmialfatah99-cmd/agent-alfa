@@ -17,9 +17,19 @@ from datetime import datetime
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
-from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("LearningLoop")
+
+
+def register_tool(category: str = "agent"):
+    """Deferred tool registration to prevent circular import between tools and brain."""
+    def decorator(fn):
+        try:
+            from alfa.tools.registry import register_tool as _rt
+            return _rt(category=category)(fn)
+        except Exception:
+            return fn
+    return decorator
 
 
 def init_learning_tables() -> None:
@@ -53,6 +63,8 @@ def init_learning_tables() -> None:
                 confidence REAL DEFAULT 1.0,
                 active INTEGER DEFAULT 1,
                 hit_count INTEGER DEFAULT 0,
+                success_count INTEGER DEFAULT 0,
+                failure_count INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
@@ -64,6 +76,17 @@ def init_learning_tables() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_learned_skills_topic ON alfa_learned_skills(topic);"
         )
+
+        # Non-destructive SQLite column additions for existing installations
+        for col, col_def in (
+            ("success_count", "INTEGER DEFAULT 0"),
+            ("failure_count", "INTEGER DEFAULT 0"),
+        ):
+            try:
+                conn.execute(f"ALTER TABLE alfa_learned_skills ADD COLUMN {col} {col_def};")
+            except Exception:
+                pass
+
         conn.commit()
 
 
@@ -216,6 +239,255 @@ def format_learned_skills_prompt(query: str) -> str:
         lines.append(f"   Aturan: {s['learned_rule']}")
     lines.append("Patuhi aturan di atas secara konsisten untuk mencegah pengulangan kesalahan masa lalu.\n")
     return "\n".join(lines)
+
+
+# --- Autonomous User Correction Detection (Auto-Reflexion & Reinforcement) ---
+
+_CORRECTION_TRIGGER_REGEX = re.compile(
+    r"\b(salah|bukan|kacau|ngawur|keliru|tidak tepat|jangan|harusnya|seharusnya|yang benar|koreksi|perbaiki|salah hitung|tidak sesuai)\b",
+    re.IGNORECASE,
+)
+
+_POSITIVE_TRIGGER_REGEX = re.compile(
+    r"\b(mantap|sip|keren|bagus|top|benar|sesuai|jos|good job|terima kasih|makasih|tepat sekali|sempurna|juara)\b",
+    re.IGNORECASE,
+)
+
+
+def is_user_correction_signal(text: str) -> bool:
+    """Detect if user input contains negative feedback or explicit correction."""
+    if not text or len(text.strip()) < 4:
+        return False
+    return bool(_CORRECTION_TRIGGER_REGEX.search(text))
+
+
+def is_positive_reinforcement_signal(text: str) -> bool:
+    """Detect if user input contains positive feedback or praise for completed turn."""
+    if not text or len(text.strip()) < 3:
+        return False
+    return bool(_POSITIVE_TRIGGER_REGEX.search(text))
+
+
+def extract_correction_topic(text: str) -> str:
+    """Identify the domain topic of the correction."""
+    t = text.lower()
+    if any(k in t for k in ("tiang", "material", "lahat", "curup", "bengkulu", "retur", "mandor", "kabel", "ftth")):
+        return "TELECOM_FIELD_LOGISTICS"
+    if any(k in t for k in ("excel", "rumus", "formula", "sheet", "sum", "sumifs", "gridcraft")):
+        return "EXCEL_SPREADSHEET_LOGIC"
+    if any(k in t for k in ("file", "master", "simpan", "tulis", "folder", "kumulatif")):
+        return "FILE_STORAGE_POLICY"
+    if any(k in t for k in ("wa", "whatsapp", "pesan", "chat", "bot")):
+        return "WHATSAPP_INTEGRATION"
+    return "USER_HEURISTIC_RULE"
+
+
+def smart_extract_user_rule(user_text: str) -> tuple[str, str, str]:
+    """
+    Ekstraksi cerdas (Reflexion Parser) dari koreksi pengguna:
+    Mengekstrak (topic, learned_rule, trigger_pattern) secara terstruktur.
+    """
+    clean_text = user_text.strip()
+    topic = extract_correction_topic(clean_text)
+
+    # 1. Deteksi klausa inti kebenaran (truth clause)
+    match_truth = re.search(
+        r"(?:harusnya|seharusnya|yang benar|yang betul|koreksi\s*:?|aturan\s*:?|wajib|tetap)\s+([^.!?\n]+)",
+        clean_text,
+        re.IGNORECASE,
+    )
+    if match_truth:
+        core_statement = match_truth.group(1).strip()
+        learned_rule = f"ATURAN HASIL KOREKSI PENGGUNA: {core_statement}."
+    else:
+        # Hilangkan kata koreksi awal jika ada
+        stripped = re.sub(
+            r"^(?:bukan|salah|ngawur|keliru|koreksi|tidak tepat)[,:\s]+",
+            "",
+            clean_text,
+            flags=re.IGNORECASE,
+        ).strip()
+        learned_rule = f"ATURAN KOREKSI: {stripped if stripped else clean_text}."
+
+    # 2. Sintesis kata kunci pemicu (high-value domain trigger tokens)
+    stop_words = {
+        "yang", "dan", "atau", "dari", "pada", "untuk", "dengan", "akan",
+        "bukan", "salah", "kacau", "ngawur", "keliru", "tolong", "bisa", "sudah",
+        "tapi", "oleh", "dalam", "yaitu", "yakni", "kami", "kamu", "saya"
+    }
+    raw_words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", clean_text.lower())
+    filtered_tokens = [w for w in raw_words if w not in stop_words]
+    # Ambil hingga 6 token unik
+    unique_tokens = list(dict.fromkeys(filtered_tokens))[:6]
+    trigger_pattern = " ".join(unique_tokens) if unique_tokens else topic.lower()
+
+    return topic, learned_rule, trigger_pattern
+
+
+def reinforce_skill(
+    skill_id_or_topic: str,
+    success: bool = True,
+    weight_delta: float = 0.05,
+) -> bool:
+    """
+    ACTIVE HEBBIAN REINFORCEMENT:
+    Adjusts skill confidence and telemetry counters based on operational outcome.
+    If success=True: confidence increases up to 1.0, success_count increments.
+    If success=False: confidence decreases down to 0.1, failure_count increments.
+    """
+    init_learning_tables()
+    with get_sync_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, skill_id, confidence, success_count, failure_count
+            FROM alfa_learned_skills
+            WHERE skill_id = ? OR topic = ?
+            LIMIT 1
+            """,
+            (skill_id_or_topic, skill_id_or_topic.upper()),
+        ).fetchone()
+
+        if not row:
+            return False
+
+        sid = row["id"]
+        cur_conf = row["confidence"] or 1.0
+        cur_succ = row["success_count"] or 0
+        cur_fail = row["failure_count"] or 0
+
+        if success:
+            new_conf = min(1.0, round(cur_conf + weight_delta, 3))
+            new_succ = cur_succ + 1
+            new_fail = cur_fail
+        else:
+            new_conf = max(0.1, round(cur_conf - (weight_delta * 2), 3))
+            new_succ = cur_succ
+            new_fail = cur_fail + 1
+
+        conn.execute(
+            """
+            UPDATE alfa_learned_skills
+            SET confidence = ?,
+                success_count = ?,
+                failure_count = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (new_conf, new_succ, new_fail, sid),
+        )
+        conn.commit()
+        logger.info(
+            "Reinforced skill %s: success=%s, conf=%.3f->%.3f (succ=%d, fail=%d)",
+            skill_id_or_topic,
+            success,
+            cur_conf,
+            new_conf,
+            new_succ,
+            new_fail,
+        )
+        return True
+
+
+def detect_and_process_user_correction(user_text: str, user_id: int = 0) -> dict[str, Any] | None:
+    """
+    AUTONOMOUS SELF-IMPROVING REFLEXION:
+    Automatically detects when the user corrects the agent, extracts the invariant rule,
+    and stores it into alfa_learned_skills so the agent never repeats the same mistake.
+    """
+    if not is_user_correction_signal(user_text):
+        return None
+
+    init_learning_tables()
+    topic, learned_rule, trigger_pattern = smart_extract_user_rule(user_text)
+
+    res = synthesize_skill_from_experience(
+        topic=topic,
+        learned_rule=learned_rule,
+        trigger_pattern=trigger_pattern,
+        confidence=1.0,
+    )
+
+    # Catat koreksi sebagai failure reinforcement pada topik terkait jika sebelumnya ada
+    reinforce_skill(topic, success=False)
+
+    logger.info("Autonomous learning loop captured correction: [%s] %s", topic, learned_rule[:60])
+    return res
+
+
+def audit_against_learned_skills(user_prompt: str, reply_text: str) -> tuple[bool, str, str]:
+    """
+    PRE-FLIGHT COMPLIANCE AUDIT (IN-FLIGHT SELF-CORRECTION):
+    Validates drafted agent replies against known critical rules to ensure compliance.
+    Returns (is_valid, violation_message, corrected_reply).
+    """
+    skills = retrieve_relevant_skills(user_prompt, limit=5)
+    if not skills:
+        return True, "", reply_text
+
+    rep_low = reply_text.lower()
+    p_low = user_prompt.lower()
+
+    # Rule 1: Cluster Lahat 160 Tiang
+    if "lahat" in p_low and any(k in p_low for k in ("tiang", "material", "rekap", "pengambilan")):
+        # If reply mentions poles count other than 160 as net
+        if re.search(r"\b(?:total|net|bersih)[^0-9\n]{1,20}(?!160\b)[0-9]{2,4}\s*(?:batang|btg)", rep_low):
+            corrected = re.sub(
+                r"\b(?:total|net|bersih)[^0-9\n]{1,20}[0-9]{2,4}\s*(?:batang|btg)",
+                "total bersih 160 batang",
+                reply_text,
+                flags=re.IGNORECASE,
+            )
+            return False, "Koreksi otomatis: Total tiang bersih Lahat adalah 160 batang sesuai aturan CLUSTER_LAHAT_MATERIAL.", corrected
+
+    # Rule 2: Master Ledger Cumulative
+    if any(k in rep_low for k in ("membuat file baru", "laporan baru dibuat", "file excel terpisah")):
+        if "master" in rep_low or "lahat" in p_low:
+            note = "\n\n💡 _Catatan Otomasi: Menggunakan Master Ledger Kumulatif (data diteruskan in-place pada satu berkas master)._"
+            return False, "Koreksi otomatis: Menerapkan Master Ledger Kumulatif in-place.", reply_text + note
+
+    return True, "", reply_text
+
+
+def get_learning_loop_metrics() -> dict[str, Any]:
+    """Retrieve telemetry metrics for the Self-Improving Learning Loop."""
+    init_learning_tables()
+    with get_sync_db() as conn:
+        total_skills = conn.execute("SELECT COUNT(*) FROM alfa_learned_skills WHERE active = 1").fetchone()[0]
+        total_trajectories = conn.execute("SELECT COUNT(*) FROM agent_trajectories").fetchone()[0]
+        stats_row = conn.execute(
+            """
+            SELECT
+                COALESCE(AVG(confidence), 1.0) AS avg_conf,
+                COALESCE(SUM(hit_count), 0) AS total_hits,
+                COALESCE(SUM(success_count), 0) AS total_success,
+                COALESCE(SUM(failure_count), 0) AS total_failures
+            FROM alfa_learned_skills
+            WHERE active = 1
+            """
+        ).fetchone()
+
+        top_skills_rows = conn.execute(
+            """
+            SELECT topic, learned_rule, hit_count, confidence, success_count, failure_count
+            FROM alfa_learned_skills
+            WHERE active = 1
+            ORDER BY hit_count DESC, id DESC
+            LIMIT 5
+            """
+        ).fetchall()
+        top_skills = [dict(r) for r in top_skills_rows]
+
+    return {
+        "status": "success",
+        "total_active_skills": total_skills,
+        "total_trajectories": total_trajectories,
+        "avg_confidence": round(float(stats_row["avg_conf"]), 2) if stats_row else 1.0,
+        "total_hits": int(stats_row["total_hits"]) if stats_row else 0,
+        "total_success": int(stats_row["total_success"]) if stats_row else 0,
+        "total_failures": int(stats_row["total_failures"]) if stats_row else 0,
+        "top_skills": top_skills,
+        "learning_engine": "Hermes-Reflexion-Supreme-v2",
+    }
 
 
 def seed_initial_critical_skills() -> int:

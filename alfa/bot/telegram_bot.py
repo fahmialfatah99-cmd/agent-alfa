@@ -58,6 +58,7 @@ from alfa.bot.commands import (
     sheets_command,
     single_command,
     sites_command,
+    skills_command,
     start_command,
     stats_command,
     status_command,
@@ -319,6 +320,8 @@ def main():
     application.add_handler(CommandHandler("bersihkan", ram_command))
     application.add_handler(CommandHandler("cekagen", cekagen_command))
     application.add_handler(CommandHandler("memory", memory_command))
+    application.add_handler(CommandHandler("skills", skills_command))
+    application.add_handler(CommandHandler("learn", skills_command))
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
     application.add_handler(CommandHandler("budget", budget_command))

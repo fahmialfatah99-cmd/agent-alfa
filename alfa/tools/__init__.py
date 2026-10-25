@@ -21,6 +21,7 @@ from alfa.tools import (
     media_tools,
     memory_tools,
     registry,
+    system,
     system_tools,
     web_tools,
 )
@@ -58,10 +59,6 @@ from alfa.tools.system.guardian import (  # noqa: F401 — registrasi tool Penja
 from alfa.tools.system.smart_search import (  # noqa: F401 — registrasi tool ranked
     memory_search_ranked,
     wa_search_ranked,
-)
-from alfa.core.brain.learning_loop import (
-    query_learned_skills,
-    record_agent_experience,
 )
 from alfa.tools.system.threads_watch import (  # noqa: F401 — registrasi Threads
     schedule_threads_watch_task,
@@ -102,6 +99,10 @@ from alfa.tools.telecom_tools import (
     reconcile_whatsapp_material_group,
 )
 from alfa.tools.web_tools import *  # noqa: F401, F403
+from alfa.core.brain.learning_loop import (
+    query_learned_skills,
+    record_agent_experience,
+)
 
 logger = logging.getLogger("AgentTools")
 

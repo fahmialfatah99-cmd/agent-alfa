@@ -101,8 +101,25 @@ def _is_authorized(user_id: int) -> bool:
 async def _run_agent_turn(*args, **kwargs):
     mod = _get_bot_module()
     if mod and hasattr(mod, "run_agent_turn"):
-        return await mod.run_agent_turn(*args, **kwargs)
-    return await run_agent_turn(*args, **kwargs)
+        raw_res = await mod.run_agent_turn(*args, **kwargs)
+    else:
+        raw_res = await run_agent_turn(*args, **kwargs)
+
+    # Pre-Flight Self-Audit & Trajectory Recording (Hermes Self-Improving Loop)
+    try:
+        from alfa.core.brain.learning_loop import audit_against_learned_skills, record_trajectory
+
+        user_p = kwargs.get("user_prompt") or (args[1] if len(args) > 1 else "")
+        if isinstance(raw_res, str):
+            is_valid, msg, corrected = audit_against_learned_skills(user_p, raw_res)
+            if not is_valid and corrected:
+                logger.info("Auto-corrected agent reply via learned skill compliance: %s", msg)
+                raw_res = corrected
+            record_trajectory(user_prompt=user_p, result_summary=raw_res[:200], success=True)
+    except Exception as e:
+        logger.debug("Learning loop audit bypass: %s", e)
+
+    return raw_res
 
 
 async def _check_and_send_media_artifacts(
@@ -1377,6 +1394,30 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await stats_command(update, context)
         return
+
+    # Auto-Reflexion & Reinforcement (Hermes-Style Learning Loop)
+    try:
+        from alfa.core.brain.learning_loop import (
+            detect_and_process_user_correction,
+            is_positive_reinforcement_signal,
+            is_user_correction_signal,
+            record_trajectory,
+        )
+
+        if is_user_correction_signal(user_text):
+            corr_res = detect_and_process_user_correction(user_text, user_id=user_id)
+            if corr_res:
+                logger.info("Autonomous Reflexion captured rule: %s", corr_res.get("topic"))
+        elif is_positive_reinforcement_signal(user_text):
+            record_trajectory(
+                user_prompt=user_text,
+                result_summary="User positive feedback received",
+                success=True,
+                feedback="positive",
+            )
+            logger.info("Autonomous learning loop received positive reinforcement")
+    except Exception as e:
+        logger.debug("Auto-learning detection bypass: %s", e)
 
     # Sapaan murni → jawab instan, JANGAN lewat agent (hemat token + anti tool nyasar).
     fast = greeting_reply(user_text)
