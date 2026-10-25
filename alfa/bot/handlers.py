@@ -561,6 +561,16 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     except _HANDLER_ERR as e:
         logger.debug(f"[callback] cloud_menu router gagal: {e}")
 
+    if data.startswith("artcraft|"):
+        from alfa.tools.desktop.artcraft import artcraft_launch_gui
+
+        parts = data.split("|")
+        app_name = parts[2] if len(parts) > 2 else "gridcraft"
+        excel_path = os.path.expanduser("~/alfa_projects/lahat_material/Rekap_Pengambilan_Material_Lahat.xlsx")
+        res = artcraft_launch_gui(app_name, excel_path if os.path.exists(excel_path) else None)
+        await safe_send_message(context, chat_id, f"🚀 {res.get('message', 'Aplikasi diluncurkan.')}")
+        return
+
     # Tombol menu utama → output perintah mengedit pesan menu di tempat
     from alfa.bot.helpers import clear_menu_target, set_menu_target
 
@@ -606,6 +616,62 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
             + "\n".join([f"  - {p}" for p in stats.get("top_ram_processes", [])])
         )
         await safe_send_message(context, chat_id, text)
+
+    elif data == "btn_rekap_lahat":
+        from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
+
+        await safe_send_message(context, chat_id, "⏳ *Menyusun Rekapitulasi Material WhatsApp Cluster Lahat...*")
+        res = reconcile_whatsapp_material_group(
+            group_name_or_id="pengambilan material lahat",
+            auto_launch_gridcraft=False,
+        )
+        if res.get("status") == "success":
+            card = (
+                f"📦 *REKAPITULASI MATERIAL MASTER LAHAT*\n\n"
+                f"• Total Bersih: *{res.get('total_net')} batang*\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n"
+                f"• Mandor Terverifikasi: {', '.join(res.get('mandors', []))}\n"
+                f"• Berkas Master: `{res.get('excel_file')}`\n\n"
+                f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = [
+                [InlineKeyboardButton("📊 Buka GridCraft", callback_data="artcraft|open|gridcraft")],
+                [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
+            ]
+            await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal merekap material: {res.get('message')}")
+
+    elif data == "btn_daily_briefing":
+        from alfa.tools.telecom_tools import generate_daily_executive_briefing
+
+        await safe_send_message(context, chat_id, "⏳ *Menyiapkan Executive Daily Briefing Proyek...*")
+        res = generate_daily_executive_briefing(shift="now", only_unreported=False)
+        if res.get("status") == "success":
+            await safe_send_message(context, chat_id, res.get("briefing_card", "Briefing selesai."))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal menyusun briefing: {res.get('message')}")
+
+    elif data == "btn_artcraft":
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        text = (
+            "🎨 *ArtCraft Suite (Desktop Office & CAD Tools):*\n\n"
+            "• 📊 *GridCraft*: Analisis spreadsheet Excel dinamis & formula audit.\n"
+            "• 📄 *PdfCraft*: Manipulasi PDF (gabung, pisah, watermark, kompresi, enkripsi).\n"
+            "• 📐 *CadCraft*: Konversi denah DWG/DXF FTTH ke PDF/SVG, kalkulasi rute kabel.\n"
+            "• 🖼️ *PhotoCraft*: Pemrosesan & optimasi dokumentasi foto lapangan.\n"
+            "• 💡 *LightCraft*: Penyesuaian eksposur visual foto tiang & material.\n"
+            "• ✒️ *DesignCraft*: Desain diagram arsitektur jaringan & mockup vektor.\n\n"
+            "Aplikasi dapat dipanggil lewat CLI maupun antarmuka visual GUI."
+        )
+        kb = [
+            [InlineKeyboardButton("📊 Buka GridCraft Lahat", callback_data="artcraft|open|gridcraft")],
+            [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
+        ]
+        await safe_send_message(context, chat_id, text, reply_markup=InlineKeyboardMarkup(kb))
 
     elif data == "btn_ram":
         from alfa.bot.advanced_commands import ram_command
@@ -1252,6 +1318,65 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"{full_forward_text}\n\n"
             f"Instruksi Pengguna: {user_text}"
         )
+
+    # Fast-Path Tombol Bawah (Persistent Reply Keyboard Navigasi)
+    lower_norm = user_text.lower().strip()
+    if lower_norm in ("📦 rekap material lahat", "rekap material", "rekap material lahat", "rekap lahat"):
+        from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
+
+        await safe_send_message(context, chat_id, "⏳ *Menyusun Rekapitulasi Material WhatsApp Cluster Lahat...*")
+        res = reconcile_whatsapp_material_group(
+            group_name_or_id="pengambilan material lahat",
+            auto_launch_gridcraft=False,
+        )
+        if res.get("status") == "success":
+            card = (
+                f"📦 *REKAPITULASI MATERIAL MASTER LAHAT*\n\n"
+                f"• Total Bersih: *{res.get('total_net')} batang*\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n"
+                f"• Mandor Terverifikasi: {', '.join(res.get('mandors', []))}\n"
+                f"• Berkas Master: `{res.get('excel_file')}`\n\n"
+                f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = [
+                [InlineKeyboardButton("📊 Buka GridCraft", callback_data="artcraft|open|gridcraft")],
+                [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
+            ]
+            await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal merekap material: {res.get('message')}")
+        return
+
+    if lower_norm in ("📋 daily briefing", "📋 executive briefing", "daily briefing", "executive briefing", "briefing harian", "briefing"):
+        from alfa.tools.telecom_tools import generate_daily_executive_briefing
+
+        await safe_send_message(context, chat_id, "⏳ *Menyiapkan Executive Daily Briefing Proyek...*")
+        res = generate_daily_executive_briefing(shift="now", only_unreported=False)
+        if res.get("status") == "success":
+            await safe_send_message(context, chat_id, res.get("briefing_card", "Briefing selesai."))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal menyusun briefing: {res.get('message')}")
+        return
+
+    if lower_norm in ("🎛️ menu utama", "menu utama", "menu", "/menu"):
+        from alfa.bot.basic_commands import menu_command
+
+        await menu_command(update, context)
+        return
+
+    if lower_norm in ("📱 whatsapp hub", "whatsapp hub", "wa hub", "menu wa"):
+        from alfa.bot.advanced_commands import wa_command
+
+        await wa_command(update, context)
+        return
+
+    if lower_norm in ("🖥️ status server", "status server", "server status", "status laptop", "cek server"):
+        from alfa.bot.basic_commands import stats_command
+
+        await stats_command(update, context)
+        return
 
     # Sapaan murni → jawab instan, JANGAN lewat agent (hemat token + anti tool nyasar).
     fast = greeting_reply(user_text)

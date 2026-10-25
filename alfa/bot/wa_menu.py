@@ -298,14 +298,12 @@ async def render_reports(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
 def _home_kb() -> InlineKeyboardMarkup:
     # Susunan SAMA dengan panel /wa (wa_command) — satu versi menu WA saja.
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💬 Chat", callback_data="wx|chats|0"),
-         InlineKeyboardButton("📥 Masuk", callback_data="wx|in|0")],
-        [InlineKeyboardButton("📋 Format", callback_data="wx|fmt"),
-         InlineKeyboardButton("📊 Laporan", callback_data="wx|rep|0|-1")],
-        [InlineKeyboardButton("🔄 Restart", callback_data="btn_wa_restart"),
-         InlineKeyboardButton("📊 Cek Status", callback_data="btn_wa_status")],
-        [InlineKeyboardButton("▶️ Start", callback_data="btn_wa_start"),
-         InlineKeyboardButton("⏹️ Stop", callback_data="btn_wa_stop")],
+        [InlineKeyboardButton("💬 Riwayat Chat", callback_data="wx|chats|0"),
+         InlineKeyboardButton("📥 Pesan Masuk", callback_data="wx|in|0")],
+        [InlineKeyboardButton("📦 Rekap Material Lahat", callback_data="btn_rekap_lahat"),
+         InlineKeyboardButton("📋 Format Catatan", callback_data="wx|fmt")],
+        [InlineKeyboardButton("📊 Status Koneksi WA", callback_data="btn_wa_status"),
+         InlineKeyboardButton("📊 Laporan Masuk", callback_data="wx|rep|0|-1")],
         [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
     ])
 

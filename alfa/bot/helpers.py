@@ -363,7 +363,7 @@ async def safe_send_message(
     chat_id: int,
     text: str,
     reply_to_message_id: int | None = None,
-    reply_markup: InlineKeyboardMarkup | None = None,
+    reply_markup: Any = None,
 ):
     """
     Safely send message to Telegram with automatic chunking and fallback to plain text

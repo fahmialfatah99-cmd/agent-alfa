@@ -6,6 +6,7 @@ import sys
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
     Update,
     constants,
 )
@@ -31,53 +32,57 @@ def _is_authorized(user_id: int) -> bool:
     return is_authorized(user_id)
 
 
+def get_persistent_reply_keyboard() -> ReplyKeyboardMarkup:
+    """Keyboard navigasi cepat yang tetap aktif di bagian bawah chat Telegram pengguna."""
+    return ReplyKeyboardMarkup(
+        [
+            ["📦 Rekap Material Lahat", "📋 Daily Briefing"],
+            ["🎛️ Menu Utama", "📱 WhatsApp Hub", "🖥️ Status Server"],
+        ],
+        resize_keyboard=True,
+        is_persistent=True,
+    )
+
+
 def _main_menu_markup() -> InlineKeyboardMarkup:
-    """Satu-satunya definisi grid menu utama (dipakai /start & /menu)."""
+    """Grid menu utama terstruktur, elegan, dan ergonomis untuk Telegram."""
     return InlineKeyboardMarkup(
         [
+            # 1. Mode Kerja & AI
             [
-                InlineKeyboardButton("🧍 Single", callback_data="btn_mode_single"),
-                InlineKeyboardButton("⚡ Swarm", callback_data="btn_mode_swarm"),
-                InlineKeyboardButton("📊 Status", callback_data="btn_status"),
+                InlineKeyboardButton("🧍 Mode Single", callback_data="btn_mode_single"),
+                InlineKeyboardButton("⚡ Mode Swarm", callback_data="btn_mode_swarm"),
             ],
+            # 2. Operasional Lapangan (FTTH / Material)
             [
-                InlineKeyboardButton("🏛️ Rapat", callback_data="btn_meeting_info"),
-                InlineKeyboardButton("⚡ Eksekusi", callback_data="btn_swarm_info"),
+                InlineKeyboardButton("📦 Rekap Material Lahat", callback_data="btn_rekap_lahat"),
+                InlineKeyboardButton("📋 Daily Briefing", callback_data="btn_daily_briefing"),
             ],
+            # 3. Komunikasi & Cloud Data
             [
-                InlineKeyboardButton("🤖 Agen", callback_data="btn_agents"),
-                InlineKeyboardButton("🎭 Persona", callback_data="btn_persona"),
-                InlineKeyboardButton("🩺 Cek", callback_data="btn_cekagen"),
+                InlineKeyboardButton("📱 WhatsApp Hub", callback_data="btn_wa"),
+                InlineKeyboardButton("☁️ Google Cloud Hub", callback_data="btn_cloud"),
             ],
+            # 4. Aplikasi Desktop & Rapat
             [
-                InlineKeyboardButton("🛠️ Tools", callback_data="btn_tools"),
-                InlineKeyboardButton("🔁 Pipeline", callback_data="btn_pipeline"),
-                InlineKeyboardButton("📋 Tugas", callback_data="btn_tasks"),
+                InlineKeyboardButton("🎨 ArtCraft Suite", callback_data="btn_artcraft"),
+                InlineKeyboardButton("🏛️ Rapat Plan AI", callback_data="btn_meeting_info"),
             ],
+            # 5. Monitoring & Dashboard
             [
-                InlineKeyboardButton("⏰ Cron", callback_data="btn_cron"),
-                InlineKeyboardButton("🤖 Proaktif", callback_data="btn_proactive"),
-                InlineKeyboardButton("🔑 Keys", callback_data="btn_keys"),
+                InlineKeyboardButton("🖥️ Status Server & RAM", callback_data="btn_stats"),
+                InlineKeyboardButton("🌐 Web Dashboard", callback_data="btn_dashboard"),
             ],
+            # 6. Otomasi & Workforce
             [
-                InlineKeyboardButton("📱 WA", callback_data="btn_wa"),
-                InlineKeyboardButton("📊 Sheets", callback_data="btn_sheets"),
-                InlineKeyboardButton("☁️ Drive", callback_data="btn_gdrive"),
+                InlineKeyboardButton("🤖 Agen & Persona", callback_data="btn_agents"),
+                InlineKeyboardButton("🛠️ Tools (140+)", callback_data="btn_tools"),
             ],
+            # 7. Pengaturan & Bantuan
             [
-                InlineKeyboardButton("🌐 Dash", callback_data="btn_dashboard"),
-                InlineKeyboardButton("🌐 Sites", callback_data="btn_sites"),
-                InlineKeyboardButton("💰 Budget", callback_data="btn_budget"),
-            ],
-            [
-                InlineKeyboardButton("🧹 RAM", callback_data="btn_ram"),
-                InlineKeyboardButton("🖥️ Server", callback_data="btn_stats"),
+                InlineKeyboardButton("🎙️ Suara AI", callback_data="btn_toggle_voice"),
                 InlineKeyboardButton("🧠 Memori", callback_data="btn_memory"),
-            ],
-            [
-                InlineKeyboardButton("🎙️ Voice", callback_data="btn_toggle_voice"),
-                InlineKeyboardButton("🧹 Reset", callback_data="btn_clear"),
-                InlineKeyboardButton("❓ Help", callback_data="btn_help"),
+                InlineKeyboardButton("❓ Bantuan", callback_data="btn_help"),
             ],
         ]
     )
@@ -116,6 +121,16 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     first_name = user.first_name if user else ""
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="⚡ *ALFA OS Sovereign Agent siap melayani Anda.*",
+            parse_mode=constants.ParseMode.MARKDOWN,
+            reply_markup=get_persistent_reply_keyboard(),
+        )
+    except Exception as e:
+        logger.debug("Gagal mengirim persistent keyboard: %s", e)
+
     welcome_text = (
         f"🤖 **Personal Autonomous AI Agent**\n"
         f"Halo, **{first_name}**! Saya asisten AI otonom pribadi berbasis **multi-provider (9Router/Gemini)** yang terhubung langsung dengan mesin Linux Anda.\n\n"
@@ -145,11 +160,21 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _is_authorized(user.id if user else 0):
         return
 
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🎛️ *Panel Navigasi Cepat Terpasang*",
+            parse_mode=constants.ParseMode.MARKDOWN,
+            reply_markup=get_persistent_reply_keyboard(),
+        )
+    except Exception as e:
+        logger.debug("Gagal kirim persistent keyboard on menu: %s", e)
+
     keyboard = _main_menu_markup().inline_keyboard
     await safe_send_message(
         context,
         chat_id,
-        "🎛️ **Menu Kontrol Autonomous Agent:**",
+        "🎛️ **Menu Kontrol Autonomous Agent (ALFA OS):**\nSilakan pilih modul kerja yang Anda butuhkan:",
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 

@@ -93,20 +93,16 @@ async def wa_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [
-            InlineKeyboardButton("💬 Chat", callback_data="wx|chats|0"),
-            InlineKeyboardButton("📥 Masuk", callback_data="wx|in|0"),
+            InlineKeyboardButton("💬 Riwayat Chat", callback_data="wx|chats|0"),
+            InlineKeyboardButton("📥 Pesan Masuk", callback_data="wx|in|0"),
         ],
         [
-            InlineKeyboardButton("📋 Format", callback_data="wx|fmt"),
-            InlineKeyboardButton("📊 Laporan", callback_data="wx|rep|0|-1"),
+            InlineKeyboardButton("📦 Rekap Material Lahat", callback_data="btn_rekap_lahat"),
+            InlineKeyboardButton("📋 Format Catatan", callback_data="wx|fmt"),
         ],
         [
-            InlineKeyboardButton("🔄 Restart", callback_data="btn_wa_restart"),
-            InlineKeyboardButton("📊 Cek Status", callback_data="btn_wa_status"),
-        ],
-        [
-            InlineKeyboardButton("▶️ Start", callback_data="btn_wa_start"),
-            InlineKeyboardButton("⏹️ Stop", callback_data="btn_wa_stop"),
+            InlineKeyboardButton("📊 Status Koneksi WA", callback_data="btn_wa_status"),
+            InlineKeyboardButton("📊 Laporan Masuk", callback_data="wx|rep|0|-1"),
         ],
         [
             InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu"),
