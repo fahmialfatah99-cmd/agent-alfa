@@ -176,44 +176,90 @@ def _parse_single_boq_workbook(wb: Any) -> tuple[str, str, list[dict[str, Any]]]
     return str(target_sheet), scope, items
 
 
+# Kata/frasa penanda rencana masa depan, obrolan santai, atau spekulasi yang BUKAN laporan fisik riil
+PLAN_OR_SPECULATIVE_WORDS = (
+    "besok",
+    "rencana",
+    "akan ",
+    "otw",
+    "mau ",
+    "planning",
+    "jadwal",
+    "target besok",
+    "insyaallah",
+    "gass",
+    "gas ",
+    "semoga",
+    "nanti",
+    "entar",
+    "kalo ",
+    "kalau ",
+    "tolong",
+    "mohon",
+    "bisa minta",
+)
+
+
 def _extract_telecom_quantities_from_text(text: str) -> dict[str, float]:
     """
-    Ekstraksi kuantitas material presisi tinggi dari pesan chat lapangan.
-    Mencegah false positive (seperti 'tiang 7 meter' terbaca 7 tiang).
+    Ekstraksi kuantitas material presisi tinggi dari pesan chat lapangan (Strict Mode).
+    Mencegah false positive dan halusinasi angka:
+    1. Mengabaikan baris yang merupakan obrolan rencana/masa depan ('besok', 'rencana', 'gass', 'akan').
+    2. Membedakan nomor identitas perangkat ('FDT 2', 'FAT 01') dengan kuantitas fisik riil (wajib unit 'box'/'unit'/'pcs'/'buah'/'set').
+    3. Memisahkan secara ketat antara FAT (Fiber Access Terminal/ODP) dan FDT (Fiber Distribution Terminal/ODC).
+    4. Mencegah salah tafsir spesifikasi port ('FAT 16 port') atau ukuran tinggi ('tiang 7m') sebagai jumlah barang.
+    5. Kabel hanya dihitung bila memiliki konteks penarikan/bentangan kabel fisik (bukan lebar jalan/jarak).
     """
     t = (text or "").lower()
     cables = 0.0
     poles = 0.0
     fats = 0.0
+    fdts = 0.0
 
-    # 1. Tiang via kode shorthand: T72: 16 btg, T73: 19 btg, T9: 5 btg
-    for m in re.finditer(r"\b(?:t72|t73|t74|t7|t9)[\s:=]+([0-9]+)\s*(?:btg|batang|pcs|titik)?\b", t):
-        poles += float(m.group(1))
+    lines = [line.strip() for line in t.splitlines() if line.strip()]
+    for line in lines:
+        # Jika baris adalah rencana masa depan / diskusi santai, abaikan penambahan kuantitas
+        if any(pw in line for pw in PLAN_OR_SPECULATIVE_WORDS):
+            continue
 
-    # 2. Tiang via deskripsi: tiang 7m 10 btg, tiang 9 meter 5 batang, tanam tiang 7m: 4 batang
-    for m in re.finditer(r"(?:tiang|pole|tanam)\s*(?:[0-9]+[\s]*(?:meter|m|\"))?[\s:=]+([0-9]+)\s*(?:btg|batang|pcs|titik)\b", t):
-        poles += float(m.group(1))
+        # 1. Tiang via kode shorthand: T72: 10 btg, T73: 19 btg, T9: 5 batang (Wajib ada satuan batang/pcs/titik)
+        for m in re.finditer(r"\b(?:t72|t73|t74|t7|t9)[\s:=]+([0-9]+)\s*(?:btg|batang|pcs|titik)\b", line):
+            poles += float(m.group(1))
 
-    # 3. Tiang via format angka mendahului: 15 btg tiang, 8 batang tiang 7m
-    for m in re.finditer(r"\b([0-9]+)\s*(?:btg|batang|pcs|titik)\s*(?:tiang|pole)\b", t):
-        poles += float(m.group(1))
+        # 2. Tiang via deskripsi: tiang 7m: 10 btg, tanam tiang 7m 4 batang, tiang 9 meter: 5 batang
+        for m in re.finditer(r"(?:tiang|pole|tanam)\s*(?:[0-9]+[\s]*(?:meter|m|\"))?[\s:=]+([0-9]+)\s*(?:btg|batang|pcs|titik)\b", line):
+            poles += float(m.group(1))
 
-    # 4. Kabel: tarik kabel 1200m / 1200 meter, bentang adss 850 m
-    for m in re.finditer(r"\b([0-9\.,]+)\s*(?:m|meter)\b", t):
-        try:
-            val = float(m.group(1).replace(",", "."))
-            # Pastikan bukan ukuran tinggi tiang (7m, 9m)
-            prev = t[max(0, m.start() - 12) : m.start()]
-            if "tiang" not in prev and "pole" not in prev and val > 15:
-                cables += val
-        except ValueError:
-            pass
+        # 3. Tiang via format angka mendahului: 15 btg tiang, 8 batang tiang 7m
+        for m in re.finditer(r"\b([0-9]+)\s*(?:btg|batang|pcs|titik)\s*(?:tiang|pole)\b", line):
+            poles += float(m.group(1))
 
-    # 5. FAT: FAT: 5 box, 4 unit FAT, FAT 16 port: 2 box
-    for m in re.finditer(r"\b(?:fat|fdt|odp|odc)\s*(?:[0-9]+\s*(?:port|c))?[\s:=]+([0-9]+)\s*(?:box|unit|titik|pcs)?\b", t):
-        fats += float(m.group(1))
+        # 4. Kabel: hanya diekstrak jika ada kata kunci konteks kabel di baris tersebut
+        if any(k in line for k in ("kabel", "cable", "adss", "fig-8", "fig8", "drop core", "dropcore", "fo", "fiber", "tarik", "bentang", "span")):
+            for m in re.finditer(r"\b([0-9\.,]+)\s*(?:m|meter|mtr)\b", line):
+                try:
+                    val = float(m.group(1).replace(",", "."))
+                    prev = line[max(0, m.start() - 12) : m.start()]
+                    if "tiang" not in prev and "pole" not in prev and val > 15:
+                        cables += val
+                except ValueError:
+                    pass
 
-    return {"cables": cables, "poles": poles, "fats": fats}
+        # 5. FAT (Fiber Access Terminal) / ODP: Titik terminasi drop core pelanggan (8/16/24 port).
+        # WAJIB memiliki satuan fisik eksplisit (box, unit, titik, pcs, buah, set).
+        for m in re.finditer(r"\b(?:fat|odp)\s*(?:(?:8|16|24|32|48|64|[0-9]+\s*(?:c|port|core))\b)?[\s:=]*([0-9]+)\s*(?:box|unit|titik|pcs|buah|set)\b", line):
+            fats += float(m.group(1))
+        for m in re.finditer(r"\b([0-9]+)\s*(?:box|unit|titik|pcs|buah|set)\s*(?:fat|odp)\b", line):
+            fats += float(m.group(1))
+
+        # 6. FDT (Fiber Distribution Terminal) / ODC: Kabinet distribusi feeder-ke-distribusi (48-288 port).
+        # WAJIB memiliki satuan fisik eksplisit (box, unit, titik, pcs, buah, set).
+        for m in re.finditer(r"\b(?:fdt|odc)\s*(?:(?:48|72|96|144|288|[0-9]+\s*(?:c|port|core))\b)?[\s:=]*([0-9]+)\s*(?:box|unit|titik|pcs|buah|set)\b", line):
+            fdts += float(m.group(1))
+        for m in re.finditer(r"\b([0-9]+)\s*(?:box|unit|titik|pcs|buah|set)\s*(?:fdt|odc)\b", line):
+            fdts += float(m.group(1))
+
+    return {"cables": cables, "poles": poles, "fats": fats, "fdts": fdts}
 
 
 @register_tool(category="office")
@@ -763,6 +809,8 @@ def boq_reconcile_with_field_reports(
             """
             rows = conn.execute(query, (f"%{clean_cname}%", f"%{clean_cname}%")).fetchall()
             for r in rows:
+                if is_to_group(r[0] or ""):
+                    continue
                 actual_reports.append({
                     "chat": r[0],
                     "sender": r[1],
@@ -864,6 +912,8 @@ def boq_check_project_anomalies(
             rows = conn.execute(query_last_active, (f"%{project_keyword.lower()}%",)).fetchall()
             for r in rows:
                 c_id, c_name, last_ts, count = r
+                if is_to_group(c_name or ""):
+                    continue
                 if last_ts and last_ts < stale_cutoff:
                     hours_silent = round((now_ts - last_ts) / 3600, 1)
                     stalled_chats.append({
@@ -883,6 +933,8 @@ def boq_check_project_anomalies(
             """
             issue_rows = conn.execute(query_issues).fetchall()
             for ir in issue_rows:
+                if is_to_group(ir[0] or ""):
+                    continue
                 incident_reports.append({
                     "chat": ir[0],
                     "sender": ir[1],
@@ -1141,18 +1193,65 @@ def render_cluster_kml_map(
         return {"status": "error", "message": f"Render KML map error: {str(e)}"}
 
 
+def is_to_group(name: str) -> bool:
+    """Deteksi apakah nama chat/grup adalah grup TO (Transfer Order) yang harus diabaikan."""
+    if not name:
+        return False
+    low = name.strip().lower()
+    return (
+        low.startswith(("to ", "to-", "to_", "to/"))
+        or " to " in low
+        or "grup to" in low
+        or "to grup" in low
+        or "to material" in low
+        or "transfer order" in low
+        or "& to" in low
+        or "/to" in low
+        or "-to" in low
+    )
+
+
+def is_project_or_pengambilan(name: str) -> bool:
+    """True bila chat adalah grup proyek FTTH lapangan atau grup pengambilan material resmi."""
+    if not name:
+        return False
+    low = name.strip().lower()
+    if is_to_group(low):
+        return False
+    if low.startswith(("+62", "08")) or low in (
+        "chat pribadi",
+        "telegram (chat)",
+        "test verification",
+        "wa: grup test",
+    ):
+        return False
+    return (
+        "imt" in low
+        or "yofc" in low
+        or "recon" in low
+        or "pengambilan" in low
+        or "ftth" in low
+        or "project" in low
+        or "proyek" in low
+    )
+
+
 @register_tool(category="office")
 def generate_daily_executive_briefing(
     shift: str = "now",
     days_back: int = 1,
+    only_unreported: bool = True,
+    mark_as_reported: bool = True,
 ) -> dict[str, Any]:
     """
     EXECUTIVE DAILY BRIEFING PROYEK & KESEHATAN SISTEM:
     Menghasilkan kartu laporan eksekutif berkala (pagi/sore) untuk Telegram:
-    - Rangkuman total tarikan kabel, tiang tertanam, dan FAT terpasang dalam 24 jam terakhir.
+    - Rangkuman pengambilan material (Tiang, FAT/FDT, Kabel).
+    - Point-point penting progres lapangan tiap grup cluster (mengecualikan grup TO).
     - Status cluster aktif vs cluster mandek (>48 jam).
     - Laporan kendala dan insiden darurat lapangan dari grup WhatsApp.
     - Metrik kesehatan server Linux & status service ALFA.
+    - Zero Double-Reporting: otomatis mencatat pesan yang sudah dilaporkan sehingga tidak berulang.
 
     PERINGATAN ATURAN:
     Laporan ini HANYA dikirimkan ke Telegram Fahmi. DILARANG KERAS mengirim atau membalas otomatis ke WhatsApp!
@@ -1160,6 +1259,8 @@ def generate_daily_executive_briefing(
     Args:
         shift: Jenis briefing ('morning', 'evening', atau 'now').
         days_back: Rentang hari analisis riwayat chat lapangan (default: 1 hari).
+        only_unreported: True = hanya analisis pesan yang BELUM pernah dilaporkan (anti-duplikasi).
+        mark_as_reported: True = tandai pesan yang dianalisis sebagai sudah dilaporkan.
     """
     try:
         import time
@@ -1171,48 +1272,153 @@ def generate_daily_executive_briefing(
         now_ts = int(time.time())
         cutoff_ts = now_ts - (days_back * 86400)
 
+        pengambilan_groups: dict[str, dict[str, Any]] = {}
+        project_groups: dict[str, dict[str, Any]] = {}
+        processed_messages: list[dict[str, Any]] = []
         total_cable = 0.0
         total_poles = 0.0
         total_fat = 0.0
-        active_clusters_set = set()
+        total_fdt = 0.0
         recent_issues: list[dict[str, Any]] = []
 
         with get_sync_db() as conn:
-            # 1. Analisis Pesan Lapangan
-            query = """
-                SELECT chat_name, sender_name, body, msg_ts
-                FROM wa_incoming_archive
-                WHERE msg_ts >= ?
-                ORDER BY msg_ts DESC
-            """
+            # 1. Analisis Pesan Lapangan (Abaikan Grup TO dan pesan personal)
+            # Jika only_unreported=True, filter pesan yang sudah pernah masuk laporan briefing sebelumnya
+            if only_unreported:
+                query = """
+                    SELECT a.msg_id, a.chat_id, a.chat_name, a.sender_name, a.body, a.msg_ts
+                    FROM wa_incoming_archive a
+                    LEFT JOIN wa_reported_messages r ON a.msg_id = r.msg_id
+                    WHERE r.msg_id IS NULL AND a.msg_ts >= ?
+                    ORDER BY a.msg_ts DESC
+                """
+            else:
+                query = """
+                    SELECT a.msg_id, a.chat_id, a.chat_name, a.sender_name, a.body, a.msg_ts
+                    FROM wa_incoming_archive a
+                    WHERE a.msg_ts >= ?
+                    ORDER BY a.msg_ts DESC
+                """
             rows = conn.execute(query, (cutoff_ts,)).fetchall()
             for r in rows:
-                cname = r[0] or "Grup Proyek"
-                text = (r[2] or "").lower()
-                active_clusters_set.add(cname)
+                mid = (r[0] or "").strip()
+                cid = (r[1] or "").strip()
+                cname = (r[2] or "").strip()
+                sender = (r[3] or "Teknisi").strip()
+                body = (r[4] or "").strip()
+                ts = int(r[5] or 0)
+                text_lower = body.lower()
 
-                # Ekstrak kuantitas material presisi tinggi
-                ext = _extract_telecom_quantities_from_text(r[2] or "")
-                total_cable += ext["cables"]
-                total_poles += ext["poles"]
-                total_fat += ext["fats"]
+                # Abaikan total grup TO & chat personal non-proyek
+                if is_to_group(cname) or not is_project_or_pengambilan(cname):
+                    continue
 
-                # Deteksi kendala
-                if any(k in text for k in ["kendala", "ijin warga", "izin warga", "kabel putus", "retur", "masalah", "pending"]):
-                    recent_issues.append({
-                        "cluster": cname,
-                        "sender": r[1],
-                        "text": r[2][:120],
-                    })
+                processed_messages.append({
+                    "msg_id": mid,
+                    "chat_id": cid,
+                    "chat_name": cname,
+                    "msg_ts": ts,
+                })
 
-            # 2. Cek Cluster Stalled (>48 jam)
+                def _is_chat_noise(b: str) -> bool:
+                    b_str = (b or "").strip()
+                    if not b_str or b_str in ("[sticker]", "[image]", "P", "p"):
+                        return True
+                    if b_str.startswith(("/9j/", "data:image")) or (len(b_str) > 100 and " " not in b_str):
+                        return True
+                    low_b = b_str.lower().strip()
+                    noise_words = {
+                        "siap", "siap mas", "siap pak", "siap bng", "siap bang", "siap bapa",
+                        "oke", "okey", "okayy", "ok", "done", "done mas", "done pak",
+                        "makasih", "mkasih", "terimakasih", "mkasih mas", "mkasih mas supportnya",
+                        "makasih mas", "thanks", "tengkyu", "p", "oii", "iya", "iya mas", "iya pak",
+                        "sap sap", "uwes mi", "pie mi", "capek", "litak e", "before", "after", "aman mas",
+                        "aman bang", "siap terimakasih", "noted pak", "noted mas", "kirim bang",
+                        "area kendal", "iya pak..",
+                    }
+                    if low_b in noise_words:
+                        return True
+                    cleaned_b = re.sub(r"@[0-9]+", "", low_b).strip()
+                    cleaned_b = re.sub(r"[^\w\s]", "", cleaned_b).strip()
+                    return not cleaned_b or cleaned_b in noise_words
+
+                ext = _extract_telecom_quantities_from_text(body)
+                is_mat_msg = (
+                    ext["poles"] > 0
+                    or ext["fats"] > 0
+                    or ext["fdts"] > 0
+                    or ext["cables"] > 0
+                    or any(k in text_lower for k in ("clamp pole", "dead and", "suspen", "inbound", "outbound", "serah terima", "bon material", "surat jalan"))
+                )
+
+                if "pengambilan" in cname.lower():
+                    if cname not in pengambilan_groups:
+                        pengambilan_groups[cname] = {
+                            "materials": [],
+                            "notes": [],
+                            "poles": 0.0,
+                            "fats": 0.0,
+                            "fdts": 0.0,
+                            "cables": 0.0,
+                            "msg_count": 0,
+                        }
+                    pengambilan_groups[cname]["msg_count"] += 1
+                    if is_mat_msg:
+                        pengambilan_groups[cname]["poles"] += ext["poles"]
+                        pengambilan_groups[cname]["fats"] += ext["fats"]
+                        pengambilan_groups[cname]["fdts"] += ext["fdts"]
+                        pengambilan_groups[cname]["cables"] += ext["cables"]
+                        pengambilan_groups[cname]["materials"].append((sender, body))
+                    elif not _is_chat_noise(body):
+                        pengambilan_groups[cname]["notes"].append((sender, body))
+                else:
+                    if cname not in project_groups:
+                        project_groups[cname] = {
+                            "updates": [],
+                            "poles": 0.0,
+                            "fats": 0.0,
+                            "fdts": 0.0,
+                            "cables": 0.0,
+                            "msg_count": 0,
+                        }
+                    project_groups[cname]["msg_count"] += 1
+
+                    # Hanya hitung progres instalasi riil jika bukan inventory/aksesoris HB
+                    if "clamp pole" not in text_lower and "accessories" not in text_lower:
+                        project_groups[cname]["poles"] += ext["poles"]
+                        project_groups[cname]["fats"] += ext["fats"]
+                        project_groups[cname]["fdts"] += ext["fdts"]
+                        project_groups[cname]["cables"] += ext["cables"]
+                        total_cable += ext["cables"]
+                        total_poles += ext["poles"]
+                        total_fat += ext["fats"]
+                        total_fdt += ext["fdts"]
+
+                    if not _is_chat_noise(body):
+                        score = 1
+                        if any(
+                            k in text_lower
+                            for k in ("kendala", "ijin warga", "izin warga", "kabel putus", "retur", "masalah", "pending", "reject", "kurang sf", "rusak")
+                        ):
+                            score = 3
+                            recent_issues.append({"cluster": cname, "sender": sender, "text": body[:120].strip()})
+                        elif any(
+                            k in text_lower
+                            for k in (".kmz", ".xlsx", ".pdf", "inbound", "outbound", "tanam", "tarik", "splicing", "terminasi", "smdt", "recon", "opname", "rfsc", "fac")
+                        ):
+                            score = 2
+                        project_groups[cname]["updates"].append((score, sender, body))
+
+            # 2. Cek Cluster Stalled (>48 jam) - agregasi per nama cluster proyek asli (Non-TO)
             stalled_clusters = []
             stalled_cutoff = now_ts - (48 * 3600)
             stalled_query = """
                 SELECT chat_name, MAX(msg_ts) as last_ts
                 FROM wa_incoming_archive
-                WHERE LOWER(chat_name) LIKE '%ftth%' OR LOWER(chat_name) LIKE '%imt%' OR LOWER(chat_name) LIKE '%bkl%'
-                GROUP BY chat_id, chat_name
+                WHERE (LOWER(chat_name) LIKE '%ftth%' OR LOWER(chat_name) LIKE '%imt%' OR LOWER(chat_name) LIKE '%bkl%')
+                  AND chat_name IS NOT NULL AND TRIM(chat_name) != ''
+                  AND LOWER(chat_name) NOT LIKE '%to %' AND LOWER(chat_name) NOT LIKE '%to material%'
+                GROUP BY LOWER(TRIM(chat_name))
             """
             stalled_rows = conn.execute(stalled_query).fetchall()
             for sr in stalled_rows:
@@ -1222,42 +1428,114 @@ def generate_daily_executive_briefing(
                         "hours_idle": round((now_ts - sr[1]) / 3600, 1),
                     })
 
-        # 3. Metrik Sistem
+        # 3. Tandai pesan sebagai DILAPORKAN bila diminta
+        if mark_as_reported and processed_messages:
+            from alfa.core.db.wa_tracking import record_wa_messages_reported_sync
+
+            record_wa_messages_reported_sync(processed_messages, shift=shift)
+
+        # 4. Metrik Sistem
         cpu_usage = psutil.cpu_percent(interval=None)
         mem = psutil.virtual_memory()
 
-        # Format Kartu Ringkasan Telegram
+        # Format Kartu Ringkasan Telegram (Dikelompokkan per Grup & Point Penting)
         now_str = datetime.now().strftime("%d-%m-%Y %H:%M WIB")
-        shift_title = "PAGI (TARGET & PERSIAPAN)" if shift.lower() == "morning" else "SORE (PROGRESS CLOSING)" if shift.lower() == "evening" else "REALTIME"
+        shift_title = (
+            "PAGI (TARGET & PERSIAPAN)"
+            if shift.lower() == "morning"
+            else "SORE (PROGRESS CLOSING)"
+            if shift.lower() == "evening"
+            else "REALTIME"
+        )
 
-        briefing_text = (
-            f"📋 *DAILY EXECUTIVE BRIEFING ALFA OS*\n"
-            f"🕒 *Shift*: {shift_title} | *Waktu*: `{now_str}`\n\n"
-            f"⚡ *AKUMULASI PROGRES FISIK (24 Jam Terakhir)*:\n"
-            f"• 🟢 *Kabel Terpasang*: `{round(total_cable, 1):,} meter`\n"
-            f"• 🟢 *Tiang Tertanam*: `{int(total_poles)} batang`\n"
-            f"• 🟢 *FAT/FDT Terpasang*: `{int(total_fat)} box`\n"
-            f"• 📊 *Cluster Lapangan Aktif*: `{len(active_clusters_set)} grup`\n\n"
+        briefing_lines = [
+            "📋 *DAILY EXECUTIVE BRIEFING ALFA OS*",
+            f"🕒 *Shift*: {shift_title} | *Waktu*: `{now_str}`\n",
+        ]
+
+        if not pengambilan_groups and not project_groups:
+            briefing_lines.append(
+                "*(Semua laporan lapangan sebelumnya telah berhasil dilaporkan pada sesi briefing sebelumnya. Tidak ada laporan baru yang belum terlaporkan)*\n"
+            )
+
+        # A. GRUP PENGAMBILAN MATERIAL
+        briefing_lines.append("📦 *RECORD GRUP PENGAMBILAN MATERIAL*:")
+        if pengambilan_groups:
+            for g, d in pengambilan_groups.items():
+                summary_items = []
+                if d["poles"] > 0:
+                    summary_items.append(f"Tiang: `{int(d['poles'])} btg`")
+                if d["fdts"] > 0:
+                    summary_items.append(f"FDT: `{int(d['fdts'])} unit`")
+                if d["fats"] > 0:
+                    summary_items.append(f"FAT: `{int(d['fats'])} box`")
+                if d["cables"] > 0:
+                    summary_items.append(f"Kabel: `{round(d['cables'], 1):,} m`")
+                sum_str = f" ({' | '.join(summary_items)})" if summary_items else ""
+                briefing_lines.append(f"• 🏢 *{g}*{sum_str} _({d['msg_count']} aktivitas baru)_:")
+
+                # 1. Tampilkan bukti fisik pengambilan material riil
+                if d["materials"]:
+                    for s, b in d["materials"][:3]:
+                        clean_b = b.replace("\n", " | ")[:110]
+                        briefing_lines.append(f"  └ 📦 *{s}*: \"_{clean_b}_\"")
+                else:
+                    briefing_lines.append("  └ _(Belum ada input fisik barang keluar gudang)_")
+
+                # 2. Tampilkan koordinasi / rencana lapangan bila ada
+                if d["notes"]:
+                    for s, b in d["notes"][:2]:
+                        clean_b = b.replace("\n", " ")[:110]
+                        briefing_lines.append(f"  └ 💬 _Koordinasi/Rencana_: *{s}*: \"_{clean_b}_\"")
+        else:
+            briefing_lines.append("*(Tidak ada pengambilan material baru yang belum dilaporkan)*")
+
+        # B. POINT PENTING TIAP GRUP PROYEK (KECUALI TO)
+        briefing_lines.append("\n📌 *POINT PENTING TIAP GRUP PROYEK (KECUALI TO)*:")
+        if project_groups:
+            for g, d in sorted(project_groups.items(), key=lambda x: len(x[1]["updates"]), reverse=True):
+                briefing_lines.append(f"• 📁 *{g}* _({d['msg_count']} update baru)_:")
+                # Prioritas: Kendala (skor 3) > Dokumen/Progress (skor 2) > Koordinasi (skor 1)
+                valid_updates = sorted(d["updates"], key=lambda x: x[0], reverse=True)
+                if valid_updates:
+                    for sc, s, b in valid_updates[:2]:
+                        clean_b = b.replace("\n", " ")[:110]
+                        icon = "⚠️" if sc == 3 else "📄" if sc == 2 else "📌"
+                        briefing_lines.append(f"  └ {icon} *{s}*: \"_{clean_b}_\"")
+                else:
+                    briefing_lines.append("  └ _(Dokumentasi foto/media pekerjaan lapangan)_")
+        else:
+            briefing_lines.append("*(Tidak ada update aktivitas proyek baru yang belum dilaporkan)*")
+
+        total_groups = len(pengambilan_groups) + len(project_groups)
+        briefing_lines.append(
+            f"\n⚡ *TOTAL KONSOLIDASI PROGRES LAPANGAN ({total_groups} Grup Terpantau)*:\n"
+            f"• 🟢 *Total Kabel Terpasang*: `{round(total_cable, 1):,} meter`\n"
+            f"• 🟢 *Total Tiang Tertanam*: `{int(total_poles)} batang`\n"
+            f"• 🟢 *Total FDT Terpasang*: `{int(total_fdt)} unit`\n"
+            f"• 🟢 *Total FAT/ODP Terpasang*: `{int(total_fat)} box`\n"
         )
 
         if stalled_clusters:
-            briefing_text += "⚠️ *CLUSTER MANDEK (>48 Jam Tanpa Laporan)*:\n"
+            briefing_lines.append("⚠️ *CLUSTER PROYEK MANDEK (>48 Jam Tanpa Laporan)*:")
             for sc in stalled_clusters[:3]:
-                briefing_text += f"• 🔴 `{sc['name']}` (diam selama {sc['hours_idle']} jam)\n"
-            briefing_text += "\n"
+                briefing_lines.append(f"• 🔴 `{sc['name']}` (diam selama {sc['hours_idle']} jam)")
+            briefing_lines.append("")
 
         if recent_issues:
-            briefing_text += f"🚨 *LAPORAN KENDALA LAPANGAN ({len(recent_issues)} Terdeteksi)*:\n"
+            briefing_lines.append(f"🚨 *CATATAN KENDALA & FOLLOW-UP LAPANGAN ({len(recent_issues)} Poin)*:")
             for iss in recent_issues[:3]:
-                briefing_text += f"• *{iss['cluster']}* ({iss['sender']}): \"_{iss['text']}_\"\n"
-            briefing_text += "\n"
+                briefing_lines.append(f"• *{iss['cluster']}* ({iss['sender']}): \"_{iss['text']}_\"")
+            briefing_lines.append("")
 
-        briefing_text += (
+        briefing_lines.append(
             f"💻 *KESEHATAN SISTEM ALFA*:\n"
             f"• CPU: `{cpu_usage}%` | RAM: `{mem.percent}%` (Tersedia: {round(mem.available / (1024**3), 1)} GB)\n"
             f"• WhatsApp Bot: `Active (Sync Live)`\n"
             f"• Telegram Agent: `Ready`"
         )
+
+        briefing_text = "\n".join(briefing_lines)
 
         return {
             "status": "success",
@@ -1266,15 +1544,105 @@ def generate_daily_executive_briefing(
             "stats": {
                 "total_cable_meters": total_cable,
                 "total_poles_pcs": int(total_poles),
+                "total_fdt_boxes": int(total_fdt),
                 "total_fat_boxes": int(total_fat),
-                "active_clusters": len(active_clusters_set),
+                "active_clusters": total_groups,
                 "stalled_clusters": len(stalled_clusters),
                 "issues_count": len(recent_issues),
+                "new_unreported_messages": len(processed_messages),
+                "by_cluster": {
+                    cname: {
+                        "cable_meters": round(cinfo["cables"], 1),
+                        "poles_pcs": int(cinfo["poles"]),
+                        "fdt_boxes": int(cinfo["fdts"]),
+                        "fat_boxes": int(cinfo["fats"]),
+                        "messages": cinfo["msg_count"],
+                    }
+                    for cname, cinfo in {**pengambilan_groups, **project_groups}.items()
+                },
             },
         }
     except Exception as e:
         logger.exception("Gagal membuat executive briefing: %s", e)
         return {"status": "error", "message": f"Executive briefing error: {str(e)}"}
+
+
+def _transcribe_local_whisper_fallback(fpath: str, cluster_hint: str = "") -> dict[str, Any] | None:
+    """Local offline voice note transcription fallback using faster-whisper (CTranslate2)."""
+    try:
+        from faster_whisper import WhisperModel
+
+        model_size = os.getenv("WHISPER_MODEL_SIZE", "base")
+        whisper = WhisperModel(model_size, device="cpu", compute_type="int8")
+        segments, _info = whisper.transcribe(fpath, language="id", beam_size=1)
+        transcript = " ".join(seg.text for seg in segments).strip()
+        if not transcript:
+            return None
+
+        low = transcript.lower()
+
+        # Cables meter
+        cables_meter = 0.0
+        m_cable = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:meter|m\b)", low)
+        if m_cable:
+            try:
+                cables_meter = float(m_cable.group(1).replace(",", "."))
+            except ValueError:
+                pass
+
+        # Poles count
+        poles_count = 0
+        m_pole = re.search(r"(\d+)\s*(?:tiang|batang)", low)
+        if m_pole:
+            try:
+                poles_count = int(m_pole.group(1))
+            except ValueError:
+                pass
+
+        # FDT count (Fiber Distribution Terminal / ODC)
+        fdt_count = 0
+        m_fdt = re.search(r"(\d+)\s*(?:fdt|odc)", low)
+        if m_fdt:
+            try:
+                fdt_count = int(m_fdt.group(1))
+            except ValueError:
+                pass
+
+        # FAT count (Fiber Access Terminal / ODP)
+        fat_count = 0
+        m_fat = re.search(r"(\d+)\s*(?:fat|box|odp)", low)
+        if m_fat:
+            try:
+                fat_count = int(m_fat.group(1))
+            except ValueError:
+                pass
+
+        # Kendala
+        kendala = ""
+        m_kendala = re.search(r"(?:kendala|hambatan|masalah|rusak|putus)\s*[:=]?\s*([^.,\n]+)", low)
+        if m_kendala:
+            kendala = m_kendala.group(0).strip()
+
+        payload = {
+            "transcript": transcript,
+            "mandor": "",
+            "cluster": cluster_hint,
+            "cables_meter": cables_meter,
+            "poles_count": poles_count,
+            "fdt_count": fdt_count,
+            "fat_count": fat_count,
+            "kendala": kendala,
+        }
+        return {
+            "status": "success",
+            "file": os.path.basename(fpath),
+            "transcript": transcript,
+            "extracted_data": payload,
+            "message": "Transkripsi voice note lapangan berhasil diekstrak via local faster-whisper (offline sovereign fallback).",
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Local faster-whisper fallback gagal: %s", exc)
+        return None
 
 
 @register_tool(category="office")
@@ -1285,25 +1653,28 @@ def transcribe_field_voice_note(
     """
     TRANSKRIPSI PESAN SUARA (VOICE NOTE) LAPANGAN & EKSTRAKSI AKSI:
     Mendengarkan rekaman audio/voice note mandor (.ogg, .opus, .mp3, .wav, .m4a) dari WhatsApp atau Telegram,
-    mentranskripsikannya ke bahasa Indonesia presisi tinggi dengan Gemini Multimodal Audio,
+    mentranskripsikannya ke bahasa Indonesia presisi tinggi dengan Gemini Multimodal Audio (fallback faster-whisper lokal),
     serta mengekstrak entitas teknis (tiang, kabel, FAT, kendala) secara terstruktur.
 
     Args:
         audio_file_path: Lokasi berkas audio voice note di sistem.
         cluster_hint: Petunjuk nama cluster opsional untuk meningkatkan akurasi konteks.
     """
+    fpath = os.path.realpath(os.path.expanduser(audio_file_path.strip()))
+    if not os.path.exists(fpath):
+        return {"status": "error", "message": f"Berkas audio '{audio_file_path}' tidak ditemukan."}
+
     try:
         from google import genai
         from google.genai import types
 
         from alfa.swarm.llm_client import get_agent_api_client
 
-        fpath = os.path.realpath(os.path.expanduser(audio_file_path.strip()))
-        if not os.path.exists(fpath):
-            return {"status": "error", "message": f"Berkas audio '{audio_file_path}' tidak ditemukan."}
-
         _provider, api_key, model, _base, _kid = get_agent_api_client({"provider": "gemini"})
         if not api_key:
+            local_res = _transcribe_local_whisper_fallback(fpath, cluster_hint)
+            if local_res:
+                return local_res
             return {"status": "error", "message": "Tidak ada Gemini API Key aktif untuk transkripsi audio."}
 
         client = genai.Client(api_key=api_key, http_options={"timeout": 60000})
@@ -1361,6 +1732,10 @@ def transcribe_field_voice_note(
             "message": "Transkripsi voice note lapangan berhasil diekstrak.",
         }
     except Exception as e:
+        logger.warning("Gemini voice transcribe error, mencoba local faster-whisper fallback: %s", e)
+        local_res = _transcribe_local_whisper_fallback(fpath, cluster_hint)
+        if local_res:
+            return local_res
         logger.exception("Gagal transkripsi voice note: %s", e)
         return {"status": "error", "message": f"Transcribe voice note error: {str(e)}"}
 
@@ -1851,10 +2226,12 @@ def calculate_material_return_and_scrap(
         # Tarik data dari wa_incoming_archive untuk cluster ini
         with get_sync_db() as conn:
             rows = conn.execute(
-                "SELECT body FROM wa_incoming_archive WHERE LOWER(body) LIKE ? OR LOWER(chat_name) LIKE ?",
+                "SELECT body, chat_name FROM wa_incoming_archive WHERE LOWER(body) LIKE ? OR LOWER(chat_name) LIKE ?",
                 (f"%{cname_clean}%", f"%{cname_clean}%"),
             ).fetchall()
             for r in rows:
+                if is_to_group(r[1] or ""):
+                    continue
                 body = r[0] or ""
                 ext = _extract_telecom_quantities_from_text(body)
                 actual_cable_installed += ext["cables"]

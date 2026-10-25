@@ -337,6 +337,19 @@ def build_memory_block(
         except Exception as mat_err:
             logger.debug(f"[material_recall] gagal: {mat_err}")
 
+    # 3. KNOWLEDGE GRAPH RECALL (GRAPHRAG PRE-FETCH):
+    # Menyuntikkan subgraf 1-hop & relasi relasional ke konteks prompt jika ada entitas cocok
+    try:
+        from alfa.memory import graph_rag
+
+        graph_facts = graph_rag.get_pre_turn_graph_context(
+            user_id=user_id, prompt=user_prompt
+        )
+        if graph_facts:
+            memory_context_parts.append(graph_facts)
+    except Exception as graph_err:  # noqa: BLE001
+        logger.debug(f"[graph_rag_recall] gagal: {graph_err}")
+
     memory_block = ""
     if memory_context_parts:
         memory_block = (

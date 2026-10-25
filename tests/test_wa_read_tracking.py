@@ -4,6 +4,7 @@ from unittest.mock import patch
 from alfa.core.db.connection import init_db_sync
 from alfa.core.db.wa_tracking import (
     archive_wa_messages_sync,
+    clear_wa_reported_state_sync,
     get_last_read_wa_ts_sync,
     get_read_wa_msg_ids_sync,
     is_wa_message_read_sync,
@@ -137,6 +138,36 @@ class TestWAReadTracking(unittest.TestCase):
             # Newest first
             self.assertEqual(msgs[0]["id"], "chat_msg_new_b")
             self.assertEqual(msgs[1]["id"], "chat_msg_new_a")
+
+
+class TestWAReportedTracking(unittest.TestCase):
+    def setUp(self):
+        clear_wa_reported_state_sync()
+
+    def tearDown(self):
+        clear_wa_reported_state_sync()
+
+    def test_record_and_get_reported_ids(self):
+        from alfa.core.db.wa_tracking import (
+            get_reported_wa_msg_ids_sync,
+            is_wa_message_reported_sync,
+            record_wa_messages_reported_sync,
+        )
+
+        msgs = [
+            {"msg_id": "rep_1", "chat_id": "c1", "chat_name": "Grup A", "msg_ts": 100},
+            {"msg_id": "rep_2", "chat_id": "c2", "chat_name": "Grup B", "msg_ts": 200},
+        ]
+        self.assertFalse(is_wa_message_reported_sync("rep_1"))
+        recorded = record_wa_messages_reported_sync(msgs, shift="daily")
+        self.assertEqual(recorded, 2)
+        self.assertTrue(is_wa_message_reported_sync("rep_1"))
+        self.assertTrue(is_wa_message_reported_sync("rep_2"))
+        self.assertFalse(is_wa_message_reported_sync("rep_3"))
+
+        rep_set = get_reported_wa_msg_ids_sync(["rep_1", "rep_3"])
+        self.assertIn("rep_1", rep_set)
+        self.assertNotIn("rep_3", rep_set)
 
 
 if __name__ == "__main__":

@@ -168,10 +168,29 @@ def set_last_read_wa_ts_sync(ts: int) -> None:
         logger.debug("Failed to set last_read_wa_ts: %s", e)
 
 
+def is_to_group(name: str) -> bool:
+    """Deteksi apakah nama chat/grup adalah grup TO (Transfer Order) yang harus diabaikan."""
+    if not name:
+        return False
+    low = name.strip().lower()
+    return (
+        low.startswith(("to ", "to-", "to_", "to/"))
+        or " to " in low
+        or "grup to" in low
+        or "to grup" in low
+        or "to material" in low
+        or "transfer order" in low
+        or "& to" in low
+        or "/to" in low
+        or "-to" in low
+    )
+
+
 def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
     """
     Arsipkan pesan WhatsApp masuk ke tabel SQLite wa_incoming_archive secara permanen.
     Pesan tidak akan pernah hilang meskipun ring buffer 250 terlewati.
+    Grup TO (Transfer Order) secara ketat diabaikan dan tidak direkam.
     """
     if not messages:
         return 0
@@ -184,6 +203,8 @@ def archive_wa_messages_sync(messages: list[dict[str, Any]]) -> int:
             msg_id = str(m.get("msg_id") or m.get("id") or "").strip()
             chat_id = str(m.get("chat") or m.get("chat_id") or "").strip()
             chat_name = str(m.get("chat_name") or "").strip()
+            if is_to_group(chat_name):
+                continue
             sender_name = str(m.get("sender_name") or m.get("sender") or m.get("author") or "").strip()
             is_group = 1 if m.get("is_group") else 0
             msg_type = str(m.get("msg_type") or "chat").lower()
@@ -293,4 +314,85 @@ def clear_wa_read_state_sync() -> int:
             pass
         conn.commit()
         return int(res.rowcount)
+
+
+def record_wa_messages_reported_sync(
+    messages: list[dict[str, Any]], shift: str = "daily"
+) -> int:
+    """Tandai pesan-pesan tertentu sebagai SUDAH DILAPORKAN ke Executive Briefing.
+
+    Menjamin Zero Double-Reporting: pesan yang sudah masuk laporan tidak akan
+    dilaporkan ulang pada briefing berikutnya.
+    """
+    if not messages:
+        return 0
+
+    reported_count = 0
+    with get_sync_db() as conn:
+        for m in messages:
+            if not isinstance(m, dict):
+                continue
+            msg_id = str(m.get("msg_id") or m.get("id") or "").strip()
+            if not msg_id:
+                continue
+            chat_id = str(m.get("chat_id") or m.get("chat") or "").strip()
+            chat_name = str(m.get("chat_name") or "").strip()
+            msg_ts = int(m.get("msg_ts") or m.get("ts") or 0)
+            try:
+                res = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO wa_reported_messages
+                    (msg_id, chat_id, chat_name, msg_ts, briefing_shift, reported_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (msg_id, chat_id, chat_name, msg_ts, shift),
+                )
+                if res.rowcount > 0:
+                    reported_count += 1
+            except _DB_ERR as e:
+                logger.debug("Failed to record reported wa message %s: %s", msg_id, e)
+        conn.commit()
+    return reported_count
+
+
+def get_reported_wa_msg_ids_sync(msg_ids: list[str]) -> set[str]:
+    """Cek ID pesan mana saja yang sudah pernah tercatat sebagai DILAPORKAN."""
+    clean_ids = [str(i).strip() for i in msg_ids if str(i).strip()]
+    if not clean_ids:
+        return set()
+
+    reported_set: set[str] = set()
+    with get_sync_db() as conn:
+        chunk_size = 50
+        for i in range(0, len(clean_ids), chunk_size):
+            chunk = clean_ids[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            rows = conn.execute(
+                f"SELECT msg_id FROM wa_reported_messages WHERE msg_id IN ({placeholders})",  # nosec B608 — placeholder hanya '?'
+                chunk,
+            ).fetchall()
+            for r in rows:
+                reported_set.add(str(r[0]))
+    return reported_set
+
+
+def is_wa_message_reported_sync(msg_id: str) -> bool:
+    """Cek apakah pesan tertentu sudah dilaporkan ke executive briefing."""
+    mid = str(msg_id or "").strip()
+    if not mid:
+        return False
+    with get_sync_db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM wa_reported_messages WHERE msg_id = ? LIMIT 1", (mid,)
+        ).fetchone()
+        return row is not None
+
+
+def clear_wa_reported_state_sync() -> int:
+    """Reset data pelaporan (untuk pengujian atau kalibrasi ulang)."""
+    with get_sync_db() as conn:
+        res = conn.execute("DELETE FROM wa_reported_messages")
+        conn.commit()
+        return int(res.rowcount)
+
 

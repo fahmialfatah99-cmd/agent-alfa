@@ -145,10 +145,28 @@ def test_boq_reconcile_and_anomalies():
 
 def test_generate_daily_executive_briefing():
     from alfa.tools.telecom_tools import generate_daily_executive_briefing
-    res = generate_daily_executive_briefing(shift="morning", days_back=2)
+    res = generate_daily_executive_briefing(shift="morning", days_back=2, only_unreported=False, mark_as_reported=False)
     assert res["status"] == "success"
     assert "briefing_card" in res
     assert "DAILY EXECUTIVE BRIEFING" in res["briefing_card"]
+    assert "PENGAMBILAN MATERIAL" in res["briefing_card"]
+    assert "POINT PENTING" in res["briefing_card"]
+    assert "by_cluster" in res["stats"]
+
+
+def test_daily_briefing_anti_duplication_tracking():
+    from alfa.core.db.wa_tracking import clear_wa_reported_state_sync
+    from alfa.tools.telecom_tools import generate_daily_executive_briefing
+
+    clear_wa_reported_state_sync()
+    res1 = generate_daily_executive_briefing(shift="morning", days_back=2, only_unreported=True, mark_as_reported=True)
+    assert res1["status"] == "success"
+
+    # Second run should have 0 new messages because already reported
+    res2 = generate_daily_executive_briefing(shift="morning", days_back=2, only_unreported=True, mark_as_reported=True)
+    assert res2["status"] == "success"
+    assert res2["stats"]["new_unreported_messages"] == 0
+    assert "telah berhasil dilaporkan" in res2["briefing_card"]
 
 
 def test_parse_delivery_order_document():
@@ -209,5 +227,120 @@ def test_schedule_daily_briefing_task():
     res = schedule_daily_briefing_task(enabled=True)
     assert res["status"] == "success"
     assert "job_id" in res
+
+
+def test_transcribe_field_voice_note_file_not_found():
+    from alfa.tools.telecom_tools import transcribe_field_voice_note
+    res = transcribe_field_voice_note("/nonexistent/path/to/voice.ogg")
+    assert res["status"] == "error"
+    assert "tidak ditemukan" in res["message"]
+
+
+def test_transcribe_field_voice_note_local_whisper_fallback(monkeypatch, tmp_path):
+    from alfa.tools.telecom_tools import transcribe_field_voice_note
+    # Create a dummy audio file
+    dummy_audio = tmp_path / "voice_note.mp3"
+    dummy_audio.write_bytes(b"dummy audio content")
+
+    # Mock no Gemini API key to force local faster-whisper fallback
+    monkeypatch.setattr(
+        "alfa.swarm.llm_client.get_agent_api_client",
+        lambda req: ("gemini", "", "gemini-2.5-flash", "", None),
+    )
+
+    # Mock _transcribe_local_whisper_fallback
+    monkeypatch.setattr(
+        "alfa.tools.telecom_tools._transcribe_local_whisper_fallback",
+        lambda fpath, cluster_hint="": {
+            "status": "success",
+            "file": os.path.basename(fpath),
+            "transcript": "Lapor bos penarikan kabel 150 meter dan 3 tiang selesai di cluster Melati.",
+            "extracted_data": {
+                "transcript": "Lapor bos penarikan kabel 150 meter dan 3 tiang selesai di cluster Melati.",
+                "mandor": "",
+                "cluster": cluster_hint or "Melati",
+                "cables_meter": 150.0,
+                "poles_count": 3,
+                "fat_count": 0,
+                "kendala": "",
+            },
+            "message": "Transkripsi voice note lapangan berhasil diekstrak via local faster-whisper (offline sovereign fallback).",
+        },
+    )
+
+    res = transcribe_field_voice_note(str(dummy_audio), cluster_hint="Melati")
+    assert res["status"] == "success"
+    assert "Melati" in res["extracted_data"]["cluster"]
+    assert res["extracted_data"]["cables_meter"] == 150.0
+    assert res["extracted_data"]["poles_count"] == 3
+
+
+def test_extract_telecom_quantities_strict_no_hallucination():
+    from alfa.tools.telecom_tools import _extract_telecom_quantities_from_text
+
+    # 1. Obrolan rencana/masa depan & nomor ID node tanpa satuan
+    res1 = _extract_telecom_quantities_from_text("Besok gass fdt 2 pa 🔥🔥🔥")
+    assert res1["fats"] == 0.0, "FDT 2 pada 'besok gass fdt 2 pa' adalah ID/rencana, bukan kuantitas 2 box!"
+    assert res1["poles"] == 0.0
+    assert res1["cables"] == 0.0
+
+    # 2. Pengambilan tiang riil berformat shorthand resmi
+    res2 = _extract_telecom_quantities_from_text("T72:10 btg\nT73:10 btg")
+    assert res2["poles"] == 20.0
+    assert res2["fats"] == 0.0
+
+    # 3. Rencana tanam tiang (bukan realisasi)
+    res3 = _extract_telecom_quantities_from_text("Rencana tanam tiang 5 btg besok pagi")
+    assert res3["poles"] == 0.0, "Rencana masa depan tidak boleh dihitung sebagai realisasi tiang!"
+
+    # 4. Nomor ID perangkat & port specification (bukan kuantitas barang)
+    res4 = _extract_telecom_quantities_from_text("FDT 2 rusak mas tolong dicek")
+    assert res4["fats"] == 0.0
+
+    res5 = _extract_telecom_quantities_from_text("sudah sampai di FAT 16 port")
+    assert res5["fats"] == 0.0
+
+    # 5. Kuantitas riil dengan satuan eksplisit (box / unit)
+    res6 = _extract_telecom_quantities_from_text("Selesai pasang FAT: 2 box hari ini")
+    assert res6["fats"] == 2.0
+    assert res6["fdts"] == 0.0
+
+    # 6. Pemisahan ketat item FAT (akses) vs FDT (distribusi)
+    res_fdt = _extract_telecom_quantities_from_text("Pengambilan material: FDT 96C: 2 unit dan FAT 16: 5 box")
+    assert res_fdt["fdts"] == 2.0, "FDT harus tercatat 2 unit terpisah dari FAT!"
+    assert res_fdt["fats"] == 5.0, "FAT harus tercatat 5 box terpisah dari FDT!"
+
+    # 7. Kabel dengan konteks fisik
+    res7 = _extract_telecom_quantities_from_text("Tarik kabel ADSS 500 mtr selesai")
+    assert res7["cables"] == 500.0
+
+    # 8. Bukan kabel (hanya ukuran jalan)
+    res8 = _extract_telecom_quantities_from_text("lebar jalan 20 meter tidak bisa masuk mobil")
+    assert res8["cables"] == 0.0
+
+
+def test_briefing_does_not_count_plan_as_material_taking():
+    from alfa.tools.telecom_tools import generate_daily_executive_briefing
+
+    res = generate_daily_executive_briefing(shift="now", days_back=2, only_unreported=False, mark_as_reported=False)
+    assert res["status"] == "success"
+    card = res["briefing_card"]
+
+    # Pastikan 'FAT/FDT' gabungan TIDAK muncul lagi, melainkan dipisah FAT dan FDT
+    assert "Total FDT Terpasang" in card
+    assert "Total FAT/ODP Terpasang" in card
+    assert "Total FAT/FDT Terpasang" not in card, "FAT dan FDT tidak boleh digabung!"
+
+    # Pastikan 'FAT/FDT: 2 box' TIDAK muncul pada grup pengambilan material lahat
+    if "pengambilan material lahat" in card:
+        lahat_section = card.split("pengambilan material lahat")[1].split("• 🏢")[0]
+        assert "FAT: 2 box" not in lahat_section
+        assert "FDT: 2 box" not in lahat_section
+        assert "FAT/FDT" not in lahat_section
+        # Bila muncul teks besok gass fdt 2 pa, harus di bawah label koordinasi/rencana, bukan laporan fisik
+        if "Besok gass fdt 2 pa" in lahat_section:
+            assert "💬 _Koordinasi/Rencana_" in lahat_section
+
+
 
 

@@ -3,6 +3,7 @@
 import difflib
 import logging
 import os
+import re
 from typing import Any
 
 from alfa.tools.registry import register_tool
@@ -347,3 +348,121 @@ def apply_unified_diff(file_path: str, diff_text: str) -> dict[str, Any]:
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="file")
+def sanitize_pii_and_secrets(
+    text_or_file_path: str,
+    mask_char: str = "*",
+    save_output_path: str = "",
+) -> dict[str, Any]:
+    """
+    SOVEREIGN PRIVACY & PII SANITIZER:
+    Mendeteksi dan menyensor data pribadi sensitif (PII) dan rahasia sistem secara otomatis:
+    - NIK (KTP Indonesia 16 digit), NPWP, nomor rekening bank
+    - Nomor HP/WhatsApp (+62 / 08...), email
+    - API keys (Gemini AIza..., OpenAI sk-..., GitHub ghp_...), Bearer token, password
+    dari teks mentah atau berkas dokumen sebelum dibagikan atau diproses ke LLM publik.
+
+    Args:
+        text_or_file_path: Teks mentah atau path ke berkas dokumen/log yang ingin disanitasi.
+        mask_char: Karakter pengganti sensor (default: '*').
+        save_output_path: Path opsional untuk menyimpan hasil teks yang telah disanitasi.
+    """
+    try:
+        content = text_or_file_path
+        is_file = False
+        resolved_path = ""
+        expanded = os.path.expanduser(text_or_file_path.strip())
+        if os.path.isfile(expanded):
+            is_file = True
+            resolved_path = os.path.realpath(expanded)
+            with open(resolved_path, encoding="utf-8", errors="replace") as f:
+                content = f.read()
+
+        counts = {
+            "nik": 0,
+            "phone": 0,
+            "email": 0,
+            "api_keys": 0,
+            "passwords": 0,
+        }
+
+        # 1. NIK Indonesia (16 digits starting with valid province code 1-9)
+        def _mask_nik(m: re.Match) -> str:
+            counts["nik"] += 1
+            val = m.group(0)
+            return f"[REDACTED_NIK: {val[:4]}{mask_char * 8}{val[-2:]}]"
+
+        content = re.sub(r"\b[1-9]\d{15}\b", _mask_nik, content)
+
+        # 2. Indonesian & International Phone Numbers (+62... / 08...)
+        def _mask_phone(m: re.Match) -> str:
+            counts["phone"] += 1
+            val = m.group(0)
+            prefix = val[:4]
+            suffix = val[-2:]
+            return f"[REDACTED_PHONE: {prefix}{mask_char * 4}{suffix}]"
+
+        content = re.sub(r"(?:\+62|62|08)[0-9]{8,12}\b", _mask_phone, content)
+
+        # 3. Emails
+        def _mask_email(m: re.Match) -> str:
+            counts["email"] += 1
+            val = m.group(0)
+            parts = val.split("@")
+            user_part = parts[0]
+            domain_part = parts[1] if len(parts) > 1 else "domain.com"
+            masked_user = user_part[0] + (mask_char * 3) if user_part else "***"
+            return f"[REDACTED_EMAIL: {masked_user}@{domain_part}]"
+
+        content = re.sub(
+            r"\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\b",
+            _mask_email,
+            content,
+        )
+
+        # 4. API Keys & Bearer Tokens (Gemini, OpenAI, Anthropic, GitHub)
+        def _mask_key(m: re.Match) -> str:
+            counts["api_keys"] += 1
+            return "[REDACTED_API_KEY]"
+
+        content = re.sub(
+            r"\b(?:AIza[0-9A-Za-z-_]{30,45}|sk-[a-zA-Z0-9_-]{20,}|ghp_[a-zA-Z0-9]{30,}|Bearer\s+[a-zA-Z0-9_.-]{20,})\b",
+            _mask_key,
+            content,
+        )
+
+        # 5. Passwords & Secrets assignment lines
+        def _mask_secret(m: re.Match) -> str:
+            counts["passwords"] += 1
+            key_name = m.group(1)
+            return f"{key_name}: [REDACTED_SECRET]"
+
+        content = re.sub(
+            r"(?i)\b(password|passwd|secret|token|api_key|db_pass)\s*[:=]\s*['\"]?([^'\"\s\n]{6,})['\"]?",
+            _mask_secret,
+            content,
+        )
+
+        total_redacted = sum(counts.values())
+        output_file = ""
+        if save_output_path:
+            out_p = os.path.realpath(os.path.expanduser(save_output_path.strip()))
+            os.makedirs(os.path.dirname(out_p), exist_ok=True)
+            with open(out_p, "w", encoding="utf-8") as f_out:
+                f_out.write(content)
+            output_file = out_p
+
+        return {
+            "status": "success",
+            "is_file": is_file,
+            "source": resolved_path if is_file else "raw_text",
+            "total_redacted": total_redacted,
+            "breakdown": counts,
+            "sanitized_output": content[:4000] if len(content) > 4000 else content,
+            "output_file": output_file,
+            "message": f"Sanitasi PII selesai: {total_redacted} data sensitif berhasil disensor.",
+        }
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"PII sanitization error: {str(e)}"}

@@ -172,3 +172,17 @@ class TestSandboxSecurityGuard:
         res = tools.execute_bash_command("echo alfa_guard_test")
         assert res["status"] in ("success", "error")
         assert res.get("isolation") != "blocked"
+
+
+class TestGenerateCodebaseRepomap:
+    def test_repomap_generation(self, tmp_path):
+        """Peta arsitektur repositori (Aider-style) berhasil dihasilkan."""
+        test_py = tmp_path / "sample_module.py"
+        test_py.write_text("class MyService:\n    def execute(self):\n        pass\n\ndef helper():\n    pass\n")
+
+        res = tools.generate_codebase_repomap(repo_path=str(tmp_path), max_files=10)
+        assert res["status"] == "success"
+        assert "repomap" in res
+        assert "sample_module.py" in res["repomap"]
+        assert "MyService" in res["repomap"]
+

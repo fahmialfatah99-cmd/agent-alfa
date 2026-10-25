@@ -492,3 +492,134 @@ def smart_excel_inspector(
     except Exception as e:
         return {"status": "error", "message": f"smart_excel_inspector error: {str(e)}"}
 
+
+@register_tool(category="file")
+def compare_documents_semantic_diff(
+    file_path_a: str,
+    file_path_b: str,
+    max_diff_items: int = 50,
+) -> dict[str, Any]:
+    """
+    UNIVERSAL SEMANTIC DOCUMENT DIFFER:
+    Membandingkan dua versi dokumen (PDF, Word .docx, Excel, Markdown, atau Teks) secara struktural:
+    - Menemukan klausul/paragraf yang ditambah (ADDED) atau dihapus (REMOVED)
+    - Mendeteksi klausul/poin yang dimodifikasi (MODIFIED) serta pergeseran angka/nominal/terminologi
+    - Menghasilkan ringkasan laporan perbandingan eksekutif dalam format Markdown.
+
+    Args:
+        file_path_a: Path ke dokumen versi asli/sebelumnya (Baseline).
+        file_path_b: Path ke dokumen versi revisi/terbaru (Updated).
+        max_diff_items: Batas maksimal item perbedaan yang ditampilkan (default: 50).
+    """
+    import difflib
+    import re
+
+    from alfa.memory.doc_parser import extract_document_content
+
+    path_a = os.path.realpath(os.path.expanduser(file_path_a.strip()))
+    path_b = os.path.realpath(os.path.expanduser(file_path_b.strip()))
+
+    if not os.path.isfile(path_a):
+        return {"status": "error", "message": f"Berkas A '{file_path_a}' tidak ditemukan."}
+    if not os.path.isfile(path_b):
+        return {"status": "error", "message": f"Berkas B '{file_path_b}' tidak ditemukan."}
+
+    try:
+        text_a, type_a = extract_document_content(path_a)
+        text_b, type_b = extract_document_content(path_b)
+
+        # Split into meaningful paragraph/sentence chunks
+        lines_a = [p.strip() for p in text_a.split("\n") if p.strip()]
+        lines_b = [p.strip() for p in text_b.split("\n") if p.strip()]
+
+        matcher = difflib.SequenceMatcher(None, lines_a, lines_b)
+        added_items: list[str] = []
+        removed_items: list[str] = []
+        modified_items: list[dict[str, Any]] = []
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "insert":
+                for item in lines_b[j1:j2]:
+                    if len(item) > 3:
+                        added_items.append(item)
+            elif tag == "delete":
+                for item in lines_a[i1:i2]:
+                    if len(item) > 3:
+                        removed_items.append(item)
+            elif tag == "replace":
+                sub_a = lines_a[i1:i2]
+                sub_b = lines_b[j1:j2]
+                min_len = min(len(sub_a), len(sub_b))
+                for k in range(min_len):
+                    old_line = sub_a[k]
+                    new_line = sub_b[k]
+                    nums_old = re.findall(r"\b\d+(?:[.,]\d+)?\b", old_line)
+                    nums_new = re.findall(r"\b\d+(?:[.,]\d+)?\b", new_line)
+                    modified_items.append({
+                        "before": old_line[:160],
+                        "after": new_line[:160],
+                        "numeric_changes": {
+                            "before_numbers": nums_old[:5],
+                            "after_numbers": nums_new[:5],
+                        }
+                        if nums_old != nums_new
+                        else None,
+                    })
+                for k in range(min_len, len(sub_b)):
+                    if len(sub_b[k]) > 3:
+                        added_items.append(sub_b[k])
+                for k in range(min_len, len(sub_a)):
+                    if len(sub_a[k]) > 3:
+                        removed_items.append(sub_a[k])
+
+        # Calculate overall similarity ratio
+        similarity_ratio = round(matcher.ratio() * 100, 2)
+
+        # Build Markdown summary report
+        md_lines = [
+            f"### 📑 Laporan Perbandingan Dokumen: {os.path.basename(path_a)} ➔ {os.path.basename(path_b)}",
+            f"**Tingkat Kesamaan Struktural:** `{similarity_ratio}%`",
+            f"- 🟢 **Item/Klausul Ditambahkan:** {len(added_items)}",
+            f"- 🔴 **Item/Klausul Dihapus:** {len(removed_items)}",
+            f"- 🟡 **Item/Klausul Dimodifikasi:** {len(modified_items)}",
+            "",
+        ]
+
+        if modified_items:
+            md_lines.append("#### 🟡 Ringkasan Modifikasi Terpenting:")
+            for m in modified_items[:max_diff_items]:
+                md_lines.append(f"• **Sebelum:** {m['before']}")
+                md_lines.append(f"  **Sesudah:** {m['after']}")
+                if m.get("numeric_changes"):
+                    md_lines.append(f"  *(Perubahan Angka: `{m['numeric_changes']['before_numbers']}` ➔ `{m['numeric_changes']['after_numbers']}`)*")
+
+        if added_items:
+            md_lines.append("\n#### 🟢 Poin Baru yang Ditambahkan:")
+            for a in added_items[:max_diff_items]:
+                md_lines.append(f"+ {a}")
+
+        if removed_items:
+            md_lines.append("\n#### 🔴 Poin yang Dihapus:")
+            for r in removed_items[:max_diff_items]:
+                md_lines.append(f"- {r}")
+
+        return {
+            "status": "success",
+            "file_a": os.path.basename(path_a),
+            "file_b": os.path.basename(path_b),
+            "similarity_percentage": similarity_ratio,
+            "counts": {
+                "added": len(added_items),
+                "removed": len(removed_items),
+                "modified": len(modified_items),
+            },
+            "added_items": added_items[:max_diff_items],
+            "removed_items": removed_items[:max_diff_items],
+            "modified_items": modified_items[:max_diff_items],
+            "markdown_report": "\n".join(md_lines),
+            "message": f"Perbandingan dokumen selesai. Kesamaan: {similarity_ratio}%.",
+        }
+    except Exception as e:
+        logger.exception("Gagal membandingkan dokumen")
+        return {"status": "error", "message": f"Document comparison error: {str(e)}"}
+

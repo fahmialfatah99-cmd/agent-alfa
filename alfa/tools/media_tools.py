@@ -12,6 +12,7 @@ from alfa.tools.media.av import (
     edit_image,
     extract_audio_from_video,
     generate_promo_video_from_images,
+    media_generate_subtitles_srt,
     text_to_audio_file,
     upscale_image_hd,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "text_to_audio_file",
     "convert_media_format",
     "edit_image",
+    "media_generate_subtitles_srt",
     # player
     "play_youtube_music",
     # documents

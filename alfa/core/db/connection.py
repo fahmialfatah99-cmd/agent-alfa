@@ -311,6 +311,16 @@ def init_db_sync():
             );
             CREATE INDEX IF NOT EXISTS idx_wrm_chat ON wa_read_messages(chat_id);
             CREATE INDEX IF NOT EXISTS idx_wrm_ts ON wa_read_messages(msg_ts);
+            CREATE TABLE IF NOT EXISTS wa_reported_messages (
+                msg_id TEXT PRIMARY KEY,
+                chat_id TEXT,
+                chat_name TEXT,
+                msg_ts INTEGER,
+                briefing_shift TEXT,
+                reported_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_wrep_chat ON wa_reported_messages(chat_id);
+            CREATE INDEX IF NOT EXISTS idx_wrep_ts ON wa_reported_messages(msg_ts);
             CREATE TABLE IF NOT EXISTS wa_incoming_archive (
                 msg_id TEXT PRIMARY KEY,
                 chat_id TEXT NOT NULL,

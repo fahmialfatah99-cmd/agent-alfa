@@ -273,6 +273,54 @@ class TestStage4MultiDocumentGraphRAG:
         assert len(search_res["graph_paths"]) >= 1
         assert "graph LR" in search_res["mermaid_diagram"]
 
+        # Pathfinding: Connect Agent Alfa to Docker Swarm across documents
+        path_res = graph_rag.graph_rag_find_connection(
+            user_id=7,
+            entity_a="Agent Alfa",
+            entity_b="Docker Swarm",
+            max_depth=3,
+            db_path=test_db,
+        )
+        assert path_res["status"] == "success"
+        assert path_res["path_found"] is True
+        assert path_res["hops_count"] >= 1
+        assert "Arsitektur Alfa" in path_res["documents_involved"]
+        assert "Infrastruktur Cloud" in path_res["documents_involved"]
+        assert "graph LR" in path_res["mermaid_diagram"]
+
+        # Overview: Centrality & Hubs
+        overview_res = graph_rag.graph_rag_get_overview(
+            user_id=7,
+            doc_title="",
+            top_n=5,
+            db_path=test_db,
+        )
+        assert overview_res["status"] == "success"
+        assert overview_res["total_entities"] >= 2
+        assert overview_res["total_relations"] >= 2
+        assert len(overview_res["top_hubs"]) >= 1
+        assert "graph LR" in overview_res["core_mermaid_diagram"]
+
+        # Communities: Global cluster detection
+        comm_res = graph_rag.graph_rag_get_communities(
+            user_id=7,
+            doc_title="",
+            db_path=test_db,
+        )
+        assert comm_res["status"] == "success"
+        assert comm_res["total_communities"] >= 1
+        assert len(comm_res["communities"]) >= 1
+
+        # Pre-turn context generation
+        preturn_ctx = graph_rag.get_pre_turn_graph_context(
+            user_id=7,
+            prompt="Apakah Agent Alfa mendukung Docker Swarm?",
+            db_path=test_db,
+        )
+        assert "KNOWLEDGE GRAPH CONTEXT" in preturn_ctx
+        assert "Agent Alfa" in preturn_ctx or "FastAPI" in preturn_ctx
+
+
 
 class TestMemoryToolsRegisteredWrapper:
     """Tests for tools exposed to the Agent Alfa workforce in memory_tools.py."""
@@ -303,3 +351,21 @@ class TestMemoryToolsRegisteredWrapper:
             query="Test Entitas", db_path=test_db
         )
         assert res_g["status"] == "success"
+
+        # 5. GraphRAG Pathfinder wrapper
+        res_p = memory_tools.graph_rag_find_path(
+            entity_a="Entitas A", entity_b="Entitas B", db_path=test_db
+        )
+        assert res_p["status"] in ("success", "not_found")
+
+        # 6. GraphRAG Overview wrapper
+        res_o = memory_tools.graph_rag_get_overview(
+            db_path=test_db
+        )
+        assert res_o["status"] == "success"
+
+        # 7. GraphRAG Communities wrapper
+        res_comm = memory_tools.graph_rag_get_communities(
+            db_path=test_db
+        )
+        assert res_comm["status"] == "success"

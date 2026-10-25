@@ -50,6 +50,24 @@ def search_knowledge_memory(query: str) -> dict[str, Any]:
     try:
         user_id = get_current_user_id()
         memories = database.search_memories_sync(user_id=user_id, query=query)
+        if not memories:
+            try:
+                from alfa.core.db.wa_index import search_memories_ranked_sync
+
+                ranked = search_memories_ranked_sync(user_id=user_id, query=query, limit=10)
+                if ranked:
+                    memories = [
+                        {
+                            "category": r.get("category", "general"),
+                            "key_topic": r.get("key_topic", ""),
+                            "content": r.get("content", ""),
+                            "updated_at": r.get("updated_at", ""),
+                        }
+                        for r in ranked
+                    ]
+            except Exception as rank_err:  # noqa: BLE001
+                logger.debug("Ranked memory search fallback error: %s", rank_err)
+
         return {"status": "success", "memories": memories}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -489,4 +507,86 @@ def index_document_to_graph(
         )
     except Exception as e:
         return {"status": "error", "message": f"Graph indexing error: {str(e)}"}
+
+
+@register_tool(category="memory")
+def graph_rag_find_path(
+    entity_a: str, entity_b: str, max_depth: int = 3, db_path: str | None = None
+) -> dict[str, Any]:
+    """
+    GRAPHRAG PATHFINDER: Temukan rute/rantai relasi terpendek yang menghubungkan Entitas A ke Entitas B
+    lintas seluruh dokumen yang terindeks (menggunakan Breadth-First Search).
+
+    Args:
+        entity_a: Nama entitas awal (misal: 'Agent Alfa', 'Vendor A', 'Server X').
+        entity_b: Nama entitas target (misal: 'Docker Swarm', 'Kabel Dropcore', 'Database Y').
+        max_depth: Batas kedalaman penelusuran hop (default: 3).
+        db_path: Path opsional database kustom.
+    """
+    try:
+        from alfa.memory import graph_rag
+
+        user_id = current_user_id_var.get() or 0
+        return graph_rag.graph_rag_find_connection(
+            user_id=user_id,
+            entity_a=entity_a,
+            entity_b=entity_b,
+            max_depth=max_depth,
+            db_path=db_path,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"GraphRAG pathfinder error: {str(e)}"}
+
+
+@register_tool(category="memory")
+def graph_rag_get_overview(
+    doc_title: str = "", top_hubs: int = 10, db_path: str | None = None
+) -> dict[str, Any]:
+    """
+    GRAPHRAG OVERVIEW & CENTRALITY: Menghasilkan ringkasan holistik dari Knowledge Graph,
+    termasuk entitas sentral (top hubs dengan koneksi terbanyak), daftar dokumen yang terpetakan,
+    dan diagram Mermaid jaringan inti.
+
+    Args:
+        doc_title: Filter opsional untuk 1 dokumen tertentu (kosongkan untuk seluruh dokumen).
+        top_hubs: Jumlah entitas terpenting yang ditampilkan (default: 10).
+        db_path: Path opsional database kustom.
+    """
+    try:
+        from alfa.memory import graph_rag
+
+        user_id = current_user_id_var.get() or 0
+        return graph_rag.graph_rag_get_overview(
+            user_id=user_id,
+            doc_title=doc_title,
+            top_n=top_hubs,
+            db_path=db_path,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"GraphRAG overview error: {str(e)}"}
+
+
+@register_tool(category="memory")
+def graph_rag_get_communities(
+    doc_title: str = "", db_path: str | None = None
+) -> dict[str, Any]:
+    """
+    GRAPHRAG GLOBAL COMMUNITY DETECTION: Mendeteksi kluster/komunitas entitas di Knowledge Graph
+    untuk analisis topik makro (Global Search) lintas dokumen.
+
+    Args:
+        doc_title: Filter opsional untuk dokumen tertentu.
+        db_path: Path opsional database kustom.
+    """
+    try:
+        from alfa.memory import graph_rag
+
+        user_id = current_user_id_var.get() or 0
+        return graph_rag.graph_rag_get_communities(
+            user_id=user_id,
+            doc_title=doc_title,
+            db_path=db_path,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"GraphRAG communities error: {str(e)}"}
 

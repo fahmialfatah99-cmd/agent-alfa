@@ -1513,6 +1513,67 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                     <!-- Dynamic Matches -->
                 </div>
             </div>
+
+            <!-- ==================== GRAPHRAG KNOWLEDGE GRAPH EXPLORER ==================== -->
+            <div class="glass-card p-6 rounded-2xl space-y-4 border border-violet-500/20">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-violet-500/20 text-violet-400 border border-violet-500/30 flex items-center justify-center text-lg shadow-glow-violet">🕸️</div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white font-mono flex items-center gap-2">
+                                KNOWLEDGE GRAPH VISUAL EXPLORER (GRAPHRAG SOTA)
+                            </h3>
+                            <p class="text-xs text-slate-400">Peta topologi jaringan relasi entitas, komunitas topik global, dan penelusuran rute terpendek multi-hop.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="graph-entities-badge" class="px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 text-xs font-mono font-bold">0 Entitas</span>
+                        <span id="graph-relations-badge" class="px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-mono font-bold">0 Relasi</span>
+                        <button onclick="loadGraphVisualizer()" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-xs font-mono flex items-center gap-1 transition-all" title="Segarkan Graf">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-Hop Pathfinder Search Bar -->
+                <div class="bg-dark-950/60 p-3.5 rounded-xl border border-white/5 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono font-semibold text-slate-300">
+                        <span class="flex items-center gap-1.5"><i data-lucide="git-commit" class="w-3.5 h-3.5 text-violet-400"></i> BFS Pathfinder: Temukan Koneksi Antar Dua Entitas Lintas Dokumen</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center gap-2">
+                        <input type="text" id="graph-path-a" placeholder="Entitas A (contoh: Agent Alfa)" class="w-full sm:flex-1 p-2 bg-dark-950 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                        <span class="text-slate-500 font-bold">➔</span>
+                        <input type="text" id="graph-path-b" placeholder="Entitas B (contoh: Docker Swarm)" class="w-full sm:flex-1 p-2 bg-dark-950 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500 font-mono">
+                        <button onclick="findGraphPath()" class="w-full sm:w-auto px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg text-xs font-mono flex items-center justify-center gap-1.5 transition-all">
+                            <i data-lucide="route" class="w-3.5 h-3.5"></i> Cari Rute BFS
+                        </button>
+                    </div>
+                    <div id="graph-path-result" class="hidden p-2.5 rounded-lg bg-violet-950/30 border border-violet-500/30 text-xs font-mono text-violet-200 mt-2"></div>
+                </div>
+
+                <!-- Interactive Network Canvas -->
+                <div class="relative w-full h-[360px] bg-dark-950/80 rounded-xl border border-white/10 overflow-hidden flex items-center justify-center">
+                    <canvas id="graph-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    <div id="graph-loading-indicator" class="absolute inset-0 flex items-center justify-center bg-dark-950/80 text-xs text-slate-400 font-mono">
+                        Memuat topologi graf...
+                    </div>
+                    <div id="graph-node-tooltip" class="absolute hidden bg-dark-900/95 border border-violet-500/40 p-2.5 rounded-lg text-xs text-white shadow-xl pointer-events-none z-10 font-mono"></div>
+                    <div class="absolute bottom-2 right-2 flex items-center gap-1.5 bg-dark-900/80 backdrop-blur px-2 py-1 rounded-lg border border-white/10 text-[10px] text-slate-400 font-mono">
+                        <span>Drag simpul untuk mengatur posisi</span>
+                    </div>
+                </div>
+
+                <!-- Global Community Clusters Accordion -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+                        <span class="font-bold flex items-center gap-1.5"><i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i> Kluster Komunitas Topik (Global Themes):</span>
+                        <span id="graph-comm-count" class="text-cyan-400 font-semibold">0 Kluster</span>
+                    </div>
+                    <div id="graph-communities-container" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono">
+                        <!-- Dynamic Community Cards -->
+                    </div>
+                </div>
+            </div>
         </section>
 
 

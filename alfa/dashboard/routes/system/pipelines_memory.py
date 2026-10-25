@@ -318,3 +318,118 @@ async def api_vector_delete(request: Request, payload: dict[str, Any]):
         raise HTTPException(status_code=400, detail="doc_title is required")
 
     return vector_memory.delete_document(user_id=uid, doc_title=doc_title)
+
+
+# ==================== GRAPHRAG KNOWLEDGE GRAPH ENDPOINTS ====================
+
+
+@router.get("/api/brain/graph/overview")
+async def api_graph_overview(doc_title: str = "", top_n: int = 10):
+    """Ringkasan Knowledge Graph & Top Hubs."""
+    from alfa.memory import graph_rag
+
+    uid = get_primary_user_id()
+    return graph_rag.graph_rag_get_overview(user_id=uid, doc_title=doc_title, top_n=top_n)
+
+
+@router.get("/api/brain/graph/communities")
+async def api_graph_communities(doc_title: str = ""):
+    """Kluster komunitas entitas Knowledge Graph (Global Search)."""
+    from alfa.memory import graph_rag
+
+    uid = get_primary_user_id()
+    return graph_rag.graph_rag_get_communities(user_id=uid, doc_title=doc_title)
+
+
+@router.post("/api/brain/graph/path")
+async def api_graph_path(payload: dict[str, Any]):
+    """Pencarian rute relasi terpendek BFS antara dua entitas."""
+    from alfa.memory import graph_rag
+
+    uid = get_primary_user_id()
+    ent_a = str(payload.get("entity_a", "")).strip()
+    ent_b = str(payload.get("entity_b", "")).strip()
+    max_depth = safe_int(payload.get("max_depth", 3), 3, minimum=1, maximum=6)
+    if not ent_a or not ent_b:
+        raise HTTPException(status_code=400, detail="entity_a dan entity_b wajib diisi.")
+
+    return graph_rag.graph_rag_find_connection(
+        user_id=uid, entity_a=ent_a, entity_b=ent_b, max_depth=max_depth
+    )
+
+
+@router.get("/api/brain/graph/elements")
+async def api_graph_elements(doc_title: str = "", limit: int = 150):
+    """Mengembalikan node & edge terstruktur untuk visualizer graf interaktif."""
+    import sqlite3
+
+    from alfa.memory import graph_rag
+    from alfa.memory.vector import _resolve_db_path
+
+    uid = get_primary_user_id()
+    db_path = _resolve_db_path(None)
+    graph_rag.init_graph_db(db_path)
+
+    conn = sqlite3.connect(db_path, timeout=5)
+    conn.row_factory = sqlite3.Row
+    try:
+        doc_filter = ""
+        params: list[Any] = [uid]
+        if doc_title:
+            doc_filter = "AND source_doc = ?"
+            params.append(doc_title.strip())
+
+        query = (
+            "SELECT source_entity, relation, target_entity, source_doc, evidence "  # nosec B608
+            "FROM graph_relations "
+            "WHERE user_id = ? {df} "
+            "LIMIT ?"
+        ).replace("{df}", doc_filter)
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()  # nosec B608 — static clause with ? placeholders
+
+        nodes_map: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
+
+        for idx, r in enumerate(rows):
+            src = str(r["source_entity"])
+            rel = str(r["relation"])
+            tgt = str(r["target_entity"])
+            doc = str(r["source_doc"])
+            ev = str(r["evidence"])
+
+            for n in (src, tgt):
+                if n not in nodes_map:
+                    nodes_map[n] = {"id": n, "label": n, "degree": 0, "docs": set()}
+                nodes_map[n]["degree"] += 1
+                nodes_map[n]["docs"].add(doc)
+
+            edges.append({
+                "id": f"e{idx}",
+                "source": src,
+                "target": tgt,
+                "label": rel,
+                "doc": doc,
+                "evidence": ev,
+            })
+
+        nodes = [
+            {
+                "id": n["id"],
+                "label": n["label"],
+                "degree": n["degree"],
+                "docs": list(n["docs"]),
+            }
+            for n in nodes_map.values()
+        ]
+
+        return {
+            "status": "success",
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
+            "nodes": nodes,
+            "edges": edges,
+        }
+    finally:
+        conn.close()

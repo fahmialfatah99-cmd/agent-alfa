@@ -329,3 +329,37 @@ def lsp_analyze_module_hierarchy(
             "status": "error",
             "message": f"Gagal menganalisis modul {target_file}: {str(e)}",
         }
+
+
+def generate_codebase_repomap(
+    repo_path: str = "",
+    max_files: int = 60,
+) -> dict[str, Any]:
+    """
+    AIDER-STYLE REPOSITORY MAP GENERATOR:
+    Menghasilkan peta simbol arsitektur codebase (AST outlines, class, function signatures)
+    secara ringkas dan terkompresi untuk seluruh modul dalam repositori.
+    Sangat berguna bagi persona Code Crafter dan Alpha Lead untuk memahami struktur proyek multi-file
+    secara menyeluruh tanpa halusinasi letak fungsi atau dependensi.
+
+    Args:
+        repo_path: Lokasi direktori repositori (default: akar repositori saat ini).
+        max_files: Jumlah file maksimal yang dipetakan (default: 60).
+    """
+    try:
+        from pathlib import Path
+
+        from alfa.core.cli.agent_engine.repomap import RepomapGenerator
+
+        root = _get_project_root(repo_path)
+        generator = RepomapGenerator(root_dir=Path(root))
+        repomap_text = generator.generate_repomap(max_files=max_files)
+        return {
+            "status": "success",
+            "repo_path": root,
+            "repomap": repomap_text,
+            "message": f"Peta arsitektur codebase untuk '{os.path.basename(root)}' berhasil dibuat.",
+        }
+    except Exception as e:
+        logger.exception("Gagal membuat repo-map")
+        return {"status": "error", "message": f"Repo-map generation error: {str(e)}"}

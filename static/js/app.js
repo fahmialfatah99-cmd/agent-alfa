@@ -550,11 +550,328 @@ export async function fetchMemory() {
 
             container.innerHTML = memHTML + kgHTML;
             lucide.createIcons();
+            loadGraphVisualizer();
         }
     } catch (err) {
         showToast(`Gagal memuat memori: ${err.message}`, 'error');
     }
 }
+
+let graphNodes = [];
+let graphEdges = [];
+let graphAnimId = null;
+let graphDraggingNode = null;
+let graphHoveredNode = null;
+let graphHighlightedPath = new Set();
+
+export async function loadGraphVisualizer() {
+    const canvas = document.getElementById('graph-canvas');
+    if (!canvas) return;
+    const loading = document.getElementById('graph-loading-indicator');
+    if (loading) loading.classList.remove('hidden');
+
+    try {
+        const [elemRes, commRes] = await Promise.all([
+            fetch('/api/brain/graph/elements?limit=150'),
+            fetch('/api/brain/graph/communities')
+        ]);
+        const elemData = await elemRes.json();
+        const commData = await commRes.json();
+
+        if (elemData.status === 'success') {
+            const entBadge = document.getElementById('graph-entities-badge');
+            const relBadge = document.getElementById('graph-relations-badge');
+            if (entBadge) entBadge.innerText = `${elemData.total_nodes} Entitas`;
+            if (relBadge) relBadge.innerText = `${elemData.total_edges} Relasi`;
+            initGraphCanvas(canvas, elemData.nodes, elemData.edges);
+        }
+
+        if (commData.status === 'success') {
+            const commBadge = document.getElementById('graph-comm-count');
+            if (commBadge) commBadge.innerText = `${commData.total_communities} Kluster`;
+            renderGraphCommunities(commData.communities || []);
+        }
+    } catch (err) {
+        console.error('Error loading graph visualizer:', err);
+    } finally {
+        if (loading) loading.classList.add('hidden');
+    }
+}
+
+function renderGraphCommunities(communities) {
+    const container = document.getElementById('graph-communities-container');
+    if (!container) return;
+    if (communities.length === 0) {
+        container.innerHTML = '<div class="text-slate-500 py-3 col-span-2 text-center">Belum ada kluster komunitas terdeteksi.</div>';
+        return;
+    }
+    container.innerHTML = communities.map(c => `
+        <div class="p-3 rounded-xl bg-dark-950/80 border border-violet-500/20 hover:border-violet-500/50 transition-all space-y-1.5">
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-violet-300 font-mono text-xs flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-violet-400"></span> ${c.name}
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-bold">${c.member_count} simpul</span>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed font-sans">${c.summary || ''}</p>
+            <div class="flex flex-wrap gap-1 pt-1">
+                ${(c.members || []).slice(0, 5).map(m => `<span class="px-1.5 py-0.2 rounded bg-white/5 text-[9px] text-cyan-300 border border-white/5">${m}</span>`).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+export async function findGraphPath() {
+    const a = (document.getElementById('graph-path-a')?.value || '').trim();
+    const b = (document.getElementById('graph-path-b')?.value || '').trim();
+    const resultEl = document.getElementById('graph-path-result');
+    if (!a || !b) {
+        showToast('Masukkan Entitas A dan Entitas B!', 'error');
+        return;
+    }
+    if (resultEl) {
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = 'Mencari rute koneksi relasi (BFS)...';
+    }
+    try {
+        const res = await fetch('/api/brain/graph/path', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entity_a: a, entity_b: b, max_depth: 4 })
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.path_found) {
+            graphHighlightedPath.clear();
+            (data.path_details || []).forEach(step => {
+                graphHighlightedPath.add(step.from);
+                graphHighlightedPath.add(step.to);
+            });
+            resultEl.innerHTML = `
+                <div class="space-y-1">
+                    <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Ditemukan Jalur ${data.hops_count} Langkah:
+                    </div>
+                    <div class="text-white text-xs pl-5 py-1 font-semibold">${data.connection_chain}</div>
+                    <div class="text-[10px] text-slate-400 pl-5">Dokumen terkait: ${data.documents_involved.join(', ')}</div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        } else {
+            resultEl.innerHTML = `<span class="text-rose-400">❌ ${data.message || 'Jalur tidak ditemukan.'}</span>`;
+        }
+    } catch (err) {
+        if (resultEl) resultEl.innerHTML = `<span class="text-rose-400">Error: ${err.message}</span>`;
+    }
+}
+
+function initGraphCanvas(canvas, rawNodes, rawEdges) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * (window.devicePixelRatio || 1) || 800;
+    canvas.height = rect.height * (window.devicePixelRatio || 1) || 400;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    const n = rawNodes.length;
+    graphNodes = rawNodes.map((node, i) => {
+        const angle = (i / Math.max(n, 1)) * 2 * Math.PI;
+        const radius = Math.min(width, height) * 0.35 * (0.6 + 0.4 * Math.random());
+        return {
+            ...node,
+            x: cx + radius * Math.cos(angle),
+            y: cy + radius * Math.sin(angle),
+            vx: 0,
+            vy: 0,
+            radius: Math.max(14, Math.min(32, 14 + (node.degree || 1) * 3))
+        };
+    });
+
+    const nodeIndex = new Map(graphNodes.map(nd => [nd.id, nd]));
+    graphEdges = rawEdges
+        .map(e => ({
+            ...e,
+            sourceNode: nodeIndex.get(e.source),
+            targetNode: nodeIndex.get(e.target)
+        }))
+        .filter(e => e.sourceNode && e.targetNode);
+
+    const tooltip = document.getElementById('graph-node-tooltip');
+
+    function getMousePos(evt) {
+        const r = canvas.getBoundingClientRect();
+        return {
+            x: (evt.clientX - r.left) * (canvas.width / r.width),
+            y: (evt.clientY - r.top) * (canvas.height / r.height),
+            clientX: evt.clientX,
+            clientY: evt.clientY
+        };
+    }
+
+    function findNodeAt(x, y) {
+        for (let i = graphNodes.length - 1; i >= 0; i--) {
+            const nd = graphNodes[i];
+            const dx = nd.x - x;
+            const dy = nd.y - y;
+            if (dx * dx + dy * dy <= (nd.radius + 6) * (nd.radius + 6)) {
+                return nd;
+            }
+        }
+        return null;
+    }
+
+    canvas.onmousedown = (e) => {
+        const pos = getMousePos(e);
+        const hit = findNodeAt(pos.x, pos.y);
+        if (hit) {
+            graphDraggingNode = hit;
+            canvas.style.cursor = 'grabbing';
+        }
+    };
+
+    window.onmousemove = (e) => {
+        if (!canvas) return;
+        const pos = getMousePos(e);
+        if (graphDraggingNode) {
+            graphDraggingNode.x = pos.x;
+            graphDraggingNode.y = pos.y;
+            graphDraggingNode.vx = 0;
+            graphDraggingNode.vy = 0;
+        } else {
+            const hit = findNodeAt(pos.x, pos.y);
+            graphHoveredNode = hit;
+            if (hit && tooltip) {
+                tooltip.classList.remove('hidden');
+                tooltip.style.left = `${pos.clientX + 12}px`;
+                tooltip.style.top = `${pos.clientY + 12}px`;
+                tooltip.innerHTML = `
+                    <div class="font-bold text-violet-300">${hit.label}</div>
+                    <div class="text-[10px] text-slate-300">Derajat Koneksi: ${hit.degree}</div>
+                    <div class="text-[9px] text-slate-400">Dokumen: ${(hit.docs || []).join(', ') || 'N/A'}</div>
+                `;
+            } else if (tooltip) {
+                tooltip.classList.add('hidden');
+            }
+            canvas.style.cursor = hit ? 'pointer' : 'grab';
+        }
+    };
+
+    window.onmouseup = () => {
+        graphDraggingNode = null;
+        if (canvas) canvas.style.cursor = 'grab';
+    };
+
+    if (graphAnimId) cancelAnimationFrame(graphAnimId);
+
+    function step() {
+        const damping = 0.88;
+        const repulsion = 1200;
+        const springLen = 90;
+        const springK = 0.04;
+
+        for (let i = 0; i < graphNodes.length; i++) {
+            const a = graphNodes[i];
+            for (let j = i + 1; j < graphNodes.length; j++) {
+                const b = graphNodes[j];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const dist = Math.hypot(dx, dy) || 1;
+                const force = repulsion / (dist * dist);
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                a.vx -= fx;
+                a.vy -= fy;
+                b.vx += fx;
+                b.vy += fy;
+            }
+        }
+
+        for (const e of graphEdges) {
+            const a = e.sourceNode;
+            const b = e.targetNode;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const disp = dist - springLen;
+            const fx = (dx / dist) * disp * springK;
+            const fy = (dy / dist) * disp * springK;
+            a.vx += fx;
+            a.vy += fy;
+            b.vx -= fx;
+            b.vy -= fy;
+        }
+
+        for (const nd of graphNodes) {
+            if (nd !== graphDraggingNode) {
+                nd.vx += (cx - nd.x) * 0.005;
+                nd.vy += (cy - nd.y) * 0.005;
+                nd.vx *= damping;
+                nd.vy *= damping;
+                nd.x += nd.vx;
+                nd.y += nd.vy;
+                nd.x = Math.max(nd.radius + 10, Math.min(width - nd.radius - 10, nd.x));
+                nd.y = Math.max(nd.radius + 10, Math.min(height - nd.radius - 10, nd.y));
+            }
+        }
+
+        ctx.clearRect(0, 0, width, height);
+
+        for (const e of graphEdges) {
+            const isPath = graphHighlightedPath.has(e.source) && graphHighlightedPath.has(e.target);
+            ctx.beginPath();
+            ctx.moveTo(e.sourceNode.x, e.sourceNode.y);
+            ctx.lineTo(e.targetNode.x, e.targetNode.y);
+            ctx.strokeStyle = isPath ? 'rgba(52, 211, 153, 0.9)' : 'rgba(139, 92, 246, 0.25)';
+            ctx.lineWidth = isPath ? 3 : 1.5;
+            ctx.stroke();
+
+            if (isPath || graphHoveredNode === e.sourceNode || graphHoveredNode === e.targetNode) {
+                const mx = (e.sourceNode.x + e.targetNode.x) / 2;
+                const my = (e.sourceNode.y + e.targetNode.y) / 2;
+                ctx.fillStyle = '#a78bfa';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(e.label, mx, my - 4);
+            }
+        }
+
+        for (const nd of graphNodes) {
+            const isHover = nd === graphHoveredNode || nd === graphDraggingNode;
+            const isPath = graphHighlightedPath.has(nd.id);
+
+            if (isPath || isHover) {
+                ctx.beginPath();
+                ctx.arc(nd.x, nd.y, nd.radius + 6, 0, Math.PI * 2);
+                ctx.fillStyle = isPath ? 'rgba(52, 211, 153, 0.3)' : 'rgba(168, 85, 247, 0.35)';
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(nd.x, nd.y, nd.radius, 0, Math.PI * 2);
+            ctx.fillStyle = isPath ? '#059669' : (isHover ? '#7c3aed' : '#1e1b4b');
+            ctx.fill();
+            ctx.strokeStyle = isPath ? '#34d399' : (isHover ? '#c084fc' : '#8b5cf6');
+            ctx.lineWidth = isPath ? 2.5 : 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const shortLabel = nd.label.length > 14 ? nd.label.slice(0, 12) + '…' : nd.label;
+            ctx.fillText(shortLabel, nd.x, nd.y);
+        }
+
+        graphAnimId = requestAnimationFrame(step);
+    }
+
+    step();
+}
+
+window.loadGraphVisualizer = loadGraphVisualizer;
+window.findGraphPath = findGraphPath;
 
 export async function submitNewMemory(e) {
     e.preventDefault();

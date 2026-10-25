@@ -40,6 +40,7 @@ from alfa.tools.filesystem.core_file import (
     apply_unified_diff,
     edit_file_precise,
     read_local_file,
+    sanitize_pii_and_secrets,
     write_local_file,
 )
 
@@ -51,11 +52,13 @@ from alfa.tools.filesystem.git_sandbox import (
     git_worktree_sandbox_verify_and_merge,
 )
 from alfa.tools.filesystem.lsp_code_intelligence import (
+    generate_codebase_repomap,
     lsp_analyze_module_hierarchy,
     lsp_find_symbol_definition,
     lsp_find_symbol_references,
 )
 from alfa.tools.filesystem.office_convert import (
+    compare_documents_semantic_diff,
     libreoffice_convert_document,
     libreoffice_create_document,
     libreoffice_extract_document_text,
@@ -68,6 +71,7 @@ from alfa.tools.filesystem.search import (
     find_user_files,
     git_operations,
     grep_workspace,
+    query_sqlite_database_readonly,
     search_workspace_files,
     send_file_to_chat,
 )
@@ -85,6 +89,7 @@ __all__ = [
     "read_local_file",
     "write_local_file",
     "edit_file_precise",
+    "sanitize_pii_and_secrets",
     "apply_unified_diff",
     "search_workspace_files",
     "grep_workspace",
@@ -92,6 +97,7 @@ __all__ = [
     "compress_folder_to_zip",
     "send_file_to_chat",
     "git_operations",
+    "query_sqlite_database_readonly",
     "_CODE_INDEX_DB",
     "_CODE_INDEX_MAX_CHUNKS",
     "_CODE_CHUNK_LINES",
@@ -109,6 +115,7 @@ __all__ = [
     "libreoffice_create_document",
     "libreoffice_extract_document_text",
     "smart_excel_inspector",
+    "compare_documents_semantic_diff",
     "vault_store_secret",
     "vault_get_secret",
     "vault_list_secrets",
@@ -117,6 +124,7 @@ __all__ = [
     "git_worktree_sandbox_list",
     "git_worktree_sandbox_rollback",
     "git_worktree_sandbox_verify_and_merge",
+    "generate_codebase_repomap",
     "lsp_analyze_module_hierarchy",
     "lsp_find_symbol_definition",
     "lsp_find_symbol_references",

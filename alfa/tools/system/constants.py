@@ -335,17 +335,20 @@ def generate_self_heal_hint(
 
 
 def is_internal_sandbox_artifact(fname: str) -> bool:
-    """True bila file adalah artefak infrastruktur sandbox."""
-    name = fname or ""
+    """True bila file adalah artefak infrastruktur sandbox, berkas uji (test), atau berkas temporer."""
+    name = (fname or "").strip()
     if not name or name.startswith("."):
         return True
+    low = name.lower()
     return (
-        name.startswith("sandbox_run")
-        or name.startswith("sandbox_sh_")
-        or name.startswith("sandbox_py_")
+        low.startswith("sandbox_")
+        or low.startswith("skrip-tes")
+        or low.startswith(("test_", "test-", "test.", "tmp_", "temp_", "dummy_", "sample_"))
+        or low.endswith((".tmp", ".bak", ".swp"))
         or name == "Dockerfile"
-        or name.startswith("generated_plot_old")
         or name == "screen_recording.mp4"
+        or name.startswith("generated_plot_old")
+        or name in ("test_cluster_map.html", "hasil.zip")
     )
 
 

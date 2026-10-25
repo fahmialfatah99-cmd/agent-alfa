@@ -425,3 +425,91 @@ def git_operations(
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="file")
+def query_sqlite_database_readonly(
+    db_file_path: str,
+    query: str,
+    max_rows: int = 50,
+) -> dict[str, Any]:
+    """
+    UNIVERSAL SQL DATABASE EXPLORER (STRICT READ-ONLY):
+    Mengeksekusi kueri analitik SQL (SELECT) yang aman pada berkas database SQLite mana pun.
+    - Dilindungi oleh SQLite URI mode=ro (Read-Only di tingkat engine, tidak mungkin menulis data).
+    - Memblokir perintah manipulasi/destruktif (INSERT, UPDATE, DELETE, DROP, ALTER, CREATE).
+    - Menghasilkan tabel ringkasan Markdown dan daftar kolom otomatis.
+
+    Args:
+        db_file_path: Path ke berkas database SQLite (.db, .sqlite, .sqlite3).
+        query: Kueri SQL SELECT yang ingin dieksekusi (contoh: 'SELECT * FROM users LIMIT 10').
+        max_rows: Jumlah baris maksimal yang dikembalikan (default: 50, maks: 200).
+    """
+    import sqlite3
+
+    db_path = os.path.realpath(os.path.expanduser(db_file_path.strip()))
+    if not os.path.isfile(db_path):
+        return {"status": "error", "message": f"Berkas database '{db_file_path}' tidak ditemukan."}
+
+    q_clean = query.strip()
+    if not q_clean:
+        return {"status": "error", "message": "Kueri SQL tidak boleh kosong."}
+
+    # Anti-Mutation Guard
+    forbidden_verbs = {
+        "insert", "update", "delete", "drop", "alter", "create",
+        "replace", "truncate", "attach", "detach", "vacuum", "pragma",
+    }
+    first_word = q_clean.split()[0].lower().rstrip(";")
+    if first_word in forbidden_verbs or any(
+        re.search(rf"\b{v}\b", q_clean, re.IGNORECASE)
+        for v in (r"drop\s+table", r"delete\s+from", r"update\s+\w+\s+set", r"insert\s+into")
+    ):
+        return {
+            "status": "error",
+            "message": f"Kueri ditolak: Hanya perintah SQL baca (SELECT) yang diizinkan pada tool read-only. Kata '{first_word}' dilarang.",
+        }
+
+    limit = max(1, min(int(max_rows), 200))
+    try:
+        # Enforce read-only URI mode at SQLite engine level
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(q_clean)
+        rows = cursor.fetchmany(limit)
+        col_names = [desc[0] for desc in cursor.description] if cursor.description else []
+        conn.close()
+
+        dict_rows = [dict(r) for r in rows]
+
+        # Build clean Markdown table preview
+        md_table = ""
+        if col_names and dict_rows:
+            header_row = "| " + " | ".join(col_names) + " |"
+            sep_row = "| " + " | ".join(["---"] * len(col_names)) + " |"
+            data_rows = []
+            for r in dict_rows[:30]:
+                data_rows.append(
+                    "| " + " | ".join(str(r.get(c, "")).replace("\n", " ")[:50] for c in col_names) + " |"
+                )
+            md_table = "\n".join([header_row, sep_row] + data_rows)
+            if len(dict_rows) > 30:
+                md_table += f"\n*(Menampilkan 30 dari total {len(dict_rows)} baris)*"
+        elif not dict_rows:
+            md_table = "*(Kueri berhasil dieksekusi, 0 baris data ditemukan)*"
+
+        return {
+            "status": "success",
+            "database": os.path.basename(db_path),
+            "columns": col_names,
+            "row_count": len(dict_rows),
+            "markdown_table": md_table,
+            "rows": dict_rows,
+            "message": f"Kueri SQL berhasil: {len(dict_rows)} baris data diambil dari '{os.path.basename(db_path)}'.",
+        }
+    except sqlite3.OperationalError as op_err:
+        return {"status": "error", "message": f"SQLite error (Read-Only Guard): {str(op_err)}"}
+    except Exception as e:
+        logger.exception("Gagal kueri database SQLite")
+        return {"status": "error", "message": f"Database query error: {str(e)}"}

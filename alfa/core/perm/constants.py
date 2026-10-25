@@ -322,6 +322,18 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Query graph RAG lintas dokumen - baca data potentially sensitif",
     ),
+    "graph_rag_find_path": (
+        RiskTier.MEDIUM,
+        "Temukan koneksi relasi antar entitas di knowledge graph",
+    ),
+    "graph_rag_get_overview": (
+        RiskTier.MEDIUM,
+        "Ringkasan dan top hubs knowledge graph",
+    ),
+    "graph_rag_get_communities": (
+        RiskTier.LOW,
+        "Deteksi kluster komunitas dan topik global Knowledge Graph - read-only",
+    ),
     "index_document_to_graph": (
         RiskTier.MEDIUM,
         "Indeks dokumen ke knowledge graph - tulis ke store",
@@ -353,6 +365,7 @@ TOOL_CLASSIFICATION = {
     "mcp_status": (RiskTier.LOW, "Status MCP server - read-only"),
     "check_subagent_status": (RiskTier.LOW, "Status subagent - read-only"),
     "lsp_analyze_module_hierarchy": (RiskTier.LOW, "Analisis hierarki modul - read-only"),
+    "generate_codebase_repomap": (RiskTier.LOW, "Peta arsitektur repositori - read-only"),
     "lsp_find_symbol_definition": (RiskTier.LOW, "Cari definisi simbol - read-only"),
     "lsp_find_symbol_references": (RiskTier.LOW, "Cari referensi simbol - read-only"),
     "github_assistant": (RiskTier.LOW, "Bantu query GitHub - read-only"),
@@ -403,6 +416,26 @@ TOOL_CLASSIFICATION = {
     "smart_excel_inspector": (
         RiskTier.MEDIUM,
         "Inspeksi file Excel - isi dokumen ke konteks model",
+    ),
+    "sanitize_pii_and_secrets": (
+        RiskTier.LOW,
+        "Sanitasi data pribadi PII dan secret token - aman",
+    ),
+    "compare_documents_semantic_diff": (
+        RiskTier.LOW,
+        "Bandingkan perbedaan struktural dokumen - read-only",
+    ),
+    "media_generate_subtitles_srt": (
+        RiskTier.LOW,
+        "Hasilkan berkas subtitle video/audio lokal - aman",
+    ),
+    "query_sqlite_database_readonly": (
+        RiskTier.MEDIUM,
+        "Kueri database SQLite read-only - baca data dokumen",
+    ),
+    "inspect_api_endpoint_health": (
+        RiskTier.LOW,
+        "Inspeksi kesehatan dan SSL endpoint API - read-only",
     ),
     "transcribe_field_voice_note": (
         RiskTier.MEDIUM,

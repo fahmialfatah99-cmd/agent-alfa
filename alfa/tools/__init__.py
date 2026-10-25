@@ -263,6 +263,7 @@ AVAILABLE_TOOLS = [
     apply_unified_diff,
     index_codebase,
     search_codebase,
+    generate_codebase_repomap,
     lsp_find_symbol_definition,
     lsp_find_symbol_references,
     lsp_analyze_module_hierarchy,

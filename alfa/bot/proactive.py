@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import subprocess
+import time
 from datetime import datetime
 from typing import Any
 
@@ -133,8 +134,22 @@ async def proactive_cron_watchdog_loop(application: Application):
                 prompt = job["prompt_instruction"]
                 interval = job["interval_minutes"]
 
+                if (not chat_id or chat_id == 0) and ALLOWED_USER_IDS:
+                    try:
+                        chat_id = int(ALLOWED_USER_IDS[0])
+                        if not user_id or user_id == 0:
+                            user_id = chat_id
+                    except (ValueError, TypeError):
+                        pass
+
+                if not chat_id:
+                    logger.warning(
+                        f"Cron task #{job_id} '{title}' has no valid chat_id; skipped execution."
+                    )
+                    continue
+
                 logger.info(
-                    f"Executing recurring cron task #{job_id}: '{title}' for user {user_id}"
+                    f"Executing recurring cron task #{job_id}: '{title}' for user {user_id} (chat_id={chat_id})"
                 )
                 await database.update_cron_job_after_run(job_id, interval)
                 kind = (job.get("kind") or "single").lower()
@@ -151,44 +166,72 @@ async def proactive_cron_watchdog_loop(application: Application):
                     f"Jalankan tugas ini secara otonom menggunakan tools yang relevan dan laporkan hasilnya dengan rapi."
                 )
                 try:
+                    turn_start_time = time.time()
                     result = await run_agent_turn(
                         user_id=user_id, user_prompt=cron_prompt, chat_id=chat_id
                     )
                     header = f"⏰ **[WATCHDOG / CRON TASK #{job_id}: {title.upper()}]**\n\n{result}"
                     await safe_send_message(application, chat_id, header)
 
-                    if os.path.isdir(SANDBOX_DIR):
+                    # Hanya kirim berkas bila prompt secara eksplisit meminta pembuatan berkas/dokumen
+                    prompt_lower = (prompt or "").lower()
+                    wants_file = any(
+                        k in prompt_lower
+                        for k in (
+                            "buat file",
+                            "lampirkan",
+                            "kirim file",
+                            "export",
+                            "buatkan pdf",
+                            "buatkan excel",
+                            "buatkan spreadsheet",
+                            "kompres",
+                            "buatkan chart",
+                            "buatkan grafik",
+                        )
+                    )
+                    if wants_file and os.path.isdir(SANDBOX_DIR):
                         for fname in os.listdir(SANDBOX_DIR):
                             fpath = os.path.join(SANDBOX_DIR, fname)
                             if tools.is_internal_sandbox_artifact(fname):
                                 continue
                             if tools.is_source_code_file(fname):
                                 continue
-                            if os.path.isfile(fpath) and os.path.getsize(fpath) > 0:
-                                ext = os.path.splitext(fname)[1].lower()
+                            if not os.path.isfile(fpath) or os.path.getsize(fpath) == 0:
+                                continue
+
+                            # Proteksi file sampah: hanya berkas baru yang dibuat pada turn ini
+                            try:
+                                mtime = os.path.getmtime(fpath)
+                                if mtime < (turn_start_time - 0.5):
+                                    continue
+                            except OSError:
+                                continue
+
+                            ext = os.path.splitext(fname)[1].lower()
+                            try:
+                                if ext in [".png", ".jpg", ".jpeg", ".webp"]:
+                                    with open(fpath, "rb") as pf:
+                                        await application.bot.send_photo(
+                                            chat_id=chat_id,
+                                            photo=pf,
+                                            caption=f"📸 Lampiran Cron: {fname}",
+                                        )
+                                else:
+                                    with open(fpath, "rb") as df:
+                                        await application.bot.send_document(
+                                            chat_id=chat_id,
+                                            document=df,
+                                            caption=f"📄 Lampiran Cron: {fname}",
+                                        )
                                 try:
-                                    if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-                                        with open(fpath, "rb") as pf:
-                                            await application.bot.send_photo(
-                                                chat_id=chat_id,
-                                                photo=pf,
-                                                caption=f"📸 Lampiran Cron: {fname}",
-                                            )
-                                    else:
-                                        with open(fpath, "rb") as df:
-                                            await application.bot.send_document(
-                                                chat_id=chat_id,
-                                                document=df,
-                                                caption=f"📄 Lampiran Cron: {fname}",
-                                            )
-                                    try:
-                                        os.remove(fpath)
-                                    except OSError:
-                                        pass
-                                except _PROACTIVE_ERR as attach_err:
-                                    logger.error(
-                                        f"Failed to send cron attachment {fname}: {attach_err}"
-                                    )
+                                    os.remove(fpath)
+                                except OSError:
+                                    pass
+                            except _PROACTIVE_ERR as attach_err:
+                                logger.error(
+                                    f"Failed to send cron attachment {fname}: {attach_err}"
+                                )
                 except _PROACTIVE_ERR as run_err:
                     logger.error(f"Error executing cron job #{job_id}: {run_err}")
         except _PROACTIVE_ERR as e:

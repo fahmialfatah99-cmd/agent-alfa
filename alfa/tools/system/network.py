@@ -286,3 +286,126 @@ def download_file_from_url(url: str, filename: str = "") -> dict[str, Any]:
         }
     except Exception as e:
         return {"status": "error", "message": f"Gagal mengunduh: {str(e)}"}
+
+
+@register_tool(category="system")
+def inspect_api_endpoint_health(
+    url: str,
+    expected_status: int = 200,
+    check_ssl: bool = True,
+    timeout_sec: float = 10.0,
+) -> dict[str, Any]:
+    """
+    API CONTRACT & SSL HEALTH SENTINEL:
+    Memeriksa kesehatan, latensi performa, dan keamanan endpoint REST API atau situs web:
+    - Mengukur waktu respons / latensi HTTP (dalam milidetik).
+    - Memeriksa status code HTTP dan tipe konten (JSON, HTML, teks).
+    - Memverifikasi masa berlaku sertifikat SSL/TLS dan sisa hari sebelum kedaluwarsa.
+    - Memberikan early warning jika sertifikat SSL akan kedaluwarsa dalam < 30 hari.
+
+    Args:
+        url: URL endpoint API atau website yang ingin diuji (contoh: 'https://api.github.com', 'http://127.0.0.1:8080/health').
+        expected_status: Status code HTTP yang diharapkan (default: 200).
+        check_ssl: Apakah sertifikat SSL/TLS perlu diperiksa untuk URL HTTPS (default: True).
+        timeout_sec: Batas waktu tunggu respons dalam detik (default: 10.0).
+    """
+    import datetime
+    import time
+    from urllib.parse import urlparse
+
+    import httpx
+
+    target_url = url.strip()
+    if not target_url.startswith(("http://", "https://")):
+        target_url = f"https://{target_url}"
+
+    parsed = urlparse(target_url)
+    hostname = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+
+    result: dict[str, Any] = {
+        "url": target_url,
+        "scheme": parsed.scheme,
+        "host": hostname,
+        "port": port,
+    }
+
+    # 1. HTTP latency and response check
+    try:
+        t0 = time.perf_counter()
+        with httpx.Client(follow_redirects=True, timeout=timeout_sec, verify=False) as client:  # nosec B501 - health inspection tool checks status regardless of cert validity
+            resp = client.get(target_url)
+            latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            result["latency_ms"] = latency_ms
+            result["http_status"] = resp.status_code
+            result["status_matches_expected"] = resp.status_code == expected_status
+            result["content_type"] = resp.headers.get("content-type", "")
+            result["content_length_bytes"] = len(resp.content)
+
+            if "application/json" in result["content_type"].lower():
+                try:
+                    result["json_data"] = resp.json()
+                except Exception:  # noqa: BLE001
+                    pass
+    except Exception as http_err:  # noqa: BLE001
+        result["http_status"] = None
+        result["error"] = str(http_err)
+        result["is_healthy"] = False
+        return {
+            "status": "error",
+            "message": f"Endpoint '{target_url}' tidak dapat dihubungi: {http_err}",
+            "details": result,
+        }
+
+    # 2. SSL/TLS Certificate Expiration Check
+    ssl_info: dict[str, Any] = {"checked": False}
+    if check_ssl and parsed.scheme == "https" and hostname not in ("localhost", "127.0.0.1"):
+        try:
+            ssl_ctx = ssl.create_default_context()
+            with socket.create_connection((hostname, port), timeout=min(timeout_sec, 6.0)) as sock:
+                with ssl_ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    cert = ssock.getpeercert()
+                    exp_date_str = cert.get("notAfter", "") if isinstance(cert, dict) else ""
+                    if exp_date_str and isinstance(exp_date_str, str):
+                        exp_dt = datetime.datetime.strptime(
+                            exp_date_str, "%b %d %H:%M:%S %Y %Z"
+                        ).replace(tzinfo=datetime.timezone.utc)
+                        now_dt = datetime.datetime.now(datetime.timezone.utc)
+                        days_left = (exp_dt - now_dt).days
+                        ssl_info = {
+                            "checked": True,
+                            "valid": True,
+                            "expires_at": exp_date_str,
+                            "days_remaining": days_left,
+                            "is_expiring_soon": days_left <= 30,
+                        }
+        except Exception as ssl_err:  # noqa: BLE001
+            ssl_info = {
+                "checked": True,
+                "valid": False,
+                "error": str(ssl_err),
+            }
+
+    result["ssl"] = ssl_info
+    is_healthy = result.get("status_matches_expected", False) and (
+        not ssl_info.get("checked") or ssl_info.get("valid", False)
+    )
+    result["is_healthy"] = is_healthy
+
+    summary_msg = f"Endpoint '{target_url}' status: {result['http_status']} ({result['latency_ms']} ms)."
+    if ssl_info.get("checked"):
+        if ssl_info.get("valid"):
+            summary_msg += f" SSL valid ({ssl_info.get('days_remaining')} hari tersisa)."
+        else:
+            summary_msg += f" SSL bermasalah: {ssl_info.get('error')}."
+
+    return {
+        "status": "success",
+        "is_healthy": is_healthy,
+        "url": target_url,
+        "latency_ms": result.get("latency_ms"),
+        "http_status": result.get("http_status"),
+        "ssl_days_remaining": ssl_info.get("days_remaining"),
+        "details": result,
+        "message": summary_msg,
+    }

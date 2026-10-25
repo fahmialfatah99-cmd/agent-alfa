@@ -71,6 +71,7 @@ from alfa.tools.system.monitoring import (
 from alfa.tools.system.network import (
     audit_network_security,
     download_file_from_url,
+    inspect_api_endpoint_health,
     scan_local_network,
     send_email,
     ssh_execute_command,
@@ -127,6 +128,7 @@ __all__ = [
     "ssh_execute_command",
     "send_email",
     "download_file_from_url",
+    "inspect_api_endpoint_health",
     # management
     "self_add_new_tool",
     "list_dynamic_plugins",

@@ -419,3 +419,94 @@ def edit_image(file_path: str, action: str, params: str = "") -> dict[str, Any]:
         }
     except _AV_ERR as e:
         return {"status": "error", "message": f"Gagal mengedit gambar: {str(e)}"}
+
+
+def _format_srt_timestamp(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int(round((seconds - int(seconds)) * 1000))
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _format_vtt_timestamp(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int(round((seconds - int(seconds)) * 1000))
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+@register_tool(category="media")
+def media_generate_subtitles_srt(
+    media_file_path: str,
+    output_format: str = "srt",
+    language: str = "id",
+) -> dict[str, Any]:
+    """
+    LOCAL AI SPEECH-TO-SUBTITLES GENERATOR:
+    Menghasilkan berkas subtitle ber-timestamp (.srt atau .vtt) dari video atau audio rekaman
+    secara otomatis menggunakan engine faster-whisper lokal (100% offline, hemat RAM/CPU).
+    Sangat berguna untuk video promosi TikTok/Reels/Shorts, transkrip rapat audio, atau materi pembelajaran.
+
+    Args:
+        media_file_path: Path berkas video (.mp4, .mkv, .mov) atau audio (.mp3, .ogg, .wav, .m4a).
+        output_format: Format berkas subtitle ('srt' atau 'vtt', default: 'srt').
+        language: Kode bahasa audio ('id' untuk Indonesia, 'en' untuk Inggris, default: 'id').
+    """
+    fpath = os.path.realpath(os.path.expanduser(media_file_path.strip()))
+    if not os.path.isfile(fpath):
+        return {"status": "error", "message": f"Berkas media '{media_file_path}' tidak ditemukan."}
+
+    fmt = output_format.strip().lower()
+    if fmt not in ("srt", "vtt"):
+        fmt = "srt"
+
+    try:
+        from faster_whisper import WhisperModel
+
+        model_size = os.getenv("WHISPER_MODEL_SIZE", "base")
+        whisper = WhisperModel(model_size, device="cpu", compute_type="int8")
+        segments, info = whisper.transcribe(fpath, language=language, beam_size=1)
+
+        sub_blocks = []
+        if fmt == "vtt":
+            sub_blocks.append("WEBVTT\n")
+
+        seg_count = 0
+        for seg in segments:
+            seg_count += 1
+            txt = seg.text.strip()
+            if not txt:
+                continue
+
+            if fmt == "srt":
+                t_start = _format_srt_timestamp(seg.start)
+                t_end = _format_srt_timestamp(seg.end)
+                sub_blocks.append(f"{seg_count}\n{t_start} --> {t_end}\n{txt}\n")
+            else:  # vtt
+                t_start = _format_vtt_timestamp(seg.start)
+                t_end = _format_vtt_timestamp(seg.end)
+                sub_blocks.append(f"{t_start} --> {t_end}\n{txt}\n")
+
+        full_sub_text = "\n".join(sub_blocks).strip()
+
+        base_no_ext = os.path.splitext(fpath)[0]
+        out_sub_path = f"{base_no_ext}.{fmt}"
+        with open(out_sub_path, "w", encoding="utf-8") as f_out:
+            f_out.write(full_sub_text)
+
+        return {
+            "status": "success",
+            "source_file": os.path.basename(fpath),
+            "subtitle_file": out_sub_path,
+            "format": fmt,
+            "language": language,
+            "detected_language": getattr(info, "language", language),
+            "total_segments": seg_count,
+            "preview": full_sub_text[:600],
+            "message": f"Subtitle .{fmt} berhasil dibuat ({seg_count} segmen) di '{os.path.basename(out_sub_path)}'.",
+        }
+    except Exception as e:
+        logger.exception("Gagal menghasilkan subtitle")
+        return {"status": "error", "message": f"Subtitle generator error: {str(e)}"}
