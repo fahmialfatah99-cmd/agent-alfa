@@ -174,6 +174,14 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Pasang/perbarui aplikasi desktop Linux - menyalin binari dan shortcut desktop",
     ),
+    "artcraft_run_cli": (
+        RiskTier.MEDIUM,
+        "Jalankan CLI headless ArtCraft Suite (convert, info, eval, render, batch)",
+    ),
+    "artcraft_launch_gui": (
+        RiskTier.MEDIUM,
+        "Luncurkan aplikasi desktop ArtCraft GUI ke layar monitor",
+    ),
     "browser_click_element": (RiskTier.MEDIUM, "Interaksi browser - aksi di situs"),
     "browser_type_text": (RiskTier.MEDIUM, "Input teks browser - submit form"),
     "browser_use_autonomous_task": (
@@ -261,6 +269,10 @@ TOOL_CLASSIFICATION = {
     "wa_get_records": (RiskTier.LOW, "Baca riwayat panggilan WA - read-only"),
     "wa_search_messages": (RiskTier.LOW, "Cari pesan WA - read-only"),
     "wa_list_formats": (RiskTier.LOW, "Daftar format WA - read-only"),
+    "artcraft_get_capabilities": (
+        RiskTier.LOW,
+        "Periksa katalog aplikasi ArtCraft Suite dan format yang didukung - read-only",
+    ),
     "wa_mark_read": (RiskTier.LOW, "Tandai pesan WA sudah dibaca"),
     "wa_clear_history": (RiskTier.LOW, "Bersihkan/reset riwayat buffer pesan WA"),
     "wa_get_history_archive": (RiskTier.LOW, "Baca arsip pesan WA lokal - read-only"),

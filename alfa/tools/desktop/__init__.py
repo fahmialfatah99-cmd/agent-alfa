@@ -1,6 +1,11 @@
 """Desktop tools package re-exporting screenshot, webcam, input automation, and clipboard tools."""
 
 from alfa.tools.desktop.app_manager import install_or_update_desktop_app
+from alfa.tools.desktop.artcraft import (
+    artcraft_get_capabilities,
+    artcraft_launch_gui,
+    artcraft_run_cli,
+)
 from alfa.tools.desktop.capture import (
     capture_desktop_screenshot,
     capture_webcam_frame,
@@ -21,6 +26,9 @@ from alfa.tools.desktop.system_ui import (
 )
 
 __all__ = [
+    "artcraft_get_capabilities",
+    "artcraft_launch_gui",
+    "artcraft_run_cli",
     "capture_desktop_screenshot",
     "capture_webcam_frame",
     "record_desktop_screen",
