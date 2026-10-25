@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Any
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import PlainTextResponse
 
 from alfa.core import database
 from alfa.dashboard.common import REPO_ROOT, get_primary_user_id, safe_int
@@ -433,3 +434,49 @@ async def api_graph_elements(doc_title: str = "", limit: int = 150):
         }
     finally:
         conn.close()
+
+
+@router.post("/api/brain/graph/consolidate")
+async def consolidate_graph_endpoint(payload: dict[str, Any] | None = None):
+    """Menjalankan siklus konsolidasi memori pengetahuan (Sleep Cycle Consolidation)."""
+    from alfa.memory import graph_rag
+
+    body = payload or {}
+    auto_alias = bool(body.get("auto_alias", True))
+    recluster = bool(body.get("recluster", True))
+    uid = get_primary_user_id()
+
+    result = graph_rag.consolidate_memory_sleep_cycle(
+        user_id=uid,
+        auto_alias=auto_alias,
+        recluster=recluster,
+    )
+    return result
+
+
+@router.get("/api/brain/graph/export")
+async def export_graph_endpoint(format: str = "jsonld"):
+    """Mengekspor Knowledge Graph ke format JSON-LD, GraphML, atau Cypher."""
+    from alfa.memory import graph_rag
+
+    uid = get_primary_user_id()
+    fmt = format.lower().strip()
+    result = graph_rag.export_knowledge_graph(
+        format_type=fmt,
+        user_id=uid,
+    )
+
+    if fmt == "graphml":
+        return Response(
+            content=str(result),
+            media_type="application/xml",
+            headers={"Content-Disposition": "attachment; filename=knowledge_graph.graphml"},
+        )
+    if fmt == "cypher":
+        return PlainTextResponse(
+            content=str(result),
+            media_type="text/plain",
+            headers={"Content-Disposition": "attachment; filename=knowledge_graph.cql"},
+        )
+    return {"status": "success", "format": "jsonld", "data": result}
+

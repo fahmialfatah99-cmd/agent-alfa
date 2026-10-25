@@ -590,3 +590,60 @@ def graph_rag_get_communities(
     except Exception as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG communities error: {str(e)}"}
 
+
+@register_tool(category="memory")
+def graph_rag_consolidate_memory(
+    auto_alias: bool = True,
+    recluster: bool = True,
+    db_path: str | None = None,
+) -> dict[str, Any]:
+    """
+    AUTONOMOUS MEMORY CONSOLIDATION (SLEEP CYCLE): Melakukan konsolidasi memori pengetahuan:
+    merapikan sinonim/alias entitas, memperkuat bobot relasi yang sering muncul, dan memperbarui
+    kluster komunitas pengetahuan secara otonom.
+
+    Args:
+        auto_alias: Aktifkan deduplikasi heuristik & inferensi alias kanonikal otomatis.
+        recluster: Jalankan re-clustering komunitas dan perbarui ringkasan topik.
+        db_path: Path opsional database kustom.
+    """
+    try:
+        from alfa.memory import graph_rag
+
+        user_id = current_user_id_var.get() or 0
+        return graph_rag.consolidate_memory_sleep_cycle(
+            db_path=db_path,
+            user_id=user_id,
+            auto_alias=auto_alias,
+            recluster=recluster,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"GraphRAG consolidation error: {str(e)}"}
+
+
+@register_tool(category="memory")
+def graph_rag_export(
+    format_type: str = "jsonld",
+    db_path: str | None = None,
+) -> dict[str, Any] | str:
+    """
+    KNOWLEDGE GRAPH EXPORTER: Mengekspor seluruh Knowledge Graph ke format standar terbuka
+    ('jsonld', 'graphml', atau 'cypher') untuk integrasi ke Neo4j, DuckDB, Kùzu, Gephi, atau Cytoscape.
+
+    Args:
+        format_type: Format ekspor pilihan: 'jsonld' (default), 'graphml', atau 'cypher'.
+        db_path: Path opsional database kustom.
+    """
+    try:
+        from alfa.memory import graph_rag
+
+        user_id = current_user_id_var.get() or 0
+        return graph_rag.export_knowledge_graph(
+            format_type=format_type,
+            db_path=db_path,
+            user_id=user_id,
+        )
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "message": f"GraphRAG export error: {str(e)}"}
+
+

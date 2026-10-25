@@ -543,7 +543,26 @@ async def proactive_ambient_agent_loop(application: Application):
                     is_quiet = q_start <= current_hour < q_end
 
                 if is_quiet or pings_today >= max_pings:
-                    pass
+                    if is_quiet:
+                        last_consolidation = config.get("last_memory_consolidation_date")
+                        if last_consolidation != today_str and current_hour in (2, 3, 4, 5):
+                            try:
+                                from alfa.memory import graph_rag
+
+                                target_uid = ALLOWED_USER_IDS[0] if ALLOWED_USER_IDS else 1
+                                c_res = await asyncio.to_thread(
+                                    graph_rag.consolidate_memory_sleep_cycle,
+                                    user_id=target_uid,
+                                )
+                                logger.info("🌙 Autonomous Memory Consolidation completed: %s", c_res)
+                                config["last_memory_consolidation_date"] = today_str
+                                try:
+                                    with open(config_path, "w", encoding="utf-8") as f:
+                                        json.dump(config, f, indent=2)
+                                except OSError:
+                                    pass
+                            except Exception as exc:  # noqa: BLE001
+                                logger.debug("Quiet hour memory consolidation error: %s", exc)
                 else:
                     last_ping_str = config.get("last_ping_time")
                     should_evaluate = True

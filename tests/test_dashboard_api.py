@@ -160,6 +160,7 @@ class TestEndpointShapes:
             "/api/brain/graph/overview",
             "/api/brain/graph/communities",
             "/api/brain/graph/elements",
+            "/api/brain/graph/export",
             "/api/plugins/list",
             "/api/skills/superpowers",
             "/api/tools",
@@ -173,6 +174,19 @@ class TestEndpointShapes:
     def test_endpoint_tidak_ditemukan_404(self, client_local):
         res = client_local.get("/api/tidak-ada- sama sekali")
         assert res.status_code == 404
+
+    def test_graph_consolidate_and_export_formats(self, client_local):
+        res_cons = client_local.post("/api/brain/graph/consolidate", json={"auto_alias": True, "recluster": True})
+        assert res_cons.status_code == 200
+        assert res_cons.json()["status"] == "success"
+
+        res_gml = client_local.get("/api/brain/graph/export?format=graphml")
+        assert res_gml.status_code == 200
+        assert "<graphml" in res_gml.text
+
+        res_cql = client_local.get("/api/brain/graph/export?format=cypher")
+        assert res_cql.status_code == 200
+        assert "MERGE" in res_cql.text or "//" in res_cql.text
 
 
 class TestInputValidation:

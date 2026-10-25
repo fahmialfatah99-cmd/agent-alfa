@@ -563,6 +563,11 @@ let graphAnimId = null;
 let graphDraggingNode = null;
 let graphHoveredNode = null;
 let graphHighlightedPath = new Set();
+let graphViewMode = '2d';
+let graphRotX = 0.35;
+let graphRotY = 0.45;
+let graphIsDraggingOrbital = false;
+let graphLastMousePos = { x: 0, y: 0 };
 
 export async function loadGraphVisualizer() {
     const canvas = document.getElementById('graph-canvas');
@@ -677,12 +682,26 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
 
     const n = rawNodes.length;
     graphNodes = rawNodes.map((node, i) => {
+        const phi = Math.acos(1 - 2 * (i + 0.5) / Math.max(n, 1));
+        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+        const sphereRadius = Math.min(width, height) * 0.38;
+        const x3d = sphereRadius * Math.sin(phi) * Math.cos(theta);
+        const y3d = sphereRadius * Math.cos(phi);
+        const z3d = sphereRadius * Math.sin(phi) * Math.sin(theta);
+
         const angle = (i / Math.max(n, 1)) * 2 * Math.PI;
-        const radius = Math.min(width, height) * 0.35 * (0.6 + 0.4 * Math.random());
+        const radius2d = Math.min(width, height) * 0.35 * (0.6 + 0.4 * Math.random());
         return {
             ...node,
-            x: cx + radius * Math.cos(angle),
-            y: cy + radius * Math.sin(angle),
+            x: cx + radius2d * Math.cos(angle),
+            y: cy + radius2d * Math.sin(angle),
+            x3d,
+            y3d,
+            z3d,
+            projX: cx,
+            projY: cy,
+            projScale: 1,
+            projZ: 0,
             vx: 0,
             vy: 0,
             radius: Math.max(14, Math.min(32, 14 + (node.degree || 1) * 3))
@@ -713,9 +732,12 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
     function findNodeAt(x, y) {
         for (let i = graphNodes.length - 1; i >= 0; i--) {
             const nd = graphNodes[i];
-            const dx = nd.x - x;
-            const dy = nd.y - y;
-            if (dx * dx + dy * dy <= (nd.radius + 6) * (nd.radius + 6)) {
+            const currX = graphViewMode === '3d' ? nd.projX : nd.x;
+            const currY = graphViewMode === '3d' ? nd.projY : nd.y;
+            const currR = graphViewMode === '3d' ? nd.radius * nd.projScale : nd.radius;
+            const dx = currX - x;
+            const dy = currY - y;
+            if (dx * dx + dy * dy <= (currR + 6) * (currR + 6)) {
                 return nd;
             }
         }
@@ -728,6 +750,10 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
         if (hit) {
             graphDraggingNode = hit;
             canvas.style.cursor = 'grabbing';
+        } else if (graphViewMode === '3d') {
+            graphIsDraggingOrbital = true;
+            graphLastMousePos = { x: e.clientX, y: e.clientY };
+            canvas.style.cursor = 'grabbing';
         }
     };
 
@@ -735,10 +761,18 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
         if (!canvas) return;
         const pos = getMousePos(e);
         if (graphDraggingNode) {
-            graphDraggingNode.x = pos.x;
-            graphDraggingNode.y = pos.y;
-            graphDraggingNode.vx = 0;
-            graphDraggingNode.vy = 0;
+            if (graphViewMode === '2d') {
+                graphDraggingNode.x = pos.x;
+                graphDraggingNode.y = pos.y;
+                graphDraggingNode.vx = 0;
+                graphDraggingNode.vy = 0;
+            }
+        } else if (graphIsDraggingOrbital && graphViewMode === '3d') {
+            const dx = e.clientX - graphLastMousePos.x;
+            const dy = e.clientY - graphLastMousePos.y;
+            graphRotY += dx * 0.008;
+            graphRotX += dy * 0.008;
+            graphLastMousePos = { x: e.clientX, y: e.clientY };
         } else {
             const hit = findNodeAt(pos.x, pos.y);
             graphHoveredNode = hit;
@@ -754,114 +788,211 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
             } else if (tooltip) {
                 tooltip.classList.add('hidden');
             }
-            canvas.style.cursor = hit ? 'pointer' : 'grab';
+            canvas.style.cursor = hit ? 'pointer' : (graphViewMode === '3d' ? 'grab' : 'grab');
         }
     };
 
     window.onmouseup = () => {
         graphDraggingNode = null;
+        graphIsDraggingOrbital = false;
         if (canvas) canvas.style.cursor = 'grab';
     };
 
     if (graphAnimId) cancelAnimationFrame(graphAnimId);
 
     function step() {
-        const damping = 0.88;
-        const repulsion = 1200;
-        const springLen = 90;
-        const springK = 0.04;
+        ctx.clearRect(0, 0, width, height);
 
-        for (let i = 0; i < graphNodes.length; i++) {
-            const a = graphNodes[i];
-            for (let j = i + 1; j < graphNodes.length; j++) {
-                const b = graphNodes[j];
+        if (graphViewMode === '3d') {
+            if (!graphIsDraggingOrbital) {
+                graphRotY += 0.002;
+            }
+
+            const cosX = Math.cos(graphRotX);
+            const sinX = Math.sin(graphRotX);
+            const cosY = Math.cos(graphRotY);
+            const sinY = Math.sin(graphRotY);
+            const fov = 400;
+
+            for (const nd of graphNodes) {
+                const x1 = nd.x3d * cosY + nd.z3d * sinY;
+                const z1 = -nd.x3d * sinY + nd.z3d * cosY;
+                const y1 = nd.y3d * cosX - z1 * sinX;
+                const z2 = nd.y3d * sinX + z1 * cosX;
+
+                const scale = fov / (fov + z2 + 220);
+                nd.projX = cx + x1 * scale;
+                nd.projY = cy + y1 * scale;
+                nd.projScale = Math.max(0.35, Math.min(1.8, scale));
+                nd.projZ = z2;
+            }
+
+            for (const e of graphEdges) {
+                const isPath = graphHighlightedPath.has(e.source) && graphHighlightedPath.has(e.target);
+                const avgZ = (e.sourceNode.projZ + e.targetNode.projZ) / 2;
+                const depthAlpha = Math.max(0.1, Math.min(0.8, (avgZ + 250) / 500));
+
+                ctx.beginPath();
+                ctx.moveTo(e.sourceNode.projX, e.sourceNode.projY);
+                ctx.lineTo(e.targetNode.projX, e.targetNode.projY);
+                ctx.strokeStyle = isPath
+                    ? 'rgba(52, 211, 153, 0.95)'
+                    : `rgba(139, 92, 246, ${depthAlpha * 0.4})`;
+                ctx.lineWidth = isPath ? 3 : Math.max(1, 1.5 * depthAlpha);
+                ctx.stroke();
+
+                if (isPath || graphHoveredNode === e.sourceNode || graphHoveredNode === e.targetNode) {
+                    const mx = (e.sourceNode.projX + e.targetNode.projX) / 2;
+                    const my = (e.sourceNode.projY + e.targetNode.projY) / 2;
+                    ctx.fillStyle = '#a78bfa';
+                    ctx.font = '9px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(e.label, mx, my - 4);
+                }
+            }
+
+            const sortedNodes = [...graphNodes].sort((a, b) => a.projZ - b.projZ);
+
+            for (const nd of sortedNodes) {
+                const isHover = nd === graphHoveredNode;
+                const isPath = graphHighlightedPath.has(nd.id);
+                const r = nd.radius * nd.projScale;
+                const depthAlpha = Math.max(0.2, Math.min(1, (nd.projZ + 250) / 500));
+
+                if (isPath || isHover) {
+                    ctx.beginPath();
+                    ctx.arc(nd.projX, nd.projY, r + 5 * nd.projScale, 0, Math.PI * 2);
+                    ctx.fillStyle = isPath ? 'rgba(52, 211, 153, 0.4)' : 'rgba(168, 85, 247, 0.45)';
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(nd.projX, nd.projY, r, 0, Math.PI * 2);
+                const grad = ctx.createRadialGradient(
+                    nd.projX - r * 0.3, nd.projY - r * 0.3, r * 0.1,
+                    nd.projX, nd.projY, r
+                );
+                if (isPath) {
+                    grad.addColorStop(0, '#34d399');
+                    grad.addColorStop(1, '#065f46');
+                } else if (isHover) {
+                    grad.addColorStop(0, '#c084fc');
+                    grad.addColorStop(1, '#581c87');
+                } else {
+                    grad.addColorStop(0, `rgba(167, 139, 250, ${depthAlpha})`);
+                    grad.addColorStop(1, `rgba(30, 27, 75, ${depthAlpha})`);
+                }
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.strokeStyle = isPath ? '#34d399' : (isHover ? '#e9d5ff' : `rgba(139, 92, 246, ${depthAlpha})`);
+                ctx.lineWidth = Math.max(1, 1.5 * nd.projScale);
+                ctx.stroke();
+
+                if (nd.projScale > 0.6 || isHover || isPath) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.round(10 * nd.projScale)}px monospace`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const shortLabel = nd.label.length > 14 ? nd.label.slice(0, 12) + '…' : nd.label;
+                    ctx.fillText(shortLabel, nd.projX, nd.projY);
+                }
+            }
+        } else {
+            const damping = 0.88;
+            const repulsion = 1200;
+            const springLen = 90;
+            const springK = 0.04;
+
+            for (let i = 0; i < graphNodes.length; i++) {
+                const a = graphNodes[i];
+                for (let j = i + 1; j < graphNodes.length; j++) {
+                    const b = graphNodes[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    const force = repulsion / (dist * dist);
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    a.vx -= fx;
+                    a.vy -= fy;
+                    b.vx += fx;
+                    b.vy += fy;
+                }
+            }
+
+            for (const e of graphEdges) {
+                const a = e.sourceNode;
+                const b = e.targetNode;
                 const dx = b.x - a.x;
                 const dy = b.y - a.y;
                 const dist = Math.hypot(dx, dy) || 1;
-                const force = repulsion / (dist * dist);
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
-                a.vx -= fx;
-                a.vy -= fy;
+                const disp = dist - springLen;
+                const fx = (dx / dist) * disp * springK;
+                const fy = (dy / dist) * disp * springK;
+                a.vx += fx;
+                a.vy += fy;
                 b.vx += fx;
                 b.vy += fy;
             }
-        }
 
-        for (const e of graphEdges) {
-            const a = e.sourceNode;
-            const b = e.targetNode;
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dist = Math.hypot(dx, dy) || 1;
-            const disp = dist - springLen;
-            const fx = (dx / dist) * disp * springK;
-            const fy = (dy / dist) * disp * springK;
-            a.vx += fx;
-            a.vy += fy;
-            b.vx -= fx;
-            b.vy -= fy;
-        }
-
-        for (const nd of graphNodes) {
-            if (nd !== graphDraggingNode) {
-                nd.vx += (cx - nd.x) * 0.005;
-                nd.vy += (cy - nd.y) * 0.005;
-                nd.vx *= damping;
-                nd.vy *= damping;
-                nd.x += nd.vx;
-                nd.y += nd.vy;
-                nd.x = Math.max(nd.radius + 10, Math.min(width - nd.radius - 10, nd.x));
-                nd.y = Math.max(nd.radius + 10, Math.min(height - nd.radius - 10, nd.y));
+            for (const nd of graphNodes) {
+                if (nd !== graphDraggingNode) {
+                    nd.vx += (cx - nd.x) * 0.005;
+                    nd.vy += (cy - nd.y) * 0.005;
+                    nd.vx *= damping;
+                    nd.vy *= damping;
+                    nd.x += nd.vx;
+                    nd.y += nd.vy;
+                    nd.x = Math.max(nd.radius + 10, Math.min(width - nd.radius - 10, nd.x));
+                    nd.y = Math.max(nd.radius + 10, Math.min(height - nd.radius - 10, nd.y));
+                }
             }
-        }
 
-        ctx.clearRect(0, 0, width, height);
-
-        for (const e of graphEdges) {
-            const isPath = graphHighlightedPath.has(e.source) && graphHighlightedPath.has(e.target);
-            ctx.beginPath();
-            ctx.moveTo(e.sourceNode.x, e.sourceNode.y);
-            ctx.lineTo(e.targetNode.x, e.targetNode.y);
-            ctx.strokeStyle = isPath ? 'rgba(52, 211, 153, 0.9)' : 'rgba(139, 92, 246, 0.25)';
-            ctx.lineWidth = isPath ? 3 : 1.5;
-            ctx.stroke();
-
-            if (isPath || graphHoveredNode === e.sourceNode || graphHoveredNode === e.targetNode) {
-                const mx = (e.sourceNode.x + e.targetNode.x) / 2;
-                const my = (e.sourceNode.y + e.targetNode.y) / 2;
-                ctx.fillStyle = '#a78bfa';
-                ctx.font = '10px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(e.label, mx, my - 4);
-            }
-        }
-
-        for (const nd of graphNodes) {
-            const isHover = nd === graphHoveredNode || nd === graphDraggingNode;
-            const isPath = graphHighlightedPath.has(nd.id);
-
-            if (isPath || isHover) {
+            for (const e of graphEdges) {
+                const isPath = graphHighlightedPath.has(e.source) && graphHighlightedPath.has(e.target);
                 ctx.beginPath();
-                ctx.arc(nd.x, nd.y, nd.radius + 6, 0, Math.PI * 2);
-                ctx.fillStyle = isPath ? 'rgba(52, 211, 153, 0.3)' : 'rgba(168, 85, 247, 0.35)';
-                ctx.fill();
+                ctx.moveTo(e.sourceNode.x, e.sourceNode.y);
+                ctx.lineTo(e.targetNode.x, e.targetNode.y);
+                ctx.strokeStyle = isPath ? 'rgba(52, 211, 153, 0.9)' : 'rgba(139, 92, 246, 0.25)';
+                ctx.lineWidth = isPath ? 3 : 1.5;
+                ctx.stroke();
+
+                if (isPath || graphHoveredNode === e.sourceNode || graphHoveredNode === e.targetNode) {
+                    const mx = (e.sourceNode.x + e.targetNode.x) / 2;
+                    const my = (e.sourceNode.y + e.targetNode.y) / 2;
+                    ctx.fillStyle = '#a78bfa';
+                    ctx.font = '10px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(e.label, mx, my - 4);
+                }
             }
 
-            ctx.beginPath();
-            ctx.arc(nd.x, nd.y, nd.radius, 0, Math.PI * 2);
-            ctx.fillStyle = isPath ? '#059669' : (isHover ? '#7c3aed' : '#1e1b4b');
-            ctx.fill();
-            ctx.strokeStyle = isPath ? '#34d399' : (isHover ? '#c084fc' : '#8b5cf6');
-            ctx.lineWidth = isPath ? 2.5 : 1.5;
-            ctx.stroke();
+            for (const nd of graphNodes) {
+                const isHover = nd === graphHoveredNode || nd === graphDraggingNode;
+                const isPath = graphHighlightedPath.has(nd.id);
 
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 11px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const shortLabel = nd.label.length > 14 ? nd.label.slice(0, 12) + '…' : nd.label;
-            ctx.fillText(shortLabel, nd.x, nd.y);
+                if (isPath || isHover) {
+                    ctx.beginPath();
+                    ctx.arc(nd.x, nd.y, nd.radius + 6, 0, Math.PI * 2);
+                    ctx.fillStyle = isPath ? 'rgba(52, 211, 153, 0.3)' : 'rgba(168, 85, 247, 0.35)';
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(nd.x, nd.y, nd.radius, 0, Math.PI * 2);
+                ctx.fillStyle = isPath ? '#059669' : (isHover ? '#7c3aed' : '#1e1b4b');
+                ctx.fill();
+                ctx.strokeStyle = isPath ? '#34d399' : (isHover ? '#c084fc' : '#8b5cf6');
+                ctx.lineWidth = isPath ? 2.5 : 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const shortLabel = nd.label.length > 14 ? nd.label.slice(0, 12) + '…' : nd.label;
+                ctx.fillText(shortLabel, nd.x, nd.y);
+            }
         }
 
         graphAnimId = requestAnimationFrame(step);
@@ -870,8 +1001,66 @@ function initGraphCanvas(canvas, rawNodes, rawEdges) {
     step();
 }
 
+export function setGraphViewMode(mode) {
+    graphViewMode = mode;
+    const btn2d = document.getElementById('btn-graph-mode-2d');
+    const btn3d = document.getElementById('btn-graph-mode-3d');
+    if (mode === '3d') {
+        if (btn3d) btn3d.className = 'px-2.5 py-0.5 rounded-md bg-violet-500 text-white font-bold transition-all';
+        if (btn2d) btn2d.className = 'px-2.5 py-0.5 rounded-md text-slate-400 hover:text-white transition-all';
+    } else {
+        if (btn2d) btn2d.className = 'px-2.5 py-0.5 rounded-md bg-violet-500 text-white font-bold transition-all';
+        if (btn3d) btn3d.className = 'px-2.5 py-0.5 rounded-md text-slate-400 hover:text-white transition-all';
+    }
+}
+
+export async function consolidateGraphMemory() {
+    const btn = document.getElementById('btn-graph-consolidate');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consolidating...';
+    }
+    try {
+        const res = await fetch('/api/brain/graph/consolidate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auto_alias: true, recluster: true })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(`🌙 Konsolidasi sukses: ${data.aliases_registered} alias terdaftar, ${data.communities_count} kluster diperbarui!`, 'success');
+            loadGraphVisualizer();
+        } else {
+            showToast(`Konsolidasi gagal: ${data.error || 'Error'}`, 'error');
+        }
+    } catch (err) {
+        showToast(`Error konsolidasi: ${err.message}`, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="moon" class="w-3.5 h-3.5"></i> Consolidate';
+            if (window.lucide) lucide.createIcons();
+        }
+    }
+}
+
+export function toggleGraphExportMenu() {
+    const menu = document.getElementById('graph-export-dropdown');
+    if (menu) menu.classList.toggle('hidden');
+}
+
+export function exportGraphData(format) {
+    const menu = document.getElementById('graph-export-dropdown');
+    if (menu) menu.classList.add('hidden');
+    window.location.href = `/api/brain/graph/export?format=${format}`;
+}
+
 window.loadGraphVisualizer = loadGraphVisualizer;
 window.findGraphPath = findGraphPath;
+window.setGraphViewMode = setGraphViewMode;
+window.consolidateGraphMemory = consolidateGraphMemory;
+window.toggleGraphExportMenu = toggleGraphExportMenu;
+window.exportGraphData = exportGraphData;
 
 export async function submitNewMemory(e) {
     e.preventDefault();

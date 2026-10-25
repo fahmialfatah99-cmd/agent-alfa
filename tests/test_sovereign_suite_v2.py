@@ -231,3 +231,102 @@ class TestInspectApiEndpointHealth:
             assert res["status"] == "error"
             assert res["details"]["is_healthy"] is False
             assert "tidak dapat dihubungi" in res["message"]
+
+
+class TestGraphRagConsolidationAndExport:
+    def test_consolidate_memory_sleep_cycle(self, tmp_path):
+        from alfa.memory.graph_rag import (
+            consolidate_memory_sleep_cycle,
+            init_graph_db,
+        )
+
+        test_db = str(tmp_path / "graph_test.db")
+        init_graph_db(test_db)
+
+        conn = sqlite3.connect(test_db)
+        # Masukkan relasi dengan berbagai variasi penulisan entitas & frekuensi
+        conn.execute(
+            "INSERT INTO graph_entities (user_id, name, entity_type, source_doc) VALUES (1, 'Budi Santoso', 'Person', 'doc1.pdf')"
+        )
+        conn.execute(
+            "INSERT INTO graph_entities (user_id, name, entity_type, source_doc) VALUES (1, 'Pak Budi Santoso', 'Person', 'doc2.pdf')"
+        )
+        conn.execute(
+            "INSERT INTO graph_entities (user_id, name, entity_type, source_doc) VALUES (1, 'ALFA OS', 'Software', 'doc1.pdf')"
+        )
+        conn.execute(
+            "INSERT INTO graph_relations (user_id, source_entity, relation, target_entity, source_doc) VALUES (1, 'Pak Budi Santoso', 'mengembangkan', 'ALFA OS', 'doc1.pdf')"
+        )
+        conn.execute(
+            "INSERT INTO graph_relations (user_id, source_entity, relation, target_entity, source_doc) VALUES (1, 'Pak Budi Santoso', 'mengembangkan', 'ALFA OS', 'doc2.pdf')"
+        )
+        conn.commit()
+        conn.close()
+
+        res = consolidate_memory_sleep_cycle(db_path=test_db, user_id=1, auto_alias=True, recluster=True)
+        assert res["status"] == "success"
+        assert res["aliases_registered"] >= 1
+        assert res["relations_count"] == 2
+
+        # Cek apakah alias terdaftar di database
+        conn = sqlite3.connect(test_db)
+        aliases = conn.execute("SELECT canonical_name, alias FROM graph_entity_aliases WHERE user_id = 1").fetchall()
+        conn.close()
+
+        alias_dict = {a[1].lower(): a[0] for a in aliases}
+        assert "pak budi santoso" in alias_dict
+        assert alias_dict["pak budi santoso"] == "Budi Santoso"
+
+    def test_export_knowledge_graph_all_formats(self, tmp_path):
+        from alfa.memory.graph_rag import export_knowledge_graph, init_graph_db
+
+        test_db = str(tmp_path / "graph_export.db")
+        init_graph_db(test_db)
+
+        conn = sqlite3.connect(test_db)
+        conn.execute(
+            "INSERT INTO graph_entities (user_id, name, entity_type, description, source_doc) "
+            "VALUES (1, 'Antigravity', 'AI Assistant', 'AI Core Agent', 'spec.md')"
+        )
+        conn.execute(
+            "INSERT INTO graph_relations (user_id, source_entity, relation, target_entity, weight, source_doc) "
+            "VALUES (1, 'Antigravity', 'orchestrates', 'ALFA Swarm', 2.0, 'spec.md')"
+        )
+        conn.commit()
+        conn.close()
+
+        # 1. JSON-LD
+        res_jsonld = export_knowledge_graph(format_type="jsonld", db_path=test_db, user_id=1)
+        assert isinstance(res_jsonld, dict)
+        assert "@context" in res_jsonld
+        assert "@graph" in res_jsonld
+        assert any(n.get("name") == "Antigravity" for n in res_jsonld["@graph"])
+
+        # 2. GraphML
+        res_graphml = export_knowledge_graph(format_type="graphml", db_path=test_db, user_id=1)
+        assert isinstance(res_graphml, str)
+        assert "<graphml" in res_graphml
+        assert '<node id="Antigravity">' in res_graphml
+        assert "</graphml>" in res_graphml
+
+        # 3. Cypher
+        res_cypher = export_knowledge_graph(format_type="cypher", db_path=test_db, user_id=1)
+        assert isinstance(res_cypher, str)
+        assert "MERGE (n:" in res_cypher
+        assert "Antigravity" in res_cypher
+        assert "MERGE (a)-[:ORCHESTRATES" in res_cypher
+
+    def test_sovereign_tools_graph_consolidation_and_export(self, tmp_path):
+        from alfa.tools import (
+            graph_rag_consolidate_memory,
+            graph_rag_export,
+        )
+
+        test_db = str(tmp_path / "tools_graph.db")
+        res_cons = graph_rag_consolidate_memory(auto_alias=True, recluster=True, db_path=test_db)
+        assert res_cons["status"] == "success"
+
+        res_exp = graph_rag_export(format_type="jsonld", db_path=test_db)
+        assert isinstance(res_exp, dict)
+        assert "@context" in res_exp
+

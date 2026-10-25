@@ -1526,9 +1526,33 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                             <p class="text-xs text-slate-400">Peta topologi jaringan relasi entitas, komunitas topik global, dan penelusuran rute terpendek multi-hop.</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span id="graph-entities-badge" class="px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/20 text-xs font-mono font-bold">0 Entitas</span>
                         <span id="graph-relations-badge" class="px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-mono font-bold">0 Relasi</span>
+                        
+                        <!-- 2D / 3D Mode Toggle -->
+                        <div class="inline-flex rounded-lg bg-dark-900 border border-white/10 p-0.5 text-xs font-mono">
+                            <button id="btn-graph-mode-2d" onclick="setGraphViewMode('2d')" class="px-2.5 py-0.5 rounded-md bg-violet-500 text-white font-bold transition-all">2D Force</button>
+                            <button id="btn-graph-mode-3d" onclick="setGraphViewMode('3d')" class="px-2.5 py-0.5 rounded-md text-slate-400 hover:text-white transition-all">3D Orbital</button>
+                        </div>
+
+                        <!-- Consolidate Memory Button -->
+                        <button onclick="consolidateGraphMemory()" id="btn-graph-consolidate" class="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-mono flex items-center gap-1 transition-all" title="Konsolidasi Memori Otonom (Sleep Cycle: deduplikasi alias & re-cluster)">
+                            <i data-lucide="moon" class="w-3.5 h-3.5"></i> Consolidate
+                        </button>
+
+                        <!-- Export Graph Menu -->
+                        <div class="relative inline-block">
+                            <button onclick="toggleGraphExportMenu()" class="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-mono flex items-center gap-1 transition-all">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
+                            </button>
+                            <div id="graph-export-dropdown" class="hidden absolute right-0 mt-1 w-36 bg-dark-900 border border-white/10 rounded-lg shadow-xl z-20 py-1 text-xs font-mono">
+                                <a href="javascript:void(0)" onclick="exportGraphData('jsonld')" class="block px-3 py-1.5 hover:bg-white/5 text-slate-300 hover:text-white">📄 JSON-LD</a>
+                                <a href="javascript:void(0)" onclick="exportGraphData('graphml')" class="block px-3 py-1.5 hover:bg-white/5 text-slate-300 hover:text-white">🌐 GraphML</a>
+                                <a href="javascript:void(0)" onclick="exportGraphData('cypher')" class="block px-3 py-1.5 hover:bg-white/5 text-slate-300 hover:text-white">⚡ Cypher (CQL)</a>
+                            </div>
+                        </div>
+
                         <button onclick="loadGraphVisualizer()" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg text-xs font-mono flex items-center gap-1 transition-all" title="Segarkan Graf">
                             <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
                         </button>

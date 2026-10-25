@@ -334,6 +334,14 @@ TOOL_CLASSIFICATION = {
         RiskTier.LOW,
         "Deteksi kluster komunitas dan topik global Knowledge Graph - read-only",
     ),
+    "graph_rag_consolidate_memory": (
+        RiskTier.LOW,
+        "Konsolidasi dan perapian memori knowledge graph secara otonom",
+    ),
+    "graph_rag_export": (
+        RiskTier.LOW,
+        "Ekspor Knowledge Graph ke format JSON-LD, GraphML, atau Cypher - read-only",
+    ),
     "index_document_to_graph": (
         RiskTier.MEDIUM,
         "Indeks dokumen ke knowledge graph - tulis ke store",
