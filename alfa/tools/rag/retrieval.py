@@ -213,7 +213,12 @@ def select_relevant_tools(
         name_to_schema: dict[str, dict[str, Any]] = {}
         doc_names: list[str] = []
         for s in tools_schema:
-            nm = ((s.get("function") or {}).get("name")) or ""
+            nm = (
+                ((s.get("function") or {}).get("name"))
+                or s.get("name")
+                or (((s.get("openai_spec") or {}).get("function") or {}).get("name"))
+                or ""
+            )
             name_to_schema[nm] = s
             doc_names.append(nm)
 

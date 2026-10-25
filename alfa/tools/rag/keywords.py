@@ -467,12 +467,17 @@ def _expand_synonyms(tokens: list[str]) -> list[str]:
 def _schema_to_text(schema: dict[str, Any]) -> str:
     """Gabungkan nama + deskripsi + nama argumen jadi satu dokumen indeks."""
     try:
-        fn = schema.get("function", {}) or {}
-        parts = [fn.get("name", "")]
-        desc = fn.get("description", "") or ""
-        parts.append(desc[:600])
-        params = (fn.get("parameters") or {}).get("properties") or {}
-        parts.extend(params.keys())
-        return " ".join(str(p) for p in parts)
+        fn = (
+            schema.get("function")
+            or (schema.get("openai_spec") or {}).get("function")
+            or schema
+        )
+        name = fn.get("name") or schema.get("name") or ""
+        desc = fn.get("description") or schema.get("short_description") or schema.get("full_docstring") or ""
+        params = (fn.get("parameters") or {}).get("properties") or schema.get("parameters") or {}
+        parts = [name, desc[:600]]
+        if isinstance(params, dict):
+            parts.extend(params.keys())
+        return " ".join(str(p) for p in parts if p)
     except Exception:
         return ""
