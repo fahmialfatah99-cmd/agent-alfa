@@ -338,6 +338,7 @@ def wa_get_incoming(
     only_unread: bool = True,
     mark_as_read: bool = True,
     order: str = "desc",
+    only_group: bool = False,
 ) -> dict[str, Any]:
     """
     Pesan WhatsApp MASUK terbaru yang terekam bot.
@@ -351,6 +352,7 @@ def wa_get_incoming(
         only_unread: True (default) = HANYA ambil pesan yang belum pernah dibaca/dilaporkan oleh bot (mencegah pesan dibaca berulang-ulang). Set False untuk melihat riwayat pesan masuk lama.
         mark_as_read: True = Otomatis catat pesan yang dibaca ke database agar tidak dibaca ulang pada pengecekan pesan baru berikutnya.
         order: Urutan pesan: 'desc' = terbaru di awal (default), 'asc' = terlama di awal.
+        only_group: True = HANYA ambil pesan dari GRUP WhatsApp (abaikan chat pribadi). Gunakan saat user menanyakan pesan/obrolan grup.
     """
     fetch_limit = max(limit, 250) if only_unread else limit
     res = _wa_api("GET", "/api/incoming", {"limit": fetch_limit})
@@ -373,6 +375,8 @@ def wa_get_incoming(
         seen_keys = set()
         for it in res["incoming"]:
             if not isinstance(it, dict) or it.get("from_me"):
+                continue
+            if only_group and not it.get("is_group"):
                 continue
             mtype = str(it.get("msg_type") or "chat").lower()
             if mtype in ignored_types:
