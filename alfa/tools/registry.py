@@ -114,6 +114,7 @@ TOOL_DOMAINS: dict[str, list[str]] = {
         "parse_delivery_order_document",
         "consolidate_delivery_orders_to_stock_ledger",
         "calculate_material_return_and_scrap",
+        "reconcile_whatsapp_material_group",
     ],
     "agent": [
         "manage_api_keys",

@@ -93,6 +93,7 @@ from alfa.tools.telecom_tools import (
     schedule_daily_briefing_task,
     transcribe_field_voice_note,
     wa_relay_send_from_telegram,
+    reconcile_whatsapp_material_group,
 )
 from alfa.tools.web_tools import *  # noqa: F401, F403
 
@@ -169,6 +170,7 @@ AVAILABLE_TOOLS = [
     render_cluster_kml_map,
     transcribe_field_voice_note,
     wa_relay_send_from_telegram,
+    reconcile_whatsapp_material_group,
     generate_presentation_pptx,
     control_linux_hardware,
     send_file_to_chat,

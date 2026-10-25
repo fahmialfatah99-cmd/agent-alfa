@@ -421,6 +421,10 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Rekonsiliasi BOQ vs laporan lapangan - isi dokumen ke konteks model",
     ),
+    "reconcile_whatsapp_material_group": (
+        RiskTier.MEDIUM,
+        "Rekapitulasi resmi material grup WhatsApp - tulis file Excel",
+    ),
     "consolidate_delivery_orders_to_stock_ledger": (
         RiskTier.MEDIUM,
         "Konsolidasi Surat Jalan/DO ke stock ledger - tulis Excel",

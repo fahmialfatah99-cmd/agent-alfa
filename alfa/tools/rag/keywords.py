@@ -167,8 +167,13 @@ _SYNONYMS = {
     "terjemah": "translate translation language convert text",
     "fokus": "focus session pomodoro timer work",
     "download": "download fetch save file url",
-    "wa": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets",
-    "whatsapp": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets",
+    "wa": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
+    "whatsapp": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
+    "material": "reconcile_whatsapp_material_group pengambilan material boq tiang pole kabel ftth",
+    "pengambilan": "reconcile_whatsapp_material_group pengambilan material tiang pole mandor",
+    "tiang": "reconcile_whatsapp_material_group tiang pole boq pengambilan",
+    "mandor": "reconcile_whatsapp_material_group mandor pengambilan material lapangan",
+    "rekap": "reconcile_whatsapp_material_group rekapitulasi ringkasan material excel",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -275,6 +280,7 @@ _CATEGORY_BOOSTS = {
         "wa_get_history_archive",
         "manage_wa_sheets_bot",
         "list_wa_drive_uploads",
+        "reconcile_whatsapp_material_group",
     ],
 }
 

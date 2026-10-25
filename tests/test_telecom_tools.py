@@ -342,5 +342,65 @@ def test_briefing_does_not_count_plan_as_material_taking():
             assert "💬 _Koordinasi/Rencana_" in lahat_section
 
 
+def test_reconcile_whatsapp_material_group():
+    import os
+    import openpyxl
+    from alfa.core.db.connection import get_sync_db
+    from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
+
+    # Populate test data in test db
+    test_messages = [
+        ("msg_1", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Mugi", 1, "chat", "Pengambilan matreal .\nTgl.17-10-2026.\nT7.3.-15.btng.\nT7.2,5.-10.btng", 0, 1792200306),
+        ("msg_2", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Mugi", 1, "chat", "Pengambilan matreal \nTgl 18-10-2026.\nT7.3-21.btng.\nT7.2,5-5btng.", 0, 1792285625),
+        ("msg_3", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Mugi", 1, "chat", "Pengembalian matreal.\nT7.3.7.btg", 0, 1792313102),
+        ("msg_4", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Mugi", 1, "chat", "Tgl.19.\nAmbil matreal \nT7.3-11.btng.\nT7.2,5-6.btng.", 0, 1792369885),
+        ("msg_5", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Aqe Setiawan", 1, "chat", "MRSB1\nT72: 4 BTG\nT73: 9 BTG", 0, 1792492987),
+        ("msg_6", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Aqe Setiawan", 1, "chat", "MRSB1\nT72:16 btg\nT73:19 btg", 0, 1792594374),
+        ("msg_7", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Aqe Setiawan", 1, "chat", "T72:10 btg\nT73:10 btg", 0, 1792846923),
+        ("msg_8", "120363430877427809@g.us", "pengambilan material lahat", "Mandor Aqe Setiawan", 1, "chat", "T72:12\nT73:16\nT74: 1\nT94: 2", 0, 1792925676),
+    ]
+    with get_sync_db() as conn:
+        for m in test_messages:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO wa_incoming_archive 
+                (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                m,
+            )
+        conn.commit()
+
+    test_excel = "/tmp/test_rekap_lahat_auto.xlsx"
+    if os.path.exists(test_excel):
+        os.remove(test_excel)
+
+    res = reconcile_whatsapp_material_group(
+        group_name_or_id="pengambilan material lahat",
+        output_excel_path=test_excel,
+        auto_launch_gridcraft=False,
+    )
+
+    assert res["status"] == "success"
+    assert res["total_net"] == 160
+    assert res["total_bruto"] == 167
+    assert res["total_retur"] == 7
+    assert "Mandor Mugi" in res["mandors"]
+    assert "Mandor Aqe Setiawan" in res["mandors"]
+    assert os.path.exists(test_excel)
+
+    # Verifikasi formula matematis dalam workbook Excel
+    wb = openpyxl.load_workbook(test_excel, data_only=False)
+    ws = wb.active
+    assert ws["G23"].value == "=SUM(G6:G22)"
+    assert ws["E27"].value == "=C27-D27"
+    assert ws["E28"].value == "=C28-D28"
+    assert ws["C29"].value == "=SUM(C27:C28)"
+    assert ws["E29"].value == "=SUM(E27:E28)"
+    assert ws["D37"].value == "=SUM(D33:D36)"
+    assert ws["E37"].value == "=SUM(E33:E36)"
+    assert ws["F37"].value == "=SUM(F33:F36)"
+
+
 
 
