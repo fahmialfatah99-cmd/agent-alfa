@@ -180,7 +180,11 @@ _SYNONYMS = {
     "belajar": "record_agent_experience query_learned_skills synthesize learning hermes self improving",
     "pengalaman": "record_agent_experience query_learned_skills aturan pelajaran koreksi masa lalu",
     "android": "rea_android_device_control scrcpy_android_control adb capture screen start app hp",
-    "rea": "rea_android_device_control rea_synthesize_skill_from_code rea_run_command rea_inspect_android_package reverse engineering",
+    "rea": "rea_android_device_control rea_synthesize_skill_from_code rea_clone_and_build_app rea_run_command rea_inspect_android_package rea_recover_js_sources apex_software_factory_build reverse engineering",
+    "bedah": "rea_inspect_android_package rea_inspect_js_app rea_recover_js_sources rea_inspect_sqlite_database rea_inspect_binary_or_wasm rea_synthesize_skill_from_code rea_clone_and_build_app",
+    "website": "apex_software_factory_build rea_clone_and_build_app serve_site list_managed_sites fullstack web app",
+    "situs": "apex_software_factory_build rea_clone_and_build_app serve_site list_managed_sites fullstack web app",
+    "graphrag": "apex_temporal_graphrag_query save_knowledge_memory search_knowledge_memory",
 }
 
 # Domain Category Keywords untuk Intent Boosting
@@ -217,6 +221,15 @@ _CATEGORY_BOOSTS = {
         "index_codebase",
         "git_operations",
         "grep_workspace",
+        "apex_software_factory_build",
+        "apex_synthesize_dynamic_tool",
+        "rea_inspect_android_package",
+        "rea_inspect_js_app",
+        "rea_recover_js_sources",
+        "rea_inspect_sqlite_database",
+        "rea_inspect_binary_or_wasm",
+        "rea_synthesize_skill_from_code",
+        "serve_site",
     ],
     "web": [
         "web_search",
@@ -226,6 +239,8 @@ _CATEGORY_BOOSTS = {
         "scrapling_stealth_fetch",
         "crawl4ai_web_crawler",
         "universal_deep_scraper",
+        "apex_software_factory_build",
+        "serve_site",
     ],
     "media": [
         "desktop_launch_app",
@@ -260,6 +275,8 @@ _CATEGORY_BOOSTS = {
         "desktop_type_keys",
         "desktop_click_coordinate",
         "vision_click_target",
+        "apex_computer_use_action",
+        "rea_android_device_control",
     ],
     "memory": [
         "save_knowledge_memory",
@@ -268,6 +285,9 @@ _CATEGORY_BOOSTS = {
         "ingest_document_to_vector_brain",
         "list_vector_brain_documents",
         "export_knowledge_base",
+        "apex_temporal_graphrag_query",
+        "query_learned_skills",
+        "record_agent_experience",
     ],
     "agent": [
         "spawn_background_subagent",
@@ -277,6 +297,13 @@ _CATEGORY_BOOSTS = {
         "record_agent_experience",
         "query_learned_skills",
         "rea_synthesize_skill_from_code",
+        "apex_synthesize_dynamic_tool",
+        "apex_neuro_symbolic_verify",
+        "apex_run_dreaming_consolidation",
+        "apex_system_telemetry",
+        "apex_software_factory_build",
+        "apex_temporal_graphrag_query",
+        "apex_computer_use_action",
     ],
     "whatsapp": [
         "wa_get_chats",

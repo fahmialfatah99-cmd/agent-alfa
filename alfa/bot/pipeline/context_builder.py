@@ -433,6 +433,7 @@ async def build_system_instruction(
     )
 
     learned_skills_prompt = ""
+    graphrag_prompt = ""
     if user_prompt:
         try:
             from alfa.core.brain.learning_loop import format_learned_skills_prompt
@@ -441,11 +442,19 @@ async def build_system_instruction(
         except Exception as e:
             logger.debug("Learning loop prompt format bypass: %s", e)
 
+        try:
+            from alfa.core.apex.temporal_graphrag import format_temporal_graphrag_prompt
+
+            graphrag_prompt = format_temporal_graphrag_prompt(user_prompt)
+        except Exception as e:
+            logger.debug("Temporal GraphRAG prompt format bypass: %s", e)
+
     full_system_instruction = (
         base_instruction
         + active_identity_block
         + memory_block
         + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
+        + (f"\n\n{graphrag_prompt}" if graphrag_prompt else "")
         + ENFORCEMENT_BLOCK
         + HONESTY_BLOCK
         + CODING_DELIVERY_BLOCK

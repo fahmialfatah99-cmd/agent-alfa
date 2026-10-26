@@ -65,8 +65,9 @@ from alfa.core.apex.software_factory import (
     verify_fullstack_project_e2e,
 )
 from alfa.core.apex.temporal_graphrag import (
+    format_temporal_graphrag_prompt,
     get_temporal_graphrag_metrics,
-     ingest_text_to_temporal_graph,
+    ingest_text_to_temporal_graph,
     init_graphrag_tables,
     query_temporal_graphrag,
     upsert_graph_entity,
@@ -255,7 +256,7 @@ def apex_software_factory_build(
     AUTONOMOUS FULL-STACK SOFTWARE FACTORY (DEVIN-GRADE APP BUILDER & E2E VERIFIER):
     Membangun aplikasi web full-stack (`index.html` + `app.py` + `site.json`), melakukan
     Self-Healing perbaikan struktur DOM/AST otomatis, dan memverifikasi kesiapan produksi
-    melalui 4-Stage E2E Quality Gate.
+    melalui 4-Stage E2E Quality Gate (termasuk Live HTTP 200 Smoke Test) serta mendaftarkannya ke `/sites`.
     """
     return build_and_verify_fullstack_app(
         app_slug=app_slug,
@@ -264,6 +265,78 @@ def apex_software_factory_build(
         backend_py=backend_py,
         auto_heal=True,
     )
+
+
+@_register_tool(category="agent")
+def rea_clone_and_build_app(
+    target_file_path: str,
+    app_slug: str,
+    app_title: str = "",
+    custom_frontend_html: str = "",
+    custom_backend_py: str = "",
+) -> dict[str, Any]:
+    """
+    1-CLICK REA REVERSE-ENGINEER & CLONE APPLICATION PIPELINE:
+    Membongkar file target (.apk, .js, .py, .asar, .db, atau binary) menggunakan mesin REA,
+    menyimpan pola arsitekturnya ke Learning Loop & Temporal GraphRAG, lalu langsung membangun
+    aplikasi full-stack baru yang terverifikasi Live HTTP 200 dan terdaftar di `/sites`.
+    """
+    from alfa.tools.system.reverse_engineering import rea_synthesize_skill_from_code
+
+    eff_title = app_title.strip() or f"ALFA Clone: {app_slug}"
+    rea_res = rea_synthesize_skill_from_code(
+        target_path=target_file_path,
+        skill_topic=f"REA_APP_{app_slug.upper()}",
+    )
+
+    upsert_graph_relation(
+        source_entity=app_slug.upper(),
+        relation_type="CLONED_VIA_REA_FROM",
+        target_entity=target_file_path,
+        context_snippet=str(rea_res.get("synthesized_rule", ""))[:200],
+    )
+
+    rule_summary = rea_res.get("synthesized_rule", "Extracted via REA Engine")
+    if not custom_frontend_html.strip():
+        custom_frontend_html = f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <title>{eff_title}</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }}
+        .card {{ background: #1e293b; border-radius: 12px; padding: 1.5rem; max-width: 800px; margin: 0 auto; border: 1px solid #334155; }}
+        pre {{ background: #020617; padding: 1rem; border-radius: 8px; overflow-x: auto; color: #38bdf8; }}
+        button {{ background: #0ea5e9; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚡ {eff_title}</h1>
+        <p>Dibangun otomatis oleh <strong>ALFA OS REA + Software Factory</strong> dari target: <code>{target_file_path}</code></p>
+        <h3>📐 Arsitektur Hasil Bedah REA:</h3>
+        <pre>{rule_summary}</pre>
+        <form id="action-form" onsubmit="event.preventDefault(); alert('Eksekusi modul aktif!');">
+            <input type="text" placeholder="Input parameter..." style="padding:0.5rem;border-radius:6px;border:1px solid #475569;background:#0f172a;color:white;" />
+            <button type="submit">Jalankan Modul</button>
+        </form>
+    </div>
+</body>
+</html>"""
+
+    build_res = build_and_verify_fullstack_app(
+        app_slug=app_slug,
+        title=eff_title,
+        frontend_html=custom_frontend_html,
+        backend_py=custom_backend_py,
+        auto_heal=True,
+    )
+    return {
+        "status": build_res["status"],
+        "rea_analysis": rea_res,
+        "build_result": build_res,
+        "serve_command": f"/serve {build_res['app_slug']}",
+    }
 
 
 __all__ = [
@@ -282,6 +355,7 @@ __all__ = [
     "capture_desktop_for_vision",
     "compile_fastpath",
     "execute_gui_action",
+    "format_temporal_graphrag_prompt",
     "get_apex_full_status",
     "get_canary_evolution_metrics",
     "get_cloud_rescue_metrics",
@@ -295,6 +369,7 @@ __all__ = [
     "inspect_desktop_environment",
     "is_service_quarantined",
     "query_temporal_graphrag",
+    "rea_clone_and_build_app",
     "read_cpu_temperature_celsius",
     "record_world_anomaly",
     "run_autonomous_apex_maintenance",

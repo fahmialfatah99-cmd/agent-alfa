@@ -286,6 +286,32 @@ def query_temporal_graphrag(query: str, max_hops: int = 2, limit: int = 10) -> d
     }
 
 
+def format_temporal_graphrag_prompt(query: str, limit: int = 5) -> str:
+    """
+    Format relevant 1-Hop and 2-Hop Temporal GraphRAG connections into a concise
+    system instruction block for automatic recall during LLM turns.
+    """
+    if not query or len(query.strip()) < 3:
+        return ""
+    res = query_temporal_graphrag(query, max_hops=2, limit=limit)
+    h1 = res.get("hop1_relations", [])
+    h2 = res.get("hop2_bridges", [])
+    if not h1 and not h2:
+        return ""
+
+    lines = ["### 🕸️ TEMPORAL GRAPHRAG SECOND BRAIN (MULTI-HOP RECALL)"]
+    for r in h1[:limit]:
+        lines.append(
+            f"- [1-Hop] `{r['source_entity']}` ➔ **{r['relation_type']}** ➔ `{r['target_entity']}` _(w={r.get('weight', 1.0)})_"
+        )
+    for r2 in h2[:3]:
+        lines.append(
+            f"- [2-Hop Bridge] `{r2['source_entity']}` ➔ **{r2['relation_type']}** ➔ `{r2['target_entity']}`"
+        )
+    return "\n".join(lines)
+
+
+
 def get_temporal_graphrag_metrics() -> dict[str, Any]:
     """Return telemetry for the Episodic Temporal GraphRAG Second Brain."""
     init_graphrag_tables()

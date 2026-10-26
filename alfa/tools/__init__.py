@@ -111,6 +111,7 @@ from alfa.core.apex import (
     apex_synthesize_dynamic_tool,
     apex_system_telemetry,
     apex_temporal_graphrag_query,
+    rea_clone_and_build_app,
 )
 
 logger = logging.getLogger("AgentTools")
@@ -316,6 +317,7 @@ AVAILABLE_TOOLS = [
     apex_computer_use_action,
     apex_temporal_graphrag_query,
     apex_software_factory_build,
+    rea_clone_and_build_app,
     *plugins.load_all_plugin_tools(),
 ]
 

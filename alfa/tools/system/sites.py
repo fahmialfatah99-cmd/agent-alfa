@@ -161,6 +161,7 @@ def refresh_registry() -> dict:
         ("websites", os.path.join(OUTPUTS_DIR, "websites")),
         ("projects", os.path.join(OUTPUTS_DIR, "projects")),
         ("projects", os.path.expanduser("~/alfa_projects")),
+        ("websites", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "sandbox_workspace", "sites"))),
     ]
     for cat, parent in scan_roots:
         if not os.path.isdir(parent):

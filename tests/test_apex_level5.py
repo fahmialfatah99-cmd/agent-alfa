@@ -323,6 +323,54 @@ def get_analytics_summary() -> dict:
     assert build_res["status"] == "success"
     assert build_res["e2e_verification"]["status"] == "PRODUCTION_READY"
     assert build_res["e2e_verification"]["e2e_score"] == 100
+    assert build_res["e2e_verification"]["live_http_smoke"]["passed"] is True
+    assert build_res["e2e_verification"]["live_http_smoke"]["http_status"] == 200
     assert len(build_res["e2e_verification"]["auto_repairs_applied"]) >= 1
+
+
+def test_audit_fixes_tool_rag_sites_graphrag_and_rea_clone(tmp_path):
+    from alfa.core.apex import (
+        format_temporal_graphrag_prompt,
+        rea_clone_and_build_app,
+    )
+    from alfa.tools import AVAILABLE_TOOLS
+    from alfa.tools.rag import select_relevant_functions
+
+    # 1. Verify Celah 1 Fix: Tool-RAG selects REA + Software Factory tools within TOP_K=24
+    selected_fns = select_relevant_functions(
+        AVAILABLE_TOOLS,
+        "Tolong bedah aplikasi ini dengan rea dan buatkan aplikasi web sendiri di /sites",
+        top_k=24,
+    )
+    selected_names = {getattr(fn, "__name__", "") for fn in selected_fns}
+    assert "rea_clone_and_build_app" in selected_names
+    assert "apex_software_factory_build" in selected_names
+    assert "rea_synthesize_skill_from_code" in selected_names
+    assert "serve_site" in selected_names
+
+    # 2. Verify Celah 3 Fix: Automatic 2-Hop Temporal GraphRAG prompt formatting
+    graph_prompt = format_temporal_graphrag_prompt("Ceritakan tentang PROJECT_ORION dan arsitekturnya")
+    assert "TEMPORAL GRAPHRAG" in graph_prompt
+    assert "FASTAPI_BACKEND" in graph_prompt
+    assert "SQLITE_WAL_ENGINE" in graph_prompt
+
+    # 3. Verify Celah 2 & Celah 4 Fix: 1-Click REA Dissect -> Learn -> Build -> Live HTTP 200 Test
+    sample_js = tmp_path / "target_bundle.js"
+    sample_js.write_text(
+        "const API_URL = 'https://api.acme-logistics.io/v2/dispatch';\n"
+        "function calculateTariff(weightKg) { return weightKg * 14500; }\n",
+        encoding="utf-8",
+    )
+    clone_res = rea_clone_and_build_app(
+        target_file_path=str(sample_js),
+        app_slug="acme-logistics-clone",
+        app_title="ACME Logistics Clone",
+    )
+    assert clone_res["status"] == "success"
+    assert clone_res["rea_analysis"]["status"] == "success"
+    assert clone_res["build_result"]["e2e_verification"]["live_http_smoke"]["http_status"] == 200
+    assert clone_res["build_result"]["registered_in_sites_menu"] is True
+    assert "/serve acme-logistics-clone" in clone_res["serve_command"]
+
 
 

@@ -99,6 +99,40 @@ _TOOL_FAMILIES: dict[str, set[str]] = {
         "wa_get_chats",
         "wa_get_messages",
     },
+    "rea_inspect_android_package": {
+        "rea_synthesize_skill_from_code",
+        "rea_clone_and_build_app",
+        "apex_software_factory_build",
+        "serve_site",
+    },
+    "rea_recover_js_sources": {
+        "rea_inspect_js_app",
+        "rea_synthesize_skill_from_code",
+        "rea_clone_and_build_app",
+        "apex_software_factory_build",
+        "serve_site",
+    },
+    "rea_synthesize_skill_from_code": {
+        "rea_clone_and_build_app",
+        "apex_software_factory_build",
+        "serve_site",
+        "record_agent_experience",
+    },
+    "rea_clone_and_build_app": {
+        "apex_software_factory_build",
+        "serve_site",
+        "list_managed_sites",
+    },
+    "apex_software_factory_build": {
+        "rea_clone_and_build_app",
+        "serve_site",
+        "list_managed_sites",
+    },
+    "apex_computer_use_action": {
+        "capture_desktop_screenshot",
+        "desktop_click_coordinate",
+        "desktop_type_keys",
+    },
 }
 
 
@@ -223,6 +257,59 @@ def get_required_action_tools(user_text: str) -> set[str]:
                 "wa_get_incoming",
                 "wa_send_message",
                 "wa_get_records",
+            ]
+        )
+    if any(
+        k in txt_low
+        for k in ["rea", "bedah", "decompile", "reverse", "apk", "asar", "adb", "wasm", "binary"]
+    ):
+        required.update(
+            [
+                "rea_inspect_android_package",
+                "rea_inspect_js_app",
+                "rea_recover_js_sources",
+                "rea_inspect_sqlite_database",
+                "rea_inspect_binary_or_wasm",
+                "rea_android_device_control",
+                "rea_synthesize_skill_from_code",
+                "rea_clone_and_build_app",
+                "apex_software_factory_build",
+                "serve_site",
+            ]
+        )
+    if any(
+        k in txt_low
+        for k in ["buat aplikasi", "bikin aplikasi", "buatkan aplikasi", "buat web", "bikin web", "situs", "/sites", "fullstack", "web app"]
+    ):
+        required.update(
+            [
+                "apex_software_factory_build",
+                "rea_clone_and_build_app",
+                "serve_site",
+                "list_managed_sites",
+            ]
+        )
+    if any(
+        k in txt_low
+        for k in ["klik", "kursor", "cursor", "coordinate", "grid", "computer use", "layar"]
+    ):
+        required.update(
+            [
+                "apex_computer_use_action",
+                "capture_desktop_screenshot",
+                "desktop_click_coordinate",
+                "desktop_type_keys",
+            ]
+        )
+    if any(
+        k in txt_low
+        for k in ["graphrag", "hubungan", "relasi", "aturan", "skill", "belajar", "koreksi"]
+    ):
+        required.update(
+            [
+                "apex_temporal_graphrag_query",
+                "query_learned_skills",
+                "record_agent_experience",
             ]
         )
     return required

@@ -1,31 +1,35 @@
 """
-Autonomous Full-Stack Software Factory & Self-Healing E2E Verifier for ALFA OS (Devin-Grade).
+Autonomous Full-Stack Software Factory & Live HTTP E2E Verifier for ALFA OS (Devin-Grade).
 
 Enables ALFA OS to autonomously scaffold, self-heal, and E2E-verify full-stack web
-applications (Backend Python + Frontend HTML/JS/CSS) with a 4-Stage Quality Gate:
+applications (Backend Python + Frontend HTML/JS/CSS) with a 4-Stage Live Quality Gate:
 1. Stage 1: Python Backend AST Syntax & Route Audit.
 2. Stage 2: Frontend HTML/DOM Structural & Interactive Element Audit (with Auto-Repair).
-3. Stage 3: Asset & JSON Manifest Verification.
-4. Stage 4: E2E Readiness Scoring & Registry Recording for `/sites`.
+3. Stage 3: Live Ephemeral HTTP Server Spin-Up & Real HTTP 200 OK Smoke Request.
+4. Stage 4: Automatic Registration into `/sites` (`~/Dokumen/ALFA_SWARM_OUTPUTS/websites/`).
 """
 
 from __future__ import annotations
 
 import ast
+import functools
 import hashlib
+import http.server
 import json
 import logging
 import os
 import re
+import socketserver
+import threading
+import urllib.request
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("ApexSoftwareFactory")
 
-DEFAULT_FACTORY_SITES_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "sandbox_workspace", "sites")
-)
+# Matches `OUTPUTS_DIR/websites` in `alfa/tools/system/sites.py` so `/sites` sees every build immediately
+DEFAULT_FACTORY_SITES_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites")
 
 
 def init_software_factory_tables() -> None:
@@ -63,6 +67,9 @@ def _auto_heal_html(html_text: str, title: str) -> tuple[str, list[str]]:
         healed = f'<html lang="id">\n<head><meta charset="utf-8"><title>{title}</title></head>\n<body>\n{healed}\n</body>\n</html>'
         repairs.append("Wrapped content in standard <html><head><body> structure.")
     else:
+        if "<title>" not in healed.lower() and "<head>" in healed.lower():
+            healed = re.sub(r"(<head[^>]*>)", rf"\1<title>{title}</title>", healed, count=1, flags=re.I)
+            repairs.append("Injected <title> tag into <head>.")
         if "</body>" not in healed.lower():
             healed += "\n</body>"
             repairs.append("Closed unclosed </body> tag.")
@@ -73,9 +80,41 @@ def _auto_heal_html(html_text: str, title: str) -> tuple[str, list[str]]:
     return healed, repairs
 
 
+def _run_live_http_smoke_test(app_dir: str) -> dict[str, Any]:
+    """
+    Spin up an ephemeral local HTTP server on a free OS port, perform a real HTTP GET
+    request against `/index.html`, verify HTTP 200 + non-empty DOM payload, and tear down.
+    """
+    class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+            pass
+
+    handler_cls = functools.partial(_QuietHandler, directory=app_dir)
+    try:
+        with socketserver.TCPServer(("127.0.0.1", 0), handler_cls) as httpd:
+            port = httpd.server_address[1]
+            t = threading.Thread(target=httpd.serve_forever, daemon=True)
+            t.start()
+            try:
+                url = f"http://127.0.0.1:{port}/index.html"
+                with urllib.request.urlopen(url, timeout=2.5) as resp:  # noqa: S310
+                    status_code = resp.status
+                    body = resp.read().decode("utf-8", errors="ignore")
+                return {
+                    "passed": status_code == 200 and len(body) > 20,
+                    "http_status": status_code,
+                    "bytes_received": len(body),
+                    "ephemeral_port_tested": port,
+                }
+            finally:
+                httpd.shutdown()
+    except Exception as e:
+        return {"passed": False, "error": str(e)}
+
+
 def verify_fullstack_project_e2e(app_dir: str) -> dict[str, Any]:
     """
-    Run the 4-Stage Devin-Style E2E Verification Gate on an application directory.
+    Run the 4-Stage Devin-Style E2E Verification Gate (including Live HTTP Smoke Test).
     """
     if not app_dir or not os.path.isdir(app_dir):
         return {"status": "error", "e2e_score": 0, "issues": [f"Directory not found: {app_dir}"]}
@@ -114,14 +153,24 @@ def verify_fullstack_project_e2e(app_dir: str) -> dict[str, Any]:
                 issues.append(f"Incomplete DOM structure in {hf}")
                 score -= 20
 
-            # Check interactive elements
             interactive_count = len(re.findall(r"<(button|input|select|textarea|form|a)\b", h_low))
             passed_checks.append(f"Interactive UI Elements in {hf}: {interactive_count}")
 
-            # Check unclosed <script> tags
             if h_low.count("<script") != h_low.count("</script>"):
                 issues.append(f"Mismatched <script> tags in {hf}")
                 score -= 25
+
+    # Stage 3: Live HTTP Server Smoke Test
+    http_test: dict[str, Any] = {"passed": False, "http_status": 0}
+    if "index.html" in html_files:
+        http_test = _run_live_http_smoke_test(app_dir)
+        if http_test.get("passed"):
+            passed_checks.append(
+                f"Live HTTP 200 OK Smoke Test Passed ({http_test.get('bytes_received')} bytes on port {http_test.get('ephemeral_port_tested')})"
+            )
+        else:
+            issues.append(f"Live HTTP Smoke Test failed: {http_test.get('error', 'Non-200 status')}")
+            score -= 30
 
     score = max(0, min(100, score))
     ver_status = "PRODUCTION_READY" if score >= 85 and not issues else "NEEDS_REPAIR"
@@ -131,6 +180,7 @@ def verify_fullstack_project_e2e(app_dir: str) -> dict[str, Any]:
         "e2e_score": score,
         "passed_checks": passed_checks,
         "issues": issues,
+        "live_http_smoke": http_test,
     }
 
 
@@ -144,10 +194,10 @@ def build_and_verify_fullstack_app(
 ) -> dict[str, Any]:
     """
     Autonomous Software Factory Pipeline:
-    1. Scaffolds project directory (`index.html`, optional `app.py`, `site.json`).
+    1. Scaffolds project directory directly in `~/Dokumen/ALFA_SWARM_OUTPUTS/websites/<slug>` (or `sites_root`).
     2. Applies Self-Healing HTML/AST repairs if `auto_heal=True`.
-    3. Executes 4-Stage E2E Verification Gate.
-    4. Registers the verified build in SQLite (`alfa_software_factory_builds`).
+    3. Executes 4-Stage E2E Verification Gate (including Live HTTP 200 Smoke Test).
+    4. Syncs with `/sites` registry (`refresh_registry()`) so the app immediately appears in `/sites`.
     """
     init_software_factory_tables()
     slug_clean = re.sub(r"[^a-z0-9_\-]", "-", app_slug.strip().lower()).strip("-") or "alfa-app"
@@ -172,7 +222,7 @@ def build_and_verify_fullstack_app(
     manifest = {
         "slug": slug_clean,
         "title": title,
-        "generator": "ALFA_Apex_Software_Factory_v1",
+        "generator": "ALFA_Apex_Software_Factory_v2",
         "auto_repairs": repairs_applied,
     }
     with open(os.path.join(app_dir, "site.json"), "w", encoding="utf-8") as f:
@@ -180,6 +230,16 @@ def build_and_verify_fullstack_app(
 
     e2e = verify_fullstack_project_e2e(app_dir)
     e2e["auto_repairs_applied"] = repairs_applied
+
+    # Stage 4: Sync directly with ALFA `/sites` registry
+    sites_registered = False
+    try:
+        from alfa.tools.system.sites import refresh_registry
+
+        reg = refresh_registry()
+        sites_registered = slug_clean in reg
+    except Exception as e:
+        logger.debug("Optional sites registry sync note: %s", e)
 
     bid_hash = hashlib.sha256(f"{slug_clean}:{title}".encode()).hexdigest()[:10]
     build_id = f"build_{slug_clean}_{bid_hash}"
@@ -216,6 +276,7 @@ def build_and_verify_fullstack_app(
         "app_slug": slug_clean,
         "title": title,
         "app_dir": app_dir,
+        "registered_in_sites_menu": sites_registered,
         "e2e_verification": e2e,
     }
 
