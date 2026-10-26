@@ -18,12 +18,18 @@ DB = os.getenv(
 
 
 def apply_db(db_path: str | None = None) -> int:
-    """Sinkronkan role, persona, dan system_instruction Dual-Persona ke tabel custom_agents."""
+    """Sinkronkan role, persona, system_instruction Dual-Persona, dan api_key_id aktif ke tabel custom_agents."""
     target_db = db_path or DB
     prompts = build_prompts()
     updated = 0
     conn = sqlite3.connect(target_db)
+    conn.row_factory = sqlite3.Row
     try:
+        active_key = conn.execute(
+            "SELECT id, provider, default_model FROM api_keys "
+            "WHERE provider IN ('9router', 'gemini') AND is_active=1 "
+            "ORDER BY CASE WHEN provider='9router' THEN 0 ELSE 1 END, id DESC LIMIT 1"
+        ).fetchone()
         for aid, instruction in prompts.items():
             role = AGENTS[aid].get("role", "")
             persona = AGENTS[aid].get("persona", "")
@@ -38,6 +44,17 @@ def apply_db(db_path: str | None = None) -> int:
                     (persona, instruction, aid),
                 )
             updated += cur.rowcount
+
+        if active_key:
+            kid = active_key["id"]
+            prov = active_key["provider"]
+            mod = active_key["default_model"] or (
+                "antigravity" if prov == "9router" else "gemini-3.5-flash"
+            )
+            conn.execute(
+                "UPDATE custom_agents SET provider = ?, model = ?, api_key_id = ? WHERE api_key_id IS NULL",
+                (prov, mod, kid),
+            )
         conn.commit()
         for row in conn.execute(
             "SELECT id, name, role, length(system_instruction) "
