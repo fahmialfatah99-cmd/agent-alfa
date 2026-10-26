@@ -287,27 +287,40 @@ def start_site(slug: str) -> dict[str, Any]:
         if ent.get("pid_backend") and _pid_alive(ent["pid_backend"]):
             out["backend"] = f"sudah jalan (PID {ent['pid_backend']})"
         else:
+            import sys as _sys
+
             port = int(ent.get("backend_port") or _free_port(BACKEND_PORT_BASE, set()))
             logf = open(os.path.join(LOGS_DIR, f"{slug}-backend.log"), "ab")
-            try:
-                proc = subprocess.Popen(
-                    ["uvicorn", "app:app", "--port", str(port)],
-                    cwd=ent["path"], stdout=logf, stderr=subprocess.STDOUT,
-                    start_new_session=True,
-                )
-            except FileNotFoundError:
-                import sys as _sys
+            app_py_path = os.path.join(ent["path"], "app.py")
+            app_head = ""
+            if os.path.isfile(app_py_path):
+                with open(app_py_path, errors="ignore") as af:
+                    app_head = af.read(4000)
 
+            if "Flask" in app_head and "FastAPI" not in app_head:
                 proc = subprocess.Popen(
-                    [_sys.executable, "-m", "uvicorn", "app:app", "--port", str(port)],
+                    [_sys.executable, "-m", "flask", "--app", "app", "run", "--host", "127.0.0.1", "--port", str(port)],
                     cwd=ent["path"], stdout=logf, stderr=subprocess.STDOUT,
                     start_new_session=True,
                 )
+            else:
+                try:
+                    proc = subprocess.Popen(
+                        [_sys.executable, "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", str(port)],
+                        cwd=ent["path"], stdout=logf, stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                except FileNotFoundError:
+                    proc = subprocess.Popen(
+                        ["uvicorn", "app:app", "--host", "127.0.0.1", "--port", str(port)],
+                        cwd=ent["path"], stdout=logf, stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
             ent["pid_backend"] = proc.pid
             ent["backend_port"] = port
-            ok = _wait_http(f"http://127.0.0.1:{port}/api/health")
+            ok = _wait_http(f"http://127.0.0.1:{port}/api/health", timeout=6.0)
             if not ok:
-                ok = _wait_http(f"http://127.0.0.1:{port}/")
+                ok = _wait_http(f"http://127.0.0.1:{port}/", timeout=8.0)
             out["backend"] = f"http://127.0.0.1:{port} ({'OK' if ok else 'proses jalan, health belum merespons'})"
     if stack.get("has_frontend"):
         if ent.get("pid_frontend") and _pid_alive(ent["pid_frontend"]):

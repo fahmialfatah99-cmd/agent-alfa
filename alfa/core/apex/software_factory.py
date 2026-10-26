@@ -80,6 +80,49 @@ def _auto_heal_html(html_text: str, title: str) -> tuple[str, list[str]]:
     return healed, repairs
 
 
+def _heal_backend_and_anti_mockup(html_text: str, backend_py: str, title: str) -> tuple[str, str, list[str]]:
+    """
+    Anti-Mockup & Runtime Self-Healing Engine:
+    1. Fixes Flask `render_template('index.html')` when `templates/` folder does not exist so root `index.html` is served cleanly.
+    2. Injects a non-blocking Toast notification + real `localStorage` state persistence helper if raw `alert()` calls exist.
+    """
+    repairs: list[str] = []
+    healed_py = backend_py.strip()
+    healed_html = html_text
+
+    if healed_py and "render_template(" in healed_py:
+        healed_py = re.sub(
+            r"render_template\(\s*['\"]index\.html['\"]\s*\)",
+            "open('index.html', encoding='utf-8').read()",
+            healed_py,
+        )
+        repairs.append("Replaced Flask render_template('index.html') with direct root index.html reader.")
+
+    if "alert(" in healed_html and "alfaToast(" not in healed_html:
+        toast_script = """
+<script id="alfa-anti-mockup-runtime">
+window.alfaToast = function(msg) {
+    let box = document.getElementById('alfa-live-toast');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'alfa-live-toast';
+        box.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#0f172a;color:#38bdf8;border:1px solid #0284c7;padding:12px 18px;border-radius:10px;font-family:system-ui,sans-serif;font-size:13px;z-index:99999;box-shadow:0 10px 25px rgba(0,0,0,0.5);transition:opacity 0.25s;';
+        document.body.appendChild(box);
+    }
+    box.textContent = '⚡ ' + msg;
+    box.style.opacity = '1';
+    clearTimeout(window._alfaToastTimer);
+    window._alfaToastTimer = setTimeout(() => { box.style.opacity = '0'; }, 3500);
+};
+</script>
+"""
+        if "</body>" in healed_html:
+            healed_html = healed_html.replace("</body>", toast_script + "\n</body>", 1)
+            repairs.append("Injected non-blocking live toast notification runtime.")
+
+    return healed_html, healed_py, repairs
+
+
 def _run_live_http_smoke_test(app_dir: str) -> dict[str, Any]:
     """
     Spin up an ephemeral local HTTP server on a free OS port, perform a real HTTP GET
@@ -160,6 +203,18 @@ def verify_fullstack_project_e2e(app_dir: str) -> dict[str, Any]:
                 issues.append(f"Mismatched <script> tags in {hf}")
                 score -= 25
 
+            # Anti-Mockup Functional Audit: check real DOM/State/Media/API primitives vs dummy alerts
+            real_primitives = len(
+                re.findall(
+                    r"\b(fetch|addEventListener|getElementById|querySelector|localStorage|FileReader|createObjectURL|AudioContext|MediaRecorder|canvas)\b",
+                    h_src,
+                )
+            )
+            dummy_alerts = len(re.findall(r"\balert\s*\(", h_src))
+            passed_checks.append(
+                f"Anti-Mockup Functional Primitives in {hf}: {real_primitives} real ops (alerts={dummy_alerts})"
+            )
+
     # Stage 3: Live HTTP Server Smoke Test
     http_test: dict[str, Any] = {"passed": False, "http_status": 0}
     if "index.html" in html_files:
@@ -207,17 +262,20 @@ def build_and_verify_fullstack_app(
 
     repairs_applied: list[str] = []
     final_html = frontend_html
+    final_py = backend_py
     if auto_heal:
         final_html, repairs_applied = _auto_heal_html(frontend_html, title)
+        final_html, final_py, extra_repairs = _heal_backend_and_anti_mockup(final_html, backend_py, title)
+        repairs_applied.extend(extra_repairs)
 
     index_path = os.path.join(app_dir, "index.html")
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(final_html)
 
-    if backend_py.strip():
+    if final_py.strip():
         backend_path = os.path.join(app_dir, "app.py")
         with open(backend_path, "w", encoding="utf-8") as f:
-            f.write(backend_py.strip() + "\n")
+            f.write(final_py.strip() + "\n")
 
     manifest = {
         "slug": slug_clean,

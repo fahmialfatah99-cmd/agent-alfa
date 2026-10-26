@@ -463,6 +463,12 @@ async def build_system_instruction(
         + TOOL_FIRST_EXECUTION_BLOCK
         + SUPERPOWERS_SKILLS_BLOCK
         + UI_UX_PRO_MAX_BLOCK
+        + (
+            "\n\n### 🚫 ATURAN MUTLAK ZERO-MOCKUP SAAT MEMBUAT APLIKASI / WEBSITE\n"
+            "- Saat diminta membuat atau meng-clone aplikasi (`apex_software_factory_build`, `apex_repo_architect_build`, `rea_clone_and_build_app`), DILARANG KERAS membuat tombol dummy `alert('fitur dijalankan')` atau halaman mockup statis!\n"
+            "- Setiap fitur UI WAJIB bekerja nyata: gunakan `<input type='file'>` + `URL.createObjectURL` untuk memuat media/berkas asli pengguna, elemen `<video>`/`<canvas>`/`WebAudio` untuk pemrosesan real-time, `localStorage` untuk menyimpan proyek, dan di `app.py` gunakan eksekusi nyata (misal `ffmpeg` / `sqlite3` / `open('index.html').read()`).\n"
+            "- Setelah selesai membangun aplikasi dengan Software Factory, SELALU panggil `serve_site(action='start', slug='<slug>')` agar server langsung hidup dan berikan URL aktifnya ke pengguna.\n"
+        )
         + unrestricted_block
     )
     return full_system_instruction, preferred_model, current_active_model

@@ -259,6 +259,11 @@ def apex_software_factory_build(
     Membangun aplikasi web full-stack (`index.html` + `app.py` + `site.json`), melakukan
     Self-Healing perbaikan struktur DOM/AST otomatis, dan memverifikasi kesiapan produksi
     melalui 4-Stage E2E Quality Gate (termasuk Live HTTP 200 Smoke Test) serta mendaftarkannya ke `/sites`.
+
+    ATURAN MUTLAK ZERO-MOCKUP (WAJIB DIPATUHI):
+    - DILARANG KERAS menulis tombol dummy yang hanya memanggil `alert(...)` atau menampilkan angka statis palsu!
+    - Di `frontend_html`, WAJIB sertakan fitur fungsional nyata: `<input type="file">` dengan `URL.createObjectURL(file)` / `FileReader`, elemen `<video>` / `<audio>` / `<canvas>` / `localStorage` nyata, event listener DOM penuh, dan `fetch('/api/...')` dengan fallback client-side.
+    - Di `backend_py`, gunakan FastAPI atau Flask yang melayani `open('index.html', encoding='utf-8').read()` di `/` serta endpoint `/api/...` yang benar-benar mengeksekusi logika nyata (misal: `subprocess.run(['ffmpeg', ...])`, SQLite, atau kalkulasi nyata).
     """
     return build_and_verify_fullstack_app(
         app_slug=app_slug,
