@@ -169,6 +169,126 @@ async def _check_and_send_media_artifacts(
 
 
 _RECENT_DOCS: dict[int, dict[str, Any]] = {}
+_RECENT_DOCS_CACHE_PATH = "/tmp/alfa_uploads/recent_docs_cache.json"
+
+
+def _save_recent_docs_cache() -> None:
+    """Simpan _RECENT_DOCS ke disk agar restart service bot tidak membuat tombol aksi dokumen kedaluwarsa."""
+    try:
+        os.makedirs(os.path.dirname(_RECENT_DOCS_CACHE_PATH), exist_ok=True)
+        serializable = {str(k): v for k, v in _RECENT_DOCS.items() if isinstance(v, dict)}
+        with open(_RECENT_DOCS_CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(serializable, f, ensure_ascii=False)
+    except Exception as e:
+        logger.debug(f"[_save_recent_docs_cache] Gagal menyimpan cache dokumen: {e}")
+
+
+def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any] | None:
+    """Ambil doc_info dari RAM, disk cache, atau auto-recovery dari chat_history SQLite."""
+    if chat_id in _RECENT_DOCS:
+        return _RECENT_DOCS[chat_id]
+
+    # 1. Coba muat dari disk cache (/tmp/alfa_uploads/recent_docs_cache.json)
+    if os.path.exists(_RECENT_DOCS_CACHE_PATH):
+        try:
+            with open(_RECENT_DOCS_CACHE_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for k, v in data.items():
+                if isinstance(v, dict):
+                    _RECENT_DOCS[int(k)] = v
+            if chat_id in _RECENT_DOCS:
+                return _RECENT_DOCS[chat_id]
+        except Exception as e:
+            logger.debug(f"[_get_or_recover_recent_doc] Gagal membaca disk cache: {e}")
+
+    # 2. Fallback Auto-Recovery dari tabel chat_history SQLite jika service baru di-restart
+    import re
+    import sqlite3
+    from alfa.core.db.connection import DB_PATH
+
+    target_uid = user_id or chat_id
+    try:
+        with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+            c = conn.cursor()
+            c.execute(
+                """
+                SELECT id, content FROM chat_history
+                WHERE user_id = ? AND role = 'user'
+                  AND (
+                      content LIKE '%[LOCAL_DISK_PATH:%'
+                      OR content LIKE '%[SPREADSHEET EXCEL:%'
+                      OR content LIKE '%[DOKUMEN PDF:%'
+                      OR content LIKE '%[DOKUMEN WORD:%'
+                      OR content LIKE '%[BERKAS CSV/TSV:%'
+                      OR content LIKE '%[KUMPULAN % BERKAS DOKUMEN%'
+                  )
+                ORDER BY id DESC LIMIT 1
+                """,
+                (target_uid,),
+            )
+            row = c.fetchone()
+            if row:
+                msg_id, raw_content = row[0], row[1] or ""
+                c.execute(
+                    """
+                    SELECT content FROM chat_history
+                    WHERE user_id = ? AND role IN ('assistant', 'model') AND id > ?
+                    ORDER BY id ASC LIMIT 1
+                    """,
+                    (target_uid, msg_id),
+                )
+                ans_row = c.fetchone()
+                summary_reply = ans_row[0] if ans_row and ans_row[0] else ""
+
+                txt_ctx = raw_content.split("\n\nInstruksi Pengguna:")[0].strip()
+                file_name = "Dokumen_Referensi"
+                m_path = re.search(r"\[LOCAL_DISK_PATH:\s*([^\]]+)\]", txt_ctx)
+                m_tag = re.search(
+                    r"\[(?:SPREADSHEET EXCEL|DOKUMEN PDF|DOKUMEN WORD|BERKAS CSV/TSV|DOKUMEN TEKS/KODE):\s*([^\]]+)\]",
+                    txt_ctx,
+                )
+                if m_path:
+                    local_p = m_path.group(1).strip()
+                    file_name = os.path.basename(local_p)
+                    ext = os.path.splitext(file_name)[1].lower()
+                    if os.path.isfile(local_p) and ext in (".xlsx", ".xls", ".ods"):
+                        try:
+                            from alfa.tools.filesystem import universal_file_extractor as ufe
+
+                            with open(local_p, "rb") as lf:
+                                fresh_excel = ufe._extract_excel(lf.read(), file_name, ext)
+                            if fresh_excel:
+                                path_hdr = (
+                                    f"[LOCAL_DISK_PATH: {local_p}]\n"
+                                    f"[SPREADSHEET EXCEL: {file_name}]\n"
+                                )
+                                txt_ctx = f"{path_hdr}\n{fresh_excel}".strip()
+                        except Exception:
+                            pass
+                elif m_tag:
+                    file_name = m_tag.group(1).strip()
+
+                is_batch = raw_content.startswith("[KUMPULAN ")
+                recovered = {
+                    "is_batch": is_batch,
+                    "docs_count": 1,
+                    "file_name": file_name,
+                    "file_names": [file_name],
+                    "mime_type": "application/octet-stream",
+                    "txt_ctx": txt_ctx,
+                    "summary_reply": summary_reply,
+                    "time": time.time(),
+                }
+                _RECENT_DOCS[chat_id] = recovered
+                _save_recent_docs_cache()
+                logger.info(
+                    f"[_get_or_recover_recent_doc] Berhasil memulihkan dokumen '{file_name}' untuk chat_id={chat_id} dari chat_history (id={msg_id})."
+                )
+                return recovered
+    except Exception as e:
+        logger.warning(f"[_get_or_recover_recent_doc] Gagal memulihkan dari SQLite: {e}")
+
+    return None
 
 
 async def handle_doc_action_callback(
@@ -182,7 +302,7 @@ async def handle_doc_action_callback(
     chat_id = update.effective_chat.id if update.effective_chat else 0
     user_id = update.effective_user.id if update.effective_user else 0
 
-    doc_info = _RECENT_DOCS.get(chat_id)
+    doc_info = _get_or_recover_recent_doc(chat_id, user_id)
     if not doc_info:
         await context.bot.send_message(
             chat_id=chat_id,
@@ -193,6 +313,9 @@ async def handle_doc_action_callback(
     turn_start_time = time.time()
     file_name = doc_info.get("file_name", "dokumen")
     txt_ctx = doc_info.get("txt_ctx", "")
+    summary_reply = (doc_info.get("summary_reply") or "").strip()
+    if summary_reply:
+        txt_ctx = f"{txt_ctx}\n\n[HASIL ANALISIS DOKUMEN SEBELUMNYA]:\n{summary_reply}"
     is_batch = doc_info.get("is_batch", False)
     docs_count = doc_info.get("docs_count", 1)
     file_names = doc_info.get("file_names", [file_name])
@@ -2173,6 +2296,7 @@ async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
                 "summary_reply": reply,
                 "time": time.time(),
             }
+            _save_recent_docs_cache()
         elif docs:
             d = docs[0]
             if d.get("txt_ctx"):
@@ -2186,6 +2310,7 @@ async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
                     "summary_reply": reply,
                     "time": time.time(),
                 }
+                _save_recent_docs_cache()
     finally:
         stop_typing.set()
         await typing_task

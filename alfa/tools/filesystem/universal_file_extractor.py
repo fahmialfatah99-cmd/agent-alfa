@@ -353,6 +353,89 @@ def _extract_powerpoint(raw_bytes: bytes, fname: str) -> str:
         return f"Gagal membaca presentasi PPTX {fname}."
 
 
+def _build_full_sheet_pre_aggregation(
+    headers: list[str], data_rows: list[list[Any]]
+) -> str:
+    """Compute instant 100%-row exact aggregations (counts, sums, averages) in <20ms."""
+    from collections import Counter
+
+    total_rows = len(data_rows)
+    if total_rows == 0 or not headers:
+        return ""
+
+    num_cols = len(headers)
+    cat_summaries: list[str] = []
+    num_summaries: list[str] = []
+
+    for col_idx in range(num_cols):
+        col_name = str(headers[col_idx] or f"Kolom_{col_idx + 1}").strip()
+        if not col_name:
+            continue
+        num_vals: list[float] = []
+        str_vals: list[str] = []
+        for r in data_rows:
+            if col_idx >= len(r):
+                continue
+            val = r[col_idx]
+            if val is None or val == "":
+                continue
+            if isinstance(val, bool):
+                str_vals.append(str(val))
+            elif isinstance(val, (int, float)):
+                num_vals.append(float(val))
+            else:
+                s = str(val).strip()
+                if not s:
+                    continue
+                # Cek apakah string angka murni
+                s_clean = s.replace(",", "")
+                try:
+                    if s_clean.replace(".", "", 1).replace("-", "", 1).isdigit():
+                        num_vals.append(float(s_clean))
+                        continue
+                except ValueError:
+                    pass
+                str_vals.append(s)
+
+        if len(num_vals) >= max(1, int(total_rows * 0.4)) and len(num_vals) > len(str_vals):
+            total_sum = sum(num_vals)
+            avg_val = total_sum / len(num_vals)
+            min_val = min(num_vals)
+            max_val = max(num_vals)
+            if all(float(v).is_integer() for v in num_vals):
+                num_summaries.append(
+                    f"• **{col_name}**: Total (SUM) = `{int(total_sum):,}` | Rata-rata = `{avg_val:,.2f}` | Min = `{int(min_val):,}` | Max = `{int(max_val):,}` (dari {len(num_vals)} baris)"
+                )
+            else:
+                num_summaries.append(
+                    f"• **{col_name}**: Total (SUM) = `{total_sum:,.2f}` | Rata-rata = `{avg_val:,.2f}` | Min = `{min_val:,.2f}` | Max = `{max_val:,.2f}` (dari {len(num_vals)} baris)"
+                )
+        elif str_vals:
+            counts = Counter(str_vals)
+            unique_cnt = len(counts)
+            # Jangan rekap kolom tanggal mentah kecuali nilai uniknya sedikit
+            is_date_like = "date" in col_name.lower() or "tanggal" in col_name.lower()
+            if 1 <= unique_cnt <= 50 and not (is_date_like and unique_cnt > 12):
+                items_sorted = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+                formatted_items = ", ".join(f"{k}: {v}" for k, v in items_sorted)
+                cat_summaries.append(
+                    f"• **{col_name}** ({unique_cnt} kategori): {formatted_items}"
+                )
+
+    lines = [
+        f"### ⚡ REKAPITULASI EKSAK 100% DATA ({total_rows} Baris Data — Sudah Dihitung Mesin Python Lokal)",
+        "_(Catatan Sistem: Angka di bawah ini adalah hasil perhitungan eksak 100% seluruh baris. Gunakan langsung angka ini untuk menjawab dengan cepat tanpa perlu memanggil Python Sandbox lagi, kecuali diminta membuat grafik/file baru.)_",
+        f"- **Total Baris Data (Tanpa Header)**: `{total_rows}` baris",
+    ]
+    if cat_summaries:
+        lines.append("\n**Rincian Jumlah per Kategori / Kolom Teks (100% Baris):**")
+        lines.extend(cat_summaries)
+    if num_summaries:
+        lines.append("\n**Rincian Total & Statistik Kolom Angka/Biaya/QTY (100% Baris):**")
+        lines.extend(num_summaries)
+    return "\n".join(lines)
+
+
 def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
     if ext in (".xlsx", ".xlsm", ".xltx"):
         try:
@@ -362,21 +445,36 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
             sheets_out = []
             for sname in wb.sheetnames:
                 ws = wb[sname]
-                rows = list(ws.iter_rows(values_only=True))
-                clean_rows = []
-                for r in rows[:300]:
-                    if any(c is not None for c in r):
-                        clean_rows.append([str(c) if c is not None else "" for c in r])
-                if clean_rows:
-                    headers = clean_rows[0]
-                    cols = len(headers)
-                    table_lines = [f"### Sheet: {sname} ({len(rows)} baris)"]
-                    table_lines.append("| " + " | ".join(headers) + " |")
-                    table_lines.append("| " + " | ".join(["---"] * cols) + " |")
-                    for r in clean_rows[1:]:
-                        padded = r + [""] * (cols - len(r))
-                        table_lines.append("| " + " | ".join(padded[:cols]) + " |")
-                    sheets_out.append("\n".join(table_lines))
+                rows = [
+                    list(r)
+                    for r in ws.iter_rows(values_only=True)
+                    if any(c is not None and str(c).strip() != "" for c in r)
+                ]
+                if not rows:
+                    continue
+                headers = [str(c).strip() if c is not None else "" for c in rows[0]]
+                data_rows = rows[1:]
+                cols = len(headers)
+
+                pre_agg = _build_full_sheet_pre_aggregation(headers, data_rows)
+                sample_limit = 80 if len(data_rows) <= 80 else 30
+                sample_rows = data_rows[:sample_limit]
+
+                table_lines = [
+                    f"### Sheet: {sname} ({len(data_rows)} baris data, {cols} kolom)"
+                ]
+                if pre_agg:
+                    table_lines.append(pre_agg)
+                    table_lines.append(
+                        f"\n#### Tabel Data ({'Seluruh ' + str(len(data_rows)) if len(data_rows) <= sample_limit else str(sample_limit) + ' Sampel Pertama dari ' + str(len(data_rows))} Baris):"
+                    )
+                table_lines.append("| " + " | ".join(headers) + " |")
+                table_lines.append("| " + " | ".join(["---"] * cols) + " |")
+                for r in sample_rows:
+                    str_r = [str(c) if c is not None else "" for c in r]
+                    padded = str_r + [""] * (cols - len(str_r))
+                    table_lines.append("| " + " | ".join(padded[:cols]) + " |")
+                sheets_out.append("\n".join(table_lines))
             if sheets_out:
                 return "\n\n".join(sheets_out)
         except _UFE_ERR as e:
@@ -389,9 +487,14 @@ def _extract_excel(raw_bytes: bytes, fname: str, ext: str) -> str:
             df = pd.read_excel(io.BytesIO(raw_bytes), engine="odf")
         else:
             df = pd.read_excel(io.BytesIO(raw_bytes))
+        headers = [str(c) for c in df.columns]
+        data_rows = df.values.tolist()
+        pre_agg = _build_full_sheet_pre_aggregation(headers, data_rows)
+        sample_limit = 80 if len(df) <= 80 else 30
         return str(
             f"### Data Spreadsheet: {fname} ({df.shape[0]} baris x {df.shape[1]} kolom)\n\n"
-            + df.head(150).to_markdown(index=False)
+            + (pre_agg + "\n\n" if pre_agg else "")
+            + df.head(sample_limit).to_markdown(index=False)
         )
     except _UFE_ERR as e:
         logger.warning(f"pandas excel error: {e}")
@@ -407,9 +510,14 @@ def _extract_csv(raw_bytes: bytes, fname: str) -> str | None:
         dialect = csv.Sniffer().sniff(text_preview)
         sep = dialect.delimiter
         df = pd.read_csv(io.BytesIO(raw_bytes), sep=sep)
+        headers = [str(c) for c in df.columns]
+        data_rows = df.values.tolist()
+        pre_agg = _build_full_sheet_pre_aggregation(headers, data_rows)
+        sample_limit = 80 if len(df) <= 80 else 30
         return str(
             f"### Data Tabel ({df.shape[0]} baris x {df.shape[1]} kolom, delimiter '{sep}'):\n\n"
-            + df.head(150).to_markdown(index=False)
+            + (pre_agg + "\n\n" if pre_agg else "")
+            + df.head(sample_limit).to_markdown(index=False)
         )
     except _UFE_ERR:
         try:

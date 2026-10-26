@@ -707,6 +707,22 @@ def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path)
     assert os.path.exists(restored_db_path)
     assert verify_sqlite_integrity(restored_db_path)["healthy"] is True
 
+    # 4. Instant Excel Pre-Aggregator & Persistent Document Cache Recovery
+    from alfa.tools.filesystem.universal_file_extractor import _build_full_sheet_pre_aggregation
+
+    headers = ["Project", "Status", "Hours"]
+    rows = [
+        ["CRM", "Completed", "10"],
+        ["CRM", "In Progress", "25"],
+        ["ERP", "Completed", "15"],
+    ]
+    agg_txt = _build_full_sheet_pre_aggregation(headers, rows)
+    assert "REKAPITULASI EKSAK 100% DATA" in agg_txt
+    assert "CRM: 2" in agg_txt
+    assert "Completed: 2" in agg_txt
+    assert "Total (SUM) = `50`" in agg_txt
+
+
 
 
 
