@@ -35,6 +35,7 @@ from alfa import tools
 from alfa.bot.commands import *  # noqa: F401, F403
 from alfa.bot.commands import (
     agents_command,
+    apex_command,
     budget_command,
     cancel_command,
     cekagen_command,
@@ -322,6 +323,8 @@ def main():
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("skills", skills_command))
     application.add_handler(CommandHandler("learn", skills_command))
+    application.add_handler(CommandHandler("apex", apex_command))
+    application.add_handler(CommandHandler("level5", apex_command))
     application.add_handler(CommandHandler("cron", cron_command))
     application.add_handler(CommandHandler("tasks", cron_command))
     application.add_handler(CommandHandler("budget", budget_command))

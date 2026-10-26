@@ -1430,6 +1430,27 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await safe_send_message(context, chat_id, fast)
         return
 
+    # Level 5+ Apex Engine: Predictive World-Model & Compiled Fast-Path Execution (0 Token, Sub-ms)
+    try:
+        from alfa.core.apex import (
+            analyze_field_event_preemptively,
+            try_execute_compiled_fastpath,
+        )
+
+        analyze_field_event_preemptively(user_text)
+        fp_hit = try_execute_compiled_fastpath(user_text)
+        if fp_hit and fp_hit.get("response"):
+            fp_reply = fp_hit["response"]
+            try:
+                await database.save_chat_message(user_id, "user", user_text)
+                await database.save_chat_message(user_id, "model", fp_reply)
+            except _HANDLER_ERR:
+                pass
+            await safe_send_message(context, chat_id, fp_reply)
+            return
+    except Exception as e:
+        logger.debug("Apex fast-path bypass: %s", e)
+
     # Fast-Path WhatsApp: eksekusi sub-detik tanpa membebani antrean LLM cloud.
     if await try_handle_fast_wa(update, context, user_text):
         return

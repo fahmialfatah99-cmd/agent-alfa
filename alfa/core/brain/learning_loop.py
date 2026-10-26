@@ -445,6 +445,17 @@ def audit_against_learned_skills(user_prompt: str, reply_text: str) -> tuple[boo
             note = "\n\n💡 _Catatan Otomasi: Menggunakan Master Ledger Kumulatif (data diteruskan in-place pada satu berkas master)._"
             return False, "Koreksi otomatis: Menerapkan Master Ledger Kumulatif in-place.", reply_text + note
 
+    # Rule 3: Level 5+ Neuro-Symbolic AST Mathematical & Invariant Proof Gate
+    try:
+        from alfa.core.apex.neuro_symbolic import verify_and_prove_response
+
+        ns_res = verify_and_prove_response(user_prompt, reply_text)
+        if not ns_res.get("is_valid", True):
+            v_msg = "; ".join(ns_res.get("violations", []))
+            return False, f"Neuro-Symbolic Prover: {v_msg}", ns_res.get("corrected_reply", reply_text)
+    except Exception as e:
+        logger.debug("Neuro-symbolic gate bypass: %s", e)
+
     return True, "", reply_text
 
 

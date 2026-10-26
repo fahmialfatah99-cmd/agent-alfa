@@ -22,6 +22,7 @@ from alfa.bot.advanced_commands import (
     wareport_command,
     waringkas_command,
     skills_command,
+    apex_command,
 )
 from alfa.bot.basic_commands import (
     _get_bot_module,
@@ -97,5 +98,6 @@ __all__ = [
     "pipeline_command",
     "tugas_command",
     "skills_command",
+    "apex_command",
 ]
 
