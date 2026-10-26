@@ -36,12 +36,14 @@ def get_current_user_prompt() -> str:
 
 
 def record_executed_tool(name: str) -> None:
-    """Record a tool execution during the current turn."""
+    """Record a tool execution during the current turn (thread-safe in-place append)."""
     if not name:
         return
-    tools = list(current_executed_tools_var.get() or [])
-    tools.append(str(name))
-    current_executed_tools_var.set(tools)
+    cur = current_executed_tools_var.get()
+    if isinstance(cur, list):
+        cur.append(str(name))
+    else:
+        current_executed_tools_var.set([str(name)])
 
 
 def get_current_executed_tools() -> list[str]:
@@ -53,10 +55,12 @@ def record_turn_artifact(path: str) -> None:
     """Record an artifact file path explicitly generated for the user in this turn."""
     if not path:
         return
-    arts = list(current_turn_artifacts_var.get() or [])
-    if path not in arts:
-        arts.append(str(path))
-    current_turn_artifacts_var.set(arts)
+    cur = current_turn_artifacts_var.get()
+    if isinstance(cur, list):
+        if path not in cur:
+            cur.append(str(path))
+    else:
+        current_turn_artifacts_var.set([str(path)])
 
 
 def get_current_turn_artifacts() -> list[str]:

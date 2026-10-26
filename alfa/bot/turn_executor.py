@@ -377,8 +377,11 @@ async def _run_agent_turn_impl(
                         logger.info(f"[GatePath] tool {fc.name} -> {str(out)[:80]}")
                         return str(out)
 
+                    from alfa.core.runtime_ctx import record_executed_tool
+
                     for fc in fcs:
                         _executed.append(fc.name)
+                        record_executed_tool(fc.name)
                     from alfa.core.brain.agentic import _parallel_tools_allowed
                     from alfa.core.tuning import truncate_middle
 
