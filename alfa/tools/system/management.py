@@ -382,6 +382,7 @@ def conduct_ai_meeting(
                 }
 
         from alfa.swarm import engine as swarm_engine
+        from alfa.swarm.live_logger import detect_task_intent
 
         part_list = (
             [p.strip() for p in participants.split(",") if p.strip()]
@@ -389,11 +390,26 @@ def conduct_ai_meeting(
             else None
         )
         rounds_clamped = max(1, min(3, int(rounds)))
+        intent_info = detect_task_intent(topic)
+        req_mode = str(mode or "").strip().lower()
+        if req_mode in ("plan", "discuss", "discussion", "rapat", "diskusi"):
+            effective_mode = "plan"
+        elif folder and str(folder).strip():
+            effective_mode = "execute"
+        elif intent_info.get("is_general_advisory"):
+            effective_mode = "plan"
+            rounds_clamped = max(2, rounds_clamped)
+        else:
+            effective_mode = "execute"
 
         def _run_meeting():
             return asyncio.run(
                 swarm_engine.conduct_multi_agent_meeting(
-                    topic, part_list, rounds_clamped, "execute", target_folder=folder
+                    topic,
+                    part_list,
+                    rounds_clamped,
+                    effective_mode,
+                    target_folder=folder,
                 )
             )
 
@@ -409,12 +425,14 @@ def conduct_ai_meeting(
             "meeting_id": result.get("meeting_id"),
             "title": result.get("title"),
             "topic": topic,
-            "mode": "execute",
+            "mode": effective_mode,
             "target_folder": result.get("target_folder", ""),
             "total_rounds": rounds_clamped,
             "participants": result.get("participants"),
             "total_dialogues": len(result.get("dialogue_transcript", [])),
+            "dialogue_transcript": result.get("dialogue_transcript", []),
             "execution_results": result.get("execution_results", []),
+            "vote_tally": result.get("vote_tally", {}),
             "consensus": result.get("consensus"),
             "action_plan": result.get("action_plan"),
         }

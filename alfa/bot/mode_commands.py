@@ -269,9 +269,15 @@ SWARM_TEMPLATES: dict[str, str] = {
 
 
 async def run_swarm_task(topic: str) -> dict:
-    """Jalankan misi swarm execute. Return dict hasil engine (tanpa kirim pesan)."""
+    """Jalankan misi swarm adaptif (Mode Masalah Umum vs Mode Eksekusi Teknis)."""
     from alfa.swarm import engine as swarm_engine
+    from alfa.swarm.live_logger import detect_task_intent
 
+    intent_info = detect_task_intent(topic)
+    if intent_info.get("is_general_advisory"):
+        return await swarm_engine.conduct_multi_agent_meeting(
+            topic=topic, rounds=2, mode="plan"
+        )
     return await swarm_engine.conduct_multi_agent_meeting(
         topic=topic, rounds=1, mode="execute"
     )
@@ -287,6 +293,7 @@ def format_swarm_result(result: dict) -> tuple[str, str, list[str]]:
         )
 
     steps = result.get("execution_results", []) or []
+    dialogues = result.get("dialogue_transcript", []) or []
     if steps:
         lines = ["⚡ **Laporan Eksekusi Tiap Agen:**\n"]
         for s in steps:
@@ -299,12 +306,32 @@ def format_swarm_result(result: dict) -> tuple[str, str, list[str]]:
                 + f"   • Output: _{str(s.get('execution_summary', ''))[:200]}_\n"
             )
         steps_text = "\n".join(lines)
+    elif dialogues:
+        lines = ["🗣️ **Ringkasan Diskusi & Sudut Pandang Tim:**\n"]
+        for d in dialogues[:7]:
+            lines.append(
+                f"{d.get('avatar_emoji', '🤖')} **{d.get('agent_name', '?')}**"
+                f" ({d.get('role', '-')})\n"
+                f"   _{str(d.get('message', ''))[:260]}_\n"
+            )
+        steps_text = "\n".join(lines)
     else:
         steps_text = "⚠️ Swarm selesai tanpa langkah eksekusi tercatat."
 
+    action_plan_block = (
+        f"\n\n📋 **ACTION PLAN / LANGKAH SOLUSI:**\n{result.get('action_plan', '')}"
+        if result.get("action_plan")
+        else ""
+    )
+    header_label = (
+        "🎯 **KONSENSUS & SOLUSI TIM SWARM:**"
+        if dialogues and not steps
+        else "🏆 **LAPORAN HASIL EKSEKUSI NYATA:**"
+    )
     final_text = (
-        "🏆 **LAPORAN HASIL EKSEKUSI NYATA:**\n\n"
-        f"{result.get('consensus', '')}\n\n"
+        f"{header_label}\n\n"
+        f"{result.get('consensus', '')}"
+        f"{action_plan_block}\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"🌐 _Sesi: #{result.get('session_id') or result.get('meeting_id')} • "
         "tersimpan di Web Dashboard_"

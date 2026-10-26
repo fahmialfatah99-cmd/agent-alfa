@@ -527,6 +527,95 @@ def test_deep_audit_5_fixes_permissions_swarm_and_lowercase_graphrag():
     assert "apex_software_factory_build" in tool_names
 
 
+def test_swarm_adaptive_dual_persona_and_smart_routing():
+    from unittest.mock import patch
+
+    from alfa.bot.mode_commands import format_swarm_result
+    from alfa.core.runtime_ctx import current_user_prompt_var
+    from alfa.swarm.live_logger import detect_task_intent
+    from alfa.swarm.personas import AGENTS, get_adaptive_system_instruction
+    from alfa.tools.system.management import conduct_ai_meeting
+
+    # 1. All 7 Swarm Agents defined in AGENTS have Dual-Persona instructions
+    for aid in (1, 2, 3, 4, 5, 6, 9):
+        assert aid in AGENTS
+        assert "Persona Umum" in AGENTS[aid]["system_instruction"]
+        assert "Persona Engineering" in AGENTS[aid]["system_instruction"]
+
+    # 2. General problem intent detection & Mode 2 persona activation
+    gen_topic = "Rapatkan cara mengatasi keterlambatan pengiriman material kabel dan mandor di proyek Bengkulu"
+    gen_intent = detect_task_intent(gen_topic)
+    assert gen_intent["is_general_advisory"] is True
+    assert gen_intent["is_build"] is False
+    assert gen_intent["recommended_mode"] == "plan"
+
+    code_crafter_gen_sys = get_adaptive_system_instruction(
+        {"id": 2, "name": "Code Crafter"},
+        topic=gen_topic,
+        mode="plan",
+        intent_info=gen_intent,
+    )
+    assert "MODE 2 — GENERAL PROBLEM-SOLVING" in code_crafter_gen_sys
+    assert "DILARANG KERAS membuat website" in code_crafter_gen_sys
+
+    # 3. Coding/Build intent detection & Mode 1 persona activation
+    build_topic = "Tim swarm buatkan aplikasi website manajemen stok gudang dengan FastAPI"
+    build_intent = detect_task_intent(build_topic)
+    assert build_intent["is_build"] is True
+    assert build_intent["is_general_advisory"] is False
+    assert build_intent["recommended_mode"] == "execute"
+
+    code_crafter_build_sys = get_adaptive_system_instruction(
+        {"id": 2, "name": "Code Crafter"},
+        topic=build_topic,
+        mode="execute",
+        intent_info=build_intent,
+    )
+    assert "MODE 1 — ENGINEERING, BUILD" in code_crafter_build_sys
+
+    # 4. conduct_ai_meeting smart routing: general problem -> mode='plan', build -> mode='execute'
+    current_user_prompt_var.set("adakan rapat tim untuk masalah operasional")
+    captured_modes = []
+
+    async def _fake_conduct(topic, part_list=None, rounds=2, mode="execute", target_folder=""):
+        captured_modes.append((topic, mode, rounds))
+        return {
+            "meeting_id": "m_1",
+            "title": "Rapat",
+            "participants": ["Alpha Lead", "Code Crafter"],
+            "dialogue_transcript": [
+                {
+                    "agent_name": "Alpha Lead",
+                    "role": "Moderator",
+                    "avatar_emoji": "👑",
+                    "message": "Solusi utama adalah audit jadwal pengiriman.",
+                }
+            ],
+            "execution_results": [],
+            "consensus": "Perketat SOP pengiriman material.",
+            "action_plan": "1. Cek jadwal mandor.",
+        }
+
+    with patch("alfa.bot.mode_commands.get_telegram_mode_sync", return_value="single"), \
+         patch("alfa.swarm.engine.conduct_multi_agent_meeting", side_effect=_fake_conduct):
+        res_gen = conduct_ai_meeting(topic=gen_topic)
+        assert res_gen["mode"] == "plan"
+        assert captured_modes[-1][1] == "plan"
+        assert captured_modes[-1][2] >= 2
+
+        res_build = conduct_ai_meeting(topic=build_topic)
+        assert res_build["mode"] == "execute"
+        assert captured_modes[-1][1] == "execute"
+
+    # 5. format_swarm_result renders general problem discussion & action plan cleanly
+    s_txt, f_txt, files = format_swarm_result(res_gen)
+    assert "Ringkasan Diskusi" in s_txt
+    assert "KONSENSUS & SOLUSI TIM SWARM" in f_txt
+    assert "ACTION PLAN" in f_txt
+    assert files == []
+
+
+
 
 
 

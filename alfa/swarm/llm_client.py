@@ -233,7 +233,7 @@ def get_agent_api_client(
                 pass
 
     # Fallback otomatis bila provider spesifik agen belum memiliki kunci aktif di vault
-    if not api_key:
+    if not api_key and (agent.get("id") or agent.get("name")):
         for fb_prov in ("9router", "gemini", "nvidia", "groq", "openrouter", "openai"):
             fb_key = database.get_active_api_key_sync(fb_prov)
             if fb_key and fb_key.get("api_key"):

@@ -214,21 +214,32 @@ async def _single_shot_edit_fallback(
             if "node_modules" not in p
         ]
     cands = sorted(set(cands), key=lambda p: os.path.getmtime(p), reverse=True)
+    is_html_task = any(
+        k in (task_instruction or "").lower()
+        for k in ("html", "website", "web ", "landing", "dashboard", "halaman", "ui/ux")
+    )
+    default_ext = ".html" if is_html_task else ".md"
+    default_prefix = "" if is_html_task else "LAPORAN-"
     main_file = (
         cands[0]
         if cands
         else os.path.join(
             target_folder,
-            re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-")
-            + ".html",
+            default_prefix
+            + (
+                re.sub(r"[^a-z0-9]+", "-", task_instruction.lower())[:30].strip("-")
+                or "analisis"
+            )
+            + default_ext,
         )
     )
     ext = os.path.splitext(main_file)[1].lower()
-    fmt_hint = (
-        "Dokumen HTML5 utuh mulai <!DOCTYPE html>."
-        if ext.startswith(".h")
-        else "Kode sumber lengkap tanpa penjelasan."
-    )
+    if ext.startswith(".h"):
+        fmt_hint = "Dokumen HTML5 utuh mulai <!DOCTYPE html>."
+    elif ext == ".md":
+        fmt_hint = "Dokumen laporan analisis, rangkuman solusi, dan rekomendasi lengkap dalam format Markdown."
+    else:
+        fmt_hint = "Kode sumber lengkap tanpa penjelasan."
     prompt = (
         f"Tugas: {task_instruction[:400]}\n\n"
         f"Kembalikan HANYA isi penuh TERBARU untuk file `{main_file}` "
@@ -556,13 +567,21 @@ async def execute_swarm_task_step(
             f"2. Dilarang label neural/AI/teruji/production-ready/tanpa bug tanpa bukti (hasil tes, file nyata). Pola regex/AST = sebut heuristik, bukan neural.\n"
             f"3. Dilarang dummy sebagai hasil asli. Angka hanya dari output tool.\n"
         )
+        from alfa.swarm.personas import get_adaptive_system_instruction
+
+        adaptive_exec_sys = (
+            get_adaptive_system_instruction(
+                work_agent, topic=topic, mode="execute", intent_info=intent_info
+            )
+            + "\n\nKamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap giliranmu WAJIB "
+            "memuat panggilan function call (read_local_file / edit_file_precise / "
+            "write_local_file / execute_bash_command / web_search). Membalas teks saja "
+            "tanpa memanggil tool dianggap GAGAL."
+        )
         generated_content = await generate_agent_response(
             work_agent,
             exec_prompt,
-            "Kamu agen pelaksana swarm. KERJA MENGGUNAKAN TOOL: setiap giliranmu WAJIB "
-            "memuat panggilan function call (read_local_file / edit_file_precise / "
-            "write_local_file / execute_bash_command / web_search). Membalas teks saja "
-            "tanpa memanggil tool dianggap GAGAL.",
+            adaptive_exec_sys,
             max_tokens=3000,
             timeout_s=300.0,
         )

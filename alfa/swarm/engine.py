@@ -632,27 +632,11 @@ async def _conduct_multi_agent_meeting_impl(
                 f"⚠️ Folder '{target_folder}' tidak ada — agen bebas memilih lokasi.",
             )
 
-    # AUTO-CREATE: prompt bertema membangun tapi tanpa folder pilihan
-    if not _TARGET_FOLDER:
-        build_kw = (
-            "buat",
-            "bangun",
-            "rancang",
-            "bikin",
-            "website",
-            "web ",
-            "aplikasi",
-            "landing",
-            "dashboard",
-            "desain",
-            "design",
-            "script",
-            "skrip",
-            "program",
-            "refactor",
-            "perbaiki tampilan",
-        )
-        if any(k in topic.lower() for k in build_kw):
+    intent_info = detect_task_intent(topic)
+
+    # AUTO-CREATE: prompt bertema membangun aplikasi/kode tapi tanpa folder pilihan
+    if not _TARGET_FOLDER and mode in ("execute", "plan_and_execute"):
+        if intent_info.get("is_build") or intent_info.get("is_code"):
             from alfa.swarm.workspace_hygiene import smart_slug as _smart_slug
 
             slug = _smart_slug(topic) or "proyek-baru"
@@ -664,8 +648,6 @@ async def _conduct_multi_agent_meeting_impl(
                 log_live("TARGET", f"📁 Folder proyek baru dibuat otomatis: {nf}")
             except OSError as mk_err:
                 log_live("TARGET", f"⚠️ Gagal buat folder otomatis: {mk_err}")
-
-    intent_info = detect_task_intent(topic)
 
     all_agents = database.list_custom_agents_sync()
     if not all_agents:
@@ -795,6 +777,13 @@ async def _conduct_multi_agent_meeting_impl(
                         "S voted untuk setiap proposal: SETUJU atau TOLAK, sertakan alasan singkat."
                     )
                 )
+                from alfa.swarm.personas import get_adaptive_system_instruction
+
+                task_focus_line = (
+                    "1. Berikan analisis tajam dan solusi praktis sesuai keahlianmu (Mode Masalah Umum/Strategis — JANGAN membahas pembuatan website/kode yang tidak diminta)."
+                    if intent_info.get("is_general_advisory")
+                    else "1. Berikan posisi/solusi teknis tajam sesuai bidang keahlianmu."
+                )
                 prompt = (
                     f"=== TOPIK AGENDA DISKUSI ===\n"
                     f"{topic}\n\n"
@@ -804,25 +793,27 @@ async def _conduct_multi_agent_meeting_impl(
                     f"Nama: {agent['name']} ({agent['role']})\n"
                     f"Persona: {agent['persona']}\n\n"
                     f"TUGAS KAMU:\n"
-                    f"1. Berikan posisi/solusi teknis tajam sesuai bidang keahlianmu.\n"
-                    f"2. Kritas/dukung poin peserta lain secara to-the-point.\n"
+                    f"{task_focus_line}\n"
+                    f"2. Kritik/dukung poin peserta lain secara to-the-point.\n"
                     f"3. HEMAT TOKEN: 2-4 kalimat padat.\n\n"
                     f"JAWAB DENGAN JSON MURNI (tanpa teks lain):\n"
-                    f'{{"position":"posisiemu 2-4 kalimat",'
+                    f'{{"position":"posisimu 2-4 kalimat",'
                     f'"evidence":"bukti/fakta pendukung singkat",'
                     f'"confidence":0.0-1.0,'
                     f'"votes":[{{"id":"id-proposal","approve":true,"reason":"alasan singkat"}}]}}'
                     f"{vote_block}"
                 )
 
+            from alfa.swarm.personas import get_adaptive_system_instruction
+
+            adaptive_sys = get_adaptive_system_instruction(
+                agent, topic=topic, mode=mode, intent_info=intent_info
+            )
             response_text = (
                 await generate_agent_response(
                     agent=agent,
                     prompt=prompt,
-                    system_instruction=agent.get(
-                        "system_instruction",
-                        "Kamu adalah anggota tim AI otonom profesional.",
-                    ),
+                    system_instruction=adaptive_sys,
                 )
                 or "(tidak merespons — semua provider gagal)"
             )

@@ -159,6 +159,46 @@ def detect_task_intent(topic: str) -> dict[str, Any]:
             "aplikasi",
             "fungsi",
             "function",
+            "website",
+            "web app",
+            "webapp",
+            "landing page",
+            "fullstack",
+            "backend",
+            "frontend",
+            "refactor",
+            "fix bug",
+            "perbaiki bug",
+            "clone aplikasi",
+        ]
+    )
+    is_web_ui = any(
+        k in low
+        for k in [
+            "website",
+            "web app",
+            "webapp",
+            "landing page",
+            "halaman web",
+            "html",
+            "dashboard web",
+            "frontend",
+            "ui/ux",
+            "tampilan web",
+        ]
+    )
+    is_build = is_code or is_web_ui or any(
+        k in low
+        for k in [
+            "buat aplikasi",
+            "bangun aplikasi",
+            "bikin aplikasi",
+            "buat website",
+            "bangun website",
+            "bikin website",
+            "buat web",
+            "bikin web",
+            "deploy",
         ]
     )
     is_audit = any(
@@ -175,6 +215,8 @@ def detect_task_intent(topic: str) -> dict[str, Any]:
             "celah",
         ]
     )
+    is_general_advisory = not is_build and not is_scrape and not is_audit
+    recommended_mode = "plan" if is_general_advisory else "execute"
 
     category = "general_web"
     if any(
@@ -244,7 +286,11 @@ def detect_task_intent(topic: str) -> dict[str, Any]:
     return {
         "is_scrape": is_scrape,
         "is_code": is_code,
+        "is_build": is_build,
+        "is_web_ui": is_web_ui,
         "is_audit": is_audit,
+        "is_general_advisory": is_general_advisory,
+        "recommended_mode": recommended_mode,
         "category": category,
         "limit": limit,
         "clean_query": cleaned,
