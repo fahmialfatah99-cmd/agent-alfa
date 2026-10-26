@@ -293,21 +293,57 @@ def rea_synthesize_skill_from_code(
         topic = (skill_topic or os.path.basename(clean_path)).strip().upper()
         topic = re.sub(r"[^A-Z0-9_]+", "_", topic).strip("_")
 
-        # 1. Analisis menggunakan REA bila target adalah JavaScript / Bundle / SQLite
+        # 1. Analisis khusus untuk paket Linux (.deb) agar tidak membaca ratusan MB ke memori
         analysis_summary = ""
-        if clean_path.endswith((".js", ".asar", ".json")) or os.path.isdir(clean_path):
+        if clean_path.endswith(".deb"):
+            deb_info = subprocess.run(
+                ["dpkg-deb", "-I", clean_path],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            deb_files = subprocess.run(
+                ["dpkg-deb", "-c", clean_path],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            ctrl_lines = [
+                ln.strip()
+                for ln in (deb_info.stdout or "").splitlines()
+                if any(
+                    ln.strip().startswith(k)
+                    for k in ("Package:", "Version:", "Section:", "Architecture:", "Depends:", "Homepage:", "Description:")
+                )
+            ]
+            file_entries = [
+                ln.split()[-1]
+                for ln in (deb_files.stdout or "").splitlines()[:40]
+                if ln.strip() and not ln.strip().endswith("/")
+            ]
+            analysis_summary = (
+                f"Debian Package (.deb) Forensics: {' | '.join(ctrl_lines)} "
+                f"|| Core Binaries/Libs: {', '.join(file_entries[:15])}"
+            )
+        elif clean_path.endswith(".apk"):
+            apk_res = rea_inspect_android_package(clean_path)
+            analysis_summary = f"APK REA Analysis: {str(apk_res.get('normalized') or apk_res)[:350]}"
+        elif clean_path.endswith((".js", ".asar", ".json")) or os.path.isdir(clean_path):
             rea_res = _run_rea_command(["analyze-javascript-application", clean_path])
             if rea_res.get("status") == "success":
                 norm = rea_res.get("normalized", {})
                 analysis_summary = f"REA Analysis: framework={norm.get('framework')}, exports={list(norm.get('exports', {}).keys())[:10]}"
 
-        # 2. Ekstraksi kode atau dokumen teks langsung
+        # 2. Ekstraksi kode atau dokumen teks langsung (dibatasi 64 KB agar aman untuk file raksasa)
         if not analysis_summary:
             if os.path.isfile(clean_path):
                 try:
                     with open(clean_path, "r", encoding="utf-8", errors="ignore") as f:
-                        lines = [line.strip() for line in f if line.strip() and not line.startswith(("#", "//"))]
-                    analysis_summary = f"Source summary ({len(lines)} lines): " + " | ".join(lines[:10])
+                        sample_chunk = f.read(65536)
+                        lines = [line.strip() for line in sample_chunk.splitlines() if line.strip() and not line.startswith(("#", "//"))]
+                    analysis_summary = f"Source summary ({len(lines)} lines sampled): " + " | ".join(lines[:10])
                 except Exception as e:
                     analysis_summary = f"File inspection: {e}"
             else:

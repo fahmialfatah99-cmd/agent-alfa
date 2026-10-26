@@ -2149,25 +2149,74 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
     file_name = doc.file_name or "file.bin"
     mime_type = doc.mime_type or "application/octet-stream"
 
+    doc_bytes: bytes | None = None
+    local_resolved_path: str = ""
     try:
         doc_file = await context.bot.get_file(doc.file_id)
         doc_bytes_io = io.BytesIO()
         await doc_file.download_to_memory(doc_bytes_io)
         doc_bytes = doc_bytes_io.getvalue()
+        # Simpan salinan lokal di /tmp/alfa_uploads agar tool REA / bash / installer memiliki path fisik
+        upload_cache_dir = "/tmp/alfa_uploads"
+        os.makedirs(upload_cache_dir, exist_ok=True)
+        safe_fname = os.path.basename(file_name)
+        local_resolved_path = os.path.join(upload_cache_dir, safe_fname)
+        with open(local_resolved_path, "wb") as uf:
+            uf.write(doc_bytes)
     except Exception as e:
-        logger.error(f"[handle_document] Gagal unduh file '{file_name}': {e}")
-        await safe_send_message(
-            context, chat_id, f"❌ Gagal mengunduh berkas `{file_name}`: {e}"
-        )
-        return
+        logger.warning(f"[handle_document] Unduh cloud gagal untuk '{file_name}' ({e}); mencari di penyimpanan lokal...")
+        # Fallback Cerdas: Cari berkas dengan nama yang sama di folder lokal laptop (Unduhan, Desktop, Dokumen, Home)
+        search_roots = [
+            os.path.expanduser("~/Unduhan"),
+            os.path.expanduser("~/Downloads"),
+            os.path.expanduser("~/Desktop"),
+            os.path.expanduser("~/Dokumen"),
+            os.path.expanduser("~"),
+            "/tmp",
+        ]
+        safe_fname = os.path.basename(file_name)
+        for sroot in search_roots:
+            candidate = os.path.join(sroot, safe_fname)
+            if os.path.isfile(candidate):
+                local_resolved_path = candidate
+                break
+
+        if local_resolved_path:
+            size_mb = round(os.path.getsize(local_resolved_path) / (1024 * 1024), 2)
+            logger.info(
+                f"[handle_document] Berkas '{file_name}' ({size_mb} MB) ditemukan di disk lokal: {local_resolved_path}"
+            )
+            await safe_send_message(
+                context,
+                chat_id,
+                f"⚡ Berkas `{file_name}` (`{size_mb} MB` > batas 20MB Telegram Cloud) berhasil ditemukan langsung di disk lokal:\n`{local_resolved_path}`\nMemproses dengan mesin ALFA...",
+            )
+        else:
+            logger.error(f"[handle_document] Gagal unduh file '{file_name}': {e}")
+            await safe_send_message(
+                context,
+                chat_id,
+                f"❌ Gagal mengunduh berkas `{file_name}` ({e}) dan berkas tidak ditemukan di folder `~/Unduhan` atau `~/Desktop`.",
+            )
+            return
 
     from alfa.tools.filesystem import universal_file_extractor as ufe
 
-    try:
-        txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
-    except Exception as e:
-        logger.warning(f"[handle_document] Gagal ekstraksi '{file_name}': {e}")
-        txt_ctx, part = "", None
+    txt_ctx, part = "", None
+    if doc_bytes is not None:
+        try:
+            txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
+        except Exception as e:
+            logger.warning(f"[handle_document] Gagal ekstraksi '{file_name}': {e}")
+            txt_ctx, part = "", None
+
+    if local_resolved_path:
+        path_header = (
+            f"[LOCAL_DISK_PATH: {local_resolved_path}]\n"
+            f"(Gunakan path `{local_resolved_path}` ini secara langsung jika perlu memanggil tool REA seperti "
+            f"`rea_clone_and_build_app`, `rea_synthesize_skill_from_code`, `rea_inspect_binary_or_wasm`, atau `execute_bash_command`).\n"
+        )
+        txt_ctx = f"{path_header}\n{txt_ctx}".strip()
 
     doc_item = {
         "file_name": file_name,
