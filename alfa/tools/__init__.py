@@ -106,6 +106,7 @@ from alfa.core.brain.learning_loop import (
 from alfa.core.apex import (
     apex_computer_use_action,
     apex_neuro_symbolic_verify,
+    apex_repo_architect_build,
     apex_run_dreaming_consolidation,
     apex_software_factory_build,
     apex_synthesize_dynamic_tool,
@@ -317,6 +318,7 @@ AVAILABLE_TOOLS = [
     apex_computer_use_action,
     apex_temporal_graphrag_query,
     apex_software_factory_build,
+    apex_repo_architect_build,
     rea_clone_and_build_app,
     *plugins.load_all_plugin_tools(),
 ]

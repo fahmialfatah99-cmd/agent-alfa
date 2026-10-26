@@ -373,4 +373,114 @@ def test_audit_fixes_tool_rag_sites_graphrag_and_rea_clone(tmp_path):
     assert "/serve acme-logistics-clone" in clone_res["serve_command"]
 
 
+def test_devin_class_giant_repo_engine_and_atomic_rollback(tmp_path):
+    from alfa.core.apex import (
+        build_and_verify_multifile_repo,
+        parse_stack_trace_locations,
+    )
+    from alfa.core.cli.agent_engine.repomap import RepomapGenerator
+    from alfa.tools import AVAILABLE_TOOLS
+    from alfa.tools.filesystem.lsp_code_intelligence import (
+        lsp_analyze_module_hierarchy,
+        lsp_find_symbol_definition,
+    )
+    from alfa.tools.rag import select_relevant_functions
+
+    # 1. Multi-File Repository Build + Automated Unittest Execution + Live HTTP 200 OK
+    manifest_v1 = {
+        "src/__init__.py": "",
+        "src/core/__init__.py": "",
+        "src/core/calculator.py": (
+            "def compute_margin(revenue: float, cost: float) -> float:\n"
+            "    return round(revenue - cost, 2)\n"
+        ),
+        "src/api/controller.py": (
+            "from src.core.calculator import compute_margin\n\n"
+            "def handle_request(rev: float, cost: float) -> dict:\n"
+            "    return {'margin': compute_margin(rev, cost)}\n"
+        ),
+        "frontend/widget.ts": (
+            "import { api } from './controller';\n"
+            "export interface MarginResult { margin: number; }\n"
+            "export function formatCurrency(val: number): string { return `Rp ${val}`; }\n"
+        ),
+        "tests/test_calculator.py": (
+            "import unittest\n"
+            "from src.api.controller import handle_request\n\n"
+            "class TestCalc(unittest.TestCase):\n"
+            "    def test_margin(self):\n"
+            "        self.assertEqual(handle_request(100.0, 35.5)['margin'], 64.5)\n"
+        ),
+        "index.html": "<div><h1>Enterprise Repo Dashboard</h1><button>Test</button></div>",
+    }
+
+    res_ok = build_and_verify_multifile_repo(
+        repo_slug="enterprise-erp-core",
+        title="Enterprise ERP Core",
+        files_manifest=manifest_v1,
+        test_command="python3 -m unittest discover -s tests",
+        atomic_rollback_on_failure=True,
+        sites_root=str(tmp_path / "repos"),
+    )
+    assert res_ok["status"] == "success"
+    assert res_ok["e2e_verification"]["e2e_score"] == 100
+    assert res_ok["e2e_verification"]["atomic_rolled_back"] is False
+    assert res_ok["e2e_verification"]["live_http_smoke"]["http_status"] == 200
+
+    repo_dir = res_ok["repo_dir"]
+
+    # 2. Polyglot RepoMap Centrality & LSP on TypeScript + Python
+    gen = RepomapGenerator(root_dir=tmp_path / "repos" / "enterprise-erp-core")
+    ranked = gen.rank_files_by_centrality()
+    assert len(ranked) >= 5
+    # calculator.py is imported by controller.py, so its inbound_refs >= 1
+    calc_entry = next(r for r in ranked if str(r["rel_file"]).endswith("calculator.py"))
+    assert int(calc_entry["inbound_refs"]) >= 1
+
+    ts_sym = lsp_find_symbol_definition("formatCurrency", repo_path=repo_dir)
+    assert ts_sym["status"] == "success"
+    assert ts_sym["total_definitions"] == 1
+
+    ts_hier = lsp_analyze_module_hierarchy("frontend/widget.ts", repo_path=repo_dir)
+    assert ts_hier["status"] == "success"
+    assert ts_hier["total_classes"] >= 1
+
+    # 3. Atomic Rollback Verification on Bad Multi-File Patch
+    bad_patch = {
+        "src/core/calculator.py": "def compute_margin(revenue, cost)\n    return broken_syntax!!!\n"
+    }
+    res_bad = build_and_verify_multifile_repo(
+        repo_slug="enterprise-erp-core",
+        title="Enterprise ERP Core",
+        files_manifest=bad_patch,
+        atomic_rollback_on_failure=True,
+        sites_root=str(tmp_path / "repos"),
+    )
+    assert res_bad["status"] == "rolled_back"
+    assert res_bad["e2e_verification"]["atomic_rolled_back"] is True
+    assert any(loc["file"].endswith("calculator.py") for loc in res_bad["e2e_verification"]["stack_trace_locations"])
+
+    # Verify original file on disk is 100% intact after rollback!
+    with open(f"{repo_dir}/src/core/calculator.py", encoding="utf-8") as f:
+        restored_code = f.read()
+    assert "round(revenue - cost, 2)" in restored_code
+
+    # 4. Stack trace parser check
+    parsed_locs = parse_stack_trace_locations('File "src/api/controller.py", line 14, in handle_request\nfrontend/widget.ts:29:5: error TS2322')
+    assert len(parsed_locs) == 2
+
+    # 5. Tool-RAG verification for Giant Repo tools
+    selected = select_relevant_functions(
+        AVAILABLE_TOOLS,
+        "Tolong analisis arsitektur repositori ini dengan repomap dan lsp lalu refactor kode di sandbox",
+        top_k=24,
+    )
+    sel_names = {getattr(fn, "__name__", "") for fn in selected}
+    assert "generate_codebase_repomap" in sel_names
+    assert "lsp_find_symbol_definition" in sel_names
+    assert "git_worktree_sandbox_create" in sel_names
+    assert "apex_repo_architect_build" in sel_names
+
+
+
 

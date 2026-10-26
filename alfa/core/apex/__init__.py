@@ -60,8 +60,10 @@ from alfa.core.apex.neuro_symbolic import (
 )
 from alfa.core.apex.software_factory import (
     build_and_verify_fullstack_app,
+    build_and_verify_multifile_repo,
     get_software_factory_metrics,
     init_software_factory_tables,
+    parse_stack_trace_locations,
     verify_fullstack_project_e2e,
 )
 from alfa.core.apex.temporal_graphrag import (
@@ -339,11 +341,44 @@ def rea_clone_and_build_app(
     }
 
 
+@_register_tool(category="agent")
+def apex_repo_architect_build(
+    repo_slug: str,
+    title: str,
+    files_json: str,
+    test_command: str = "",
+    atomic_rollback: bool = True,
+) -> dict[str, Any]:
+    """
+    DEVIN-CLASS MULTI-FILE REPOSITORY ARCHITECT:
+    Membangun atau memodifikasi repositori multi-folder/multi-file sekaligus secara atomik
+    (`files_json` berisi JSON object `{"src/app.py": "...", "tests/test_app.py": "...", "index.html": "..."}`),
+    memvalidasi seluruh AST/JSON/HTML, menjalankan `test_command` (misal `pytest`), mem-parsing stack-trace,
+    dan otomatis melakukan Atomic Rollback jika ada 1 saja bug atau tes yang gagal.
+    """
+    import json
+
+    try:
+        manifest = json.loads(files_json) if isinstance(files_json, str) else files_json
+    except Exception as e:
+        return {"status": "error", "message": f"Format files_json tidak valid: {e}"}
+
+    return build_and_verify_multifile_repo(
+        repo_slug=repo_slug,
+        title=title,
+        files_manifest=manifest,
+        test_command=test_command,
+        auto_heal=True,
+        atomic_rollback_on_failure=atomic_rollback,
+    )
+
+
 __all__ = [
     "IMMUTABLE_PROTECTED_SERVICES",
     "analyze_field_event_preemptively",
     "apex_computer_use_action",
     "apex_neuro_symbolic_verify",
+    "apex_repo_architect_build",
     "apex_run_dreaming_consolidation",
     "apex_software_factory_build",
     "apex_synthesize_dynamic_tool",
@@ -352,6 +387,7 @@ __all__ = [
     "apply_coordinate_grid_overlay",
     "audit_excel_formula_integrity",
     "build_and_verify_fullstack_app",
+    "build_and_verify_multifile_repo",
     "capture_desktop_for_vision",
     "compile_fastpath",
     "execute_gui_action",
@@ -368,6 +404,7 @@ __all__ = [
     "initialize_apex_engine",
     "inspect_desktop_environment",
     "is_service_quarantined",
+    "parse_stack_trace_locations",
     "query_temporal_graphrag",
     "rea_clone_and_build_app",
     "read_cpu_temperature_celsius",

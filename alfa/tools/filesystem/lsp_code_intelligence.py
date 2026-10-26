@@ -130,10 +130,10 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
 
     if not matches:
         other_files = list(
-            _iter_source_files(root, ["js", "ts", "jsx", "tsx", "go", "rs"])
+            _iter_source_files(root, ["js", "ts", "jsx", "tsx", "go", "rs", "dart"])
         )
         pattern = re.compile(
-            rf"(function|class|const|let|var|def|fn|type|struct)\s+{re.escape(symbol_name)}",
+            rf"\b(function|class|const|let|var|def|fn|type|struct|interface|enum)\s+{re.escape(symbol_name)}\b",
             re.MULTILINE,
         )
         for fpath in other_files:
@@ -255,10 +255,40 @@ def lsp_analyze_module_hierarchy(
         return {"status": "error", "message": f"File '{target_file}' tidak ditemukan."}
 
     if not abs_path.endswith(".py"):
-        return {
-            "status": "error",
-            "message": "Analisis hierarki mendalam saat ini dioptimalkan untuk file Python (.py).",
-        }
+        try:
+            with open(abs_path, encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            imports = re.findall(
+                r"""(?:import\s+.*?from\s+['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)|use\s+([a-zA-Z0-9_:]+))""",
+                content,
+            )
+            flat_imports = [next((g for g in tup if g), "") for tup in imports if any(tup)]
+            classes = [
+                {"class_name": m, "bases": [], "methods_count": 0, "methods": []}
+                for m in re.findall(r"\b(?:class|struct|interface)\s+([A-Za-z0-9_]+)", content)
+            ]
+            top_functions = [
+                {"function_name": m, "is_async": False}
+                for m in re.findall(
+                    r"\b(?:function|fn|func|const)\s+([A-Za-z0-9_]+)\s*(?:=\s*(?:async\s*)?\([^)]*\)\s*=>|\()",
+                    content,
+                )
+            ]
+            return {
+                "status": "success",
+                "file": os.path.relpath(abs_path, root),
+                "total_imports": len(flat_imports),
+                "imports": flat_imports,
+                "total_classes": len(classes),
+                "classes": classes,
+                "total_top_functions": len(top_functions),
+                "top_functions": top_functions,
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Gagal menganalisis modul {target_file}: {str(e)}",
+            }
 
     try:
         with open(abs_path, encoding="utf-8", errors="replace") as f:

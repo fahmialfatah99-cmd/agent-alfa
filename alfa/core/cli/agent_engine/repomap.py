@@ -181,10 +181,38 @@ class RepomapGenerator:
             pass
         return symbols
 
-    def generate_repomap(self, max_files: int = 60) -> str:
-        """Scan workspace and generate compact hierarchical repomap."""
-        lines: list[str] = []
-        count = 0
+    def _extract_imports(self, file_path: Path) -> list[str]:
+        """Extract imported module/file stems across Python, JS/TS, Go, Rust, and Dart."""
+        ext = file_path.suffix.lower()
+        imports: list[str] = []
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")[:30000]
+            if ext == ".py":
+                for m in re.finditer(r"^\s*(?:from|import)\s+([a-zA-Z0-9_\.]+)", content, re.MULTILINE):
+                    parts = m.group(1).split(".")
+                    imports.extend(p for p in parts if p)
+            elif ext in (".js", ".ts", ".jsx", ".tsx"):
+                for m in re.finditer(r"""(?:from|require\()\s*['"]([^'"]+)['"]""", content):
+                    stem = Path(m.group(1)).stem
+                    if stem and stem not in ("index", "."):
+                        imports.append(stem)
+            elif ext in (".go", ".rs", ".dart"):
+                for m in re.finditer(r"""(?:use|import)\s+['"]?([a-zA-Z0-9_/:.]+)""", content):
+                    stem = re.split(r"[/:.]", m.group(1))[-1]
+                    if stem:
+                        imports.append(stem)
+        except Exception:
+            pass
+        return imports
+
+    def rank_files_by_centrality(self, scan_limit: int = 600) -> list[dict[str, object]]:
+        """
+        PageRank / Import-Centrality scorer for giant repositories:
+        Scans up to `scan_limit` files, builds an inbound import reference graph,
+        and ranks files by architectural importance (inbound refs + symbol richness + entrypoint weight).
+        """
+        candidates: list[dict[str, object]] = []
+        stem_to_indices: dict[str, list[int]] = {}
 
         for dirpath, dirnames, filenames in os.walk(self.root):
             dirnames[:] = [
@@ -200,23 +228,78 @@ class RepomapGenerator:
                 ext = p.suffix.lower()
                 if ext in self.IGNORE_EXTS or fname.startswith("."):
                     continue
+                try:
+                    if p.stat().st_size > 512_000:
+                        continue
+                except OSError:
+                    continue
 
                 rel_file = f"{dir_str}{fname}"
-                symbols = []
-                if ext == ".py":
-                    symbols = self._extract_py_symbols(p)
-                elif ext in (".js", ".ts", ".jsx", ".tsx", ".go", ".dart", ".rs"):
-                    symbols = self._extract_regex_symbols(p)
+                symbols = (
+                    self._extract_py_symbols(p)
+                    if ext == ".py"
+                    else self._extract_regex_symbols(p)
+                    if ext in (".js", ".ts", ".jsx", ".tsx", ".go", ".dart", ".rs")
+                    else []
+                )
+                imports = self._extract_imports(p)
+                idx = len(candidates)
+                stem = p.stem.lower()
+                stem_to_indices.setdefault(stem, []).append(idx)
 
-                if symbols:
-                    sym_repr = ", ".join(symbols[:5])
-                    lines.append(f"  • {rel_file}: {sym_repr}")
-                else:
-                    lines.append(f"  • {rel_file}")
+                # Entrypoint bonus
+                entry_bonus = 3.0 if stem in ("main", "app", "index", "server", "router", "__init__", "cli") else 0.0
+                depth_penalty = rel_file.count("/") * 0.15
 
-                count += 1
-                if count >= max_files:
-                    lines.append(f"  ... [dan {count}+ file lainnya]")
-                    return "\n".join(lines)
+                candidates.append(
+                    {
+                        "path": p,
+                        "rel_file": rel_file,
+                        "stem": stem,
+                        "symbols": symbols,
+                        "imports": imports,
+                        "inbound_refs": 0,
+                        "score": len(symbols) * 0.5 + entry_bonus - depth_penalty,
+                    }
+                )
+                if len(candidates) >= scan_limit:
+                    break
+            if len(candidates) >= scan_limit:
+                break
 
-        return "\n".join(lines) if lines else "(Proyek kosong)"
+        # Accumulate inbound reference counts (PageRank 1-step centrality)
+        for item in candidates:
+            for imp in item["imports"]:  # type: ignore[union-attr]
+                imp_low = str(imp).lower()
+                for target_idx in stem_to_indices.get(imp_low, []):
+                    if candidates[target_idx]["rel_file"] != item["rel_file"]:
+                        candidates[target_idx]["inbound_refs"] = int(candidates[target_idx]["inbound_refs"]) + 1  # type: ignore[arg-type]
+                        candidates[target_idx]["score"] = float(candidates[target_idx]["score"]) + 2.5  # type: ignore[arg-type]
+
+        candidates.sort(key=lambda x: (-float(x["score"]), str(x["rel_file"])))  # type: ignore[arg-type]
+        return candidates
+
+    def generate_repomap(self, max_files: int = 60) -> str:
+        """Scan workspace and generate compact Centrality-Ranked hierarchical repomap."""
+        ranked = self.rank_files_by_centrality(scan_limit=max(600, max_files * 4))
+        if not ranked:
+            return "(Proyek kosong)"
+
+        selected = ranked[:max_files]
+        lines: list[str] = []
+        for item in selected:
+            rel_file = str(item["rel_file"])
+            symbols = list(item["symbols"])  # type: ignore[arg-type]
+            inbound = int(item["inbound_refs"])  # type: ignore[arg-type]
+            ref_badge = f" [refs:{inbound}]" if inbound > 0 else ""
+            if symbols:
+                sym_repr = ", ".join(str(s) for s in symbols[:5])
+                lines.append(f"  • {rel_file}{ref_badge}: {sym_repr}")
+            else:
+                lines.append(f"  • {rel_file}{ref_badge}")
+
+        if len(ranked) > max_files:
+            lines.append(
+                f"  ... [dan {len(ranked) - max_files} file lainnya diurutkan berdasarkan Import Centrality]"
+            )
+        return "\n".join(lines)

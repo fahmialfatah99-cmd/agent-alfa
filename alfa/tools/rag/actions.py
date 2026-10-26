@@ -124,9 +124,38 @@ _TOOL_FAMILIES: dict[str, set[str]] = {
         "list_managed_sites",
     },
     "apex_software_factory_build": {
+        "apex_repo_architect_build",
         "rea_clone_and_build_app",
         "serve_site",
         "list_managed_sites",
+        "browser_visual_test_page",
+    },
+    "apex_repo_architect_build": {
+        "generate_codebase_repomap",
+        "lsp_find_symbol_definition",
+        "lsp_find_symbol_references",
+        "git_worktree_sandbox_create",
+        "git_worktree_sandbox_verify_and_merge",
+        "git_worktree_sandbox_rollback",
+        "serve_site",
+    },
+    "generate_codebase_repomap": {
+        "lsp_find_symbol_definition",
+        "lsp_find_symbol_references",
+        "lsp_analyze_module_hierarchy",
+        "apex_repo_architect_build",
+        "edit_file_precise",
+    },
+    "lsp_find_symbol_definition": {
+        "lsp_find_symbol_references",
+        "lsp_analyze_module_hierarchy",
+        "generate_codebase_repomap",
+        "edit_file_precise",
+    },
+    "git_worktree_sandbox_create": {
+        "git_worktree_sandbox_verify_and_merge",
+        "git_worktree_sandbox_rollback",
+        "git_worktree_sandbox_list",
     },
     "apex_computer_use_action": {
         "capture_desktop_screenshot",
@@ -237,7 +266,7 @@ def get_required_action_tools(user_text: str) -> set[str]:
             ]
         )
     if any(
-        k in txt_low for k in ["code", "kode", "koding", "script", "python", "file"]
+        k in txt_low for k in ["code", "kode", "koding", "script", "python", "file", "repo", "repositori", "refactor", "arsitektur", "bug", "sandbox", "worktree", "lsp", "repomap"]
     ):
         required.update(
             [
@@ -245,6 +274,14 @@ def get_required_action_tools(user_text: str) -> set[str]:
                 "write_local_file",
                 "edit_file_precise",
                 "execute_python_sandbox",
+                "generate_codebase_repomap",
+                "lsp_find_symbol_definition",
+                "lsp_find_symbol_references",
+                "lsp_analyze_module_hierarchy",
+                "git_worktree_sandbox_create",
+                "git_worktree_sandbox_verify_and_merge",
+                "git_worktree_sandbox_rollback",
+                "apex_repo_architect_build",
             ]
         )
     if any(
