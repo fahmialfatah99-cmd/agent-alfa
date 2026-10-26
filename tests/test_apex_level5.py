@@ -176,3 +176,57 @@ def test_pillar5_hardware_governor_and_agent_tools():
 
     full = get_apex_full_status()
     assert full["status"] == "success"
+    assert "cloud_rescue_vault" in full
+    assert "symbolic_ledgers" in full
+
+
+def test_perfection_4_phases_vault_ledger_and_maintenance(tmp_path):
+    import openpyxl
+    from alfa.core.apex import (
+        audit_excel_formula_integrity,
+        run_autonomous_apex_maintenance,
+        stage_file_for_cloud_rescue,
+    )
+
+    # Phase 1: Cloud-Local Rescue Vault
+    dummy_file = tmp_path / "Master_Laporan_Cluster_Lahat_Test.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Rekap"
+    ws["G6"] = 61
+    ws["G7"] = 99
+    ws["G8"] = "=SUM(G6:G7)"  # Clean dynamic formula (no circular ref)
+    wb.save(str(dummy_file))
+
+    vault_res = stage_file_for_cloud_rescue(
+        str(dummy_file),
+        cluster_name="LAHAT",
+        attempt_cloud_upload=False,
+        vault_root=str(tmp_path / "vault"),
+    )
+    assert vault_res["status"] == "success"
+    assert vault_res["sync_status"] == "LOCAL_VAULTED"
+
+    # Phase 2: Symbolic Excel Formula Integrity Auditor (Clean vs Circular)
+    audit_ok = audit_excel_formula_integrity(str(dummy_file))
+    assert audit_ok["status"] == "valid"
+    assert audit_ok["is_clean"] is True
+    assert audit_ok["formula_count"] == 1
+
+    # Test Circular Reference Detection
+    bad_xlsx = tmp_path / "Bad_Circular.xlsx"
+    wb_bad = openpyxl.Workbook()
+    ws_bad = wb_bad.active
+    ws_bad["G10"] = "=SUM(G6:G10)"  # Circular self-reference!
+    wb_bad.save(str(bad_xlsx))
+
+    audit_bad = audit_excel_formula_integrity(str(bad_xlsx))
+    assert audit_bad["status"] == "circular_detected"
+    assert audit_bad["is_clean"] is False
+    assert len(audit_bad["circular_references"]) == 1
+
+    # Phase 3 & 4: Full Autonomous Maintenance Cycle
+    maint = run_autonomous_apex_maintenance(force=True)
+    assert maint["status"] == "success"
+    assert maint["sqlite_wal_checkpoint"] == "ok"
+

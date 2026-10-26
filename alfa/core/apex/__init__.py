@@ -1,12 +1,14 @@
 """
 Level 5+ Sovereign Cognitive Apex Engine for ALFA OS.
 
-Unifies the 5 Apex Pillars:
-1. Neuro-Symbolic Verification Engine (0% Numerical Hallucination via AST Solver)
+Unifies the 5 Apex Pillars + 4 Perfection Modules:
+1. Neuro-Symbolic Verification Engine (0% Numerical Hallucination via AST Solver & Excel Formula Auditor)
 2. Offline 'Dreaming Mode' & Deterministic Fast-Path Compiler (Sub-ms 0-token execution)
 3. Predictive Operational World-Model (Pre-emptive field anomaly detection)
 4. Shadow-Git Canary Self-Evolution (3-Stage verified dynamic tool synthesis & auto-rollback)
 5. Adaptive Hardware & Thermal Governor (Host-aware resource & quarantine protection)
+6. Resilient Cloud-Local Media & Ledger Vault (`cloud_rescue.py`)
+7. Autonomous Maintenance & Consolidation Daemon (`maintenance_daemon.py`)
 """
 
 from __future__ import annotations
@@ -19,6 +21,12 @@ from alfa.core.apex.canary_evolution import (
     init_canary_tables,
     synthesize_and_hotload_tool,
     verify_code_via_canary_gate,
+)
+from alfa.core.apex.cloud_rescue import (
+    get_cloud_rescue_metrics,
+    init_cloud_rescue_tables,
+    run_cloud_rescue_sweep,
+    stage_file_for_cloud_rescue,
 )
 from alfa.core.apex.dreaming_compiler import (
     compile_fastpath,
@@ -34,8 +42,11 @@ from alfa.core.apex.hardware_governor import (
     is_service_quarantined,
     read_cpu_temperature_celsius,
 )
+from alfa.core.apex.maintenance_daemon import run_autonomous_apex_maintenance
 from alfa.core.apex.neuro_symbolic import (
+    audit_excel_formula_integrity,
     safe_ast_math_eval,
+    sync_symbolic_constraints_from_master_ledgers,
     verify_and_prove_response,
     verify_arithmetic_equations_in_text,
 )
@@ -66,27 +77,32 @@ def initialize_apex_engine() -> dict[str, Any]:
     init_dreaming_tables()
     init_world_model_tables()
     init_canary_tables()
+    init_cloud_rescue_tables()
     seeded = seed_compiled_fastpaths()
     return {"status": "initialized", "seeded_fastpaths": seeded}
 
 
 def get_apex_full_status() -> dict[str, Any]:
-    """Aggregate comprehensive telemetry across all 5 Level 5+ Cognitive Apex pillars."""
+    """Aggregate comprehensive telemetry across all Level 5+ Cognitive Apex pillars."""
     initialize_apex_engine()
     gov = get_hardware_governor_state()
     dream = get_dreaming_metrics()
     world = get_world_model_summary()
     canary = get_canary_evolution_metrics()
     learning = get_learning_loop_metrics()
+    vault = get_cloud_rescue_metrics()
+    ledgers = sync_symbolic_constraints_from_master_ledgers()
 
     return {
         "status": "success",
-        "autonomy_level": "Level 5+ (Sovereign Cognitive Apex)",
+        "autonomy_level": "Level 5+ (Sovereign Cognitive Apex — Zero-Gap Perfection)",
         "governor": gov,
         "dreaming": dream,
         "world_model": world,
         "canary_evolution": canary,
         "learning_loop": learning,
+        "cloud_rescue_vault": vault,
+        "symbolic_ledgers": ledgers,
     }
 
 
@@ -133,11 +149,11 @@ def apex_neuro_symbolic_verify(
 @_register_tool(category="agent")
 def apex_run_dreaming_consolidation() -> dict[str, Any]:
     """
-    KOMPILASI FAST-PATH & KONSOLIDASI MEMORI (OFFLINE DREAMING COMPILER):
-    Menjalankan siklus konsolidasi untuk mengubah aturan berkepercayaan tinggi menjadi
-    jalur cepat deterministik (0 token, eksekusi < 2 milidetik).
+    KOMPILASI FAST-PATH & KONSOLIDASI MEMORI & PEMELIHARAAN OTONOM (APEX MAINTENANCE):
+    Menjalankan siklus konsolidasi penuh: mengkompilasi aturan menjadi Fast-Path (0 token),
+    mengaudit formula Master Ledger Excel, dan mengamankan berkas ke brankas lokal/cloud.
     """
-    return run_idle_dreaming_cycle(force=True)
+    return run_autonomous_apex_maintenance(force=True)
 
 
 @_register_tool(category="agent")
@@ -145,7 +161,7 @@ def apex_system_telemetry() -> dict[str, Any]:
     """
     TELEMETRI PENUH LEVEL 5+ SOVEREIGN COGNITIVE APEX:
     Melihat status Hardware Thermal Governor, Neuro-Symbolic Prover, Dreaming Fast-Paths,
-    Predictive World-Model, dan Canary Self-Evolution.
+    Predictive World-Model, Canary Self-Evolution, dan Cloud-Local Vault.
     """
     return get_apex_full_status()
 
@@ -157,9 +173,11 @@ __all__ = [
     "apex_run_dreaming_consolidation",
     "apex_synthesize_dynamic_tool",
     "apex_system_telemetry",
+    "audit_excel_formula_integrity",
     "compile_fastpath",
     "get_apex_full_status",
     "get_canary_evolution_metrics",
+    "get_cloud_rescue_metrics",
     "get_dreaming_metrics",
     "get_hardware_governor_state",
     "get_world_model_summary",
@@ -167,9 +185,13 @@ __all__ = [
     "is_service_quarantined",
     "read_cpu_temperature_celsius",
     "record_world_anomaly",
+    "run_autonomous_apex_maintenance",
+    "run_cloud_rescue_sweep",
     "run_idle_dreaming_cycle",
     "safe_ast_math_eval",
     "seed_compiled_fastpaths",
+    "stage_file_for_cloud_rescue",
+    "sync_symbolic_constraints_from_master_ledgers",
     "synthesize_and_hotload_tool",
     "try_execute_compiled_fastpath",
     "verify_and_prove_response",

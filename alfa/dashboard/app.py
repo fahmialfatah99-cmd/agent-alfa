@@ -462,6 +462,28 @@ def create_app() -> FastAPI:
             agent=_agent_snapshot(),
         )
 
+    @app_instance.get(
+        "/api/apex/status",
+        tags=["Monitoring"],
+        summary="Level 5+ Sovereign Cognitive Apex Telemetry",
+    )
+    async def apex_status_endpoint():
+        """Return full Level 5+ Cognitive Apex, Learning Loop, and Cloud Rescue telemetry."""
+        from alfa.core.apex import get_apex_full_status
+
+        return get_apex_full_status()
+
+    @app_instance.post(
+        "/api/apex/maintenance",
+        tags=["Monitoring"],
+        summary="Trigger Level 5+ Autonomous Consolidation & Ledger Audit",
+    )
+    async def apex_maintenance_endpoint():
+        """Run Dreaming Fast-Path consolidation, Symbolic Ledger audit, and Cloud Rescue sweep."""
+        from alfa.core.apex import run_autonomous_apex_maintenance
+
+        return run_autonomous_apex_maintenance(force=True)
+
     # Include APIRouters
     app_instance.include_router(auth_router)
     app_instance.include_router(webauthn_router)
