@@ -1386,6 +1386,9 @@ async def apex_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     learn = st.get("learning_loop", {})
     vault = st.get("cloud_rescue_vault", {})
     ledgers = st.get("symbolic_ledgers", {})
+    graphrag = st.get("temporal_graphrag", {})
+    factory = st.get("software_factory", {})
+    comp_use = st.get("computer_use", {})
 
     lines = [
         "🌌 *ALFA OS: LEVEL 5+ SOVEREIGN COGNITIVE APEX*",
@@ -1398,17 +1401,16 @@ async def apex_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"   • Compiled Fast-Paths: *{dream.get('total_compiled_fastpaths', 0)} jalur aktif*",
         f"   • Eksekusi Instan (0 Token): *{dream.get('total_fastpath_hits', 0)} hits*",
         f"   • Estimasi Penghematan: *~{dream.get('estimated_tokens_saved', 0)} token*\n",
-        "3️⃣ *Predictive World-Model & Cloud-Local Vault*",
-        f"   • Cluster Dipantau: `{', '.join(world.get('tracked_clusters', []))}`",
-        f"   • Anomali Lapangan Aktif: *{world.get('unresolved_anomalies_count', 0)} alert*",
-        f"   • Brankas Penyelamat Media/Ledger: *{vault.get('total_vaulted_files', 0)} berkas ({vault.get('total_vault_size_kb', 0)} KB)*\n",
-        "4️⃣ *Shadow-Git Canary Self-Evolution*",
-        f"   • Dynamic Tools Terverifikasi: *{canary.get('active_synthesized_tools', 0)} tools*",
-        f"   • Canary Rollback Guard: *{canary.get('total_canary_rollbacks', 0)} auto-rollbacks*\n",
-        "5️⃣ *Adaptive Hardware & Thermal Governor*",
-        f"   • Mode Governor: `{gov.get('governor_mode', 'APEX_TURBO')}`",
-        f"   • Suhu CPU: `{gov.get('cpu_temp_celsius', 45.0)}°C` | Load: `{gov.get('cpu_percent', 0)}%`",
-        f"   • RAM Tersedia: `{gov.get('ram_available_mb', 0)} MB`",
+        "3️⃣ *Temporal GraphRAG Second Brain (Multi-Hop)*",
+        f"   • Simpul Pengetahuan (Nodes): *{graphrag.get('total_entities', 0)} entitas*",
+        f"   • Jaringan Asosiasi (Edges): *{graphrag.get('total_relations', 0)} relasi lintas waktu*\n",
+        "4️⃣ *Autonomous Software Factory & Vision Computer-Use*",
+        f"   • Aplikasi Full-Stack Terbangun: *{factory.get('total_builds', 0)} builds* _(Avg E2E: {factory.get('avg_e2e_score', 100)}%)_",
+        f"   • Vision GUI Display: `{comp_use.get('display', ':0')} ({comp_use.get('resolution', '1920x1080')})`",
+        f"   • Dynamic Canary Tools: *{canary.get('active_synthesized_tools', 0)} tools*\n",
+        "5️⃣ *World-Model, Cloud Vault & Thermal Governor*",
+        f"   • Mode Governor: `{gov.get('governor_mode', 'APEX_TURBO')}` (`{gov.get('cpu_temp_celsius', 45.0)}°C` | RAM: `{gov.get('ram_available_mb', 0)} MB`)",
+        f"   • Brankas Lokal/Cloud: *{vault.get('total_vaulted_files', 0)} berkas* | Alert: *{world.get('unresolved_anomalies_count', 0)}*",
         "   • Proteksi Mutlak: `wa-sheets-bot.service (Quarantined Safe)`",
     ]
     await safe_send_message(context, chat_id, "\n".join(lines))

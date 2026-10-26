@@ -230,3 +230,99 @@ def test_perfection_4_phases_vault_ledger_and_maintenance(tmp_path):
     assert maint["status"] == "success"
     assert maint["sqlite_wal_checkpoint"] == "ok"
 
+
+def test_universal_computer_use_engine():
+    from alfa.core.apex import (
+        apex_computer_use_action,
+        execute_gui_action,
+        inspect_desktop_environment,
+    )
+
+    env_info = inspect_desktop_environment()
+    assert env_info["status"] == "success"
+    assert "screen_resolution" in env_info
+
+    # Vision Grid Screenshot capture
+    cap_res = apex_computer_use_action(action="capture_grid")
+    assert cap_res["status"] == "success"
+    assert cap_res["with_grid"] is True
+
+    # Simulated click action
+    click_res = execute_gui_action(action="click", x=400, y=300, dry_run=True)
+    assert click_res["status"] == "simulated"
+    assert click_res["coordinates"] == {"x": 400, "y": 300}
+
+    # Quarantine guard blocks interacting with wa-sheets-bot
+    blocked_res = execute_gui_action(action="type", text="kill wa-sheets-bot", dry_run=True)
+    assert blocked_res["status"] == "blocked_by_quarantine"
+
+
+def test_temporal_graphrag_multihop_second_brain():
+    from alfa.core.apex import (
+        apex_temporal_graphrag_query,
+        ingest_text_to_temporal_graph,
+    )
+
+    # Link A -> B and B -> C to test 2-Hop Bridge Discovery
+    apex_temporal_graphrag_query(
+        "Project Orion uses FastAPI Backend",
+        mode="link",
+        relation_source="PROJECT_ORION",
+        relation_type="USES",
+        relation_target="FASTAPI_BACKEND",
+    )
+    apex_temporal_graphrag_query(
+        "FastAPI Backend connects to SQLite WAL Engine",
+        mode="link",
+        relation_source="FASTAPI_BACKEND",
+        relation_type="CONNECTED_TO",
+        relation_target="SQLITE_WAL_ENGINE",
+    )
+
+    # Auto-ingest natural text
+    ing_res = ingest_text_to_temporal_graph("Sistem QuantumMesh menggunakan RustEngine untuk komputasi cepat.")
+    assert ing_res["status"] == "success"
+    assert ing_res["relations_processed"] >= 1
+
+    # Query seed 'PROJECT_ORION': should discover 1-hop 'FASTAPI_BACKEND' and 2-hop 'SQLITE_WAL_ENGINE'
+    q_res = apex_temporal_graphrag_query("PROJECT_ORION", mode="query")
+    assert q_res["status"] == "success"
+    assert any(r["target_entity"] == "FASTAPI_BACKEND" for r in q_res["hop1_relations"])
+    assert any(r["target_entity"] == "SQLITE_WAL_ENGINE" for r in q_res["hop2_bridges"])
+
+
+def test_autonomous_software_factory_and_e2e_verifier(tmp_path):
+    from alfa.core.apex import build_and_verify_fullstack_app
+
+    # Provide partial HTML (missing <!DOCTYPE> and <html> wrapper) to test Self-Healing + 4-Stage E2E Gate
+    raw_html = """
+    <div id="app">
+        <h1>Autonomous SaaS Analytics</h1>
+        <form id="query-form">
+            <input type="text" name="metric" placeholder="Metric name" />
+            <button type="submit">Run Analysis</button>
+        </form>
+    </div>
+    <script>
+        console.log("Analytics Ready");
+    </script>
+    """
+    backend_code = """
+def get_analytics_summary() -> dict:
+    return {"status": "ok", "active_users": 42}
+"""
+
+    build_res = build_and_verify_fullstack_app(
+        app_slug="saas-analytics-pro",
+        title="SaaS Analytics Pro",
+        frontend_html=raw_html,
+        backend_py=backend_code,
+        auto_heal=True,
+        sites_root=str(tmp_path / "sites"),
+    )
+    assert build_res["status"] == "success"
+    assert build_res["e2e_verification"]["status"] == "PRODUCTION_READY"
+    assert build_res["e2e_verification"]["e2e_score"] == 100
+    assert len(build_res["e2e_verification"]["auto_repairs_applied"]) >= 1
+
+

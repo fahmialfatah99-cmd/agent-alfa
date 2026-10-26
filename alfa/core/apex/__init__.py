@@ -1,14 +1,16 @@
 """
-Level 5+ Sovereign Cognitive Apex Engine for ALFA OS.
+Level 5+ Sovereign Cognitive Apex & General-Purpose Frontier Engine for ALFA OS.
 
-Unifies the 5 Apex Pillars + 4 Perfection Modules:
-1. Neuro-Symbolic Verification Engine (0% Numerical Hallucination via AST Solver & Excel Formula Auditor)
+Unifies all Core & Universal General-Purpose Pillars:
+1. Neuro-Symbolic Verification Engine (0% Numerical Hallucination via AST Solver & Excel Auditor)
 2. Offline 'Dreaming Mode' & Deterministic Fast-Path Compiler (Sub-ms 0-token execution)
-3. Predictive Operational World-Model (Pre-emptive field anomaly detection)
+3. Predictive Operational World-Model (Pre-emptive anomaly detection)
 4. Shadow-Git Canary Self-Evolution (3-Stage verified dynamic tool synthesis & auto-rollback)
 5. Adaptive Hardware & Thermal Governor (Host-aware resource & quarantine protection)
-6. Resilient Cloud-Local Media & Ledger Vault (`cloud_rescue.py`)
-7. Autonomous Maintenance & Consolidation Daemon (`maintenance_daemon.py`)
+6. Universal Vision Computer-Use Engine (`computer_use.py` — Coordinate Grid Vision & GUI Operator)
+7. Episodic Temporal GraphRAG Second Brain (`temporal_graphrag.py` — Multi-Hop Knowledge Graph)
+8. Autonomous Full-Stack Software Factory (`software_factory.py` — Devin-Grade E2E Verifier & Auto-Healer)
+9. Resilient Cloud-Local Media & Ledger Vault (`cloud_rescue.py`)
 """
 
 from __future__ import annotations
@@ -27,6 +29,12 @@ from alfa.core.apex.cloud_rescue import (
     init_cloud_rescue_tables,
     run_cloud_rescue_sweep,
     stage_file_for_cloud_rescue,
+)
+from alfa.core.apex.computer_use import (
+    apply_coordinate_grid_overlay,
+    capture_desktop_for_vision,
+    execute_gui_action,
+    inspect_desktop_environment,
 )
 from alfa.core.apex.dreaming_compiler import (
     compile_fastpath,
@@ -49,6 +57,20 @@ from alfa.core.apex.neuro_symbolic import (
     sync_symbolic_constraints_from_master_ledgers,
     verify_and_prove_response,
     verify_arithmetic_equations_in_text,
+)
+from alfa.core.apex.software_factory import (
+    build_and_verify_fullstack_app,
+    get_software_factory_metrics,
+    init_software_factory_tables,
+    verify_fullstack_project_e2e,
+)
+from alfa.core.apex.temporal_graphrag import (
+    get_temporal_graphrag_metrics,
+     ingest_text_to_temporal_graph,
+    init_graphrag_tables,
+    query_temporal_graphrag,
+    upsert_graph_entity,
+    upsert_graph_relation,
 )
 from alfa.core.apex.world_model import (
     analyze_field_event_preemptively,
@@ -73,17 +95,19 @@ def _register_tool(category: str = "agent"):
 
 
 def initialize_apex_engine() -> dict[str, Any]:
-    """Initialize all Level 5+ Apex tables, seed compiled fast-paths, and run initial consolidation."""
+    """Initialize all Level 5+ Apex & General-Purpose tables."""
     init_dreaming_tables()
     init_world_model_tables()
     init_canary_tables()
     init_cloud_rescue_tables()
+    init_graphrag_tables()
+    init_software_factory_tables()
     seeded = seed_compiled_fastpaths()
     return {"status": "initialized", "seeded_fastpaths": seeded}
 
 
 def get_apex_full_status() -> dict[str, Any]:
-    """Aggregate comprehensive telemetry across all Level 5+ Cognitive Apex pillars."""
+    """Aggregate comprehensive telemetry across all Level 5+ Cognitive Apex & General Frontier pillars."""
     initialize_apex_engine()
     gov = get_hardware_governor_state()
     dream = get_dreaming_metrics()
@@ -92,10 +116,13 @@ def get_apex_full_status() -> dict[str, Any]:
     learning = get_learning_loop_metrics()
     vault = get_cloud_rescue_metrics()
     ledgers = sync_symbolic_constraints_from_master_ledgers()
+    graphrag = get_temporal_graphrag_metrics()
+    factory = get_software_factory_metrics()
+    desktop = inspect_desktop_environment()
 
     return {
         "status": "success",
-        "autonomy_level": "Level 5+ (Sovereign Cognitive Apex — Zero-Gap Perfection)",
+        "autonomy_level": "Level 5+ (Universal Sovereign Cognitive Apex)",
         "governor": gov,
         "dreaming": dream,
         "world_model": world,
@@ -103,6 +130,13 @@ def get_apex_full_status() -> dict[str, Any]:
         "learning_loop": learning,
         "cloud_rescue_vault": vault,
         "symbolic_ledgers": ledgers,
+        "temporal_graphrag": graphrag,
+        "software_factory": factory,
+        "computer_use": {
+            "display": desktop.get("display"),
+            "resolution": desktop.get("screen_resolution"),
+            "capabilities": desktop.get("capabilities"),
+        },
     }
 
 
@@ -135,7 +169,7 @@ def apex_neuro_symbolic_verify(
     """
     PEMBUKTIAN MATEMATIKA & FAKTA NEURO-SIMBOLIK (0% HALLUCINATION PROVER):
     Mengevaluasi ekspresi matematika menggunakan AST Solver deterministik serta memvalidasi
-    klaim angka/stok logistik terhadap invarian database.
+    klaim angka terhadap invarian database.
     """
     direct_val = safe_ast_math_eval(text_or_equation)
     proof_res = verify_and_prove_response(context_prompt, text_or_equation)
@@ -151,7 +185,7 @@ def apex_run_dreaming_consolidation() -> dict[str, Any]:
     """
     KOMPILASI FAST-PATH & KONSOLIDASI MEMORI & PEMELIHARAAN OTONOM (APEX MAINTENANCE):
     Menjalankan siklus konsolidasi penuh: mengkompilasi aturan menjadi Fast-Path (0 token),
-    mengaudit formula Master Ledger Excel, dan mengamankan berkas ke brankas lokal/cloud.
+    mengaudit formula Excel, dan mengamankan berkas ke brankas lokal/cloud.
     """
     return run_autonomous_apex_maintenance(force=True)
 
@@ -160,29 +194,107 @@ def apex_run_dreaming_consolidation() -> dict[str, Any]:
 def apex_system_telemetry() -> dict[str, Any]:
     """
     TELEMETRI PENUH LEVEL 5+ SOVEREIGN COGNITIVE APEX:
-    Melihat status Hardware Thermal Governor, Neuro-Symbolic Prover, Dreaming Fast-Paths,
-    Predictive World-Model, Canary Self-Evolution, dan Cloud-Local Vault.
+    Melihat status seluruh pilar otonom (Thermal Governor, Neuro-Symbolic Prover, Dreaming,
+    Temporal GraphRAG, Software Factory, dan Vision Computer-Use).
     """
     return get_apex_full_status()
+
+
+@_register_tool(category="agent")
+def apex_computer_use_action(
+    action: str = "capture_grid",
+    x: int = 0,
+    y: int = 0,
+    text: str = "",
+    key_combo: str = "",
+) -> dict[str, Any]:
+    """
+    UNIVERSAL VISION COMPUTER-USE (OPERASI LAYAR GUI DESKTOP LAYAKNYA MANUSIA):
+    Mengambil tangkapan layar dengan Coordinate Grid (`capture_grid`), menginspeksi environment
+    desktop (`inspect`), atau mengeksekusi klik kursor/ketik keyboard (`click`, `double_click`,
+    `right_click`, `move`, `type`, `key`).
+    """
+    act = (action or "capture_grid").strip().lower()
+    if act == "capture_grid":
+        return capture_desktop_for_vision(with_grid=True)
+    if act == "inspect":
+        return inspect_desktop_environment()
+    return execute_gui_action(action=act, x=x, y=y, text=text, key_combo=key_combo)
+
+
+@_register_tool(category="agent")
+def apex_temporal_graphrag_query(
+    query_or_text: str,
+    mode: str = "query",
+    relation_source: str = "",
+    relation_type: str = "",
+    relation_target: str = "",
+) -> dict[str, Any]:
+    """
+    EPISODIC TEMPORAL GRAPHRAG SECOND BRAIN (OTAK KEDUA UNIVERSAL LINTAS WAKTU):
+    - mode='query': Mencari koneksi pengetahuan Multi-Hop (1-Hop & 2-Hop Bridge Discovery).
+    - mode='ingest': Mengekstrak entitas dan hubungan dari teks ke dalam Knowledge Graph.
+    - mode='link': Menghubungkan `relation_source` --[`relation_type`]--> `relation_target`.
+    """
+    m = (mode or "query").strip().lower()
+    if m == "ingest":
+        return ingest_text_to_temporal_graph(query_or_text)
+    if m == "link":
+        return upsert_graph_relation(relation_source, relation_type, relation_target, context_snippet=query_or_text)
+    return query_temporal_graphrag(query_or_text, max_hops=2)
+
+
+@_register_tool(category="agent")
+def apex_software_factory_build(
+    app_slug: str,
+    title: str,
+    frontend_html: str,
+    backend_py: str = "",
+) -> dict[str, Any]:
+    """
+    AUTONOMOUS FULL-STACK SOFTWARE FACTORY (DEVIN-GRADE APP BUILDER & E2E VERIFIER):
+    Membangun aplikasi web full-stack (`index.html` + `app.py` + `site.json`), melakukan
+    Self-Healing perbaikan struktur DOM/AST otomatis, dan memverifikasi kesiapan produksi
+    melalui 4-Stage E2E Quality Gate.
+    """
+    return build_and_verify_fullstack_app(
+        app_slug=app_slug,
+        title=title,
+        frontend_html=frontend_html,
+        backend_py=backend_py,
+        auto_heal=True,
+    )
 
 
 __all__ = [
     "IMMUTABLE_PROTECTED_SERVICES",
     "analyze_field_event_preemptively",
+    "apex_computer_use_action",
     "apex_neuro_symbolic_verify",
     "apex_run_dreaming_consolidation",
+    "apex_software_factory_build",
     "apex_synthesize_dynamic_tool",
     "apex_system_telemetry",
+    "apex_temporal_graphrag_query",
+    "apply_coordinate_grid_overlay",
     "audit_excel_formula_integrity",
+    "build_and_verify_fullstack_app",
+    "capture_desktop_for_vision",
     "compile_fastpath",
+    "execute_gui_action",
     "get_apex_full_status",
     "get_canary_evolution_metrics",
     "get_cloud_rescue_metrics",
     "get_dreaming_metrics",
     "get_hardware_governor_state",
+    "get_software_factory_metrics",
+    "get_temporal_graphrag_metrics",
     "get_world_model_summary",
+    "ingest_text_to_temporal_graph",
     "initialize_apex_engine",
+    "inspect_desktop_environment",
     "is_service_quarantined",
+    "query_temporal_graphrag",
     "read_cpu_temperature_celsius",
     "record_world_anomaly",
     "run_autonomous_apex_maintenance",
@@ -194,7 +306,10 @@ __all__ = [
     "sync_symbolic_constraints_from_master_ledgers",
     "synthesize_and_hotload_tool",
     "try_execute_compiled_fastpath",
+    "upsert_graph_entity",
+    "upsert_graph_relation",
     "verify_and_prove_response",
     "verify_arithmetic_equations_in_text",
     "verify_code_via_canary_gate",
+    "verify_fullstack_project_e2e",
 ]

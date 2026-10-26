@@ -1430,13 +1430,15 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await safe_send_message(context, chat_id, fast)
         return
 
-    # Level 5+ Apex Engine: Predictive World-Model & Compiled Fast-Path Execution (0 Token, Sub-ms)
+    # Level 5+ Apex Engine: Temporal GraphRAG Ingestion, World-Model & Compiled Fast-Path (0 Token, Sub-ms)
     try:
         from alfa.core.apex import (
             analyze_field_event_preemptively,
+            ingest_text_to_temporal_graph,
             try_execute_compiled_fastpath,
         )
 
+        ingest_text_to_temporal_graph(user_text)
         analyze_field_event_preemptively(user_text)
         fp_hit = try_execute_compiled_fastpath(user_text)
         if fp_hit and fp_hit.get("response"):

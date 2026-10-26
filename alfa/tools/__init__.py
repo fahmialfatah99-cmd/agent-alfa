@@ -104,10 +104,13 @@ from alfa.core.brain.learning_loop import (
     record_agent_experience,
 )
 from alfa.core.apex import (
+    apex_computer_use_action,
     apex_neuro_symbolic_verify,
     apex_run_dreaming_consolidation,
+    apex_software_factory_build,
     apex_synthesize_dynamic_tool,
     apex_system_telemetry,
+    apex_temporal_graphrag_query,
 )
 
 logger = logging.getLogger("AgentTools")
@@ -310,6 +313,9 @@ AVAILABLE_TOOLS = [
     apex_neuro_symbolic_verify,
     apex_run_dreaming_consolidation,
     apex_system_telemetry,
+    apex_computer_use_action,
+    apex_temporal_graphrag_query,
+    apex_software_factory_build,
     *plugins.load_all_plugin_tools(),
 ]
 
