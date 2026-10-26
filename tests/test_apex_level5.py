@@ -722,6 +722,19 @@ def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path)
     assert "Completed: 2" in agg_txt
     assert "Total (SUM) = `50`" in agg_txt
 
+    from alfa.bot.handlers import _parse_summary_into_table
+
+    sample_summary = (
+        "*Dokumen: SMDT.xlsx*\n\n"
+        "*KABEL FO:*\n"
+        "• ADSS 24C : 241.231 MT\n"
+        "• ADSS 36C : 106.121 MT\n"
+    )
+    tbl = _parse_summary_into_table(sample_summary)
+    assert len(tbl) == 3
+    assert tbl[1] == ["1", "KABEL FO", "ADSS 24C", "241.231 MT"]
+
+
 
 
 

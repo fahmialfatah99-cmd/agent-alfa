@@ -291,6 +291,31 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
     return None
 
 
+def _parse_summary_into_table(summary_reply: str) -> list[list[str]]:
+    """Ekstrak butir-butir laporan ('• Item : Nilai') dari summary_reply menjadi tabel 2D terstruktur."""
+    if not summary_reply:
+        return []
+    rows: list[list[str]] = [["No", "Kategori / Bagian", "Nama Material / Parameter", "Rincian / Kuantitas"]]
+    current_section = "Ringkasan Umum"
+    idx = 1
+    for raw_line in summary_reply.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        # Deteksi subjudul bagian seperti *KABEL FIBER OPTIK:* atau ### Bagian
+        if (line.startswith("*") and line.endswith("*")) or line.startswith("#"):
+            sec = line.strip("*# :").replace("\\_", "_")
+            if sec and not sec.lower().startswith("dokumen:"):
+                current_section = sec
+            continue
+        if line.startswith(("•", "-", "▫️", "* ")) and ":" in line:
+            clean_item = line.lstrip("•-▫️* ").replace("\\_", "_").strip()
+            name_part, val_part = clean_item.split(":", 1)
+            rows.append([str(idx), current_section, name_part.strip(), val_part.strip()])
+            idx += 1
+    return rows if len(rows) > 1 else []
+
+
 async def handle_doc_action_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE, data: str
 ) -> bool:
@@ -314,8 +339,6 @@ async def handle_doc_action_callback(
     file_name = doc_info.get("file_name", "dokumen")
     txt_ctx = doc_info.get("txt_ctx", "")
     summary_reply = (doc_info.get("summary_reply") or "").strip()
-    if summary_reply:
-        txt_ctx = f"{txt_ctx}\n\n[HASIL ANALISIS DOKUMEN SEBELUMNYA]:\n{summary_reply}"
     is_batch = doc_info.get("is_batch", False)
     docs_count = doc_info.get("docs_count", 1)
     file_names = doc_info.get("file_names", [file_name])
@@ -332,6 +355,79 @@ async def handle_doc_action_callback(
                     os.remove(os.path.join(SANDBOX_DIR, f))
                 except OSError:
                     pass
+
+    # JALUR INSTAN ZERO-TOKEN (<0.3 detik, 0 token LLM) untuk PDF & Excel bila hasil analisis sudah tersedia
+    if action in ("pdf", "excel") and summary_reply:
+        import re as _re
+
+        base_stem = _re.sub(r"[^A-Za-z0-9_-]+", "_", os.path.splitext(file_name)[0]).strip("_") or "Dokumen"
+        parsed_table = _parse_summary_into_table(summary_reply)
+        clean_summary_txt = (
+            summary_reply.replace("*", "")
+            .replace("\\_", "_")
+            .replace("`", "")
+            .strip()
+        )
+        try:
+            if action == "pdf":
+                from alfa.tools.media.pdf_builder import generate_pdf_report
+
+                out_pdf_name = f"Laporan_Resmi_{base_stem}.pdf"
+                res = generate_pdf_report(
+                    title=f"Laporan Resmi: {file_name}",
+                    summary=clean_summary_txt,
+                    table_data_json=json.dumps(parsed_table, ensure_ascii=False) if parsed_table else "",
+                    filename=out_pdf_name,
+                )
+                if res.get("status") == "success":
+                    await safe_send_message(
+                        context,
+                        chat_id,
+                        f"✅ **Laporan PDF Resmi Berhasil Dibuat (Instan 0-Token)**\n📄 Berkas: `{out_pdf_name}`",
+                    )
+                    await _check_and_send_media_artifacts(
+                        update,
+                        context,
+                        turn_start_time=turn_start_time,
+                        user_prompt="buat laporan pdf",
+                        executed_tools=["generate_pdf_report"],
+                    )
+                    return True
+            elif action == "excel" and parsed_table:
+                from alfa.tools.data.office_suite import generate_excel_spreadsheet
+
+                out_xlsx_name = f"Rekap_Resmi_{base_stem}.xlsx"
+                res = generate_excel_spreadsheet(
+                    filename=out_xlsx_name,
+                    sheet_title="Rekap Dokumen",
+                    headers_json=json.dumps(parsed_table[0], ensure_ascii=False),
+                    rows_json=json.dumps(parsed_table[1:], ensure_ascii=False),
+                )
+                if res.get("status") == "success":
+                    await safe_send_message(
+                        context,
+                        chat_id,
+                        f"✅ **Spreadsheet Excel Baru Berhasil Dibuat (Instan 0-Token)**\n📊 Berkas: `{out_xlsx_name}`",
+                    )
+                    await _check_and_send_media_artifacts(
+                        update,
+                        context,
+                        turn_start_time=turn_start_time,
+                        user_prompt="buat excel",
+                        executed_tools=["generate_excel_spreadsheet"],
+                    )
+                    return True
+        except Exception as fast_err:
+            logger.warning(f"[handle_doc_action_callback] Fast-builder fallback ke LLM: {fast_err}")
+
+    # Pangkas txt_ctx jika terlalu besar agar putaran LLM tetap hemat token (<16 KB)
+    if len(txt_ctx) > 16000:
+        txt_ctx = (
+            txt_ctx[:14000]
+            + "\n\n...[tabel sampel dipangkas otomatis untuk penghematan token]..."
+        )
+    if summary_reply:
+        txt_ctx = f"{txt_ctx}\n\n[HASIL ANALISIS DOKUMEN SEBELUMNYA]:\n{summary_reply}"
 
     if is_batch:
         file_list_str = ", ".join(file_names)

@@ -176,6 +176,14 @@ async def _run_agent_turn_impl(
 
     # 1. Fetch recent chat history from SQLite (24 pesan = 12 giliran lengkap)
     history_rows = await _db.get_recent_chat_history(user_id, limit=24)
+    for _hr in history_rows:
+        _hc = _hr.get("content") or ""
+        if _hr.get("role") == "user" and len(_hc) > 5000:
+            _hr["content"] = (
+                _hc[:2800]
+                + "\n\n...[isi tabel mentah dokumen sebelumnya diringkas dari riwayat chat untuk penghematan token — gunakan hasil analisis di pesan asisten setelah ini]...\n\n"
+                + _hc[-600:]
+            )
 
     # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
     try:
