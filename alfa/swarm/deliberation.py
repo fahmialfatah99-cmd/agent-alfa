@@ -265,6 +265,315 @@ def build_context_digest(turns: list[Turn], max_chars: int = MAX_CONTEXT_CHARS) 
     return out
 
 
+def gather_pre_meeting_intel(
+    topic: str,
+    intent_info: dict | None = None,
+    allow_web_search: bool | None = None,
+) -> str:
+    """Kumpulkan fakta pra-rapat (Fact Sheet) dari Temporal GraphRAG, memori lokal, & web search cepat."""
+    if not topic or not str(topic).strip():
+        return ""
+
+    fact_lines: list[str] = []
+
+    # 1. Temporal GraphRAG 2-Hop Context (Entitas & Relasi Proyek/Aplikasi/Grup)
+    try:
+        from alfa.core.apex.temporal_graphrag import format_temporal_graphrag_prompt
+
+        graph_ctx = format_temporal_graphrag_prompt(topic)
+        if graph_ctx and graph_ctx.strip():
+            # Ambil baris-baris fakta inti
+            core_lines = [
+                ln.strip()
+                for ln in graph_ctx.splitlines()
+                if ln.strip() and not ln.strip().startswith("===")
+            ]
+            if core_lines:
+                fact_lines.append(
+                    "• [Memori Graf Lokal]: " + " | ".join(core_lines[:4])[:450]
+                )
+    except Exception:
+        pass
+
+    # 2. Pencarian Fakta di Riwayat Chat / Memori Database Lokal
+    try:
+        from alfa.core.db.connection import get_sync_db
+
+        words = [
+            w.lower()
+            for w in re.findall(r"[a-zA-Z0-9]{4,}", topic)
+            if w.lower()
+            not in {
+                "rapat",
+                "rapatkan",
+                "bahas",
+                "diskusi",
+                "tolong",
+                "bagaimana",
+                "cara",
+                "mengatasi",
+                "masalah",
+                "untuk",
+                "dengan",
+                "pada",
+                "yang",
+                "dari",
+            }
+        ][:4]
+        if words:
+            with get_sync_db() as conn:
+                cond = " OR ".join(["LOWER(message) LIKE ?" for _ in words])
+                params = [f"%{w}%" for w in words]
+                rows = conn.execute(
+                    f"SELECT message FROM chat_history WHERE ({cond}) AND role='assistant' ORDER BY id DESC LIMIT 2",  # nosec B608
+                    params,
+                ).fetchall()
+                for r in rows:
+                    msg_snip = " ".join(str(r[0] or "").split())[:200]
+                    if msg_snip:
+                        fact_lines.append(f"• [Riwayat Lokal]: {msg_snip}")
+    except Exception:
+        pass
+
+    # 3. Pencarian Web Cepat jika Topik Membutuhkan Fakta Pasar / Harga / Regulasi / Eksternal
+    if allow_web_search is None:
+        allow_web_search = not bool(os.getenv("PYTEST_CURRENT_TEST"))
+    low_t = topic.lower()
+    needs_web = any(
+        k in low_t
+        for k in (
+            "harga",
+            "pasar",
+            "vendor",
+            "supplier",
+            "regulasi",
+            "aturan",
+            "terbaru",
+            "2025",
+            "2026",
+            "benchmark",
+            "kompetitor",
+            "tren",
+            "trend",
+            "bandingkan",
+            "perbandingan",
+        )
+    )
+    if allow_web_search and (needs_web or not fact_lines):
+        try:
+            from alfa import tools as _alfa_tools
+
+            query_str = (intent_info or {}).get("clean_query") or topic[:80]
+            ws = _alfa_tools.web_search(query=query_str, max_results=3)
+            items = (
+                (ws.get("results") or ws.get("items") or [])
+                if isinstance(ws, dict)
+                else []
+            )
+            for it in items[:3]:
+                if isinstance(it, dict):
+                    title = str(it.get("title") or "").strip()[:80]
+                    snip = str(
+                        it.get("snippet") or it.get("body") or it.get("description") or ""
+                    ).strip()[:140]
+                    if title or snip:
+                        fact_lines.append(f"• [Fakta Web]: {title} — {snip}")
+        except Exception:
+            pass
+
+    if not fact_lines:
+        return ""
+
+    return "=== LEMBAR FAKTA PRA-RAPAT (FACT SHEET OTOMATIS) ===\n" + "\n".join(
+        fact_lines[:6]
+    )
+
+
+def _get_meetings_dir(out_dir: str | None = None) -> str:
+    if out_dir and str(out_dir).strip():
+        target = os.path.abspath(os.path.expanduser(str(out_dir).strip()))
+    else:
+        from alfa.swarm.workspace_hygiene import _get_swarm_output_dir
+
+        target = os.path.join(_get_swarm_output_dir(), "meetings")
+    os.makedirs(target, exist_ok=True)
+    return target
+
+
+def save_last_meeting_state(
+    result: dict, out_dir: str | None = None
+) -> str:
+    """Simpan hasil rapat terakhir ke disk agar tombol Telegram 'Eksekusi Action Plan' & 'Export' siap pakai."""
+    mdir = _get_meetings_dir(out_dir)
+    state_path = os.path.join(mdir, "last_meeting_state.json")
+    payload = {
+        "session_id": result.get("session_id") or result.get("meeting_id") or "latest",
+        "title": result.get("title", ""),
+        "topic": result.get("topic", ""),
+        "mode": result.get("mode", "plan"),
+        "participants": result.get("participants", []),
+        "pre_meeting_intel": result.get("pre_meeting_intel", ""),
+        "consensus": result.get("consensus", ""),
+        "action_plan": result.get("action_plan", ""),
+        "vote_tally": result.get("vote_tally", {}),
+        "dialogue_transcript": result.get("dialogue_transcript", []),
+        "report_files": result.get("report_files", {}),
+    }
+    try:
+        with open(state_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+    except OSError:
+        pass
+    return state_path
+
+
+def load_last_meeting_state(out_dir: str | None = None) -> dict:
+    """Muat state rapat terakhir dari disk."""
+    mdir = _get_meetings_dir(out_dir)
+    state_path = os.path.join(mdir, "last_meeting_state.json")
+    if not os.path.exists(state_path):
+        return {}
+    try:
+        with open(state_path, encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def export_meeting_report_files(
+    result: dict, out_dir: str | None = None
+) -> dict[str, str]:
+    """Ekspor hasil rapat Swarm ke dokumen Markdown (.md) dan dokumen Cetak/PDF (.html)."""
+    import html as _html
+    from datetime import datetime as _dt
+
+    mdir = _get_meetings_dir(out_dir)
+    topic = str(result.get("topic") or "Rapat Strategis ALFA").strip()
+    slug = _slug(topic)[:36] or "rapat-alfa"
+    ts_label = _dt.now().strftime("%Y-%m-%d %H:%M")
+    file_stem = f"LAPORAN-RAPAT-{slug}"
+    md_path = os.path.join(mdir, f"{file_stem}.md")
+    html_path = os.path.join(mdir, f"{file_stem}.html")
+
+    participants = result.get("participants") or []
+    consensus = str(result.get("consensus") or "(Belum ada konsensus)").strip()
+    action_plan = str(result.get("action_plan") or "").strip()
+    intel = str(result.get("pre_meeting_intel") or "").strip()
+    vote_tally = result.get("vote_tally") or {}
+    transcript = result.get("dialogue_transcript") or []
+
+    vote_summary_md = ""
+    if vote_tally.get("winner"):
+        w = vote_tally["winner"]
+        agr = float(vote_tally.get("agreement") or 0.0) * 100
+        vote_summary_md = (
+            f"\n## Hasil Pemungutan Suara (Voting Tim)\n"
+            f"- **Proposal Terpilih**: `{w.get('id')}` oleh **{w.get('author')}**\n"
+            f"- **Skor Persetujuan**: {w.get('votes_for', 0)} Setuju / {w.get('votes_against', 0)} Tolak ({agr:.0f}% Agreement)\n"
+            f"- **Inti Usulan**: {w.get('summary', '')}\n"
+        )
+
+    md_lines = [
+        f"# DOKUMEN KEPUTUSAN RAPAT AI SWARM (ALFA OS)",
+        f"**Topik / Agenda:** {topic}  ",
+        f"**Waktu Rapat:** {ts_label}  ",
+        f"**Peserta Tim ({len(participants)} Unit):** {', '.join(participants) if participants else 'Tim Utama ALFA'}  ",
+        "",
+    ]
+    if intel:
+        md_lines += ["## Lembar Fakta Pra-Rapat (Fact Sheet)", intel, ""]
+    if vote_summary_md:
+        md_lines.append(vote_summary_md)
+    md_lines += [
+        "## Konsensus & Keputusan Utama",
+        consensus,
+        "",
+    ]
+    if action_plan:
+        md_lines += [
+            "## Rencana Tindakan (Action Plan)",
+            action_plan,
+            "",
+        ]
+    if transcript:
+        md_lines.append("## Transkrip Pandangan Tiap Unit Spesialis")
+        for d in transcript:
+            ag = d.get("agent_name", "Agen")
+            rl = d.get("role", "")
+            msg = str(d.get("message") or "").strip()
+            md_lines.append(f"### {d.get('avatar_emoji', '🤖')} {ag} ({rl}) — Putaran {d.get('round', 1)}")
+            md_lines.append(msg)
+            md_lines.append("")
+
+    md_content = "\n".join(md_lines)
+    with open(md_path, "w", encoding="utf-8") as mf:
+        mf.write(md_content)
+
+    # Buat versi HTML Eksekutif Siap Cetak / Save-as-PDF
+    esc_topic = _html.escape(topic)
+    esc_consensus = _html.escape(consensus).replace("\n", "<br>")
+    esc_action = _html.escape(action_plan).replace("\n", "<br>") if action_plan else ""
+    esc_intel = _html.escape(intel).replace("\n", "<br>") if intel else ""
+
+    cards_html = ""
+    for d in transcript:
+        ag = _html.escape(str(d.get("agent_name", "Agen")))
+        rl = _html.escape(str(d.get("role", "")))
+        em = _html.escape(str(d.get("avatar_emoji", "🤖")))
+        msg = _html.escape(str(d.get("message", ""))).replace("\n", "<br>")
+        cards_html += (
+            f'<div class="card"><h4>{em} {ag} <span class="role">({rl} • Putaran {d.get("round", 1)})</span></h4>'
+            f"<p>{msg}</p></div>\n"
+        )
+
+    html_doc = f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Laporan Rapat ALFA — {esc_topic}</title>
+<style>
+  body {{ font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #0f172a; background: #f8fafc; margin: 0; padding: 32px; line-height: 1.6; }}
+  .container {{ max-width: 900px; margin: 0 auto; background: #ffffff; padding: 36px; border-radius: 12px; box-shadow: 0 4px 20px rgba(15,23,42,0.08); }}
+  h1 {{ font-size: 22px; margin-top: 0; color: #0284c7; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }}
+  h2 {{ font-size: 17px; color: #1e293b; margin-top: 28px; border-left: 4px solid #0284c7; padding-left: 10px; }}
+  .meta {{ background: #f1f5f9; padding: 14px 18px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; }}
+  .box {{ background: #f0f9ff; border: 1px solid #bae6fd; padding: 16px; border-radius: 8px; margin-top: 10px; }}
+  .action-box {{ background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 8px; margin-top: 10px; }}
+  .card {{ border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; background: #fff; }}
+  .card h4 {{ margin: 0 0 6px 0; font-size: 15px; color: #0f172a; }}
+  .role {{ font-weight: normal; color: #64748b; font-size: 13px; }}
+  @media print {{ body {{ background: #fff; padding: 0; }} .container {{ box-shadow: none; padding: 12px; }} }}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏛️ DOKUMEN KEPUTUSAN RAPAT AI SWARM (ALFA OS)</h1>
+  <div class="meta">
+    <strong>Topik / Agenda:</strong> {esc_topic}<br>
+    <strong>Waktu Rapat:</strong> {ts_label}<br>
+    <strong>Peserta Tim ({len(participants)} Unit):</strong> {_html.escape(", ".join(participants))}
+  </div>
+  {"<h2>📊 Lembar Fakta Pra-Rapat (Fact Sheet)</h2><div class='box'>" + esc_intel + "</div>" if esc_intel else ""}
+  <h2>🎯 Konsensus & Keputusan Utama</h2>
+  <div class="box">{esc_consensus}</div>
+  {"<h2>📋 Rencana Tindakan (Action Plan)</h2><div class='action-box'>" + esc_action + "</div>" if esc_action else ""}
+  {"<h2>🗣️ Transkrip Pandangan Tiap Unit Spesialis</h2>" + cards_html if cards_html else ""}
+</div>
+</body>
+</html>"""
+
+    with open(html_path, "w", encoding="utf-8") as hf:
+        hf.write(html_doc)
+
+    out = {"markdown": md_path, "html": html_path}
+    result["report_files"] = out
+    save_last_meeting_state(result, out_dir=out_dir)
+    return out
+
+
+import os  # noqa: E402
+
 __all__ = [
     "MAX_CONTEXT_CHARS",
     "Proposal",
@@ -273,5 +582,9 @@ __all__ = [
     "build_context_digest",
     "build_proposal_menu",
     "collect_proposals",
+    "export_meeting_report_files",
+    "gather_pre_meeting_intel",
+    "load_last_meeting_state",
     "parse_turn",
+    "save_last_meeting_state",
 ]

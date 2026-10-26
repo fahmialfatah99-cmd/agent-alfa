@@ -839,6 +839,79 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
                 "Atau aktifkan permanen: `/mode swarm` lalu chat biasa.",
             )
 
+    elif data == "btn_swarm_export_last":
+        from alfa.swarm.deliberation import (
+            export_meeting_report_files,
+            load_last_meeting_state,
+        )
+
+        st = load_last_meeting_state()
+        if not st:
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Belum ada riwayat rapat terakhir yang tersimpan untuk diekspor.",
+            )
+        else:
+            files = st.get("report_files") or {}
+            if not files or not all(os.path.exists(p) for p in files.values()):
+                files = export_meeting_report_files(st)
+            sent_any = False
+            for fmt, fpath in files.items():
+                if fpath and os.path.exists(fpath):
+                    try:
+                        with open(fpath, "rb") as doc_f:
+                            await context.bot.send_document(
+                                chat_id=chat_id,
+                                document=doc_f,
+                                filename=os.path.basename(fpath),
+                                caption=f"📄 Laporan Rapat ({fmt.upper()}): {st.get('topic', '')[:80]}",
+                            )
+                        sent_any = True
+                    except Exception as doc_err:
+                        logger.warning(f"Failed sending meeting report {fpath}: {doc_err}")
+            if not sent_any:
+                await safe_send_message(
+                    context, chat_id, "⚠️ Gagal mengirim file laporan rapat."
+                )
+
+    elif data == "btn_swarm_exec_last":
+        from alfa.bot.mode_commands import format_swarm_result
+        from alfa.swarm import engine as swarm_engine
+        from alfa.swarm.deliberation import load_last_meeting_state
+
+        st = load_last_meeting_state()
+        if not st or not st.get("topic"):
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Belum ada Action Plan rapat terakhir yang bisa dieksekusi.",
+            )
+        else:
+            exec_topic = f"{st.get('topic', '')} — Eksekusi Action Plan: {str(st.get('action_plan') or st.get('consensus') or '')[:350]}"
+            await safe_send_message(
+                context,
+                chat_id,
+                f"⚡ **Mengeksekusi Action Plan Rapat Terakhir...**\n📌 _{st.get('topic', '')[:120]}_",
+            )
+            res = await swarm_engine.conduct_multi_agent_meeting(
+                topic=exec_topic, rounds=1, mode="execute"
+            )
+            steps_txt, final_txt, out_files = format_swarm_result(res)
+            await safe_send_message(context, chat_id, steps_txt)
+            await safe_send_message(context, chat_id, final_txt)
+            for fp in out_files[:4]:
+                if fp and os.path.exists(fp):
+                    try:
+                        with open(fp, "rb") as df:
+                            await context.bot.send_document(
+                                chat_id=chat_id,
+                                document=df,
+                                filename=os.path.basename(fp),
+                            )
+                    except Exception:
+                        pass
+
     elif data in ("btn_agents", "btn_tools", "btn_pipeline", "btn_tasks"):
         if data == "btn_agents":
             mod = _get_bot_module()

@@ -742,6 +742,20 @@ async def _conduct_multi_agent_meeting_impl(
     proposals: list[_Proposal] = []
     all_votes: list[tuple[str, bool, str]] = []
     vote_tally: dict = {}
+    pre_meeting_intel = ""
+
+    if actual_rounds > 0:
+        try:
+            from alfa.swarm.deliberation import gather_pre_meeting_intel
+
+            pre_meeting_intel = gather_pre_meeting_intel(topic, intent_info=intent_info)
+            if pre_meeting_intel:
+                log_live(
+                    "PLAN",
+                    f"📊 Fact-Grounded War Room: Lembar Fakta Pra-Rapat siap ({len(pre_meeting_intel)} char).",
+                )
+        except Exception:
+            pre_meeting_intel = ""
 
     for r in range(1, actual_rounds + 1):
         if _cancel_requested():
@@ -784,9 +798,11 @@ async def _conduct_multi_agent_meeting_impl(
                     if intent_info.get("is_general_advisory")
                     else "1. Berikan posisi/solusi teknis tajam sesuai bidang keahlianmu."
                 )
+                intel_block = f"{pre_meeting_intel}\n\n" if pre_meeting_intel else ""
                 prompt = (
                     f"=== TOPIK AGENDA DISKUSI ===\n"
                     f"{topic}\n\n"
+                    f"{intel_block}"
                     f"=== RINGKASAN OBROLAN TIM (PUTARAN {r}) ===\n"
                     f"{context_text}\n\n"
                     f"=== IDENTITAS KAMU ===\n"
@@ -1131,8 +1147,10 @@ async def _conduct_multi_agent_meeting_impl(
                 f"Isi: {_w['summary'][:300]}\n"
                 + (f"Agen yang menyanggah: {_dissent}\n" if _dissent else "")
             )
+        intel_section = f"{pre_meeting_intel}\n\n" if pre_meeting_intel else ""
         consensus_prompt = (
             f"=== TOPIK RAPAT ===\n{topic}\n\n"
+            f"{intel_section}"
             f"=== TRANSKRIP LENGKAP DISKUSI TIM ===\n"
             + "\n".join(history_summary)
             + vote_block
@@ -1185,7 +1203,7 @@ async def _conduct_multi_agent_meeting_impl(
 
     log_live("DONE", "🏁 Eksekusi swarm selesai.")
 
-    return {
+    final_result: dict[str, Any] = {
         "status": "success",
         "session_id": session_id,
         "meeting_id": None,
@@ -1195,6 +1213,7 @@ async def _conduct_multi_agent_meeting_impl(
         "target_folder": target_fol,
         "harvested_projects": harvested_projects,
         "participants": [a["name"] for a in participants],
+        "pre_meeting_intel": pre_meeting_intel,
         "dialogue_transcript": dialogue_transcript,
         "execution_results": execution_steps,
         "consensus": consensus_text_clean,
@@ -1217,6 +1236,16 @@ async def _conduct_multi_agent_meeting_impl(
         "dissent": vote_tally.get("dissent", []),
         "consensus_agreement": vote_tally.get("agreement", 0.0),
     }
+
+    if mode not in ("execute", "plan_and_execute"):
+        try:
+            from alfa.swarm.deliberation import export_meeting_report_files
+
+            export_meeting_report_files(final_result)
+        except Exception:
+            pass
+
+    return final_result
 
 
 __all__ = [

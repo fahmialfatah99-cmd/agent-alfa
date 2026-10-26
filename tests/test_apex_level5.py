@@ -615,6 +615,100 @@ def test_swarm_adaptive_dual_persona_and_smart_routing():
     assert files == []
 
 
+def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path):
+    import os
+
+    from alfa.core.apex import ingest_text_to_temporal_graph
+    from alfa.core.db.backup_manager import (
+        create_verified_db_snapshot,
+        list_db_snapshots,
+        restore_db_snapshot,
+        verify_sqlite_integrity,
+    )
+    from alfa.swarm.deliberation import (
+        export_meeting_report_files,
+        gather_pre_meeting_intel,
+        load_last_meeting_state,
+    )
+
+    # 1. Fact-Grounded War Room pre-meeting intel from GraphRAG
+    ingest_text_to_temporal_graph(
+        "proyek *Cluster Lahat* dikelola oleh mandor *Aqe Setiawan* untuk pemasangan *Tiang 7m*"
+    )
+    intel = gather_pre_meeting_intel(
+        "Rapatkan evaluasi pemasangan Tiang 7m di Cluster Lahat oleh mandor Aqe Setiawan",
+        allow_web_search=False,
+    )
+    assert "LEMBAR FAKTA PRA-RAPAT" in intel
+    assert "LAHAT" in intel.upper() or "TIANG" in intel.upper()
+
+    # 2. Meeting Report Exporter (.md & .html) + Last Meeting State Persistence
+    meetings_dir = str(tmp_path / "meetings")
+    sample_meeting = {
+        "session_id": "swarm_test_99",
+        "topic": "Strategi Efisiensi Pengiriman Material Proyek Lahat",
+        "mode": "plan",
+        "participants": ["Alpha Lead", "System Auditor", "Strategic Planner"],
+        "pre_meeting_intel": intel,
+        "consensus": "Gunakan jadwal pengiriman terpusat setiap Senin pagi.",
+        "action_plan": "1. Verifikasi stok gudang.\n2. Konfirmasi mandor lapangan.",
+        "vote_tally": {
+            "winner": {
+                "id": "p1-strategic-planner",
+                "author": "Strategic Planner",
+                "votes_for": 3,
+                "votes_against": 0,
+                "summary": "Jadwal terpusat Senin pagi",
+            },
+            "agreement": 1.0,
+        },
+        "dialogue_transcript": [
+            {
+                "round": 1,
+                "agent_name": "Strategic Planner",
+                "role": "Strategist",
+                "avatar_emoji": "💡",
+                "message": "Pengiriman terpusat menghemat biaya logistik 25%.",
+            }
+        ],
+    }
+    exported = export_meeting_report_files(sample_meeting, out_dir=meetings_dir)
+    assert os.path.exists(exported["markdown"])
+    assert os.path.exists(exported["html"])
+    with open(exported["html"], encoding="utf-8") as hf:
+        html_txt = hf.read()
+    assert "DOKUMEN KEPUTUSAN RAPAT AI SWARM" in html_txt
+    assert "Gunakan jadwal pengiriman terpusat" in html_txt
+
+    loaded_state = load_last_meeting_state(out_dir=meetings_dir)
+    assert loaded_state["session_id"] == "swarm_test_99"
+    assert "Verifikasi stok gudang" in loaded_state["action_plan"]
+
+    # 3. Verified SQLite Snapshot & Auto-Rotation Manager
+    bkp_dir = str(tmp_path / "backups")
+    health = verify_sqlite_integrity()
+    assert health["healthy"] is True
+
+    snap1 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
+    assert snap1["status"] == "success"
+    assert os.path.exists(snap1["snapshot_path"])
+
+    snap2 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
+    snap3 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
+    assert snap2["status"] == "success"
+    assert snap3["status"] == "success"
+
+    listed = list_db_snapshots(backup_dir=bkp_dir)
+    assert listed["total"] == 2  # Rotated automatically to max_backups=2
+
+    restored_db_path = str(tmp_path / "restored_agent_data.db")
+    rest = restore_db_snapshot(snap3["snapshot_path"], target_db_path=restored_db_path)
+    assert rest["status"] == "success"
+    assert os.path.exists(restored_db_path)
+    assert verify_sqlite_integrity(restored_db_path)["healthy"] is True
+
+
+
 
 
 

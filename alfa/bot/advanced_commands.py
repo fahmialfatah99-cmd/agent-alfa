@@ -985,6 +985,13 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reporter.stop("✅ Diskusi selesai — transkrip di bawah ⬇️")
 
     try:
+        from alfa.swarm.deliberation import export_meeting_report_files
+
+        try:
+            export_meeting_report_files({**result, "topic": topic})
+        except Exception:
+            pass
+
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"
         for d in transcript[:6]:
@@ -1000,7 +1007,25 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{result.get('action_plan', '')}\n\n"
             f"🌐 _Transkrip lengkap tersimpan di Web Dashboard (ID: #{result.get('meeting_id')})_"
         )
-        await safe_send_message(context, chat_id, final_text)
+        meeting_kb = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "⚡ Eksekusi Action Plan Ini",
+                        callback_data="btn_swarm_exec_last",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📄 Export Dokumen Laporan Rapat",
+                        callback_data="btn_swarm_export_last",
+                    )
+                ],
+            ]
+        )
+        await safe_send_message(
+            context, chat_id, final_text, reply_markup=meeting_kb
+        )
 
     except _ADV_ERR as e:
         logger.error(f"Error during Telegram /rapat meeting: {e}")

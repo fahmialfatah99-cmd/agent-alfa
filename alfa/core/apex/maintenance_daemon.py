@@ -48,6 +48,15 @@ def run_autonomous_apex_maintenance(force: bool = False) -> dict[str, Any]:
     except Exception as e:
         wal_status = f"skipped: {e}"
 
+    # 5. Verified SQLite Snapshot & Auto-Rotation (7-snapshot retention)
+    snapshot_res: dict[str, Any] = {"status": "skipped"}
+    try:
+        from alfa.core.db.backup_manager import create_verified_db_snapshot
+
+        snapshot_res = create_verified_db_snapshot(max_backups=7)
+    except Exception as bkp_err:
+        snapshot_res = {"status": "error", "message": str(bkp_err)}
+
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
     return {
         "status": "success",
@@ -56,5 +65,6 @@ def run_autonomous_apex_maintenance(force: bool = False) -> dict[str, Any]:
         "symbolic_ledger_audit": ledger_res,
         "cloud_local_vault": vault_res,
         "sqlite_wal_checkpoint": wal_status,
+        "db_snapshot_backup": snapshot_res,
         "duration_ms": elapsed_ms,
     }
