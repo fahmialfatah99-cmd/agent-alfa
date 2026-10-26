@@ -105,17 +105,26 @@ async def _run_agent_turn(*args, **kwargs):
     else:
         raw_res = await run_agent_turn(*args, **kwargs)
 
-    # Pre-Flight Self-Audit & Trajectory Recording (Hermes Self-Improving Loop)
+    # Pre-Flight Self-Audit, Trajectory Recording & GraphRAG Model Ingestion
     try:
+        from alfa.core.apex.temporal_graphrag import ingest_text_to_temporal_graph
         from alfa.core.brain.learning_loop import audit_against_learned_skills, record_trajectory
+        from alfa.core.runtime_ctx import get_current_executed_tools
 
         user_p = kwargs.get("user_prompt") or (args[1] if len(args) > 1 else "")
+        exec_tools = get_current_executed_tools()
         if isinstance(raw_res, str):
             is_valid, msg, corrected = audit_against_learned_skills(user_p, raw_res)
             if not is_valid and corrected:
                 logger.info("Auto-corrected agent reply via learned skill compliance: %s", msg)
                 raw_res = corrected
-            record_trajectory(user_prompt=user_p, result_summary=raw_res[:200], success=True)
+            record_trajectory(
+                user_prompt=user_p,
+                tool_calls=exec_tools,
+                result_summary=raw_res[:200],
+                success=True,
+            )
+            ingest_text_to_temporal_graph(raw_res)
     except Exception as e:
         logger.debug("Learning loop audit bypass: %s", e)
 

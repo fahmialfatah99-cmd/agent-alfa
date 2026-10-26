@@ -482,5 +482,51 @@ def test_devin_class_giant_repo_engine_and_atomic_rollback(tmp_path):
     assert "apex_repo_architect_build" in sel_names
 
 
+def test_deep_audit_5_fixes_permissions_swarm_and_lowercase_graphrag():
+    from alfa.bot.pipeline.tool_config import prepare_tools_and_configs
+    from alfa.core.apex import ingest_text_to_temporal_graph
+    from alfa.core.perm.constants import SAFE_TOOLS, TOOL_CLASSIFICATION
+    from alfa.swarm.llm_client import SWARM_HEADLESS_ALLOWED, get_agent_api_client
+    from alfa.tools import AVAILABLE_TOOLS
+
+    # 1. Zero unclassified tools in AVAILABLE_TOOLS
+    unclassified = [
+        getattr(f, "__name__", "")
+        for f in AVAILABLE_TOOLS
+        if getattr(f, "__name__", "") not in TOOL_CLASSIFICATION
+        and getattr(f, "__name__", "") not in SAFE_TOOLS
+    ]
+    assert unclassified == [], f"Unclassified tools found: {unclassified}"
+
+    # 2. Swarm Headless Gate includes Software Factory & REA tools
+    assert "apex_software_factory_build" in SWARM_HEADLESS_ALLOWED
+    assert "apex_repo_architect_build" in SWARM_HEADLESS_ALLOWED
+    assert "rea_clone_and_build_app" in SWARM_HEADLESS_ALLOWED
+
+    # 3. Swarm Agent API Client automatic fallback when provider has no key
+    dummy_agent = {"id": 999, "name": "Code Crafter", "provider": "nonexistent_provider", "model": "coder-x"}
+    prov, api_key, model, _url, _kid = get_agent_api_client(dummy_agent)
+    assert bool(api_key), "Swarm agent should automatically fall back to an active vault key"
+
+    # 4. Lowercase + Markdown Temporal GraphRAG extraction
+    ing = ingest_text_to_temporal_graph(
+        "tolong cek pengambilan material di grup yofc tjhin emr bengkulu dan aplikasi *Concat Pro Studio*"
+    )
+    assert ing["status"] == "success"
+    assert ing["entities_processed"] >= 2
+
+    # 5. Swarm & Subagent unlocked in tool_config when user asks to build/clone an app
+    tools_selected, _cfg, _cfg_f, _cfg_w = prepare_tools_and_configs(
+        model_name="gemini-3.8-flash",
+        system_instruction="sys",
+        user_prompt="buat aplikasi web dan clone dengan tim agen",
+        history_msgs=[],
+        action_intent=True,
+    )
+    tool_names = {getattr(t, "__name__", "") for t in tools_selected}
+    assert "apex_software_factory_build" in tool_names
+
+
+
 
 

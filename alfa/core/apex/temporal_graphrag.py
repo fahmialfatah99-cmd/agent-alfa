@@ -170,13 +170,24 @@ def ingest_text_to_temporal_graph(text: str, default_topic: str = "") -> dict[st
                 relations_added += 1
                 entities_added += 2
 
-    # 2. Extract capitalized multi-word concepts / technical identifiers
-    key_terms = re.findall(r"\b[A-Z][a-zA-Z0-9_\-]{2,}(?:\s+[A-Z][a-zA-Z0-9_\-]{2,})*\b", text)
-    stop_caps = {"DAN", "ATAU", "UNTUK", "DARI", "PADA", "YANG", "INI", "ITU", "THE", "AND", "FOR"}
+    # 2. Extract capitalized concepts, markdown-emphasized terms (*...* / `...`), and lowercase domain prefixes
+    cap_terms = re.findall(r"\b[A-Z][a-zA-Z0-9_\-]{2,}(?:\s+[A-Z][a-zA-Z0-9_\-]{2,})*\b", text)
+    md_terms = re.findall(r"(?:\*\*|\*|`)([A-Za-z0-9_\-\.]{3,}(?:\s+[A-Za-z0-9_\-\.]{2,}){0,3})(?:\*\*|\*|`)", text)
+    dom_terms = [
+        f"{m.group(1)}_{m.group(2)}"
+        for m in re.finditer(
+            r"\b(cluster|grup|aplikasi|project|proyek|mandor|kabel|tiang)\s+([a-zA-Z0-9_\-\.]{3,}(?:\s+[a-zA-Z0-9_\-\.]{3,}){0,2})",
+            text,
+            re.I,
+        )
+    ]
+    key_terms = cap_terms + md_terms + dom_terms
+    stop_caps = {"DAN", "ATAU", "UNTUK", "DARI", "PADA", "YANG", "INI", "ITU", "THE", "AND", "FOR", "HALO", "SAYA", "KAMU", "SELESAI"}
     clean_terms = []
     for t in key_terms:
-        if t.upper() not in stop_caps and len(t) >= 3:
-            clean_terms.append(t.upper())
+        norm_t = re.sub(r"[^A-Z0-9_]+", "_", t.strip().upper()).strip("_")
+        if norm_t not in stop_caps and 3 <= len(norm_t) <= 48:
+            clean_terms.append(norm_t)
     unique_terms = list(dict.fromkeys(clean_terms))[:8]
 
     for term in unique_terms:

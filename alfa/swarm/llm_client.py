@@ -44,6 +44,16 @@ logger = logging.getLogger(__name__)
 SWARM_HEADLESS_ALLOWED = {
     "execute_bash_command",
     "execute_python_sandbox",
+    "apex_software_factory_build",
+    "apex_repo_architect_build",
+    "rea_clone_and_build_app",
+    "rea_synthesize_skill_from_code",
+    "apex_neuro_symbolic_verify",
+    "apex_temporal_graphrag_query",
+    "apex_system_telemetry",
+    "apex_run_dreaming_consolidation",
+    "serve_site",
+    "list_managed_sites",
 }
 
 
@@ -221,6 +231,22 @@ def get_agent_api_client(
                                 break
             except (sqlite3.Error, OSError, TypeError, ValueError, IndexError):
                 pass
+
+    # Fallback otomatis bila provider spesifik agen belum memiliki kunci aktif di vault
+    if not api_key:
+        for fb_prov in ("9router", "gemini", "nvidia", "groq", "openrouter", "openai"):
+            fb_key = database.get_active_api_key_sync(fb_prov)
+            if fb_key and fb_key.get("api_key"):
+                provider = fb_prov
+                api_key = fb_key["api_key"]
+                base_url = fb_key.get("base_url") or (
+                    "http://127.0.0.1:20128/v1" if fb_prov == "9router" else ""
+                )
+                key_id = fb_key.get("id")
+                model = fb_key.get("default_model") or (
+                    "antigravity" if fb_prov == "9router" else _default_gemini_model()
+                )
+                break
 
     return provider, api_key, model, base_url, key_id
 

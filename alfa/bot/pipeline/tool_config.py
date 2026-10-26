@@ -49,16 +49,36 @@ def prepare_tools_and_configs(
 
         if get_telegram_mode_sync() == "single":
             prompt_low = (user_prompt or "").lower()
-            if not any(
-                k in prompt_low
-                for k in ("rapat", "meeting", "swarm", "musyawarah", "war room", "tim agen")
-            ):
+            swarm_unlock_keywords = (
+                "rapat",
+                "meeting",
+                "swarm",
+                "musyawarah",
+                "war room",
+                "tim agen",
+                "buat aplikasi",
+                "bikin aplikasi",
+                "buatkan aplikasi",
+                "clone",
+                "fullstack",
+                "arsitektur",
+                "repositori",
+            )
+            if not any(k in prompt_low for k in swarm_unlock_keywords):
                 all_tools = [
                     t for t in all_tools if getattr(t, "__name__", "") != "conduct_ai_meeting"
                 ]
             if not any(
                 k in prompt_low
-                for k in ("subagent", "sub-agent", "background worker", "latar belakang")
+                for k in (
+                    "subagent",
+                    "sub-agent",
+                    "background worker",
+                    "latar belakang",
+                    "buat aplikasi",
+                    "clone",
+                    "repositori",
+                )
             ):
                 all_tools = [
                     t
