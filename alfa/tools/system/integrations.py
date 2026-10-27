@@ -169,15 +169,51 @@ def _wa_api(method: str, path: str, params: dict | None = None, body: dict | Non
 
 
 @register_tool(category="system")
-def wa_get_chats(limit: int = 15, only_unread: bool = False) -> dict[str, Any]:
+def wa_get_chats(
+    limit: int = 15,
+    only_unread: bool = False,
+    only_unreplied: bool = False,
+    chat_type: str = "all",
+    search: str = "",
+) -> dict[str, Any]:
     """
-    Daftar chat WhatsApp terbaru (nama, grup/pribadi, unread, preview pesan terakhir).
+    Daftar chat WhatsApp terbaru dengan filter cerdas (belum terbuka/unread, belum dibalas, grup vs pribadi/japri, pencarian).
 
     Args:
-        limit: Jumlah chat (1-50, default 15).
-        only_unread: True = hanya chat yang ada pesan belum dibaca.
+        limit: Jumlah chat maksimal yang ditampilkan (1-50, default 15).
+        only_unread: True = hanya tampilkan chat yang memiliki pesan belum dibaca (belum dibuka).
+        only_unreplied: True = hanya tampilkan chat yang BELUM DIBALAS oleh pengguna (pesan terakhir dari lawan bicara / last_from_me is False).
+        chat_type: 'all' (semua), 'personal' (hanya chat pribadi / japri), 'group' (hanya grup WhatsApp).
+        search: Filter pencarian nama kontak atau nama grup (case-insensitive).
     """
-    return _wa_api("GET", "/api/chats", {"limit": limit, "unread": "1" if only_unread else "0"})
+    needs_client_filtering = only_unreplied or (chat_type in ("personal", "group")) or bool(search)
+    fetch_limit = min(50, max(limit * 3, 40)) if needs_client_filtering else limit
+    res = _wa_api("GET", "/api/chats", {"limit": fetch_limit, "unread": "1" if only_unread else "0"})
+    
+    if isinstance(res, dict) and res.get("status") == "success":
+        chats = res.get("chats", [])
+        if isinstance(chats, list):
+            if only_unread:
+                chats = [c for c in chats if (c.get("unread") or 0) > 0]
+            if only_unreplied:
+                chats = [c for c in chats if not c.get("last_from_me")]
+            if chat_type == "personal":
+                chats = [c for c in chats if not c.get("is_group")]
+            elif chat_type == "group":
+                chats = [c for c in chats if c.get("is_group")]
+            if search:
+                s_low = search.lower().strip()
+                chats = [c for c in chats if s_low in str(c.get("name") or "").lower() or s_low in str(c.get("id") or "").lower()]
+            
+            res["chats"] = chats[:limit]
+            res["total"] = len(res["chats"])
+            res["filter_applied"] = {
+                "only_unread": only_unread,
+                "only_unreplied": only_unreplied,
+                "chat_type": chat_type,
+                "search": search,
+            }
+    return res
 
 
 @register_tool(category="system")

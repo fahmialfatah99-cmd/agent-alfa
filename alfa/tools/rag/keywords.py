@@ -169,6 +169,8 @@ _SYNONYMS = {
     "download": "download fetch save file url",
     "wa": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
     "whatsapp": "whatsapp chat pesan incoming wa_get_chats wa_get_incoming wa_send_message washeets reconcile_whatsapp_material_group",
+    "balas": "wa_get_chats wa_send_message wa_get_messages wa_get_incoming unreplied",
+    "unread": "wa_get_chats wa_get_incoming only_unread belum dibaca belum terbuka",
     "material": "reconcile_whatsapp_material_group inspect_field_surat_jalan_image dispatch_instant_material_anomaly_alert pengambilan material boq tiang pole kabel ftth",
     "pengambilan": "reconcile_whatsapp_material_group inspect_field_surat_jalan_image pengambilan material tiang pole mandor",
     "tiang": "reconcile_whatsapp_material_group tiang pole boq pengambilan",
@@ -395,7 +397,7 @@ _CATEGORY_TRIGGERS = {
     },
     "memory": {"memory", "ingat", "catat", "simpan", "vektor", "knowledge"},
     "agent": {"agent", "agen", "swarm", "rapat", "subagent", "workforce"},
-    "whatsapp": {"wa", "whatsapp", "chat", "pesan", "washeets", "waringkas", "wamenu", "wabot"},
+    "whatsapp": {"wa", "whatsapp", "chat", "pesan", "washeets", "waringkas", "wamenu", "wabot", "japri", "unreplied", "unread"},
 }
 
 _ACTION_TRIGGERS = {
