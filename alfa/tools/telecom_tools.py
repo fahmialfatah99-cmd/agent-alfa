@@ -28,6 +28,11 @@ from alfa.tools.system_tools import SANDBOX_DIR
 
 logger = logging.getLogger("AgentTools.Telecom")
 
+# Status Fitur Konsolidasi Progres Lapangan (Default: Nonaktif atas instruksi Fahmi)
+FIELD_CONSOLIDATION_ENABLED: bool = (
+    os.getenv("ALFA_FIELD_CONSOLIDATION_ENABLED", "0").strip().lower() in ("1", "true", "yes")
+)
+
 
 def _classify_telecom_material(desc: str) -> str:
     """Classify material description into standard FTTH categories."""
@@ -1512,13 +1517,23 @@ def generate_daily_executive_briefing(
             briefing_lines.append("*(Tidak ada update aktivitas proyek baru yang belum dilaporkan)*")
 
         total_groups = len(pengambilan_groups) + len(project_groups)
-        briefing_lines.append(
-            f"\n⚡ *TOTAL KONSOLIDASI PROGRES LAPANGAN ({total_groups} Grup Terpantau)*:\n"
-            f"• 🟢 *Total Kabel Terpasang*: `{round(total_cable, 1):,} meter`\n"
-            f"• 🟢 *Total Tiang Tertanam*: `{int(total_poles)} batang`\n"
-            f"• 🟢 *Total FDT Terpasang*: `{int(total_fdt)} unit`\n"
-            f"• 🟢 *Total FAT/ODP Terpasang*: `{int(total_fat)} box`\n"
-        )
+        if FIELD_CONSOLIDATION_ENABLED:
+            briefing_lines.append(
+                f"\n⚡ *TOTAL KONSOLIDASI PROGRES LAPANGAN ({total_groups} Grup Terpantau)*:\n"
+                f"• 🟢 *Total Kabel Terpasang*: `{round(total_cable, 1):,} meter`\n"
+                f"• 🟢 *Total Tiang Tertanam*: `{int(total_poles)} batang`\n"
+                f"• 🟢 *Total FDT Terpasang*: `{int(total_fdt)} unit`\n"
+                f"• 🟢 *Total FAT/ODP Terpasang*: `{int(total_fat)} box`\n"
+            )
+        else:
+            briefing_lines.append(
+                f"\n⚡ *TOTAL KONSOLIDASI PROGRES LAPANGAN ({total_groups} Grup Terpantau)*:\n"
+                f"• ⚪ *Status*: _Fitur konsolidasi lapangan dinonaktifkan sementara (tidak ada laporan progres instalasi di grup WA)_\n"
+                f"• 🟢 *Total Kabel Terpasang*: `0 meter (nonaktif)`\n"
+                f"• 🟢 *Total Tiang Tertanam*: `0 batang (nonaktif)`\n"
+                f"• 🟢 *Total FDT Terpasang*: `0 unit (nonaktif)`\n"
+                f"• 🟢 *Total FAT/ODP Terpasang*: `0 box (nonaktif)`\n"
+            )
 
         if stalled_clusters:
             briefing_lines.append("⚠️ *CLUSTER PROYEK MANDEK (>48 Jam Tanpa Laporan)*:")
@@ -2306,7 +2321,7 @@ def calculate_material_return_and_scrap(
 
 @register_tool(category="scheduler")
 def schedule_daily_briefing_task(
-    enabled: bool = True,
+    enabled: bool = False,
     morning_hour: int = 7,
     morning_minute: int = 30,
     evening_hour: int = 18,
@@ -2322,7 +2337,7 @@ def schedule_daily_briefing_task(
     Laporan HANYA dikirimkan ke Telegram chat Fahmi. DILARANG KERAS mengirim atau membalas ke WhatsApp!
 
     Args:
-        enabled: True untuk mengaktifkan jadwal, False untuk mematikan.
+        enabled: True untuk mengaktifkan jadwal, False untuk mematikan (default: False).
         morning_hour: Jam pengiriman pagi (default: 7).
         morning_minute: Menit pengiriman pagi (default: 30).
         evening_hour: Jam pengiriman sore (default: 18).
@@ -2334,6 +2349,17 @@ def schedule_daily_briefing_task(
 
         user_id = get_current_user_id()
         chat_id = get_current_chat_id()
+
+        if not enabled:
+            with database.get_sync_db() as conn:
+                conn.execute(
+                    "UPDATE scheduled_cron_jobs SET is_active = 0 WHERE title LIKE '%Daily Project Executive Briefing%'"
+                )
+                conn.commit()
+            return {
+                "status": "success",
+                "message": "Jadwal otomatis Executive Briefing proyek telah dinonaktifkan.",
+            }
 
         instr = (
             "Panggil tool `generate_daily_executive_briefing(shift='now', days_back=1)` "
@@ -2391,6 +2417,7 @@ def reconcile_whatsapp_material_group(
     """
     try:
         import urllib.request
+
         from alfa.core.db.connection import get_sync_db
 
         chat_jid: str | None = None
@@ -2432,7 +2459,7 @@ def reconcile_whatsapp_material_group(
                     try:
                         conn.execute(
                             """
-                            INSERT OR REPLACE INTO wa_incoming_archive 
+                            INSERT OR REPLACE INTO wa_incoming_archive
                             (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
@@ -2455,8 +2482,8 @@ def reconcile_whatsapp_material_group(
                 # Ambil dari wa_incoming_archive bila API live tidak tersedia
                 rows = conn.execute(
                     """
-                    SELECT msg_id, chat_id, chat_name, sender_name, msg_type, body, has_media, msg_ts 
-                    FROM wa_incoming_archive 
+                    SELECT msg_id, chat_id, chat_name, sender_name, msg_type, body, has_media, msg_ts
+                    FROM wa_incoming_archive
                     WHERE LOWER(chat_name) LIKE ? OR chat_id = ?
                     ORDER BY msg_ts ASC
                     """,
@@ -2798,7 +2825,6 @@ def reconcile_whatsapp_material_group(
             ws.cell(row=row_num, column=2, value=code)
             ws.cell(row=row_num, column=3, value=desc)
 
-            col_letter_start = "D"
             for m_idx, m_name in enumerate(mandors_sorted):
                 col_curr = 4 + m_idx
                 ws.cell(
@@ -2971,6 +2997,7 @@ def inspect_field_surat_jalan_image(
         try:
             from google import genai
             from google.genai import types
+
             from alfa.swarm.llm_client import get_agent_api_client
 
             _provider, api_key, model, _base, _kid = get_agent_api_client({"provider": "gemini"})
@@ -3052,6 +3079,7 @@ def dispatch_instant_material_anomaly_alert(
     """
     try:
         import hashlib
+
         from alfa.core.db.connection import get_sync_db
 
         cname_upper = cluster_name.upper().strip()
@@ -3059,7 +3087,7 @@ def dispatch_instant_material_anomaly_alert(
         now_str = datetime.now().strftime("%d-%m-%Y %H:%M WIB")
 
         # Buat identitas unik alert
-        raw_hash = hashlib.sha256(f"{cname_upper}:{atype_upper}:{details.strip()}".encode("utf-8")).hexdigest()[:16]
+        raw_hash = hashlib.sha256(f"{cname_upper}:{atype_upper}:{details.strip()}".encode()).hexdigest()[:16]
         alert_id = f"alert_{cname_upper}_{raw_hash}"
 
         # 1. Pastikan tabel wa_instant_alerts tersedia dan cek deduplikasi
@@ -3102,7 +3130,10 @@ def dispatch_instant_material_anomaly_alert(
         telegram_sent = False
         if send_telegram:
             try:
-                from alfa.core.notification import get_telegram_runtime, safe_send_message_sync
+                from alfa.core.notification import (
+                    get_telegram_runtime,
+                    safe_send_message_sync,
+                )
                 from alfa.core.runtime_ctx import get_current_chat_id
 
                 app, _loop = get_telegram_runtime()

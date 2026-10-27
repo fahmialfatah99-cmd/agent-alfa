@@ -19,3 +19,13 @@ Dokumen ini memuat aturan mutlak dari **Fahmi** untuk semua agen AI saat mengelo
   - Jalankan pengujian otomatis terkait (`venv/bin/pytest tests/...`).
   - Pastikan layanan yang terpengaruh (`systemctl --user status ...`) tetap berjalan sehat.
   - Verifikasi fungsionalitas nyata melalui pemanggilan fungsi atau uji endpoint (`curl`).
+
+## 4. Perlindungan Mutlak Sesi WhatsApp (Anti-Logout & Anti-Reset)
+- **DILARANG KERAS** melakukan logout, menghentikan paksa (kill), merestart, mereset sesi, atau menghapus user data Chromium/WhatsApp (`wa-sheets-bot.service` dan folder terkait) saat memperbarui sistem atau melakukan perbaikan kode.
+- Login WhatsApp sangat sulit dan sering mengalami kendala pada QR code, sehingga sesi login aktif yang sudah tersambung **WAJIB dijaga 100% tetap hidup dan tidak boleh diinterupsi**.
+- Saat me-restart service ALFA setelah pembaruan, **HANYA** restart `telegram-ai-bot.service` dan `alfa-dashboard.service`. **JANGAN PERNAH** menyentuh atau merestart `wa-sheets-bot.service`.
+
+## 5. Kebijakan Fitur Konsolidasi Progres Lapangan
+- Fitur konsolidasi progres lapangan (ekstraksi kuantitas tarikan kabel, tiang tertanam, FAT/FDT dari chat grup WhatsApp) **DINONAKTIFKAN SEMENTARA** atas instruksi Fahmi, karena progres pekerjaan lapangan saat ini tidak dilaporkan di dalam grup WhatsApp.
+- Jadwal berkala briefing konsolidasi lapangan di `scheduled_cron_jobs` dimatikan (`is_active = 0`).
+
