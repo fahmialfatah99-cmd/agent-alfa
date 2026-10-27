@@ -723,36 +723,52 @@ def semantic_search(
             if not _are_models_compatible(query_model, row_model, query_dim, row_dim):
                 continue
 
-            if stored_emb is None:
+            if stored_emb is None and not _HAS_RUST_ACCEL:
                 stored_emb = json.loads(r["embedding_json"])
 
             valid_rows.append(r)
-            embeddings_list.append(stored_emb)
+            if stored_emb is not None:
+                embeddings_list.append(stored_emb)
         except (ValueError, TypeError, KeyError) as parse_err:
             logger.debug(f"Error parsing embedding for row {r['id']}: {parse_err}")
 
     if not valid_rows:
         return []
 
-    q_vec: Any = np.array(query_emb, dtype=np.float32)
-    mat: Any = np.array(embeddings_list, dtype=np.float32)
+    # High-Performance Acceleration: compute cosine similarities natively in Rust directly from JSON
+    similarities = None
+    if _HAS_RUST_ACCEL:
+        try:
+            raw_jsons = [r["embedding_json"] for r in valid_rows]
+            similarities = alfa_accel.batch_cosine_from_json_strings(query_emb, raw_jsons)
+        except Exception as e:
+            logger.debug(f"Rust batch_cosine_from_json_strings fallback: {e}")
+            similarities = None
 
-    if mat.shape[1] != q_vec.shape[0]:
-        target_dim = max(q_vec.shape[0], mat.shape[1])
-        if q_vec.shape[0] < target_dim:
-            q_vec = np.pad(q_vec, (0, target_dim - q_vec.shape[0]), "constant")
-        if mat.shape[1] < target_dim:
-            mat = np.pad(mat, ((0, 0), (0, target_dim - mat.shape[1])), "constant")
+    if similarities is None:
+        if not embeddings_list:
+            embeddings_list = [json.loads(r["embedding_json"]) for r in valid_rows]
 
-    q_norm = float(np.linalg.norm(q_vec))
-    if q_norm > 1e-6:
-        q_vec = q_vec / q_norm
+        q_vec: Any = np.array(query_emb, dtype=np.float32)
+        mat: Any = np.array(embeddings_list, dtype=np.float32)
 
-    mat_norms: Any = np.linalg.norm(mat, axis=1)
-    mat_norms[mat_norms < 1e-6] = 1.0
-    mat = mat / mat_norms[:, np.newaxis]
+        if mat.shape[1] != q_vec.shape[0]:
+            target_dim = max(q_vec.shape[0], mat.shape[1])
+            if q_vec.shape[0] < target_dim:
+                q_vec = np.pad(q_vec, (0, target_dim - q_vec.shape[0]), "constant")
+            if mat.shape[1] < target_dim:
+                mat = np.pad(mat, ((0, 0), (0, target_dim - mat.shape[1])), "constant")
 
-    similarities: Any = np.dot(mat, q_vec)
+        q_norm = float(np.linalg.norm(q_vec))
+        if q_norm > 1e-6:
+            q_vec = q_vec / q_norm
+
+        mat_norms: Any = np.linalg.norm(mat, axis=1)
+        mat_norms[mat_norms < 1e-6] = 1.0
+        mat = mat / mat_norms[:, np.newaxis]
+
+        similarities = np.dot(mat, q_vec)
+
     texts_for_bm25 = [r["chunk_text"] for r in valid_rows]
     bm25_scores = (
         _calculate_bm25_scores(texts_for_bm25, query)
@@ -770,7 +786,11 @@ def semantic_search(
             else round(sim, 4)
         )
         row_keys = r.keys()
-        row_dim = r["dimension"] if ("dimension" in row_keys and r["dimension"]) else len(embeddings_list[i])
+        row_dim = (
+            r["dimension"]
+            if ("dimension" in row_keys and r["dimension"])
+            else (len(embeddings_list[i]) if embeddings_list else query_dim)
+        )
         row_model = r["model"] if ("model" in row_keys and r["model"]) else None
 
         scored_results.append(

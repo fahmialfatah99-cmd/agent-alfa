@@ -15,6 +15,19 @@ from typing import Any
 
 import psutil
 
+try:
+    import alfa_accel
+
+    _HAS_RUST_ACCEL = getattr(alfa_accel, "is_rust_accelerated", lambda: False)()
+except ImportError:
+    _HAS_RUST_ACCEL = False
+
+
+def is_governor_rust_accelerated() -> bool:
+    """Check if Hardware Governor telemetry is running with native Rust acceleration."""
+    return bool(_HAS_RUST_ACCEL)
+
+
 logger = logging.getLogger("ApexGovernor")
 
 # HARD QUARANTINE RULE (AGENTS.md): Never restart, stop, or touch WhatsApp QR session service.
@@ -24,8 +37,19 @@ IMMUTABLE_PROTECTED_SERVICES: frozenset[str] = frozenset({
 })
 
 
+_GOV_ERRORS = (psutil.Error, OSError, RuntimeError, ValueError, AttributeError)
+
+
 def read_cpu_temperature_celsius() -> float:
     """Read physical CPU temperature from Linux sysfs thermal zones or psutil."""
+    if _HAS_RUST_ACCEL:
+        try:
+            _, _, _, rust_temp = alfa_accel.read_host_hardware_telemetry()
+            if 15.0 <= rust_temp <= 115.0:
+                return float(rust_temp)
+        except _GOV_ERRORS as e:
+            logger.debug(f"Rust telemetry temperature fallback: {e}")
+
     try:
         if hasattr(psutil, "sensors_temperatures"):
             temps = psutil.sensors_temperatures() or {}
@@ -34,7 +58,7 @@ def read_cpu_temperature_celsius() -> float:
                     vals = [t.current for t in temps[name] if t.current and t.current > 0]
                     if vals:
                         return round(max(vals), 1)
-    except Exception:
+    except _GOV_ERRORS:
         pass
 
     # Fallback: direct Linux sysfs thermal_zone reading
@@ -50,7 +74,7 @@ def read_cpu_temperature_celsius() -> float:
                         max_temp = val
             except OSError:
                 continue
-    except Exception:
+    except _GOV_ERRORS:
         pass
 
     return round(max_temp, 1) if max_temp > 0 else 45.0
@@ -63,26 +87,46 @@ def get_hardware_governor_state() -> dict[str, Any]:
     - BALANCED: Moderate load -> prioritize interactive turns, throttle heavy background jobs.
     - THERMAL_PROTECTION: High CPU/temp or low RAM -> suspend background tasks immediately.
     """
-    try:
-        cpu_pct = psutil.cpu_percent(interval=0.05)
-    except Exception:
-        cpu_pct = 10.0
+    cpu_pct: float | None = None
+    ram_used_pct: float | None = None
+    ram_avail_mb: float | None = None
+    temp_c: float | None = None
 
-    try:
-        vm = psutil.virtual_memory()
-        ram_used_pct = vm.percent
-        ram_avail_mb = round(vm.available / (1024 * 1024), 1)
-    except Exception:
-        ram_used_pct = 50.0
-        ram_avail_mb = 2048.0
+    if _HAS_RUST_ACCEL:
+        try:
+            cpu_pct, ram_used_pct, ram_avail_mb, temp_c = (
+                alfa_accel.read_host_hardware_telemetry()
+            )
+        except _GOV_ERRORS as e:
+            logger.debug(f"Rust hardware telemetry fallback: {e}")
+            cpu_pct = None
+            ram_used_pct = None
+            ram_avail_mb = None
+            temp_c = None
+
+    if cpu_pct is None:
+        try:
+            cpu_pct = psutil.cpu_percent(interval=0.05)
+        except _GOV_ERRORS:
+            cpu_pct = 10.0
+
+    if ram_used_pct is None or ram_avail_mb is None:
+        try:
+            vm = psutil.virtual_memory()
+            ram_used_pct = vm.percent
+            ram_avail_mb = round(vm.available / (1024 * 1024), 1)
+        except _GOV_ERRORS:
+            ram_used_pct = 50.0
+            ram_avail_mb = 2048.0
 
     try:
         sw = psutil.swap_memory()
         swap_used_pct = sw.percent
-    except Exception:
+    except _GOV_ERRORS:
         swap_used_pct = 0.0
 
-    temp_c = read_cpu_temperature_celsius()
+    if temp_c is None:
+        temp_c = read_cpu_temperature_celsius()
     load_1m, load_5m, _ = os.getloadavg() if hasattr(os, "getloadavg") else (0.5, 0.5, 0.5)
 
     # Decision Matrix for Level 5+ Governor

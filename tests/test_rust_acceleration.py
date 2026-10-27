@@ -5,7 +5,10 @@ Guarantees 100% equivalence between Rust native acceleration and Python fallback
 validating Zero Regression (Rule 1 of ALFA OS).
 """
 
+import json
+
 import alfa.core.apex.dreaming_compiler as dc
+import alfa.core.apex.hardware_governor as hg
 import alfa.core.apex.neuro_symbolic as ns
 import alfa.core.apex.temporal_graphrag as tg
 import alfa.memory.vector as vm
@@ -16,6 +19,7 @@ def test_rust_acceleration_loaded():
     assert vm.is_vector_rust_accelerated() is True
     assert dc.is_dreaming_rust_accelerated() is True
     assert tg.is_graphrag_rust_accelerated() is True
+    assert hg.is_governor_rust_accelerated() is True
 
 
 def test_math_eval_rust_vs_python_equivalence():
@@ -204,6 +208,61 @@ def test_temporal_graphrag_rust_vs_python_equivalence():
 
     # Restore Rust acceleration
     tg._HAS_RUST_ACCEL = True
+
+
+def test_batch_cosine_from_json_strings_equivalence():
+    query_emb = [0.5, 0.5, 0.5, 0.5]
+    vectors = [
+        [0.5, 0.5, 0.5, 0.5],
+        [-0.5, -0.5, -0.5, -0.5],
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+    ]
+    raw_jsons = [json.dumps(v) for v in vectors]
+    # Add malformed JSON to test robustness
+    raw_jsons.append("invalid json string syntax {")
+
+    import alfa_accel
+
+    # Rust batch cosine
+    rust_scores = alfa_accel.batch_cosine_from_json_strings(query_emb, raw_jsons)
+    assert len(rust_scores) == 5
+
+    # Check known values
+    assert abs(rust_scores[0] - 1.0) < 1e-4
+    assert abs(rust_scores[1] - (-1.0)) < 1e-4
+    assert abs(rust_scores[2] - 0.5) < 1e-4
+    assert rust_scores[3] == 0.0
+    assert rust_scores[4] == 0.0
+
+
+def test_hardware_governor_rust_acceleration():
+    import alfa_accel
+
+    # Direct Rust telemetry call
+    cpu_pct, ram_used_pct, ram_avail_mb, temp_c = alfa_accel.read_host_hardware_telemetry()
+    assert 0.0 <= cpu_pct <= 100.0
+    assert 0.0 <= ram_used_pct <= 100.0
+    assert ram_avail_mb >= 0.0
+    assert 15.0 <= temp_c <= 115.0
+
+    # Test hardware governor with Rust enabled
+    hg._HAS_RUST_ACCEL = True
+    gov_rust = hg.get_hardware_governor_state()
+    assert gov_rust["status"] == "success"
+    assert gov_rust["governor_mode"] in ("APEX_TURBO", "BALANCED", "THERMAL_PROTECTION")
+    assert gov_rust["cpu_temp_celsius"] >= 15.0
+
+    # Test hardware governor with Python fallback
+    hg._HAS_RUST_ACCEL = False
+    gov_py = hg.get_hardware_governor_state()
+    assert gov_py["status"] == "success"
+    assert gov_py["governor_mode"] in ("APEX_TURBO", "BALANCED", "THERMAL_PROTECTION")
+    assert gov_py["cpu_temp_celsius"] >= 15.0
+
+    # Restore Rust acceleration
+    hg._HAS_RUST_ACCEL = True
+
 
 
 

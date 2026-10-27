@@ -48,11 +48,11 @@ from alfa.core.apex.dreaming_compiler import (
 from alfa.core.apex.hardware_governor import (
     IMMUTABLE_PROTECTED_SERVICES,
     get_hardware_governor_state,
+    is_governor_rust_accelerated,
     is_service_quarantined,
     read_cpu_temperature_celsius,
 )
 from alfa.core.apex.maintenance_daemon import run_autonomous_apex_maintenance
-from alfa.memory.vector import is_vector_rust_accelerated
 from alfa.core.apex.neuro_symbolic import (
     audit_excel_formula_integrity,
     is_neuro_symbolic_rust_accelerated,
@@ -86,6 +86,7 @@ from alfa.core.apex.world_model import (
     record_world_anomaly,
 )
 from alfa.core.brain.learning_loop import get_learning_loop_metrics
+from alfa.memory.vector import is_vector_rust_accelerated
 
 logger = logging.getLogger("ApexEngine")
 
@@ -96,7 +97,7 @@ def _register_tool(category: str = "agent"):
         try:
             from alfa.tools.registry import register_tool as _rt
             return _rt(category=category)(fn)
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError):
             return fn
     return decorator
 
@@ -137,6 +138,7 @@ def get_apex_full_status() -> dict[str, Any]:
                 "vector_math": is_vector_rust_accelerated(),
                 "dreaming_fastpath": is_dreaming_rust_accelerated(),
                 "temporal_graphrag": is_graphrag_rust_accelerated(),
+                "hardware_governor": is_governor_rust_accelerated(),
             },
         },
         "governor": gov,
@@ -378,7 +380,7 @@ def apex_repo_architect_build(
 
     try:
         manifest = json.loads(files_json) if isinstance(files_json, str) else files_json
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
         return {"status": "error", "message": f"Format files_json tidak valid: {e}"}
 
     return build_and_verify_multifile_repo(
@@ -422,6 +424,7 @@ __all__ = [
     "initialize_apex_engine",
     "inspect_desktop_environment",
     "is_dreaming_rust_accelerated",
+    "is_governor_rust_accelerated",
     "is_graphrag_rust_accelerated",
     "is_neuro_symbolic_rust_accelerated",
     "is_service_quarantined",

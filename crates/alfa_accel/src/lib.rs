@@ -694,6 +694,154 @@ pub fn filter_hop2_bridges(
     result_indices
 }
 
+#[pyfunction]
+pub fn batch_cosine_from_json_strings(query: Vec<f32>, json_strings: Vec<String>) -> Vec<f64> {
+    if query.is_empty() {
+        return vec![0.0; json_strings.len()];
+    }
+
+    let mut sum_sq_q = 0.0f64;
+    for &x in &query {
+        let xf = x as f64;
+        sum_sq_q += xf * xf;
+    }
+    let norm_q = sum_sq_q.sqrt();
+    if norm_q < 1e-6 {
+        return vec![0.0; json_strings.len()];
+    }
+
+    let q_len = query.len();
+    let mut results = Vec::with_capacity(json_strings.len());
+
+    for json_str in &json_strings {
+        if let Ok(vec_b) = serde_json::from_str::<Vec<f32>>(json_str) {
+            if vec_b.is_empty() {
+                results.push(0.0);
+                continue;
+            }
+            let min_len = q_len.min(vec_b.len());
+            let mut dot = 0.0f64;
+            for i in 0..min_len {
+                dot += (query[i] as f64) * (vec_b[i] as f64);
+            }
+            let mut sum_sq_b = 0.0f64;
+            for &y in &vec_b {
+                let yf = y as f64;
+                sum_sq_b += yf * yf;
+            }
+            let norm_b = sum_sq_b.sqrt();
+            if norm_b < 1e-6 {
+                results.push(0.0);
+            } else {
+                results.push(dot / (norm_q * norm_b));
+            }
+        } else {
+            results.push(0.0);
+        }
+    }
+
+    results
+}
+
+static CPU_STAT_PREV: LazyLock<Mutex<(u64, u64)>> = LazyLock::new(|| {
+    Mutex::new((0, 0))
+});
+
+pub fn read_linux_cpu_percent() -> f64 {
+    if let Ok(stat) = std::fs::read_to_string("/proc/stat") {
+        if let Some(first_line) = stat.lines().next() {
+            let parts: Vec<&str> = first_line.split_whitespace().collect();
+            if parts.len() >= 5 && parts[0] == "cpu" {
+                let user: u64 = parts[1].parse().unwrap_or(0);
+                let nice: u64 = parts[2].parse().unwrap_or(0);
+                let system: u64 = parts[3].parse().unwrap_or(0);
+                let idle: u64 = parts[4].parse().unwrap_or(0);
+                let iowait: u64 = parts.get(5).and_then(|s| s.parse().ok()).unwrap_or(0);
+                let irq: u64 = parts.get(6).and_then(|s| s.parse().ok()).unwrap_or(0);
+                let softirq: u64 = parts.get(7).and_then(|s| s.parse().ok()).unwrap_or(0);
+                let steal: u64 = parts.get(8).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+                let total = user + nice + system + idle + iowait + irq + softirq + steal;
+                let idle_time = idle + iowait;
+
+                let mut prev = CPU_STAT_PREV.lock().unwrap();
+                let (prev_idle, prev_total) = *prev;
+                *prev = (idle_time, total);
+
+                if prev_total > 0 && total > prev_total {
+                    let diff_total = total - prev_total;
+                    let diff_idle = idle_time.saturating_sub(prev_idle);
+                    let usage = (1.0 - (diff_idle as f64) / (diff_total as f64)) * 100.0;
+                    return usage.clamp(0.0, 100.0);
+                }
+            }
+        }
+    }
+    10.0
+}
+
+pub fn read_linux_memory() -> (f64, f64) {
+    let mut total_kb = 0.0f64;
+    let mut avail_kb = 0.0f64;
+
+    if let Ok(meminfo) = std::fs::read_to_string("/proc/meminfo") {
+        for line in meminfo.lines() {
+            if line.starts_with("MemTotal:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    total_kb = parts[1].parse().unwrap_or(0.0);
+                }
+            } else if line.starts_with("MemAvailable:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    avail_kb = parts[1].parse().unwrap_or(0.0);
+                }
+            }
+            if total_kb > 0.0 && avail_kb > 0.0 {
+                break;
+            }
+        }
+    }
+
+    if total_kb > 0.0 {
+        let used_pct = ((total_kb - avail_kb) / total_kb) * 100.0;
+        let avail_mb = avail_kb / 1024.0;
+        (used_pct.clamp(0.0, 100.0), avail_mb)
+    } else {
+        (50.0, 2048.0)
+    }
+}
+
+pub fn read_linux_cpu_temp() -> f64 {
+    let mut max_temp = 0.0f64;
+    if let Ok(entries) = std::fs::read_dir("/sys/class/thermal") {
+        for entry in entries.flatten() {
+            let path = entry.path().join("temp");
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(raw) = content.trim().parse::<f64>() {
+                    let val = raw / 1000.0;
+                    if val > 15.0 && val < 115.0 && val > max_temp {
+                        max_temp = val;
+                    }
+                }
+            }
+        }
+    }
+    if max_temp > 0.0 {
+        (max_temp * 10.0).round() / 10.0
+    } else {
+        45.0
+    }
+}
+
+#[pyfunction]
+pub fn read_host_hardware_telemetry() -> (f64, f64, f64, f64) {
+    let cpu_pct = read_linux_cpu_percent();
+    let (ram_pct, ram_avail_mb) = read_linux_memory();
+    let temp_c = read_linux_cpu_temp();
+    (cpu_pct, ram_pct, ram_avail_mb, temp_c)
+}
+
 #[pymodule]
 fn alfa_accel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FastPathEngine>()?;
@@ -702,11 +850,13 @@ fn alfa_accel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(verify_arithmetic_equations_in_text, m)?)?;
     m.add_function(wrap_pyfunction!(cosine_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(batch_cosine_similarity, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_cosine_from_json_strings, m)?)?;
     m.add_function(wrap_pyfunction!(match_fastpath_pattern, m)?)?;
     m.add_function(wrap_pyfunction!(find_matching_fastpath_id, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_bm25_scores, m)?)?;
     m.add_function(wrap_pyfunction!(find_seed_entity_indices, m)?)?;
     m.add_function(wrap_pyfunction!(filter_hop2_bridges, m)?)?;
+    m.add_function(wrap_pyfunction!(read_host_hardware_telemetry, m)?)?;
     Ok(())
 }
 
@@ -804,5 +954,31 @@ mod tests {
         ];
         let res = filter_hop2_bridges(hop1, candidates, 5);
         assert_eq!(res, vec![1]);
+    }
+
+    #[test]
+    fn test_batch_cosine_from_json_strings() {
+        let q = vec![1.0, 0.0, 0.0];
+        let jsons = vec![
+            "[1.0, 0.0, 0.0]".to_string(),
+            "[0.0, 1.0, 0.0]".to_string(),
+            "[-1.0, 0.0, 0.0]".to_string(),
+            "invalid_json".to_string(),
+        ];
+        let sims = batch_cosine_from_json_strings(q, jsons);
+        assert_eq!(sims.len(), 4);
+        assert!((sims[0] - 1.0).abs() < 1e-5);
+        assert!((sims[1] - 0.0).abs() < 1e-5);
+        assert!((sims[2] - (-1.0)).abs() < 1e-5);
+        assert_eq!(sims[3], 0.0);
+    }
+
+    #[test]
+    fn test_host_hardware_telemetry() {
+        let (cpu, ram, avail, temp) = read_host_hardware_telemetry();
+        assert!(cpu >= 0.0 && cpu <= 100.0);
+        assert!(ram >= 0.0 && ram <= 100.0);
+        assert!(avail >= 0.0);
+        assert!(temp >= 15.0 && temp <= 115.0);
     }
 }
