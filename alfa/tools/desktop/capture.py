@@ -27,6 +27,8 @@ _CAP_ERR = (
 def capture_desktop_screenshot(*args, **kwargs) -> dict[str, Any]:
     """
     Capture an ultra-fast, high-resolution screenshot of the active desktop screen (Windows, Linux & Mac).
+    PENTING: Berkas screenshot otomatis dikirim langsung ke chat Telegram pengguna di akhir turn.
+    DILARANG memanggil tool send_file_to_chat lagi untuk berkas screenshot ini.
     On Windows: Uses native Win32 GDI screen capture for instant full-resolution multi-monitor screenshot.
     On Linux: Uses Wayland XDG Desktop Portal, grim, ImageMagick, or PIL ImageGrab.
     """

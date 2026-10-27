@@ -1241,6 +1241,9 @@ def has_artifact_intent(prompt: str) -> bool:
     return any(k in p for k in _ARTIFACT_INTENT_KEYWORDS)
 
 
+_PROCESSED_ARTIFACT_TURNS: dict[str, float] = {}
+
+
 async def check_and_send_media_artifacts(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -1253,10 +1256,26 @@ async def check_and_send_media_artifacts(
     was created during this turn and dispatches it directly to the Telegram user.
     Pure conversational turns (greetings, general QA, voice notes like "apa yang kamu bisa")
     never dispatch raw files from SANDBOX_DIR.
+    Equipped with strict deduplication guards to prevent double-sending of media artifacts.
     """
     chat_id = update.effective_chat.id if update.effective_chat else 0
     if not os.path.exists(SANDBOX_DIR):
         return
+
+    # Turn-level idempotency guard: prevent duplicate dispatch from polling retry/re-entry
+    up_id = getattr(update, "update_id", None)
+    if isinstance(up_id, int):
+        turn_key = f"{chat_id}:{up_id}"
+        now_ts = time.time()
+        if turn_key in _PROCESSED_ARTIFACT_TURNS and (now_ts - _PROCESSED_ARTIFACT_TURNS[turn_key]) < 30.0:
+            logger.debug(f"[check_and_send_media_artifacts] Skipping duplicate turn {turn_key}")
+            return
+        _PROCESSED_ARTIFACT_TURNS[turn_key] = now_ts
+        if len(_PROCESSED_ARTIFACT_TURNS) > 200:
+            cutoff = now_ts - 120.0
+            stale_keys = [k for k, v in _PROCESSED_ARTIFACT_TURNS.items() if v < cutoff]
+            for k in stale_keys:
+                _PROCESSED_ARTIFACT_TURNS.pop(k, None)
 
     from alfa.core.runtime_ctx import (
         get_current_executed_tools,
@@ -1281,6 +1300,8 @@ async def check_and_send_media_artifacts(
             f"(tools={executed_tools}, prompt={prompt[:50]!r})"
         )
         return
+
+    sent_basenames: set[str] = set()
 
     named_media = [
         ("desktop_screen.png", "🖥️ Tangkapan Layar Desktop", ("screenshot", "screen", "tangkapan")),
@@ -1315,6 +1336,7 @@ async def check_and_send_media_artifacts(
                     await context.bot.send_photo(
                         chat_id=chat_id, photo=photo_file, caption=caption
                     )
+                sent_basenames.add(filename.lower())
             except _HANDLER_ERR as send_err:
                 logger.error(f"Failed to send media artifact {filename}: {send_err}")
             finally:
@@ -1325,6 +1347,8 @@ async def check_and_send_media_artifacts(
 
     raw_candidates = []
     for fname in os.listdir(SANDBOX_DIR):
+        if fname.lower() in sent_basenames:
+            continue
         fpath = os.path.join(SANDBOX_DIR, fname)
         if tools.is_internal_sandbox_artifact(fname):
             continue
@@ -1350,6 +1374,15 @@ async def check_and_send_media_artifacts(
     for fname, fpath, mtime in raw_candidates:
         ext = os.path.splitext(fname)[1].lower()
         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
+            # Jika named_media sudah mengirim screenshot desktop/browser, buang gambar tangkapan layar duplikat
+            if any(name in sent_basenames for name in ("desktop_screen.png", "browser_screenshot.png")):
+                if any(k in fname.lower() for k in ("screen", "desktop", "tangkapan")):
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+                    continue
+
             if turn_start_time is not None and fpath not in recorded_artifacts:
                 matched_img = (
                     any(is_artifact_producing_tool(t) for t in executed_tools)
@@ -1388,8 +1421,15 @@ async def check_and_send_media_artifacts(
 
             docs_by_ext.setdefault(ext, []).append((fname, fpath, mtime))
 
-    # Kirim foto / grafik
+    # Kirim foto / grafik dengan proteksi anti-duplicate
     for fname, fpath in images_to_send:
+        if fname.lower() in sent_basenames:
+            try:
+                os.remove(fpath)
+            except OSError:
+                pass
+            continue
+
         caption = (
             "📊 Grafik Visualisasi Data (Python)"
             if fname.startswith("generated_plot")
@@ -1400,6 +1440,7 @@ async def check_and_send_media_artifacts(
                 await context.bot.send_photo(
                     chat_id=chat_id, photo=pf, caption=caption
                 )
+            sent_basenames.add(fname.lower())
         except _HANDLER_ERR as img_err:
             logger.error(f"Failed to send image {fname}: {img_err}")
         finally:
@@ -1437,11 +1478,18 @@ async def check_and_send_media_artifacts(
             file_list = [file_list[0]]
 
         for fname, fpath, _ in file_list:
+            if fname.lower() in sent_basenames:
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
+                continue
             try:
                 with open(fpath, "rb") as df:
                     await context.bot.send_document(
                         chat_id=chat_id, document=df, caption=f"📄 Berkas: {fname}"
                     )
+                sent_basenames.add(fname.lower())
             except _HANDLER_ERR as doc_err:
                 logger.error(f"Failed to send document {fname}: {doc_err}")
             finally:

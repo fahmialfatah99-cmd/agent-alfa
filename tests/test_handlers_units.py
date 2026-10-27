@@ -241,6 +241,29 @@ async def test_artifacts_stale_named_media_removed(monkeypatch, tmp_path):
     assert not ctx.bot.send_photo.called
 
 
+async def test_artifacts_dedupes_duplicate_screenshot(monkeypatch, tmp_path):
+    """Pastikan jika ada desktop_screen.png dan screenshot.png generik, hanya dikirim 1x (anti-double)."""
+    import time
+
+    now = time.time()
+    monkeypatch.setattr(h, "SANDBOX_DIR", str(tmp_path))
+    (tmp_path / "desktop_screen.png").write_bytes(b"DESKTOP")
+    (tmp_path / "screenshot.png").write_bytes(b"EXTRA_SCREEN")
+
+    ctx = _mk_context()
+    await h.check_and_send_media_artifacts(
+        _mk_update(),
+        ctx,
+        turn_start_time=now - 5,
+        user_prompt="screenshot",
+        executed_tools=["capture_desktop_screenshot"],
+    )
+    # Hanya 1 kali dikirim (desktop_screen), extra screenshot dibuang & tidak dikirim ganda
+    assert ctx.bot.send_photo.call_count == 1
+    assert not (tmp_path / "desktop_screen.png").exists()
+    assert not (tmp_path / "screenshot.png").exists()
+
+
 # --- try_handle_fast_wa ---------------------------------------------------------
 async def test_fast_wa_incoming(monkeypatch):
     update = _mk_update("cek wa masuk")

@@ -330,6 +330,21 @@ def send_file_to_chat(file_path: str, caption: str = "") -> dict[str, Any]:
 
         base_name = os.path.basename(expanded)
         dest_path = os.path.join(SANDBOX_DIR, base_name)
+
+        if os.path.abspath(expanded) == os.path.abspath(dest_path) or base_name.lower() in (
+            "desktop_screen.png",
+            "webcam_frame.jpg",
+            "generated_plot.png",
+            "dataset_analysis_chart.png",
+            "browser_screenshot.png",
+        ):
+            return {
+                "status": "success",
+                "message": f"Berkas '{base_name}' ({round(file_size_mb, 2)} MB) sudah berada di antrean pengiriman Telegram dan akan otomatis terkirim.",
+                "file_name": base_name,
+                "caption": caption,
+            }
+
         shutil.copyfile(expanded, dest_path)
 
         return {
