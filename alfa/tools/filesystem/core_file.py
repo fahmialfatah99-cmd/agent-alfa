@@ -15,7 +15,7 @@ _MAX_EDIT_FILE_BYTES = 2 * 1024 * 1024
 
 
 def _py_syntax_guard(path: str, original_content: str) -> str | None:
-    """Validasi sintaks Python pasca-edit; rollback bila rusak.
+    """Validasi sintaks Python pasca-edit menggunakan AST compile; rollback bila rusak.
 
     Mengembalikan pesan error (dan memulihkan isi lama) bila file .py kini
     gagal dikompilasi; mengembalikan None bila aman/bukan file Python.
@@ -23,8 +23,11 @@ def _py_syntax_guard(path: str, original_content: str) -> str | None:
     if not path.endswith(".py"):
         return None
     try:
+        import ast
+
         with open(path, encoding="utf-8", errors="surrogateescape") as f:
             new_content = f.read()
+        ast.parse(new_content, filename=path)
         compile(new_content, path, "exec")
         return None
     except SyntaxError as syn:
@@ -104,7 +107,7 @@ def read_local_file(
 @register_tool(category="file")
 def write_local_file(file_path: str, content: str) -> dict[str, Any]:
     """
-    Write or create a text file on the local system.
+    Write or create a text file on the local system with automatic AST syntax guard for Python files.
 
     Args:
         file_path: Path to the target file.
@@ -116,9 +119,28 @@ def write_local_file(file_path: str, content: str) -> dict[str, Any]:
         if not os.path.isabs(expanded_path):
             expanded_path = os.path.join(os.path.expanduser("~"), file_path)
 
+        orig_content = ""
+        is_existing = os.path.isfile(expanded_path)
+        if is_existing and expanded_path.endswith(".py"):
+            try:
+                with open(expanded_path, "r", encoding="utf-8", errors="surrogateescape") as of:
+                    orig_content = of.read()
+            except Exception:
+                orig_content = ""
+
         os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
         with open(expanded_path, "w", encoding="utf-8") as f:
             f.write(content)
+
+        if expanded_path.endswith(".py"):
+            syn_err = _py_syntax_guard(expanded_path, orig_content)
+            if syn_err:
+                if not is_existing and os.path.exists(expanded_path):
+                    try:
+                        os.remove(expanded_path)
+                    except OSError:
+                        pass
+                return {"status": "error", "message": syn_err}
 
         return {
             "status": "success",

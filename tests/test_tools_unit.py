@@ -186,3 +186,25 @@ class TestGenerateCodebaseRepomap:
         assert "sample_module.py" in res["repomap"]
         assert "MyService" in res["repomap"]
 
+
+class TestASTSyntaxGuard:
+    def test_write_local_file_ast_guard_success(self, tmp_path):
+        """File python valid berhasil ditulis."""
+        from alfa.tools.filesystem.core_file import write_local_file
+        target = tmp_path / "valid.py"
+        res = write_local_file(str(target), "def hello():\n    return 42\n")
+        assert res["status"] == "success"
+        assert target.exists()
+
+    def test_write_local_file_ast_guard_syntax_error(self, tmp_path):
+        """File python dengan syntax error otomatis ditolak dan di-rollback."""
+        from alfa.tools.filesystem.core_file import write_local_file
+        target = tmp_path / "existing.py"
+        target.write_text("def ok():\n    return 1\n")
+
+        res = write_local_file(str(target), "def broken(\n")
+        assert res["status"] == "error"
+        assert "SyntaxError" in res["message"]
+        # Isi lama tidak rusak
+        assert target.read_text() == "def ok():\n    return 1\n"
+

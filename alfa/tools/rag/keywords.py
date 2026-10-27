@@ -337,7 +337,11 @@ _CATEGORY_BOOSTS = {
 _CATEGORY_TRIGGERS = {
     "pdf": {"pdf", "dokumen_pdf"},
     "system": {"system", "hardware", "service", "proses", "layanan", "server", "linux"},
-    "code": {"code", "kode", "koding", "script", "program", "git", "repo", "python"},
+    "code": {
+        "code", "kode", "koding", "script", "program", "git", "repo", "python",
+        "rapikan", "perbaiki", "bug", "error", "patch", "benerin", "betulkan",
+        "fix", "refactor", "syntax", "lint", "worktree", "sandbox"
+    },
     "web": {
         "web",
         "search",
@@ -439,6 +443,11 @@ _ACTION_TRIGGERS = {
     "curl",
     "swarm",
     "screenshot",
+    "perbaiki",
+    "rapikan",
+    "benerin",
+    "patch",
+    "fix",
     "screnshoot",
     "ss",
     "layar",
