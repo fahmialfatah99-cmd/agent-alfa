@@ -18,6 +18,18 @@ import numpy as np
 
 from alfa.memory.doc_parser import chunk_document_contextual, extract_document_content
 
+try:
+    import alfa_accel
+
+    _HAS_RUST_ACCEL = getattr(alfa_accel, "is_rust_accelerated", lambda: False)()
+except ImportError:
+    _HAS_RUST_ACCEL = False
+
+
+def is_vector_rust_accelerated() -> bool:
+    """Check if Vector Math is running with native Rust acceleration."""
+    return bool(_HAS_RUST_ACCEL)
+
 logger = logging.getLogger("VectorMemory")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -317,6 +329,13 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     """Compute cosine similarity between two float vectors with safe dimension alignment."""
     if not vec_a or not vec_b:
         return 0.0
+
+    if _HAS_RUST_ACCEL:
+        try:
+            return float(alfa_accel.cosine_similarity(vec_a, vec_b))
+        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+            logger.debug("alfa_accel cosine_similarity fallback to NumPy (%s)", e)
+
     a: Any = np.array(vec_a, dtype=np.float32)
     b: Any = np.array(vec_b, dtype=np.float32)
     if a.shape[0] != b.shape[0]:
@@ -460,6 +479,12 @@ def _calculate_bm25_scores(corpus_texts: list[str], query: str) -> list[float]:
     if not corpus_texts or not query.strip():
         return [0.0] * len(corpus_texts)
 
+    if _HAS_RUST_ACCEL:
+        try:
+            return [float(s) for s in alfa_accel.calculate_bm25_scores(corpus_texts, query)]
+        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+            logger.debug("alfa_accel calculate_bm25_scores fallback to Python (%s)", e)
+
     q_tokens = [t.lower() for t in re.findall(r"\b\w+\b", query) if len(t) > 1]
     if not q_tokens:
         return [0.0] * len(corpus_texts)
@@ -480,7 +505,7 @@ def _calculate_bm25_scores(corpus_texts: list[str], query: str) -> list[float]:
             else 1.0
         )
         return [float(max(0.0, s / max_s)) for s in raw_scores]
-    except Exception:
+    except (RuntimeError, TypeError, ValueError, AttributeError, ImportError):
         q_set = set(q_tokens)
         scores = []
         for d in docs_tokens:

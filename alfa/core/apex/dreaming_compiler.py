@@ -22,6 +22,24 @@ from alfa.core.brain.learning_loop import (
 )
 from alfa.core.db.connection import get_sync_db
 
+try:
+    import alfa_accel
+
+    _HAS_RUST_ACCEL = getattr(alfa_accel, "is_rust_accelerated", lambda: False)()
+except ImportError:
+    _HAS_RUST_ACCEL = False
+
+_RUST_FASTPATH_ENGINE: Any = None
+_FP_CACHE_VERSION: int = 0
+_LOADED_FP_VERSION: int = -1
+_CACHED_FP_ROWS: list[Any] = []
+
+
+def is_dreaming_rust_accelerated() -> bool:
+    """Check if Fast-Path Pattern Matcher is running with native Rust acceleration."""
+    return bool(_HAS_RUST_ACCEL)
+
+
 logger = logging.getLogger("ApexDreaming")
 
 
@@ -86,6 +104,9 @@ def compile_fastpath(
         )
         conn.commit()
 
+    global _FP_CACHE_VERSION
+    _FP_CACHE_VERSION += 1
+
     return {
         "status": "success",
         "fastpath_id": fastpath_id,
@@ -123,6 +144,9 @@ def seed_compiled_fastpaths() -> int:
         res = compile_fastpath(topic, reg, tmpl, src, tok)
         if res.get("status") == "success":
             count += 1
+
+    global _FP_CACHE_VERSION
+    _FP_CACHE_VERSION += 1
     return count
 
 
@@ -198,6 +222,7 @@ def try_execute_compiled_fastpath(user_prompt: str) -> dict[str, Any] | None:
     """
     Attempt to match `user_prompt` against active compiled fast-paths.
     Never triggers if the prompt contains a user correction signal or complex multi-step command.
+    Uses native Rust FastPathEngine when available with automated cache invalidation.
     """
     if not user_prompt or len(user_prompt.strip()) > 120:
         return None
@@ -207,6 +232,48 @@ def try_execute_compiled_fastpath(user_prompt: str) -> dict[str, Any] | None:
     init_dreaming_tables()
     clean_p = user_prompt.strip()
 
+    global _RUST_FASTPATH_ENGINE, _LOADED_FP_VERSION, _CACHED_FP_ROWS
+
+    if _HAS_RUST_ACCEL:
+        try:
+            if _RUST_FASTPATH_ENGINE is None or _LOADED_FP_VERSION != _FP_CACHE_VERSION:
+                with get_sync_db() as conn:
+                    _CACHED_FP_ROWS = conn.execute(
+                        """
+                        SELECT id, fastpath_id, topic, trigger_regex, response_template, saved_tokens_est, hit_count
+                        FROM alfa_compiled_fastpaths
+                        WHERE active = 1
+                        ORDER BY hit_count DESC, id ASC
+                        """
+                    ).fetchall()
+                if _RUST_FASTPATH_ENGINE is None:
+                    _RUST_FASTPATH_ENGINE = alfa_accel.FastPathEngine()
+                candidates = [(r["id"], r["trigger_regex"]) for r in _CACHED_FP_ROWS]
+                _RUST_FASTPATH_ENGINE.set_patterns(candidates)
+                _LOADED_FP_VERSION = _FP_CACHE_VERSION
+
+            matched_id = _RUST_FASTPATH_ENGINE.find_match(clean_p)
+            if matched_id is not None:
+                matched_row = next((r for r in _CACHED_FP_ROWS if r["id"] == matched_id), None)
+                if matched_row is not None:
+                    with get_sync_db() as conn:
+                        conn.execute(
+                            "UPDATE alfa_compiled_fastpaths SET hit_count = hit_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            (matched_row["id"],),
+                        )
+                        conn.commit()
+                    return {
+                        "fastpath_id": matched_row["fastpath_id"],
+                        "topic": matched_row["topic"],
+                        "response": matched_row["response_template"],
+                        "saved_tokens": matched_row["saved_tokens_est"],
+                        "hit_count": (matched_row["hit_count"] or 0) + 1,
+                    }
+            return None
+        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+            logger.debug("alfa_accel FastPathEngine fallback to Python (%s)", e)
+
+    # Pure Python fallback
     with get_sync_db() as conn:
         rows = conn.execute(
             """

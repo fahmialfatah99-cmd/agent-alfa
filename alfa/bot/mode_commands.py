@@ -435,6 +435,15 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except _MODE_ERR:
         lines.append("🔑 **Vault:** ?")
 
+    try:
+        from alfa.core.apex import is_neuro_symbolic_rust_accelerated
+
+        rust_ok = is_neuro_symbolic_rust_accelerated()
+        rust_icon = "🟢 AKTIF (Native PyO3)" if rust_ok else "⚪ Nonaktif"
+        lines.append(f"🦀 **Akselerasi Rust:** {rust_icon}")
+    except _MODE_ERR:
+        lines.append("🦀 **Akselerasi Rust:** ⚪ Nonaktif")
+
     dash = "🟢" if _port_open(8080) else "🔴"
     r9 = "🟢" if _port_open(20128) else "🔴"
     lines.append(f"🌐 **Dashboard :8080:** {dash}   🔀 **9Router :20128:** {r9}")

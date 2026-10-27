@@ -105,3 +105,7 @@ devcli/node_modules/
 
 # mkdocs build artifact
 site/
+
+# Rust build artifacts & test sandbox
+crates/alfa_accel/target/
+sandbox_workspace/

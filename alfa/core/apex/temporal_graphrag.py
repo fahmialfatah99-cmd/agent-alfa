@@ -17,6 +17,19 @@ from typing import Any
 
 from alfa.core.db.connection import get_sync_db
 
+try:
+    import alfa_accel
+
+    _HAS_RUST_ACCEL = getattr(alfa_accel, "is_rust_accelerated", lambda: False)()
+except ImportError:
+    _HAS_RUST_ACCEL = False
+
+
+def is_graphrag_rust_accelerated() -> bool:
+    """Check if Temporal GraphRAG traversal is running with native Rust acceleration."""
+    return bool(_HAS_RUST_ACCEL)
+
+
 logger = logging.getLogger("ApexTemporalGraphRAG")
 
 
@@ -238,13 +251,26 @@ def query_temporal_graphrag(query: str, max_hops: int = 2, limit: int = 10) -> d
         ).fetchall()
 
         seed_names: set[str] = set()
-        for r in all_ents:
-            ename = r["name"]
-            if any(tok in ename for tok in tokens):
-                matched_entities.append(dict(r))
-                seed_names.add(ename)
-                if len(matched_entities) >= limit:
-                    break
+
+        if _HAS_RUST_ACCEL:
+            try:
+                all_names = [r["name"] for r in all_ents]
+                matched_indices = alfa_accel.find_seed_entity_indices(tokens, all_names, limit)
+                for idx in matched_indices:
+                    r = all_ents[idx]
+                    matched_entities.append(dict(r))
+                    seed_names.add(r["name"])
+            except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+                logger.debug("alfa_accel find_seed_entity_indices fallback to Python (%s)", e)
+
+        if not seed_names:
+            for r in all_ents:
+                ename = r["name"]
+                if any(tok in ename for tok in tokens):
+                    matched_entities.append(dict(r))
+                    seed_names.add(ename)
+                    if len(matched_entities) >= limit:
+                        break
 
         if seed_names:
             placeholders = ",".join("?" for _ in seed_names)
@@ -283,10 +309,25 @@ def query_temporal_graphrag(query: str, max_hops: int = 2, limit: int = 10) -> d
                     """,
                     (*f_params, limit),
                 ).fetchall()
-                for r2 in h2_rows:
-                    d2 = dict(r2)
-                    if d2 not in hop1_relations:
-                        hop2_bridges.append(d2)
+
+                used_rust_bridge = False
+                if _HAS_RUST_ACCEL:
+                    try:
+                        hop1_keys = [(r["source_entity"], r["relation_type"], r["target_entity"]) for r in hop1_relations]
+                        candidate_keys = [(r["source_entity"], r["relation_type"], r["target_entity"]) for r in h2_rows]
+                        valid_indices = alfa_accel.filter_hop2_bridges(hop1_keys, candidate_keys, limit)
+                        for idx in valid_indices:
+                            hop2_bridges.append(dict(h2_rows[idx]))
+                        used_rust_bridge = True
+                    except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+                        logger.debug("alfa_accel filter_hop2_bridges fallback to Python (%s)", e)
+                        used_rust_bridge = False
+
+                if not used_rust_bridge:
+                    for r2 in h2_rows:
+                        d2 = dict(r2)
+                        if d2 not in hop1_relations:
+                            hop2_bridges.append(d2)
 
     return {
         "status": "success",

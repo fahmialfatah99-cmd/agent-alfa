@@ -40,6 +40,7 @@ from alfa.core.apex.dreaming_compiler import (
     compile_fastpath,
     get_dreaming_metrics,
     init_dreaming_tables,
+    is_dreaming_rust_accelerated,
     run_idle_dreaming_cycle,
     seed_compiled_fastpaths,
     try_execute_compiled_fastpath,
@@ -51,8 +52,10 @@ from alfa.core.apex.hardware_governor import (
     read_cpu_temperature_celsius,
 )
 from alfa.core.apex.maintenance_daemon import run_autonomous_apex_maintenance
+from alfa.memory.vector import is_vector_rust_accelerated
 from alfa.core.apex.neuro_symbolic import (
     audit_excel_formula_integrity,
+    is_neuro_symbolic_rust_accelerated,
     safe_ast_math_eval,
     sync_symbolic_constraints_from_master_ledgers,
     verify_and_prove_response,
@@ -71,6 +74,7 @@ from alfa.core.apex.temporal_graphrag import (
     get_temporal_graphrag_metrics,
     ingest_text_to_temporal_graph,
     init_graphrag_tables,
+    is_graphrag_rust_accelerated,
     query_temporal_graphrag,
     upsert_graph_entity,
     upsert_graph_relation,
@@ -126,6 +130,15 @@ def get_apex_full_status() -> dict[str, Any]:
     return {
         "status": "success",
         "autonomy_level": "Level 5+ (Universal Sovereign Cognitive Apex)",
+        "rust_acceleration": {
+            "active": is_neuro_symbolic_rust_accelerated(),
+            "modules": {
+                "neuro_symbolic": is_neuro_symbolic_rust_accelerated(),
+                "vector_math": is_vector_rust_accelerated(),
+                "dreaming_fastpath": is_dreaming_rust_accelerated(),
+                "temporal_graphrag": is_graphrag_rust_accelerated(),
+            },
+        },
         "governor": gov,
         "dreaming": dream,
         "world_model": world,
@@ -408,6 +421,9 @@ __all__ = [
     "ingest_text_to_temporal_graph",
     "initialize_apex_engine",
     "inspect_desktop_environment",
+    "is_dreaming_rust_accelerated",
+    "is_graphrag_rust_accelerated",
+    "is_neuro_symbolic_rust_accelerated",
     "is_service_quarantined",
     "parse_stack_trace_locations",
     "query_temporal_graphrag",

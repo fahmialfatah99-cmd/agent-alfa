@@ -16,6 +16,18 @@ from typing import Any
 
 logger = logging.getLogger("ApexNeuroSymbolic")
 
+try:
+    import alfa_accel
+
+    _HAS_RUST_ACCEL = getattr(alfa_accel, "is_rust_accelerated", lambda: False)()
+except ImportError:
+    _HAS_RUST_ACCEL = False
+
+
+def is_neuro_symbolic_rust_accelerated() -> bool:
+    """Check if the Neuro-Symbolic verification engine is using native Rust acceleration."""
+    return bool(_HAS_RUST_ACCEL)
+
 _ALLOWED_AST_OPS: dict[type, Any] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
@@ -45,9 +57,17 @@ def _eval_ast_node(node: ast.AST) -> float | int:
 
 def safe_ast_math_eval(expr: str) -> float | int | None:
     """
-    Safely evaluate an arithmetic expression string using Python's AST.
+    Safely evaluate an arithmetic expression string.
+    Uses native Rust acceleration (alfa_accel) when available,
+    falling back to Python's AST solver.
     Returns the exact numeric result or None if not a valid arithmetic expression.
     """
+    if _HAS_RUST_ACCEL:
+        try:
+            return alfa_accel.safe_ast_math_eval(expr)
+        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+            logger.debug("alfa_accel safe_ast_math_eval failed (%s), fallback to Python AST", e)
+
     if not expr or not expr.strip():
         return None
     cleaned = expr.strip().replace("x", "*").replace("×", "*").replace("÷", "/")
@@ -74,10 +94,18 @@ def verify_arithmetic_equations_in_text(text: str) -> tuple[str, list[dict[str, 
     """
     Scan text for explicit arithmetic equations (e.g. '68 - 7 = 62' or '61 + 99 = 170'),
     prove each equation via the AST solver, and automatically correct any miscalculation in-place.
+    Uses native Rust acceleration (alfa_accel) when available with automatic Python fallback.
     """
-    findings: list[dict[str, Any]] = []
     if not text:
-        return text, findings
+        return text, []
+
+    if _HAS_RUST_ACCEL:
+        try:
+            return alfa_accel.verify_arithmetic_equations_in_text(text)
+        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+            logger.debug("alfa_accel verify_arithmetic_equations_in_text failed (%s), fallback to Python", e)
+
+    findings: list[dict[str, Any]] = []
 
     def _replacer(match: re.Match) -> str:
         lhs = match.group(1)
