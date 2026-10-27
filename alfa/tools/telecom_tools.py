@@ -2535,9 +2535,10 @@ def reconcile_whatsapp_material_group(
             ts = m.get("ts", 0)
             dt_str = datetime.fromtimestamp(ts).strftime("%d-%m-%Y") if ts else "-"
 
-            # Lewati pesan diskusi masa depan atau koordinasi non-material
+            # Lewati pesan diskusi masa depan, koordinasi non-material, atau laporan progres tanam/instalasi lapangan
             if any(w in body.lower() for w in [
-                "besok gass", "masukin mandor", "form wajib diisi", "@all", "kertas pengambilan"
+                "besok gass", "masukin mandor", "form wajib diisi", "@all", "kertas pengambilan",
+                "tertanam", "terpasang", "cuma tertanam", "sudah tertanam", "tanam hari ini"
             ]):
                 continue
 
