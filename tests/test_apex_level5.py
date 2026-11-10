@@ -93,12 +93,22 @@ def test_pillar3_predictive_world_model():
     assert summary["unresolved_anomalies_count"] >= 2
 
 
-def test_pillar4_canary_evolution_and_rollback():
+def test_pillar4_canary_evolution_and_rollback(monkeypatch):
+    monkeypatch.setenv("ALFA_ALLOW_DYNAMIC_TOOLS", "true")
+
     # 1. Reject code touching quarantined service wa-sheets-bot
     bad_code = "def bad_tool():\n    return 'systemctl restart wa-sheets-bot.service'\n"
     gate_bad = verify_code_via_canary_gate("bad_tool", bad_code)
     assert not gate_bad["passed"]
     assert "QUARANTINE" in gate_bad["stage"]
+
+    for ast_bad_code in (
+        "import subprocess\ndef bad_tool():\n    return 1\n",
+        "def bad_tool():\n    return eval('1 + 1')\n",
+    ):
+        ast_bad = verify_code_via_canary_gate("bad_tool", ast_bad_code)
+        assert not ast_bad["passed"]
+        assert ast_bad["stage"] == "STAGE_1_AST_SECURITY"
 
     # 2. Synthesize & hotload valid dynamic tool with smoke test
     valid_code = (
@@ -128,15 +138,17 @@ def test_pillar4_canary_evolution_and_rollback():
         smoke_test_args={"x": 5},
     )
     assert gate_ok["passed"]
-    synthesize_and_hotload_tool(
+    unstable_res = synthesize_and_hotload_tool(
         tool_name="unstable_sensor_tool",
         description="Test canary rollback on negative input",
         code_source=faulty_runtime_code,
         smoke_test_args={"x": 5},
     )
+    assert unstable_res["status"] == "success"
+    assert unstable_res["hot_loaded"] is True
 
-    from alfa.core.apex.canary_evolution import _wrap_with_canary_rollback_guard
-    guarded = _wrap_with_canary_rollback_guard("unstable_sensor_tool", gate_ok["callable"])
+    from alfa.tools.registry import TOOL_REGISTRY
+    guarded = TOOL_REGISTRY["unstable_sensor_tool"]["func"]
     rb_res = guarded(x=-1)
     assert rb_res["status"] == "canary_rolled_back"
     assert "Sensor calibration underflow" in rb_res["error"]
@@ -144,8 +156,97 @@ def test_pillar4_canary_evolution_and_rollback():
     metrics = get_canary_evolution_metrics()
     assert metrics["total_canary_rollbacks"] >= 1
 
+    TOOL_REGISTRY.pop("calc_pole_reserve", None)
+    TOOL_REGISTRY.pop("unstable_sensor_tool", None)
 
-def test_pillar5_hardware_governor_and_agent_tools():
+
+def test_canary_gate_never_executes_code_in_parent(monkeypatch, tmp_path):
+    monkeypatch.delenv("ALFA_ALLOW_DYNAMIC_TOOLS", raising=False)
+    marker = tmp_path / "canary_side_effect.txt"
+    code = (
+        "from pathlib import Path\n"
+        "def side_effect_tool() -> str:\n"
+        "    return 'ok'\n"
+        f"Path({str(marker)!r}).write_text('executed', encoding='utf-8')\n"
+    )
+
+    gate = verify_code_via_canary_gate("side_effect_tool", code)
+    assert gate["passed"]
+    assert not marker.exists(), "verification must not execute top-level code"
+
+    saved = synthesize_and_hotload_tool(
+        tool_name="side_effect_tool",
+        description="Security regression: must not execute without opt-in",
+        code_source=code,
+    )
+    assert saved["status"] == "verified"
+    assert saved["hot_loaded"] is False
+    assert not marker.exists(), "hot-load disabled must not execute synthesized code"
+
+    import os
+
+    from alfa.core.db.connection import get_sync_db
+    from alfa.tools.registry import TOOL_REGISTRY
+
+    assert "side_effect_tool" not in TOOL_REGISTRY
+    with get_sync_db() as conn:
+        conn.execute(
+            "DELETE FROM alfa_canary_evolutions WHERE tool_name = ?",
+            ("side_effect_tool",),
+        )
+        conn.commit()
+    tool_path = saved.get("file_path")
+    if isinstance(tool_path, str) and os.path.exists(tool_path):
+        os.remove(tool_path)
+
+
+def test_canary_rejects_reserved_tool_names():
+    result = verify_code_via_canary_gate(
+        "__init__", "def __init__() -> int:\n    return 1\n"
+    )
+    assert not result["passed"]
+    assert result["stage"] == "STAGE_1_IDENTIFIER"
+
+
+def test_canary_description_cannot_escape_docstring(monkeypatch):
+    monkeypatch.delenv("ALFA_ALLOW_DYNAMIC_TOOLS", raising=False)
+    malicious_desc = 'ok"""\nPWNED = True\n"""'
+    result = synthesize_and_hotload_tool(
+        tool_name="docstring_guard_tool",
+        description=malicious_desc,
+        code_source="def docstring_guard_tool() -> int:\n    return 1\n",
+    )
+    assert result["status"] == "verified"
+
+    import os
+    from pathlib import Path
+
+    from alfa.core.db.connection import get_sync_db
+
+    tool_path = result.get("file_path")
+    assert isinstance(tool_path, str)
+    content = Path(tool_path).read_text(encoding="utf-8")
+    assert content.count('"""') == 2
+    assert "\nPWNED" not in content
+    with get_sync_db() as conn:
+        conn.execute(
+            "DELETE FROM alfa_canary_evolutions WHERE tool_name = ?",
+            ("docstring_guard_tool",),
+        )
+        conn.commit()
+    os.remove(tool_path)
+
+
+def test_canary_smoke_test_is_process_isolated():
+    # This top-level os._exit(42) would kill the bot if executed in-process.
+    code = "import os\ndef exit_tool() -> int:\n    return 1\nos._exit(42)\n"
+    result = verify_code_via_canary_gate("exit_tool", code, smoke_test_args={})
+    assert not result["passed"]
+    assert result["stage"] == "STAGE_3_SMOKE_TEST"
+
+
+def test_pillar5_hardware_governor_and_agent_tools(monkeypatch):
+    monkeypatch.setenv("ALFA_ALLOW_DYNAMIC_TOOLS", "true")
     gov = get_hardware_governor_state()
     assert gov["status"] == "success"
     assert gov["governor_mode"] in ("APEX_TURBO", "BALANCED", "THERMAL_PROTECTION")
@@ -179,9 +280,13 @@ def test_pillar5_hardware_governor_and_agent_tools():
     assert "cloud_rescue_vault" in full
     assert "symbolic_ledgers" in full
 
+    from alfa.tools.registry import TOOL_REGISTRY
+    TOOL_REGISTRY.pop("km_to_drum_estimator", None)
+
 
 def test_perfection_4_phases_vault_ledger_and_maintenance(tmp_path):
     import openpyxl
+
     from alfa.core.apex import (
         audit_excel_formula_integrity,
         run_autonomous_apex_maintenance,
@@ -504,6 +609,10 @@ def test_deep_audit_5_fixes_permissions_swarm_and_lowercase_graphrag():
     assert "rea_clone_and_build_app" in SWARM_HEADLESS_ALLOWED
 
     # 3. Swarm Agent API Client automatic fallback when provider has no key
+    from alfa.core.db.keys import add_api_key_sync, get_active_api_key_sync
+    if not get_active_api_key_sync("gemini"):
+        add_api_key_sync("Test Vault Key", "gemini", "test_vault_gemini_key_12345", "")
+
     dummy_agent = {"id": 999, "name": "Code Crafter", "provider": "nonexistent_provider", "model": "coder-x"}
     prov, api_key, model, _url, _kid = get_agent_api_client(dummy_agent)
     assert bool(api_key), "Swarm agent should automatically fall back to an active vault key"
@@ -708,7 +817,9 @@ def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path)
     assert verify_sqlite_integrity(restored_db_path)["healthy"] is True
 
     # 4. Instant Excel Pre-Aggregator & Persistent Document Cache Recovery
-    from alfa.tools.filesystem.universal_file_extractor import _build_full_sheet_pre_aggregation
+    from alfa.tools.filesystem.universal_file_extractor import (
+        _build_full_sheet_pre_aggregation,
+    )
 
     headers = ["Project", "Status", "Hours"]
     rows = [

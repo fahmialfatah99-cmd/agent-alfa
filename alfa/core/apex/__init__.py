@@ -168,9 +168,11 @@ def apex_synthesize_dynamic_tool(
 ) -> dict[str, Any]:
     """
     SINTESIS TOOL BARU OTONOM (LEVEL 5+ CANARY SELF-EVOLUTION):
-    Menulis fungsi tool Python baru secara mandiri, mengujinya melewati 3-Stage Canary Gate
-    (AST Security Audit + Isolated Compilation + Smoke Verification), dan melakukan hot-load
-    ke runtime ALFA OS dengan proteksi auto-rollback.
+    Menulis fungsi tool Python baru secara mandiri dan mengujinya melewati 3-Stage
+    Canary Gate (AST Security Audit + Compilation + Smoke Verification di subprocess).
+    Tool yang lolos disimpan ke `alfa/tools/dynamic/`. Hot-load ke runtime ALFA OS
+    hanya aktif jika `ALFA_ALLOW_DYNAMIC_TOOLS=true`; dengan begitu proteksi
+    auto-rollback Canary Guard juga aktif.
     """
     return synthesize_and_hotload_tool(
         tool_name=tool_name,
