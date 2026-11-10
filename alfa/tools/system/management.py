@@ -755,10 +755,10 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
                     if os.path.isdir(fpath):
                         shutil.rmtree(fpath, ignore_errors=True)
                         cleaned_tmp += 1
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di system_clean_memory_and_cache: %s", exc)
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di system_clean_memory_and_cache: %s", exc)
 
     wa_recycled = False
     if recycle_wa_if_needed and wa_rss_mb > 1200:

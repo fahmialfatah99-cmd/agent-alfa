@@ -1,5 +1,6 @@
 """Workspace file-context menu helpers."""
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,8 @@ from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 
 from alfa.core.cli.constants import print_status
+
+logger = logging.getLogger(__name__)
 
 
 def get_workspace_files(max_files: int = 100) -> list[str]:
@@ -36,8 +39,8 @@ def get_workspace_files(max_files: int = 100) -> list[str]:
                 results.append(rel)
                 if len(results) >= max_files:
                     return sorted(results)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di get_workspace_files: %s", exc)
     return sorted(results)
 
 

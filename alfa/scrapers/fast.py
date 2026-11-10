@@ -88,8 +88,8 @@ def scrape_with_camoufox(
             if wait_selector:
                 try:
                     page.wait_for_selector(wait_selector, timeout=8000)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di scrape_with_camoufox: %s", exc)
             else:
                 # Small wait for dynamic hydration
                 page.wait_for_timeout(2500)

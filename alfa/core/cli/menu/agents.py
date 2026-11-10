@@ -1,5 +1,6 @@
 """Persona and agent-model configuration menus."""
 
+import logging
 from typing import Any
 
 from InquirerPy import inquirer
@@ -13,6 +14,8 @@ from alfa.core.cli.direct_ai import (
     sync_providers_catalog,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def menu_switch_persona(cli: Any) -> None:
     """Interactive arrow-key selector for Swarm & Custom Agents (synchronized with Web)."""
@@ -21,8 +24,8 @@ def menu_switch_persona(cli: Any) -> None:
     agents = []
     try:
         agents = database.list_custom_agents_sync()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di menu_switch_persona: %s", exc)
 
     if not agents:
         print_status(
@@ -73,8 +76,8 @@ def menu_configure_agent_models(cli: Any) -> None:
     agents = []
     try:
         agents = database.list_custom_agents_sync()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di menu_configure_agent_models: %s", exc)
 
     if not agents:
         print_status(
@@ -85,8 +88,8 @@ def menu_configure_agent_models(cli: Any) -> None:
 
     try:
         sync_providers_catalog()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di menu_configure_agent_models: %s", exc)
 
     from typing import Any
 

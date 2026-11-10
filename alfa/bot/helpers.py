@@ -416,8 +416,8 @@ async def safe_send_message(
                 chunks = chunks[1:]
                 if not chunks:
                     return
-            except Exception:
-                pass  # gagal edit (mis. teks identik/kelamaan) → kirim biasa
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di safe_send_message: %s", exc)  # gagal edit (mis. teks identik/kelamaan) → kirim biasa
 
     for i, chunk in enumerate(chunks):
         markup = reply_markup if i == len(chunks) - 1 else None
@@ -462,8 +462,8 @@ async def send_typing_loop(
     while not stop_event.is_set():
         try:
             await context.bot.send_chat_action(chat_id=chat_id, action=action)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di send_typing_loop: %s", exc)
         await asyncio.sleep(4)
 
 

@@ -51,8 +51,8 @@ class _BM25Index:
         if self._bm25 is not None:
             try:
                 return list(self._bm25.get_scores(query_tokens))
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di scores: %s", exc)
         # Fallback: skor overlap token (cukup baik untuk seleksi kasar)
         qset = set(query_tokens)
         out = []
@@ -79,8 +79,8 @@ def _rank_names(
         for h in list(history or [])[-3:]:
             if isinstance(h, dict) and h.get("content"):
                 query_parts.append(str(h["content"])[:400])
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _rank_names: %s", exc)
     q_tokens = _expand_synonyms(_tokenize(" ".join(query_parts)))
 
     scores = list(index.scores(q_tokens))
@@ -206,8 +206,8 @@ def select_relevant_tools(
             for h in list(history or [])[-3:]:
                 if isinstance(h, dict) and h.get("content"):
                     query_parts.append(str(h["content"])[:400])
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di select_relevant_tools: %s", exc)
         q_tokens = _expand_synonyms(_tokenize(" ".join(query_parts)))
 
         name_to_schema: dict[str, dict[str, Any]] = {}

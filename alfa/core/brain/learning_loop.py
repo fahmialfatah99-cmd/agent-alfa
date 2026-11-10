@@ -84,8 +84,8 @@ def init_learning_tables() -> None:
         ):
             try:
                 conn.execute(f"ALTER TABLE alfa_learned_skills ADD COLUMN {col} {col_def};")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di init_learning_tables: %s", exc)
 
         conn.commit()
 

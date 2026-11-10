@@ -119,8 +119,8 @@ async def _edit_or_send(
                 return
         except RetryAfter:
             return
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _edit_or_send: %s", exc)
 
     await safe_send_message(context, chat_id, text, reply_markup=markup)
 
@@ -145,8 +145,8 @@ async def render_cloud_hub(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             if meta.get("status") == "success":
                 sheets_title = meta.get("title", "-")
                 tabs_count = meta.get("total_tabs", 0)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di render_cloud_hub: %s", exc)
 
     # Drive summary
     drive_conn = "🔴 Mati"
@@ -156,8 +156,8 @@ async def render_cloud_hub(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if dst.get("status") == "success" and dst.get("connected"):
             drive_conn = "🟢 Terhubung"
             drive_user = dst.get("user", {}).get("displayName") or dst.get("user", {}).get("emailAddress", "OK")
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di render_cloud_hub: %s", exc)
 
     text = (
         "☁️ **Google Cloud Services Agent**\n\n"

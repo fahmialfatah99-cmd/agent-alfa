@@ -91,8 +91,8 @@ def _index_freshness(root: str, sample_paths: list[str]) -> dict[str, Any]:
         if checked and changed:
             info["stale"] = True
             info["changed_sample"] = changed
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _index_freshness: %s", exc)
     return info
 
 

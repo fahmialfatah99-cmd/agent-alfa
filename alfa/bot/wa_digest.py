@@ -23,8 +23,8 @@ def _setting(key: str, default: str = "") -> str:
             ).fetchone()
             if row and row["value"]:
                 return str(row["value"])
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _setting: %s", exc)
     return default
 
 

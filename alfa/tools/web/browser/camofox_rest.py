@@ -92,8 +92,8 @@ def _get_or_create_tab(url: str, timeout: float = 30.0) -> str:
             if tabs and isinstance(tabs[0], dict) and tabs[0].get("tabId"):
                 _REST_TAB = str(tabs[0]["tabId"])
                 return _REST_TAB
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Kegagalan tak terduga di _get_or_create_tab: %s", exc)
     r = httpx.post(
         f"{base}/tabs",
         json={"url": url, "userId": _user_id(), "sessionKey": _session_key()},
@@ -167,7 +167,7 @@ def rest_close_tab() -> dict[str, Any]:
             headers=_headers(),
             timeout=10.0,
         )
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Kegagalan tak terduga di rest_close_tab: %s", exc)
     _REST_TAB = None
     return {"status": "success", "message": "Tab REST ditutup."}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import getpass
+import logging
 import os
 import platform
 from typing import Any
@@ -12,6 +13,8 @@ from alfa.core.cli.constants import (
     print_banner,
     print_status,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CliBasicCommandsMixin:
@@ -255,8 +258,8 @@ class CliBasicCommandsMixin:
                         ),
                     },
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_exit: %s", exc)
         print_status(
             "Terima kasih telah menggunakan ALFA CLI. Sampai jumpa!", "success"
         )

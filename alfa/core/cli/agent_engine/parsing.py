@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 import re
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class ToolCallParserMixin:
@@ -19,8 +22,8 @@ class ToolCallParserMixin:
             val = json.loads(cleaned)
             if isinstance(val, dict):
                 return val
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Cleanup trailing commas
         cleaned_no_trailing = re.sub(r",\s*([}\]])", r"\1", cleaned)
@@ -28,16 +31,16 @@ class ToolCallParserMixin:
             val = json.loads(cleaned_no_trailing)
             if isinstance(val, dict):
                 return val
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Try ast.literal_eval for Python dictionary literals with single quotes
         try:
             val = ast.literal_eval(cleaned)
             if isinstance(val, dict):
                 return val
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Convert single quotes around keys and values
         try:
@@ -48,8 +51,8 @@ class ToolCallParserMixin:
             val = json.loads(sq_fixed)
             if isinstance(val, dict):
                 return val
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         return None
 

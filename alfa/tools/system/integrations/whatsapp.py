@@ -128,8 +128,8 @@ def wa_get_messages(
                         record_wa_messages_read_sync(to_mark)
                         for m in to_mark:
                             m["is_read"] = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Kegagalan tak terduga di wa_get_messages: %s", exc)
 
             res["messages"] = msgs
             res["total"] = len(msgs)
@@ -288,8 +288,8 @@ def wa_get_incoming(
             from alfa.core.db.wa_tracking import archive_wa_messages_sync
 
             archive_wa_messages_sync(filtered)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di wa_get_incoming: %s", exc)
 
         # Check read status in SQLite
         msg_ids = [str(it.get("msg_id") or it.get("id") or "").strip() for it in filtered]
@@ -358,8 +358,8 @@ def wa_get_incoming(
                     for it in to_mark:
                         it["is_read"] = True
                         it["status_dibaca"] = "SUDAH DIBACA"
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di wa_get_incoming: %s", exc)
 
         res["incoming"] = filtered
         res["count"] = len(filtered)

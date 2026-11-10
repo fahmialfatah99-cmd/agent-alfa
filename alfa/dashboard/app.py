@@ -439,8 +439,8 @@ def create_app() -> FastAPI:
             from alfa.core import database as db
 
             db_pool_stats = db.get_connection_pool().stats
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di system_metrics: %s", exc)
 
         return SystemMetricsResponse(
             service="alfa-sovereign-ai",

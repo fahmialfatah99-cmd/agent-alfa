@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_provider(name: str | None) -> str:
@@ -231,8 +234,8 @@ def sync_providers_catalog() -> dict[str, Any]:
                 if mid and mid not in existing:
                     PROVIDERS_CATALOG["9router"]["models"].append(mid)
                     existing.add(mid)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di sync_providers_catalog: %s", exc)
 
     # 2. Sync from web PROVIDER_MODELS if available
     try:
@@ -247,8 +250,8 @@ def sync_providers_catalog() -> dict[str, Any]:
                     if mid and mid not in existing_m:
                         PROVIDERS_CATALOG[norm_p]["models"].append(mid)
                         existing_m.add(mid)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di sync_providers_catalog: %s", exc)
 
     return PROVIDERS_CATALOG
 

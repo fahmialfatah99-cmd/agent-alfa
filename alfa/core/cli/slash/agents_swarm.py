@@ -1,9 +1,12 @@
 """Slash-command mixin: Swarm workforce, persona, and agent-model commands."""
 
+import logging
 from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
 from alfa.core.cli.direct_ai import PROVIDERS_CATALOG
+
+logger = logging.getLogger(__name__)
 
 
 class SlashSwarmMixin:
@@ -23,8 +26,8 @@ class SlashSwarmMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_agents: %s", exc)
 
         # Also fetch live activity from web server if available
         activity_map = {}
@@ -35,8 +38,8 @@ class SlashSwarmMixin:
                     data = r.json()
                     for item in data.get("agents", []):
                         activity_map[item.get("id")] = item
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di do_slash_agents: %s", exc)
 
         print(
             f"\n{Colors.BOLD}👥 ALFA Autonomous Workforce & Swarm Agents (Sinkron Web):{Colors.ENDC}\n"
@@ -115,8 +118,8 @@ class SlashSwarmMixin:
 
         try:
             sync_providers_catalog()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _set_agent_model_command: %s", exc)
 
         try:
             parts = shlex.split(arg)
@@ -126,8 +129,8 @@ class SlashSwarmMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _set_agent_model_command: %s", exc)
 
         if not parts:
             print(
@@ -264,8 +267,8 @@ class SlashSwarmMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_persona: %s", exc)
 
         if not target:
             curr = getattr(self, "active_persona_name", None)
@@ -328,8 +331,8 @@ class SlashSwarmMixin:
             if prov and prov in PROVIDERS_CATALOG:
                 try:
                     self.direct_ai.set_provider(prov, mod)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di do_slash_persona: %s", exc)
 
         self._update_prompt()
         avatar = matched.get("avatar_emoji", "🤖")

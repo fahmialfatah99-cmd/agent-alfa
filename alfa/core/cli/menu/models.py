@@ -1,5 +1,6 @@
 """Provider/model/preset/API-key menus."""
 
+import logging
 import os
 from typing import Any
 
@@ -16,6 +17,8 @@ from alfa.core.cli.direct_ai import (
     sync_providers_catalog,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def menu_switch_model(cli: Any) -> None:
     """Interactive arrow-key provider and model switcher with 9Router & Web sync."""
@@ -24,8 +27,8 @@ def menu_switch_model(cli: Any) -> None:
     # Synchronize with live 9Router & Web Dashboard catalog
     try:
         sync_providers_catalog()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
     primary_order = [
         "9router",
@@ -58,8 +61,8 @@ def menu_switch_model(cli: Any) -> None:
         try:
             temp_client = DirectAIClient(provider=pkey)
             has_key = bool(temp_client.get_api_key())
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
         key_tag = " 🟢 [Key Ready]" if has_key else " ⚪ [No Key]"
         if pkey == "9router":
@@ -117,8 +120,8 @@ def menu_switch_model(cli: Any) -> None:
         k_row = database.get_active_api_key_sync(db_prov)
         if k_row and k_row.get("id"):
             database.update_api_key_model(k_row["id"], selected_model)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
     print_status(
         f"Provider & Model berhasil diubah ke: {selected_provider.upper()} ({selected_model})",
@@ -280,8 +283,8 @@ def menu_setup_api_keys(cli: Any) -> None:
             if not found:
                 new_lines.append(f"{env_key}={key_input}")
             env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di menu_setup_api_keys: %s", exc)
 
         # 2. Synchronize with SQLite Database Vault (Web Dashboard)
         try:

@@ -345,8 +345,8 @@ def inspect_api_endpoint_health(
             if "application/json" in result["content_type"].lower():
                 try:
                     result["json_data"] = resp.json()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Kegagalan tak terduga di inspect_api_endpoint_health: %s", exc)
     except Exception as http_err:  # noqa: BLE001
         result["http_status"] = None
         result["error"] = str(http_err)

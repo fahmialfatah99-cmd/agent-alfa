@@ -130,8 +130,8 @@ def _browser_search_fallback(
             page.goto(url, wait_until="domcontentloaded", timeout=45000)
             try:
                 page.wait_for_timeout(900)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("Kegagalan tak terduga di _do: %s", exc)
             try:
                 data = page.evaluate(
                     """() => Array.from(document.querySelectorAll('li.b_algo'))
@@ -283,8 +283,8 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
             if res and res.text_content:
                 text = res.text_content.strip()
                 engine_used = "markitdown"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di fetch_web_page_content: %s", exc)
 
     if not text:
         return {

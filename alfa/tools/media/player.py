@@ -228,8 +228,8 @@ def _stop_audio() -> dict[str, Any]:
     for pat in ("ffplay.*-nodisp", "yt-dlp.*bestaudio"):
         try:
             subprocess.run(["pkill", "-f", pat], capture_output=True, timeout=5)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Kegagalan tak terduga di _stop_audio: %s", exc)
     return {
         "status": "success",
         "message": (

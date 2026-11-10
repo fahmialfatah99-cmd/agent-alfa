@@ -60,8 +60,8 @@ def get_system_stats() -> dict[str, Any]:
         for p in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
             try:
                 processes.append(p.info)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di get_system_stats: %s", exc)
 
         top_ram = sorted(
             processes, key=lambda p: p.get("memory_percent") or 0, reverse=True

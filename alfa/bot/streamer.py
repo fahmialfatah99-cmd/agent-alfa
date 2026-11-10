@@ -164,14 +164,14 @@ class TelegramStreamer:
         if self._typing_task and not self._typing_task.done():
             try:
                 await self._typing_task
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di finalize: %s", exc)
 
         if self._edit_task and not self._edit_task.done():
             try:
                 await asyncio.wait_for(asyncio.shield(self._edit_task), timeout=2.0)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di finalize: %s", exc)
 
         target_text = final_text if final_text is not None else self.buffer
         if not target_text or not target_text.strip():

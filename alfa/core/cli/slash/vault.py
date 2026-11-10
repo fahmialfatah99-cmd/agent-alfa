@@ -1,8 +1,11 @@
 """Slash-command mixin: API-key vault commands."""
 
+import logging
 from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
+
+logger = logging.getLogger(__name__)
 
 
 class SlashVaultMixin:
@@ -42,8 +45,8 @@ class SlashVaultMixin:
             from alfa.core import database
 
             db_keys = database.list_api_keys_sync()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di display_api_keys_vault: %s", exc)
 
         if db_keys:
             if getattr(self, "console", None):
@@ -96,8 +99,8 @@ class SlashVaultMixin:
                 print(
                     f"\n  🔀 [9Router AI Gateway]: Tersambung ke port 20128 (Key: {masked_r})"
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di display_api_keys_vault: %s", exc)
 
         # 3. Local CLI Config Keys
         cfg_keys = getattr(self, "config", {}).get("api_keys", {})

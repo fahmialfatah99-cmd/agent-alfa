@@ -12,6 +12,7 @@ Provides an advanced, minimalist yet powerful terminal UI with:
 from __future__ import annotations
 
 import difflib
+import logging
 import os
 import re
 import subprocess
@@ -37,6 +38,8 @@ from alfa.core.cli.constants import (
     print_status,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def get_git_branch() -> str:
     """Get the current git branch name if inside a git repository."""
@@ -49,8 +52,8 @@ def get_git_branch() -> str:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di get_git_branch: %s", exc)
     return ""
 
 
@@ -87,8 +90,8 @@ class AlfaCursorCompleter(Completer):
                     results.append(rel)
                     if len(results) >= 200:
                         return results
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di _get_project_files: %s", exc)
         return results
 
     def get_completions(

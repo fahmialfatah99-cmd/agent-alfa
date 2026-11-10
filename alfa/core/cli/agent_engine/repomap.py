@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import re
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # 2. REPOMAP & CODEBASE SYMBOL GENERATOR
@@ -78,8 +81,8 @@ class RepomapGenerator:
                     symbols.append(f"class {node.name}{meth_str}")
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     symbols.append(f"def {node.name}()")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _extract_py_symbols: %s", exc)
         return symbols
 
     def _extract_regex_symbols(self, file_path: Path) -> list[str]:
@@ -178,8 +181,8 @@ class RepomapGenerator:
                 for f in fn_matches[:6]:
                     symbols.append(f"{f}()")
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _extract_regex_symbols: %s", exc)
         return symbols
 
     def _extract_imports(self, file_path: Path) -> list[str]:
@@ -202,8 +205,8 @@ class RepomapGenerator:
                     stem = re.split(r"[/:.]", m.group(1))[-1]
                     if stem:
                         imports.append(stem)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _extract_imports: %s", exc)
         return imports
 
     def rank_files_by_centrality(self, scan_limit: int = 600) -> list[dict[str, Any]]:

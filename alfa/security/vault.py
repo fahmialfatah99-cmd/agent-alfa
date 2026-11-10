@@ -48,8 +48,8 @@ def _vault_db_path() -> str:
         resolved = resolve_db_path(fallback=DB_PATH)
         if resolved:
             return str(resolved)
-    except Exception:  # noqa: BLE001 — resolver opsional, fallback statis aman
-        pass
+    except Exception as exc:  # noqa: BLE001 — resolver opsional, fallback statis aman
+        logger.debug("Kegagalan tak terduga di _vault_db_path: %s", exc)
     return DB_PATH
 
 

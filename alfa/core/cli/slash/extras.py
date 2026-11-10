@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 import subprocess
 import time
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
+
+logger = logging.getLogger(__name__)
 
 
 class SlashExtrasMixin:
@@ -107,8 +110,8 @@ class SlashExtrasMixin:
                 if p.name.startswith(".") or p.name in ("node_modules", "__pycache__", "venv"):
                     continue
                 files.append(f"- {p.name}{'/' if p.is_dir() else ''}")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_init: %s", exc)
 
         content = f"""# {Path.cwd().name}
 

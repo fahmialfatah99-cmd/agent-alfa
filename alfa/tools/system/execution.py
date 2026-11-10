@@ -269,8 +269,8 @@ def execute_bash_command(
                                     proc.kill()
                             except Exception:
                                 proc.kill()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Kegagalan tak terduga di execute_bash_command: %s", exc)
                     try:
                         out, errout = proc.communicate(timeout=5)
                     except Exception:
@@ -497,8 +497,8 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
                                     proc.kill()
                             except Exception:
                                 proc.kill()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Kegagalan tak terduga di execute_python_sandbox: %s", exc)
                     try:
                         out, errout = proc.communicate(timeout=5)
                     except Exception:

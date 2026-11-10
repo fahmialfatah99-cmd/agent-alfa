@@ -836,8 +836,8 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                                     incoming = data.get("incoming", [])
                                                     if incoming:
                                                         return archive_wa_messages_sync(incoming)
-                                        except Exception:
-                                            pass
+                                        except Exception as exc:
+                                            logger.debug("Kegagalan tak terduga di _sync_wa_incoming_bg: %s", exc)
                                         return 0
 
                                     archived_count = await asyncio.to_thread(_sync_wa_incoming_bg)

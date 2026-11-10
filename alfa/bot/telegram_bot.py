@@ -412,8 +412,8 @@ try:
 
     _notification_port.register_send_message(_notify_safe_send)
     _notification_port.register_swarm_templates(_notify_swarm_templates)
-except Exception:  # pragma: no cover — port opsional saat sandingan berubah
-    pass
+except Exception as exc:  # pragma: no cover — port opsional saat sandingan berubah
+    logger.debug("Kegagalan tak terduga di <modul>: %s", exc)
 
 
 if __name__ == "__main__":

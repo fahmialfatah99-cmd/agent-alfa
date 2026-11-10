@@ -39,6 +39,6 @@ def _wa_api(
             parsed = json.loads(err_body)
             if isinstance(parsed, dict) and parsed.get("message"):
                 return {"status": "error", "message": parsed["message"], "code": parsed.get("code", "")}
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _wa_api: %s", exc)
         return {"status": "error", "message": f"WA API tak terjangkau: {type(e).__name__}: {str(e)[:150]}"}

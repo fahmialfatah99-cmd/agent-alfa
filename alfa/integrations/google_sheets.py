@@ -81,8 +81,8 @@ def get_spreadsheet_id() -> str:
             ).fetchone()
             if row and row[0] and str(row[0]).strip():
                 return str(row[0]).strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di get_spreadsheet_id: %s", exc)
 
     env_val = os.getenv("SPREADSHEET_ID", "").strip() or os.getenv("MATERIAL_SPREADSHEET_ID", "").strip()
     if env_val:
@@ -98,8 +98,8 @@ def get_spreadsheet_id() -> str:
                         val = line.split("=", 1)[1].strip().strip('"').strip("'")
                         if val:
                             return val
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di get_spreadsheet_id: %s", exc)
 
     return "1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ"
 
@@ -114,8 +114,8 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
     if "spreadsheets/d/" in clean_id:
         try:
             clean_id = clean_id.split("spreadsheets/d/")[1].split("/")[0]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di set_spreadsheet_id: %s", exc)
 
     if not clean_id or len(clean_id) < 15:
         return {"status": "error", "message": f"Format Spreadsheet ID tidak valid: '{new_id}'"}
@@ -175,8 +175,8 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
     try:
         import subprocess
         subprocess.run(["systemctl", "--user", "restart", "wa-sheets-bot.service"], check=False)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di set_spreadsheet_id: %s", exc)
 
     return {
         "status": "success",
@@ -500,8 +500,8 @@ def record_material_rows(
                     f.seek(0)
                     json.dump(reps[-2000:], f, indent=2)
                     f.truncate()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di record_material_rows: %s", exc)
 
     return {
         "status": "success" if (cloud_synced or local_synced) else "error",
@@ -596,8 +596,8 @@ def parse_and_record_material_text(
             _, api_key, model_name, _, _ = get_agent_api_client({"provider": "gemini"})
             client = genai.Client(api_key=api_key)
             model = model_name or "gemini-2.5-flash"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di parse_and_record_material_text: %s", exc)
 
     if client is None:
         return {"status": "error", "message": "Klien AI Gemini tidak tersedia untuk parsing material."}
@@ -873,8 +873,8 @@ def list_accessible_spreadsheets() -> list[dict[str, Any]]:
                     "source": "Active Config",
                 })
                 seen_ids.add(active_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di list_accessible_spreadsheets: %s", exc)
 
     # 2. Check via Google Drive API
     try:
@@ -918,7 +918,7 @@ def list_accessible_spreadsheets() -> list[dict[str, Any]]:
                             "is_local": True,
                             "size": os.path.getsize(fpath) if os.path.exists(fpath) else 0,
                         })
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di list_accessible_spreadsheets: %s", exc)
 
     return results

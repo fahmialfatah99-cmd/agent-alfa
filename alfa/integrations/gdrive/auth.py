@@ -514,8 +514,8 @@ def _detect_mounted_gdrives() -> list[dict[str, Any]]:
                     "items_count": entries,
                     "active": True,
                 })
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _detect_mounted_gdrives: %s", exc)
     return mounts
 
 

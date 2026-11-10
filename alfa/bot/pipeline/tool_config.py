@@ -85,8 +85,8 @@ def prepare_tools_and_configs(
                     for t in all_tools
                     if getattr(t, "__name__", "") != "spawn_background_subagent"
                 ]
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di prepare_tools_and_configs: %s", exc)
 
     gemini_tools: Any = all_tools
     try:
@@ -113,8 +113,8 @@ def prepare_tools_and_configs(
             _thinking_cfg = types.ThinkingConfig(
                 thinking_level=cast(Any, _thinking_level),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di prepare_tools_and_configs: %s", exc)
 
     _base_kwargs: dict[str, Any] = {
         "system_instruction": system_instruction,

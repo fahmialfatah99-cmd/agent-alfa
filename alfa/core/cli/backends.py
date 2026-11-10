@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from typing import Any
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class ClientBackendsMixin:
@@ -212,8 +215,8 @@ class ClientBackendsMixin:
                                 if delta:
                                     callback(delta)
                                     full_text += delta
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug("Kegagalan tak terduga di _call_openai_compatible: %s", exc)
                 self._record_history(prompt, full_text)
                 return full_text
             else:

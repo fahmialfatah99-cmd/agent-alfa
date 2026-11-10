@@ -71,8 +71,8 @@ def deep_research_topic(topic: str, max_depth: int = 3) -> dict[str, Any]:
                             )
                             if len(sources_data) >= 5:
                                 break
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di deep_research_topic: %s", exc)
                 if len(sources_data) >= 5:
                     break
 

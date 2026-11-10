@@ -1,9 +1,12 @@
 """Slash-command mixin: AI provider, model, and settings commands."""
 
+import logging
 from typing import Any
 
 from alfa.core.cli.constants import Colors, print_status
 from alfa.core.cli.direct_ai import PRESETS, PROVIDERS_CATALOG
+
+logger = logging.getLogger(__name__)
 
 
 class SlashProvidersMixin:
@@ -23,8 +26,8 @@ class SlashProvidersMixin:
 
         try:
             sync_providers_catalog()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_provider: %s", exc)
 
         canonical_providers = [
             "9router",
@@ -92,8 +95,8 @@ class SlashProvidersMixin:
             k_row = database.get_active_api_key_sync(db_prov)
             if k_row and model_name:
                 database.update_api_key_model(k_row["id"], model_name)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di do_slash_provider: %s", exc)
 
         # Also update server config if logged in
         if getattr(self, "session_token", None):

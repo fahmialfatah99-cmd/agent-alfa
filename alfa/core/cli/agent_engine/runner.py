@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,8 @@ from alfa.core.cli.agent_engine.prompts import (
 from alfa.core.cli.agent_engine.repomap import RepomapGenerator
 from alfa.core.cli.agent_engine.reporting import RunReporterMixin
 from alfa.core.cli.agent_engine.tool_registry import LocalToolRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixin):
@@ -329,8 +332,8 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
                         file_previews.append(
                             f"--- BERKAS: {f.name} ({f.stat().st_size} bytes) ---\n{content_snip}"
                         )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _run_loop: %s", exc)
 
             proactive_info = (
                 f"[Sistem Lokal: Output real-time list_directory('.')]:\n{dir_listing}"

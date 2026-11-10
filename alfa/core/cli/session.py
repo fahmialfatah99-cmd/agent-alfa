@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import platform
 import sys
@@ -22,6 +23,8 @@ from alfa.core.cli.constants import (
     Colors,
     print_status,
 )
+
+logger = logging.getLogger(__name__)
 
 if READLINE_AVAILABLE:
     import readline
@@ -99,8 +102,8 @@ class CliSessionMixin:
             return
         try:
             readline.write_history_file(HISTORY_FILE)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _save_history: %s", exc)
 
     def _load_config(self):
         """Load user configuration from file."""
@@ -108,8 +111,8 @@ class CliSessionMixin:
             try:
                 with open(CONFIG_FILE) as f:
                     return json.load(f)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _load_config: %s", exc)
         return {
             "theme": "default",
             "streaming": False,
@@ -177,8 +180,8 @@ class CliSessionMixin:
         if SESSION_FILE.exists():
             try:
                 SESSION_FILE.unlink()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _clear_session: %s", exc)
 
     def _update_prompt(self):
         direct = getattr(self, "direct_ai", None)

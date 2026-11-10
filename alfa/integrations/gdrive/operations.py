@@ -1,5 +1,6 @@
 """Google Drive file upload, download, folder creation, and Second Brain sync."""
 
+import logging
 import os
 from typing import Any
 
@@ -9,6 +10,8 @@ from alfa.integrations.gdrive.auth import (
     _get_default_gdrive_folder_id,
     _get_gdrive_service,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def gdrive_list_files(
@@ -151,8 +154,8 @@ def gdrive_upload_file(
                 body={"role": "reader", "type": "anyone"},
                 supportsAllDrives=True,
             ).execute()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di gdrive_upload_file: %s", exc)
 
         return {
             "status": "success",

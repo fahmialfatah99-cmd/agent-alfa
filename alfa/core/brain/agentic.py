@@ -376,8 +376,8 @@ async def run_openai_agentic_turn(
                                 cooldown_seconds=delay,
                                 reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
                             )
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Kegagalan tak terduga di run_openai_agentic_turn: %s", exc)
                     if raw_errors:
                         return None  # pemanggil swarm: teruskan ke fallback provider
                     if res.status_code == 402:
@@ -764,8 +764,8 @@ async def run_openai_agentic_turn_streaming(
                                         cooldown_seconds=delay,
                                         reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
                                     )
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    logger.debug("Kegagalan tak terduga di run_openai_agentic_turn_streaming: %s", exc)
                             # fallback if streaming completely fails at connection
                             raise Exception(f"HTTP {res.status_code}")
 

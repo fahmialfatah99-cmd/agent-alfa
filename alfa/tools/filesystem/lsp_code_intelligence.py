@@ -93,15 +93,15 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
                                 if arg.annotation:
                                     try:
                                         a_str += f": {ast.unparse(arg.annotation)}"
-                                    except Exception:
-                                        pass
+                                    except Exception as exc:
+                                        logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
                                 args_list.append(a_str)
                             ret_str = ""
                             if node.returns:
                                 try:
                                     ret_str = f" -> {ast.unparse(node.returns)}"
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
                             sig = f"({', '.join(args_list)}){ret_str}"
 
                         rel_path = os.path.relpath(fpath, root)
@@ -157,8 +157,8 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
                                 "snippet": chr(10).join(snippet_lines),
                             }
                         )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
 
     return {
         "status": "success",
@@ -312,8 +312,8 @@ def lsp_analyze_module_hierarchy(
                 for b in node.bases:
                     try:
                         bases.append(ast.unparse(b))
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Kegagalan tak terduga di lsp_analyze_module_hierarchy: %s", exc)
                 methods = []
                 for item in node.body:
                     if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):

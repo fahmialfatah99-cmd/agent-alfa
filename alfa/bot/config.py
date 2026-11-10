@@ -248,15 +248,15 @@ def _main_brain_gemini_model() -> str:
         override = database.get_main_brain_model()
         if override:
             return override.strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _main_brain_gemini_model: %s", exc)
     try:
         active = database.get_active_api_key_sync("gemini")
         m = (active or {}).get("default_model")
         if m and str(m).strip():
             return str(m).strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _main_brain_gemini_model: %s", exc)
     return GEMINI_MODEL
 
 

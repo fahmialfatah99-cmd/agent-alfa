@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import threading
@@ -11,6 +12,8 @@ from fastapi import APIRouter, HTTPException, Request
 from alfa import tools
 from alfa.dashboard.common import REPO_ROOT
 from alfa.dashboard.routes.auth import require_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -333,8 +336,8 @@ async def clean_ram(request: Request):
     try:
         libc = ctypes.CDLL("libc.so.6")
         libc.malloc_trim(0)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di clean_ram: %s", exc)
 
     ram = psutil.virtual_memory()
     return {

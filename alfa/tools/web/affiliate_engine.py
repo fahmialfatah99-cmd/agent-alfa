@@ -511,7 +511,7 @@ def get_affiliate_campaign_detail(campaign_id: int) -> dict[str, Any] | None:
             data["spill_link_templates"] = json.loads(
                 data.get("spill_link_templates", "[]")
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di get_affiliate_campaign_detail: %s", exc)
         return data
     return None

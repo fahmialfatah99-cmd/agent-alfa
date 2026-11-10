@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import cmd
 import getpass
+import logging
 import os
 import subprocess
 import sys
@@ -37,6 +38,8 @@ from alfa.core.cli.direct_ai import (
     DirectAIClient,
 )
 from alfa.core.cli.session import CliSessionMixin
+
+logger = logging.getLogger(__name__)
 
 
 class AlfaCLI(CliSessionMixin, CliCommandsMixin, CliChatMixin, cmd.Cmd):
@@ -231,8 +234,8 @@ def run_config_wizard() -> None:
                 new_lines.append(f"{api_key_env}={new_key}")
             env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             print_status("Kunci tersimpan juga ke .env", "success")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di run_config_wizard: %s", exc)
 
     # Sinkronkan ke Database SQLite Web Vault (agent_data.db)
     try:
@@ -253,8 +256,8 @@ def run_config_wizard() -> None:
             print_status(
                 "API Key berhasil disinkronkan ke Web Dashboard Vault!", "success"
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di run_config_wizard: %s", exc)
 
     print_status("Konfigurasi berhasil disimpan!", "success")
     print(

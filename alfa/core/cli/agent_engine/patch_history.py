@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # 1. PATCH HISTORY & ROLLBACK MANAGER
@@ -37,16 +40,16 @@ class PatchHistoryManager:
         if not self.journal_file.exists():
             try:
                 self.journal_file.write_text("[]", encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _ensure_dirs: %s", exc)
 
     def _load_journal(self) -> list[dict[str, Any]]:
         try:
             if self.journal_file.exists():
                 data = json.loads(self.journal_file.read_text(encoding="utf-8"))
                 return data if isinstance(data, list) else []
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _load_journal: %s", exc)
         return []
 
     def _save_journal(self, entries: list[dict[str, Any]]) -> None:
@@ -54,8 +57,8 @@ class PatchHistoryManager:
             self.journal_file.write_text(
                 json.dumps(entries, indent=2), encoding="utf-8"
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _save_journal: %s", exc)
 
     def record_patch(
         self,
@@ -74,8 +77,8 @@ class PatchHistoryManager:
 
         try:
             backup_path.write_text(old_content, encoding="utf-8", errors="replace")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di record_patch: %s", exc)
 
         # Calculate line diff summary
         old_lines = len(old_content.splitlines())

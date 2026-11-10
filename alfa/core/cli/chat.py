@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
 from typing import Any
@@ -15,6 +16,8 @@ from alfa.core.cli.constants import (
     Spinner,
     print_status,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _contains_tool_call(text: str) -> bool:
@@ -353,8 +356,8 @@ class CliChatMixin:
                                     token = chunk_data.get("token", "")
                                     full_response += token
                                     print(token, end="", flush=True)
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    logger.debug("Kegagalan tak terduga di _chat_via_server: %s", exc)
                         print()
                         self.chat_history.append({"role": "user", "content": message})
                         self.chat_history.append(
@@ -423,8 +426,8 @@ class CliChatMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _run_swarm_execution: %s", exc)
 
         active_agents = [a for a in agents if a.get("is_enabled", 1)]
         if not active_agents:

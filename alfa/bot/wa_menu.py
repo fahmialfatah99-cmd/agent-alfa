@@ -92,12 +92,12 @@ async def _edit_or_send(
             try:
                 await query.edit_message_text(text=text, reply_markup=markup)
                 return
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _edit_or_send: %s", exc)
     except RetryAfter:
         return
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _edit_or_send: %s", exc)
     try:
         await context.bot.send_message(chat_id=chat_id, text=cleaned, reply_markup=markup, parse_mode="Markdown")
     except Exception:
@@ -335,8 +335,8 @@ async def render_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 [InlineKeyboardButton("🌐 Buka Web Dashboard", url=dash_url)],
             )
             kb = InlineKeyboardMarkup(rows)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di render_home: %s", exc)
     if query is not None:
         await _edit_or_send(query, context, chat_id, text, kb)
     else:

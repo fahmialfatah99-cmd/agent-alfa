@@ -237,8 +237,8 @@ def _record(
             args_json,
             rt,
         )
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Kegagalan tak terduga di _record: %s", exc)
     # Hanya keputusan manusia EKSPLISIT yang mengubah trust. Auto-approve
     # tidak pernah menambah skor — kalau tidak, satu tool LOW yang
     # auto-lolos akan menaikkan trust ke 1.0 dan membuka tool CRITICAL.
@@ -253,8 +253,8 @@ def _record(
             update_trust_score(
                 int(chat_id), was_safe=(tier == RiskTier.LOW), response_time=rt
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Kegagalan tak terduga di _record: %s", exc)
     elif decision == "deny":
         # Penolakan eksplisit menurunkan trust tier tsb (bukan sistem deny).
         try:
@@ -264,8 +264,8 @@ def _record(
                 was_safe=False,
                 response_time=rt,
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Kegagalan tak terduga di _record: %s", exc)
 
 
 async def request_approval(

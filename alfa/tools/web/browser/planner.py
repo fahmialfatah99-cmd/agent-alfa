@@ -115,8 +115,8 @@ def _parse_json_obj(text: str) -> dict[str, Any] | None:
     try:
         obj = json.loads(t)
         return obj if isinstance(obj, dict) else None
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Kegagalan tak terduga di _parse_json_obj: %s", exc)
     m = re.search(r"\{.*\}", t, re.DOTALL)
     if m:
         try:

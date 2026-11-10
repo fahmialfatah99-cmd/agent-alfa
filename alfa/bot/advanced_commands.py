@@ -996,8 +996,8 @@ async def rapat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             export_meeting_report_files({**result, "topic": topic})
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di rapat_command: %s", exc)
 
         transcript = result.get("dialogue_transcript", [])
         dialogue_text = "🗣️ **Transkrip Diskusi Antar Agent:**\n\n"

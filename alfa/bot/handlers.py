@@ -87,8 +87,8 @@ def _get_bot_module():
         try:
             import importlib
             return importlib.import_module("alfa.bot.telegram_bot")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _get_bot_module: %s", exc)
     return sys.modules.get("alfa.bot.telegram_bot")
 
 
@@ -273,8 +273,8 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                                     f"[SPREADSHEET EXCEL: {file_name}]\n"
                                 )
                                 txt_ctx = f"{path_hdr}\n{fresh_excel}".strip()
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Kegagalan tak terduga di _get_or_recover_recent_doc: %s", exc)
                 elif m_tag:
                     file_name = m_tag.group(1).strip()
 
@@ -301,8 +301,8 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
         if conn is not None:
             try:
                 conn.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Kegagalan tak terduga di _get_or_recover_recent_doc: %s", exc)
 
     return None
 
@@ -739,8 +739,8 @@ async def handle_forward_action_callback(
             del_res = status_msg.delete()
             if asyncio.iscoroutine(del_res):
                 await del_res
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di handle_forward_action_callback: %s", exc)
 
     await safe_send_message(context, chat_id, reply)
     await _check_and_send_media_artifacts(
@@ -1228,8 +1228,8 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
                                 document=df,
                                 filename=os.path.basename(fp),
                             )
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("Kegagalan tak terduga di _dispatch_menu_callback: %s", exc)
 
     elif data in ("btn_agents", "btn_tools", "btn_pipeline", "btn_tasks"):
         if data == "btn_agents":
@@ -2080,8 +2080,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 request_cancel_swarm()
                 try:
                     await reporter.stop("⏹ Misi dibatalkan pengguna.")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di handle_text_message: %s", exc)
                 logger.info(f"[handle_text:swarm] Swarm task untuk chat_id={chat_id} dibatalkan pengguna.")
                 # Notifikasi user DULU, baru teruskan cancellation (kontrak asyncio:
                 # CancelledError harus diteruskan, tidak ditelan).
@@ -2091,8 +2091,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                         chat_id,
                         "⏹ **Misi swarm telah dihentikan atas permintaan Anda.**",
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Kegagalan tak terduga di handle_text_message: %s", exc)
                 raise
             except _HANDLER_ERR as e:
                 logger.error(f"[handle_text:swarm] gagal untuk {user_id}: {e}", exc_info=True)

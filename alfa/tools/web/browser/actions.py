@@ -56,8 +56,8 @@ def browser_open_url(url: str) -> dict[str, Any]:
             if res.get("status") == "success":
                 return res
             logger.info("REST tak tersedia (%s) -> embedded.", res.get("message"))
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Kegagalan tak terduga di browser_open_url: %s", exc)
     try:
         with _LOCK:
             page = _ensure_page()
@@ -65,8 +65,8 @@ def browser_open_url(url: str) -> dict[str, Any]:
                 page.goto(target, wait_until="domcontentloaded", timeout=45000)
                 try:
                     page.wait_for_timeout(600)
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("Kegagalan tak terduga di browser_open_url: %s", exc)
                 elements, desc = _snapshot(page)
                 _STATE["elements"] = elements
                 return {

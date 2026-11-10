@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class RunReporterMixin:
@@ -35,8 +38,8 @@ class RunReporterMixin:
         done = []
         try:
             done = [t for t in self.tools.todos.list() if t.get("done")]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Kegagalan tak terduga di _build_execution_report: %s", exc)
         lines = [
             "## ⚙️ Laporan Eksekusi (tanpa Final Answer model)",
             "",

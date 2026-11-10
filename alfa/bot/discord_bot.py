@@ -202,8 +202,8 @@ def _get_discord_cmd_ctx(user_id: int | None = None) -> dict:
         uid = get_current_user_id()
         if uid and int(uid) in _DISCORD_CMD_CTX:
             return _DISCORD_CMD_CTX[int(uid)]
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Kegagalan tak terduga di _get_discord_cmd_ctx: %s", exc)
     return _DISCORD_CTX_LAST
 
 
