@@ -1,172 +1,12 @@
-"""
-Ecosystem and productivity integration tools for ALFA.
-Includes reminders, focus sessions, password generation, WhatsApp bot, Android (ADB/scrcpy), and database queries.
-"""
-
+"""Jembatan API bot WhatsApp (chat, pesan, arsip, format, status)."""
 import json
 import logging
-import math
 import os
-import secrets
-import shutil
-import sqlite3
-import string
-import subprocess
-import time
-import urllib.parse
-import urllib.request
 from typing import Any
 
-from alfa.core import database
-from alfa.core.runtime_ctx import get_current_chat_id, get_current_user_id
 from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Integrations")
-
-
-@register_tool(category="system")
-def schedule_reminder(reminder_time_iso: str, message: str) -> dict[str, Any]:
-    """
-    Schedule a future proactive reminder or alert that the bot will send directly to Telegram.
-
-    Args:
-        reminder_time_iso: The target time in ISO format (YYYY-MM-DDTHH:MM:SS), e.g. '2026-08-19T08:00:00'.
-        message: The reminder message content.
-    """
-    try:
-        user_id = get_current_user_id()
-        chat_id = get_current_chat_id()
-        rem_id = database.add_reminder_sync(
-            user_id=user_id,
-            chat_id=chat_id,
-            reminder_time_iso=reminder_time_iso,
-            message=message,
-        )
-        return {
-            "status": "success",
-            "reminder_id": rem_id,
-            "message": f"Pengingat #{rem_id} berhasil dijadwalkan pada {reminder_time_iso}: '{message}'",
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-@register_tool(category="system")
-def generate_secure_password(
-    length: int = 20,
-    include_uppercase: bool = True,
-    include_digits: bool = True,
-    include_special: bool = True,
-    count: int = 1,
-) -> dict[str, Any]:
-    """
-    Generate one or more cryptographically secure random passwords.
-
-    Args:
-        length: Password length (8-128 characters, default: 20).
-        include_uppercase: Include uppercase letters (default: True).
-        include_digits: Include digits (default: True).
-        include_special: Include special characters !@#$%^&* (default: True).
-        count: Number of passwords to generate (1-10, default: 1).
-    """
-    try:
-        length = max(8, min(128, length))
-        count = max(1, min(10, count))
-
-        chars = string.ascii_lowercase
-        if include_uppercase:
-            chars += string.ascii_uppercase
-        if include_digits:
-            chars += string.digits
-        if include_special:
-            chars += "!@#$%^&*_+-=?."
-
-        passwords = []
-        for _ in range(count):
-            pw = "".join(secrets.choice(chars) for _ in range(length))
-            passwords.append(pw)
-
-        # Calculate entropy
-        entropy = round(math.log2(len(chars)) * length, 1)
-        strength = (
-            "Sangat Kuat 🟢"
-            if entropy > 80
-            else (
-                "Kuat 🔵"
-                if entropy > 60
-                else "Cukup 🟡"
-                if entropy > 40
-                else "Lemah 🔴"
-            )
-        )
-
-        return {
-            "status": "success",
-            "passwords": passwords,
-            "length": length,
-            "entropy_bits": entropy,
-            "strength": strength,
-            "charset_size": len(chars),
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-@register_tool(category="system")
-def start_focus_session(
-    title: str, duration_minutes: int = 25, notes: str = ""
-) -> dict[str, Any]:
-    """
-    GOD MODE: Focus & Pomodoro Productivity Session.
-    Starts a deep work focus session with automatic timer, records target end time,
-    and schedules an automatic Telegram completion alert.
-
-    Args:
-        title: Title/objective of the focus session (e.g. 'Code Review Backend', 'Menulis Laporan').
-        duration_minutes: Duration in minutes (default: 25).
-        notes: Optional extra notes for the session.
-    """
-    uid = get_current_user_id()
-    cid = get_current_chat_id()
-    if not uid:
-        return {"status": "error", "message": "User context tidak ditemukan."}
-    res = database.start_focus_session_sync(uid, cid, title, duration_minutes, notes)
-    return {
-        "status": "success",
-        "message": f"🎯 Sesi fokus '{title}' ({duration_minutes} menit) dimulai! Berakhir pada: {res['end_time']}. Bot akan mengirim notifikasi saat waktu habis.",
-        "session_details": res,
-    }
-
-
-WA_BOT_URL = os.getenv("WA_BOT_URL", "http://127.0.0.1:3000")
-
-
-def _wa_api(method: str, path: str, params: dict | None = None, body: dict | None = None) -> dict[str, Any]:
-    """Panggil HTTP API wa-sheets-bot lokal. Return dict JSON (status success/error)."""
-    try:
-        url = WA_BOT_URL.rstrip("/") + path
-        if params:
-            url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
-        data = None
-        headers = {}
-        if body is not None:
-            data = json.dumps(body).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
-        with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 - localhost only
-            res_data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
-            return res_data
-    except Exception as e:
-        err_body = ""
-        try:
-            err_body = e.read().decode("utf-8")  # type: ignore[attr-defined]
-            parsed = json.loads(err_body)
-            if isinstance(parsed, dict) and parsed.get("message"):
-                return {"status": "error", "message": parsed["message"], "code": parsed.get("code", "")}
-        except Exception:
-            pass
-        return {"status": "error", "message": f"WA API tak terjangkau: {type(e).__name__}: {str(e)[:150]}"}
-
 
 @register_tool(category="system")
 def wa_get_chats(
@@ -188,8 +28,8 @@ def wa_get_chats(
     """
     needs_client_filtering = only_unreplied or (chat_type in ("personal", "group")) or bool(search)
     fetch_limit = min(50, max(limit * 3, 40)) if needs_client_filtering else limit
-    res = _wa_api("GET", "/api/chats", {"limit": fetch_limit, "unread": "1" if only_unread else "0"})
-    
+    res = _wa_call("GET", "/api/chats", {"limit": fetch_limit, "unread": "1" if only_unread else "0"})
+
     if isinstance(res, dict) and res.get("status") == "success":
         chats = res.get("chats", [])
         if isinstance(chats, list):
@@ -204,7 +44,7 @@ def wa_get_chats(
             if search:
                 s_low = search.lower().strip()
                 chats = [c for c in chats if s_low in str(c.get("name") or "").lower() or s_low in str(c.get("id") or "").lower()]
-            
+
             res["chats"] = chats[:limit]
             res["total"] = len(res["chats"])
             res["filter_applied"] = {
@@ -214,7 +54,6 @@ def wa_get_chats(
                 "search": search,
             }
     return res
-
 
 @register_tool(category="system")
 def wa_get_messages(
@@ -244,7 +83,7 @@ def wa_get_messages(
     params: dict[str, Any] = {"chat": chat, "limit": fetch_limit}
     if mark_as_seen:
         params["mark_seen"] = "1"
-    res = _wa_api("GET", "/api/messages", params)
+    res = _wa_call("GET", "/api/messages", params)
     if isinstance(res, dict) and res.get("status") == "success":
         msgs = res.get("messages", [])
         if isinstance(msgs, list):
@@ -297,7 +136,6 @@ def wa_get_messages(
             res["unread_count"] = unread_count
     return res
 
-
 @register_tool(category="system")
 def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any]:
     """
@@ -317,7 +155,7 @@ def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any
 
     live_hits: list[dict[str, Any]] = []
     if search_live_wa:
-        res = _wa_api("GET", "/api/search", {"q": query})
+        res = _wa_call("GET", "/api/search", {"q": query})
         if isinstance(res, dict) and res.get("status") == "success":
             live_hits = res.get("hits", []) or []
 
@@ -337,7 +175,6 @@ def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any
         "live_wa_hits": len(live_hits),
         "hits": combined[:30],
     }
-
 
 @register_tool(category="system")
 def wa_get_history_archive(chat: str = "", query: str = "", sender: str = "", limit: int = 20) -> dict[str, Any]:
@@ -367,7 +204,6 @@ def wa_get_history_archive(chat: str = "", query: str = "", sender: str = "", li
     except Exception as e:
         return {"status": "error", "message": f"Gagal membaca arsip WA: {e}"}
 
-
 @register_tool(category="system")
 def wa_get_incoming(
     limit: int = 20,
@@ -391,7 +227,7 @@ def wa_get_incoming(
         only_group: True = HANYA ambil pesan dari GRUP WhatsApp (abaikan chat pribadi). Gunakan saat user menanyakan pesan/obrolan grup.
     """
     fetch_limit = max(limit, 250) if only_unread else limit
-    res = _wa_api("GET", "/api/incoming", {"limit": fetch_limit})
+    res = _wa_call("GET", "/api/incoming", {"limit": fetch_limit})
     if isinstance(res, dict) and "incoming" in res and isinstance(res["incoming"], list):
         client_status = str(res.get("client_status") or "").upper()
         is_offline = (res.get("is_ready") is False) or (client_status in ("QR_READY", "INITIALIZING", "DISCONNECTED"))
@@ -533,7 +369,6 @@ def wa_get_incoming(
             res["note"] = "Semua pesan di atas adalah RIWAYAT PESAN LAMA yang SUDAH DIBACA sebelumnya. Tidak ada pesan baru."
     return res
 
-
 @register_tool(category="system")
 def wa_clear_history(
     target: str = "incoming",
@@ -554,7 +389,7 @@ def wa_clear_history(
 
     # 1. Clear incoming buffer via WA API
     try:
-        api_res = _wa_api("POST", "/api/incoming/clear")
+        api_res = _wa_call("POST", "/api/incoming/clear")
         if isinstance(api_res, dict) and api_res.get("status") == "success":
             results["cleared_targets"].append("buffer_incoming_api")
     except Exception as e:
@@ -563,7 +398,8 @@ def wa_clear_history(
     # Fallback/Direct disk clear of recent_incoming.json
     try:
         wa_bot_incoming_file = os.getenv(
-            "WA_BOT_INCOMING_FILE", "/home/fahmial/wa-sheets-bot/recent_incoming.json"
+            "WA_BOT_INCOMING_FILE",
+            os.path.expanduser("~/wa-sheets-bot/recent_incoming.json"),
         )
         if os.path.exists(wa_bot_incoming_file):
             with open(wa_bot_incoming_file, "w", encoding="utf-8") as f:
@@ -597,7 +433,6 @@ def wa_clear_history(
     results["message"] = "Riwayat pesan WhatsApp berhasil dibersihkan/dikosongkan."
     return results
 
-
 @register_tool(category="system")
 def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False) -> dict[str, Any]:
     """
@@ -625,7 +460,7 @@ def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False
 
     wa_result: dict[str, Any] = {}
     if send_seen_to_wa and chat:
-        wa_result = _wa_api("POST", "/api/seen", body={"chat": chat})
+        wa_result = _wa_call("POST", "/api/seen", body={"chat": chat})
 
     return {
         "status": "success",
@@ -635,12 +470,10 @@ def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False
         "wa_seen_result": wa_result,
     }
 
-
 @register_tool(category="system")
 def wa_get_me() -> dict[str, Any]:
     """Info akun WhatsApp yang login di bot (nama, nomor)."""
-    return _wa_api("GET", "/api/me")
-
+    return _wa_call("GET", "/api/me")
 
 @register_tool(category="system")
 def wa_send_message(to: str, message: str) -> dict[str, Any]:
@@ -651,8 +484,7 @@ def wa_send_message(to: str, message: str) -> dict[str, Any]:
         to: Nomor ('62812xxx'/'0812xxx'), nama grup, atau JID ('xxx@c.us'/'xxx@g.us').
         message: Isi pesan (max 2000 karakter).
     """
-    return _wa_api("POST", "/api/send", body={"to": to, "message": message})
-
+    return _wa_call("POST", "/api/send", body={"to": to, "message": message})
 
 @register_tool(category="system")
 def wa_post_status(text: str, background_color: str = "") -> dict[str, Any]:
@@ -666,14 +498,12 @@ def wa_post_status(text: str, background_color: str = "") -> dict[str, Any]:
     body: dict[str, Any] = {"text": text}
     if background_color:
         body["backgroundColor"] = background_color
-    return _wa_api("POST", "/api/status", body=body)
-
+    return _wa_call("POST", "/api/status", body=body)
 
 @register_tool(category="system")
 def wa_list_formats() -> dict[str, Any]:
     """Daftar format pencatatan WA otomatis (keyword → tab Sheets, on/off)."""
-    return _wa_api("GET", "/api/formats")
-
+    return _wa_call("GET", "/api/formats")
 
 @register_tool(category="system")
 def wa_toggle_format(name: str, enabled: bool = True) -> dict[str, Any]:
@@ -684,8 +514,7 @@ def wa_toggle_format(name: str, enabled: bool = True) -> dict[str, Any]:
         name: Nama format (mis. 'Stok', 'TJHIN').
         enabled: True = catat otomatis, False = abaikan.
     """
-    return _wa_api("POST", "/api/formats/toggle", body={"name": name, "enabled": enabled})
-
+    return _wa_call("POST", "/api/formats/toggle", body={"name": name, "enabled": enabled})
 
 @register_tool(category="system")
 def wa_add_format(name: str, keywords: str = "", tab: str = "") -> dict[str, Any]:
@@ -698,8 +527,7 @@ def wa_add_format(name: str, keywords: str = "", tab: str = "") -> dict[str, Any
         tab: Nama tab Sheets tujuan (default = nama format).
     """
     kws = [k.strip() for k in keywords.split(",") if k.strip()]
-    return _wa_api("POST", "/api/formats", body={"name": name, "keywords": kws, "tab": tab or name})
-
+    return _wa_call("POST", "/api/formats", body={"name": name, "keywords": kws, "tab": tab or name})
 
 @register_tool(category="system")
 def wa_delete_format(name: str) -> dict[str, Any]:
@@ -709,8 +537,7 @@ def wa_delete_format(name: str) -> dict[str, Any]:
     Args:
         name: Nama format yang dihapus.
     """
-    return _wa_api("DELETE", "/api/formats", body={"name": name})
-
+    return _wa_call("DELETE", "/api/formats", body={"name": name})
 
 @register_tool(category="system")
 def wa_get_records(report_format: str = "", limit: int = 10) -> dict[str, Any]:
@@ -721,342 +548,16 @@ def wa_get_records(report_format: str = "", limit: int = 10) -> dict[str, Any]:
         report_format: Filter nama format (kosongkan = semua).
         limit: Jumlah catatan (1-50, default 10).
     """
-    return _wa_api("GET", "/api/records", {"format": report_format, "limit": limit})
+    return _wa_call("GET", "/api/records", {"format": report_format, "limit": limit})
 
 
-@register_tool(category="system")
-def manage_wa_sheets_bot(action: str = "status") -> dict[str, Any]:
+def _wa_call(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Panggil API bot WA lewat paket publik.
+
+    Lookup dilakukan dinamis supaya patch/mock pada
+    ``alfa.tools.system.integrations._wa_api`` tetap berlaku. Argumen
+    diteruskan apa adanya agar call signature mock tetap identik.
     """
-    ECOSYSTEM INTEGRATION: WhatsApp Google Sheets Bot Controller.
-    Controls and monitors the wa-sheets-bot systemd user service.
-    Can check status, start, stop, restart, enable auto-start, or view live logs.
+    from alfa.tools.system import integrations as _pkg
 
-    Args:
-        action: 'status' (check running state & memory), 'start', 'stop', 'restart', 'logs' (recent 20 lines), 'enable' (enable autostart on boot).
-    """
-    try:
-        act = action.lower().strip()
-        svc_name = "wa-sheets-bot.service"
-
-        if act == "status":
-            res_active = subprocess.run(
-                ["systemctl", "--user", "is-active", svc_name],
-                capture_output=True,
-                text=True,
-            )
-            res_enabled = subprocess.run(
-                ["systemctl", "--user", "is-enabled", svc_name],
-                capture_output=True,
-                text=True,
-            )
-            res_status = subprocess.run(
-                ["systemctl", "--user", "status", svc_name, "--no-pager", "-n", "5"],
-                capture_output=True,
-                text=True,
-            )
-
-            is_act = res_active.stdout.strip() == "active"
-            return {
-                "status": "success",
-                "service": svc_name,
-                "is_running": is_act,
-                "state": res_active.stdout.strip(),
-                "enabled_on_boot": res_enabled.stdout.strip() == "enabled",
-                "details": res_status.stdout.strip(),
-            }
-
-        elif act in ["start", "stop", "restart", "enable", "disable"]:
-            res = subprocess.run(
-                ["systemctl", "--user", act, svc_name], capture_output=True, text=True
-            )
-            if res.returncode == 0:
-                time.sleep(1)
-                res_active = subprocess.run(
-                    ["systemctl", "--user", "is-active", svc_name],
-                    capture_output=True,
-                    text=True,
-                )
-                return {
-                    "status": "success",
-                    "message": f"Service '{svc_name}' berhasil di-{act}! Status saat ini: {res_active.stdout.strip()}.",
-                    "current_state": res_active.stdout.strip(),
-                }
-            return {
-                "status": "error",
-                "message": f"Gagal mengeksekusi {act}: {res.stderr}",
-            }
-
-        elif act == "logs":
-            res_logs = subprocess.run(
-                ["journalctl", "--user", "-u", svc_name, "-n", "25", "--no-pager"],
-                capture_output=True,
-                text=True,
-            )
-            return {
-                "status": "success",
-                "service": svc_name,
-                "logs": res_logs.stdout.strip(),
-            }
-
-        return {
-            "status": "error",
-            "message": f"Aksi '{action}' tidak dikenal. Gunakan: status, start, stop, restart, logs, enable.",
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Manage wa-sheets-bot error: {str(e)}"}
-
-
-@register_tool(category="system")
-def list_wa_drive_uploads(limit: int = 20) -> dict[str, Any]:
-    """
-    Daftar berkas (foto/PDF/dokumen) yang otomatis diunggah dari WhatsApp ke Google Drive.
-
-    Args:
-        limit: Jumlah maksimal entri terbaru (default 20).
-    """
-    try:
-        path = os.path.expanduser("~/wa-sheets-bot/drive_uploads.json")
-        if not os.path.exists(path):
-            return {
-                "status": "success",
-                "total": 0,
-                "message": "Belum ada berkas WA yang terunggah ke Drive.",
-                "uploads": [],
-            }
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        uploads = (data.get("uploads") or [])[: max(1, min(int(limit), 100))]
-        compact = [
-            {
-                "waktu": u.get("ts"),
-                "nama_file": u.get("file_name"),
-                "folder": u.get("folder"),
-                "pengirim": u.get("sender"),
-                "grup": u.get("group"),
-                "link": u.get("web_link"),
-            }
-            for u in uploads
-        ]
-        return {
-            "status": "success",
-            "total": len(uploads),
-            "message": f"{len(uploads)} berkas WA terakhir di Drive.",
-            "uploads": compact,
-        }
-    except Exception as e:
-        return {"status": "error", "message": f"Gagal membaca log unggahan: {str(e)}"}
-
-
-@register_tool(category="system")
-def scrcpy_android_control(
-    action: str = "status",
-    device_id: str = "",
-    command_or_key: str = "",
-    capture_screenshot: bool = True,
-) -> dict[str, Any]:
-    """
-    SCRCPY & ADB ANDROID ENGINE: Control Android smartphones/tablets via USB or Wi-Fi.
-    Allows screen capture, sending keyevents, touch taps, app launches, and desktop screen mirroring.
-
-    Args:
-        action: 'status' (list devices), 'screenshot' (save screen PNG), 'key' (send HOME/BACK/ENTER),
-                'tap' (tap X Y coordinates), 'swipe' (swipe X1 Y1 X2 Y2), 'launch_app' (open app package), 'mirror' (open scrcpy window).
-        device_id: Optional specific Android device serial (from adb devices).
-        command_or_key: Key name or coordinates (e.g. 'BACK', 'HOME', '500 800' for tap, 'com.whatsapp' for launch_app).
-        capture_screenshot: If True, takes a fresh screenshot after performing the action.
-    """
-    adb_bin = shutil.which("adb") or "adb"
-    scrcpy_bin = shutil.which("scrcpy")
-
-    if not adb_bin and not scrcpy_bin:
-        return {
-            "status": "error",
-            "message": "ADB / Scrcpy belum terpasang di sistem. Untuk mengaktifkan kontrol Android, jalankan: 'sudo apt install -y scrcpy adb' (Linux), 'brew install scrcpy' (macOS), atau 'winget install scrcpy' (Windows).",
-        }
-
-    dev_flag: list[str] = ["-s", device_id] if device_id else []
-
-    try:
-        if action == "status":
-            res = subprocess.run(
-                [adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=5
-            )
-            return {
-                "status": "success",
-                "raw_devices_output": res.stdout.strip(),
-                "adb_path": adb_bin,
-                "scrcpy_path": scrcpy_bin,
-            }
-
-        elif action == "screenshot":
-            out_dir = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS")
-            os.makedirs(out_dir, exist_ok=True)
-            shot_file = os.path.join(out_dir, f"android_screen_{int(time.time())}.png")
-            with open(shot_file, "wb") as f:
-                subprocess.run(
-                    [adb_bin] + dev_flag + ["exec-out", "screencap", "-p"],
-                    stdout=f,
-                    timeout=10,
-                )
-            return {
-                "status": "success",
-                "screenshot_file": shot_file,
-                "file_size": (
-                    os.path.getsize(shot_file) if os.path.exists(shot_file) else 0
-                ),
-            }
-
-        elif action == "key":
-            key_map = {
-                "HOME": "3",
-                "BACK": "4",
-                "CALL": "5",
-                "ENDCALL": "6",
-                "ENTER": "66",
-                "DELETE": "67",
-                "TAB": "61",
-                "SPACE": "62",
-                "VOLUME_UP": "24",
-                "VOLUME_DOWN": "25",
-                "POWER": "26",
-                "CAMERA": "27",
-            }
-            keycode = key_map.get(command_or_key.upper(), command_or_key)
-            subprocess.run(
-                [adb_bin] + dev_flag + ["shell", "input", "keyevent", keycode],
-                capture_output=True,
-                timeout=5,
-            )
-            return {"status": "success", "action": "key", "sent_key": command_or_key}
-
-        elif action == "tap":
-            coords = command_or_key.split()
-            if len(coords) < 2:
-                return {
-                    "status": "error",
-                    "message": "Koordinat tap harus berupa 'X Y' (contoh: '500 800')",
-                }
-            subprocess.run(
-                [adb_bin] + dev_flag + ["shell", "input", "tap", coords[0], coords[1]],
-                capture_output=True,
-                timeout=5,
-            )
-            return {"status": "success", "action": "tap", "coords": coords[:2]}
-
-        elif action == "launch_app":
-            subprocess.run(
-                [adb_bin]
-                + dev_flag
-                + [
-                    "shell",
-                    "monkey",
-                    "-p",
-                    command_or_key,
-                    "-c",
-                    "android.intent.category.LAUNCHER",
-                    "1",
-                ],
-                capture_output=True,
-                timeout=5,
-            )
-            return {
-                "status": "success",
-                "action": "launch_app",
-                "package": command_or_key,
-            }
-
-        elif action == "mirror":
-            if not scrcpy_bin:
-                return {
-                    "status": "error",
-                    "message": "Binary scrcpy tidak ditemukan. Install dengan 'sudo apt install -y scrcpy'",
-                }
-            subprocess.Popen([scrcpy_bin] + (["-s", device_id] if device_id else []))
-            return {
-                "status": "success",
-                "message": "Window screen mirroring Scrcpy berhasil dibuka di desktop.",
-            }
-
-        else:
-            return {"status": "error", "message": f"Action '{action}' tidak dikenal."}
-    except Exception as e:
-        return {"status": "error", "message": f"Android control error: {str(e)}"}
-
-
-@register_tool(category="system")
-def query_database(db_path: str, sql_query: str) -> dict[str, Any]:
-    """
-    Execute a SQL query on a local SQLite database file and return the results as a table.
-
-    Args:
-        db_path: Path to the SQLite database file (e.g. '~/data/app.db', 'bot_database.db').
-        sql_query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE, etc.).
-
-    Security Note: This function accepts raw SQL queries. Ensure input is validated
-    before calling this function to prevent SQL injection attacks.
-    """
-    try:
-        expanded = os.path.expanduser(db_path)
-        if not os.path.exists(expanded):
-            return {
-                "status": "error",
-                "message": f"Database file tidak ditemukan: {db_path}",
-            }
-
-        # Security validation: Block dangerous statements
-        query_upper = sql_query.strip().upper()
-        dangerous_keywords = [
-            "DROP ",
-            "DELETE FROM ",
-            "TRUNCATE",
-            "ALTER ",
-            "CREATE INDEX",
-            "DETACH DATABASE",
-            "ATTACH DATABASE",
-        ]
-        for keyword in dangerous_keywords:
-            if keyword in query_upper:
-                return {
-                    "status": "error",
-                    "message": f"Potensi SQL injection terdeteksi: '{keyword}' tidak diizinkan.",
-                }
-
-        conn = sqlite3.connect(expanded)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute(sql_query)
-
-        query_upper = sql_query.strip().upper()
-        if (
-            query_upper.startswith("SELECT")
-            or query_upper.startswith("PRAGMA")
-            or query_upper.startswith("WITH")
-        ):
-            rows = cursor.fetchall()
-            columns = (
-                [desc[0] for desc in cursor.description] if cursor.description else []
-            )
-            data = [dict(row) for row in rows[:100]]
-            conn.close()
-            return {
-                "status": "success",
-                "columns": columns,
-                "row_count": len(data),
-                "total_available": (
-                    len(rows)
-                    if len(rows) <= 100
-                    else f"{len(rows)}+ (showing first 100)"
-                ),
-                "data": data,
-            }
-        else:
-            conn.commit()
-            affected = cursor.rowcount
-            conn.close()
-            return {
-                "status": "success",
-                "message": f"Query berhasil dieksekusi. {affected} baris terpengaruh.",
-            }
-    except Exception as e:
-        return {"status": "error", "message": f"SQL error: {str(e)}"}
+    return _pkg._wa_api(*args, **kwargs)

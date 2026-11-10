@@ -12,10 +12,10 @@ from alfa.tools.telecom_tools import (
     boq_compare_and_diff,
     boq_consolidate_master_workbook,
     boq_reconcile_with_field_reports,
-    render_cluster_kml_map,
-    reconcile_whatsapp_material_group,
-    inspect_field_surat_jalan_image,
     dispatch_instant_material_anomaly_alert,
+    inspect_field_surat_jalan_image,
+    reconcile_whatsapp_material_group,
+    render_cluster_kml_map,
 )
 
 
@@ -347,9 +347,10 @@ def test_briefing_does_not_count_plan_as_material_taking():
 
 def test_reconcile_whatsapp_material_group():
     import os
+
     import openpyxl
+
     from alfa.core.db.connection import get_sync_db
-    from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
 
     # Populate test data in test db
     test_messages = [
@@ -366,7 +367,7 @@ def test_reconcile_whatsapp_material_group():
         for m in test_messages:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO wa_incoming_archive 
+                INSERT OR REPLACE INTO wa_incoming_archive
                 (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -405,6 +406,54 @@ def test_reconcile_whatsapp_material_group():
     assert ws["F37"].value == "=SUM(F33:F36)"
 
 
+def test_reconcile_whatsapp_curup_group():
+    import os
+
+    from alfa.core.db.connection import get_sync_db
+
+    curup_messages = [
+        ("curup_msg_1", "120363430244989174@g.us", "Laporan pengambilan mandor curup", "108684466196499", 1, "chat", "Note :\nStoppling 100\nSlack hanger 49\nSuspend 10\nPole clamp 60\nBuayo 85", 0, 1793157831),
+        ("curup_msg_2", "120363430244989174@g.us", "Laporan pengambilan mandor curup", "108684466196499", 1, "chat", "Lubuk kembang 28 oktober :\nTiang 7'3 : 17 batang", 1, 1793168768),
+        ("curup_msg_3", "120363430244989174@g.us", "Laporan pengambilan mandor curup", "108684466196499", 1, "chat", "Air lanang 28 oktober :\nTiang 7'3 : 10 batang", 1, 1793175330),
+        ("curup_msg_4", "120363430244989174@g.us", "Laporan pengambilan mandor curup", "108684466196499", 1, "chat", "Dead end nambah 80", 1, 1793191143),
+    ]
+    with get_sync_db() as conn:
+        for m in curup_messages:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO wa_incoming_archive
+                (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                m,
+            )
+        conn.commit()
+
+    test_excel = "/tmp/test_rekap_curup_auto.xlsx"
+    if os.path.exists(test_excel):
+        os.remove(test_excel)
+
+    res = reconcile_whatsapp_material_group(
+        group_name_or_id="Laporan pengambilan mandor curup",
+        output_excel_path=test_excel,
+        auto_launch_gridcraft=False,
+    )
+
+    assert res["status"] == "success"
+    assert res["total_net"] == 27
+    assert res["total_bruto"] == 27
+    assert res["total_retur"] == 0
+    assert "Mandor Curup" in res["mandors"]
+    assert res["breakdown"]["T73"] == 27
+    assert res["accessories_breakdown"]["ACC-STOPING"] == 100
+    assert res["accessories_breakdown"]["ACC-DEADEND"] == 80
+    assert res["accessories_breakdown"]["ACC-FULCLAM"] == 60
+    assert res["accessories_breakdown"]["ACC-SUSPEN"] == 10
+    assert res["accessories_breakdown"]["ACC-HANGER"] == 49
+    assert res["accessories_breakdown"]["ACC-BUAYA"] == 85
+    assert os.path.exists(test_excel)
+
+
 def test_inspect_field_surat_jalan_image_nonexistent():
     res = inspect_field_surat_jalan_image("/tmp/file_surat_jalan_nonexistent_xyz.png")
     assert res["status"] == "error"
@@ -419,7 +468,9 @@ def test_inspect_field_surat_jalan_image_unsupported_format(tmp_path):
     assert "tidak didukung" in res["message"]
 
 
-def test_inspect_field_surat_jalan_image_valid(tmp_path):
+def test_inspect_field_surat_jalan_image_valid(tmp_path, monkeypatch):
+    import alfa.swarm.llm_client as lc
+    monkeypatch.setattr(lc, "get_agent_api_client", lambda a: ("gemini", "", "", None, None))
     # Buat file dummy PNG
     dummy_png = tmp_path / "surat_jalan_lahat.png"
     # Minimal 1x1 PNG header
@@ -485,6 +536,117 @@ def test_dispatch_instant_material_anomaly_alert():
         if has_table:
             count = conn.execute("SELECT COUNT(*) FROM wa_reported_messages WHERE msg_id = ?", (alert_id,)).fetchone()[0]
             assert count == 0
+
+
+def test_reconcile_whatsapp_material_complete_cables_accessories_and_dedup(tmp_path):
+    import openpyxl
+
+    from alfa.core.db.connection import get_sync_db
+
+    test_messages = [
+        # Photo album test: 2 messages with identical body within seconds -> must be counted once
+        ("msg_dup_1", "120363430877427809@g.us", "pengambilan material test", "Mandor Mugi", 1, "chat", "Pengambilan matreal .\nTgl.17-10-2026.\nT7.3.-15.btng.\nT7.2,5.-10.btng", 0, 1792200306),
+        ("msg_dup_2", "120363430877427809@g.us", "pengambilan material test", "Mandor Mugi", 1, "chat", "Pengambilan matreal .\nTgl.17-10-2026.\nT7.3.-15.btng.\nT7.2,5.-10.btng", 0, 1792200311),
+        # Retur tiang
+        ("msg_dup_3", "120363430877427809@g.us", "pengambilan material test", "Mandor Mugi", 1, "chat", "Pengembalian matreal.\nT7.3.7.btg", 0, 1792313102),
+        # Mandor Aqe kabel & aksesoris
+        ("msg_aqe_cable", "120363430877427809@g.us", "pengambilan material test", "8306668109995", 1, "chat", "KU 24:1448 m\nFulclam:50 pcs\nDet end: 50 pcs\nSuspen:20 pcs\nStoping:50\nStainlisbell:1 Rolling\nHanger:12", 0, 1793077691),
+        # Mandor Tri kabel & aksesoris
+        ("msg_tri_cable", "120363430877427809@g.us", "pengambilan material test", "158862351048847", 1, "chat", "ACC\nStoping 50 pcs\nDet end 42 pcs\nClem 21 pcs\nSuspen\n20 pcs\nStenlish belt 1 roll\nFising slek 15 pcs\nKU 24c 1276 mtr\nKU 24 c 913 mtr", 0, 1793182825),
+    ]
+
+    with get_sync_db() as conn:
+        for m in test_messages:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO wa_incoming_archive
+                (msg_id, chat_id, chat_name, sender_name, is_group, msg_type, body, has_media, msg_ts)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                m,
+            )
+        conn.commit()
+
+    test_excel = str(tmp_path / "test_rekap_complete.xlsx")
+    res = reconcile_whatsapp_material_group(
+        group_name_or_id="pengambilan material test",
+        output_excel_path=test_excel,
+        auto_launch_gridcraft=False,
+    )
+
+    assert res["status"] == "success"
+    # Deduplication verified: T7.3 (15) and T7.2 (10) counted ONCE, minus retur 7 -> net 18, bruto 25, retur 7
+    assert res["total_net"] == 18
+    assert res["total_bruto"] == 25
+    assert res["total_retur"] == 7
+
+    # Cable KU 24: 1448 + 1276 + 913 = 3637 m
+    assert res["total_cable_m"] == 3637.0
+    assert res["cable_breakdown"]["Mandor Aqe Setiawan"] == 1448.0
+    assert res["cable_breakdown"]["Mandor Tri"] == 2189.0
+
+    # Accessories verified
+    accs = res["accessories_breakdown"]
+    assert accs["ACC-STOPING"] == 100  # 50 + 50
+    assert accs["ACC-DEADEND"] == 92   # 50 + 42
+    assert accs["ACC-FULCLAM"] == 71   # 50 + 21
+    assert accs["ACC-SUSPEN"] == 40    # 20 + 20
+    assert accs["ACC-BELT"] == 2       # 1 + 1
+    assert accs["ACC-HANGER"] == 27    # 12 + 15
+
+    # Mandors verified
+    assert "Mandor Mugi" in res["mandors"]
+    assert "Mandor Aqe Setiawan" in res["mandors"]
+    assert "Mandor Tri" in res["mandors"]
+
+    # Verify Sheet 2 exists in Excel
+    wb = openpyxl.load_workbook(test_excel)
+    assert "Rekap Material" in wb.sheetnames
+    assert "Kabel & Aksesoris" in wb.sheetnames
+
+
+def test_telecom_tools_is_split_package_with_stable_public_api():
+    """Modul monolitik dipecah jadi paket, tapi import path publik tidak berubah."""
+    import importlib
+
+    import alfa.tools.telecom_tools as pkg
+    from alfa.tools.registry import TOOL_REGISTRY
+
+    assert pkg.__file__.endswith("telecom_tools/__init__.py")
+
+    for sub in (
+        "_common",
+        "boq",
+        "maps",
+        "briefing",
+        "documents",
+        "ledger",
+        "relay",
+        "whatsapp",
+    ):
+        assert importlib.import_module(f"alfa.tools.telecom_tools.{sub}") is not None
+
+    public_api = (
+        "boq_check_project_anomalies",
+        "boq_compare_and_diff",
+        "boq_consolidate_master_workbook",
+        "boq_reconcile_with_field_reports",
+        "calculate_material_return_and_scrap",
+        "consolidate_delivery_orders_to_stock_ledger",
+        "dispatch_instant_material_anomaly_alert",
+        "generate_daily_executive_briefing",
+        "inspect_field_surat_jalan_image",
+        "parse_delivery_order_document",
+        "reconcile_whatsapp_material_group",
+        "render_cluster_kml_map",
+        "schedule_daily_briefing_task",
+        "transcribe_field_voice_note",
+        "wa_relay_send_from_telegram",
+    )
+    for name in public_api:
+        assert hasattr(pkg, name), f"{name} hilang dari API publik"
+        assert name in TOOL_REGISTRY, f"{name} tidak terdaftar di registry"
+
 
 
 
