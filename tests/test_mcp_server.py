@@ -241,7 +241,7 @@ class TestAlfaMCPStreamableHttp:
         assert resp.status_code in (403, 400, 421), resp.text
 
     def test_factory_via_env_token(self, monkeypatch):
-        monkeypatch.setenv("ALFA_MCP_HTTP_TOKEN", "r4hasia-env")
+        monkeypatch.setenv("ALFA_MCP_HTTP_TOKEN", "r4hasia-env-2026-alfa")
         from alfa.mcp.http_server import create_streamable_http_app
 
         app = create_streamable_http_app("env-mcp", allowed_hosts=["testserver"])

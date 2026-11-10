@@ -4,6 +4,8 @@ Allows external AI clients (Claude Desktop, Cursor, Antigravity, etc.) to discov
 """
 
 import asyncio
+import copy
+import functools
 import inspect
 import json
 import logging
@@ -15,24 +17,74 @@ from alfa.tools.registry import TOOL_REGISTRY, get_tool
 
 logger = logging.getLogger("alfa.mcp")
 
+# Impor MCP dipecah per-paket: satu submodul yang hilang (mis. versi SDK lama
+# tak punya ``mcp.server.lowlevel.helper_types``) TIDAK boleh mematikan seluruh
+# server — dulu satu ImportError membuat ``Server`` jadi None dan user diberi
+# pesan "pip install mcp" padahal mcp sudah terpasang.
 Server: Any = None
 stdio_server: Any = None
 types: Any = None
 ReadResourceContents: Any = None
+
 try:
     import mcp.types as _mcp_types
+
+    types = _mcp_types
+except ImportError:  # pragma: no cover - mcp tak terpasang
+    types = None
+
+try:
     from mcp.server import Server as _McpServer
+
+    Server = _McpServer
+except ImportError:  # pragma: no cover - mcp tak terpasang
+    Server = None
+
+try:
+    from mcp.server.stdio import stdio_server as _stdio_server
+
+    stdio_server = _stdio_server
+except ImportError:  # pragma: no cover - mcp tak terpasang
+    stdio_server = None
+
+try:
     from mcp.server.lowlevel.helper_types import (
         ReadResourceContents as _ReadResourceContents,
     )
-    from mcp.server.stdio import stdio_server as _stdio_server
 
-    Server = _McpServer
-    stdio_server = _stdio_server
-    types = _mcp_types
     ReadResourceContents = _ReadResourceContents
-except ImportError:
-    pass
+except ImportError:  # pragma: no cover - SDK lama tanpa helper_types
+    ReadResourceContents = None
+
+
+if ReadResourceContents is None:  # pragma: no cover - fallback lokal
+
+    class ReadResourceContents:  # type: ignore[no-redef]
+        """Pengganti lokal untuk SDK yang tak menyediakan helper_types."""
+
+        def __init__(self, content: str = "", mime_type: str = "text/plain"):
+            self.content = content
+            self.mime_type = mime_type
+
+
+def _is_async_callable(fn: Any) -> bool:
+    """Deteksi fungsi async — termasuk yang dibungkus ``functools.partial``.
+
+    ``inspect.iscoroutinefunction`` TIDAK.unwrap partial, jadi tool async yang
+    dibungkus partial akan dianggap sync: coroutine-nya tak pernah di-await
+    dan hasilnya string "<coroutine object ...>".
+    """
+    target = fn
+    try:
+        while isinstance(target, functools.partial):
+            target = target.func
+        target = inspect.unwrap(target)
+    except (TypeError, ValueError):  # pragma: no cover - objek aneh
+        return False
+    if inspect.iscoroutinefunction(target):
+        return True
+    call = target.__call__ if callable(target) else None
+    return call is not None and inspect.iscoroutinefunction(call)
 
 
 def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
@@ -42,6 +94,11 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
             "The 'mcp' package is required to run the ALFA MCP Server. "
             "Please install it using: pip install mcp"
         )
+    if types is None:
+        raise RuntimeError(
+            "Modul 'mcp.types' tidak tersedia — pasang ulang SDK MCP: "
+            "pip install -U mcp"
+        )
 
     server = Server(server_name)
 
@@ -49,25 +106,31 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
     async def handle_list_tools() -> list[Any]:
         """List all available tools registered in ALFA TOOL_REGISTRY."""
         tools_list: list[Any] = []
-        for name, info in TOOL_REGISTRY.items():
-            schema = info.get("schema", {})
-            openai_fn = schema.get("openai_spec", {}).get("function", {})
+        for name, raw_info in TOOL_REGISTRY.items():
+            info = raw_info if isinstance(raw_info, dict) else {}
+            schema = info.get("schema") or {}
+            openai_spec = schema.get("openai_spec") or {}
+            openai_fn = openai_spec.get("function") or {}
+
             desc = openai_fn.get("description", info.get("description", name))
-            params = openai_fn.get(
-                "parameters",
-                {"type": "object", "properties": {}, "required": []},
-            )
-            # Ensure proper schema structure
+            if not isinstance(desc, str):
+                # Schema rusak (mis. description berupa angka) tak boleh
+                # menjatuhkan seluruh list_tools.
+                desc = str(desc) if desc is not None else f"ALFA tool: {name}"
+
+            raw_params = openai_fn.get("parameters")
+            # deepcopy: akses di bawah mengisi field yang HILANG — tanpa copy,
+            # list_tools menulis ke dict schema yang tersimpan di registry.
+            params = copy.deepcopy(raw_params) if isinstance(raw_params, dict) else {}
             if not isinstance(params, dict):
-                params = {"type": "object", "properties": {}}
-            if "type" not in params:
-                params["type"] = "object"
-            if "properties" not in params:
-                params["properties"] = {}
+                params = {}
+            params.setdefault("type", "object")
+            params.setdefault("properties", {})
+            params.setdefault("required", [])
 
             tools_list.append(
                 types.Tool(
-                    name=name,
+                    name=str(name),
                     description=desc[:1024] if desc else f"ALFA tool: {name}",
                     inputSchema=params,
                 )
@@ -94,11 +157,22 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
                 )
             ]
 
-        args = arguments or {}
+        args = arguments if isinstance(arguments, dict) else {}
         try:
             from alfa.core.perm import gate as _perm_gate
 
-            mcp_uid = int(os.getenv("ALFA_MCP_USER_ID", "0") or 0)
+            try:
+                mcp_uid = int(os.getenv("ALFA_MCP_USER_ID", "0") or 0)
+            except (TypeError, ValueError):
+                mcp_uid = 0
+                logger.warning(
+                    "[alfa.mcp] ALFA_MCP_USER_ID bukan angka -> uid 0 dipakai"
+                )
+            if mcp_uid == 0:
+                logger.warning(
+                    "[alfa.mcp] ALFA_MCP_USER_ID belum di-set -> semua panggilan "
+                    "MCP memakai identitas uid 0"
+                )
             denial = _perm_gate.check_headless_approval(
                 mcp_uid, name, json.dumps(args, ensure_ascii=False, default=str)
             )
@@ -112,15 +186,21 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
                         ),
                     )
                 ]
-            if inspect.iscoroutinefunction(fn):
-                result = await fn(**args)
+            if _is_async_callable(fn):
+                result = fn(**args)
             else:
                 # Run sync functions in threadpool to avoid blocking async event loop
                 loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(None, lambda: fn(**args))
+            # Callable yang mengembalikan awaitable (mis. partial async) harus
+            # tetap di-await; kalau tidak hasilnya objek coroutine mentah.
+            if inspect.isawaitable(result):
+                result = await result
 
             if isinstance(result, (dict, list)):
-                out_str = json.dumps(result, ensure_ascii=False, indent=2)
+                # default=str: hasil yang tak JSON-serializable (objek custom)
+                # tak boleh membuat tool yang sukses dilaporkan sebagai error.
+                out_str = json.dumps(result, ensure_ascii=False, indent=2, default=str)
             else:
                 out_str = str(result)
 
@@ -172,6 +252,7 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
             payload = {
                 tool: str(info.get("description", tool))[:200]
                 for tool, info in TOOL_REGISTRY.items()
+                if isinstance(info, dict)
             }
         else:
             msg = (
@@ -191,6 +272,11 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
 
 async def run_stdio_server(server_name: str = "alfa-sovereign-ai"):
     """Run the MCP server over standard input and output streams."""
+    if stdio_server is None:
+        raise RuntimeError(
+            "Transport stdio MCP tak tersedia — pasang ulang SDK MCP: "
+            "pip install -U mcp"
+        )
     server = create_mcp_server(server_name)
     init_options = server.create_initialization_options()
     async with stdio_server() as (read_stream, write_stream):
