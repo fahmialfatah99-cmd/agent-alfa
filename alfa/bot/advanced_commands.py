@@ -1,5 +1,6 @@
 """Telegram bot command handlers."""
 
+import asyncio
 import json
 import logging
 import os
@@ -326,6 +327,12 @@ async def handle_sites_callback(update: Update, context: ContextTypes.DEFAULT_TY
     async def _edit(text, markup=None):
         try:
             await query.edit_message_text(text=text, reply_markup=markup, parse_mode="Markdown")
+        except TelegramError as e:
+            # "message is not modified" = isi sama persis -> JANGAN kirim ulang
+            # (menghasilkan pesan duplikat yang membingungkan user).
+            if "not modified" in str(e).lower():
+                return
+            await safe_send_message(context, chat_id, text, reply_markup=markup)
         except _ADV_ERR:
             await safe_send_message(context, chat_id, text, reply_markup=markup)
 
@@ -1253,11 +1260,19 @@ async def resume_swarm_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
         text = "🔄 **Daftar Sesi Swarm yang Bisa Dilanjutkan (Checkpoints):**\n\n"
         for r in resumable[:5]:
+            # Akses dict dengan .get() + str(): checkpoint yang tidak lengkap
+            # (updated_at None, status non-str) tidak boleh MATIkan seluruh perintah.
+            session_id = str(r.get("session_id") or "?")
+            status = str(r.get("status") or "?").upper()
+            topic = str(r.get("topic") or "")
+            steps_done = r.get("steps_done", 0)
+            steps_total = r.get("steps_total", "?")
+            updated_at = str(r.get("updated_at") or "?")[:19]
             text += (
-                f"• `{r['session_id']}` [{r['status'].upper()}]\n"
-                f"  📌 Topik: _{r['topic']}_\n"
-                f"  📊 Progres: {r['steps_done']}/{r['steps_total']} langkah\n"
-                f"  🕒 Update: `{r['updated_at'][:19]}`\n\n"
+                f"• `{session_id}` [{status}]\n"
+                f"  📌 Topik: _{topic}_\n"
+                f"  📊 Progres: {steps_done}/{steps_total} langkah\n"
+                f"  🕒 Update: `{updated_at}`\n\n"
             )
         text += "Gunakan `/resume <session_id>` untuk melanjutkan sesi."
         await safe_send_message(context, chat_id, text)
@@ -1373,12 +1388,15 @@ async def skills_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 *Aturan & Pelajaran Prioritas Tinggi:*",
     ]
     for idx, s in enumerate(m.get("top_skills", []), 1):
-        rule_preview = s["learned_rule"][:120] + ("..." if len(s["learned_rule"]) > 120 else "")
+        # .get() + str(): skill dengan field hilang tidak boleh mematikan perintah.
+        rule = str(s.get("learned_rule") or "")
+        rule_preview = rule[:120] + ("..." if len(rule) > 120 else "")
         conf_pct = int((s.get("confidence") or 1.0) * 100)
         succ = s.get("success_count", 0)
         fail = s.get("failure_count", 0)
+        topic = str(s.get("topic") or "?")
         card_lines.append(
-            f"{idx}. 🏷️ *{s['topic']}*\n"
+            f"{idx}. 🏷️ *{topic}*\n"
             f"   └ Conf: `{conf_pct}%` | Hits: `{s.get('hit_count', 0)}` | Rate: `+{succ}/-{fail}`\n"
             f"   └ \"_{rule_preview}_\""
         )
@@ -1401,8 +1419,12 @@ async def apex_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     from alfa.core.apex import get_apex_full_status, run_autonomous_apex_maintenance
 
-    # Run non-intrusive autonomous maintenance & sync cycle
-    run_autonomous_apex_maintenance(force=False)
+    # Run non-intrusive autonomous maintenance & sync cycle.
+    # WAJIB di-thread: kalau sinkron, event loop bot membeku selama maintenance.
+    try:
+        await asyncio.to_thread(run_autonomous_apex_maintenance, force=False)
+    except Exception as e:
+        logger.warning(f"[apex] autonomous maintenance gagal: {e}")
     st = get_apex_full_status()
     gov = st.get("governor", {})
     dream = st.get("dreaming", {})

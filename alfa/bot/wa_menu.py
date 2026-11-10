@@ -300,7 +300,8 @@ def _home_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("💬 Riwayat Chat", callback_data="wx|chats|0"),
          InlineKeyboardButton("📥 Pesan Masuk", callback_data="wx|in|0")],
-        [InlineKeyboardButton("📦 Rekap Material Lahat", callback_data="btn_rekap_lahat"),
+        [InlineKeyboardButton("📦 Rekap Lahat", callback_data="btn_rekap_lahat"),
+         InlineKeyboardButton("📦 Rekap Curup", callback_data="btn_rekap_curup"),
          InlineKeyboardButton("📋 Format Catatan", callback_data="wx|fmt")],
         [InlineKeyboardButton("📊 Status Koneksi WA", callback_data="btn_wa_status"),
          InlineKeyboardButton("📊 Laporan Masuk", callback_data="wx|rep|0|-1")],

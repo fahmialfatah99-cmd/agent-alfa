@@ -21,11 +21,10 @@ from alfa.integrations import google_sheets
 
 
 def test_main_menu_markup_contains_sheets_and_drive():
-    """Verify that _main_menu_markup includes Sheets and Drive buttons."""
+    """Verify that _main_menu_markup includes Google Cloud Hub (Sheets & Drive) and WA buttons."""
     markup = _main_menu_markup()
     button_datas = [btn.callback_data for row in markup.inline_keyboard for btn in row]
-    assert "btn_sheets" in button_datas
-    assert "btn_gdrive" in button_datas
+    assert "btn_cloud" in button_datas
     assert "btn_wa" in button_datas
 
 

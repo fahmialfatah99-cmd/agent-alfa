@@ -217,6 +217,9 @@ def clean_telegram_markdown(text: str) -> str:
 # sendiri (rapi, satu pesan) alih-alih kirim pesan baru. Target di-key per
 # objek `context` (unik per update di PTB) sehingga tidak pernah bocor ke
 # update lain, dan dipakai sekali lalu dibuang.
+# Key = id(context). Object `context` ikut disimpan di dalam entry supaya id-nya
+# tidak bisa di-REUSE oleh object lain setelah GC (id() bisa dipakai ulang!). TTL
+# tetap menyapu entry basi.
 _MENU_TARGET: dict[int, tuple] = {}
 _TARGET_TTL = 30.0
 
@@ -229,7 +232,10 @@ def set_menu_target(context, query, chat_id: int, back: bool = True) -> None:
     now = time.monotonic()
     for k in [k for k, v in _MENU_TARGET.items() if now - v[2] > _TARGET_TTL]:
         _MENU_TARGET.pop(k, None)
-    _MENU_TARGET[id(context)] = (query, chat_id, now, back)
+    # Simpan `context` di dalam entry: menahan object tetap hidup -> id(context)
+    # tidak akan dipakai ulang object lain sehingga target tidak pernah "bocor"
+    # ke update yang tidak berhak.
+    _MENU_TARGET[id(context)] = (query, chat_id, now, back, context)
 
 
 def clear_menu_target(context) -> None:
@@ -241,7 +247,7 @@ def _pop_menu_target(context, chat_id: int):
     entry = _MENU_TARGET.pop(id(context), None)
     if not entry:
         return None
-    query, cid, ts, back = entry
+    query, cid, ts, back, _ctx = entry
     if cid != chat_id or time.monotonic() - ts > _TARGET_TTL:
         return None
     return (query, back)
@@ -317,44 +323,64 @@ def _artifact_signature() -> list:
 
 
 def split_message(text: str, max_length: int = 3900) -> list[str]:
-    """Split long response into safe Telegram message chunks without breaking code fences."""
+    """Split long response into safe Telegram message chunks without breaking code fences.
+
+    Setiap chunk dijamin punya fence ``` yang SEIMBANG (jumlah fence genap). Kalau sebuah
+    chunk berakhir di tengah code block, fence-nya ditutup dan dibuka lagi di chunk
+    berikutnya — tanpa ini, sisa pesan dirender Telegram sebagai code block.
+    """
     if len(text) <= max_length:
         return [text]
-    chunks = []
-    lines = text.split("\n")
-    current_chunk = ""
+
+    chunks: list[str] = []
+    current = ""
     in_code_block = False
     code_block_lang = ""
 
-    for line in lines:
+    def _flush(chunk: str) -> str:
+        """Tutup fence yang masih terbuka di chunk ini; True kalau sempat terbuka."""
+        if chunk.count("```") % 2 == 1:
+            return chunk + "\n```"
+        return chunk
+
+    for raw_line in text.split("\n"):
+        line = raw_line
+
+        # Hard-split baris tunggal yang lebih panjang dari limit
+        while len(line) > max_length:
+            if current:
+                was_open = current.count("```") % 2 == 1
+                current = _flush(current)
+                chunks.append(current)
+                current = f"```{code_block_lang}\n" if was_open else ""
+            piece = line[:max_length]
+            if piece.count("```") % 2 == 1:
+                piece += "\n```"
+                chunks.append(piece)
+                current = f"```{code_block_lang}\n"
+            else:
+                chunks.append(piece)
+            line = line[max_length:]
+
+        if len(current) + len(line) + 2 > max_length and current:
+            was_open = current.count("```") % 2 == 1
+            current = _flush(current)
+            chunks.append(current)
+            current = f"```{code_block_lang}\n" if was_open else ""
+
+        current += line if not current else "\n" + line
+
+        # Update state fence SETELAH line masuk chunk (state sebelum baris ini)
         if line.strip().startswith("```"):
             if not in_code_block:
                 in_code_block = True
                 code_block_lang = line.strip()[3:]
             else:
                 in_code_block = False
+                code_block_lang = ""
 
-        if len(current_chunk) + len(line) + 2 > max_length:
-            if current_chunk:
-                if in_code_block:
-                    current_chunk += "\n```"
-                chunks.append(current_chunk)
-                current_chunk = ""
-                if in_code_block:
-                    current_chunk = f"```{code_block_lang}\n"
-
-            while len(line) > max_length:
-                chunks.append(line[:max_length])
-                line = line[max_length:]
-            current_chunk += line if not current_chunk else "\n" + line
-        else:
-            if current_chunk:
-                current_chunk += "\n" + line
-            else:
-                current_chunk = line
-
-    if current_chunk:
-        chunks.append(current_chunk)
+    if current:
+        chunks.append(_flush(current))
     return chunks
 
 

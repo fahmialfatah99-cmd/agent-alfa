@@ -36,7 +36,7 @@ def get_persistent_reply_keyboard() -> ReplyKeyboardMarkup:
     """Keyboard navigasi cepat yang tetap aktif di bagian bawah chat Telegram pengguna."""
     return ReplyKeyboardMarkup(
         [
-            ["📦 Rekap Material Lahat", "📋 Daily Briefing"],
+            ["📦 Rekap Material Lahat", "📦 Rekap Material Curup", "📋 Daily Briefing"],
             ["🎛️ Menu Utama", "📱 WhatsApp Hub", "🖥️ Status Server"],
         ],
         resize_keyboard=True,
@@ -55,7 +55,8 @@ def _main_menu_markup() -> InlineKeyboardMarkup:
             ],
             # 2. Operasional Lapangan (FTTH / Material)
             [
-                InlineKeyboardButton("📦 Rekap Material Lahat", callback_data="btn_rekap_lahat"),
+                InlineKeyboardButton("📦 Rekap Lahat", callback_data="btn_rekap_lahat"),
+                InlineKeyboardButton("📦 Rekap Curup", callback_data="btn_rekap_curup"),
                 InlineKeyboardButton("📋 Daily Briefing", callback_data="btn_daily_briefing"),
             ],
             # 3. Komunikasi & Cloud Data

@@ -39,6 +39,7 @@ _DC_ERR = (
 
 logger = logging.getLogger("DiscordBridge")
 
+
 FEED_FILE = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/live_meeting_feed.jsonl")
 DEF_CHANNEL_ID = 1066901365357551708  # #general
 DEF_OWNER_ID = 570747813781176332
@@ -63,14 +64,23 @@ def _setting(key: str, default: str = "") -> str:
 
 
 def _discord_token() -> str:
-    db = _db()
-    with db.get_sync_db() as conn:
-        row = conn.execute("SELECT api_key FROM api_keys WHERE provider='discord'").fetchone()
-    if not row:
-        return ""
+    """Ambil token Discord dari vault.
+
+    SELURUH jalur (termasuk koneksi DB) dibungkus try: kegagalan DB harus
+    menghasilkan pesan ramah, bukan traceback yang mematikan main() saat start.
+    """
     try:
-        return str(db.decrypt_key(row["api_key"]))
-    except _DC_ERR:
+        db = _db()
+        with db.get_sync_db() as conn:
+            row = conn.execute(
+                "SELECT api_key FROM api_keys WHERE provider='discord'"
+            ).fetchone()
+        if not row:
+            return ""
+        raw = row["api_key"] if not isinstance(row, (tuple, list)) else row[0]
+        return str(db.decrypt_key(raw))
+    except _DC_ERR as e:
+        logger.error(f"[discord] gagal membaca token dari vault: {e}")
         return ""
 
 
@@ -97,13 +107,31 @@ def _channel_id() -> int:
 
 
 def _split(text: str, limit: int = 1900) -> list[str]:
+    """Split teks menjadi chunk yang AMAN untuk limit Discord (2000 karakter).
+
+    Dua jebakan yang dihindari:
+    1. Chunk kosong pernah dikirim (Discord API error).
+    2. Satu baris panjang > limit pernah jadi chunk raksasa (>=2000 char) -> Discord
+       menolak dengan "Must be 2000 or fewer characters" dan PESAN HILANG TOTAL.
+    Baris yang melebihi limit di-hard-split, dan chunk kosong tidak pernah dibuat.
+    """
     text = text or ""
     if len(text) <= limit:
         return [text]
-    chunks, cur = [], ""
+    chunks: list[str] = []
+    cur = ""
     for line in text.split("\n"):
+        # Baris tunggal yang lebih panjang dari limit -> hard split
+        while len(line) > limit:
+            if cur:
+                if cur.strip():
+                    chunks.append(cur)
+                cur = ""
+            chunks.append(line[:limit])
+            line = line[limit:]
         if len(cur) + len(line) + 1 > limit:
-            chunks.append(cur)
+            if cur.strip():
+                chunks.append(cur)
             cur = ""
         cur += (line + "\n")
     if cur.strip():
@@ -150,10 +178,36 @@ async def _run_swarm(topic: str) -> tuple[str, str]:
 _VC_LISTEN: dict[int, bool] = {}
 _DC_CLIENT = None
 _DC_LOOP = None
-_DISCORD_CMD_CTX: dict = {}
+
+# Konteks voice per-user (BUKAN global tunggal): kalau global, `discord_play_music`
+# bisa memakai guild/VC milik user lain karena pesan terakhir yang menang.
+_DISCORD_CMD_CTX: dict[int, dict] = {}
+_DISCORD_CTX_LAST: dict = {}
 
 
-def discord_play_music(query: str = "") -> dict:
+def _set_discord_cmd_ctx(user_id: int, guild_id: int, voice_channel_id: int) -> None:
+    ctx = {"guild_id": guild_id, "voice_channel_id": voice_channel_id}
+    _DISCORD_CMD_CTX[user_id] = ctx
+    _DISCORD_CTX_LAST.clear()
+    _DISCORD_CTX_LAST.update(ctx)
+
+
+def _get_discord_cmd_ctx(user_id: int | None = None) -> dict:
+    """Ambil konteks voice milik user tertentu; fallback ke konteks terakhir."""
+    if user_id is not None and user_id in _DISCORD_CMD_CTX:
+        return _DISCORD_CMD_CTX[user_id]
+    try:
+        from alfa.core.runtime_ctx import get_current_user_id
+
+        uid = get_current_user_id()
+        if uid and int(uid) in _DISCORD_CMD_CTX:
+            return _DISCORD_CMD_CTX[int(uid)]
+    except Exception:
+        pass
+    return _DISCORD_CTX_LAST
+
+
+def discord_play_music(query: str = "", user_id: int | None = None) -> dict:
     """Putar lagu di voice channel Discord (SSEMPURNA untuk request musik di chat).
 
     Pakai tool ini tiap user minta putar lagu/musik di Discord — JANGAN tolak,
@@ -161,6 +215,8 @@ def discord_play_music(query: str = "") -> dict:
 
     Args:
         query: Judul/penyanyi lagu (mis. 'dj tiktok'). Wajib diisi.
+        user_id: Telegram ID pemanggil (opsional) — dipakai untuk memilih voice channel
+            yang benar, bukan milik user lain.
     """
     import asyncio as _a
 
@@ -169,8 +225,9 @@ def discord_play_music(query: str = "") -> dict:
         return {"status": "error", "message": "Query lagu kosong."}
     if _DC_CLIENT is None or _DC_LOOP is None:
         return {"status": "error", "message": "Klien Discord belum siap."}
-    gid = _DISCORD_CMD_CTX.get("guild_id")
-    vc_id = _DISCORD_CMD_CTX.get("voice_channel_id")
+    ctx = _get_discord_cmd_ctx(user_id)
+    gid = ctx.get("guild_id")
+    vc_id = ctx.get("voice_channel_id")
     if not gid or not vc_id:
         return {"status": "error",
                 "message": "User belum masuk voice channel — minta user join VC dulu."}
@@ -226,10 +283,13 @@ def _register_discord_tools() -> None:
     try:
         from alfa.tools import AVAILABLE_TOOLS, registry
 
-        registry.sync_registry_from_available([discord_play_music])
         names = {getattr(f, "__name__", "") for f in AVAILABLE_TOOLS}
         if "discord_play_music" not in names:
             AVAILABLE_TOOLS.append(discord_play_music)
+        # Sinkronkan DENGAN seluruh daftar tools. Mengirim list 1-elemen berisiko
+        # MENGHAPUS metadata/risk-tier semua tool lain kalau helper-nya me-rebuild
+        # registry dari list (bukan merge). List penuh aman untuk kedua semantics.
+        registry.sync_registry_from_available(list(AVAILABLE_TOOLS))
     except _DC_ERR as e:
         logger.debug(f"[discord] registrasi tool gagal: {e}")
 _PLAY_LOCKS: dict[int, object] = {}
@@ -528,9 +588,12 @@ def main() -> None:
             if not text:
                 return
             try:
-                _DISCORD_CMD_CTX["guild_id"] = msg.guild.id if msg.guild else 0
                 vs = getattr(msg.author, "voice", None)
-                _DISCORD_CMD_CTX["voice_channel_id"] = vs.channel.id if vs and vs.channel else 0
+                _set_discord_cmd_ctx(
+                    msg.author.id,
+                    msg.guild.id if msg.guild else 0,
+                    vs.channel.id if vs and vs.channel else 0,
+                )
             except _DC_ERR:
                 pass
             low = text.lower()
@@ -634,7 +697,7 @@ def main() -> None:
                 elif low.startswith("!waringkas"):
                     from alfa.bot.wa_digest import build_digest_text
 
-                    fmt = text[9:].strip()
+                    fmt = text[10:].strip()  # "!waringkas" = 10 char (off-by-one fix)
                     await msg.reply((await build_digest_text(fmt))[:1900])
                 elif low.startswith("!ss"):
                     await msg.reply("📸 Menangkap layar...")
@@ -788,7 +851,19 @@ async def _digest_loop(cli) -> None:
             logger.error(f"[discord] digest loop error: {e}")
         await asyncio.sleep(60)
 
+# Baris yang sudah dibaca tapi belum sempat dikirim (karena batch dibatasi 12/putaran).
+# Disimpan agar TIDAK hilang permanen seperti versi lama yang memakai [-6:].
+_MIRROR_PENDING: list[str] = []
+_MIRROR_BATCH = 12
+
+
 async def _mirror_loop(cli):
+    """Mirror feed live_meeting_feed.jsonl ke channel Discord.
+
+    Baca file dalam mode BINARY (offset byte eksak, tanpa masalah seek text-mode) dan
+    decode UTF-8 eksplisit. Baris yang belum utuh ditahan di buffer; baris yang belum
+    terkirim disimpan di _MIRROR_PENDING. TIDAK ADA baris yang dibuang diam-diam.
+    """
     await cli.wait_until_ready()
     try:
         chan = await cli.fetch_channel(_channel_id())
@@ -796,23 +871,33 @@ async def _mirror_loop(cli):
         logger.error(f"[discord] channel mirror tak bisa dibuka: {e}")
         return
     pos = os.path.getsize(FEED_FILE) if os.path.isfile(FEED_FILE) else 0
+    buf = ""
     while True:
         try:
             if _setting("discord_mirror", "1") == "1" and os.path.isfile(FEED_FILE):
                 size = os.path.getsize(FEED_FILE)
                 if size < pos:
+                    # Feed di-rotate/terpotong -> mulai dari awal
                     pos = 0
+                    buf = ""
+                    _MIRROR_PENDING.clear()
                 if size > pos:
-                    with open(FEED_FILE, errors="ignore") as f:
+                    with open(FEED_FILE, "rb") as f:
                         f.seek(pos)
-                        chunk = f.read()
-                    pos = size
-                    lines = [ln for ln in chunk.splitlines() if ln.strip()][-6:]
-                    for ln in lines:
+                        raw = f.read()
+                    pos += len(raw)
+                    buf += raw.decode("utf-8", errors="replace")
+                    complete = buf.split("\n")
+                    buf = complete.pop() or ""  # baris terakhir belum lengkap -> tahan
+                    _MIRROR_PENDING.extend(ln for ln in complete if ln.strip())
+
+                    batch = _MIRROR_PENDING[:_MIRROR_BATCH]
+                    del _MIRROR_PENDING[:_MIRROR_BATCH]
+                    for ln in batch:
                         try:
                             d = json.loads(ln)
                             tag, text = d.get("tag", "?"), d.get("text", "")[:1200]
-                        except _DC_ERR:
+                        except Exception:
                             tag, text = "LOG", ln[:1200]
                         if tag in ("PLAN", "EXEC", "VERIFY", "DONE", "CANCEL", "TIMEOUT", "QA", "FILE", "HARVEST"):
                             for part in _split(f"**[{tag}]** {text}"):

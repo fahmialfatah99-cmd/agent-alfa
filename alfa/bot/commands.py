@@ -5,6 +5,7 @@ Facade aggregating basic and advanced bot commands.
 
 from alfa.bot.advanced_commands import (
     agents_command,
+    apex_command,
     dashboard_command,
     keys_command,
     ram_command,
@@ -12,6 +13,7 @@ from alfa.bot.advanced_commands import (
     resume_swarm_command,
     setsheet_command,
     sites_command,
+    skills_command,
     swarm_command,
     wa_command,
     wacari_command,
@@ -21,8 +23,6 @@ from alfa.bot.advanced_commands import (
     wamasuk_command,
     wareport_command,
     waringkas_command,
-    skills_command,
-    apex_command,
 )
 from alfa.bot.basic_commands import (
     _get_bot_module,

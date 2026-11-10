@@ -32,6 +32,15 @@ _PAGE_TABS = 8
 _CACHE: dict[int, dict[str, Any]] = {}
 _CACHE_TTL = 300.0  # 5 minutes
 
+# Cache "sticky": index->path map WAJAB tetap hidup selama callback-nya masih
+# valid. Kalau ikut kedaluwarsa, user menekan "folder" lalu 5 menit kemudian
+# menekan "kembali" -> callback-nya resolve ke folder yang salah / root.
+_STICKY_KEYS = {"folder_cache"}
+
+
+def _is_sticky(key: str) -> bool:
+    return key in _STICKY_KEYS or key.startswith("mount_cache_")
+
 
 def _is_authed(user_id: int) -> bool:
     return is_authorized(user_id)
@@ -39,7 +48,9 @@ def _is_authed(user_id: int) -> bool:
 
 def _cache_get(user_id: int, key: str, default: Any = None) -> Any:
     slot = _CACHE.get(user_id)
-    if not slot or time.monotonic() - slot.get("ts", 0) > _CACHE_TTL:
+    if not slot:
+        return default if default is not None else []
+    if not _is_sticky(key) and time.monotonic() - slot.get("ts", 0) > _CACHE_TTL:
         return default if default is not None else []
     return slot.get(key, default if default is not None else [])
 

@@ -2,6 +2,7 @@
 
 import asyncio
 import io
+import json
 import logging
 import os
 import sys
@@ -108,7 +109,10 @@ async def _run_agent_turn(*args, **kwargs):
     # Pre-Flight Self-Audit, Trajectory Recording & GraphRAG Model Ingestion
     try:
         from alfa.core.apex.temporal_graphrag import ingest_text_to_temporal_graph
-        from alfa.core.brain.learning_loop import audit_against_learned_skills, record_trajectory
+        from alfa.core.brain.learning_loop import (
+            audit_against_learned_skills,
+            record_trajectory,
+        )
         from alfa.core.runtime_ctx import get_current_executed_tools
 
         user_p = kwargs.get("user_prompt") or (args[1] if len(args) > 1 else "")
@@ -120,7 +124,7 @@ async def _run_agent_turn(*args, **kwargs):
                 raw_res = corrected
             record_trajectory(
                 user_prompt=user_p,
-                tool_calls=exec_tools,
+                tool_calls=[{"tool": t} for t in exec_tools],
                 result_summary=raw_res[:200],
                 success=True,
             )
@@ -129,7 +133,6 @@ async def _run_agent_turn(*args, **kwargs):
         logger.debug("Learning loop audit bypass: %s", e)
 
     return raw_res
-
 
 async def _check_and_send_media_artifacts(
     update: Update,
@@ -191,7 +194,7 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
     # 1. Coba muat dari disk cache (/tmp/alfa_uploads/recent_docs_cache.json)
     if os.path.exists(_RECENT_DOCS_CACHE_PATH):
         try:
-            with open(_RECENT_DOCS_CACHE_PATH, "r", encoding="utf-8") as f:
+            with open(_RECENT_DOCS_CACHE_PATH, encoding="utf-8") as f:
                 data = json.load(f)
             for k, v in data.items():
                 if isinstance(v, dict):
@@ -204,11 +207,16 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
     # 2. Fallback Auto-Recovery dari tabel chat_history SQLite jika service baru di-restart
     import re
     import sqlite3
+
     from alfa.core.db.connection import DB_PATH
 
     target_uid = user_id or chat_id
+    conn = None
     try:
-        with sqlite3.connect(DB_PATH, timeout=10.0) as conn:
+        # CATATAN: `with sqlite3.connect(...)` TIDAK menutup koneksi (hanya commit/
+        # rollback) -> file descriptor bocor tiap panggilan. Tutup eksplisit di finally.
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        if True:
             c = conn.cursor()
             c.execute(
                 """
@@ -253,7 +261,9 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                     ext = os.path.splitext(file_name)[1].lower()
                     if os.path.isfile(local_p) and ext in (".xlsx", ".xls", ".ods"):
                         try:
-                            from alfa.tools.filesystem import universal_file_extractor as ufe
+                            from alfa.tools.filesystem import (
+                                universal_file_extractor as ufe,
+                            )
 
                             with open(local_p, "rb") as lf:
                                 fresh_excel = ufe._extract_excel(lf.read(), file_name, ext)
@@ -287,6 +297,12 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                 return recovered
     except Exception as e:
         logger.warning(f"[_get_or_recover_recent_doc] Gagal memulihkan dari SQLite: {e}")
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     return None
 
@@ -741,6 +757,9 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     data = query.data or ""
     if data.startswith("perm|") or data == "perm_done":
+        # HARUS answer() juga di jalur ini — kalau tidak, spinner di client
+        # berputar selamanya karena callback tidak pernah dikonfirmasi.
+        await query.answer()
         return
 
     await query.answer()
@@ -811,7 +830,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
         parts = data.split("|")
         app_name = parts[2] if len(parts) > 2 else "gridcraft"
-        excel_path = os.path.expanduser("~/alfa_projects/lahat_material/Rekap_Pengambilan_Material_Lahat.xlsx")
+        cluster = parts[3].lower() if len(parts) > 3 else "lahat"
+        if cluster == "curup":
+            excel_path = os.path.expanduser("~/alfa_projects/curup_material/Rekap_Pengambilan_Material_Curup.xlsx")
+        else:
+            excel_path = os.path.expanduser("~/alfa_projects/lahat_material/Rekap_Pengambilan_Material_Lahat.xlsx")
         res = artcraft_launch_gui(app_name, excel_path if os.path.exists(excel_path) else None)
         await safe_send_message(context, chat_id, f"🚀 {res.get('message', 'Aplikasi diluncurkan.')}")
         return
@@ -871,18 +894,95 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
             auto_launch_gridcraft=False,
         )
         if res.get("status") == "success":
+            tot_cable = res.get("total_cable_m", 0)
+            cable_str = f"🌐 *Kabel Udara (KU 24):* *{tot_cable:,.0f} meter*\n" if tot_cable > 0 else ""
+            acc_map = res.get("accessories_breakdown", {})
+            acc_str = ""
+            if acc_map:
+                acc_str = (
+                    f"🔩 *Aksesoris FTTH:*\n"
+                    f"• Stoping: {acc_map.get('ACC-STOPING', 0)} pcs | Dead End: {acc_map.get('ACC-DEADEND', 0)} pcs\n"
+                    f"• Full Clamp: {acc_map.get('ACC-FULCLAM', 0)} pcs | Suspen: {acc_map.get('ACC-SUSPEN', 0)} pcs\n"
+                    f"• Stainless Belt: {acc_map.get('ACC-BELT', 0)} roll | Slack Hanger: {acc_map.get('ACC-HANGER', 0)} pcs\n\n"
+                )
+
             card = (
                 f"📦 *REKAPITULASI MATERIAL MASTER LAHAT*\n\n"
+                f"📊 *Tiang Lapangan:*\n"
                 f"• Total Bersih: *{res.get('total_net')} batang*\n"
-                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n"
-                f"• Mandor Terverifikasi: {', '.join(res.get('mandors', []))}\n"
-                f"• Berkas Master: `{res.get('excel_file')}`\n\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n\n"
+                f"{cable_str}"
+                f"{acc_str}"
+                f"👷 *Mandor Terverifikasi:* {', '.join(res.get('mandors', []))}\n"
+                f"📁 *Berkas Master:* `{res.get('excel_file')}`\n\n"
                 f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
             )
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
             kb = [
-                [InlineKeyboardButton("📊 Buka GridCraft", callback_data="artcraft|open|gridcraft")],
+                [InlineKeyboardButton("📊 Buka GridCraft Lahat", callback_data="artcraft|open|gridcraft|lahat")],
+                [InlineKeyboardButton("📦 Rekap Curup", callback_data="btn_rekap_curup")],
+                [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
+            ]
+            await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal merekap material: {res.get('message')}")
+
+    elif data == "btn_rekap_curup":
+        from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
+
+        await safe_send_message(context, chat_id, "⏳ *Menyusun Rekapitulasi Material WhatsApp Cluster Curup...*")
+        res = reconcile_whatsapp_material_group(
+            group_name_or_id="Laporan pengambilan mandor curup",
+            auto_launch_gridcraft=False,
+        )
+        if res.get("status") == "success":
+            tot_cable = res.get("total_cable_m", 0)
+            cable_str = f"🌐 *Kabel Udara (KU 24):* *{tot_cable:,.0f} meter*\n" if tot_cable > 0 else ""
+            acc_map = res.get("accessories_breakdown", {})
+            acc_str = ""
+            if acc_map:
+                acc_lines = []
+                if acc_map.get('ACC-STOPING'):
+                    acc_lines.append(f"• Stoping: {acc_map['ACC-STOPING']} pcs")
+                if acc_map.get('ACC-DEADEND'):
+                    acc_lines.append(f"• Dead End: {acc_map['ACC-DEADEND']} pcs")
+                if acc_map.get('ACC-FULCLAM'):
+                    acc_lines.append(f"• Full Clamp/Pole Clamp: {acc_map['ACC-FULCLAM']} pcs")
+                if acc_map.get('ACC-SUSPEN'):
+                    acc_lines.append(f"• Suspen: {acc_map['ACC-SUSPEN']} pcs")
+                if acc_map.get('ACC-HANGER'):
+                    acc_lines.append(f"• Slack Hanger: {acc_map['ACC-HANGER']} pcs")
+                if acc_map.get('ACC-BUAYA'):
+                    acc_lines.append(f"• Clamp Buaya: {acc_map['ACC-BUAYA']} pcs")
+                if acc_map.get('ACC-BELT'):
+                    acc_lines.append(f"• Stainless Belt: {acc_map['ACC-BELT']} roll")
+                if acc_lines:
+                    acc_str = "🔩 *Aksesoris FTTH:*\n" + "\n".join(acc_lines) + "\n\n"
+
+            pole_breakdown = res.get("breakdown", {})
+            pole_str = ""
+            if pole_breakdown:
+                pole_items = [f"{k}: {v} btg" for k, v in pole_breakdown.items() if v != 0]
+                if pole_items:
+                    pole_str = f" ({', '.join(pole_items)})"
+
+            card = (
+                f"📦 *REKAPITULASI MATERIAL MASTER CURUP*\n\n"
+                f"📊 *Tiang Lapangan:*\n"
+                f"• Total Bersih: *{res.get('total_net')} batang*{pole_str}\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n\n"
+                f"{cable_str}"
+                f"{acc_str}"
+                f"👷 *Mandor Terverifikasi:* {', '.join(res.get('mandors', []))}\n"
+                f"📁 *Berkas Master:* `{res.get('excel_file')}`\n\n"
+                f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = [
+                [InlineKeyboardButton("📊 Buka GridCraft Curup", callback_data="artcraft|open|gridcraft|curup")],
+                [InlineKeyboardButton("📦 Rekap Lahat", callback_data="btn_rekap_lahat")],
                 [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
             ]
             await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
@@ -1182,11 +1282,11 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
 
     elif data == "btn_wa_status":
         res = tools.manage_wa_sheets_bot("status")
-        st = "🟢 RUNNING (Aktif)" if res.get("is_running") else "🔴 STOPPED (Mati)"
+        st_status = "🟢 RUNNING (Aktif)" if res.get("is_running") else "🔴 STOPPED (Mati)"
         await safe_send_message(
             context,
             chat_id,
-            f"📱 **Status WhatsApp Bot:** {st}\n\n```\n{res.get('details', '')}\n```",
+            f"📱 **Status WhatsApp Bot:** {st_status}\n\n```\n{res.get('details', '')}\n```",
         )
 
     elif data == "btn_wa_restart":
@@ -1206,6 +1306,14 @@ async def _dispatch_menu_callback(update, context, data, user_id, chat_id):
         await safe_send_message(
             context, chat_id, f"⏹️ {res.get('message', 'Stop diproses.')}"
         )
+
+
+def _safe_unlink(path: str) -> None:
+    """Hapus file tanpa pernah menggagalkan alur (dipakai untuk artefak)."""
+    try:
+        os.remove(path)
+    except OSError:
+        pass
 
 
 def is_artifact_producing_tool(tool_name: str) -> bool:
@@ -1337,16 +1445,18 @@ async def check_and_send_media_artifacts(
                         chat_id=chat_id, photo=photo_file, caption=caption
                     )
                 sent_basenames.add(filename.lower())
+                # Hapus HANYA kalau benar-benar terkirim. Kalau dihapus di finally,
+                # satu network blip -> artefak hilang PERMANEN tanpa retry.
+                _safe_unlink(full_path)
             except _HANDLER_ERR as send_err:
                 logger.error(f"Failed to send media artifact {filename}: {send_err}")
-            finally:
-                try:
-                    os.remove(full_path)
-                except OSError:
-                    pass
 
     raw_candidates = []
-    for fname in os.listdir(SANDBOX_DIR):
+    try:
+        _sandbox_entries = os.listdir(SANDBOX_DIR)
+    except OSError:
+        _sandbox_entries = []
+    for fname in _sandbox_entries:
         if fname.lower() in sent_basenames:
             continue
         fpath = os.path.join(SANDBOX_DIR, fname)
@@ -1441,13 +1551,9 @@ async def check_and_send_media_artifacts(
                     chat_id=chat_id, photo=pf, caption=caption
                 )
             sent_basenames.add(fname.lower())
+            _safe_unlink(fpath)
         except _HANDLER_ERR as img_err:
             logger.error(f"Failed to send image {fname}: {img_err}")
-        finally:
-            try:
-                os.remove(fpath)
-            except OSError:
-                pass
 
     # Kirim dokumen dengan proteksi anti-duplicate per tipe berkas (cegah double file Excel/PDF)
     generic_names = {".xlsx": "data.xlsx", ".pdf": "laporan.pdf", ".pptx": "presentasi.pptx"}
@@ -1490,13 +1596,9 @@ async def check_and_send_media_artifacts(
                         chat_id=chat_id, document=df, caption=f"📄 Berkas: {fname}"
                     )
                 sent_basenames.add(fname.lower())
+                _safe_unlink(fpath)
             except _HANDLER_ERR as doc_err:
                 logger.error(f"Failed to send document {fname}: {doc_err}")
-            finally:
-                try:
-                    os.remove(fpath)
-                except OSError:
-                    pass
 
 
 async def _long_turn_nudge(
@@ -1696,18 +1798,95 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             auto_launch_gridcraft=False,
         )
         if res.get("status") == "success":
+            tot_cable = res.get("total_cable_m", 0)
+            cable_str = f"🌐 *Kabel Udara (KU 24):* *{tot_cable:,.0f} meter*\n" if tot_cable > 0 else ""
+            acc_map = res.get("accessories_breakdown", {})
+            acc_str = ""
+            if acc_map:
+                acc_str = (
+                    f"🔩 *Aksesoris FTTH:*\n"
+                    f"• Stoping: {acc_map.get('ACC-STOPING', 0)} pcs | Dead End: {acc_map.get('ACC-DEADEND', 0)} pcs\n"
+                    f"• Full Clamp: {acc_map.get('ACC-FULCLAM', 0)} pcs | Suspen: {acc_map.get('ACC-SUSPEN', 0)} pcs\n"
+                    f"• Stainless Belt: {acc_map.get('ACC-BELT', 0)} roll | Slack Hanger: {acc_map.get('ACC-HANGER', 0)} pcs\n\n"
+                )
+
             card = (
                 f"📦 *REKAPITULASI MATERIAL MASTER LAHAT*\n\n"
+                f"📊 *Tiang Lapangan:*\n"
                 f"• Total Bersih: *{res.get('total_net')} batang*\n"
-                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n"
-                f"• Mandor Terverifikasi: {', '.join(res.get('mandors', []))}\n"
-                f"• Berkas Master: `{res.get('excel_file')}`\n\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n\n"
+                f"{cable_str}"
+                f"{acc_str}"
+                f"👷 *Mandor Terverifikasi:* {', '.join(res.get('mandors', []))}\n"
+                f"📁 *Berkas Master:* `{res.get('excel_file')}`\n\n"
                 f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
             )
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
             kb = [
                 [InlineKeyboardButton("📊 Buka GridCraft", callback_data="artcraft|open|gridcraft")],
+                [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
+            ]
+            await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
+        else:
+            await safe_send_message(context, chat_id, f"⚠️ Gagal merekap material: {res.get('message')}")
+        return
+
+    if lower_norm in ("📦 rekap material curup", "rekap material curup", "rekap curup", "pengambilan curup", "pengambilan mandor curup"):
+        from alfa.tools.telecom_tools import reconcile_whatsapp_material_group
+
+        await safe_send_message(context, chat_id, "⏳ *Menyusun Rekapitulasi Material WhatsApp Cluster Curup...*")
+        res = reconcile_whatsapp_material_group(
+            group_name_or_id="Laporan pengambilan mandor curup",
+            auto_launch_gridcraft=False,
+        )
+        if res.get("status") == "success":
+            tot_cable = res.get("total_cable_m", 0)
+            cable_str = f"🌐 *Kabel Udara (KU 24):* *{tot_cable:,.0f} meter*\n" if tot_cable > 0 else ""
+            acc_map = res.get("accessories_breakdown", {})
+            acc_str = ""
+            if acc_map:
+                acc_lines = []
+                if acc_map.get('ACC-STOPING'):
+                    acc_lines.append(f"• Stoping: {acc_map['ACC-STOPING']} pcs")
+                if acc_map.get('ACC-DEADEND'):
+                    acc_lines.append(f"• Dead End: {acc_map['ACC-DEADEND']} pcs")
+                if acc_map.get('ACC-FULCLAM'):
+                    acc_lines.append(f"• Full Clamp/Pole Clamp: {acc_map['ACC-FULCLAM']} pcs")
+                if acc_map.get('ACC-SUSPEN'):
+                    acc_lines.append(f"• Suspen: {acc_map['ACC-SUSPEN']} pcs")
+                if acc_map.get('ACC-HANGER'):
+                    acc_lines.append(f"• Slack Hanger: {acc_map['ACC-HANGER']} pcs")
+                if acc_map.get('ACC-BUAYA'):
+                    acc_lines.append(f"• Clamp Buaya: {acc_map['ACC-BUAYA']} pcs")
+                if acc_map.get('ACC-BELT'):
+                    acc_lines.append(f"• Stainless Belt: {acc_map['ACC-BELT']} roll")
+                if acc_lines:
+                    acc_str = "🔩 *Aksesoris FTTH:*\n" + "\n".join(acc_lines) + "\n\n"
+
+            pole_breakdown = res.get("breakdown", {})
+            pole_str = ""
+            if pole_breakdown:
+                pole_items = [f"{k}: {v} btg" for k, v in pole_breakdown.items() if v != 0]
+                if pole_items:
+                    pole_str = f" ({', '.join(pole_items)})"
+
+            card = (
+                f"📦 *REKAPITULASI MATERIAL MASTER CURUP*\n\n"
+                f"📊 *Tiang Lapangan:*\n"
+                f"• Total Bersih: *{res.get('total_net')} batang*{pole_str}\n"
+                f"• Total Bruto: {res.get('total_bruto')} btg | Retur: {res.get('total_retur')} btg\n\n"
+                f"{cable_str}"
+                f"{acc_str}"
+                f"👷 *Mandor Terverifikasi:* {', '.join(res.get('mandors', []))}\n"
+                f"📁 *Berkas Master:* `{res.get('excel_file')}`\n\n"
+                f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
+            )
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            kb = [
+                [InlineKeyboardButton("📊 Buka GridCraft Curup", callback_data="artcraft|open|gridcraft|curup")],
+                [InlineKeyboardButton("📦 Rekap Lahat", callback_data="btn_rekap_lahat")],
                 [InlineKeyboardButton("◀️ Menu Utama", callback_data="btn_menu")],
             ]
             await safe_send_message(context, chat_id, card, reply_markup=InlineKeyboardMarkup(kb))
@@ -1899,9 +2078,22 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 from alfa.swarm.workspace_hygiene import request_cancel_swarm
 
                 request_cancel_swarm()
-                await reporter.stop("⏹ Misi dibatalkan pengguna.")
-                reply = "⏹ **Misi swarm telah dihentikan atas permintaan Anda.**"
+                try:
+                    await reporter.stop("⏹ Misi dibatalkan pengguna.")
+                except Exception:
+                    pass
                 logger.info(f"[handle_text:swarm] Swarm task untuk chat_id={chat_id} dibatalkan pengguna.")
+                # Notifikasi user DULU, baru teruskan cancellation (kontrak asyncio:
+                # CancelledError harus diteruskan, tidak ditelan).
+                try:
+                    await safe_send_message(
+                        context,
+                        chat_id,
+                        "⏹ **Misi swarm telah dihentikan atas permintaan Anda.**",
+                    )
+                except Exception:
+                    pass
+                raise
             except _HANDLER_ERR as e:
                 logger.error(f"[handle_text:swarm] gagal untuk {user_id}: {e}", exc_info=True)
                 await reporter.stop("❌ Misi gagal.")
@@ -2037,6 +2229,12 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             chat_id, context, stop_typing, constants.ChatAction.RECORD_VOICE
         )
     )
+    # WAJIB di-init SEBELUM try: unduhan voice bisa gagal sebelum variabel di bawah
+    # di-assign, dan aksesnya di luar try akan memicu UnboundLocalError -> user
+    # tidak mendapat balasan sama sekali.
+    transcription_text: str | None = None
+    prompt: str = ""
+    fast: str | None = None
     try:
         file_obj = await context.bot.get_file(voice.file_id)
         voice_bytes_io = io.BytesIO()
@@ -2048,14 +2246,17 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         mime = getattr(voice, "mime_type", None) or "audio/ogg"
         audio_part = types.Part.from_bytes(data=voice_bytes, mime_type=mime)
 
-        transcription_text = None
         transcribe_client, _, _ = resolve_main_gemini()
         if transcribe_client:
             transcribe_models = []
+            # Model transkripsi khusus DICOBAH LEBIH DAHULU (murah & akurat untuk
+            # audio), lalu fallback ke model chat umum.
             for candidate in (
+                "gemini-3.5-transcribe",
                 _main_brain_gemini_model(),
                 GEMINI_MODEL,
-                "gemini-3.5-flash",
+                "gemini-3.8-flash",
+                "gemini-3.6-flash",
                 "gemini-flash-lite-latest",
                 "gemini-3-flash-preview",
             ):
@@ -2128,8 +2329,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
 
     active_prompt = (
         (transcription_text or "")
-        if "fast" in locals() and fast is not None
-        else (prompt if "prompt" in locals() else (transcription_text or ""))
+        if fast is not None
+        else (prompt or (transcription_text or ""))
     )
     await _check_and_send_media_artifacts(
         update, context, turn_start_time=turn_start_time, user_prompt=active_prompt
@@ -2455,6 +2656,16 @@ async def _execute_document_batch(chat_id: int, batch: dict[str, Any]):
                     "time": time.time(),
                 }
                 _save_recent_docs_cache()
+    except _HANDLER_ERR as e:
+        # Tanpa except ini, exception melompat keluar dari task -> asyncio diam-diam
+        # membuangnya -> user upload dokumen dapat BALASAN KOSONG dan tombol
+        # PDF/Excel tidak pernah muncul.
+        logger.error(f"[_execute_document_batch] turn gagal untuk {user_id}: {e}", exc_info=True)
+        reply = (
+            "❌ Maaf, dokumennya gagal diproses "
+            f"({type(e).__name__}: {str(e)[:200]}). "
+            "Coba kirim ulang."
+        )
     finally:
         stop_typing.set()
         await typing_task
@@ -2526,11 +2737,22 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
             "/tmp",
         ]
         safe_fname = os.path.basename(file_name)
+        # Hanya file yang BARU SAJA dibuat (user baru saja mengirimnya). Tanpa
+        # batas waktu ini, bot bisa mengambil file pribadi tak berkaitan yang kebetulan
+        # namanya sama dan memprosesnya.
+        _fresh_cutoff = time.time() - 24 * 3600
+        _candidates: list[tuple[float, str]] = []
         for sroot in search_roots:
             candidate = os.path.join(sroot, safe_fname)
-            if os.path.isfile(candidate):
-                local_resolved_path = candidate
-                break
+            try:
+                if os.path.isfile(candidate) and os.path.getmtime(candidate) >= _fresh_cutoff:
+                    _candidates.append((os.path.getmtime(candidate), candidate))
+            except OSError:
+                continue
+        if _candidates:
+            # Ambil yang paling baru
+            _candidates.sort(reverse=True)
+            local_resolved_path = _candidates[0][1]
 
         if local_resolved_path:
             size_mb = round(os.path.getsize(local_resolved_path) / (1024 * 1024), 2)
@@ -2553,10 +2775,12 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
 
     from alfa.tools.filesystem import universal_file_extractor as ufe
 
-    txt_ctx, part = "", None
+    txt_ctx: str = ""
+    part = None
     if doc_bytes is not None:
         try:
-            txt_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
+            raw_ctx, part = ufe.process_uploaded_attachment(file_name, mime_type, doc_bytes)
+            txt_ctx = str(raw_ctx or "")
         except Exception as e:
             logger.warning(f"[handle_document] Gagal ekstraksi '{file_name}': {e}")
             txt_ctx, part = "", None

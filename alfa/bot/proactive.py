@@ -742,6 +742,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
     allowed_env = os.getenv("ALLOWED_USER_IDS", "").strip()
     primary_uid = int(allowed_env.split(",")[0].strip()) if allowed_env else None
     unresponsive_count = 0
+    sync_cycle_count = 0
 
     while True:
         try:
@@ -800,33 +801,50 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                 f"⚠️ wa-sheets-bot HTTP healthcheck failed ({unresponsive_count}/3)"
                             )
                             if unresponsive_count >= 3:
-                                logger.error(
-                                    "🚨 wa-sheets-bot unresponsive after 3 attempts. Auto-restarting..."
-                                )
-                                await asyncio.to_thread(
-                                    lambda: subprocess.run(
-                                        [
-                                            "systemctl",
-                                            "--user",
-                                            "restart",
-                                            "wa-sheets-bot.service",
-                                        ],
-                                        capture_output=True,
-                                        text=True,
-                                    )
+                                logger.warning(
+                                    "🚨 wa-sheets-bot tidak merespons HTTP (3x). Sesi WhatsApp dijaga; restart otomatis diblokir sesuai aturan proteksi sesi."
                                 )
                                 unresponsive_count = 0
                                 if primary_uid:
                                     try:
                                         await application.bot.send_message(
                                             chat_id=primary_uid,
-                                            text="⚠️ *WhatsApp Bot Auto-Recovery*\n\nLayanan WhatsApp tidak merespons (HTTP timeout). Layanan otomatis di-*restart* oleh watchdog ALFA.",
+                                            text="⚠️ *WhatsApp Bot Status Notice*\n\nLayanan WhatsApp bot lambat merespons HTTP (kemungkinan sinkronisasi berat). Sesi login tetap dijaga dan tidak di-restart otomatis.",
                                             parse_mode="Markdown",
                                         )
                                     except TelegramError:
                                         pass
                         else:
                             unresponsive_count = 0
+                            sync_cycle_count += 1
+                            # Proaktif: setiap ~5 menit (20 siklus x 15s), sedot pesan masuk ke SQLite
+                            if sync_cycle_count % 20 == 0:
+                                try:
+                                    def _sync_wa_incoming_bg() -> int:
+                                        import json
+                                        import urllib.request
+
+                                        from alfa.core.db.wa_tracking import (
+                                            archive_wa_messages_sync,
+                                        )
+                                        try:
+                                            url = "http://127.0.0.1:3000/api/incoming?limit=100&sync_chats=1"
+                                            req = urllib.request.Request(url, headers={"User-Agent": "ALFA-SyncWorker"})
+                                            with urllib.request.urlopen(req, timeout=5) as resp:
+                                                if resp.status == 200:
+                                                    data = json.loads(resp.read().decode("utf-8"))
+                                                    incoming = data.get("incoming", [])
+                                                    if incoming:
+                                                        return archive_wa_messages_sync(incoming)
+                                        except Exception:
+                                            pass
+                                        return 0
+
+                                    archived_count = await asyncio.to_thread(_sync_wa_incoming_bg)
+                                    if archived_count > 0:
+                                        logger.info(f"📥 Proactive WA sync archived {archived_count} new messages to SQLite.")
+                                except Exception as sync_err:
+                                    logger.debug(f"Proactive WA sync notice: {sync_err}")
 
                 if os.path.exists(status_file) and primary_uid:
                     try:

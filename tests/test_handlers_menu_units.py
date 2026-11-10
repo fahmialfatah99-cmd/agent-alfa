@@ -368,12 +368,14 @@ async def test_unauthorized_denied(_routers_off, monkeypatch):
     assert "ditolak" in query.edit_message_text.await_args.args[0]
 
 
-async def test_perm_prefix_skips_answer(_routers_off, monkeypatch):
+async def test_perm_prefix_answers_callback(_routers_off, monkeypatch):
+    # Kontrak baru: callback `perm|...` HARUS di-answer() sekali agar spinner
+    # klien tidak berputar selamanya (lihat handle_callback_query).
     monkeypatch.setattr(h, "_is_authorized", lambda uid: True)
     upd, query = _upd()
     query.data = "perm|dir-1"
     await h.handle_callback_query(upd, MagicMock())
-    query.answer.assert_not_awaited()
+    query.answer.assert_awaited_once()
 
 
 async def test_missing_callback_query_returns(_routers_off):
