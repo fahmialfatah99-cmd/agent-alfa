@@ -713,7 +713,6 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
     import gc
     import os
     import shutil
-    import subprocess
 
     import psutil
 
@@ -763,11 +762,10 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
 
     wa_recycled = False
     if recycle_wa_if_needed and wa_rss_mb > 1200:
-        try:
-            subprocess.run(["systemctl", "--user", "restart", "wa-sheets-bot.service"], check=False, timeout=10)
-            wa_recycled = True
-        except Exception as e:
-            logger.warning("Failed to recycle wa-sheets-bot: %s", e)
+        logger.warning(
+            "wa-sheets-bot RAM usage high (%s MB), but automated restart is blocked to preserve active WhatsApp session.",
+            wa_rss_mb,
+        )
 
     return {
         "status": "success",

@@ -57,7 +57,7 @@ def read_cpu_temperature_celsius() -> float:
                 if name in temps and temps[name]:
                     vals = [t.current for t in temps[name] if t.current and t.current > 0]
                     if vals:
-                        return round(max(vals), 1)
+                        return round(float(max(vals)), 1)
     except _GOV_ERRORS:
         pass
 
@@ -127,15 +127,26 @@ def get_hardware_governor_state() -> dict[str, Any]:
 
     if temp_c is None:
         temp_c = read_cpu_temperature_celsius()
+    # Guard sensor: bila pembacaan temperatur gagal total (None), pakai default
+    # 0.0 agar comparison mode-matrix tidak melempar TypeError di runtime.
+    if temp_c is None:
+        temp_c = 0.0
     load_1m, load_5m, _ = os.getloadavg() if hasattr(os, "getloadavg") else (0.5, 0.5, 0.5)
 
+    # Binding definite mypy 1.8 tidak menarrow melalui tuple-unpack di try/except;
+    # setelah titik ini semua telemetri dijamin non-None (Decision Matrix aman).
+    cpu_pct_f = cpu_pct if cpu_pct is not None else 10.0
+    temp_c_f = float(temp_c)
+    ram_used_f = ram_used_pct if ram_used_pct is not None else 50.0
+    ram_avail_f = ram_avail_mb if ram_avail_mb is not None else 2048.0
+
     # Decision Matrix for Level 5+ Governor
-    if temp_c >= 78.0 or cpu_pct >= 80.0 or ram_avail_mb < 450:
+    if temp_c_f >= 78.0 or cpu_pct_f >= 80.0 or ram_avail_f < 450:
         mode = "THERMAL_PROTECTION"
         allow_dreaming = False
         allow_heavy_synthesis = False
         recommendation = "Suhu/Beban tinggi: Background Dreaming ditunda, prioritas 100% pada respons interaktif."
-    elif temp_c >= 65.0 or cpu_pct >= 45.0 or ram_avail_mb < 900:
+    elif temp_c_f >= 65.0 or cpu_pct_f >= 45.0 or ram_avail_f < 900:
         mode = "BALANCED"
         allow_dreaming = True
         allow_heavy_synthesis = True
@@ -149,10 +160,10 @@ def get_hardware_governor_state() -> dict[str, Any]:
     return {
         "status": "success",
         "governor_mode": mode,
-        "cpu_percent": round(cpu_pct, 1),
-        "cpu_temp_celsius": temp_c,
-        "ram_used_percent": round(ram_used_pct, 1),
-        "ram_available_mb": ram_avail_mb,
+        "cpu_percent": round(cpu_pct_f, 1),
+        "cpu_temp_celsius": temp_c_f,
+        "ram_used_percent": round(ram_used_f, 1),
+        "ram_available_mb": ram_avail_f,
         "swap_used_percent": round(swap_used_pct, 1),
         "load_avg_1m": round(load_1m, 2),
         "load_avg_5m": round(load_5m, 2),

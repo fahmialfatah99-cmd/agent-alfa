@@ -7,6 +7,21 @@ utilities previously located directly in tools.py.
 import logging
 
 import plugins
+from alfa.core.apex import (
+    apex_computer_use_action,
+    apex_neuro_symbolic_verify,
+    apex_repo_architect_build,
+    apex_run_dreaming_consolidation,
+    apex_software_factory_build,
+    apex_synthesize_dynamic_tool,
+    apex_system_telemetry,
+    apex_temporal_graphrag_query,
+    rea_clone_and_build_app,
+)
+from alfa.core.brain.learning_loop import (
+    query_learned_skills,
+    record_agent_experience,
+)
 from alfa.core.runtime_ctx import current_chat_id_var as current_chat_id_var
 from alfa.core.runtime_ctx import current_user_id_var as current_user_id_var
 from alfa.core.runtime_ctx import current_user_prompt_var as current_user_prompt_var
@@ -21,9 +36,11 @@ from alfa.tools import (
     media_tools,
     memory_tools,
     registry,
-    system,
     system_tools,
     web_tools,
+)
+from alfa.tools import (
+    system as system,
 )
 from alfa.tools.academic_tools import *  # noqa: F401, F403
 from alfa.tools.desktop_tools import *  # noqa: F401, F403
@@ -52,6 +69,7 @@ from alfa.tools.filesystem_tools import _resolve_host_path as _resolve_host_path
 from alfa.tools.media_tools import *  # noqa: F401, F403
 from alfa.tools.memory_tools import *  # noqa: F401, F403
 from alfa.tools.registry import *  # noqa: F401, F403
+from alfa.tools.rekap_layout import tidy_rekap_excel
 from alfa.tools.system.guardian import (  # noqa: F401 — registrasi tool Penjaga
     guardian_daily_report,
     schedule_daily_guardian_task,
@@ -92,28 +110,13 @@ from alfa.tools.telecom_tools import (
     generate_daily_executive_briefing,
     inspect_field_surat_jalan_image,
     parse_delivery_order_document,
+    reconcile_whatsapp_material_group,
     render_cluster_kml_map,
     schedule_daily_briefing_task,
     transcribe_field_voice_note,
     wa_relay_send_from_telegram,
-    reconcile_whatsapp_material_group,
 )
 from alfa.tools.web_tools import *  # noqa: F401, F403
-from alfa.core.brain.learning_loop import (
-    query_learned_skills,
-    record_agent_experience,
-)
-from alfa.core.apex import (
-    apex_computer_use_action,
-    apex_neuro_symbolic_verify,
-    apex_repo_architect_build,
-    apex_run_dreaming_consolidation,
-    apex_software_factory_build,
-    apex_synthesize_dynamic_tool,
-    apex_system_telemetry,
-    apex_temporal_graphrag_query,
-    rea_clone_and_build_app,
-)
 
 logger = logging.getLogger("AgentTools")
 
@@ -189,6 +192,7 @@ AVAILABLE_TOOLS = [
     transcribe_field_voice_note,
     wa_relay_send_from_telegram,
     reconcile_whatsapp_material_group,
+    tidy_rekap_excel,
     inspect_field_surat_jalan_image,
     dispatch_instant_material_anomaly_alert,
     generate_presentation_pptx,

@@ -340,7 +340,7 @@ def rea_synthesize_skill_from_code(
         if not analysis_summary:
             if os.path.isfile(clean_path):
                 try:
-                    with open(clean_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(clean_path, encoding="utf-8", errors="ignore") as f:
                         sample_chunk = f.read(65536)
                         lines = [line.strip() for line in sample_chunk.splitlines() if line.strip() and not line.startswith(("#", "//"))]
                     analysis_summary = f"Source summary ({len(lines)} lines sampled): " + " | ".join(lines[:10])

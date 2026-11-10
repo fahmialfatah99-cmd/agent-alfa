@@ -6,6 +6,7 @@ import ast
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 # ==========================================
 # 2. REPOMAP & CODEBASE SYMBOL GENERATOR
@@ -205,13 +206,13 @@ class RepomapGenerator:
             pass
         return imports
 
-    def rank_files_by_centrality(self, scan_limit: int = 600) -> list[dict[str, object]]:
+    def rank_files_by_centrality(self, scan_limit: int = 600) -> list[dict[str, Any]]:
         """
         PageRank / Import-Centrality scorer for giant repositories:
         Scans up to `scan_limit` files, builds an inbound import reference graph,
         and ranks files by architectural importance (inbound refs + symbol richness + entrypoint weight).
         """
-        candidates: list[dict[str, object]] = []
+        candidates: list[dict[str, Any]] = []
         stem_to_indices: dict[str, list[int]] = {}
 
         for dirpath, dirnames, filenames in os.walk(self.root):
@@ -269,14 +270,14 @@ class RepomapGenerator:
 
         # Accumulate inbound reference counts (PageRank 1-step centrality)
         for item in candidates:
-            for imp in item["imports"]:  # type: ignore[union-attr]
+            for imp in item["imports"]:
                 imp_low = str(imp).lower()
                 for target_idx in stem_to_indices.get(imp_low, []):
                     if candidates[target_idx]["rel_file"] != item["rel_file"]:
-                        candidates[target_idx]["inbound_refs"] = int(candidates[target_idx]["inbound_refs"]) + 1  # type: ignore[arg-type]
-                        candidates[target_idx]["score"] = float(candidates[target_idx]["score"]) + 2.5  # type: ignore[arg-type]
+                        candidates[target_idx]["inbound_refs"] = int(candidates[target_idx]["inbound_refs"]) + 1
+                        candidates[target_idx]["score"] = float(candidates[target_idx]["score"]) + 2.5
 
-        candidates.sort(key=lambda x: (-float(x["score"]), str(x["rel_file"])))  # type: ignore[arg-type]
+        candidates.sort(key=lambda x: (-float(x["score"]), str(x["rel_file"])))
         return candidates
 
     def generate_repomap(self, max_files: int = 60) -> str:
@@ -289,8 +290,8 @@ class RepomapGenerator:
         lines: list[str] = []
         for item in selected:
             rel_file = str(item["rel_file"])
-            symbols = list(item["symbols"])  # type: ignore[arg-type]
-            inbound = int(item["inbound_refs"])  # type: ignore[arg-type]
+            symbols = list(item["symbols"])
+            inbound = int(item["inbound_refs"])
             ref_badge = f" [refs:{inbound}]" if inbound > 0 else ""
             if symbols:
                 sym_repr = ", ".join(str(s) for s in symbols[:5])

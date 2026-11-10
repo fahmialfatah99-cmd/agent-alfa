@@ -438,6 +438,10 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Rekapitulasi resmi material grup WhatsApp - tulis file Excel",
     ),
+    "tidy_rekap_excel": (
+        RiskTier.MEDIUM,
+        "Susun ulang tata letak berkas Excel Rekap Material in-place (tulis file)",
+    ),
     "inspect_field_surat_jalan_image": (
         RiskTier.MEDIUM,
         "Inspeksi gambar/PDF Surat Jalan atau DO lapangan via Computer Vision",

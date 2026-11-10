@@ -32,7 +32,7 @@ class TestCliShims:
         from alfa.swarm import personas
 
         prompts = personas.build_prompts()
-        assert len(prompts) == 6
+        assert len(prompts) == 7
         assert all(isinstance(v, str) and v for v in prompts.values())
 
     def test_apply_personas_consts(self):

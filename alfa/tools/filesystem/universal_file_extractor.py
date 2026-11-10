@@ -688,9 +688,9 @@ def _build_cross_sheet_material_rollup(sheet_records: list[dict[str, Any]]) -> s
             unit = str(r[unit_i]).strip() if (unit_i >= 0 and r[unit_i] is not None) else ""
 
             def _num(idx: int) -> float:
-                if idx < 0 or idx >= len(r) or r[idx] is None:
+                if idx < 0 or idx >= len(r) or r[idx] is None:  # noqa: B023 — dipakai dalam iterasi yang sama, bukan late-binding
                     return 0.0
-                v = r[idx]
+                v = r[idx]  # noqa: B023 — dipakai dalam iterasi yang sama, bukan late-binding
                 if isinstance(v, (int, float)) and not isinstance(v, bool):
                     return float(v)
                 try:

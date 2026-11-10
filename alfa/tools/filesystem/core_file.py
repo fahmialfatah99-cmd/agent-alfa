@@ -123,7 +123,7 @@ def write_local_file(file_path: str, content: str) -> dict[str, Any]:
         is_existing = os.path.isfile(expanded_path)
         if is_existing and expanded_path.endswith(".py"):
             try:
-                with open(expanded_path, "r", encoding="utf-8", errors="surrogateescape") as of:
+                with open(expanded_path, encoding="utf-8", errors="surrogateescape") as of:
                     orig_content = of.read()
             except Exception:
                 orig_content = ""

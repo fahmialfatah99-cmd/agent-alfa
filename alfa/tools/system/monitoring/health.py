@@ -65,7 +65,7 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
 
         if fix_issues:
             for unit in failed_user_units:
-                if "telegram-ai-bot" not in unit:
+                if "telegram-ai-bot" not in unit and "wa-sheets-bot" not in unit:
                     subprocess.run(
                         f"systemctl --user reset-failed {unit} && systemctl --user restart {unit}",
                         shell=True,  # nosec B602 - unit names from systemctl output, telegram-ai-bot excluded

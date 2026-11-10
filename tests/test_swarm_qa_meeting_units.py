@@ -302,6 +302,7 @@ async def test_qa_fallback_by_name_keyword(_engine_clean, monkeypatch):
 async def test_auto_create_folder_and_env(_engine_clean, monkeypatch):
     makedirs = MagicMock()
     monkeypatch.setattr(engine.os, "makedirs", makedirs)
+    monkeypatch.setattr(engine, "detect_task_intent", lambda t: {"is_build": True, "is_code": True})
     monkeypatch.setenv("ALFA_TARGET_FOLDER", "")
     agents = _agents(("A", "dev"), ("Sentinel QA", "penjamin mutu"))
     _setup_qa(monkeypatch, agents=agents, verdicts=["PASS"])
@@ -320,6 +321,7 @@ async def test_auto_create_makedirs_error_logs_warning(_engine_clean, monkeypatc
         raise OSError()
 
     monkeypatch.setattr(engine.os, "makedirs", boom)
+    monkeypatch.setattr(engine, "detect_task_intent", lambda t: {"is_build": True, "is_code": True})
     agents = _agents(("A", "dev"), ("Sentinel QA", "penjamin mutu"))
     _setup_qa(monkeypatch, agents=agents, verdicts=["PASS"])
 
