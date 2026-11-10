@@ -10,7 +10,7 @@ perubahan, dan batas-batas yang **tidak boleh dilewati**.
 |---|---|---|
 | `alfa/core/` | Otak & data: `db/` (SQLite, vault kunci, arsip WA), `brain/` (skema tool, prompt), `cli/` (resolusi kunci bertingkat), `rate_limiter`, `schema_types.py` (satu sumber pemetaan anotasi→JSON Schema) | DB utama: `agent_data.db` (di-repo-root; env `ALFA_DB_PATH` mengalahkan) |
 | `alfa/config/` | Data domain: `domain.py` (cluster, constraint simbolik, template fast-path, peta nama mandor) | override via `ALFA_TRACKED_CLUSTERS` / `ALFA_DOMAIN_CONSTRAINTS_JSON` |
-| `alfa/bot/` | Antarmuka: `telegram_bot.py`, `discord_bot.py`, `handlers.py` (router & menu), `advanced_commands.py` (WA/pipeline/tools), `mode_commands.py` (single/swarm/persona), `pipeline/` (DAG), `cloud_menu.py`, `wa_menu.py` | `handlers.py` & `advanced_commands.py` besar — ubah bedah, jangan rombak |
+| `alfa/bot/` | Antarmuka: `telegram_bot.py`, `discord_bot.py`, `handlers/` (paket: `_state`, `_compat`, `common`, `artifacts`, `documents`, `forwards`, `menus`, `messages`, `media`), `advanced_commands.py` (WA/pipeline/tools), `mode_commands.py` (single/swarm/persona), `pipeline/` (DAG), `cloud_menu.py`, `wa_menu.py` | `advanced_commands.py` besar — ubah bedah, jangan rombak; `handlers/` kini paket (state bersama di `_state.py`, akses dinamis via `_compat.py`) |
 | `alfa/swarm/` | Mesin multi-agen: `engine.py` (orkestrator + DAG + QA loop), `step_executor.py`, `deliberation.py` (voting mekanis), `workspace_hygiene.py` (folder/sandbox/cancel flag), `live_logger.py` | zero-regression: kontrak `conduct_multi_agent_meeting` tidak boleh berubah |
 | `alfa/tools/` | 148+ tool ter-registry (`register_tool`), `system/integrations/` (paket: `_api`, `productivity`, `whatsapp`, `bot_control`, `android`, `database_query`), `telecom_tools/` (paket: `_common`, `boq`, `maps`, `briefing`, `documents`, `ledger`, `relay`, `whatsapp`) | tool baru wajib punya deskripsi + parameter jelas utk router LLM; import path publik tetap `alfa.tools.*` |
 | `plugins/` | Plugin swafungsi (runner, skill installer, dsb.) | sandbox root dari `dirname(dirname(__file__))` — kompatibel perpindahan repo |
@@ -43,7 +43,9 @@ Kehilangan sesi WhatsApp adalah insiden terburuk di sistem ini. Aturan:
 
 Urutan resolusi: `env` → konfig tersimpan → **vault** (`api_keys`, terenkripsi AESGCM) → 9Router sqlite → antigravity → kosong.
 
-- `.env` (chmod 600, git-ignored) masih memuat `GEMINI_API_KEY` = sumber runtime saat ini.
+- `.env` (chmod 600, git-ignored) **sudah dikosongkan** — secret runtime kini
+  di `~/.config/alfa/secrets.env` (mode 600), dimuat lebih dulu oleh
+  `alfa/core/config.py` (env proses tetap menang).
 - Salinan terenkripsi yang sama tersimpan di vault (id 254) sehingga `.env` aman dilepas
   di jendela restart terkoordinasi. **Baris lama `SeedX` (id 253) tidak bisa didekripsikan**
   (biji enkripsi lawas) — dibiarkan, jangan dihapus tanpa persetujuan pemilik.

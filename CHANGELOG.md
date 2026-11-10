@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fase 2 overhaul — secret keluar repo, monolit dipecah, E2E test (2026-11-10)
+- **Secret privat benar-benar dipindah.** 30 kunci dari `.env` repo
+  dipindahkan ke `~/.config/alfa/secrets.env` (mode 600) lewat
+  `scripts/migrate_secrets.py --apply --strip` (backup `.env.bak-<ts>`
+  tersimpan). Dashboard, CLI, dan permission auditor kini memakai
+  resolusi sumber env tunggal (`env_file_paths()` / `active_env_path()`),
+  jadi UI settings tetap menulis ke file yang benar.
+- **`alfa/bot/handlers.py` (2.839 baris) → paket `alfa/bot/handlers/`**
+  (`_state`, `_compat`, `common`, `artifacts`, `documents`, `forwards`,
+  `menus`, `messages`, `media`). Import path publik tetap; lapisan
+  `_compat` menjaga patch/mock pada `alfa.bot.handlers.<nama>` tetap
+  memengaruhi pemanggil internal.
+- **131 `except Exception: pass` senyap dihentikan** — kini mencatat log
+  debug tanpa mengubah alur kontrol (cleanup browser, shutdown executor,
+  ingesti arsip, dan berbagai jalur best-effort).
+- **E2E test hermetik** (`tests/test_e2e_flows.py`): Telegram (sapaan →
+  balasan + riwayat DB; pertanyaan → agent turn → balasan), WhatsApp
+  (HTTP server lokal menyamar sebagai bot wa-sheets-bot), Dashboard
+  (`/api/settings` tanpa bocor nilai mentah, `/health` status DB).
+- **15 commit bersih** + working tree kembali bersih (72 file sebelumnya
+  menumpuk).
+
 ### Security hardening — canary subprocess, secrets di luar repo, domain config (2026-11-10)
 - **Canary Gate tidak lagi `exec()` di proses utama.** Verifikasi hanya
   parse + compile; smoke test berjalan di subprocess dengan timeout, rlimit,
