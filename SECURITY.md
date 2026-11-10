@@ -97,6 +97,10 @@ ALFA Agent implements several security measures:
   untuk semua orang. Mode development tanpa login hanya lewat escape hatch
   eksplisit `ALFA_INSECURE_LOCAL=true` (klien lokal saja, dan boot ditolak
   bila `DASHBOARD_HOST` bind ke `0.0.0.0/::`).
+- **Mode unrestricted butuh whitelist spesifik**: `ALFA_UNRESTRICTED=true`
+  dengan `ALLOWED_USER_IDS` kosong atau wildcard DITOLAK saat start
+  (boot guard) — tanpa itu permission gate & blocklist mati dan siapa pun
+  bisa menjalankan tool di host.
 - **RBAC default-deny**: seluruh endpoint mutating yang menjalankan aksi
   nyata di host (eksekusi tool/agent/swarm, rapat, antrean misi, broadcast,
   kredensial Drive, WhatsApp, passkey) memerlukan peran admin.
@@ -140,6 +144,10 @@ datang dari LLM **tidak** dieksekusi mentah:
 ### 5. Code Quality & Security
 - Automated linting with Ruff
 - Static type checking with mypy (0 baseline errors)
+- **Exception senyap dilarang**: `except Exception: pass` tidak boleh ada
+  (gate CI `scripts/check_silent_exceptions.py`) — error harus dicatat,
+  minimal level debug
+- **Budget lint TRY/BLE tidak boleh tumbuh** (`scripts/lint_budget.py`)
 - Security scanning with Bandit (`bandit -r alfa plugins -ll -q` = 0 Medium/High):
   - `alfa/core/db/tasks.py`: kueri SQL cron job menggunakan tuple statis berparameter (`?`) tanpa interpolasi f-string (bebas B608).
   - `alfa/mcp/client.py` (`_http`, `_post_form`): setiap pemanggilan `urllib.request.urlopen` didahului `_validate_http_url()` yang menolak skema selain `http`/`https` (mencegah SSRF skema `file://`); ditandai `# nosec B310` karena Bandit memindai `urlopen` secara statis.

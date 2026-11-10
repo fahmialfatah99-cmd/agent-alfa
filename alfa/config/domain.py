@@ -1,11 +1,15 @@
 """Domain data for telecom field logistics.
 
 Keeping this data out of Apex algorithms makes the engine reusable for other
-clusters/tenants without editing verification or dreaming code. Overrides:
+clusters/tenants without editing verification or dreaming code. Sources, dari
+prioritas tertinggi:
 
-- ``ALFA_TRACKED_CLUSTERS``: comma-separated list, e.g. ``LAHAT,CURUP``.
-- ``ALFA_DOMAIN_CONSTRAINTS_JSON``: path to a JSON file, or inline JSON object,
-  with the same shape as :data:`SYMBOLIC_LOGISTICS_CONSTRAINTS`.
+1. ``ALFA_CONFIG_PACK`` — pack JSON di ``alfa/config/packs/`` (cluster,
+   constraint simbolik, peta nama mandor).
+2. ``ALFA_TRACKED_CLUSTERS`` — daftar cluster dipisah koma, mis. ``LAHAT,CURUP``.
+3. ``ALFA_DOMAIN_CONSTRAINTS_JSON`` — path JSON atau objek JSON inline dengan
+   bentuk sama seperti :data:`SYMBOLIC_LOGISTICS_CONSTRAINTS`.
+4. Nilai bawaan (pack ``default``).
 """
 
 from __future__ import annotations
@@ -15,12 +19,58 @@ import logging
 import os
 from typing import Any
 
+from alfa.config.packs import pack_data
+
 logger = logging.getLogger("Config.Domain")
 
-DEFAULT_CLUSTER = "LAHAT"
+#: Isi config pack aktif (cluster/constraint/mandor).
+_PACK: dict[str, Any] = pack_data()
 
-_DEFAULT_TRACKED_CLUSTERS = ("LAHAT", "CURUP", "BENGKULU", "LUBUKLINGGAU")
-_DEFAULT_SUMMARY_CLUSTERS = ("LAHAT", "CURUP", "BENGKULU")
+_FALLBACK_TRACKED_CLUSTERS = ("LAHAT", "CURUP", "BENGKULU", "LUBUKLINGGAU")
+_FALLBACK_SUMMARY_CLUSTERS = ("LAHAT", "CURUP", "BENGKULU")
+_FALLBACK_CONSTRAINTS: dict[str, dict[str, Any]] = {
+    "LAHAT": {
+        "cluster": "CLUSTER_LAHAT",
+        "mugi_bruto": 68,
+        "mugi_retur": 7,
+        "mugi_net": 61,
+        "aqe_net": 99,
+        "total_net": 160,
+        "items": {"T72": 63, "T73": 94, "T74": 1, "T94": 2},
+    }
+}
+_FALLBACK_MANDOR_NAMES: dict[str, str] = {
+    "75286733418626": "Mandor Mugi",
+    "+75286733418626": "Mandor Mugi",
+    "8306668109995": "Mandor Aqe Setiawan",
+    "+8306668109995": "Mandor Aqe Setiawan",
+    "158862351048847": "Mandor Tri",
+    "+158862351048847": "Mandor Tri",
+    "85383638044": "Mandor Tri",
+    "+85383638044": "Mandor Tri",
+    "82310084343": "Mandor Eko",
+    "+82310084343": "Mandor Eko",
+    "122982630432902": "M Diki Darmawan",
+    "+122982630432902": "M Diki Darmawan",
+    "12615209821818167": "Admin Pengawas",
+    "+12615209821818167": "Admin Pengawas",
+    "108684466196499": "Mandor Curup",
+    "+108684466196499": "Mandor Curup",
+}
+
+
+def _pack_clusters(key: str, fallback: tuple[str, ...]) -> tuple[str, ...]:
+    raw = _PACK.get(key)
+    if not isinstance(raw, list) or not raw:
+        return fallback
+    values = tuple(str(item).strip().upper() for item in raw if str(item).strip())
+    return values or fallback
+
+
+_DEFAULT_TRACKED_CLUSTERS = _pack_clusters("clusters", _FALLBACK_TRACKED_CLUSTERS)
+_DEFAULT_SUMMARY_CLUSTERS = _pack_clusters("summary_clusters", _FALLBACK_SUMMARY_CLUSTERS)
+
+DEFAULT_CLUSTER = _DEFAULT_TRACKED_CLUSTERS[0] if _DEFAULT_TRACKED_CLUSTERS else "LAHAT"
 
 
 def _env_clusters() -> tuple[str, ...]:
@@ -37,16 +87,10 @@ SUMMARY_CLUSTERS: tuple[str, ...] = tuple(
 ) or TRACKED_CLUSTERS[:3]
 
 _DEFAULT_SYMBOLIC_CONSTRAINTS: dict[str, dict[str, Any]] = {
-    "LAHAT": {
-        "cluster": "CLUSTER_LAHAT",
-        "mugi_bruto": 68,
-        "mugi_retur": 7,
-        "mugi_net": 61,
-        "aqe_net": 99,
-        "total_net": 160,
-        "items": {"T72": 63, "T73": 94, "T74": 1, "T94": 2},
-    }
-}
+    str(cluster).upper(): dict(values)
+    for cluster, values in (_PACK.get("constraints") or _FALLBACK_CONSTRAINTS).items()
+    if isinstance(values, dict)
+} or dict(_FALLBACK_CONSTRAINTS)
 
 
 def _load_constraints_override() -> dict[str, dict[str, Any]]:
@@ -81,24 +125,11 @@ SYMBOLIC_LOGISTICS_CONSTRAINTS: dict[str, dict[str, Any]] = _load_constraints_ov
 
 #: Canonical WhatsApp/LID sender -> human-readable field supervisor names.
 #: Keep both raw and ``+``-prefixed variants because stored message senders vary.
+#: Diambil dari config pack bila tersedia, jika tidak memakai peta bawaan.
 MANDOR_NAME_MAP: dict[str, str] = {
-    "75286733418626": "Mandor Mugi",
-    "+75286733418626": "Mandor Mugi",
-    "8306668109995": "Mandor Aqe Setiawan",
-    "+8306668109995": "Mandor Aqe Setiawan",
-    "158862351048847": "Mandor Tri",
-    "+158862351048847": "Mandor Tri",
-    "85383638044": "Mandor Tri",
-    "+85383638044": "Mandor Tri",
-    "82310084343": "Mandor Eko",
-    "+82310084343": "Mandor Eko",
-    "122982630432902": "M Diki Darmawan",
-    "+122982630432902": "M Diki Darmawan",
-    "12615209821818167": "Admin Pengawas",
-    "+12615209821818167": "Admin Pengawas",
-    "108684466196499": "Mandor Curup",
-    "+108684466196499": "Mandor Curup",
-}
+    str(key): str(value)
+    for key, value in (_PACK.get("mandor_names") or _FALLBACK_MANDOR_NAMES).items()
+} or dict(_FALLBACK_MANDOR_NAMES)
 
 
 def detect_cluster(text: str, fallback: str = DEFAULT_CLUSTER) -> str:

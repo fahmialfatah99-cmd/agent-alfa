@@ -20,6 +20,8 @@ jobs:
         run: ruff check .
       - name: Enforce TRY/BLE lint budget (must not grow)
         run: python scripts/lint_budget.py --check
+      - name: Ban silent exception handlers (except Exception: pass)
+        run: python scripts/check_silent_exceptions.py
 
   docs:
     name: Docs (mkdocs strict)

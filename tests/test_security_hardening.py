@@ -44,6 +44,7 @@ class TestBootGuard:
         monkeypatch.setenv("ALFA_UNRESTRICTED", "true")
         monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "true")
         monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+        monkeypatch.setenv("ALLOWED_USER_IDS", "123456789")
         monkeypatch.delenv("ALFA_UNRESTRICTED_ACK", raising=False)
         with pytest.raises(RuntimeError) as ei:
             self._check()
@@ -53,7 +54,40 @@ class TestBootGuard:
         monkeypatch.setenv("ALFA_UNRESTRICTED", "true")
         monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "true")
         monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+        monkeypatch.setenv("ALLOWED_USER_IDS", "123456789")
         monkeypatch.setenv("ALFA_UNRESTRICTED_ACK", "yes")
+        self._check()  # tidak raise
+
+    def test_unrestricted_tanpa_whitelist_fatal(self, monkeypatch):
+        """Whitelist kosong = siapa pun boleh menjalankan tool di host."""
+        monkeypatch.setenv("ALFA_UNRESTRICTED", "true")
+        monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+        monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "false")
+        monkeypatch.delenv("ALLOWED_USER_IDS", raising=False)
+        with pytest.raises(RuntimeError) as ei:
+            self._check()
+        assert "ALLOWED_USER_IDS" in str(ei.value)
+
+    def test_unrestricted_dengan_whitelist_wildcard_fatal(self, monkeypatch):
+        monkeypatch.setenv("ALFA_UNRESTRICTED", "true")
+        monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+        monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "false")
+        monkeypatch.setenv("ALLOWED_USER_IDS", "*")
+        with pytest.raises(RuntimeError) as ei:
+            self._check()
+        assert "ALLOWED_USER_IDS" in str(ei.value)
+
+    def test_unrestricted_dengan_whitelist_spesifik_lolos(self, monkeypatch):
+        monkeypatch.setenv("ALFA_UNRESTRICTED", "true")
+        monkeypatch.setenv("DASHBOARD_HOST", "127.0.0.1")
+        monkeypatch.setenv("ALFA_ALLOW_HOST_EXEC", "false")
+        monkeypatch.setenv("ALLOWED_USER_IDS", "123456789,987654321")
+        self._check()  # tidak raise
+
+    def test_whitelist_kosong_tetap_aman_bila_unrestricted_off(self, monkeypatch):
+        monkeypatch.setenv("ALFA_UNRESTRICTED", "false")
+        monkeypatch.setenv("DASHBOARD_HOST", "0.0.0.0")
+        monkeypatch.delenv("ALLOWED_USER_IDS", raising=False)
         self._check()  # tidak raise
 
     def test_konfigurasi_aman_lolos(self, monkeypatch):

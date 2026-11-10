@@ -37,6 +37,7 @@ nav:
   - Arsitektur:
       - Discord/TG Core: DISCORD_BOT_CORE_ARCHITECTURE.md
       - Peta File & Runbook: ARCHITECTURE.md
+  - Config Pack: CONFIG_PACKS.md
   - Keamanan: security.md
   - Testing: TESTING.md
   - Kualitas Kode: CODE_QUALITY.md

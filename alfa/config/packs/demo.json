@@ -1,0 +1,29 @@
+{
+  "name": "demo",
+  "description": "Pack contoh sintetis (tanpa data operasi nyata) untuk demo & uji.",
+  "clusters": [
+    "ALFA",
+    "BETA"
+  ],
+  "summary_clusters": [
+    "ALFA",
+    "BETA"
+  ],
+  "constraints": {
+    "ALFA": {
+      "cluster": "CLUSTER_ALFA",
+      "mugi_bruto": 10,
+      "mugi_retur": 2,
+      "mugi_net": 8,
+      "aqe_net": 5,
+      "total_net": 13,
+      "items": {
+        "T72": 13
+      }
+    }
+  },
+  "mandor_names": {
+    "7000000000001": "Mandor Demo Satu",
+    "7000000000002": "Mandor Demo Dua"
+  }
+}

@@ -13,6 +13,7 @@ import urllib.request
 from typing import Any
 
 from alfa.core.perm.constants import PROJECT_DIR
+from alfa.core.security_boot_guard import allowed_user_ids, whitelist_is_permissive
 
 
 def _cert_pairs(items: Any) -> dict[str, str]:
@@ -192,6 +193,25 @@ def audit_local_host_security() -> dict[str, Any]:
         )
     except (psutil.Error, OSError, ValueError, TypeError) as du_err:
         add_check("disk_usage", True, f"Tidak dapat memeriksa ({du_err})")
+
+    # 5. Whitelist user wajib spesifik saat mode unrestricted aktif
+    try:
+        ids = allowed_user_ids()
+        unrestricted = os.getenv("ALFA_UNRESTRICTED", "").strip().lower() == "true"
+        if unrestricted:
+            add_check(
+                "unrestricted_whitelist",
+                not whitelist_is_permissive(),
+                (
+                    f"ALFA_UNRESTRICTED=true dengan {len(ids)} user whitelist"
+                    if not whitelist_is_permissive()
+                    else "ALFA_UNRESTRICTED=true tanpa whitelist spesifik — "
+                    "siapa pun bisa menjalankan tool di host"
+                ),
+                severity="HIGH",
+            )
+    except (ImportError, OSError, TypeError, ValueError) as wl_err:
+        add_check("unrestricted_whitelist", True, f"Tidak dapat memeriksa ({wl_err})")
 
     total = len(checks)
     passed = sum(1 for c in checks if c["status"] == "PASS")

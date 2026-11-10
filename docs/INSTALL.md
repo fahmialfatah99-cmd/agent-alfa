@@ -130,9 +130,13 @@ python scripts/migrate_secrets.py --apply    # tulis file privat (repo .env teta
 ```
 
 Setelah pindah, bersihkan `.env` repo dengan `--apply --strip` (backup
-`.env.bak-<timestamp>` dibuat otomatis), lalu restart **hanya**
-`telegram-ai-bot.service` dan `alfa-dashboard.service` — jangan pernah
-me-restart `wa-sheets-bot.service`.
+`~/.config/alfa/env-backup-<timestamp>.bak` dibuat otomatis di luar repo),
+lalu restart **hanya** `telegram-ai-bot.service` dan `alfa-dashboard.service` —
+jangan pernah me-restart `wa-sheets-bot.service`.
+
+**Menjalankan untuk wilayah/tenant lain:** pakai *config pack* —
+`ALFA_CONFIG_PACK=<nama>` di `.env`/secrets.env. Lihat
+[Config Pack](CONFIG_PACKS.md).
 
 ---
 

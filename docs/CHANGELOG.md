@@ -9,6 +9,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-10)
+- **Boot guard: unrestricted wajib punya whitelist spesifik.**
+  `ALFA_UNRESTRICTED=true` dengan `ALLOWED_USER_IDS` kosong/wildcard kini
+  DITOLAK saat start (sebelumnya hanya peringatan) — tanpa whitelist, siapa
+  pun yang bisa menghubungi bot dapat menjalankan tool di host. Guard juga
+  memuat env efektif dulu (`ensure_env_loaded`) agar whitelist tidak
+  terbaca kosong karena urutan import.
+- **Config pack** (`alfa/config/packs/`): data domain (cluster, constraint
+  simbolik, peta mandor) kini dapat dipaketkan per wilayah/tenant lewat
+  `ALFA_CONFIG_PACK`; pack bawaan `default` (produksi) & `demo` (sintetis).
+  Pack tak dikenal → fallback ke `default` + peringatan.
+- **Gate CI baru:** `scripts/check_silent_exceptions.py` melarang
+  `except Exception: pass` (6 handler di `plugins/` ikut diperbaiki).
+- **Backup `.env` pindah keluar repo** (`~/.config/alfa/env-backup-*.bak`).
+- **Budget lint turun** 988 → 986 instans (pesan guard dipindah ke konstanta).
+
+### Fase 2 overhaul — secret keluar repo, monolit dipecah, E2E test (2026-11-10)
+- **Secret privat benar-benar dipindah.** 30 kunci dari `.env` repo
+  dipindahkan ke `~/.config/alfa/secrets.env` (mode 600) lewat
+  `scripts/migrate_secrets.py --apply --strip` (backup `.env.bak-<ts>`
+  tersimpan). Dashboard, CLI, dan permission auditor kini memakai
+  resolusi sumber env tunggal (`env_file_paths()` / `active_env_path()`),
+  jadi UI settings tetap menulis ke file yang benar.
+- **`alfa/bot/handlers.py` (2.839 baris) → paket `alfa/bot/handlers/`**
+  (`_state`, `_compat`, `common`, `artifacts`, `documents`, `forwards`,
+  `menus`, `messages`, `media`). Import path publik tetap; lapisan
+  `_compat` menjaga patch/mock pada `alfa.bot.handlers.<nama>` tetap
+  memengaruhi pemanggil internal.
+- **131 `except Exception: pass` senyap dihentikan** — kini mencatat log
+  debug tanpa mengubah alur kontrol (cleanup browser, shutdown executor,
+  ingesti arsip, dan berbagai jalur best-effort).
+- **E2E test hermetik** (`tests/test_e2e_flows.py`): Telegram (sapaan →
+  balasan + riwayat DB; pertanyaan → agent turn → balasan), WhatsApp
+  (HTTP server lokal menyamar sebagai bot wa-sheets-bot), Dashboard
+  (`/api/settings` tanpa bocor nilai mentah, `/health` status DB).
+- **15 commit bersih** + working tree kembali bersih (72 file sebelumnya
+  menumpuk).
+
+### Security hardening — canary subprocess, secrets di luar repo, domain config (2026-11-10)
+- **Canary Gate tidak lagi `exec()` di proses utama.** Verifikasi hanya
+  parse + compile; smoke test berjalan di subprocess dengan timeout, rlimit,
+  cwd sementara, dan environment minimal. Hot-load dinonaktifkan secara
+  default dan hanya aktif dengan `ALFA_ALLOW_DYNAMIC_TOOLS=true`.
+  Audit AST tambahan menolak import proses/jaringan (`subprocess`, `socket`,
+  `ctypes`, ...) dan pemanggilan (`eval`, `exec`, `os.system`, ...).
+  `description` tool tidak lagi bisa keluar dari docstring file, dan nama
+  tool reserved (`__init__`) ditolak.
+- **Permission gate fail-closed.** `handle_permission_callback` dulu menelan
+  error `query.answer()` lalu tetap memproses approval — non-pemilik bisa
+  menyetujui bila API Telegram gagal. Kini ownership dicek terpisah dan
+  gagal = ditolak.
+- **Secrets pribadi dipisah dari repo.** `alfa/core/config.py` memuat
+  `ALFA_SECRETS_FILE` (default `~/.config/alfa/secrets.env`) sebelum `.env`;
+  loader memperingatkan permission yang terlalu terbuka. Env proses tetap
+  menang.
+- **Data domain Apex diekstrak.** Cluster, constraint simbolik Lahat,
+  template fast-path, dan peta nama mandor dipindah ke `alfa/config/domain.py`
+  dengan override `ALFA_TRACKED_CLUSTERS` / `ALFA_DOMAIN_CONSTRAINTS_JSON`.
+- **Hardcoded path `/home/fahmial/...` dihapus** dari `telecom_tools`,
+  `media/av.py`, `system/integrations.py`, dan `cli/server_manager.py`
+  (kini `~`/env-based).
+- **Regression tests:** canary tidak mengeksekusi top-level code tanpa
+  opt-in, smoke test `os._exit()` tidak mematikan parent, default
+  `hot_loaded=false`, approval non-pemilik ditolak saat `answer` gagal, dan
+  hierarki secret (private > repo > process) diverifikasi.
+
+### Refactor — memecah monolit & menyatukan schema tool (2026-11-10)
+- **`alfa/tools/telecom_tools.py` (3.537 baris) → paket `alfa/tools/telecom_tools/`**
+  (`_common`, `boq`, `maps`, `briefing`, `documents`, `ledger`, `relay`,
+  `whatsapp`). Import path publik tidak berubah; 37 schema tool diverifikasi
+  identik sebelum/sesudah.
+- **`alfa/tools/system/integrations.py` (1.073 baris) → paket
+  `alfa/tools/system/integrations/`** (`_api`, `productivity`, `whatsapp`,
+  `bot_control`, `android`, `database_query`).
+- **Satu sumber kebenaran schema tool.** `alfa/core/schema_types.py` kini
+  dipakai `alfa/tools/registry.py` dan `alfa/core/brain/tool_schema.py`
+  (sebelumnya implementasi dobel). Anotasi string (PEP 563) ikut
+  diresolusi → 35 parameter di 20 tool kini punya tipe JSON yang benar
+  (`integer`/`boolean`/`array`), bukan selalu `"string"`.
+- **`except Exception` yang diam** di jalur kritis (permission gate, brain
+  tool exec, metrik, DB, swarm, Apex) kini mencatat log; 135 handler senyap
+  tetap ter inventorisasi oleh `scripts/lint_budget.py` (988 instans, gate
+  CI).
+
 ### Security & Quality (P3) — allowlist perintah, OAuth CSRF fix, deliberasi terstruktur, coverage 57% (2026-10-20, putaran 7)
 Menutup 5 item tersisa dari audit keamanan: jalur prompt-injection → shell,
 OAuth CSRF di MCP, kebocoran metrik dashboard, "diskusi" swarm yang tak

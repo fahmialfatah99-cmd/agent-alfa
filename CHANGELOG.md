@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-10)
+- **Boot guard: unrestricted wajib punya whitelist spesifik.**
+  `ALFA_UNRESTRICTED=true` dengan `ALLOWED_USER_IDS` kosong/wildcard kini
+  DITOLAK saat start (sebelumnya hanya peringatan) — tanpa whitelist, siapa
+  pun yang bisa menghubungi bot dapat menjalankan tool di host. Guard juga
+  memuat env efektif dulu (`ensure_env_loaded`) agar whitelist tidak
+  terbaca kosong karena urutan import.
+- **Config pack** (`alfa/config/packs/`): data domain (cluster, constraint
+  simbolik, peta mandor) kini dapat dipaketkan per wilayah/tenant lewat
+  `ALFA_CONFIG_PACK`; pack bawaan `default` (produksi) & `demo` (sintetis).
+  Pack tak dikenal → fallback ke `default` + peringatan.
+- **Gate CI baru:** `scripts/check_silent_exceptions.py` melarang
+  `except Exception: pass` (6 handler di `plugins/` ikut diperbaiki).
+- **Backup `.env` pindah keluar repo** (`~/.config/alfa/env-backup-*.bak`).
+- **Budget lint turun** 988 → 986 instans (pesan guard dipindah ke konstanta).
+
 ### Fase 2 overhaul — secret keluar repo, monolit dipecah, E2E test (2026-11-10)
 - **Secret privat benar-benar dipindah.** 30 kunci dari `.env` repo
   dipindahkan ke `~/.config/alfa/secrets.env` (mode 600) lewat

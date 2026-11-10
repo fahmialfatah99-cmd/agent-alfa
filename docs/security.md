@@ -76,25 +76,33 @@ ALFA Agent implements several security measures:
   `execute_python_sandbox` sama-sama menolak eksekusi di host bila Docker
   tidak tersedia, kecuali operator opting-in eksplisit lewat
   `ALFA_ALLOW_HOST_EXEC=true`.
+- **Dynamic tool canary:** verifikasi tidak pernah `exec()` kode sintesis di
+  proses bot. Smoke test berjalan di subprocess dengan timeout, rlimit, cwd
+  sementara, dan environment minimal. Hot-load hanya aktif dengan
+  `ALFA_ALLOW_DYNAMIC_TOOLS=true`; default-nya tool hanya disimpan.
+  Batas jujur: subprocess bukan sandbox jaringan/filesystem penuh — kode
+  masih berjalan dengan hak user ALFA.
 - **Kripto fail-closed**: `encrypt_key` melempar error bila AES-GCM tidak
   tersedia — API key tidak pernah disimpan plaintext diam-diam.
 
 ### 4. Secure Configuration
 - Environment variables for secrets (never hardcode)
 - `.env.example` provided for safe configuration
-- **Secret privat di luar repo:** `alfa/core/config.py` memuat
-  `ALFA_SECRETS_FILE` (default `~/.config/alfa/secrets.env`, mode 600)
-  **sebelum** `.env` repository. Env proses/CI selalu menang; secret privat
-  menang atas `.env`. Loader memberi peringatan bila file bisa dibaca
-  grup/orang lain.
-  Migrasi aman: `python scripts/migrate_secrets.py --apply --strip`
-  (default dry-run, selalu membuat backup `.env.bak-<timestamp>`).
+- **Secrets di luar repo:** `alfa/core/config.py` memuat
+  `ALFA_SECRETS_FILE` (default `~/.config/alfa/secrets.env`, disarankan
+  `chmod 600`) **sebelum** `.env` repository. Env proses/CI tetap menang;
+  secrets pribadi menang atas `.env` repo. Loader memberi peringatan bila
+  file dapat dibaca grup/orang lain.
 - Sensitive data encrypted at rest
 - **Dashboard fail-closed**: seluruh endpoint `/api/*` wajib memiliki session
   valid atau token. `DASHBOARD_AUTH_TOKEN` kosong TIDAK lagi membuka API
   untuk semua orang. Mode development tanpa login hanya lewat escape hatch
   eksplisit `ALFA_INSECURE_LOCAL=true` (klien lokal saja, dan boot ditolak
   bila `DASHBOARD_HOST` bind ke `0.0.0.0/::`).
+- **Mode unrestricted butuh whitelist spesifik**: `ALFA_UNRESTRICTED=true`
+  dengan `ALLOWED_USER_IDS` kosong atau wildcard DITOLAK saat start
+  (boot guard) — tanpa itu permission gate & blocklist mati dan siapa pun
+  bisa menjalankan tool di host.
 - **RBAC default-deny**: seluruh endpoint mutating yang menjalankan aksi
   nyata di host (eksekusi tool/agent/swarm, rapat, antrean misi, broadcast,
   kredensial Drive, WhatsApp, passkey) memerlukan peran admin.
@@ -138,6 +146,10 @@ datang dari LLM **tidak** dieksekusi mentah:
 ### 5. Code Quality & Security
 - Automated linting with Ruff
 - Static type checking with mypy (0 baseline errors)
+- **Exception senyap dilarang**: `except Exception: pass` tidak boleh ada
+  (gate CI `scripts/check_silent_exceptions.py`) — error harus dicatat,
+  minimal level debug
+- **Budget lint TRY/BLE tidak boleh tumbuh** (`scripts/lint_budget.py`)
 - Security scanning with Bandit (`bandit -r alfa plugins -ll -q` = 0 Medium/High):
   - `alfa/core/db/tasks.py`: kueri SQL cron job menggunakan tuple statis berparameter (`?`) tanpa interpolasi f-string (bebas B608).
   - `alfa/mcp/client.py` (`_http`, `_post_form`): setiap pemanggilan `urllib.request.urlopen` didahului `_validate_http_url()` yang menolak skema selain `http`/`https` (mencegah SSRF skema `file://`); ditandai `# nosec B310` karena Bandit memindai `urlopen` secara statis.

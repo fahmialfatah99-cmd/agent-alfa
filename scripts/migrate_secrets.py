@@ -96,8 +96,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.strip:
         stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        backup = ENV_PATH.with_name(f".env.bak-{stamp}")
+        # Backup disimpan DI LUAR repo (rahasia tidak boleh menumpuk di working tree).
+        backup_dir = target.parent
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        backup = backup_dir / f"env-backup-{stamp}.bak"
         shutil.copy2(ENV_PATH, backup)
+        os.chmod(backup, stat.S_IRUSR | stat.S_IWUSR)
         moved = {key for key, _ in pairs}
         kept = [
             line

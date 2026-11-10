@@ -1,0 +1,49 @@
+{
+  "name": "default",
+  "description": "Data domain bawaan ALFA (cluster Lahat, Curup, Bengkulu, Lubuklinggau).",
+  "clusters": [
+    "LAHAT",
+    "CURUP",
+    "BENGKULU",
+    "LUBUKLINGGAU"
+  ],
+  "summary_clusters": [
+    "LAHAT",
+    "CURUP",
+    "BENGKULU"
+  ],
+  "constraints": {
+    "LAHAT": {
+      "cluster": "CLUSTER_LAHAT",
+      "mugi_bruto": 68,
+      "mugi_retur": 7,
+      "mugi_net": 61,
+      "aqe_net": 99,
+      "total_net": 160,
+      "items": {
+        "T72": 63,
+        "T73": 94,
+        "T74": 1,
+        "T94": 2
+      }
+    }
+  },
+  "mandor_names": {
+    "75286733418626": "Mandor Mugi",
+    "+75286733418626": "Mandor Mugi",
+    "8306668109995": "Mandor Aqe Setiawan",
+    "+8306668109995": "Mandor Aqe Setiawan",
+    "158862351048847": "Mandor Tri",
+    "+158862351048847": "Mandor Tri",
+    "85383638044": "Mandor Tri",
+    "+85383638044": "Mandor Tri",
+    "82310084343": "Mandor Eko",
+    "+82310084343": "Mandor Eko",
+    "122982630432902": "M Diki Darmawan",
+    "+122982630432902": "M Diki Darmawan",
+    "12615209821818167": "Admin Pengawas",
+    "+12615209821818167": "Admin Pengawas",
+    "108684466196499": "Mandor Curup",
+    "+108684466196499": "Mandor Curup"
+  }
+}
