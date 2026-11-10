@@ -89,8 +89,8 @@ class ConnectionPool:
                     conn.execute("SELECT 1")
                     self._pool.append(conn)
                     return
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Koneksi pool tidak sehat, ditutup: %s", e)
             conn.close()
 
     def close_all(self) -> None:
@@ -373,7 +373,8 @@ def init_db_sync():
                     for aid, d in _AG.items()
                 }
                 _seed_meta = {aid: d["persona"] for aid, d in _AG.items()}
-            except Exception:
+            except Exception as e:
+                logger.debug("Seed persona default dilewati: %s", e)
                 _seed_persona, _seed_meta = {}, {}
             default_agents = [
                 (

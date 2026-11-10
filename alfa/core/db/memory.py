@@ -53,8 +53,8 @@ async def clear_user_chat_history(user_id: int):
             await db.execute(
                 "DELETE FROM chat_compactions WHERE user_id = ?", (user_id,)
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("chat_compactions tidak dihapus untuk user %s: %s", user_id, e)
         await db.commit()
 
 

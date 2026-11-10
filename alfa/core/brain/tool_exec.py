@@ -164,8 +164,8 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                 h = generate_self_heal_hint(name, str(e))
                 if h:
                     hint = f"\n{h}"
-            except Exception:
-                pass
+            except Exception as hint_err:
+                logger.debug("Self-heal hint gagal dibuat untuk '%s': %s", name, hint_err)
             return f"[ERROR tool] {e}{hint}"
 
     _t0 = time.perf_counter()
@@ -200,8 +200,8 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                         v = raw.get(k)
                         if isinstance(v, str) and os.path.exists(v):
                             record_turn_artifact(v)
-            except Exception:
-                pass
+            except Exception as artifact_err:
+                logger.debug("Pencatatan artefak tool '%s' gagal: %s", name, artifact_err)
         try:
             from alfa.core.metrics import note_tool_call
 
@@ -231,8 +231,8 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             h = generate_self_heal_hint(name, raw)
             if h:
                 raw = f"{raw}\n{h}"
-        except Exception:
-            pass
+        except Exception as hint_err:
+            logger.debug("Self-heal hint akhir gagal untuk '%s': %s", name, hint_err)
 
     if _span:
         _status = "error" if raw.startswith("[ERROR") else "success"

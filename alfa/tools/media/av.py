@@ -75,8 +75,14 @@ def upscale_image_hd(
 
         used_engine = "Lanczos Ultra-HD"
 
-        waifu_bin = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux/waifu2x-ncnn-vulkan"
-        model_dir = "/home/fahmial/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux"
+        waifu_dir = os.getenv(
+            "ALFA_WAIFU2X_DIR",
+            os.path.expanduser(
+                "~/telegram-ai-bot/bin/waifu2x/waifu2x-ncnn-vulkan-20250915-linux"
+            ),
+        )
+        waifu_bin = os.path.join(waifu_dir, "waifu2x-ncnn-vulkan")
+        model_dir = waifu_dir
 
         if mode in ("waifu2x_anime", "waifu2x_photo", "auto") and os.path.exists(
             waifu_bin

@@ -20,8 +20,11 @@ O(putaran × agen × panjang) seperti sebelumnya.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 #: Batas karakter konteks per giliran agar prompt tidak membengkak.
 MAX_CONTEXT_CHARS = 4000
@@ -292,8 +295,8 @@ def gather_pre_meeting_intel(
                 fact_lines.append(
                     "• [Memori Graf Lokal]: " + " | ".join(core_lines[:4])[:450]
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Pencarian memori graf lokal dilewati: %s", e)
 
     # 2. Pencarian Fakta di Riwayat Chat / Memori Database Lokal
     try:
@@ -332,8 +335,8 @@ def gather_pre_meeting_intel(
                     msg_snip = " ".join(str(r[0] or "").split())[:200]
                     if msg_snip:
                         fact_lines.append(f"• [Riwayat Lokal]: {msg_snip}")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Pencarian riwayat chat lokal dilewati: %s", e)
 
     # 3. Pencarian Web Cepat jika Topik Membutuhkan Fakta Pasar / Harga / Regulasi / Eksternal
     if allow_web_search is None:
@@ -378,8 +381,8 @@ def gather_pre_meeting_intel(
                     ).strip()[:140]
                     if title or snip:
                         fact_lines.append(f"• [Fakta Web]: {title} — {snip}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Pencarian fakta web dilewati: %s", e)
 
     if not fact_lines:
         return ""
@@ -475,7 +478,7 @@ def export_meeting_report_files(
         )
 
     md_lines = [
-        f"# DOKUMEN KEPUTUSAN RAPAT AI SWARM (ALFA OS)",
+        "# DOKUMEN KEPUTUSAN RAPAT AI SWARM (ALFA OS)",
         f"**Topik / Agenda:** {topic}  ",
         f"**Waktu Rapat:** {ts_label}  ",
         f"**Peserta Tim ({len(participants)} Unit):** {', '.join(participants) if participants else 'Tim Utama ALFA'}  ",

@@ -44,7 +44,6 @@ def get_repo_root() -> Path:
     candidates = [
         Path.cwd(),
         Path.home() / "agent alfa",
-        Path("/home/fahmial/agent alfa"),
     ]
     for c in candidates:
         if (c / "web_dashboard.py").exists():

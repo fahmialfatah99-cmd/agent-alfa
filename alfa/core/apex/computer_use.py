@@ -58,8 +58,8 @@ def inspect_desktop_environment() -> dict[str, Any]:
                     if len(parts) >= 2:
                         resolution = parts[1]
                     break
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Deteksi resolusi layar gagal: %s", e)
 
     windows: list[str] = []
     if has_wmctrl:
@@ -73,8 +73,8 @@ def inspect_desktop_environment() -> dict[str, Any]:
             )
             if proc.returncode == 0:
                 windows = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()][:15]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Deteksi window manager gagal: %s", e)
 
     return {
         "status": "success",

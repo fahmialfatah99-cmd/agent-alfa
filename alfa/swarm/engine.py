@@ -486,8 +486,8 @@ async def _execute_agents_parallel(
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Ringkasan eksekusi langkah swarm dilewati: %s", e)
 
     return False
 
@@ -668,6 +668,31 @@ async def _conduct_multi_agent_meeting_impl(
     if not participants:
         participants = all_agents[:3]
 
+    if not participants:
+        error_msg = (
+            "Tidak ada agen yang terdaftar di workforce. "
+            "Tambahkan minimal satu agen terlebih dahulu (Dashboard > AI Workforce) sebelum menjalankan rapat swarm."
+        )
+        logger.error(error_msg)
+        workspace_hygiene.unregister_session(session_id)
+        log_live("ERROR", "Sesi dibatalkan: tidak ada agen terdaftar.")
+        return {
+            "status": "error",
+            "error": error_msg,
+            "session_id": session_id,
+            "meeting_id": None,
+            "title": f"Swarm: {topic[:60]}",
+            "topic": topic,
+            "mode": mode,
+            "target_folder": _TARGET_FOLDER,
+            "harvested_projects": {},
+            "participants": [],
+            "dialogue_transcript": [],
+            "execution_results": [],
+            "consensus": f"❌ {error_msg}",
+            "action_plan": "",
+        }
+
     if _CHECKPOINT_AVAILABLE:
         try:
             _SwarmCheckpoint.save(
@@ -754,7 +779,8 @@ async def _conduct_multi_agent_meeting_impl(
                     "PLAN",
                     f"📊 Fact-Grounded War Room: Lembar Fakta Pra-Rapat siap ({len(pre_meeting_intel)} char).",
                 )
-        except Exception:
+        except Exception as e:
+            logger.debug("Fact-grounded war room dilewati: %s", e)
             pre_meeting_intel = ""
 
     for r in range(1, actual_rounds + 1):
@@ -1051,23 +1077,6 @@ async def _conduct_multi_agent_meeting_impl(
                     "⚠️ Batas putaran QA habis sebelum zero bug — status dilaporkan apa adanya.",
                 )
 
-    if not participants:
-        error_msg = (
-            "Tidak ada agen yang terdaftar di workforce. "
-            "Tambahkan minimal satu agen terlebih dahulu (Dashboard > AI Workforce) sebelum menjalankan rapat swarm."
-        )
-        logger.error(error_msg)
-        workspace_hygiene.unregister_session(session_id)
-        log_live("ERROR", "Sesi dibatalkan: tidak ada agen terdaftar.")
-        return {
-            "status": "error",
-            "error": error_msg,
-            "topic": topic,
-            "dialogue_transcript": [],
-            "execution_steps": [],
-            "consensus": "",
-            "action_plan": "",
-        }
 
     lead_agent = participants[0]
 
@@ -1242,8 +1251,8 @@ async def _conduct_multi_agent_meeting_impl(
             from alfa.swarm.deliberation import export_meeting_report_files
 
             export_meeting_report_files(final_result)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Export laporan rapat dilewati: %s", e)
 
     return final_result
 
