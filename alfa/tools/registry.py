@@ -7,9 +7,14 @@ lookups and global AVAILABLE_TOOLS list.
 
 import inspect
 import logging
-import typing
 from collections.abc import Callable
 from typing import Any, ParamSpec, TypeVar
+
+from alfa.core.schema_types import (
+    annotation_for,
+    json_type_for,
+    parse_docstring_params,
+)
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
@@ -116,6 +121,7 @@ TOOL_DOMAINS: dict[str, list[str]] = {
         "consolidate_delivery_orders_to_stock_ledger",
         "calculate_material_return_and_scrap",
         "reconcile_whatsapp_material_group",
+        "tidy_rekap_excel",
         "inspect_field_surat_jalan_image",
         "dispatch_instant_material_anomaly_alert",
     ],
@@ -193,82 +199,11 @@ def sync_domains_from_registry() -> int:
     return moved
 
 
-_JSON_TYPES = {int: "integer", float: "number", bool: "boolean", str: "string"}
-
-
-def _json_type_for(annotation: Any) -> str:
-    """Petakan anotasi Python ke tipe JSON Schema.
-
-    Versi lama hanya memetakan `int/float/bool`; `list[str]`, `dict[str, Any]`
-    dan `str | None` semuanya jatuh ke "string" — sehingga model mengirim
-    "a,b,c" untuk parameter list dan tool gagal dengan TypeError.
-    """
-    if annotation is inspect.Parameter.empty or annotation is None:
-        return "string"
-    if isinstance(annotation, type):
-        if annotation is bool:
-            return "boolean"
-        if annotation is int:
-            return "integer"
-        if annotation is float:
-            return "number"
-        if annotation is str:
-            return "string"
-        if annotation is list:
-            return "array"
-        if annotation is dict:
-            return "object"
-        return "string"
-
-    origin = typing.get_origin(annotation)
-    args = typing.get_args(annotation)
-    if origin is typing.Literal:
-        return "string"
-    if origin is not None:
-        if origin in (list, set, frozenset, tuple):
-            return "array"
-        if origin is dict:
-            return "object"
-        if origin is typing.Union or str(origin) == "types.UnionType":
-            non_none = [a for a in args if a is not type(None)]
-            if len(non_none) == 1:
-                return _json_type_for(non_none[0])
-            return "string"
-        if isinstance(origin, type):
-            return _JSON_TYPES.get(origin, "string")
-    return "string"
-
-
-def _parse_docstring_params(doc: str) -> dict[str, str]:
-    out: dict[str, str] = {}
-    in_args = False
-    for line in (doc or "").splitlines():
-        stripped = line.strip()
-        if stripped.rstrip(":").lower() in ("args", "parameters", "arguments"):
-            in_args = True
-            continue
-        if in_args:
-            if not stripped:
-                continue
-            if stripped.endswith(":") or stripped.split(":")[0].lower() in (
-                "returns",
-                "raises",
-                "yields",
-                "example",
-                "examples",
-            ):
-                break
-            if ":" in stripped:
-                nm, desc = stripped.split(":", 1)
-                out[nm.strip().split(" ")[0]] = desc.strip()
-    return out
-
-
 def _fn_to_schema(fn: Callable) -> dict[str, Any]:
     sig = inspect.signature(fn)
     doc = (inspect.getdoc(fn) or "").strip()
     desc_line = doc.splitlines()[0][:300] if doc else getattr(fn, "__name__", "tool")
-    argdocs = _parse_docstring_params(doc)
+    argdocs = parse_docstring_params(doc)
 
     props: dict[str, Any] = {}
     required: list[str] = []
@@ -277,8 +212,11 @@ def _fn_to_schema(fn: Callable) -> dict[str, Any]:
     for pname, p in sig.parameters.items():
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
-        ann = p.annotation
-        jtype = _json_type_for(ann)
+        raw_ann = p.annotation
+        # Anotasi string (PEP 563) diresolusi agar tipe JSON benar
+        # (integer/boolean/array), bukan selalu "string".
+        ann = annotation_for(fn, pname, raw_ann)
+        jtype = json_type_for(ann)
         pdesc = argdocs.get(pname, pname)
         props[pname] = {"type": jtype, "description": pdesc}
         is_req = p.default is inspect.Parameter.empty
@@ -287,7 +225,7 @@ def _fn_to_schema(fn: Callable) -> dict[str, Any]:
         parameters.append(
             {
                 "name": pname,
-                "type": str(ann) if ann != inspect.Parameter.empty else "Any",
+                "type": str(raw_ann) if raw_ann != inspect.Parameter.empty else "Any",
                 "default": str(p.default) if not is_req else None,
                 "required": is_req,
                 "description": pdesc,

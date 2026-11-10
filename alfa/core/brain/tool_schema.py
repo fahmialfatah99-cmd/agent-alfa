@@ -1,105 +1,44 @@
-"""Python-tool -> OpenAI function-schema conversion + safe registry."""
+"""Python-tool -> OpenAI function-schema conversion + safe registry.
+
+Implementasi pemetaan tipe & parsing docstring berada di
+``alfa.core.schema_types`` — satu sumber kebenaran yang juga dipakai
+``alfa.tools.registry`` (sebelumnya keduanya diduplikasi dan bisa
+menghasilkan schema berbeda).
+"""
 
 import inspect
 import logging
-import types
-import typing
 from typing import Any
+
+from alfa.core.schema_types import (
+    JSON_TYPES,
+    annotation_for,
+    json_type_for,
+    parse_docstring_params,
+)
 
 logger = logging.getLogger("MainBrain")
 
-# Mapping tipe Python -> tipe JSON Schema.
-#
-# Hanya `int/float/bool` yang dipetakan versi lama; `list[str]`, `dict[str, Any]`
-# dan `str | None` semuanya jatuh ke "string". Akibatnya model mengirim
-# "a,b,c" untuk parameter list → TypeError → tool gagal.
-_JSON_TYPES = {int: "integer", float: "number", bool: "boolean", str: "string"}
-
-
-def _json_type_for(annotation: Any) -> str:
-    """Petakan anotasi Python ke tipe JSON Schema.
-
-    Menangani ``list``/``dict``/``Optional``/``Union``/``Literal``.
-    """
-    if annotation is inspect.Parameter.empty or annotation is None:
-        return "string"
-
-    if isinstance(annotation, type):
-        if annotation is bool:
-            return "boolean"
-        if annotation is int:
-            return "integer"
-        if annotation is float:
-            return "number"
-        if annotation is str:
-            return "string"
-        if annotation is list:
-            return "array"
-        if annotation is dict:
-            return "object"
-        return "string"
-
-    origin = typing.get_origin(annotation)
-    args = typing.get_args(annotation)
-
-    if origin is typing.Literal:
-        # Enum literal → string (nilai spesifik diteruskan via description).
-        return "string"
-    if origin is not None:
-        if origin in (list, set, frozenset, tuple):
-            return "array"
-        if origin is dict:
-            return "object"
-        if origin is typing.Union or origin is types.UnionType:
-            # Optional[X] / X | None → pakai tipe non-None-nya.
-            non_none = [a for a in args if a is not type(None)]
-            if len(non_none) == 1:
-                return _json_type_for(non_none[0])
-            return "string"
-        if isinstance(origin, type):
-            return _JSON_TYPES.get(origin, "string")
-    return "string"
-
-
-def _parse_args_docstring(doc: str) -> dict[str, str]:
-    """Ambil deskripsi argumen dari bagian 'Args:' docstring."""
-    out: dict[str, str] = {}
-    in_args = False
-    for line in (doc or "").splitlines():
-        stripped = line.strip()
-        if stripped.rstrip(":").lower() in ("args", "parameters", "arguments"):
-            in_args = True
-            continue
-        if in_args:
-            if not stripped:
-                continue
-            if stripped.endswith(":") or stripped.split(":")[0].lower() in (
-                "returns",
-                "raises",
-                "yields",
-                "example",
-                "examples",
-            ):
-                break
-            if ":" in stripped:
-                nm, desc = stripped.split(":", 1)
-                out[nm.strip().split(" ")[0]] = desc.strip()
-    return out
+#: Alias kompatibilitas (dipakai modul lain & test).
+_json_type_for = json_type_for
+_parse_args_docstring = parse_docstring_params
+_JSON_TYPES = JSON_TYPES
 
 
 def _fn_to_openai_tool(fn) -> dict[str, Any]:
     sig = inspect.signature(fn)
     doc = inspect.getdoc(fn) or ""
     desc_line = doc.split("\n")[0][:300] if doc else fn.__name__
-    argdocs = _parse_args_docstring(doc)
+    argdocs = parse_docstring_params(doc)
 
     props: dict[str, Any] = {}
     required: list[str] = []
     for pname, p in sig.parameters.items():
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
-        ann = p.annotation
-        jtype = _json_type_for(ann)
+        # Anotasi string (PEP 563) diresolusi agar tipe JSON benar.
+        ann = annotation_for(fn, pname, p.annotation)
+        jtype = json_type_for(ann)
         props[pname] = {"type": jtype, "description": argdocs.get(pname, pname)}
         if p.default is inspect.Parameter.empty:
             required.append(pname)
