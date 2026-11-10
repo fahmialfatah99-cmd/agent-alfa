@@ -232,9 +232,33 @@ def get_agent_api_client(
             except (sqlite3.Error, OSError, TypeError, ValueError, IndexError):
                 pass
 
-    # Fallback otomatis bila provider spesifik agen belum memiliki kunci aktif di vault
+    # Fallback otomatis bila provider spesifik agen belum memiliki kunci aktif di vault.
+    # Untuk provider tidak dikenal (misal custom/local), fallback ke daftar provider umum
+    # secara berurutan. Namun JANGAN pernah mengganti provider bawaan yang sudah dikenali
+    # (gemini/openai/groq/dst) dengan provider lain agar routing agen tetap sesuai permintaan.
     if not api_key and (agent.get("id") or agent.get("name")):
-        for fb_prov in ("9router", "gemini", "nvidia", "groq", "openrouter", "openai"):
+        fb_prov_cycle = ("9router", "gemini", "nvidia", "groq", "openrouter", "openai")
+        known_providers = {
+            "gemini",
+            "openai",
+            "groq",
+            "nvidia",
+            "nim",
+            "deepseek",
+            "openrouter",
+            "minimax",
+            "moonshot",
+            "kimi",
+            "qwen",
+            "dashscope",
+            "9router",
+            "ollama",
+        }
+        if provider in known_providers:
+            candidates = (provider,)
+        else:
+            candidates = tuple(p for p in fb_prov_cycle if p != provider) + (provider,)
+        for fb_prov in candidates:
             fb_key = database.get_active_api_key_sync(fb_prov)
             if fb_key and fb_key.get("api_key"):
                 provider = fb_prov

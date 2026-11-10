@@ -63,6 +63,10 @@ def _main_menu_markup() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("📱 WhatsApp Hub", callback_data="btn_wa"),
                 InlineKeyboardButton("☁️ Google Cloud Hub", callback_data="btn_cloud"),
             ],
+            [
+                InlineKeyboardButton("📊 Google Sheets", callback_data="btn_sheets"),
+                InlineKeyboardButton("📁 Google Drive", callback_data="btn_gdrive"),
+            ],
             # 4. Aplikasi Desktop & Rapat
             [
                 InlineKeyboardButton("🎨 ArtCraft Suite", callback_data="btn_artcraft"),
