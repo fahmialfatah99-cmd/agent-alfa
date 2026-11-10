@@ -14,6 +14,7 @@ import os
 import re
 from typing import Any
 
+from alfa.config.domain import DEFAULT_CLUSTER, SUMMARY_CLUSTERS, detect_cluster
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("ApexWorldModel")
@@ -81,7 +82,9 @@ def record_world_anomaly(
     }
 
 
-def analyze_field_event_preemptively(event_text: str, cluster_hint: str = "LAHAT") -> dict[str, Any]:
+def analyze_field_event_preemptively(
+    event_text: str, cluster_hint: str = DEFAULT_CLUSTER
+) -> dict[str, Any]:
     """
     Causal & Predictive analysis of incoming field messages (WhatsApp / Telegram):
     Detects potential logistics discrepancies before they corrupt the Master Ledger.
@@ -91,11 +94,7 @@ def analyze_field_event_preemptively(event_text: str, cluster_hint: str = "LAHAT
         return {"status": "clean", "anomalies_detected": []}
 
     t_low = event_text.lower()
-    cluster = cluster_hint.strip().upper()
-    for candidate in ("LAHAT", "CURUP", "BENGKULU", "LUBUKLINGGAU"):
-        if candidate.lower() in t_low:
-            cluster = candidate
-            break
+    cluster = detect_cluster(t_low, cluster_hint)
 
     detected: list[dict[str, Any]] = []
 
@@ -152,7 +151,9 @@ def get_world_model_summary() -> dict[str, Any]:
         active_anomalies = [dict(r) for r in recent_rows]
 
     # Check known Master Ledger files on disk
-    sandbox_dir = os.path.expanduser("~/agent alfa/sandbox_workspace")
+    sandbox_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "sandbox_workspace")
+    )
     master_files = []
     if os.path.isdir(sandbox_dir):
         for fname in os.listdir(sandbox_dir):
@@ -163,6 +164,6 @@ def get_world_model_summary() -> dict[str, Any]:
         "status": "success",
         "unresolved_anomalies_count": unresolved_count,
         "active_anomalies": active_anomalies,
-        "tracked_clusters": ["LAHAT", "CURUP", "BENGKULU"],
+        "tracked_clusters": list(SUMMARY_CLUSTERS),
         "detected_master_ledgers": sorted(master_files)[:5],
     }

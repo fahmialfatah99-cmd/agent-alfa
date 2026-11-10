@@ -12,7 +12,9 @@ import ast
 import logging
 import operator
 import re
-from typing import Any
+from typing import Any, cast
+
+from alfa.config.domain import DEFAULT_CLUSTER, SYMBOLIC_LOGISTICS_CONSTRAINTS
 
 logger = logging.getLogger("ApexNeuroSymbolic")
 
@@ -47,11 +49,11 @@ def _eval_ast_node(node: ast.AST) -> float | int:
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return node.value
     if isinstance(node, ast.UnaryOp) and type(node.op) in _ALLOWED_AST_OPS:
-        return _ALLOWED_AST_OPS[type(node.op)](_eval_ast_node(node.operand))
+        return cast("float | int", _ALLOWED_AST_OPS[type(node.op)](_eval_ast_node(node.operand)))
     if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_AST_OPS:
         left = _eval_ast_node(node.left)
         right = _eval_ast_node(node.right)
-        return _ALLOWED_AST_OPS[type(node.op)](left, right)
+        return cast("float | int", _ALLOWED_AST_OPS[type(node.op)](left, right))
     raise ValueError(f"Unsupported or unsafe AST node: {type(node).__name__}")
 
 
@@ -64,7 +66,7 @@ def safe_ast_math_eval(expr: str) -> float | int | None:
     """
     if _HAS_RUST_ACCEL:
         try:
-            return alfa_accel.safe_ast_math_eval(expr)
+            return cast("float | int | None", alfa_accel.safe_ast_math_eval(expr))
         except (RuntimeError, TypeError, ValueError, AttributeError) as e:
             logger.debug("alfa_accel safe_ast_math_eval failed (%s), fallback to Python AST", e)
 
@@ -101,7 +103,10 @@ def verify_arithmetic_equations_in_text(text: str) -> tuple[str, list[dict[str, 
 
     if _HAS_RUST_ACCEL:
         try:
-            return alfa_accel.verify_arithmetic_equations_in_text(text)
+            return cast(
+                "tuple[str, list[dict[str, Any]]]",
+                alfa_accel.verify_arithmetic_equations_in_text(text),
+            )
         except (RuntimeError, TypeError, ValueError, AttributeError) as e:
             logger.debug("alfa_accel verify_arithmetic_equations_in_text failed (%s), fallback to Python", e)
 
@@ -112,12 +117,12 @@ def verify_arithmetic_equations_in_text(text: str) -> tuple[str, list[dict[str, 
         rhs_str = match.group(2)
         actual = safe_ast_math_eval(lhs)
         if actual is None:
-            return match.group(0)
+            return str(match.group(0))
 
         try:
             claimed: float | int = float(rhs_str) if "." in rhs_str else int(rhs_str)
         except ValueError:
-            return match.group(0)
+            return str(match.group(0))
 
         is_correct = abs(float(actual) - float(claimed)) < 1e-6
         findings.append({
@@ -129,24 +134,10 @@ def verify_arithmetic_equations_in_text(text: str) -> tuple[str, list[dict[str, 
         if not is_correct:
             logger.info("Neuro-Symbolic AST fixed equation: %s = %s -> %s", lhs.strip(), claimed, actual)
             return f"{lhs} = {actual}"
-        return match.group(0)
+        return str(match.group(0))
 
     corrected_text = _EQUATION_PATTERN.sub(_replacer, text)
     return corrected_text, findings
-
-
-# Ground-Truth Symbolic Constraints for Telecom Field Logistics
-SYMBOLIC_LOGISTICS_CONSTRAINTS: dict[str, dict[str, Any]] = {
-    "LAHAT": {
-        "cluster": "CLUSTER_LAHAT",
-        "mugi_bruto": 68,
-        "mugi_retur": 7,
-        "mugi_net": 61,
-        "aqe_net": 99,
-        "total_net": 160,
-        "items": {"T72": 63, "T73": 94, "T74": 1, "T94": 2},
-    }
-}
 
 
 def verify_and_prove_response(user_prompt: str, reply_text: str) -> dict[str, Any]:
@@ -178,34 +169,48 @@ def verify_and_prove_response(user_prompt: str, reply_text: str) -> dict[str, An
             )
             proofs.append(f"AST Proof Repaired: {f['expression']} -> {f['actual']}")
 
-    # Step 2: Domain-specific Symbolic Invariant Verification (Lahat Pole Logistics)
+    # Step 2: Domain-specific Symbolic Invariant Verification
     p_low = (user_prompt or "").lower()
     r_low = updated_reply.lower()
+    cluster_key = DEFAULT_CLUSTER.upper()
 
-    if "lahat" in p_low or "lahat" in r_low:
-        c = SYMBOLIC_LOGISTICS_CONSTRAINTS["LAHAT"]
-        # Symbolic invariant proof check
-        assert c["mugi_bruto"] - c["mugi_retur"] == c["mugi_net"]
-        assert c["mugi_net"] + c["aqe_net"] == c["total_net"]
-        assert sum(c["items"].values()) == c["total_net"]
+    if cluster_key.lower() in p_low or cluster_key.lower() in r_low:
+        c = SYMBOLIC_LOGISTICS_CONSTRAINTS.get(cluster_key)
+        if c and (
+            c["mugi_bruto"] - c["mugi_retur"] != c["mugi_net"]
+            or c["mugi_net"] + c["aqe_net"] != c["total_net"]
+            or sum(c["items"].values()) != c["total_net"]
+        ):
+            logger.error(
+                "Konfigurasi symbolic constraint %s tidak konsisten; verifikasi domain dilewati.",
+                cluster_key,
+            )
+            c = None
 
-        if any(k in p_low or k in r_low for k in ("tiang", "material", "rekap", "batang", "btg")):
-            # Check if total net is misreported as something other than 160
+        if c and any(
+            k in p_low or k in r_low for k in ("tiang", "material", "rekap", "batang", "btg")
+        ):
+            total = int(c["total_net"])
+            # Check if total net is misreported as something other than the configured total.
             bad_total_pattern = re.compile(
-                r"\b(total(?:\s+bersih|\s+net|\s+tiang)?|net|bersih)\s*(?:adalah|:|=)?\s*(?!160\b)(\d{2,4})\s*(batang|btg)\b",
+                rf"\b(total(?:\s+bersih|\s+net|\s+tiang)?|net|bersih)\s*(?:adalah|:|=)?\s*(?!{total}\b)(\d{{2,4}})\s*(batang|btg)\b",
                 re.IGNORECASE,
             )
             if bad_total_pattern.search(updated_reply):
-                updated_reply = bad_total_pattern.sub(r"\1 160 \3", updated_reply)
+                updated_reply = bad_total_pattern.sub(rf"\1 {total} \3", updated_reply)
                 violations.append(
-                    "Symbolic Invariant Violation: Total tiang bersih Cluster Lahat wajib 160 batang (61 Mugi + 99 Aqe)."
+                    f"Symbolic Invariant Violation: Total tiang bersih Cluster {cluster_key} "
+                    f"wajib {total} batang ({c['mugi_net']} Mugi + {c['aqe_net']} Aqe)."
                 )
                 proofs.append(
-                    "Symbolic Proof [CLUSTER_LAHAT]: (68 - 7) + 99 = 160 == sum(63, 94, 1, 2)"
+                    f"Symbolic Proof [{c['cluster']}]: "
+                    f"({c['mugi_bruto']} - {c['mugi_retur']}) + {c['aqe_net']} = {total} "
+                    f"== sum({', '.join(str(v) for v in c['items'].values())})"
                 )
             else:
                 proofs.append(
-                    "Symbolic Proof [CLUSTER_LAHAT]: Verified invariant 61 + 99 == 160"
+                    f"Symbolic Proof [{c['cluster']}]: Verified invariant "
+                    f"{c['mugi_net']} + {c['aqe_net']} == {total}"
                 )
 
     return {

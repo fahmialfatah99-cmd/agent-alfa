@@ -10,6 +10,7 @@ import logging
 import os
 from typing import Any
 
+from alfa.config.domain import MANDOR_NAME_MAP
 from alfa.core import database
 from alfa.core.config import ensure_env_loaded
 
@@ -315,7 +316,11 @@ def is_pengambilan_material_group(source: str, group: str = "", context: str = "
             candidates.append(c_raw)
 
     for c in candidates:
-        if "pengambilan material" in c:
+        if (
+            "pengambilan material" in c
+            or "pengambilan mandor" in c
+            or ("pengambilan" in c and any(k in c for k in ("curup", "lahat", "lampung", "bengkulu")))
+        ):
             # Tolak jika merupakan grup Transfer Order / Subcon
             if "transfer order" in c or "subcon" in c:
                 return False
@@ -384,6 +389,15 @@ def record_material_rows(
         pic = str(r.get("pic") or r.get("pengambil") or "-").strip()
         sender_val = str(r.get("sender") or sender or source).strip()
         notes = str(r.get("notes") or r.get("keterangan") or r.get("body") or "").strip()
+
+        pic_clean = pic.replace("@lid", "").replace("@s.whatsapp.net", "").strip()
+        sender_clean = sender_val.replace("@lid", "").replace("@s.whatsapp.net", "").strip()
+        if pic_clean in MANDOR_NAME_MAP:
+            pic = MANDOR_NAME_MAP[pic_clean]
+        if sender_clean in MANDOR_NAME_MAP:
+            sender_val = MANDOR_NAME_MAP[sender_clean]
+        if pic in ("-", "") and sender_val and sender_val not in ("-", "WhatsApp"):
+            pic = sender_val
 
         # Item harus berupa nama barang nyata, bukan placeholder '-' atau kosong
         # QTY harus valid (angka > 0 atau terisi), bukan '-' atau 0
@@ -555,7 +569,12 @@ def parse_and_record_material_text(
     # Automatically resolve tab_name if not explicitly provided
     if not tab_name:
         clean_src = source.replace("WA:", "").strip()
-        if "pengambilan material" in clean_src.lower():
+        clean_src_low = clean_src.lower()
+        if "curup" in clean_src_low:
+            tab_name = "Pengambilan Material Curup"
+        elif "lahat" in clean_src_low:
+            tab_name = "Pengambilan Material Lahat"
+        elif "pengambilan material" in clean_src_low:
             tab_name = clean_src.title()
         else:
             tab_name = DEFAULT_TAB_NAME

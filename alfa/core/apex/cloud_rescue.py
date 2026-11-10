@@ -17,6 +17,7 @@ import shutil
 from datetime import datetime
 from typing import Any
 
+from alfa.config.domain import DEFAULT_CLUSTER, detect_cluster
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("ApexCloudRescue")
@@ -61,7 +62,7 @@ def _compute_file_sha256(path: str) -> str:
 
 def stage_file_for_cloud_rescue(
     file_path: str,
-    cluster_name: str = "LAHAT",
+    cluster_name: str = DEFAULT_CLUSTER,
     attempt_cloud_upload: bool = False,
     vault_root: str | None = None,
 ) -> dict[str, Any]:
@@ -94,7 +95,7 @@ def stage_file_for_cloud_rescue(
         try:
             from alfa.tools.filesystem import gdrive_upload_file
 
-            up_res = gdrive_upload_file(local_path=dest_path)
+            up_res = gdrive_upload_file(filepath=dest_path)
             if isinstance(up_res, dict) and up_res.get("status") == "success":
                 gdrive_id = str(up_res.get("file_id") or up_res.get("id") or "")
                 sync_status = "CLOUD_SYNCED"
@@ -146,11 +147,7 @@ def run_cloud_rescue_sweep(workspace_dir: str | None = None) -> dict[str, Any]:
                 continue
             low = fname.lower()
             if ("master" in low or "laporan" in low or "rekap" in low) and low.endswith((".xlsx", ".pdf")):
-                cluster = "LAHAT"
-                for cand in ("LAHAT", "CURUP", "BENGKULU", "LUBUKLINGGAU"):
-                    if cand.lower() in low:
-                        cluster = cand
-                        break
+                cluster = detect_cluster(low, DEFAULT_CLUSTER)
                 res = stage_file_for_cloud_rescue(fpath, cluster_name=cluster, attempt_cloud_upload=False)
                 if res.get("status") == "success":
                     rescued += 1

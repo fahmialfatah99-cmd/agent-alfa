@@ -14,6 +14,7 @@ import re
 import time
 from typing import Any
 
+from alfa.config.domain import FASTPATH_SEEDS
 from alfa.core.apex.hardware_governor import get_hardware_governor_state
 from alfa.core.brain.learning_loop import (
     init_learning_tables,
@@ -118,27 +119,7 @@ def compile_fastpath(
 def seed_compiled_fastpaths() -> int:
     """Seed core verified deterministic fast-paths for instant sub-millisecond answers."""
     init_dreaming_tables()
-    seeds = [
-        (
-            "CLUSTER_LAHAT_POLE_SUMMARY",
-            r"^\s*(?:berapa|cek|info|total|rekap)?\s*(?:jumlah\s+|total\s+)?tiang\s+(?:bersih\s+|net\s+)?(?:cluster\s+)?lahat\s*\??\s*$",
-            (
-                "📊 *REKAP CEPAT TIANG CLUSTER LAHAT (Verified Symbolic Fast-Path)*\n\n"
-                "• *Total Pengambilan Bersih (Net):* `160 Batang`\n"
-                "• *Rincian per Mandor:*\n"
-                "  1. Mandor Mugi: `61 batang net` (68 diambil bruto − 7 retur)\n"
-                "  2. Mandor Aqe Setiawan: `99 batang net`\n"
-                "• *Rincian per Tipe Tiang:*\n"
-                "  - Tiang 7m 2.5\" (T72): `63 batang`\n"
-                "  - Tiang 7m 3\" (T73): `94 batang`\n"
-                "  - Tiang 7m 4\" (T74): `1 batang`\n"
-                "  - Tiang 9m 4\" (T94): `2 batang`\n\n"
-                "⚡ _Dieksekusi instan via Apex Compiled Fast-Path (0 token, terverifikasi Neuro-Symbolic)._"
-            ),
-            "seed_lahat_160",
-            1200,
-        ),
-    ]
+    seeds = list(FASTPATH_SEEDS)
     count = 0
     for topic, reg, tmpl, src, tok in seeds:
         res = compile_fastpath(topic, reg, tmpl, src, tok)
@@ -238,14 +219,17 @@ def try_execute_compiled_fastpath(user_prompt: str) -> dict[str, Any] | None:
         try:
             if _RUST_FASTPATH_ENGINE is None or _LOADED_FP_VERSION != _FP_CACHE_VERSION:
                 with get_sync_db() as conn:
-                    _CACHED_FP_ROWS = conn.execute(
-                        """
-                        SELECT id, fastpath_id, topic, trigger_regex, response_template, saved_tokens_est, hit_count
-                        FROM alfa_compiled_fastpaths
-                        WHERE active = 1
-                        ORDER BY hit_count DESC, id ASC
-                        """
-                    ).fetchall()
+                    _CACHED_FP_ROWS = [
+                        dict(r)
+                        for r in conn.execute(
+                            """
+                            SELECT id, fastpath_id, topic, trigger_regex, response_template, saved_tokens_est, hit_count
+                            FROM alfa_compiled_fastpaths
+                            WHERE active = 1
+                            ORDER BY hit_count DESC, id ASC
+                            """
+                        ).fetchall()
+                    ]
                 if _RUST_FASTPATH_ENGINE is None:
                     _RUST_FASTPATH_ENGINE = alfa_accel.FastPathEngine()
                 candidates = [(r["id"], r["trigger_regex"]) for r in _CACHED_FP_ROWS]
@@ -256,18 +240,22 @@ def try_execute_compiled_fastpath(user_prompt: str) -> dict[str, Any] | None:
             if matched_id is not None:
                 matched_row = next((r for r in _CACHED_FP_ROWS if r["id"] == matched_id), None)
                 if matched_row is not None:
+                    new_hit_count = int(matched_row.get("hit_count") or 0) + 1
                     with get_sync_db() as conn:
                         conn.execute(
                             "UPDATE alfa_compiled_fastpaths SET hit_count = hit_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                             (matched_row["id"],),
                         )
                         conn.commit()
+                    # Jaga cache proses tetap sinkron agar hit_count yang
+                    # dikembalikan tidak basi pada pemanggilan berikutnya.
+                    matched_row["hit_count"] = new_hit_count
                     return {
                         "fastpath_id": matched_row["fastpath_id"],
                         "topic": matched_row["topic"],
                         "response": matched_row["response_template"],
                         "saved_tokens": matched_row["saved_tokens_est"],
-                        "hit_count": (matched_row["hit_count"] or 0) + 1,
+                        "hit_count": new_hit_count,
                     }
             return None
         except (RuntimeError, TypeError, ValueError, AttributeError) as e:

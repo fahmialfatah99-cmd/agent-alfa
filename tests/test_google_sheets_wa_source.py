@@ -46,6 +46,8 @@ def test_is_pengambilan_material_group_validation():
     assert is_pengambilan_material_group("WA: Pengambilan Material") is True
     assert is_pengambilan_material_group("Pengambilan Material Cluster A") is True
     assert is_pengambilan_material_group("WA: Pengambilan Material Lahat") is True
+    assert is_pengambilan_material_group("WA: Laporan pengambilan mandor curup") is True
+    assert is_pengambilan_material_group("WA: Pengambilan mandor curup") is True
     assert is_pengambilan_material_group("WA: Grup Proyek", group="Pengambilan Material Cluster B") is True
 
     # Reject other groups and document sources
