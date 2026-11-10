@@ -119,6 +119,21 @@ OWNER_NAME=NamaKamu          # agar AI menyapa namamu
 
 Sisanya boleh default dulu. Simpan file.
 
+**Opsional (disarankan): pindahkan secret keluar repo.**
+`alfa/core/config.py` memuat `ALFA_SECRETS_FILE` (default
+`~/.config/alfa/secrets.env`, mode 600) *sebelum* `.env`, jadi secret privat
+menang atas `.env` repository. Pindahkan dengan:
+
+```bash
+python scripts/migrate_secrets.py            # dry-run: lihat rencana
+python scripts/migrate_secrets.py --apply    # tulis file privat (repo .env tetap)
+```
+
+Setelah pindah, bersihkan `.env` repo dengan `--apply --strip` (backup
+`.env.bak-<timestamp>` dibuat otomatis), lalu restart **hanya**
+`telegram-ai-bot.service` dan `alfa-dashboard.service` — jangan pernah
+me-restart `wa-sheets-bot.service`.
+
 ---
 
 <a id="7-jalankan--verifikasi-pertama"></a>

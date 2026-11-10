@@ -82,6 +82,13 @@ ALFA Agent implements several security measures:
 ### 4. Secure Configuration
 - Environment variables for secrets (never hardcode)
 - `.env.example` provided for safe configuration
+- **Secret privat di luar repo:** `alfa/core/config.py` memuat
+  `ALFA_SECRETS_FILE` (default `~/.config/alfa/secrets.env`, mode 600)
+  **sebelum** `.env` repository. Env proses/CI selalu menang; secret privat
+  menang atas `.env`. Loader memberi peringatan bila file bisa dibaca
+  grup/orang lain.
+  Migrasi aman: `python scripts/migrate_secrets.py --apply --strip`
+  (default dry-run, selalu membuat backup `.env.bak-<timestamp>`).
 - Sensitive data encrypted at rest
 - **Dashboard fail-closed**: seluruh endpoint `/api/*` wajib memiliki session
   valid atau token. `DASHBOARD_AUTH_TOKEN` kosong TIDAK lagi membuka API

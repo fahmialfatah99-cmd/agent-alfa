@@ -8,10 +8,11 @@ perubahan, dan batas-batas yang **tidak boleh dilewati**.
 
 | Path | Isi | Catatan |
 |---|---|---|
-| `alfa/core/` | Otak & data: `db/` (SQLite, vault kunci, arsip WA), `brain/` (skema tool, prompt), `cli/` (resolusi kunci bertingkat), `rate_limiter` | DB utama: `agent_data.db` (di-repo-root; env `ALFA_DB_PATH` mengalahkan) |
+| `alfa/core/` | Otak & data: `db/` (SQLite, vault kunci, arsip WA), `brain/` (skema tool, prompt), `cli/` (resolusi kunci bertingkat), `rate_limiter`, `schema_types.py` (satu sumber pemetaan anotasi→JSON Schema) | DB utama: `agent_data.db` (di-repo-root; env `ALFA_DB_PATH` mengalahkan) |
+| `alfa/config/` | Data domain: `domain.py` (cluster, constraint simbolik, template fast-path, peta nama mandor) | override via `ALFA_TRACKED_CLUSTERS` / `ALFA_DOMAIN_CONSTRAINTS_JSON` |
 | `alfa/bot/` | Antarmuka: `telegram_bot.py`, `discord_bot.py`, `handlers.py` (router & menu), `advanced_commands.py` (WA/pipeline/tools), `mode_commands.py` (single/swarm/persona), `pipeline/` (DAG), `cloud_menu.py`, `wa_menu.py` | `handlers.py` & `advanced_commands.py` besar — ubah bedah, jangan rombak |
 | `alfa/swarm/` | Mesin multi-agen: `engine.py` (orkestrator + DAG + QA loop), `step_executor.py`, `deliberation.py` (voting mekanis), `workspace_hygiene.py` (folder/sandbox/cancel flag), `live_logger.py` | zero-regression: kontrak `conduct_multi_agent_meeting` tidak boleh berubah |
-| `alfa/tools/` | 148+ tool ter-registry (`register_tool`), `system/integrations.py` (jembatan WA sheets bot), `telecom_tools.py` | tool baru wajib punya deskripsi + parameter jelas utk router LLM |
+| `alfa/tools/` | 148+ tool ter-registry (`register_tool`), `system/integrations/` (paket: `_api`, `productivity`, `whatsapp`, `bot_control`, `android`, `database_query`), `telecom_tools/` (paket: `_common`, `boq`, `maps`, `briefing`, `documents`, `ledger`, `relay`, `whatsapp`) | tool baru wajib punya deskripsi + parameter jelas utk router LLM; import path publik tetap `alfa.tools.*` |
 | `plugins/` | Plugin swafungsi (runner, skill installer, dsb.) | sandbox root dari `dirname(dirname(__file__))` — kompatibel perpindahan repo |
 | `tests/` | Tes hermetik (tanpa network, tanpa DB produksi) | pola: monkeypatch + `AsyncMock`; lihat `tests/test_swarm_qa_meeting_units.py` |
 | `docs/` | Dokumen MkDocs (nav di `mkdocs.yml`, build `--strict`) | tambahkan halaman baru harus masuk `nav:` |

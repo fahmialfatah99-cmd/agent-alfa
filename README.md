@@ -94,9 +94,10 @@ ALFA OS melampaui agen reaktif konvensional melalui 5 pilar otonomi tingkat lanj
 ### 4. 🛡️ Shadow-Git Canary Self-Evolution (`canary_evolution.py`)
 * **Sintesis Tool Otonom dengan 3-Stage Gate:** ALFA dapat menulis fungsi tool Python baru di `alfa/tools/dynamic/` yang wajib melewati:
   1. *Stage 1:* Audit keamanan AST & blokir mutlak referensi ke layanan terproteksi (`wa-sheets-bot`).
-  2. *Stage 2:* Kompilasi namespace terisolasi & validasi signature.
-  3. *Stage 3:* Eksekusi *smoke test* dengan vektor uji nyata.
-* **Canary Rollback Guard:** Jika tool dinamis mengalami *exception* saat produksi, sistem otomatis menonaktifkan dan melakukan *rollback* dalam milidetik (*Zero Crash / Zero Regression*).
+  2. *Stage 2:* Kompilasi & validasi definisi fungsi **tanpa mengeksekusi kode** di proses utama.
+  3. *Stage 3:* *Smoke test* di **subprocess terisolasi** (timeout, resource limit, environment minimal), bukan `exec()` in-process.
+* **Hot-load opt-in:** Secara default tool hanya diverifikasi dan disimpan (`hot_loaded=false`). Hot-load ke proses utama baru aktif bila operator menetapkan `ALFA_ALLOW_DYNAMIC_TOOLS=true`.
+* **Canary Rollback Guard:** Saat hot-load diaktifkan, *exception* pada tool dinamis otomatis menonaktifkan dan me-*rollback* tool tersebut. Catatan jujur: isolasi subprocess membatasi proses, bukan menjadi sandbox jaringan/filesystem penuh.
 
 ### 5. 🌡️ Adaptive Hardware & Thermal Governor (`hardware_governor.py`)
 * **Kesadaran Fisik Host Linux:** Memantau suhu sensor CPU (`/sys/class/thermal/`), penggunaan RAM, dan Swap secara real-time, lalu menyesuaikan mode kerja secara otomatis (`APEX_TURBO`, `BALANCED`, atau `THERMAL_PROTECTION`).

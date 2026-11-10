@@ -74,12 +74,23 @@ ALFA Agent implements several security measures:
   `execute_python_sandbox` sama-sama menolak eksekusi di host bila Docker
   tidak tersedia, kecuali operator opting-in eksplisit lewat
   `ALFA_ALLOW_HOST_EXEC=true`.
+- **Dynamic tool canary:** verifikasi tidak pernah `exec()` kode sintesis di
+  proses bot. Smoke test berjalan di subprocess dengan timeout, rlimit, cwd
+  sementara, dan environment minimal. Hot-load hanya aktif dengan
+  `ALFA_ALLOW_DYNAMIC_TOOLS=true`; default-nya tool hanya disimpan.
+  Batas jujur: subprocess bukan sandbox jaringan/filesystem penuh — kode
+  masih berjalan dengan hak user ALFA.
 - **Kripto fail-closed**: `encrypt_key` melempar error bila AES-GCM tidak
   tersedia — API key tidak pernah disimpan plaintext diam-diam.
 
 ### 4. Secure Configuration
 - Environment variables for secrets (never hardcode)
 - `.env.example` provided for safe configuration
+- **Secrets di luar repo:** `alfa/core/config.py` memuat
+  `ALFA_SECRETS_FILE` (default `~/.config/alfa/secrets.env`, disarankan
+  `chmod 600`) **sebelum** `.env` repository. Env proses/CI tetap menang;
+  secrets pribadi menang atas `.env` repo. Loader memberi peringatan bila
+  file dapat dibaca grup/orang lain.
 - Sensitive data encrypted at rest
 - **Dashboard fail-closed**: seluruh endpoint `/api/*` wajib memiliki session
   valid atau token. `DASHBOARD_AUTH_TOKEN` kosong TIDAK lagi membuka API
