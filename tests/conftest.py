@@ -35,6 +35,11 @@ os.environ["PERMISSION_GATE_DANGEROUS_ONLY"] = "false"
 # alfa.dashboard.* because token above is forced empty in tests. Force the
 # localhost default; tests exercising the guard set their own env per-test.
 os.environ["DASHBOARD_HOST"] = "127.0.0.1"
+# Secret privat operator (ALFA_SECRETS_FILE, default ~/.config/alfa/secrets.env)
+# tidak boleh terbaca test suite — arahkan ke path yang tidak ada.
+os.environ["ALFA_SECRETS_FILE"] = os.path.join(
+    tempfile.gettempdir(), "alfa_test_no_secrets.env"
+)
 
 # ---------------------------------------------------------------------------
 # PROTEKSI DATA PRODUKSI (insiden 2026-10-23):

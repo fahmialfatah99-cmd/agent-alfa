@@ -9,10 +9,41 @@ from dotenv import dotenv_values
 from fastapi import APIRouter, HTTPException, Request
 
 from alfa.core import database
+from alfa.core.config import active_env_path
 from alfa.dashboard.common import REPO_ROOT, safe_int
 from alfa.dashboard.routes.auth import require_admin
 
 router = APIRouter()
+
+
+def _env_sources() -> list[str]:
+    """Sumber env untuk UI settings, urut prioritas (file privat > `.env` repo)."""
+    sources: list[str] = []
+    try:
+        from alfa.core.config import SECRETS_PATH
+
+        if SECRETS_PATH.exists():
+            sources.append(str(SECRETS_PATH))
+    except ImportError:
+        pass
+    repo_env = os.path.join(REPO_ROOT, ".env")
+    if os.path.exists(repo_env):
+        sources.append(repo_env)
+    return sources
+
+
+def _read_env_values() -> dict[str, str]:
+    """Baca seluruh sumber env runtime (file privat menang atas `.env` repo)."""
+    merged: dict[str, str] = {}
+    for path in _env_sources():
+        try:
+            values = dotenv_values(path)
+        except OSError:
+            continue
+        for key, value in values.items():
+            if key not in merged:
+                merged[key] = value or ""
+    return merged
 
 # ==================== SETTINGS & ANTIGRAVITY ====================
 
@@ -54,8 +85,7 @@ async def get_system_settings(request: Request):
     """
     if request is not None:
         require_admin(request)
-    env_path = os.path.join(REPO_ROOT, ".env")
-    env_vals = dotenv_values(env_path) if os.path.exists(env_path) else {}
+    env_vals = _read_env_values()
 
     bot_token = str(env_vals.get("TELEGRAM_BOT_TOKEN") or "")
     masked_bot_token = (
@@ -454,7 +484,7 @@ async def set_main_brain_endpoint(payload: dict[str, Any], request: Request):
 async def update_system_settings(payload: dict[str, Any], request: Request):
     """Update system configuration (.env and database settings)."""
     require_admin(request)
-    env_path = os.path.join(REPO_ROOT, ".env")
+    env_path = str(active_env_path())
 
     def _get(field: str) -> str | None:
         val = payload.get(field)

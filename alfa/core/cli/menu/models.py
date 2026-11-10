@@ -259,10 +259,10 @@ def menu_setup_api_keys(cli: Any) -> None:
         cli._save_config()
         os.environ[env_key] = key_input
 
-        # 1. Update .env
-        from alfa.core.cli.server_manager import get_repo_root
+        # 1. Update file env aktif (file privat bila ada, else .env repo)
+        from alfa.core.config import active_env_path
 
-        env_path = get_repo_root() / ".env"
+        env_path = active_env_path()
         try:
             lines = (
                 env_path.read_text(encoding="utf-8").splitlines()

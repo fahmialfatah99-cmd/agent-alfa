@@ -88,6 +88,25 @@ def ensure_env_loaded() -> Path | None:
     return SECRETS_PATH if SECRETS_PATH.exists() else None
 
 
+def env_file_paths() -> list[Path]:
+    """Semua file env runtime, urut prioritas (private > repo).
+
+    Dipakai pembacaan langsung (dashboard/CLI) agar file secret di luar
+    repo ikut terbaca — bukan hanya `.env`.
+    """
+    paths: list[Path] = []
+    if SECRETS_PATH.exists():
+        paths.append(SECRETS_PATH)
+    if ENV_PATH.exists() and ENV_PATH not in paths:
+        paths.append(ENV_PATH)
+    return paths
+
+
+def active_env_path() -> Path:
+    """Tujuan penulisan env baru: file privat bila ada, else `.env` repo."""
+    return SECRETS_PATH if SECRETS_PATH.exists() else ENV_PATH
+
+
 def env_str(name: str, default: str = "") -> str:
     ensure_env_loaded()
     value = os.getenv(name)

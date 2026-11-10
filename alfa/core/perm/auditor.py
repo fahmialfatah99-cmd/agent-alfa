@@ -94,6 +94,7 @@ def audit_local_host_security() -> dict[str, Any]:
             (os.path.join(home, ".ssh"), 0o700),
             (os.path.join(home, ".alfa_vault_master.key"), 0o600),
             (os.path.join(PROJECT_DIR, ".env"), 0o600),
+            (os.path.join(home, ".config", "alfa", "secrets.env"), 0o600),
         ]
         ssh_dir = os.path.join(home, ".ssh")
         if os.path.isdir(ssh_dir):

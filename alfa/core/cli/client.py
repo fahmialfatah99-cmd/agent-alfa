@@ -69,11 +69,23 @@ class DirectAIClient(ClientBackendsMixin):
         self.attached_files: list[str] = []
 
     def _load_env_file(self) -> None:
-        """Load .env file if present in current working directory, parent, or ALFA install root."""
-        env_paths = [Path.cwd() / ".env", Path.cwd().parent / ".env"]
+        """Load file env: private secrets dulu, lalu CWD/parent, lalu install root."""
+        env_paths: list[Path] = []
+        try:
+            from alfa.core.config import SECRETS_PATH
+
+            if SECRETS_PATH.exists():
+                env_paths.append(SECRETS_PATH)
+        except ImportError:
+            pass
         install_root = Path(__file__).resolve().parent.parent.parent.parent
-        if (install_root / ".env") not in env_paths:
-            env_paths.append(install_root / ".env")
+        for candidate in (
+            Path.cwd() / ".env",
+            Path.cwd().parent / ".env",
+            install_root / ".env",
+        ):
+            if candidate not in env_paths:
+                env_paths.append(candidate)
 
         for path in env_paths:
             if path.exists():

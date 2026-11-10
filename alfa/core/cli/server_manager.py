@@ -130,15 +130,26 @@ def start_dashboard_server(
 def start_telegram_bot(repo_root: Path | None = None) -> tuple[bool, str]:
     """Start Telegram AI Bot in background if token is configured."""
     root = repo_root or get_repo_root()
-    env_file = root / ".env"
     token = ""
-    if env_file.exists():
+    try:
+        from alfa.core.config import env_file_paths
+
+        candidates = list(env_file_paths())
+    except ImportError:
+        candidates = []
+    repo_env = root / ".env"
+    if repo_env.exists() and repo_env not in candidates:
+        candidates.append(repo_env)
+    for env_file in candidates:
         try:
             for line in env_file.read_text(encoding="utf-8").splitlines():
                 if line.startswith("TELEGRAM_BOT_TOKEN="):
                     token = line.split("=", 1)[1].strip().strip("'\"")
+                    break
         except _SRV_ERR:
             pass
+        if token:
+            break
 
     if not token or token == "your_telegram_bot_token_here":
         return False, "Token belum disetel di .env (Opsional)"

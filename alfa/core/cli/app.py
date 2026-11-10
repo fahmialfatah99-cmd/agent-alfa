@@ -212,10 +212,10 @@ def run_config_wizard() -> None:
     cli.config = current_cfg
     cli._save_config()
 
-    # Opsi update .env di repo root
-    from alfa.core.cli.server_manager import get_repo_root
+    # Opsi update file env aktif (file privat bila ada, else .env repo root)
+    from alfa.core.config import active_env_path
 
-    env_path = get_repo_root() / ".env"
+    env_path = active_env_path()
     if env_path.exists() and new_key and api_key_env:
         try:
             lines = env_path.read_text(encoding="utf-8").splitlines()
