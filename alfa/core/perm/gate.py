@@ -474,17 +474,17 @@ async def handle_permission_callback(update, context) -> None:
             await query.answer(
                 "Permintaan izin ini sudah selesai diproses.", show_alert=False
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Permission callback: gagal menjawab perm_done: %s", e)
         return
 
     try:
         _, req_id, decision = data.split("|", 2)
-    except Exception:
+    except ValueError:
         try:
             await query.answer()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Permission callback: gagal menjawab callback tidak valid: %s", e)
         return
 
     entry = _PENDING.get(req_id)
@@ -493,17 +493,26 @@ async def handle_permission_callback(update, context) -> None:
             await query.answer(
                 "Permintaan sudah kedaluwarsa atau telah diproses.", show_alert=False
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Permission callback: gagal menjawab permintaan kedaluwarsa: %s", e)
         return
 
-    # Hanya pemilik chat yang boleh memutuskan
+    # Hanya pemilik chat yang boleh memutuskan — fail-closed.
+    # Kegagalan parsing id ATAU kegagalan menjawab TIDAK boleh meloloskan approval.
     try:
-        if int(query.from_user.id) != entry["chat_id"]:
+        requester_id = int(query.from_user.id)
+    except (AttributeError, TypeError, ValueError) as e:
+        logger.warning(
+            "[Gate] ID peminta tidak valid, approval ditolak (fail-closed): %s", e
+        )
+        return
+
+    if requester_id != entry["chat_id"]:
+        try:
             await query.answer("Bukan permintaan untuk kamu.", show_alert=True)
-            return
-    except Exception:
-        pass
+        except Exception as e:
+            logger.debug("[Gate] gagal menjawab penolakan non-pemilik: %s", e)
+        return
 
     entry["decision"] = decision
     entry["event"].set()

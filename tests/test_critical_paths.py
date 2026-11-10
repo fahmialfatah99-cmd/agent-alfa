@@ -586,6 +586,44 @@ class TestInteractiveApproval:
         assert g._PENDING.get(req_id, {}).get("decision", "") == ""
         task.cancel()
 
+    async def test_non_owner_never_approved_when_answer_fails(
+        self, isolated_db, monkeypatch
+    ):
+        """Fail-closed: error API Telegram tidak boleh membuka approval."""
+        import asyncio
+        from unittest.mock import AsyncMock
+
+        from alfa.core.perm import gate as g
+
+        monkeypatch.setattr("alfa.swarm.subagents.get_telegram_app", lambda: _FakeApp())
+        monkeypatch.setattr(g, "APPROVAL_TIMEOUT", 0.2)
+        task = asyncio.create_task(
+            g.request_approval("execute_bash_command", "{}", 4242306)
+        )
+        for _ in range(100):
+            await asyncio.sleep(0.05)
+            if g._PENDING:
+                break
+        req_id = next(iter(g._PENDING))
+
+        async def _boom(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        update, _query = _fake_update(
+            f"perm|{req_id}|once",
+            user_id=999999,
+            answer=AsyncMock(side_effect=_boom),
+        )
+        await g.handle_permission_callback(update, None)
+
+        entry = g._PENDING.get(req_id)
+        assert entry is not None
+        assert not entry["event"].is_set(), (
+            "approval tidak boleh lolos hanya karena query.answer gagal"
+        )
+        result = await asyncio.wait_for(task, timeout=5)
+        assert result is not None and "DITOLAK" in result
+
     async def test_callback_edge_cases(self, isolated_db):
         from unittest.mock import MagicMock
 
