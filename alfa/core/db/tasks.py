@@ -3,6 +3,7 @@ Cron, Reminders, Focus Sessions, Subagents, and API Token Telemetry Database Fun
 """
 
 import logging
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -11,6 +12,10 @@ import aiosqlite
 from alfa.core.db.connection import _get_db_path, get_sync_db
 
 logger = logging.getLogger("DB.Tasks")
+
+#: Error realistis untuk query/insert SQLite.
+_TASK_ERR = (sqlite3.Error, TypeError, ValueError)
+
 
 
 # --- Cron / Recurring Task Functions ---
@@ -21,7 +26,7 @@ def _ensure_cron_kind_column(conn) -> None:
         if "kind" not in cols:
             conn.execute("ALTER TABLE scheduled_cron_jobs ADD COLUMN kind TEXT DEFAULT 'single'")
             conn.commit()
-    except Exception as e:
+    except _TASK_ERR as e:
         logger.debug(f"migrasi kind cron dilewati: {e}")
 
 
@@ -108,7 +113,7 @@ async def get_due_cron_jobs() -> list[dict[str, Any]]:
                         d.setdefault("kind", "single")
                         out.append(d)
                     return out
-            except Exception:
+            except _TASK_ERR:
                 continue  # kolom kind belum ada → coba tanpa kind
         return []
 
@@ -377,7 +382,7 @@ def record_api_usage_sync(
             )
             conn.commit()
         return True
-    except Exception:
+    except _TASK_ERR:
         return False
 
 

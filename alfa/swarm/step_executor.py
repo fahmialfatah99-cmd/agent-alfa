@@ -26,6 +26,10 @@ from alfa.swarm.workspace_hygiene import (
 
 logger = logging.getLogger(__name__)
 
+#: Error realistis untuk riset & scraping.
+_RESEARCH_ERR = (RuntimeError, OSError, ValueError, TypeError, KeyError, AttributeError)
+
+
 
 def _extract_html_doc(text: str) -> str:
     """Ekstrak dokumen HTML utuh dari teks model (fence / doc penuh / sisa)."""
@@ -346,7 +350,7 @@ async def _forced_json_execution(agent: dict[str, Any], task_instruction: str) -
             hint = str(act.get("command") or act.get("path") or "")[:80]
             logs.append(f"{i + 1}. {tool_nm} -> {st}")
             log_live("TOOL", f"⚙️ forced-exec {tool_nm} -> {st} | {hint}")
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001 - tool arbitrer bisa raise apa pun
             logs.append(f"{i + 1}. {tool_nm} -> EXC {str(ex)[:80]}")
             log_live("TOOL", f"⚠️ forced-exec {tool_nm} error: {str(ex)[:80]}")
     return "Hasil eksekusi deterministik (forced-JSON):\n" + "\n".join(logs)
@@ -514,7 +518,7 @@ async def execute_swarm_task_step(
                         fb_n += len(found)
                         if fb_n >= 8:
                             break
-                except Exception as ws_err:
+                except _RESEARCH_ERR as ws_err:
                     logger.warning(f"[research-fallback] web_search gagal: {ws_err}")
                 rep_path = os.path.join(swarm_out_dir, "LAPORAN-Riset.md")
                 try:
@@ -531,7 +535,7 @@ async def execute_swarm_task_step(
                     tool_output = "SEMUA sumber riset gagal (scraper 0 + web_search 0) — dilaporkan GAGAL jujur"
                     generated_content = "(gagal: tidak ada data dari sumber mana pun)"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - pipeline riset multi-langkah
             status = "error"
             tool_output = f"Error in Deep Scraper: {str(e)}"
             generated_content = f"Gagal mengeksekusi scraper: {str(e)}"

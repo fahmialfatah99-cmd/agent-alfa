@@ -32,6 +32,9 @@ from alfa.core import database, token_usage  # noqa: E402 — di bawah helper la
 
 logger = logging.getLogger(__name__)
 
+#: Error realistis untuk inisialisasi SDK provider & permintaan HTTP.
+_CLIENT_ERR = (ImportError, AttributeError, TypeError, ValueError, RuntimeError, OSError)
+
 #: Tool yang boleh dijalankan agen swarm tanpa kanal approval manusia.
 #:
 #: Batas keamanan tool ini bukan "tidak ada" — melainkan:
@@ -304,7 +307,7 @@ async def _generate_with_gemini(
     try:
         _ensure_genai()
         client = genai.Client(api_key=api_key)
-    except Exception as client_err:
+    except _CLIENT_ERR as client_err:
         logger.error(
             f"Failed to initialize Gemini client for agent '{agent_name}': {client_err!r}"
         )
@@ -351,7 +354,7 @@ async def _generate_with_gemini(
                     context=context,
                 )
                 return str(response.text).strip()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - SDK provider bisa raise apa pun
             last_err = e
             _mark_model_exhausted(m, e)
             logger.warning(
@@ -591,7 +594,7 @@ async def _generate_with_openai_compat(
                 f"{provider} HTTP {res.status_code} for agent '{agent_name}' (model={model}): {err_detail}"
             )
             return None
-    except Exception as e:
+    except (httpx.HTTPError, OSError, ValueError, TypeError, KeyError, RuntimeError) as e:
         _mark_model_exhausted(model, e)
         logger.error(f"Error in {provider} agent '{agent_name}': {e!r}")
         return None
@@ -736,7 +739,7 @@ async def generate_agent_response(
                         approval_gate=swarm_headless_gate,
                         raw_errors=True,
                     )
-                except Exception as agentic_err:
+                except Exception as agentic_err:  # noqa: BLE001 - jalur LLM utama
                     logger.warning(f"Agentic turn '{agent_name}' error: {agentic_err!r}")
                     result = None
             if isinstance(result, str) and (
@@ -806,7 +809,7 @@ async def generate_agent_response(
                     )
                     if result is not None:
                         break
-                except Exception as fb_err:
+                except Exception as fb_err:  # noqa: BLE001 - fallback LLM
                     logger.warning(f"Gemini agentic fallback gagal: {fb_err!r}")
 
         if result is None and os.getenv("GEMINI_API_KEY"):

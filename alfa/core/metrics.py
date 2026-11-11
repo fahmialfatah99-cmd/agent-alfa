@@ -18,6 +18,10 @@ from typing import Any
 
 logger = logging.getLogger("Core.Metrics")
 
+#: Error realistis untuk operasi metrik in-memory.
+_METRIC_ERR = (TypeError, ValueError, KeyError, AttributeError, RuntimeError)
+
+
 _MAX_TURNS_TRACED = 200
 _DURATION_BUCKETS_MS = (50, 250, 1000, 5000, 15000)
 
@@ -51,7 +55,7 @@ def note_tool_call(tool_name: str, ok: bool, duration_ms: float) -> None:
             for b in _DURATION_BUCKETS_MS:
                 if duration_ms <= b:
                     buckets[str(b)] += 1
-    except Exception as e:
+    except _METRIC_ERR as e:
         logger.debug("note_tool_call gagal untuk '%s': %s", tool_name, e)
 
 
@@ -62,7 +66,7 @@ def note_tool_missing(tool_name: str) -> None:
             _tool_errors[f"__missing__:{tool_name}"] = (
                 _tool_errors.get(f"__missing__:{tool_name}", 0) + 1
             )
-    except Exception as e:
+    except _METRIC_ERR as e:
         logger.debug("note_tool_missing gagal untuk '%s': %s", tool_name, e)
 
 
@@ -74,7 +78,7 @@ def note_turn_started() -> None:
             _recent_turns.append(
                 {"event": "started", "ts": time.time()}
             )
-    except Exception as e:
+    except _METRIC_ERR as e:
         logger.debug("note_turn_started gagal: %s", e)
 
 
@@ -89,7 +93,7 @@ def note_turn_finished(ok: bool) -> None:
             _recent_turns.append(
                 {"event": "finished", "ok": ok, "ts": time.time()}
             )
-    except Exception as e:
+    except _METRIC_ERR as e:
         logger.debug("note_turn_finished gagal: %s", e)
 
 
@@ -127,7 +131,7 @@ def snapshot() -> dict[str, Any]:
                 },
                 "recent_turns": list(_recent_turns)[-50:],
             }
-    except Exception as e:
+    except _METRIC_ERR as e:
         logger.debug("snapshot metrik gagal: %s", e)
         return {}
 

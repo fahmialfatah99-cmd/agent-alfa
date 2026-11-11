@@ -11,6 +11,14 @@ from collections import deque
 
 logger = logging.getLogger("DB.Connection")
 
+#: Error realistis untuk operasi koneksi/SQLite & seed opsional.
+_DB_ERR = (sqlite3.Error, TypeError, ValueError)
+_POOL_ERR = (sqlite3.Error, TypeError, ValueError)
+_ENCRYPT_ERR = (RuntimeError, OSError, ValueError, TypeError)
+_SEED_ERR = (ImportError, AttributeError, KeyError, TypeError, ValueError)
+_MIGRATE_ERR = (sqlite3.Error, RuntimeError, OSError, ValueError, TypeError)
+
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 DB_PATH = os.getenv("ALFA_DB_PATH", os.path.join(REPO_ROOT, "agent_data.db"))
 
@@ -89,7 +97,7 @@ class ConnectionPool:
                     conn.execute("SELECT 1")
                     self._pool.append(conn)
                     return
-                except Exception as e:
+                except _POOL_ERR as e:
                     logger.debug("Koneksi pool tidak sehat, ditutup: %s", e)
             conn.close()
 
@@ -345,7 +353,7 @@ def init_db_sync():
             if env_gemini_key:
                 try:
                     enc_env_key = encrypt_key(env_gemini_key)
-                except Exception:  # noqa: BLE001 - seed bersifat opsional
+                except _ENCRYPT_ERR:  # seed bersifat opsional
                     logger.exception(
                         "Seed API key dari env dilewati: enkripsi tidak tersedia"
                     )
@@ -373,7 +381,7 @@ def init_db_sync():
                     for aid, d in _AG.items()
                 }
                 _seed_meta = {aid: d["persona"] for aid, d in _AG.items()}
-            except Exception as e:
+            except _SEED_ERR as e:
                 logger.debug("Seed persona default dilewati: %s", e)
                 _seed_persona, _seed_meta = {}, {}
             default_agents = [
@@ -491,7 +499,7 @@ def init_db_sync():
 
     try:
         migrate_encrypt_api_keys()
-    except Exception as _mig_err:
+    except _MIGRATE_ERR as _mig_err:
         logger.warning(f"migrate_encrypt_api_keys gagal: {_mig_err}")
 
 

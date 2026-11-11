@@ -13,12 +13,18 @@ import hashlib
 import json
 import logging
 import re
+import sqlite3
 from datetime import datetime
 from typing import Any
 
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("LearningLoop")
+
+#: Error realistis untuk registrasi tool, migrasi kolom, dan query DB.
+_REGISTER_ERR = (ImportError, AttributeError, TypeError, ValueError, RuntimeError)
+_SKILL_DB_ERR = (sqlite3.Error, TypeError, ValueError, AttributeError, KeyError)
+_NS_ERR = (ImportError, AttributeError, TypeError, ValueError, KeyError, RuntimeError)
 
 
 def register_tool(category: str = "agent"):
@@ -27,7 +33,7 @@ def register_tool(category: str = "agent"):
         try:
             from alfa.tools.registry import register_tool as _rt
             return _rt(category=category)(fn)
-        except Exception:
+        except _REGISTER_ERR:
             return fn
     return decorator
 
@@ -84,7 +90,7 @@ def init_learning_tables() -> None:
         ):
             try:
                 conn.execute(f"ALTER TABLE alfa_learned_skills ADD COLUMN {col} {col_def};")
-            except Exception as exc:
+            except _SKILL_DB_ERR as exc:
                 logger.debug("Kegagalan tak terduga di init_learning_tables: %s", exc)
 
         conn.commit()
@@ -453,7 +459,7 @@ def audit_against_learned_skills(user_prompt: str, reply_text: str) -> tuple[boo
         if not ns_res.get("is_valid", True):
             v_msg = "; ".join(ns_res.get("violations", []))
             return False, f"Neuro-Symbolic Prover: {v_msg}", ns_res.get("corrected_reply", reply_text)
-    except Exception as e:
+    except _NS_ERR as e:
         logger.debug("Neuro-symbolic gate bypass: %s", e)
 
     return True, "", reply_text
@@ -572,7 +578,7 @@ def record_agent_experience(
             "topic": res["topic"],
             "message": f"Aturan baru untuk topik '{res['topic']}' berhasil disimpan ke sistem pembelajaran mandiri ALFA OS.",
         }
-    except Exception as e:
+    except _SKILL_DB_ERR as e:
         logger.exception("Gagal merekam pengalaman agen: %s", e)
         return {"status": "error", "message": f"Record experience error: {str(e)}"}
 
@@ -613,6 +619,6 @@ def query_learned_skills(query: str = "") -> dict[str, Any]:
             "skills": skills,
             "message": f"Ditemukan {len(skills)} aturan hasil pembelajaran mandiri.",
         }
-    except Exception as e:
+    except _SKILL_DB_ERR as e:
         logger.exception("Gagal mencari learned skills: %s", e)
         return {"status": "error", "message": f"Query learned skills error: {str(e)}"}

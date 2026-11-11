@@ -6,8 +6,12 @@ chat/swarm pipeline, so everything is wrapped in try/except.
 """
 
 import logging
+import sqlite3
 
 logger = logging.getLogger("TokenUsage")
+
+#: Error realistis saat mencatat pemakaian token ke DB.
+_USAGE_ERR = (sqlite3.Error, TypeError, ValueError, AttributeError)
 
 
 def record(
@@ -46,7 +50,7 @@ def record(
         allowed, reason = check_rate_limit(user_id=user_id, provider=provider)
         if not allowed:
             logger.warning(f"Rate limit exceeded: {reason}")
-    except Exception as e:
+    except _USAGE_ERR as e:
         logger.debug(f"usage record skipped: {e}")
 
 
@@ -73,7 +77,7 @@ def from_gemini_response(
             completion_tokens=(getattr(um, "candidates_token_count", 0) or 0)
             + (getattr(um, "thoughts_token_count", 0) or 0),
         )
-    except Exception as e:
+    except _USAGE_ERR as e:
         logger.debug(f"from_gemini_response skipped: {e}")
 
 
@@ -99,5 +103,5 @@ def from_openai_json(
             prompt_tokens=usage.get("prompt_tokens", 0) or 0,
             completion_tokens=usage.get("completion_tokens", 0) or 0,
         )
-    except Exception as e:
+    except _USAGE_ERR as e:
         logger.debug(f"from_openai_json skipped: {e}")
