@@ -5,6 +5,8 @@ import os
 import re
 from typing import Any
 
+import httpx
+
 from alfa.tools.registry import register_tool
 
 DDGS: Any = None
@@ -14,6 +16,20 @@ try:
     DDGS = _DDGS_CLS
 except ImportError:
     pass
+
+#: Error realistis untuk mesin pencari (DDGS/SDK pihak ketiga).
+_SEARCH_ERR = (
+    RuntimeError,
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    TimeoutError,
+)
+
+#: Error realistis untuk pengambilan halaman via HTTP.
+_SEARCH_HTTP_ERR = (httpx.HTTPError, OSError, ValueError, TypeError, UnicodeError)
 
 logger = logging.getLogger("AgentTools.Web.Search")
 
@@ -71,7 +87,7 @@ def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
 
         _ddgs_note_success()
         return {"status": "success", "results": formatted_results}
-    except Exception as e:
+    except _SEARCH_ERR as e:
         logger.error(f"Web search error: {e}")
         _ddgs_note_failure()
         return _browser_search_fallback(query, max_results, reason=str(e))
@@ -245,7 +261,7 @@ def fetch_web_page_content(url: str, max_length: int = 5000) -> dict[str, Any]:
                 html = re.sub(r"<!--[\s\S]*?-->", " ", html)
                 cleaned = re.sub(r"<[^>]+>", " ", html)
                 text = re.sub(r"\s+", " ", cleaned).strip()
-    except Exception as e:
+    except _SEARCH_HTTP_ERR as e:
         logger.debug(f"HTTPX fetch error, falling back to stealth: {e}")
 
     # Tier 2: Stealth Scrapling Fallback if Tier 1 got blocked (403/429/503/empty)
@@ -321,5 +337,5 @@ def audit_website_security(target_url: str) -> dict[str, Any]:
         from alfa.core import permissions as security_auditor
 
         return security_auditor.audit_website_security(target_url)
-    except Exception as e:
+    except _SEARCH_ERR as e:
         return {"status": "error", "message": f"Security audit error: {str(e)}"}

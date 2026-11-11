@@ -11,6 +11,23 @@ from alfa.integrations.gdrive.auth import (
     _get_gdrive_service,
 )
 
+try:  # googleapiclient opsional pada instalasi minimal
+    from googleapiclient.errors import HttpError as _GdriveHttpError
+except ImportError:  # pragma: no cover
+    _GdriveHttpError = OSError
+
+#: Error realistis untuk panggilan Google Drive API.
+_GD_ERR = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    TimeoutError,
+    _GdriveHttpError,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,7 +105,7 @@ def gdrive_list_files(
             "folder_id": target_folder,
             "files": files,
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal mengambil daftar file Google Drive: {str(e)}",
@@ -154,7 +171,7 @@ def gdrive_upload_file(
                 body={"role": "reader", "type": "anyone"},
                 supportsAllDrives=True,
             ).execute()
-        except Exception as exc:
+        except _GD_ERR as exc:
             logger.debug("Kegagalan tak terduga di gdrive_upload_file: %s", exc)
 
         return {
@@ -166,7 +183,7 @@ def gdrive_upload_file(
             "web_link": file.get("webViewLink"),
             "download_link": file.get("webContentLink"),
         }
-    except Exception as e:
+    except _GD_ERR as e:
         err_str = str(e)
         if "Service Accounts do not have storage quota" in err_str:
             return {
@@ -221,7 +238,7 @@ def gdrive_download_file(file_id: str, save_filename: str = "") -> dict[str, Any
             "saved_path": target_path,
             "file_size": os.path.getsize(target_path),
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal mengunduh file dari Google Drive: {str(e)}",
@@ -269,7 +286,7 @@ def gdrive_create_folder(
             "folder_name": folder.get("name"),
             "web_link": folder.get("webViewLink"),
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal membuat folder Google Drive: {str(e)}",
@@ -341,7 +358,7 @@ def gdrive_sync_to_second_brain(folder_id: str = "", limit: int = 10) -> dict[st
             "folder_id": target_folder,
             "synced_files": ingested,
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal sinkronisasi Google Drive ke Second Brain: {str(e)}",
@@ -394,7 +411,7 @@ def gdrive_list_mounted_files(
             "total_found": len(files),
             "files": files,
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {
             "status": "error",
             "message": f"Gagal membaca direktori GDrive{drive_index}: {str(e)}",
@@ -437,7 +454,7 @@ def gdrive_copy_to_drive(
             "drive": f"GDrive{drive_index}",
             "destination": dest_path,
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {"status": "error", "message": f"Gagal menyalin ke Google Drive: {str(e)}"}
 
 
@@ -470,6 +487,6 @@ def gdrive_copy_from_drive(
             "saved_path": dest_path,
             "size": os.path.getsize(dest_path),
         }
-    except Exception as e:
+    except _GD_ERR as e:
         return {"status": "error", "message": f"Gagal menyalin dari Google Drive: {str(e)}"}
 

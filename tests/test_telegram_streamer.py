@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from telegram.error import BadRequest, RetryAfter
+from telegram.error import BadRequest, RetryAfter, TimedOut
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -258,7 +258,7 @@ class TestTelegramStreamer:
     def test_finalize_fallback_when_start_failed(self, mock_context):
         """If start() failed (no message_id), finalize() falls back to send_message."""
         mock_context.bot.send_message.side_effect = [
-            Exception("Network timeout on start"),
+            TimedOut("Network timeout on start"),
             MagicMock(message_id=99999),
         ]
         streamer = TelegramStreamer(

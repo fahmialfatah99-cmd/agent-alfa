@@ -226,7 +226,10 @@ class TestInspectApiEndpointHealth:
             assert "api.alfa.local" in res["url"]
 
     def test_inspect_endpoint_connection_failure(self):
-        with patch("httpx.Client", side_effect=Exception("Connection refused")):
+        import httpx
+
+        # Kegagalan koneksi nyata dari httpx adalah httpx.ConnectError
+        with patch("httpx.Client", side_effect=httpx.ConnectError("Connection refused")):
             res = inspect_api_endpoint_health("https://offline.service.internal:9999", timeout_sec=1.0)
             assert res["status"] == "error"
             assert res["details"]["is_healthy"] is False

@@ -7,6 +7,18 @@ from typing import Any
 
 from alfa.core import database
 
+#: Error realistis untuk alur kredensial Google (auth & OAuth).
+_GAUTH_ERR = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    ImportError,
+    TimeoutError,
+)
+
 logger = logging.getLogger("AgentTools.GDrive")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -70,7 +82,7 @@ def _get_gdrive_service():
                 from google.auth.transport.requests import Request
 
                 creds.refresh(Request())
-        except Exception as e:
+        except _GAUTH_ERR as e:
             logger.error(f"Error loading gdrive_oauth_token.json: {e}")
             oauth_error = str(e)
             creds = None
@@ -88,7 +100,7 @@ def _get_gdrive_service():
                     from google.auth.transport.requests import Request
 
                     creds.refresh(Request())
-        except Exception:
+        except _GAUTH_ERR:
             creds = None
 
     # 2. Check Service Account JSON file
@@ -132,7 +144,7 @@ def _get_gdrive_service():
                 creds = service_account.Credentials.from_service_account_file(
                     wa_sa, scopes=scopes
                 )
-            except Exception as e:
+            except _GAUTH_ERR as e:
                 logger.debug(f"Could not load wa-sheets-bot service-account: {e}")
 
     if not creds:
@@ -148,7 +160,7 @@ def _get_gdrive_service():
                     acc_token = tok_data.get("access_token")
                     if acc_token:
                         creds = Credentials(token=acc_token, scopes=scopes)
-        except Exception as e:
+        except _GAUTH_ERR as e:
             logger.debug(f"Could not load rclone gdrive1 token: {e}")
 
     if not creds:
@@ -299,7 +311,7 @@ def gdrive_oauth_login(port: int = 8999, wait_timeout: int = 300) -> dict[str, A
             "token_file": token_file,
             "scopes": list(creds.scopes or []),
         }
-    except Exception as e:
+    except _GAUTH_ERR as e:
         return {"status": "error", "message": f"OAuth login gagal/dibatalkan: {str(e)}"}
 
 
@@ -466,7 +478,7 @@ def gdrive_oauth_exchange_code(
             "message": "Login Google Drive berhasil! Upload sekarang menggunakan kuota akun pribadi Anda.",
             "token_file": token_file,
         }
-    except Exception as e:
+    except _GAUTH_ERR as e:
         return {
             "status": "error",
             "message": f"Pertukaran kode otorisasi gagal: {str(e)}",
@@ -514,7 +526,7 @@ def _detect_mounted_gdrives() -> list[dict[str, Any]]:
                     "items_count": entries,
                     "active": True,
                 })
-            except Exception as exc:
+            except _GAUTH_ERR as exc:
                 logger.debug("Kegagalan tak terduga di _detect_mounted_gdrives: %s", exc)
     return mounts
 
@@ -552,7 +564,7 @@ def gdrive_status() -> dict[str, Any]:
             "mounted_drives": mounted,
             "has_local_mounts": bool(mounted),
         }
-    except Exception as e:
+    except _GAUTH_ERR as e:
         return {
             "status": "error",
             "connected": False,

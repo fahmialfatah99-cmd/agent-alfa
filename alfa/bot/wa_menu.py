@@ -16,7 +16,7 @@ import time
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.error import BadRequest, RetryAfter
+from telegram.error import BadRequest, RetryAfter, TelegramError
 from telegram.ext import ContextTypes
 
 from alfa.bot.advanced_commands import (
@@ -27,6 +27,19 @@ from alfa.bot.advanced_commands import (
     _wa_time_iso,
 )
 from alfa.bot.config import is_authorized
+
+#: Error realistis untuk interaksi Telegram di menu WA.
+_MENU_ERR = (
+    TelegramError,
+    RetryAfter,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    TimeoutError,
+    OSError,
+)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -92,18 +105,18 @@ async def _edit_or_send(
             try:
                 await query.edit_message_text(text=text, reply_markup=markup)
                 return
-            except Exception as exc:
+            except _MENU_ERR as exc:
                 logger.debug("Kegagalan tak terduga di _edit_or_send: %s", exc)
     except RetryAfter:
         return
-    except Exception as exc:
+    except _MENU_ERR as exc:
         logger.debug("Kegagalan tak terduga di _edit_or_send: %s", exc)
     try:
         await context.bot.send_message(chat_id=chat_id, text=cleaned, reply_markup=markup, parse_mode="Markdown")
-    except Exception:
+    except _MENU_ERR:
         try:
             await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=markup)
-        except Exception as e2:
+        except _MENU_ERR as e2:
             logger.warning(f"[wa_menu] kirim gagal: {e2}")
 
 
@@ -317,12 +330,12 @@ async def render_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         st = _tools.manage_wa_sheets_bot("status")
         svc = "🟢 jalan" if st.get("is_running") else "🔴 mati"
-    except Exception:
+    except _MENU_ERR:
         svc = "?"
     try:
         me = _tools.wa_get_me()
         who = me.get("me", {}).get("pushname", "") if isinstance(me, dict) and me.get("status") == "success" else ""
-    except Exception:
+    except _MENU_ERR:
         who = ""
     text = f"📱 **Menu WhatsApp** (service {svc}" + (f" • {who}" if who else "") + ")\nPilih fitur:\n✉️ Kirim via `/wakirim <tujuan> <pesan>`"
     kb = _home_kb()
@@ -335,7 +348,7 @@ async def render_home(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 [InlineKeyboardButton("🌐 Buka Web Dashboard", url=dash_url)],
             )
             kb = InlineKeyboardMarkup(rows)
-    except Exception as exc:
+    except _MENU_ERR as exc:
         logger.debug("Kegagalan tak terduga di render_home: %s", exc)
     if query is not None:
         await _edit_or_send(query, context, chat_id, text, kb)
@@ -402,7 +415,7 @@ async def handle_wa_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             pass
     except (ValueError, IndexError):
         pass
-    except Exception as e:
+    except _MENU_ERR as e:
         logger.warning(f"[wa_menu] {e}")
     return True
 

@@ -6,9 +6,19 @@ import time
 from typing import Any
 
 from telegram import constants
-from telegram.error import BadRequest, RetryAfter
+from telegram.error import BadRequest, RetryAfter, TelegramError
 
 from alfa.bot.helpers import safe_send_message, send_typing_loop, split_message
+
+#: Error realistis untuk interaksi API Telegram & task asyncio.
+_STREAM_ERR = (
+    TelegramError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    TimeoutError,
+    OSError,
+)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -71,7 +81,7 @@ class TelegramStreamer:
             self.message_id = getattr(msg, "message_id", None)
             self.last_edit = time.monotonic()
             return self.message_id
-        except Exception as e:
+        except _STREAM_ERR as e:
             logger.warning(f"[TelegramStreamer] Gagal mengirim pesan initial: {e}")
             self.message_id = None
             return None
@@ -104,7 +114,7 @@ class TelegramStreamer:
                 logger.warning("[TelegramStreamer] Message to edit not found.")
             else:
                 logger.warning(f"[TelegramStreamer] BadRequest saat edit: {e}")
-        except Exception as e:
+        except _STREAM_ERR as e:
             logger.warning(f"[TelegramStreamer] Error tak terduga saat edit: {e}")
 
     async def push_chunk(self, chunk_text: str) -> None:
@@ -137,7 +147,7 @@ class TelegramStreamer:
                         text=draft_text,
                     )
                     self.message_id = getattr(msg, "message_id", None)
-                except Exception as e:
+                except _STREAM_ERR as e:
                     logger.warning(
                         f"[TelegramStreamer] Gagal mengirim initial streaming message: {e}"
                     )
@@ -164,13 +174,13 @@ class TelegramStreamer:
         if self._typing_task and not self._typing_task.done():
             try:
                 await self._typing_task
-            except Exception as exc:
+            except _STREAM_ERR as exc:
                 logger.debug("Kegagalan tak terduga di finalize: %s", exc)
 
         if self._edit_task and not self._edit_task.done():
             try:
                 await asyncio.wait_for(asyncio.shield(self._edit_task), timeout=2.0)
-            except Exception as exc:
+            except _STREAM_ERR as exc:
                 logger.debug("Kegagalan tak terduga di finalize: %s", exc)
 
         target_text = final_text if final_text is not None else self.buffer
@@ -196,7 +206,7 @@ class TelegramStreamer:
                 parse_mode=constants.ParseMode.MARKDOWN,
             )
             edited = True
-        except Exception:
+        except _STREAM_ERR:
             try:
                 await self.context.bot.edit_message_text(
                     chat_id=self.chat_id,
@@ -209,7 +219,7 @@ class TelegramStreamer:
                     edited = True
                 else:
                     logger.warning(f"[TelegramStreamer] Finalize edit failed: {be}")
-            except Exception as e:
+            except _STREAM_ERR as e:
                 logger.warning(f"[TelegramStreamer] Finalize edit failed: {e}")
 
         if not edited:

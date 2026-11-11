@@ -8,11 +8,38 @@ import datetime
 import json
 import logging
 import os
+import sqlite3
+import subprocess
 from typing import Any
 
 from alfa.config.domain import MANDOR_NAME_MAP
 from alfa.core import database
 from alfa.core.config import ensure_env_loaded
+
+try:  # googleapiclient opsional pada instalasi minimal
+    from googleapiclient.errors import HttpError as _GSheetHttpError
+except ImportError:  # pragma: no cover
+    _GSheetHttpError = OSError
+
+#: Error realistis untuk operasi berkas/JSON.
+_FILE_ERR = (OSError, ValueError, UnicodeError, json.JSONDecodeError, TypeError, KeyError)
+
+#: Error realistis untuk akses SQLite.
+_DB_ERR = (sqlite3.Error, TypeError, ValueError)
+
+#: Error realistis untuk panggilan Google API (Drive/Sheets).
+_API_ERR = (
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    TimeoutError,
+    _GSheetHttpError,
+)
+
+#: Error realistis untuk pemanggilan proses luar.
+_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError)
 
 logger = logging.getLogger("AgentTools.GoogleSheets")
 ensure_env_loaded()
@@ -53,7 +80,7 @@ def get_sheets_service() -> Any:
                 kdata = json.load(f)
             creds = service_account.Credentials.from_service_account_info(kdata, scopes=scopes)
             return build("sheets", "v4", credentials=creds)
-        except Exception as e:
+        except _FILE_ERR as e:
             logger.warning(f"Failed to load WA service-account.json: {e}")
 
     # 2. Try project gdrive_credentials.json
@@ -63,7 +90,7 @@ def get_sheets_service() -> Any:
                 kdata = json.load(f)
             creds = service_account.Credentials.from_service_account_info(kdata, scopes=scopes)
             return build("sheets", "v4", credentials=creds)
-        except Exception as e:
+        except _FILE_ERR as e:
             logger.warning(f"Failed to load gdrive_credentials.json: {e}")
 
     raise ValueError(
@@ -81,7 +108,7 @@ def get_spreadsheet_id() -> str:
             ).fetchone()
             if row and row[0] and str(row[0]).strip():
                 return str(row[0]).strip()
-    except Exception as exc:
+    except _DB_ERR as exc:
         logger.debug("Kegagalan tak terduga di get_spreadsheet_id: %s", exc)
 
     env_val = os.getenv("SPREADSHEET_ID", "").strip() or os.getenv("MATERIAL_SPREADSHEET_ID", "").strip()
@@ -98,7 +125,7 @@ def get_spreadsheet_id() -> str:
                         val = line.split("=", 1)[1].strip().strip('"').strip("'")
                         if val:
                             return val
-        except Exception as exc:
+        except _FILE_ERR as exc:
             logger.debug("Kegagalan tak terduga di get_spreadsheet_id: %s", exc)
 
     return "1d9Mr1IZszP1Cq34VN1_OTHtWokxDdV4prywsgVxN0RQ"
@@ -114,7 +141,7 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
     if "spreadsheets/d/" in clean_id:
         try:
             clean_id = clean_id.split("spreadsheets/d/")[1].split("/")[0]
-        except Exception as exc:
+        except _API_ERR as exc:
             logger.debug("Kegagalan tak terduga di set_spreadsheet_id: %s", exc)
 
     if not clean_id or len(clean_id) < 15:
@@ -134,7 +161,7 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
                 (clean_id,),
             )
             conn.commit()
-    except Exception as e:
+    except _DB_ERR as e:
         logger.warning(f"Could not persist spreadsheet ID to DB: {e}")
 
     # 2. Update ~/wa-sheets-bot/.env
@@ -154,7 +181,7 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
                 lines.append(f"SPREADSHEET_ID={clean_id}\n")
             with open(wa_env_path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
-        except Exception as e:
+        except _FILE_ERR as e:
             logger.warning(f"Could not update wa-sheets-bot .env: {e}")
 
     # 3. Test and initialize tab
@@ -175,7 +202,7 @@ def set_spreadsheet_id(new_id: str) -> dict[str, Any]:
     try:
         import subprocess
         subprocess.run(["systemctl", "--user", "restart", "wa-sheets-bot.service"], check=False)
-    except Exception as exc:
+    except _PROC_ERR as exc:
         logger.debug("Kegagalan tak terduga di set_spreadsheet_id: %s", exc)
 
     return {
@@ -242,7 +269,7 @@ def ensure_material_sheet_tab(
             "tab_name": tab_name,
             "spreadsheet_id": sid,
         }
-    except Exception as e:
+    except _API_ERR as e:
         err_msg = str(e)
         if "The caller does not have permission" in err_msg or "403" in err_msg:
             err_msg += (
@@ -433,7 +460,7 @@ def record_material_rows(
         updated_rows = res.get("updates", {}).get("updatedRows", len(formatted_values))
         cloud_synced = True
         logger.info(f"Synced {updated_rows} rows to Google Sheet [{tab_name}]")
-    except Exception as e:
+    except _API_ERR as e:
         cloud_error = str(e)
         logger.error(f"Failed to append to Google Sheet: {e}")
 
@@ -467,7 +494,7 @@ def record_material_rows(
         wb.save(local_path)
         local_synced = True
         logger.info(f"Appended {len(formatted_values)} rows to local GDrive Excel: {local_path} [{tab_name}]")
-    except Exception as le:
+    except _API_ERR as le:
         logger.warning(f"Could not update local GDrive Excel backup: {le}")
 
     # 3. Save to wa-sheets-bot recorded_reports.json if available
@@ -479,7 +506,7 @@ def record_material_rows(
                 with open(rep_file, "r+", encoding="utf-8") as f:
                     try:
                         reps = json.load(f)
-                    except Exception:
+                    except _FILE_ERR:
                         reps = []
                     for val_row in formatted_values:
                         item_desc = val_row[3]
@@ -500,7 +527,7 @@ def record_material_rows(
                     f.seek(0)
                     json.dump(reps[-2000:], f, indent=2)
                     f.truncate()
-    except Exception as exc:
+    except _FILE_ERR as exc:
         logger.debug("Kegagalan tak terduga di record_material_rows: %s", exc)
 
     return {
@@ -737,7 +764,7 @@ def sync_material_if_detected(
                 return res
             else:
                 logger.debug(f"Material sync check returned: {res}")
-        except Exception as e:
+        except _API_ERR as e:
             logger.warning(f"Failed to auto-sync material: {e}")
 
     return None
@@ -781,7 +808,7 @@ def get_spreadsheet_metadata(spreadsheet_id: str = "") -> dict[str, Any]:
             "total_tabs": len(sheets_list),
             "tabs": sheets_list,
         }
-    except Exception as e:
+    except _API_ERR as e:
         logger.warning(f"Failed to fetch spreadsheet metadata for {sid}: {e}")
         return {
             "status": "error",
@@ -843,7 +870,7 @@ def get_tab_preview(
             "headers": headers,
             "recent_rows": recent_rows,
         }
-    except Exception as e:
+    except _API_ERR as e:
         logger.warning(f"Failed to fetch tab preview for {tab_name} in {sid}: {e}")
         return {
             "status": "error",
@@ -873,7 +900,7 @@ def list_accessible_spreadsheets() -> list[dict[str, Any]]:
                     "source": "Active Config",
                 })
                 seen_ids.add(active_id)
-        except Exception as exc:
+        except _API_ERR as exc:
             logger.debug("Kegagalan tak terduga di list_accessible_spreadsheets: %s", exc)
 
     # 2. Check via Google Drive API
@@ -898,7 +925,7 @@ def list_accessible_spreadsheets() -> list[dict[str, Any]]:
                     "source": "Google Drive",
                 })
                 seen_ids.add(fid)
-    except Exception as e:
+    except _API_ERR as e:
         logger.debug(f"Could not list Drive spreadsheets: {e}")
 
     # 3. Check local mounted drives for .xlsx / .xls spreadsheets
@@ -918,7 +945,7 @@ def list_accessible_spreadsheets() -> list[dict[str, Any]]:
                             "is_local": True,
                             "size": os.path.getsize(fpath) if os.path.exists(fpath) else 0,
                         })
-            except Exception as exc:
+            except _API_ERR as exc:
                 logger.debug("Kegagalan tak terduga di list_accessible_spreadsheets: %s", exc)
 
     return results

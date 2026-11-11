@@ -2,13 +2,31 @@
 
 import logging
 import os
+import smtplib
 import socket
 import ssl
 import subprocess
 from typing import Any
 
+import httpx
+
 from alfa.tools.registry import register_tool
 from alfa.tools.system.constants import SANDBOX_DIR
+
+#: Error realistis untuk pemanggilan proses lokal.
+_NET_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError, TimeoutError)
+
+#: Error realistis saat memvalidasi sertifikat TLS.
+_NET_SSL_ERR = (ssl.SSLError, OSError, ValueError, TypeError, AttributeError)
+
+#: Error realistis saat mengirim email.
+_NET_SMTP_ERR = (smtplib.SMTPException, OSError, ValueError, TypeError)
+
+#: Error realistis untuk permintaan HTTP keluar.
+_NET_HTTP_ERR = (OSError, ValueError, TimeoutError, httpx.HTTPError)
+
+#: Error realistis saat mem-parse JSON.
+_NET_JSON_ERR = (ValueError, TypeError)
 
 logger = logging.getLogger("AgentTools.System")
 
@@ -36,7 +54,7 @@ def scan_local_network() -> dict[str, Any]:
             "devices": res.stdout.strip()
             or "Tidak ada perangkat terdeteksi di tabel ARP/Neighbor.",
         }
-    except Exception as err:
+    except _NET_PROC_ERR as err:
         return {"status": "error", "message": str(err)}
 
 
@@ -111,11 +129,11 @@ def audit_network_security(
                             "expires_at": not_after,
                             "version": cert.get("version", ""),
                         }
-                except Exception as ssl_err:
+                except _NET_SSL_ERR as ssl_err:
                     result["ssl_error"] = str(ssl_err)
 
         return {"status": "success", "audit_report": result}
-    except Exception as e:
+    except _NET_SSL_ERR as e:
         return {"status": "error", "message": f"Security audit error: {str(e)}"}
 
 
@@ -163,7 +181,7 @@ def ssh_execute_command(
             "stdout": out[:8000],
             "stderr": err[:2000] if err else "",
         }
-    except Exception as e:
+    except _NET_PROC_ERR as e:
         return {"status": "error", "message": f"SSH error: {str(e)}"}
 
 
@@ -221,7 +239,7 @@ def send_email(
             "status": "success",
             "message": f"Email berhasil dikirim ke {to} dengan subjek '{subject}'.",
         }
-    except Exception as e:
+    except _NET_SMTP_ERR as e:
         return {"status": "error", "message": f"Gagal mengirim email: {str(e)}"}
 
 
@@ -284,7 +302,7 @@ def download_file_from_url(url: str, filename: str = "") -> dict[str, Any]:
             "file_path": dest_path,
             "sent_to_telegram": True,
         }
-    except Exception as e:
+    except _NET_HTTP_ERR as e:
         return {"status": "error", "message": f"Gagal mengunduh: {str(e)}"}
 
 
@@ -345,9 +363,9 @@ def inspect_api_endpoint_health(
             if "application/json" in result["content_type"].lower():
                 try:
                     result["json_data"] = resp.json()
-                except Exception as exc:  # noqa: BLE001
+                except _NET_JSON_ERR as exc:  # noqa: BLE001
                     logger.debug("Kegagalan tak terduga di inspect_api_endpoint_health: %s", exc)
-    except Exception as http_err:  # noqa: BLE001
+    except _NET_HTTP_ERR as http_err:  # noqa: BLE001
         result["http_status"] = None
         result["error"] = str(http_err)
         result["is_healthy"] = False
@@ -379,7 +397,7 @@ def inspect_api_endpoint_health(
                             "days_remaining": days_left,
                             "is_expiring_soon": days_left <= 30,
                         }
-        except Exception as ssl_err:  # noqa: BLE001
+        except _NET_SSL_ERR as ssl_err:  # noqa: BLE001
             ssl_info = {
                 "checked": True,
                 "valid": False,
