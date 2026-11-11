@@ -25,6 +25,16 @@ Ringkasan (detail per fase di bawah):
   schema tool disatukan + anotasi string diresolusi (35 parameter).
 
 ### Fase 4 — persempit blind except Exception di modul kritis (2026-11-11)
+- **Guard kesegaran data rekap WhatsApp.** `reconcile_whatsapp_material_group`
+  kini menghitung `data_freshness` (live/arsip, umur pesan terakhir, status
+  bridge) dan **menandai rekap basi** (>24 jam) dengan peringatan eksplisit —
+  di respons tool maupun di kartu Telegram. Sebelumnya rekap dari arsip
+  11 hari lalu tetap terlihat "mutakhir".
+  ⚠️ Insiden TERAMATI (bukan caused by overhaul): jembatan `wa-sheets-bot`
+  tidak pernah mencapai status READY sejak **6 Nov 2026**; watchdog
+  `autoRecover` berputar tiap 5 menit (`clearSession: false` — sesi tidak
+  dihapus) dan API live membalas 503. Perbaikannya ada di repo
+  `wa-sheets-bot` (versi `whatsapp-web.js` vs WhatsApp Web saat ini).
 - **Blind `except Exception` di modul kritis dipersempit** ke tuple error
   spesifik per konteks (Telegram API, SQLite, subprocess, HTTP LLM, import):
   `core/perm/gate.py`, `core/brain/{tool_exec,agentic,learning_loop}.py`,

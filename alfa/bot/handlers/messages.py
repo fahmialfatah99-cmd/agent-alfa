@@ -87,6 +87,17 @@ async def try_handle_fast_wa(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     return False
 
+def _wa_stale_notice(res: dict) -> str:
+    """Peringatan kesegaran data rekap WA (bila rekap disusun dari arsip basi)."""
+    warning = str(res.get("warning") or "").strip()
+    if not warning:
+        return ""
+    freshness = res.get("data_freshness") or {}
+    newest = str(freshness.get("newest_message_at") or "")[:16].replace("T", " ")
+    extra = f"\n🕒 _Pesan terakhir: {newest}_" if newest else ""
+    return f"\n\n{warning}{extra}"
+
+
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming text messages."""
     if not update.message or not update.message.text:
@@ -214,6 +225,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"👷 *Mandor Terverifikasi:* {', '.join(res.get('mandors', []))}\n"
                 f"📁 *Berkas Master:* `{res.get('excel_file')}`\n\n"
                 f"💡 _Data diperbarui in-place pada Master Ledger Kumulatif tanpa membuat berkas baru._"
+                f"{_wa_stale_notice(res)}"
             )
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 

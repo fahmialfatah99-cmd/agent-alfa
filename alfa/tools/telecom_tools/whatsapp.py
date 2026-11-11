@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime
 from typing import Any
 
@@ -12,6 +13,73 @@ from alfa.config.domain import MANDOR_NAME_MAP
 from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Telecom")
+
+def _wa_bridge_status() -> dict[str, Any]:
+    """Status jembatan bot WhatsApp (live). Kosong bila tidak terjangkau."""
+    try:
+        import urllib.request
+
+        req = urllib.request.urlopen(  # nosec B310 - API bot WA lokal
+            "http://127.0.0.1:3000/api/status", timeout=3
+        )
+        data = json.loads(req.read().decode("utf-8"))
+        if isinstance(data, dict):
+            return data
+    except Exception as e:  # noqa: BLE001 - status bersifat opsional
+        logger.debug("WA bridge status tidak terjangkau: %s", e)
+    return {}
+
+
+def _data_freshness(
+    messages: list[dict[str, Any]],
+    live_api_used: bool,
+) -> dict[str, Any]:
+    """Nilai kesegaran data rekap: live/timestamp terakhir & tanda basi."""
+    from datetime import datetime
+
+    newest_ts = 0
+    for m in messages:
+        try:
+            newest_ts = max(newest_ts, int(m.get("ts", 0) or 0))
+        except (TypeError, ValueError):
+            continue
+
+    age_hours: float | None = None
+    if newest_ts:
+        age_hours = round((time.time() - newest_ts) / 3600, 1)
+
+    bridge = _wa_bridge_status()
+    client_status = str(bridge.get("client_status") or "UNKNOWN")
+    bridge_ready = bool(bridge.get("is_ready"))
+
+    stale = False
+    reasons: list[str] = []
+    if not live_api_used:
+        stale = True
+        reasons.append("jembatan WA live tidak terjangkau — data dari arsip lokal")
+    if not bridge_ready and bridge:
+        stale = True
+        reasons.append(f"bot WA belum siap (client_status={client_status})")
+    if age_hours is None:
+        stale = True
+        reasons.append("tidak ada pesan WhatsApp sama sekali dalam arsip")
+    elif age_hours > 24:
+        stale = True
+        reasons.append(f"pesan WhatsApp terakhir berumur {age_hours:.0f} jam")
+
+    return {
+        "live_api_used": live_api_used,
+        "bridge_ready": bridge_ready,
+        "client_status": client_status,
+        "newest_message_at": (
+            datetime.fromtimestamp(newest_ts).isoformat(timespec="seconds")
+            if newest_ts
+            else ""
+        ),
+        "age_hours": age_hours,
+        "stale": stale,
+        "reasons": reasons,
+    }
 
 @register_tool(category="office")
 def reconcile_whatsapp_material_group(
@@ -72,12 +140,14 @@ def reconcile_whatsapp_material_group(
         if not chat_jid and "@g.us" in group_name_or_id:
             chat_jid = group_name_or_id
 
+        live_api_used = False
         if chat_jid:
             try:
                 url = f"http://127.0.0.1:3000/api/messages?chat={chat_jid}&limit=500"
                 req = urllib.request.urlopen(url, timeout=5)  # nosec B310 - API bot WA lokal
                 data = json.loads(req.read().decode("utf-8"))
                 messages = data.get("messages", [])
+                live_api_used = bool(messages)
             except Exception as e:
                 logger.warning("WA Live API messages lookup warning: %s", e)
 
@@ -866,6 +936,15 @@ def reconcile_whatsapp_material_group(
             if acc_lines:
                 acc_section = "\n\n🔩 *3. AKSESORIS TELEKOMUNIKASI*\n" + "\n".join(acc_lines)
 
+        freshness = _data_freshness(messages, live_api_used)
+        warning_text = ""
+        if freshness.get("stale"):
+            warning_text = (
+                "\n\n⚠️ *DATA BERIKUTNYA MUNGKIN BASI:* "
+                + "; ".join(freshness.get("reasons", []))
+                + ". Rekap ini disusun dari arsip, bukan data live WhatsApp.\n"
+            )
+
         summary_text = (
             f"✅ Rekapitulasi Material '{chat_name}' Berhasil Disusun.\n\n"
             f"📊 *1. TIANG TELEKOMUNIKASI*\n"
@@ -877,6 +956,7 @@ def reconcile_whatsapp_material_group(
             f"{acc_section}\n\n"
             f"👷 *Mandor Pelapor Terverifikasi:* {', '.join(all_mandors_sorted)}\n"
             f"📁 *Berkas Master Excel:* `{output_excel_path}`"
+            f"{warning_text}"
         )
 
         return {
@@ -892,6 +972,8 @@ def reconcile_whatsapp_material_group(
             "cable_breakdown": cable_breakdown,
             "accessories_breakdown": acc_totals,
             "excel_file": output_excel_path,
+            "data_freshness": freshness,
+            "warning": warning_text.strip() or None,
             "message": summary_text,
         }
     except Exception as e:
