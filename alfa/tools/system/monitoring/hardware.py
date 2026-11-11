@@ -47,7 +47,7 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
                     capture_output=True,
                     timeout=3,
                 )
-            except Exception:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                 subprocess.run(
                     f"amixer set Master {vol_int}%",
                     shell=True,  # nosec B602 - vol_int validated 0-100 int above
@@ -138,5 +138,5 @@ def control_linux_hardware(action: str, value: str = "") -> dict[str, Any]:
             "status": "error",
             "message": f"Aksi hardware '{action}' tidak dikenal.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

@@ -12,6 +12,7 @@ active chats or quarantined services (`wa-sheets-bot.service`):
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
 from typing import Any
 
@@ -45,7 +46,7 @@ def run_autonomous_apex_maintenance(force: bool = False) -> dict[str, Any]:
     try:
         with get_sync_db() as conn:
             conn.execute("PRAGMA wal_checkpoint(PASSIVE);")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         wal_status = f"skipped: {e}"
 
     # 5. Verified SQLite Snapshot & Auto-Rotation (7-snapshot retention)
@@ -54,7 +55,7 @@ def run_autonomous_apex_maintenance(force: bool = False) -> dict[str, Any]:
         from alfa.core.db.backup_manager import create_verified_db_snapshot
 
         snapshot_res = create_verified_db_snapshot(max_backups=7)
-    except Exception as bkp_err:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as bkp_err:
         snapshot_res = {"status": "error", "message": str(bkp_err)}
 
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)

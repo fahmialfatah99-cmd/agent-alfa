@@ -82,7 +82,7 @@ def get_system_font(size: int, bold: bool = True):
         if os.path.exists(path):
             try:
                 return ImageFont.truetype(path, size)
-            except Exception:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                 continue
     return ImageFont.load_default()
 
@@ -101,7 +101,7 @@ def create_product_stage_layer(image_path: str, output_path: str) -> str:
         try:
             prod_img = Image.open(image_path).convert("RGBA")
             has_real_image = True
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             has_real_image = False
 
     if not has_real_image:

@@ -55,7 +55,7 @@ def list_running_processes(filter_name: str = "") -> dict[str, Any]:
             "total_memory_mb": round(total_mem, 1),
             "top_processes": top,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -100,5 +100,5 @@ def kill_process(pid_or_name: str) -> dict[str, Any]:
             "status": "error",
             "message": "Akses ditolak. Coba jalankan dengan sudo.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

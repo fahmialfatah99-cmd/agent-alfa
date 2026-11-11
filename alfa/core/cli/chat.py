@@ -159,7 +159,7 @@ class CliChatMixin:
                 print_status(f"Exit code: {res.returncode}", "warning")
         except subprocess.TimeoutExpired:
             print_status("Perintah timeout setelah 120 detik.", "error")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal menjalankan perintah shell: {e}", "error")
 
     def _run_agent_turn(self, message: str) -> None:
@@ -173,7 +173,7 @@ class CliChatMixin:
                 self.console.print(Markdown(final_answer))
             else:
                 print(f"\n{final_answer}\n")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print(f"\n{Colors.FAIL}❌ Error Autonomous Agent:{Colors.ENDC} {e}")
             if "API Key" in str(e) or "API_KEY" in str(e):
                 print(
@@ -312,7 +312,7 @@ class CliChatMixin:
             self.chat_history.append({"role": "user", "content": message})
             self.chat_history.append({"role": "assistant", "content": response_text})
 
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print(f"\n{Colors.FAIL}❌ Error Direct AI:{Colors.ENDC} {e}")
             if "API Key" in str(e) or "API_KEY" in str(e):
                 print(
@@ -356,7 +356,7 @@ class CliChatMixin:
                                     token = chunk_data.get("token", "")
                                     full_response += token
                                     print(token, end="", flush=True)
-                                except Exception as exc:
+                                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                                     logger.debug("Kegagalan tak terduga di _chat_via_server: %s", exc)
                         print()
                         self.chat_history.append({"role": "user", "content": message})
@@ -426,7 +426,7 @@ class CliChatMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _run_swarm_execution: %s", exc)
 
         active_agents = [a for a in agents if a.get("is_enabled", 1)]
@@ -509,7 +509,7 @@ class CliChatMixin:
                     f"\n{Colors.GREEN}🏁 Hasil Konsensus & Eksekusi Swarm:{Colors.ENDC}\n{consensus}\n"
                 )
 
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Error eksekusi swarm: {e}", "error")
 
     def emptyline(self) -> bool:

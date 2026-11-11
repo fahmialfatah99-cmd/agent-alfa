@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shlex
+import sqlite3
 import subprocess
 from typing import Any
 
@@ -70,7 +71,7 @@ def search_workspace_files(
             "matches_count": len(matches),
             "files": matches,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -136,7 +137,7 @@ def grep_workspace(
         lines = res.stdout.strip().split("\n") if res.stdout.strip() else []
 
         return {"status": "success", "matches_count": len(lines), "results": lines[:30]}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -250,7 +251,7 @@ def find_user_files(
                 else "Tidak ditemukan. Konfirmasi ke pengguna bila perlu."
             ),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -293,7 +294,7 @@ def compress_folder_to_zip(
             "message": f"Folder '{os.path.basename(expanded)}' berhasil di-compress menjadi '{safe_name}.zip' ({round(size_mb, 2)} MB) dan akan dikirim ke Telegram.",
             "file_path": result_path,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -353,7 +354,7 @@ def send_file_to_chat(file_path: str, caption: str = "") -> dict[str, Any]:
             "file_name": base_name,
             "caption": caption,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": f"Gagal memproses file: {str(e)}"}
 
 
@@ -438,7 +439,7 @@ def git_operations(
             "output": output[:6000],
             "exit_code": res.returncode,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -525,6 +526,6 @@ def query_sqlite_database_readonly(
         }
     except sqlite3.OperationalError as op_err:
         return {"status": "error", "message": f"SQLite error (Read-Only Guard): {str(op_err)}"}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal kueri database SQLite")
         return {"status": "error", "message": f"Database query error: {str(e)}"}

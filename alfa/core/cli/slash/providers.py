@@ -26,7 +26,7 @@ class SlashProvidersMixin:
 
         try:
             sync_providers_catalog()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_provider: %s", exc)
 
         canonical_providers = [
@@ -95,7 +95,7 @@ class SlashProvidersMixin:
             k_row = database.get_active_api_key_sync(db_prov)
             if k_row and model_name:
                 database.update_api_key_model(k_row["id"], model_name)
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_provider: %s", exc)
 
         # Also update server config if logged in

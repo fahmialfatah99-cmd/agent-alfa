@@ -59,7 +59,7 @@ def markitdown_convert_document(
             "is_truncated": len(markdown_content) > 2000,
             "saved_file": saved_path,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"MarkItDown conversion failed: {str(e)}"}
 
 
@@ -127,7 +127,7 @@ def libreoffice_convert_document(
             "status": "error",
             "message": f"Konversi LibreOffice gagal: {res.stderr or res.stdout}",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"LibreOffice conversion error: {str(e)}"}
 
 
@@ -217,7 +217,7 @@ def libreoffice_render_page_previews(
             "status": "error",
             "message": f"Gagal merender halaman: {res_ppm.stderr}",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {
             "status": "error",
             "message": f"LibreOffice render preview error: {str(e)}",
@@ -324,7 +324,7 @@ li {{ margin-bottom: 6px; }}
             "status": "error",
             "message": f"Gagal membuat dokumen LibreOffice: {res.stderr or res.stdout}",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {
             "status": "error",
             "message": f"Create LibreOffice document error: {str(e)}",
@@ -388,7 +388,7 @@ def libreoffice_extract_document_text(document_path: str) -> dict[str, Any]:
             "status": "error",
             "message": "Tidak dapat mengekstrak teks dari dokumen via LibreOffice.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {
             "status": "error",
             "message": f"LibreOffice extract text error: {str(e)}",
@@ -489,7 +489,7 @@ def smart_excel_inspector(
 
         result["total_items"] = total_extracted
         return result
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"smart_excel_inspector error: {str(e)}"}
 
 
@@ -619,7 +619,7 @@ def compare_documents_semantic_diff(
             "markdown_report": "\n".join(md_lines),
             "message": f"Perbandingan dokumen selesai. Kesamaan: {similarity_ratio}%.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.exception("Gagal membandingkan dokumen")
         return {"status": "error", "message": f"Document comparison error: {str(e)}"}
 

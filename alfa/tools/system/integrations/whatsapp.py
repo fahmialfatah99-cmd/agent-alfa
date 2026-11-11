@@ -307,7 +307,7 @@ def wa_get_incoming(
             )
 
             read_ids = get_read_wa_msg_ids_sync(msg_ids)
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
             read_ids = set()
 
         for it in filtered:
@@ -364,7 +364,7 @@ def wa_get_incoming(
                     for it in to_mark:
                         it["is_read"] = True
                         it["status_dibaca"] = "SUDAH DIBACA"
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                     logger.debug("Kegagalan tak terduga di wa_get_incoming: %s", exc)
 
         res["incoming"] = filtered
@@ -398,7 +398,7 @@ def wa_clear_history(
         api_res = _wa_call("POST", "/api/incoming/clear")
         if isinstance(api_res, dict) and api_res.get("status") == "success":
             results["cleared_targets"].append("buffer_incoming_api")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug("Failed to call wa /api/incoming/clear: %s", e)
 
     # Fallback/Direct disk clear of recent_incoming.json
@@ -411,7 +411,7 @@ def wa_clear_history(
             with open(wa_bot_incoming_file, "w", encoding="utf-8") as f:
                 json.dump([], f)
             results["cleared_targets"].append("buffer_incoming_file")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug("Failed to clear recent_incoming.json: %s", e)
 
     # 2. Clear SQLite archive if requested or target == 'all'
@@ -422,7 +422,7 @@ def wa_clear_history(
             count = clear_wa_archive_sync()
             results["cleared_archive_count"] = count
             results["cleared_targets"].append("sqlite_archive")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             results["archive_error"] = str(e)
 
     # 3. Clear read state if requested or target == 'all'
@@ -433,7 +433,7 @@ def wa_clear_history(
             count = clear_wa_read_state_sync()
             results["cleared_read_state_count"] = count
             results["cleared_targets"].append("sqlite_read_state")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             results["read_state_error"] = str(e)
 
     results["message"] = "Riwayat pesan WhatsApp berhasil dibersihkan/dikosongkan."
@@ -461,7 +461,7 @@ def wa_mark_read(chat: str = "", msg_id: str = "", send_seen_to_wa: bool = False
         if msg_id:
             record_wa_messages_read_sync([{"msg_id": msg_id, "chat": chat}])
             marked_db += 1
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug("Failed local mark read: %s", e)
 
     wa_result: dict[str, Any] = {}

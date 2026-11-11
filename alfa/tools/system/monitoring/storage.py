@@ -60,5 +60,5 @@ def clean_system_storage(dry_run: bool = True) -> dict[str, Any]:
                 else f"Pembersihan berhasil! {round(total_freed_mb, 2)} MB ruang disk berhasil dikembalikan."
             ),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Storage cleanup error: {str(e)}"}

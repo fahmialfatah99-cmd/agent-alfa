@@ -53,14 +53,14 @@ class ToolSelectionBenchmark(BenchmarkSuite):
             selected = select_relevant_tools(tools_schema, "What is 2+2?")
             passed = isinstance(selected, list)
             self._record_result("select_relevant_tools returns list for math query", passed)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             self._record_result("select_relevant_tools math query", False, str(e))
 
         try:
             selected2 = select_relevant_tools(tools_schema, "Who won the world cup in 2022?")
             passed2 = isinstance(selected2, list)
             self._record_result("select_relevant_tools returns list for web query", passed2)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             self._record_result("select_relevant_tools web query", False, str(e))
 
         return self.results
@@ -75,7 +75,7 @@ class MemoryRetrievalBenchmark(BenchmarkSuite):
             results = search_memories_sync(user_id=9999, query="test document")
             passed = isinstance(results, list)
             self._record_result("search_memories_sync returns list", passed)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             self._record_result("search_memories_sync returns list", False, str(e))
 
         return self.results
@@ -166,13 +166,13 @@ class ScenarioFileBenchmark(BenchmarkSuite):
         try:
             with open(self.scenarios_path, encoding="utf-8") as f:
                 scenarios = json.load(f)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             self._record_result("load scenarios.json", False, str(e))
             return self.results
 
         try:
             from alfa.tools import AVAILABLE_TOOLS
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             self._record_result("import AVAILABLE_TOOLS", False, str(e))
             return self.results
 
@@ -184,7 +184,7 @@ class ScenarioFileBenchmark(BenchmarkSuite):
                     list(AVAILABLE_TOOLS), scn.get("prompt", "")
                 )
                 names = {getattr(f, "__name__", "") for f in selected}
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
                 self._record_result(sid, False, f"routing error: {e}")
                 continue
             if expect:

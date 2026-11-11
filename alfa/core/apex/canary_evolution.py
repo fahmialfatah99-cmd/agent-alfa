@@ -412,7 +412,7 @@ def _wrap_with_canary_rollback_guard(tool_name: str, fn: Callable) -> Callable:
             except _DB_ERR as db_err:
                 logger.debug("Pencatatan eksekusi tool '%s' gagal: %s", tool_name, db_err)
             return res
-        except Exception as e:  # noqa: BLE001 - kode tool disintesis bisa raise apa pun
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:  # noqa: BLE001 - kode tool disintesis bisa raise apa pun
             err_msg = f"{type(e).__name__}: {e}"
             logger.warning("Canary Guard caught exception in dynamic tool '%s': %s", tool_name, err_msg)
             with get_sync_db() as conn:
@@ -481,7 +481,7 @@ def synthesize_and_hotload_tool(
     if _dynamic_tools_enabled():
         try:
             fn_obj = _materialize_callable(tool_name, code_source)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             return {
                 "status": "rejected",
                 "tool_name": tool_name,

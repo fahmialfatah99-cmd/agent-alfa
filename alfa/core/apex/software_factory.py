@@ -404,7 +404,7 @@ def _run_live_http_smoke_test(app_dir: str, entry_rel: str = "index.html") -> di
             finally:
                 httpd.shutdown()
                 worker.join(timeout=3)
-    except Exception as exc:  # noqa: BLE001 - pipeline build multi-langkah
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 - pipeline build multi-langkah
         return {
             "passed": False,
             "http_status": 0,
@@ -961,7 +961,7 @@ def build_and_verify_multifile_repo(
             if (issues and atomic_rollback_on_failure)
             else "NEEDS_REPAIR"
         )
-    except Exception as exc:  # noqa: BLE001 - pipeline build multi-langkah
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 - pipeline build multi-langkah
         fatal_error = f"Multi-file repo build error: {exc}"
         issues.append(fatal_error)
         score_box[0] = 0

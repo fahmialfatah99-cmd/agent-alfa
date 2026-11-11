@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -352,7 +353,7 @@ def generate_daily_executive_briefing(
                 },
             },
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal membuat executive briefing: %s", e)
         return {"status": "error", "message": f"Executive briefing error: {str(e)}"}
 
@@ -420,6 +421,6 @@ def schedule_daily_briefing_task(
                 f"Ringkasan pagi & sore akan dikirimkan otomatis ke Telegram Anda."
             ),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal menjadwalkan daily briefing: %s", e)
         return {"status": "error", "message": f"Schedule daily briefing error: {str(e)}"}

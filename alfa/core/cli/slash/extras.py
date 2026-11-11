@@ -75,14 +75,14 @@ class SlashExtrasMixin:
                 try:
                     subprocess.run(cmd, input=text, text=True, check=True, timeout=5)
                     return True
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     continue
         try:
             import pyperclip
 
             pyperclip.copy(text)
             return True
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             return False
 
     def do_slash_init(self, arg: str) -> None:
@@ -101,7 +101,7 @@ class SlashExtrasMixin:
 
                 repomap = RepomapGenerator(Path.cwd())
             structure = repomap.generate_repomap() if hasattr(repomap, "generate_repomap") else ""
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             structure = ""
 
         files = []
@@ -110,7 +110,7 @@ class SlashExtrasMixin:
                 if p.name.startswith(".") or p.name in ("node_modules", "__pycache__", "venv"):
                     continue
                 files.append(f"- {p.name}{'/' if p.is_dir() else ''}")
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_init: %s", exc)
 
         content = f"""# {Path.cwd().name}
@@ -129,7 +129,7 @@ class SlashExtrasMixin:
         try:
             target.write_text(content, encoding="utf-8")
             print_status(f"✅ ALFA.md dibuat di {target}", "success")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal menulis ALFA.md: {e}", "error")
 
     def do_slash_commitmsg(self, arg: str) -> None:
@@ -145,7 +145,7 @@ class SlashExtrasMixin:
             if not diff.strip():
                 print_status("Tidak ada perubahan untuk di-commit.", "info")
                 return
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal membaca git diff: {e}", "error")
             return
 
@@ -159,7 +159,7 @@ class SlashExtrasMixin:
                 ),
                 stream=False,
             ).strip()
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal generate pesan: {e}", "error")
             return
 

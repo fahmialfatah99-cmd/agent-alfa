@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +40,7 @@ def get_workspace_files(max_files: int = 100) -> list[str]:
                 results.append(rel)
                 if len(results) >= max_files:
                     return sorted(results)
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                 logger.debug("Kegagalan tak terduga di get_workspace_files: %s", exc)
     return sorted(results)
 

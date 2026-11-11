@@ -44,14 +44,14 @@ class _BM25Index:
             from rank_bm25 import BM25Okapi
 
             self._bm25 = BM25Okapi(docs_tokens) if docs_tokens else None
-        except Exception as e:  # pragma: no cover - fallback path
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # pragma: no cover - fallback path
             logger.debug(f"rank_bm25 unavailable ({e}); pakai fallback overlap.")
 
     def scores(self, query_tokens: list[str]) -> list[float]:
         if self._bm25 is not None:
             try:
                 return list(self._bm25.get_scores(query_tokens))
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di scores: %s", exc)
         # Fallback: skor overlap token (cukup baik untuk seleksi kasar)
         qset = set(query_tokens)
@@ -79,7 +79,7 @@ def _rank_names(
         for h in list(history or [])[-3:]:
             if isinstance(h, dict) and h.get("content"):
                 query_parts.append(str(h["content"])[:400])
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
         logger.debug("Kegagalan tak terduga di _rank_names: %s", exc)
     q_tokens = _expand_synonyms(_tokenize(" ".join(query_parts)))
 
@@ -163,7 +163,7 @@ def select_relevant_functions(
             f"(hemat ~{(len(unique_funcs) - len(filtered)) * 90} token/turn)"
         )
         return filtered
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
         # Tetap deduplikasi saat fallback error
         seen_fallback = set()
@@ -206,7 +206,7 @@ def select_relevant_tools(
             for h in list(history or [])[-3:]:
                 if isinstance(h, dict) and h.get("content"):
                     query_parts.append(str(h["content"])[:400])
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di select_relevant_tools: %s", exc)
         q_tokens = _expand_synonyms(_tokenize(" ".join(query_parts)))
 
@@ -263,6 +263,6 @@ def select_relevant_tools(
             f"({dropped} disembunyikan; hemat ~{(len(tools_schema) - len(filtered)) * 90} token/turn)"
         )
         return filtered
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.warning(f"[ToolRAG] fail-open ke set lengkap: {e}")
         return tools_schema

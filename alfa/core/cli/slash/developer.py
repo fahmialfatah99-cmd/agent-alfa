@@ -428,7 +428,7 @@ class SlashDeveloperMixin:
         )
         try:
             plan = runner.run(f"Susun rencana eksekusi untuk: {task}", plan_mode=True)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal menyusun rencana: {e}", "error")
             return
         self.last_plan = {"task": task, "plan": plan}
@@ -475,7 +475,7 @@ class SlashDeveloperMixin:
         print_status("🚀 Mengeksekusi rencana yang disetujui...", "info")
         try:
             runner.run(instruction)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Eksekusi gagal: {e}", "error")
 
     def do_slash_auto(self, arg: str) -> None:

@@ -86,5 +86,5 @@ def auto_diagnose_and_heal_system(fix_issues: bool = False) -> dict[str, Any]:
             )
 
         return {"status": "success", "diagnosis": diagnosis, "fix_mode": fix_issues}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Diagnostic error: {str(e)}"}

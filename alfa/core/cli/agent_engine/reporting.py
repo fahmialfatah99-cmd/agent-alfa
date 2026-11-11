@@ -38,7 +38,7 @@ class RunReporterMixin:
         done = []
         try:
             done = [t for t in self.tools.todos.list() if t.get("done")]
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _build_execution_report: %s", exc)
         lines = [
             "## ⚙️ Laporan Eksekusi (tanpa Final Answer model)",

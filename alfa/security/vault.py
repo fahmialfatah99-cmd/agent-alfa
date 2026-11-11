@@ -48,7 +48,7 @@ def _vault_db_path() -> str:
         resolved = resolve_db_path(fallback=DB_PATH)
         if resolved:
             return str(resolved)
-    except Exception as exc:  # noqa: BLE001 — resolver opsional, fallback statis aman
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — resolver opsional, fallback statis aman
         logger.debug("Kegagalan tak terduga di _vault_db_path: %s", exc)
     return DB_PATH
 
@@ -73,7 +73,7 @@ def _get_or_create_master_key() -> bytes:
                     return key
                 elif len(key) == 64:
                     return bytes.fromhex(key.decode("utf-8"))
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.warning(f"Failed to read vault master key file: {e}")
 
         # The existing key file is unreadable/corrupt. Back it up instead of
@@ -105,7 +105,7 @@ def _get_or_create_master_key() -> bytes:
         with os.fdopen(fd, "wb") as f:
             f.write(new_key.hex().encode("utf-8"))
         os.chmod(KEY_FILE, 0o600)
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.error(f"Could not persist vault master key: {e}")
 
     return new_key
@@ -378,7 +378,7 @@ class AlfaSecureVault:
                 plaintexts.append(
                     (r["id"], self.decrypt_val(r["ciphertext"], r["nonce"]))
                 )
-            except Exception:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
                 failed.append(r["name"])
         if failed:
             conn.close()

@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import sqlite3
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -295,7 +296,7 @@ def gather_pre_meeting_intel(
                 fact_lines.append(
                     "• [Memori Graf Lokal]: " + " | ".join(core_lines[:4])[:450]
                 )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug("Pencarian memori graf lokal dilewati: %s", e)
 
     # 2. Pencarian Fakta di Riwayat Chat / Memori Database Lokal
@@ -335,7 +336,7 @@ def gather_pre_meeting_intel(
                     msg_snip = " ".join(str(r[0] or "").split())[:200]
                     if msg_snip:
                         fact_lines.append(f"• [Riwayat Lokal]: {msg_snip}")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug("Pencarian riwayat chat lokal dilewati: %s", e)
 
     # 3. Pencarian Web Cepat jika Topik Membutuhkan Fakta Pasar / Harga / Regulasi / Eksternal
@@ -381,7 +382,7 @@ def gather_pre_meeting_intel(
                     ).strip()[:140]
                     if title or snip:
                         fact_lines.append(f"• [Fakta Web]: {title} — {snip}")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug("Pencarian fakta web dilewati: %s", e)
 
     if not fact_lines:

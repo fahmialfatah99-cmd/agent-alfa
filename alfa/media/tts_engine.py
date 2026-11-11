@@ -82,7 +82,7 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
             await communicate.save(temp_path)
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.warning(
                 f"Edge-TTS primary voice '{voice}' failed: {e}. Trying fallback..."
             )
@@ -96,7 +96,7 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
             await communicate.save(temp_path)
             if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
                 return temp_path
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.warning(
                 f"Edge-TTS fallback voice '{fallback_voice}' failed: {e}. Trying gTTS..."
             )
@@ -111,7 +111,7 @@ async def text_to_speech_ogg(text: str, voice: str = DEFAULT_VOICE) -> str:
         tts_obj.save(temp_path)
         if os.path.exists(temp_path) and os.path.getsize(temp_path) > 100:
             return temp_path
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"gTTS fallback error: {e}")
 
     if os.path.exists(temp_path):

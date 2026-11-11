@@ -45,7 +45,7 @@ class SlashVaultMixin:
             from alfa.core import database
 
             db_keys = database.list_api_keys_sync()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di display_api_keys_vault: %s", exc)
 
         if db_keys:
@@ -99,7 +99,7 @@ class SlashVaultMixin:
                 print(
                     f"\n  🔀 [9Router AI Gateway]: Tersambung ke port 20128 (Key: {masked_r})"
                 )
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di display_api_keys_vault: %s", exc)
 
         # 3. Local CLI Config Keys

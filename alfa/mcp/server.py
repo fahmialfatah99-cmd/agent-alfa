@@ -205,7 +205,7 @@ def create_mcp_server(server_name: str = "alfa-sovereign-ai") -> Any:
                 out_str = str(result)
 
             return [types.TextContent(type="text", text=out_str)]
-        except Exception as err:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as err:
             logger.exception(f"Error executing tool '{name}': {err}")
             err_payload = {
                 "status": "error",

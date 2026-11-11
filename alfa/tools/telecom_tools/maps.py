@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import zipfile
 from typing import Any
 
@@ -72,7 +73,7 @@ def render_cluster_kml_map(
                 for rw in rows:
                     for w in re.findall(r"\b[A-Za-z0-9\-_]{2,15}\b", (rw[0] or "").lower()):
                         reported_terms.add(w)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug("KML reported-terms lookup skipped: %s", e)
 
         for pm in root.iter("Placemark"):
@@ -247,6 +248,6 @@ def render_cluster_kml_map(
             "center_lat": round(center_lat, 6),
             "center_lon": round(center_lon, 6),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal merender peta KML: %s", e)
         return {"status": "error", "message": f"Render KML map error: {str(e)}"}

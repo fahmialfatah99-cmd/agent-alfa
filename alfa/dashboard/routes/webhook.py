@@ -170,7 +170,7 @@ async def trigger_webhook(
             user_prompt=formatted_prompt,
             override_model=payload.model,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Gagal mengeksekusi giliran agent via webhook: {e}")
         result_text = f"❌ Eksekusi webhook gagal: {e}"
 

@@ -513,6 +513,6 @@ def media_generate_subtitles_srt(
             "preview": full_sub_text[:600],
             "message": f"Subtitle .{fmt} berhasil dibuat ({seg_count} segmen) di '{os.path.basename(out_sub_path)}'.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.exception("Gagal menghasilkan subtitle")
         return {"status": "error", "message": f"Subtitle generator error: {str(e)}"}

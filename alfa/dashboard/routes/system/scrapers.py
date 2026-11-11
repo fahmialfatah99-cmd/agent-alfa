@@ -177,5 +177,5 @@ async def api_modern_scraper_lab(request: Request, payload: dict[str, Any]):
             "raw_data": raw_data,
             "vector_ingest": vector_status,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Scraper Lab error: {str(e)}"}

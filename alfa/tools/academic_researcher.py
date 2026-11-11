@@ -119,7 +119,7 @@ def academic_deep_research_paper(
                 }
             )
 
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"arXiv query error: {e}")
         return {
             "status": "error",
@@ -178,7 +178,7 @@ def academic_deep_research_paper(
         try:
             with open(saved_file_path, "w", encoding="utf-8") as f:
                 f.write(report_content)
-        except Exception as fe:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as fe:
             logger.warning(f"Gagal menyimpan file review: {fe}")
 
     return {

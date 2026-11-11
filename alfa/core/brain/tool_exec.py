@@ -170,7 +170,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                         return f"[ERROR tool] argumen tidak cocok: {bind_err}"
         try:
             return fn(**call_args)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             hint = ""
             try:
                 from alfa.tools.system.constants import generate_self_heal_hint
@@ -224,7 +224,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             )
         except (ImportError, AttributeError, TypeError):
             pass
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         try:
             from alfa.core.metrics import note_tool_call as _ntc
 

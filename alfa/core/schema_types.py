@@ -80,7 +80,7 @@ def resolved_annotations(fn: Callable) -> dict[str, Any]:
     """
     try:
         return typing.get_type_hints(fn)
-    except Exception:  # noqa: BLE001 - fallback aman ke anotasi mentah
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001 - fallback aman ke anotasi mentah
         return {}
 
 

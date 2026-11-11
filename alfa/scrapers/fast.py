@@ -88,7 +88,7 @@ def scrape_with_camoufox(
             if wait_selector:
                 try:
                     page.wait_for_selector(wait_selector, timeout=8000)
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                     logger.debug("Kegagalan tak terduga di scrape_with_camoufox: %s", exc)
             else:
                 # Small wait for dynamic hydration
@@ -116,7 +116,7 @@ def scrape_with_camoufox(
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
 
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.warning(f"Camoufox primary failed, fallback to primp/requests: {e}")
         # Fallback to high-speed TLS client (primp)
         return scrape_with_fast_tls(url)
@@ -168,7 +168,7 @@ def scrape_with_fast_tls(url: str) -> dict[str, Any]:
             "data": extracted,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.error(f"Fast TLS scraping failed for {url}: {e}")
         return {"status": "error", "url": url, "message": str(e)}
 
@@ -318,7 +318,7 @@ def run_batch_scrape(
             scraped_data = loop.run_until_complete(
                 scrape_urls_batch_async(urls, max_concurrency, use_camoufox)
             )
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
         scraped_data = asyncio.run(
             scrape_urls_batch_async(urls, max_concurrency, use_camoufox)
         )

@@ -30,7 +30,7 @@ def _get_aesgcm():
         from alfa.security.vault import vault
 
         return vault.aesgcm
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
         return None
 
 

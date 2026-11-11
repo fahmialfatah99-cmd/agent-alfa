@@ -133,7 +133,7 @@ def _ddgs_text_with_retry(ddgs, query: str, max_results: int, attempts: int = 3)
     for i in range(attempts):
         try:
             return list(ddgs.text(query, max_results=max_results))
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             last_err = e
             if i < attempts - 1:
                 time.sleep(2 * (i + 1))
@@ -189,7 +189,7 @@ def scrape_universal_keyword(
                         )
                     if len(all_raw_results) >= limit:
                         break
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                 failed_queries += 1
                 logger.warning(f"Error querying '{q}' (setelah retry): {e}")
             if len(all_raw_results) >= limit:
@@ -211,7 +211,7 @@ def scrape_universal_keyword(
                                 "link": url,
                             }
                         )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             failed_queries += 1
             logger.warning(f"Fallback query '{query}' gagal (setelah retry): {e}")
 
@@ -402,7 +402,7 @@ def scrape_custom_urls_or_selectors(
                 return fast_scraper.scrape_with_camoufox(url)
             else:
                 return fast_scraper.scrape_with_fast_tls(url)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             return {"status": "error", "url": url, "error": str(e)}
 
     # Multi-threaded execution pool

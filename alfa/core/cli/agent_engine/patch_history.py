@@ -40,7 +40,7 @@ class PatchHistoryManager:
         if not self.journal_file.exists():
             try:
                 self.journal_file.write_text("[]", encoding="utf-8")
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di _ensure_dirs: %s", exc)
 
     def _load_journal(self) -> list[dict[str, Any]]:
@@ -48,7 +48,7 @@ class PatchHistoryManager:
             if self.journal_file.exists():
                 data = json.loads(self.journal_file.read_text(encoding="utf-8"))
                 return data if isinstance(data, list) else []
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _load_journal: %s", exc)
         return []
 
@@ -57,7 +57,7 @@ class PatchHistoryManager:
             self.journal_file.write_text(
                 json.dumps(entries, indent=2), encoding="utf-8"
             )
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _save_journal: %s", exc)
 
     def record_patch(
@@ -77,7 +77,7 @@ class PatchHistoryManager:
 
         try:
             backup_path.write_text(old_content, encoding="utf-8", errors="replace")
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di record_patch: %s", exc)
 
         # Calculate line diff summary
@@ -121,7 +121,7 @@ class PatchHistoryManager:
                 True,
                 f"File '{target['filepath']}' berhasil di-rollback ke versi Patch #{patch_id}.",
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             return False, f"Error saat rollback: {e}"
 
     def rollback_latest(self) -> tuple[bool, str]:

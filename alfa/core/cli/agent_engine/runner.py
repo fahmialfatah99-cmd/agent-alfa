@@ -58,7 +58,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
     def _pending_todos(self) -> list[dict[str, Any]]:
         try:
             todos = self.tools.todos.list()
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             return []
         return [t for t in todos if isinstance(t, dict) and not t.get("done")]
 
@@ -187,7 +187,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
                 if isinstance(res, (dict, list)):
                     return json.dumps(res, indent=2, ensure_ascii=False)
                 return str(res)
-        except Exception as eco_err:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as eco_err:
             return f"Error eksekusi ecosystem tool '{tool_name}': {eco_err}"
 
         return f"Error: Tool '{tool_name}' tidak dikenal."
@@ -332,7 +332,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
                         file_previews.append(
                             f"--- BERKAS: {f.name} ({f.stat().st_size} bytes) ---\n{content_snip}"
                         )
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di _run_loop: %s", exc)
 
             proactive_info = (
@@ -516,7 +516,7 @@ class AutonomousAgentRunner(ToolCallParserMixin, RunReporterMixin, ExecutionMixi
             if isinstance(getattr(self, "last_run", None), dict):
                 try:
                     pending_left = self._pending_todos()
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     pending_left = []
                 exec_log = getattr(self, "_exec_log", []) or []
                 self.last_run.update(

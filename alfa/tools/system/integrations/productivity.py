@@ -33,7 +33,7 @@ def schedule_reminder(reminder_time_iso: str, message: str) -> dict[str, Any]:
             "reminder_id": rem_id,
             "message": f"Pengingat #{rem_id} berhasil dijadwalkan pada {reminder_time_iso}: '{message}'",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 @register_tool(category="system")
@@ -93,7 +93,7 @@ def generate_secure_password(
             "strength": strength,
             "charset_size": len(chars),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 @register_tool(category="system")

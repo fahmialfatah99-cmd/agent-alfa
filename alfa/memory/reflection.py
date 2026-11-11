@@ -115,12 +115,12 @@ async def reflect_recent_conversation(
                     category=str(fact.get("category", "general"))[:30],
                 )
                 saved += 1
-            except Exception:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                 continue
         if saved:
             logger.info(f"[Reflect] {saved} fakta baru tersimpan utk user {user_id}")
         return saved
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.debug(f"[Reflect] dilewati: {e}")
         return 0
 
@@ -132,5 +132,5 @@ def maybe_schedule_reflection(user_id: int, history: list[dict[str, str]]) -> No
             asyncio.get_running_loop().create_task(
                 reflect_recent_conversation(user_id, history)
             )
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
         logger.debug("Kegagalan tak terduga di maybe_schedule_reflection: %s", exc)

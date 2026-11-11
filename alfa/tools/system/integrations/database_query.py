@@ -83,5 +83,5 @@ def query_database(db_path: str, sql_query: str) -> dict[str, Any]:
                 "status": "success",
                 "message": f"Query berhasil dieksekusi. {affected} baris terpengaruh.",
             }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": f"SQL error: {str(e)}"}

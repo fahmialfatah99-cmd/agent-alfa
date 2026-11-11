@@ -273,7 +273,7 @@ def _register_entry(
     actual_cat = category or get_domain_for_tool(actual_name) or "general"
     try:
         schema = _fn_to_schema(fn)
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
         schema = {
             "name": actual_name,
             "short_description": (

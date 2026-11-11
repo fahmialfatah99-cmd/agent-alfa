@@ -63,7 +63,7 @@ def generate_video_from_images(
                 call_to_action=call_to_action,
                 output_filename=output_filename,
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.error(f"Omni Flash render gagal: {e}")
             return {
                 "status": "error",
@@ -88,7 +88,7 @@ def generate_video_from_images(
                 call_to_action=call_to_action,
                 output_filename=output_filename,
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.error(f"Veo render gagal: {e}")
             return {
                 "status": "error",

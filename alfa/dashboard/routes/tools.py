@@ -234,7 +234,7 @@ async def execute_tool(request: Request, payload: dict[str, Any]):
         # Penolakan izin harus tetap 403 — sebelumnya tertelan `except
         # Exception` dan dikembalikan sebagai HTTP 200 dengan status "error".
         raise
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "tool": tool_name, "message": str(e)}
 
 
@@ -345,7 +345,7 @@ async def api_plugins_execute(request: Request, payload: dict[str, Any]):
             "duration_ms": duration_ms,
             "result": result,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Plugin execution error: {str(e)}"}
 
 

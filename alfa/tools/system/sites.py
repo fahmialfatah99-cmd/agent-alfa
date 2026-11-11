@@ -423,7 +423,7 @@ def list_managed_sites() -> dict[str, Any]:
     try:
         rows = site_status()
         return {"status": "success", "total": len(rows), "sites": rows}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -463,5 +463,5 @@ def serve_site(action: str = "status", slug: str = "") -> dict[str, Any]:
             }
             return out
         return {"status": "error", "message": f"Aksi '{action}' tak dikenal (start|stop|status|logs)."}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

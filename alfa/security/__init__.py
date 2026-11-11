@@ -35,7 +35,7 @@ def _blocked_reason(cmd: str) -> str:
         from alfa.tools.system.constants import _bash_blocked_reason
 
         return _bash_blocked_reason(cmd or "") or ""
-    except Exception:  # noqa: BLE001 - helper murni, gagal = izinkan (fail-open di util)
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001 - helper murni, gagal = izinkan (fail-open di util)
         return ""
 
 

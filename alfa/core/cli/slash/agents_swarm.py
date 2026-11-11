@@ -26,7 +26,7 @@ class SlashSwarmMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_agents: %s", exc)
 
         # Also fetch live activity from web server if available
@@ -38,7 +38,7 @@ class SlashSwarmMixin:
                     data = r.json()
                     for item in data.get("agents", []):
                         activity_map[item.get("id")] = item
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di do_slash_agents: %s", exc)
 
         print(
@@ -118,18 +118,18 @@ class SlashSwarmMixin:
 
         try:
             sync_providers_catalog()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _set_agent_model_command: %s", exc)
 
         try:
             parts = shlex.split(arg)
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             parts = arg.strip().split()
 
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _set_agent_model_command: %s", exc)
 
         if not parts:
@@ -227,7 +227,7 @@ class SlashSwarmMixin:
                         self._update_prompt()
             else:
                 print_status(f"Gagal update agen: {res.get('message')}", "error")
-        except Exception as err:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as err:
             print_status(f"Error memperbarui database agen: {err}", "error")
 
     def do_slash_swarm(self, arg: str) -> None:
@@ -267,7 +267,7 @@ class SlashSwarmMixin:
         agents = []
         try:
             agents = database.list_custom_agents_sync()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_persona: %s", exc)
 
         if not target:
@@ -331,7 +331,7 @@ class SlashSwarmMixin:
             if prov and prov in PROVIDERS_CATALOG:
                 try:
                     self.direct_ai.set_provider(prov, mod)
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                     logger.debug("Kegagalan tak terduga di do_slash_persona: %s", exc)
 
         self._update_prompt()

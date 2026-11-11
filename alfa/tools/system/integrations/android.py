@@ -142,5 +142,5 @@ def scrcpy_android_control(
 
         else:
             return {"status": "error", "message": f"Action '{action}' tidak dikenal."}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Android control error: {str(e)}"}

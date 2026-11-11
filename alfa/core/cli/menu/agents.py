@@ -1,6 +1,7 @@
 """Persona and agent-model configuration menus."""
 
 import logging
+import sqlite3
 from typing import Any
 
 from InquirerPy import inquirer
@@ -24,7 +25,7 @@ def menu_switch_persona(cli: Any) -> None:
     agents = []
     try:
         agents = database.list_custom_agents_sync()
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di menu_switch_persona: %s", exc)
 
     if not agents:
@@ -76,7 +77,7 @@ def menu_configure_agent_models(cli: Any) -> None:
     agents = []
     try:
         agents = database.list_custom_agents_sync()
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di menu_configure_agent_models: %s", exc)
 
     if not agents:
@@ -88,7 +89,7 @@ def menu_configure_agent_models(cli: Any) -> None:
 
     try:
         sync_providers_catalog()
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di menu_configure_agent_models: %s", exc)
 
     from typing import Any
@@ -210,5 +211,5 @@ def menu_configure_agent_models(cli: Any) -> None:
                     cli._update_prompt()
         else:
             print_status(f"Gagal memperbarui model agen: {res.get('message')}", "error")
-    except Exception as err:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as err:
         print_status(f"Error update agent database: {err}", "error")

@@ -105,7 +105,7 @@ from alfa.core.db.wa_tracking import (
 # Auto-initialize database tables synchronously on import
 try:
     init_db_sync()
-except Exception as _init_err:
+except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as _init_err:
     logger.error(f"init_db_sync failed on import: {_init_err}")
 
 __all__ = [

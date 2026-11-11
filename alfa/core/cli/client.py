@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -102,7 +103,7 @@ class DirectAIClient(ClientBackendsMixin):
                                 v = v.strip().strip("'\"")
                                 if k not in os.environ:
                                     os.environ[k] = v
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                     logger.debug("Kegagalan tak terduga di _load_env_file: %s", exc)
 
     def _load_saved_config(self) -> dict[str, Any]:
@@ -111,7 +112,7 @@ class DirectAIClient(ClientBackendsMixin):
                 with open(CONFIG_FILE, encoding="utf-8") as f:
                     _data = json.load(f)
                     return _data if isinstance(_data, dict) else {}
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                 logger.debug("Kegagalan tak terduga di _load_saved_config: %s", exc)
         return {}
 
@@ -151,14 +152,13 @@ class DirectAIClient(ClientBackendsMixin):
                 key_row = database.get_active_api_key_sync(cand)
                 if key_row and key_row.get("api_key"):
                     return str(key_row["api_key"]).strip()
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di get_api_key: %s", exc)
 
         # 4. 9Router Auto-Discovery from local SQLite (~/.9router/db/data.sqlite)
         if norm_prov == "9router":
             try:
                 import glob
-                import sqlite3
 
                 paths = glob.glob(
                     os.path.expanduser("~/.9router/db/data.sqlite")
@@ -173,7 +173,7 @@ class DirectAIClient(ClientBackendsMixin):
                                 ).fetchone()
                                 if rk and rk[0]:
                                     return str(rk[0]).strip()
-                            except Exception as exc:
+                            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                                 logger.debug("Kegagalan tak terduga di get_api_key: %s", exc)
                             # Otherwise first key
                             rk = conn.execute(
@@ -181,7 +181,7 @@ class DirectAIClient(ClientBackendsMixin):
                             ).fetchone()
                             if rk and rk[0]:
                                 return str(rk[0]).strip()
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                 logger.debug("Kegagalan tak terduga di get_api_key: %s", exc)
             # Fallback dummy key for local 9router proxy
             return "sk-9router-local"
@@ -209,7 +209,7 @@ class DirectAIClient(ClientBackendsMixin):
                 key_row = database.get_active_api_key_sync(norm)
                 if key_row and key_row.get("default_model"):
                     model = key_row["default_model"]
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                 logger.debug("Kegagalan tak terduga di set_provider: %s", exc)
 
         self.model = model or str(cat["default_model"])
@@ -240,7 +240,7 @@ class DirectAIClient(ClientBackendsMixin):
                 return f"--- File: {filepath} (Dipotong karena terlalu besar) ---\n{content}\n... [TRUNCATED] ..."
             content = p.read_text(encoding="utf-8", errors="replace")
             return f"--- File: {filepath} ---\n{content}"
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             return f"[Error membaca file '{filepath}': {e}]"
 
     def scan_file_mentions(self, text: str) -> tuple[str, list[str]]:

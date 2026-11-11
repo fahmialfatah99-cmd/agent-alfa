@@ -336,7 +336,7 @@ async def clean_ram(request: Request):
     try:
         libc = ctypes.CDLL("libc.so.6")
         libc.malloc_trim(0)
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
         logger.debug("Kegagalan tak terduga di clean_ram: %s", exc)
 
     ram = psutil.virtual_memory()

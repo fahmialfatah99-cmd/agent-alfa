@@ -144,7 +144,7 @@ def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
     except TypeError:
         try:
             return bool(_dotenv_load())
-        except Exception:  # noqa: BLE001 -- kontrak legacy: fallback selalu False
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001 -- kontrak legacy: fallback selalu False
             return False
 
 logger = logging.getLogger("AgentTools.System")

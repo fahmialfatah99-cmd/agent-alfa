@@ -52,7 +52,7 @@ def get_git_branch() -> str:
         )
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
         logger.debug("Kegagalan tak terduga di get_git_branch: %s", exc)
     return ""
 
@@ -90,7 +90,7 @@ class AlfaCursorCompleter(Completer):
                     results.append(rel)
                     if len(results) >= 200:
                         return results
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                     logger.debug("Kegagalan tak terduga di _get_project_files: %s", exc)
         return results
 
@@ -198,7 +198,7 @@ class FilePatcher:
                     old_content = target_path.read_text(
                         encoding="utf-8", errors="replace"
                     )
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     old_content = ""
 
                 # Compute diff
@@ -297,7 +297,7 @@ class FilePatcher:
                 f"Berhasil menerapkan perubahan ke '{display_name}'! (Backup tersimpan di .alfa_backups/)",
                 "success",
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal menulis ke '{display_name}': {e}", "error")
 
 
@@ -464,5 +464,5 @@ def run_cursor_loop(cli: Any) -> None:
             print("\n")
             print_status("Keluar dari ALFA CLI...", "info")
             break
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Error: {e}", "error")

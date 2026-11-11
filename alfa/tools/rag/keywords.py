@@ -538,5 +538,5 @@ def _schema_to_text(schema: dict[str, Any]) -> str:
         if isinstance(params, dict):
             parts.extend(params.keys())
         return " ".join(str(p) for p in parts if p)
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
         return ""

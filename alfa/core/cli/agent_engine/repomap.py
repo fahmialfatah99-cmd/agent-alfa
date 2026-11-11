@@ -6,6 +6,7 @@ import ast
 import logging
 import os
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -81,7 +82,7 @@ class RepomapGenerator:
                     symbols.append(f"class {node.name}{meth_str}")
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     symbols.append(f"def {node.name}()")
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di _extract_py_symbols: %s", exc)
         return symbols
 
@@ -181,7 +182,7 @@ class RepomapGenerator:
                 for f in fn_matches[:6]:
                     symbols.append(f"{f}()")
 
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di _extract_regex_symbols: %s", exc)
         return symbols
 
@@ -205,7 +206,7 @@ class RepomapGenerator:
                     stem = re.split(r"[/:.]", m.group(1))[-1]
                     if stem:
                         imports.append(stem)
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di _extract_imports: %s", exc)
         return imports
 

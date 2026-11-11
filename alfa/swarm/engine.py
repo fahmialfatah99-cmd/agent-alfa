@@ -620,7 +620,7 @@ def _record_swarm_trace_safely(
             result=result,
             error=error,
         )
-    except Exception:  # noqa: BLE001 — tracing gagal-lembut (bukan jalur kritis)
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001 — tracing gagal-lembut (bukan jalur kritis)
         logger.debug("run-trace gagal (diabaikan): %s", session_id)
 
 

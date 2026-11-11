@@ -22,7 +22,7 @@ class ToolCallParserMixin:
             val = json.loads(cleaned)
             if isinstance(val, dict):
                 return val
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Cleanup trailing commas
@@ -31,7 +31,7 @@ class ToolCallParserMixin:
             val = json.loads(cleaned_no_trailing)
             if isinstance(val, dict):
                 return val
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Try ast.literal_eval for Python dictionary literals with single quotes
@@ -39,7 +39,7 @@ class ToolCallParserMixin:
             val = ast.literal_eval(cleaned)
             if isinstance(val, dict):
                 return val
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         # Convert single quotes around keys and values
@@ -51,7 +51,7 @@ class ToolCallParserMixin:
             val = json.loads(sq_fixed)
             if isinstance(val, dict):
                 return val
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di _parse_relaxed_json: %s", exc)
 
         return None

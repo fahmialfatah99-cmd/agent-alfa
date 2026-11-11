@@ -70,7 +70,7 @@ def _run_ytdlp(args: list[str], timeout: int) -> subprocess.CompletedProcess:
             res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         except subprocess.TimeoutExpired as te:
             return subprocess.CompletedProcess(cmd, 124, "", f"timeout: {te}")
-        except Exception as e:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
             return subprocess.CompletedProcess(args, 1, "", str(e))
         last = res
         if res.returncode == 0 and (res.stdout or "").strip():
@@ -109,7 +109,7 @@ def _resolve(query: str) -> dict[str, Any]:
             ["--no-warnings", "--no-playlist", "--socket-timeout", "20", "-J", target],
             60,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"ok": False, "error": f"yt-dlp gagal dijalankan: {e}"}
 
     if res.returncode != 0 or not (res.stdout or "").strip():
@@ -121,7 +121,7 @@ def _resolve(query: str) -> dict[str, Any]:
 
     try:
         data = json.loads(res.stdout)
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
         return {"ok": False, "error": "Output yt-dlp bukan JSON valid."}
 
     entries = data.get("entries") if isinstance(data, dict) else None
@@ -201,7 +201,7 @@ def _start_ffplay(source: str) -> subprocess.Popen | None:
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
-    except Exception:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
         return None
 
 
@@ -212,11 +212,11 @@ def _kill_group(proc: subprocess.Popen | None) -> bool:
         if proc.poll() is None:
             os.killpg(os.getpgid(proc.pid), 15)  # SIGTERM ke seluruh pipeline
             return True
-    except Exception:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
         try:
             proc.terminate()
             return True
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
             return False
     return False
 
@@ -228,7 +228,7 @@ def _stop_audio() -> dict[str, Any]:
     for pat in ("ffplay.*-nodisp", "yt-dlp.*bestaudio"):
         try:
             subprocess.run(["pkill", "-f", pat], capture_output=True, timeout=5)
-        except Exception as exc:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
             logger.debug("Kegagalan tak terduga di _stop_audio: %s", exc)
     return {
         "status": "success",
@@ -266,7 +266,7 @@ def _play_audio_streaming(watch_url: str) -> tuple[bool, str, str]:
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return False, f"Gagal menjalankan pipeline audio: {e}", ""
 
     time.sleep(4)
@@ -275,7 +275,7 @@ def _play_audio_streaming(watch_url: str) -> tuple[bool, str, str]:
         try:
             _raw = proc.stderr.read() if proc.stderr else b""
             err = (_raw or b"").decode("utf-8", "replace").strip()
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
             err = ""
         return False, (err[-400:] or "Pipeline audio berhenti segera."), ""
 
@@ -391,7 +391,7 @@ def play_youtube_music(query: str = "", mode: str = "auto") -> dict[str, Any]:
                 notes.append(f" halaman YouTube terbuka di browser desktop ({how}).")
             else:
                 notes.append(f" browser GAGAL membuka halaman: {how}.")
-        except Exception as e:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
             result["browser"] = {"opened": False, "mechanism": str(e)}
             notes.append(f" pembuka browser error: {e}.")
 

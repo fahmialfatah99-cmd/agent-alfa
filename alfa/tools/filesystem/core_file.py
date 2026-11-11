@@ -100,7 +100,7 @@ def read_local_file(
             "showing_lines": f"{start_idx + 1} to {end_idx}",
             "content": numbered_content,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -125,7 +125,7 @@ def write_local_file(file_path: str, content: str) -> dict[str, Any]:
             try:
                 with open(expanded_path, encoding="utf-8", errors="surrogateescape") as of:
                     orig_content = of.read()
-            except Exception:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                 orig_content = ""
 
         os.makedirs(os.path.dirname(expanded_path), exist_ok=True)
@@ -146,7 +146,7 @@ def write_local_file(file_path: str, content: str) -> dict[str, Any]:
             "status": "success",
             "message": f"File berhasil disimpan di {expanded_path} ({len(content)} karakter)",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -252,7 +252,7 @@ def edit_file_precise(
             ),
             "line_hint": content.count("\n", 0, pos) + 1,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -368,7 +368,7 @@ def apply_unified_diff(file_path: str, diff_text: str) -> dict[str, Any]:
             "message": f"{applied}/{len(hunks)} hunk berhasil diterapkan ke {file_path}.",
             "hunks_applied": applied,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -486,5 +486,5 @@ def sanitize_pii_and_secrets(
             "output_file": output_file,
             "message": f"Sanitasi PII selesai: {total_redacted} data sensitif berhasil disensor.",
         }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"PII sanitization error: {str(e)}"}

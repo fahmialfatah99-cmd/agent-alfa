@@ -310,7 +310,7 @@ def clear_wa_read_state_sync() -> int:
         res = conn.execute("DELETE FROM wa_read_messages")
         try:
             conn.execute("DELETE FROM system_settings WHERE key = ?", (LAST_READ_TS_KEY,))
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di clear_wa_read_state_sync: %s", exc)
         conn.commit()
         return int(res.rowcount)

@@ -60,7 +60,7 @@ def get_system_stats() -> dict[str, Any]:
         for p in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
             try:
                 processes.append(p.info)
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di get_system_stats: %s", exc)
 
         top_ram = sorted(
@@ -89,6 +89,6 @@ def get_system_stats() -> dict[str, Any]:
                 if (p.get("cpu_percent") or 0) > 0
             ],
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in get_system_stats: {e}")
         return {"status": "error", "message": str(e)}

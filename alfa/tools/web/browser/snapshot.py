@@ -48,7 +48,7 @@ def _snapshot(page) -> tuple[list[dict[str, Any]], str]:
                     })""",
             _INTERACTIVE_SEL,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         logger.warning("Snapshot DOM gagal: %s", e)
         raw = []
 
@@ -66,10 +66,10 @@ def _snapshot(page) -> tuple[list[dict[str, Any]], str]:
 def _page_summary(page) -> str:
     try:
         txt = page.inner_text("body")
-    except Exception:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
         try:
             txt = page.evaluate("() => document.body ? document.body.innerText : ''")
-        except Exception:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
             txt = ""
     return re.sub(r"\n{3,}", "\n\n", (txt or "")).strip()
 

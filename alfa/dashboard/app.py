@@ -9,6 +9,7 @@ import base64
 import ctypes
 import os
 import secrets
+import sqlite3
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -22,7 +23,7 @@ def _agent_snapshot() -> dict:
         from alfa.core import metrics as _metrics
 
         return _metrics.snapshot()
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
         return {}
 
 from fastapi import FastAPI, Request
@@ -88,7 +89,7 @@ async def _pipeline_trigger_scheduler():
     while True:
         try:
             await pl.scheduler_tick()
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug(f"pipeline scheduler: {e}")
         await asyncio.sleep(60)
 
@@ -111,7 +112,7 @@ async def _malloc_trim_loop():
                     // 1024
                 )
                 logger.debug(f"malloc_trim OK — RSS sekarang {rss_mb} MB")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug(f"malloc_trim gagal (abaikan): {e}")
 
 
@@ -120,7 +121,7 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     try:
         init_auth_db()
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.error(f"Gagal inisialisasi auth database di lifespan startup: {e}")
     try:
         from alfa.integrations.gdrive import secret_store as _gs
@@ -128,7 +129,7 @@ async def lifespan(app: FastAPI):
         report = _gs.migrate_legacy_plaintext()
         if any(report.values()):
             logger.info(f"GDrive secret migrasi plaintext→vault: {report}")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug(f"GDrive secret migration dilewati: {e}")
     asyncio.create_task(_pipeline_trigger_scheduler())
     asyncio.create_task(_malloc_trim_loop())
@@ -350,7 +351,7 @@ def create_app() -> FastAPI:
                         httponly=False,
                         samesite="lax",
                     )
-                except Exception as e:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                     logger.debug(f"Failed to auto-provision local session: {e}")
 
             return response
@@ -400,7 +401,7 @@ def create_app() -> FastAPI:
                 db_status = "connected"
             finally:
                 db.get_connection_pool().release(conn)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             db_status = f"degraded: {e}"
 
         import psutil
@@ -439,7 +440,7 @@ def create_app() -> FastAPI:
             from alfa.core import database as db
 
             db_pool_stats = db.get_connection_pool().stats
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di system_metrics: %s", exc)
 
         return SystemMetricsResponse(

@@ -93,14 +93,14 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
                                 if arg.annotation:
                                     try:
                                         a_str += f": {ast.unparse(arg.annotation)}"
-                                    except Exception as exc:
+                                    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                                         logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
                                 args_list.append(a_str)
                             ret_str = ""
                             if node.returns:
                                 try:
                                     ret_str = f" -> {ast.unparse(node.returns)}"
-                                except Exception as exc:
+                                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                                     logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
                             sig = f"({', '.join(args_list)}){ret_str}"
 
@@ -125,7 +125,7 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
                                 "snippet": snippet,
                             }
                         )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.debug(f"Error parsing {fpath} for symbol {symbol_name}: {e}")
 
     if not matches:
@@ -157,7 +157,7 @@ def lsp_find_symbol_definition(symbol_name: str, repo_path: str = "") -> dict[st
                                 "snippet": chr(10).join(snippet_lines),
                             }
                         )
-            except Exception as exc:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                 logger.debug("Kegagalan tak terduga di lsp_find_symbol_definition: %s", exc)
 
     return {
@@ -224,7 +224,7 @@ def lsp_find_symbol_references(
                     )
                     if len(refs) >= limit:
                         break
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             continue
 
     return {
@@ -284,7 +284,7 @@ def lsp_analyze_module_hierarchy(
                 "total_top_functions": len(top_functions),
                 "top_functions": top_functions,
             }
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             return {
                 "status": "error",
                 "message": f"Gagal menganalisis modul {target_file}: {str(e)}",
@@ -312,7 +312,7 @@ def lsp_analyze_module_hierarchy(
                 for b in node.bases:
                     try:
                         bases.append(ast.unparse(b))
-                    except Exception as exc:
+                    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
                         logger.debug("Kegagalan tak terduga di lsp_analyze_module_hierarchy: %s", exc)
                 methods = []
                 for item in node.body:
@@ -354,7 +354,7 @@ def lsp_analyze_module_hierarchy(
             "total_top_functions": len(top_functions),
             "top_functions": top_functions,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {
             "status": "error",
             "message": f"Gagal menganalisis modul {target_file}: {str(e)}",
@@ -390,6 +390,6 @@ def generate_codebase_repomap(
             "repomap": repomap_text,
             "message": f"Peta arsitektur codebase untuk '{os.path.basename(root)}' berhasil dibuat.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.exception("Gagal membuat repo-map")
         return {"status": "error", "message": f"Repo-map generation error: {str(e)}"}

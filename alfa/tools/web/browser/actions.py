@@ -56,7 +56,7 @@ def browser_open_url(url: str) -> dict[str, Any]:
             if res.get("status") == "success":
                 return res
             logger.info("REST tak tersedia (%s) -> embedded.", res.get("message"))
-    except Exception as exc:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di browser_open_url: %s", exc)
     try:
         with _LOCK:
@@ -65,7 +65,7 @@ def browser_open_url(url: str) -> dict[str, Any]:
                 page.goto(target, wait_until="domcontentloaded", timeout=45000)
                 try:
                     page.wait_for_timeout(600)
-                except Exception as exc:  # noqa: BLE001
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
                     logger.debug("Kegagalan tak terduga di browser_open_url: %s", exc)
                 elements, desc = _snapshot(page)
                 _STATE["elements"] = elements
@@ -86,7 +86,7 @@ def browser_open_url(url: str) -> dict[str, Any]:
             "interactive_elements": snap["interactive_elements"],
             "page_content_preview": snap["page_content_preview"],
         }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"Browser open error: {str(e)}"}
 
 
@@ -115,7 +115,7 @@ def browser_click_element(element_ref: str, tab_id: str = "") -> dict[str, Any]:
                     page.locator(_INTERACTIVE_SEL).nth(idx).click(timeout=8000)
                 else:
                     page.locator(element_ref).first.click(timeout=8000)
-            except Exception as ce:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as ce:  # noqa: BLE001
                 return {
                     "status": "error",
                     "message": f"Gagal klik '{element_ref}': {ce}",
@@ -129,7 +129,7 @@ def browser_click_element(element_ref: str, tab_id: str = "") -> dict[str, Any]:
                 "url": page.url,
                 "updated_page_elements": desc[:5000],
             }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": str(e)}
 
 
@@ -160,11 +160,11 @@ def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> dict[str
                 else:
                     loc = page.locator(element_ref).first
                 loc.fill(str(text), timeout=8000)
-            except Exception:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
                 try:
                     loc.click(timeout=5000)
                     loc.press_sequentially(str(text), delay=25)
-                except Exception as te:  # noqa: BLE001
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as te:  # noqa: BLE001
                     return {
                         "status": "error",
                         "message": f"Gagal mengetik ke '{element_ref}': {te}",
@@ -175,7 +175,7 @@ def browser_type_text(element_ref: str, text: str, tab_id: str = "") -> dict[str
                 "message": f"Teks diketik ke elemen '{element_ref}'.",
                 "url": page.url,
             }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": str(e)}
 
 
@@ -205,7 +205,7 @@ def browser_capture_screenshot(tab_id: str = "") -> dict[str, Any]:
                 "file_path": target_path,
                 "url": page.url,
             }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": str(e)}
 
 
@@ -224,7 +224,7 @@ def browser_close_tab(tab_id: str = "") -> dict[str, Any]:
             "status": "success",
             "message": "Sesi browser ditutup.",
         }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": str(e)}
 
 
@@ -264,7 +264,7 @@ def browser_use_autonomous_task(
                     timeout=45000,
                 )
                 page.wait_for_timeout(800)
-            except Exception as ge:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as ge:  # noqa: BLE001
                 history.append(f"goto gagal: {ge}")
 
             done = False
@@ -276,7 +276,7 @@ def browser_use_autonomous_task(
                 _STATE["elements"] = elements
                 try:
                     plan = _plan_next_action(task, page.url, snap_text, history, i, cap)
-                except Exception as pe:  # noqa: BLE001
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as pe:  # noqa: BLE001
                     note = f"planner LLM gagal -> heuristik: {str(pe)[:140]}"
                     logger.warning("%s", note)
                     plan = _heuristic_plan(task, elements, cap)
@@ -325,7 +325,7 @@ def browser_use_autonomous_task(
                         page.goto(target, wait_until="domcontentloaded", timeout=45000)
                         entry["result"] = "navigasi"
                     page.wait_for_timeout(1000)
-                except Exception as ae:  # noqa: BLE001
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as ae:  # noqa: BLE001
                     entry["result"] = f"ERROR: {ae}"
                 steps.append(entry)
                 history.append(f"{action}:{entry.get('result', '')}")
@@ -350,7 +350,7 @@ def browser_use_autonomous_task(
                     f"(target belum pasti tercapai).{(' ' + note) if note else ''}"
                 ),
             }
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"Browser autonomous error: {str(e)}"}
 
 
@@ -358,7 +358,7 @@ def _research_fallback(task: str, start_url: str) -> dict[str, Any]:
     """Riset berbasis teks ketika engine browser tak tersedia — jujur soal keterbatasannya."""
     try:
         search_res = web_search(query=task, max_results=5)
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {
             "status": "error",
             "message": (
@@ -374,7 +374,7 @@ def _research_fallback(task: str, start_url: str) -> dict[str, Any]:
                 continue
             try:
                 page_data = fetch_web_page_content(url=link, max_length=1200)
-            except Exception:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
                 page_data = {}
             insights.append(
                 {

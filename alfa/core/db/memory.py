@@ -3,6 +3,7 @@ Long-Term Knowledge Memory, Semantic Knowledge Graph, Chat History & Settings.
 """
 
 import logging
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -53,7 +54,7 @@ async def clear_user_chat_history(user_id: int):
             await db.execute(
                 "DELETE FROM chat_compactions WHERE user_id = ?", (user_id,)
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug("chat_compactions tidak dihapus untuk user %s: %s", user_id, e)
         await db.commit()
 

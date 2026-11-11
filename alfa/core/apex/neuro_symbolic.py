@@ -82,7 +82,7 @@ def safe_ast_math_eval(expr: str) -> float | int | None:
         if isinstance(res, float) and res.is_integer():
             return int(res)
         return round(res, 4) if isinstance(res, float) else res
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
         return None
 
 
@@ -271,7 +271,7 @@ def audit_excel_formula_integrity(xlsx_path: str) -> dict[str, Any]:
             "circular_references": circular_errors,
             "is_clean": len(circular_errors) == 0,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "file": os.path.basename(xlsx_path), "message": str(e)}
 
 

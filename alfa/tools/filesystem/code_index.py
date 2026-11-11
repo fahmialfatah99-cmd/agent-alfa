@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 import tempfile
 import time
 from typing import Any
@@ -91,7 +92,7 @@ def _index_freshness(root: str, sample_paths: list[str]) -> dict[str, Any]:
         if checked and changed:
             info["stale"] = True
             info["changed_sample"] = changed
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di _index_freshness: %s", exc)
     return info
 
@@ -221,7 +222,7 @@ def index_codebase(
                             (root,),
                         ):
                             _consume(res)
-                except Exception as pe:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as pe:
                     logger.warning(f"Index paralel gagal ({pe}); fallback sekuensial.")
                     rows.clear()
                     files_scanned, skipped_big = 0, 0
@@ -264,7 +265,7 @@ def index_codebase(
             "chunks": chunks_inserted,
             "truncated": truncated,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -333,5 +334,5 @@ def search_codebase(query: str, repo_path: str = "", limit: int = 10) -> dict[st
             )
             logger.warning(resp["index_stale_warning"])
         return resp
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         return {"status": "error", "message": str(e)}

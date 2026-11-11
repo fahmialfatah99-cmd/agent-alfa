@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -45,7 +46,7 @@ def wa_relay_send_from_telegram(
             "raw_response": res,
             "confirmation": f"Pesan berhasil diteruskan ke WhatsApp: '{target}'." if res.get("status") != "error" else f"Gagal mengirim ke WhatsApp: {res.get('message') or res.get('error')}",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal relay pesan ke WhatsApp: %s", e)
         return {"status": "error", "message": f"WhatsApp relay error: {str(e)}"}
 
@@ -145,7 +146,7 @@ def dispatch_instant_material_anomaly_alert(
                     telegram_sent = res_tg.get("status") == "success"
                 else:
                     logger.info("Telegram runtime tidak aktif (mode non-bot/headless). Alert disimpan lokal.")
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                 logger.warning("Gagal mengirim pesan Telegram alert instan: %s", e)
 
         # 4. Catat ke tabel wa_instant_alerts
@@ -168,6 +169,6 @@ def dispatch_instant_material_anomaly_alert(
             "preview_card": alert_card,
             "message": f"Alert instan [{cname_upper}] berhasil diproses dan disimpan ke log independen.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal memproses instant material alert: %s", e)
         return {"status": "error", "message": f"Instant alert error: {str(e)}"}

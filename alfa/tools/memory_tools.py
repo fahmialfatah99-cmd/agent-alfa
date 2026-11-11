@@ -34,7 +34,7 @@ def save_knowledge_memory(
             user_id=user_id, key_topic=key_topic, content=content, category=category
         )
         return {"status": "success", "message": msg}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -65,11 +65,11 @@ def search_knowledge_memory(query: str) -> dict[str, Any]:
                         }
                         for r in ranked
                     ]
-            except Exception as rank_err:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as rank_err:  # noqa: BLE001
                 logger.debug("Ranked memory search fallback error: %s", rank_err)
 
         return {"status": "success", "memories": memories}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -104,7 +104,7 @@ def semantic_search_vector_brain(
             "total_matches": len(results),
             "matches": results,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Vector semantic search error: {str(e)}"}
 
 
@@ -154,7 +154,7 @@ def ingest_document_to_vector_brain(
             category=category,
             db_path=db_path,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Document ingestion error: {str(e)}"}
 
 
@@ -187,7 +187,7 @@ def list_vector_brain_documents(db_path: str | None = None) -> dict[str, Any]:
         user_id = current_user_id_var.get() or 0
         docs = vector_memory.list_ingested_documents(user_id=user_id, db_path=db_path)
         return {"status": "success", "total_documents": len(docs), "documents": docs}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -277,7 +277,7 @@ def export_knowledge_base(format: str = "markdown") -> dict[str, Any]:
             "total_facts": data["total_facts"],
             "total_relations": data["total_relations"],
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Export second brain error: {str(e)}"}
 
 
@@ -323,7 +323,7 @@ def hybrid_search_vector_brain(
             "total_matches": len(results),
             "matches": results,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Hybrid search error: {str(e)}"}
 
 
@@ -365,7 +365,7 @@ def manage_document_context_cache(
             deleted = context_cache.delete_context_cache(cache_name=file_path)
             return {"status": "success", "deleted": deleted}
         return {"status": "error", "message": f"Aksi '{action}' tidak dikenal."}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Context cache error: {str(e)}"}
 
 
@@ -401,7 +401,7 @@ def agentic_document_query_crag(
             max_iterations=max_iterations,
             db_path=db_path,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Agentic CRAG error: {str(e)}"}
 
 
@@ -444,7 +444,7 @@ def analyze_document_tabular_data(
             agg_column=agg_column or None,
             agg_func=agg_func,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Tabular analysis error: {str(e)}"}
 
 
@@ -474,7 +474,7 @@ def graph_rag_query_multi_doc(
             top_k=top_k,
             db_path=db_path,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"GraphRAG search error: {str(e)}"}
 
 
@@ -505,7 +505,7 @@ def index_document_to_graph(
             text_content=text,
             db_path=db_path,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Graph indexing error: {str(e)}"}
 
 
@@ -534,7 +534,7 @@ def graph_rag_find_path(
             max_depth=max_depth,
             db_path=db_path,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG pathfinder error: {str(e)}"}
 
 
@@ -562,7 +562,7 @@ def graph_rag_get_overview(
             top_n=top_hubs,
             db_path=db_path,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG overview error: {str(e)}"}
 
 
@@ -587,7 +587,7 @@ def graph_rag_get_communities(
             doc_title=doc_title,
             db_path=db_path,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG communities error: {str(e)}"}
 
 
@@ -617,7 +617,7 @@ def graph_rag_consolidate_memory(
             auto_alias=auto_alias,
             recluster=recluster,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG consolidation error: {str(e)}"}
 
 
@@ -643,7 +643,7 @@ def graph_rag_export(
             db_path=db_path,
             user_id=user_id,
         )
-    except Exception as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"GraphRAG export error: {str(e)}"}
 
 

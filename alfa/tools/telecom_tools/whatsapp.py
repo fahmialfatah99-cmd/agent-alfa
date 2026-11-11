@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
 from datetime import datetime
 from typing import Any
@@ -35,7 +36,7 @@ def _wa_bridge_status() -> dict[str, Any]:
                 "is_ready": status in ("READY", "AUTHENTICATED"),
                 "uptime": data.get("uptime"),
             }
-    except Exception as e:  # noqa: BLE001 - status bersifat opsional
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:  # noqa: BLE001 - status bersifat opsional
         logger.debug("WA bridge status tidak terjangkau: %s", e)
     return {}
 
@@ -148,7 +149,7 @@ def reconcile_whatsapp_material_group(
                     chat_jid = str(c.get("id", ""))
                     chat_name = str(c.get("name", ""))
                     break
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.warning("WA Live API chats lookup warning: %s", e)
 
         if not chat_jid and "@g.us" in group_name_or_id:
@@ -162,7 +163,7 @@ def reconcile_whatsapp_material_group(
                 data = json.loads(req.read().decode("utf-8"))
                 messages = data.get("messages", [])
                 live_api_used = bool(messages)
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                 logger.warning("WA Live API messages lookup warning: %s", e)
 
         # 2. Sinkronkan / Fallback ke SQLite database lokal
@@ -189,7 +190,7 @@ def reconcile_whatsapp_material_group(
                                 int(m.get("ts", 0)),
                             ),
                         )
-                    except Exception as e:
+                    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                         logger.debug("WA archive row skipped: %s", e)
                 conn.commit()
             else:
@@ -913,7 +914,7 @@ def reconcile_whatsapp_material_group(
             try:
                 from alfa.tools.desktop.artcraft import artcraft_launch_gui
                 artcraft_launch_gui("gridcraft", output_excel_path)
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                 logger.warning("Auto launch GridCraft warning: %s", e)
 
         # 7. Susun Rangkuman Data
@@ -990,6 +991,6 @@ def reconcile_whatsapp_material_group(
             "warning": warning_text.strip() or None,
             "message": summary_text,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal menyusun rekapitulasi material WhatsApp: %s", e)
         return {"status": "error", "message": f"Material reconciliation error: {str(e)}"}

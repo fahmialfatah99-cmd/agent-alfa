@@ -9,6 +9,7 @@ Jalankan DI DALAM environment ALFA asli (di mana `import alfa` berhasil):
 Exit 0 = semua oke, 1 = ada yang belum beres.
 """
 import importlib
+import sqlite3
 import sys
 import tempfile
 
@@ -44,7 +45,7 @@ def main():
         try:
             mods[name] = importlib.import_module(name)
             check(f"import {name}", True)
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             check(f"import {name}", False, f"{type(e).__name__}: {e}")
     if len(mods) < 7:
         print("\nImport gagal — STOP. Sisa tes dilewati.")
@@ -105,7 +106,7 @@ def main():
               "sync_registry_from_available(list(AVAILABLE_TOOLS))" in src)
     except ModuleNotFoundError:
         check("discord_bot tidak terpasang (lewati)", True, "skip")
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         check("import alfa.bot.discord_bot", False, f"{type(e).__name__}: {e}")
 
     hdr("9. Smoke: bikin build nyata lewat pipeline ALFA")
@@ -125,7 +126,7 @@ def main():
                   f"{r.get('status')} / {e2e.get('issues')}")
             check("live HTTP smoke passed", e2e.get("live_http_smoke", {}).get("passed") is True,
                   str(e2e.get("live_http_smoke")))
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         check("pipeline software_factory jalan", False, f"{type(e).__name__}: {e}")
 
     print("\n" + "=" * 70)

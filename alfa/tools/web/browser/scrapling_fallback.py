@@ -15,7 +15,7 @@ def _scrapling_snapshot(url: str) -> dict[str, Any]:
     page: Any
     try:
         page = StealthyFetcher.fetch(url)
-    except Exception:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):  # noqa: BLE001
         page = Fetcher.get(url, timeout=15)
 
     interactive: list[str] = []

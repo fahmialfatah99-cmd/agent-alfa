@@ -5,6 +5,7 @@ import glob
 import logging
 import os
 import re
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -76,7 +77,7 @@ def boq_consolidate_master_workbook(
 
             try:
                 wb = openpyxl.load_workbook(fpath, data_only=True)
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
                 logger.warning("Gagal membaca workbook %s: %s", fname, e)
                 continue
 
@@ -294,7 +295,7 @@ def boq_consolidate_master_workbook(
                 "accessories_pcs": sum(c["Total Accessories"] for c in cluster_summaries),
             },
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal mengonsolidasikan BOQ: %s", e)
         return {"status": "error", "message": f"BOQ consolidate error: {str(e)}"}
 
@@ -496,7 +497,7 @@ def boq_compare_and_diff(
             },
             "sample_changes": [r for r in diff_records if r["status"] != "UNCHANGED"][:10],
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal membandingkan BOQ diff: %s", e)
         return {"status": "error", "message": f"BOQ diff error: {str(e)}"}
 
@@ -626,7 +627,7 @@ def boq_reconcile_with_field_reports(
             "recent_field_messages": actual_reports[:5],
             "message": f"Rekonsiliasi cluster '{cluster_name}' selesai dengan menganalisis {len(actual_reports)} laporan WhatsApp.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal rekonsiliasi BOQ: %s", e)
         return {"status": "error", "message": f"BOQ reconcile error: {str(e)}"}
 
@@ -708,6 +709,6 @@ def boq_check_project_anomalies(
             "field_incidents": incident_reports,
             "health_status": "CRITICAL" if incident_reports or len(stalled_chats) >= 3 else "WARNING" if stalled_chats else "HEALTHY",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal memeriksa anomali proyek: %s", e)
         return {"status": "error", "message": f"Anomaly check error: {str(e)}"}

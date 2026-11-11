@@ -15,6 +15,7 @@ import html as html_mod
 import logging
 import os
 import re
+import sqlite3
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -71,7 +72,7 @@ def _fetch_profile_html(handle: str) -> tuple[str, str]:
                     )
                 if _PROFILE_HTML_OK in text:
                     return text, url
-            except Exception:  # noqa: BLE001 — pembaca wajib gagal-lembut
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):  # noqa: BLE001 — pembaca wajib gagal-lembut
                 continue
     return "", ""
 
@@ -362,7 +363,7 @@ def schedule_threads_watch_task(
             handle=handle, enabled=enabled,
             interval_minutes=interval_minutes,
         )
-    except Exception as exc:  # noqa: BLE001 — scheduler refleksif gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — scheduler refleksif gagal-lembut
         logger.exception("schedule_threads_watch_task gagal")
         return {"status": "error", "message": str(exc)[:120]}
 
@@ -412,7 +413,7 @@ def schedule_threads_watch(
             interval_minutes=interval,
             kind="single",
         )
-    except Exception as exc:  # noqa: BLE001 — scheduler gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — scheduler gagal-lembut
         logger.exception("schedule_threads_watch gagal")
         return {"status": "error", "message": str(exc)[:120]}
     return {

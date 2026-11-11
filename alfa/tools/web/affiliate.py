@@ -25,7 +25,7 @@ def marketplace_search_products(
         return fast_scraper.search_and_scrape_marketplace(
             query=query, platform=platform, max_items=max_items
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in marketplace_search_products: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -45,7 +45,7 @@ def affiliate_hunt_trending_products(
         from alfa.tools.web import affiliate_engine
 
         return affiliate_engine.research_trending_niche(niche=niche, platform=platform)
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in affiliate_hunt_trending_products: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -84,7 +84,7 @@ def affiliate_generate_viral_content(
             target_audience=target_audience,
             platform=platform,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in affiliate_generate_viral_content: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -116,7 +116,7 @@ def affiliate_broadcast_deal(
             affiliate_link=affiliate_link,
             channels=channels,
         )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in affiliate_broadcast_deal: {e}")
         return {"status": "error", "message": str(e)}
 
@@ -138,6 +138,6 @@ def affiliate_list_campaigns(limit: int = 15) -> dict[str, Any]:
             "total_campaigns": len(campaigns),
             "campaigns": campaigns,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Error in affiliate_list_campaigns: {e}")
         return {"status": "error", "message": str(e)}

@@ -739,7 +739,7 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
                 mem = (p.info["memory_info"].rss if p.info["memory_info"] else 0) // (1024 * 1024)
                 wa_rss_mb += mem
                 wa_pids.append(p.info["pid"])
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
             continue
 
     # Clean orphaned /tmp/org.chromium.* directories
@@ -755,9 +755,9 @@ def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[st
                     if os.path.isdir(fpath):
                         shutil.rmtree(fpath, ignore_errors=True)
                         cleaned_tmp += 1
-                except Exception as exc:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
                     logger.debug("Kegagalan tak terduga di system_clean_memory_and_cache: %s", exc)
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di system_clean_memory_and_cache: %s", exc)
 
     wa_recycled = False

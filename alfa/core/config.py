@@ -61,7 +61,7 @@ def _load_env_file(path: Path, *, required: bool = False) -> bool:
         _warn_if_world_readable(path)
         load_dotenv(path, override=False)
         logger.debug("Env dimuat dari %s", path)
-    except Exception as e:  # dotenv tidak wajib untuk runtime
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # dotenv tidak wajib untuk runtime
         logger.warning("Gagal memuat %s: %s", path, e)
         return False
     return True

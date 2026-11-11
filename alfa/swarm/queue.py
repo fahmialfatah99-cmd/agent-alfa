@@ -290,7 +290,7 @@ async def run_queue_worker(
             )
             complete_mission(mission["id"], result, db_path)
             done += 1
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.warning(f"Misi #{mission['id']} gagal: {e}")
             fail_mission(mission["id"], str(e), db_path)
             failed += 1

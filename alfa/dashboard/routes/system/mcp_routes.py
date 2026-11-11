@@ -28,7 +28,7 @@ async def mcp_status(request: Request):
     http_token_dihidupkan = bool(os.getenv("ALFA_MCP_HTTP_TOKEN", "").strip())
     try:
         remote = _mc.connection_status()
-    except Exception as exc:  # noqa: BLE001 — status jangan meledak
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001 — status jangan meledak
         remote = {"servers": [], "error": str(exc)}
 
     return {

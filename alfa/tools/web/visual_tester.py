@@ -100,7 +100,7 @@ def browser_visual_test_page(
 
                 try:
                     page.goto(url, timeout=20000, wait_until="load")
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     page.goto(url, timeout=20000)
 
                 time.sleep(wait_seconds)
@@ -146,6 +146,6 @@ def browser_visual_test_page(
                 f"Ditemukan {len(console_errors)} error console dan {len(overflow_issues)} isu overflow layout."
             ),
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Visual test error: {e}")
         return {"status": "error", "message": f"Visual test gagal: {str(e)}"}

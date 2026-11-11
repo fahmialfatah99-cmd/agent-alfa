@@ -36,7 +36,7 @@ def manage_system_services(
                     if any(hint in str(c) for c in cl):
                         running = True
                         break
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     continue
             if act in ("status", "is-active"):
                 return {
@@ -95,7 +95,7 @@ def manage_system_services(
             "exit_code": res.returncode,
             "output": output,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Systemd control error: {str(e)}"}
 
 
@@ -174,7 +174,7 @@ def manage_crontab_jobs(
             "status": "error",
             "message": f"Aksi '{action}' tidak dikenal. Gunakan: list, add, remove.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Crontab error: {str(e)}"}
 
 
@@ -221,5 +221,5 @@ def self_restart_service() -> dict[str, Any]:
             "status": "success",
             "message": "🔄 Bot akan restart dalam 2 detik... Semua pembaruan dan tool baru akan aktif setelah restart. Bot akan kembali online dalam ~3 detik.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

@@ -53,7 +53,7 @@ def _veo_api_request(
         try:
             body = e.read().decode("utf-8", errors="replace")
             msg = json.loads(body).get("error", {}).get("message", body)
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
             msg = str(e)
         if "RESOURCE_EXHAUSTED" in body or e.code == 429:
             msg = (
@@ -100,7 +100,7 @@ def _generate_google_veo_video(
                     b64 = base64.b64encode(f.read()).decode("ascii")
                 mime = "image/png" if exp.lower().endswith(".png") else "image/jpeg"
                 instance["image"] = {"bytesBase64Encoded": b64, "mimeType": mime}
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
                 logger.warning(f"Gagal membaca gambar referensi {exp}: {e}")
             break
 
@@ -313,7 +313,7 @@ def _generate_gemini_omni_video(
                 mime = "image/png" if exp.lower().endswith(".png") else "image/jpeg"
                 parts.append({"type": "image", "data": b64, "mime_type": mime})
                 task = "image_to_video"
-            except Exception as e:
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
                 logger.warning(f"Gagal membaca gambar referensi {exp}: {e}")
             break
 

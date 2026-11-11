@@ -69,11 +69,11 @@ def _shutdown_browser() -> None:
         return
     try:
         pool.submit(_close_browser).result(timeout=15)
-    except Exception as exc:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di _shutdown_browser: %s", exc)
     try:
         pool.shutdown(wait=False, cancel_futures=True)
-    except Exception as exc:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di _shutdown_browser: %s", exc)
     _UI_POOL = None
 
@@ -88,7 +88,7 @@ def _close_browser() -> None:
     if ctx is not None:
         try:
             ctx.__exit__(None, None, None)
-        except Exception as exc:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
             logger.debug("Kegagalan tak terduga di _close_browser: %s", exc)
     if not _AT_EXIT_DONE:
         _AT_EXIT_DONE = True
@@ -103,7 +103,7 @@ def _ensure_page():
             try:
                 if not page.is_closed():
                     return page
-            except Exception as exc:  # noqa: BLE001
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:  # noqa: BLE001
                 logger.debug("Kegagalan tak terduga di _ensure_page: %s", exc)
             _STATE["page"] = None
 
@@ -122,7 +122,7 @@ def _ensure_page():
                 _AT_EXIT_DONE = True
             logger.info("Camoufox engine diluncurkan (headless=%s)", _headless())
             return page
-        except Exception as e:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
             logger.error("Gagal meluncurkan Camoufox: %s", e)
             _STATE["ctx"] = None
             _STATE["page"] = None

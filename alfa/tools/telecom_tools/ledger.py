@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -227,7 +228,7 @@ def consolidate_delivery_orders_to_stock_ledger(
             "total_transactions": len(all_transactions),
             "top_stock_items": list(stock_summary.values())[:8],
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal konsolidasi stock ledger: %s", e)
         return {"status": "error", "message": f"Stock ledger consolidation error: {str(e)}"}
 
@@ -334,6 +335,6 @@ def calculate_material_return_and_scrap(
                 },
             },
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.exception("Gagal menghitung scrap dan retur material: %s", e)
         return {"status": "error", "message": f"Material return calculation error: {str(e)}"}

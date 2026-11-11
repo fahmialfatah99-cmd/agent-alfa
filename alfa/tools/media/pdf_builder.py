@@ -50,7 +50,7 @@ def generate_pdf_report(
             if isinstance(table_data_json, str):
                 try:
                     table_data = json.loads(table_data_json)
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     table_data = None
             elif isinstance(table_data_json, list):
                 table_data = table_data_json
@@ -134,7 +134,7 @@ def generate_pdf_report(
                         except OSError:
                             pass
                 shutil.copy2(target_path, os.path.join(SANDBOX_DIR, safe_name))
-        except Exception as copy_err:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as copy_err:
             logger.debug(f"[generate_pdf_report] Gagal salin ke sandbox: {copy_err}")
 
         return {
@@ -143,7 +143,7 @@ def generate_pdf_report(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal membuat PDF: {str(e)}"}
 
 
@@ -213,7 +213,7 @@ def pdf_apply_watermark_text(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal watermark PDF: {str(e)}"}
 
 
@@ -288,7 +288,7 @@ def pdf_insert_page_numbers(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal memberi nomor halaman: {str(e)}"}
 
 
@@ -335,7 +335,7 @@ def pdf_convert_to_images(
             "output_dir": target_dir,
             "images": generated_images,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal konversi PDF ke gambar: {str(e)}"}
 
 
@@ -386,5 +386,5 @@ def images_convert_to_pdf(
             "file_path": target_path,
             "filename": safe_name,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal mengubah gambar ke PDF: {str(e)}"}

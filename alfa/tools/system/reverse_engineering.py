@@ -258,7 +258,7 @@ def rea_android_device_control(
                 "status": "error",
                 "message": f"Aksi '{action}' tidak dikenali. Gunakan: 'capture_screen', 'start_app', 'stop_app', 'read_logcat', 'list_packages', atau 'read_setting'.",
             }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.exception("Gagal eksekusi REA Android control: %s", e)
         return {"status": "error", "message": f"REA Android control error: {str(e)}"}
 
@@ -344,7 +344,7 @@ def rea_synthesize_skill_from_code(
                         sample_chunk = f.read(65536)
                         lines = [line.strip() for line in sample_chunk.splitlines() if line.strip() and not line.startswith(("#", "//"))]
                     analysis_summary = f"Source summary ({len(lines)} lines sampled): " + " | ".join(lines[:10])
-                except Exception as e:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
                     analysis_summary = f"File inspection: {e}"
             else:
                 analysis_summary = f"Directory target with {len(os.listdir(clean_path))} files."
@@ -367,6 +367,6 @@ def rea_synthesize_skill_from_code(
             "learned_rule": rule_text,
             "message": f"Skill '{res['topic']}' berhasil direverse-engineer dan disintesis ke memori permanen ALFA OS.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.exception("Gagal mensintesis skill dari kode: %s", e)
         return {"status": "error", "message": f"REA skill synthesis error: {str(e)}"}

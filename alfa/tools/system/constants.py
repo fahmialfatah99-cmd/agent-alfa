@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 
@@ -109,7 +110,7 @@ def _docker_available() -> bool:
                 timeout=8,
             )
             _DOCKER_AVAILABLE_CACHE = probe.returncode == 0
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
             _DOCKER_AVAILABLE_CACHE = False
     return _DOCKER_AVAILABLE_CACHE
 
@@ -391,6 +392,6 @@ def _ensure_sandbox_image() -> bool:
             return True
         logger.error("Sandbox image build failed: %s", build.stderr[-400:])
         return False
-    except Exception as img_err:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as img_err:
         logger.error("ensure_sandbox_image error: %s", img_err)
         return False

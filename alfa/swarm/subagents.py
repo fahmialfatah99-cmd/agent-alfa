@@ -115,11 +115,11 @@ async def _run_subagent_worker(
                                         caption=f"📄 Dokumen Subagent: {fname}",
                                     )
                             os.remove(fpath)
-                        except Exception as err:
+                        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as err:
                             logger.error(
                                 f"Error dispatching subagent media {fname}: {err}"
                             )
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.error(f"Subagent [{task_id}] encountered error: {e}", exc_info=True)
         database.update_subagent_task_sync(
             task_id=task_id, status="failed", result=str(e)

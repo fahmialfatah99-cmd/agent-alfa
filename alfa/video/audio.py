@@ -43,7 +43,7 @@ def get_audio_duration(audio_path: str) -> float:
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
         return max(3.0, float(res.stdout.strip()))
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         logger.warning(f"Failed to get audio duration via ffprobe: {e}")
         return 10.0
 

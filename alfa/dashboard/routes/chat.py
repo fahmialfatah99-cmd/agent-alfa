@@ -217,7 +217,7 @@ async def chat_with_agent_stream(payload: dict[str, Any]):
 
         try:
             reply = await turn_task
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.error(f"Error in chat stream: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
@@ -622,7 +622,7 @@ async def chat_with_agent_async(payload: dict[str, Any]):
                 uid, "model", f"{task_tag} SELESAI ✅\n\n{reply}"
             )
             logger.info(f"chat_async selesai: {task_tag}")
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.error(f"chat_async gagal ({task_tag}): {e}")
             try:
                 await database.save_chat_message(

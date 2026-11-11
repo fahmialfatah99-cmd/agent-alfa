@@ -328,7 +328,7 @@ def execute_bash_command(
             "message": f"Command execution timed out ({timeout_secs}s).",
             "isolation": isolation,
         }
-    except Exception as e:  # noqa: BLE001 - jaring pengaman terakhir eksekusi
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001 - jaring pengaman terakhir eksekusi
         return {"status": "error", "message": str(e), "isolation": "none"}
 
 
@@ -558,7 +558,7 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
             "message": f"Eksekusi Python melebihi batas waktu ({timeout_secs} detik).",
             "isolation": isolation,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {
             "status": "error",
             "message": f"Python runner error: {str(e)}",

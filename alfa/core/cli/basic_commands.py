@@ -73,7 +73,7 @@ class CliBasicCommandsMixin:
             else:
                 try:
                     msg = res.json().get("detail", "Registrasi gagal")
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     msg = res.text
                 print_status(msg, "error")
 
@@ -112,7 +112,7 @@ class CliBasicCommandsMixin:
             else:
                 try:
                     msg = res.json().get("detail", "Login gagal")
-                except Exception:
+                except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError):
                     msg = "Username atau password salah."
                 print_status(msg, "error")
 
@@ -258,7 +258,7 @@ class CliBasicCommandsMixin:
                         ),
                     },
                 )
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as exc:
             logger.debug("Kegagalan tak terduga di do_slash_exit: %s", exc)
         print_status(
             "Terima kasih telah menggunakan ALFA CLI. Sampai jumpa!", "success"
@@ -393,7 +393,7 @@ class CliBasicCommandsMixin:
                 ),
                 stream=False,
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             print_status(f"Gagal meringkas: {e}", "error")
             return
         kept = self.chat_history[-2:]

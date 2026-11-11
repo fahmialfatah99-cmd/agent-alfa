@@ -29,7 +29,7 @@ def vault_store_secret(
             name=name, value=value, category=category, notes=notes
         )
         return res
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Vault store error: {str(e)}"}
 
 
@@ -58,7 +58,7 @@ def vault_get_secret(name_or_id: str) -> dict[str, Any]:
             "notes": sec["notes"],
             "updated_at": sec["updated_at"],
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Vault retrieval error: {str(e)}"}
 
 
@@ -80,7 +80,7 @@ def vault_list_secrets(category: str = "all") -> dict[str, Any]:
             "encryption": "AES-256-GCM (Authenticated)",
             "secrets": items,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Vault list error: {str(e)}"}
 
 
@@ -102,5 +102,5 @@ def vault_delete_secret(secret_id: int) -> dict[str, Any]:
                 "message": f"Secret ID {secret_id} berhasil dihapus permanen dari vault.",
             }
         return {"status": "error", "message": f"Secret ID {secret_id} tidak ditemukan."}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Vault delete error: {str(e)}"}

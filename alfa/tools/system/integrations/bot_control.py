@@ -98,7 +98,7 @@ def manage_wa_sheets_bot(action: str = "status") -> dict[str, Any]:
             "status": "error",
             "message": f"Aksi '{action}' tidak dikenal. Gunakan: status, start, stop, restart, logs, enable.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Manage wa-sheets-bot error: {str(e)}"}
 
 @register_tool(category="system")
@@ -138,5 +138,5 @@ def list_wa_drive_uploads(limit: int = 20) -> dict[str, Any]:
             "message": f"{len(uploads)} berkas WA terakhir di Drive.",
             "uploads": compact,
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Gagal membaca log unggahan: {str(e)}"}

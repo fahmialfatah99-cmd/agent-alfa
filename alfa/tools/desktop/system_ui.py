@@ -37,7 +37,7 @@ def read_clipboard() -> dict[str, Any]:
         if content:
             return {"status": "success", "clipboard_content": content[:5000]}
         return {"status": "success", "clipboard_content": "(Clipboard kosong)"}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -86,7 +86,7 @@ def write_to_clipboard(text: str) -> dict[str, Any]:
             "status": "success",
             "message": f"Teks berhasil disalin ke clipboard ({len(text)} karakter). Siap di-paste (Ctrl+V).",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -143,5 +143,5 @@ def show_desktop_notification(
             "status": "success",
             "message": f"Notifikasi desktop '{title}' berhasil ditampilkan di layar.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sqlite3
 from typing import Any
 
 from InquirerPy import inquirer
@@ -27,7 +28,7 @@ def menu_switch_model(cli: Any) -> None:
     # Synchronize with live 9Router & Web Dashboard catalog
     try:
         sync_providers_catalog()
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
     primary_order = [
@@ -61,7 +62,7 @@ def menu_switch_model(cli: Any) -> None:
         try:
             temp_client = DirectAIClient(provider=pkey)
             has_key = bool(temp_client.get_api_key())
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
         key_tag = " 🟢 [Key Ready]" if has_key else " ⚪ [No Key]"
@@ -120,7 +121,7 @@ def menu_switch_model(cli: Any) -> None:
         k_row = database.get_active_api_key_sync(db_prov)
         if k_row and k_row.get("id"):
             database.update_api_key_model(k_row["id"], selected_model)
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di menu_switch_model: %s", exc)
 
     print_status(
@@ -184,7 +185,7 @@ def menu_setup_api_keys(cli: Any) -> None:
                     "info",
                 )
             cli.display_api_keys_vault()
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             print_status(f"Gagal sinkronisasi: {e}", "error")
         return
 
@@ -218,7 +219,7 @@ def menu_setup_api_keys(cli: Any) -> None:
                     f"API Key #{chosen_id} berhasil diaktifkan di Web Vault & CLI!",
                     "success",
                 )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             print_status(f"Gagal mengaktifkan kunci: {e}", "error")
         return
 
@@ -283,7 +284,7 @@ def menu_setup_api_keys(cli: Any) -> None:
             if not found:
                 new_lines.append(f"{env_key}={key_input}")
             env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-        except Exception as exc:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
             logger.debug("Kegagalan tak terduga di menu_setup_api_keys: %s", exc)
 
         # 2. Synchronize with SQLite Database Vault (Web Dashboard)
@@ -303,7 +304,7 @@ def menu_setup_api_keys(cli: Any) -> None:
                 f"API Key untuk {chosen_prov.upper()} berhasil disimpan & disinkronkan ke Web Dashboard Vault!",
                 "success",
             )
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             print_status(
                 f"API Key untuk {chosen_prov.upper()} disimpan ke config & .env: {e}",
                 "info",

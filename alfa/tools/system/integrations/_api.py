@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -32,13 +33,14 @@ def _wa_api(
         with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 - localhost only
             res_data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
             return res_data
-    except Exception as e:
-        err_body = ""
+    except urllib.error.HTTPError as e:
+        # HTTP error membawa body JSON dari bot WA (pesan kesalahan nyata).
         try:
-            err_body = e.read().decode("utf-8")  # type: ignore[attr-defined]
-            parsed = json.loads(err_body)
+            parsed = json.loads(e.read().decode("utf-8"))
             if isinstance(parsed, dict) and parsed.get("message"):
                 return {"status": "error", "message": parsed["message"], "code": parsed.get("code", "")}
-        except Exception as exc:
-            logger.debug("Kegagalan tak terduga di _wa_api: %s", exc)
+        except (ValueError, TypeError, OSError, UnicodeError) as exc:
+            logger.debug("Body error WA tidak bisa dibaca: %s", exc)
+        return {"status": "error", "message": f"WA API error: {e.code} {str(e)[:150]}"}
+    except (OSError, ValueError, TypeError, RuntimeError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"WA API tak terjangkau: {type(e).__name__}: {str(e)[:150]}"}

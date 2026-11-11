@@ -5,6 +5,7 @@ TIDAK menyentuh sisi WA: tanpa autoreply, tanpa kirim pesan WA.
 """
 
 import logging
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -23,7 +24,7 @@ def _setting(key: str, default: str = "") -> str:
             ).fetchone()
             if row and row["value"]:
                 return str(row["value"])
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di _setting: %s", exc)
     return default
 
@@ -39,7 +40,7 @@ def _set_setting(key: str, value: str) -> None:
                 (key, value),
             )
             conn.commit()
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug(f"[digest] set setting gagal: {e}")
 
 
@@ -56,7 +57,7 @@ def _parse_ts(ts: str):
     for fmt in ("%d/%m/%Y, %H.%M.%S", "%d/%m/%Y %H.%M.%S", "%d/%m/%Y, %H:%M:%S"):
         try:
             return datetime.strptime(str(ts or "").strip(), fmt)
-        except Exception:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
             continue
     return None
 
@@ -112,7 +113,7 @@ async def summarize_records(records: list[dict]) -> str:
         owner = int(ALLOWED_USER_IDS[0]) if ALLOWED_USER_IDS else 0
         out = await run_agent_turn(user_id=owner, user_prompt=prompt, chat_id=owner)
         return (out or "").strip()
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.warning(f"[digest] ringkasan AI gagal: {e}")
         return ""
 
@@ -161,7 +162,7 @@ async def send_digest(context_or_app, chat_id: int, report_format: str = "") -> 
         text = await build_digest_text(report_format)
         await safe_send_message(context_or_app, chat_id, text)
         return True
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.warning(f"[digest] kirim gagal: {e}")
         return False
 

@@ -122,10 +122,17 @@ class TestIntegrationsTools:
             assert res["data"] == "ok"
 
     def test_wa_api_error_response(self):
-        mock_err = MagicMock()
-        mock_err.read.return_value = json.dumps({"status": "error", "message": "Gagal baca", "code": "WA_ERROR"}).encode("utf-8")
-        mock_err_instance = Exception("HTTP 500")
-        mock_err_instance.read = mock_err.read
+        # Kegagalan HTTP nyata dari urllib adalah urllib.error.HTTPError
+        # (subclass OSError) — bukan Exception generik.
+        import io
+        import urllib.error
+
+        body = json.dumps(
+            {"status": "error", "message": "Gagal baca", "code": "WA_ERROR"}
+        ).encode("utf-8")
+        mock_err_instance = urllib.error.HTTPError(
+            "http://127.0.0.1:3000/api/send", 500, "HTTP 500", {}, io.BytesIO(body)
+        )
 
         with patch("urllib.request.urlopen", side_effect=mock_err_instance):
             res = _wa_api("POST", "/api/send", body={"to": "123", "message": "hi"})

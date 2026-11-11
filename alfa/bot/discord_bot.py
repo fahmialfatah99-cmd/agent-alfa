@@ -202,7 +202,7 @@ def _get_discord_cmd_ctx(user_id: int | None = None) -> dict:
         uid = get_current_user_id()
         if uid and int(uid) in _DISCORD_CMD_CTX:
             return _DISCORD_CMD_CTX[int(uid)]
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:
         logger.debug("Kegagalan tak terduga di _get_discord_cmd_ctx: %s", exc)
     return _DISCORD_CTX_LAST
 
@@ -897,7 +897,7 @@ async def _mirror_loop(cli):
                         try:
                             d = json.loads(ln)
                             tag, text = d.get("tag", "?"), d.get("text", "")[:1200]
-                        except Exception:
+                        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):
                             tag, text = "LOG", ln[:1200]
                         if tag in ("PLAN", "EXEC", "VERIFY", "DONE", "CANCEL", "TIMEOUT", "QA", "FILE", "HARVEST"):
                             for part in _split(f"**[{tag}]** {text}"):

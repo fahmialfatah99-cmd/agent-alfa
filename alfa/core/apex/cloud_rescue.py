@@ -14,6 +14,7 @@ import hashlib
 import logging
 import os
 import shutil
+import sqlite3
 from datetime import datetime
 from typing import Any
 
@@ -99,7 +100,7 @@ def stage_file_for_cloud_rescue(
             if isinstance(up_res, dict) and up_res.get("status") == "success":
                 gdrive_id = str(up_res.get("file_id") or up_res.get("id") or "")
                 sync_status = "CLOUD_SYNCED"
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
             logger.debug("Cloud upload fallback deferred to local vault: %s", e)
 
     with get_sync_db() as conn:

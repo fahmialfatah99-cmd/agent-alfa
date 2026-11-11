@@ -17,6 +17,7 @@ import asyncio
 import logging
 import os
 import re
+import sqlite3
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -87,7 +88,7 @@ def _run_cmd(args: list[str], timeout: float = 10.0) -> str:
             args, capture_output=True, text=True, timeout=timeout, check=False
         )
         return (proc.stdout or "").strip()
-    except Exception:  # noqa: BLE001 — kolektor wajib gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error):  # noqa: BLE001 — kolektor wajib gagal-lembut
         return ""
 
 
@@ -128,7 +129,7 @@ def _collect_wa() -> dict[str, Any]:
             "buffer": len(snap.get("incoming") or []),
             "is_ready": bool(snap.get("is_ready")),
         }
-    except Exception as exc:  # noqa: BLE001 — WA gagal tak mematikan laporan
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — WA gagal tak mematikan laporan
         return {"client": "ERROR", "buffer": 0, "is_ready": False,
                 "detail": str(exc)[:100]}
 
@@ -145,7 +146,7 @@ def _collect_archive_growth() -> dict[str, Any]:
                 (cutoff,),
             ).fetchone()[0]
         return {"total": int(total), "last_24h": int(day)}
-    except Exception as exc:  # noqa: BLE001 — gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — gagal-lembut
         return {"total": -1, "last_24h": 0, "detail": str(exc)[:80]}
 
 
@@ -217,7 +218,7 @@ def _collect_run_activity() -> dict[str, Any]:
             "steps": total_steps,
             "error_runs": error_runs,
         }
-    except Exception as exc:  # noqa: BLE001 — gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — gagal-lembut
         return {"runs_today": -1, "steps": 0, "error_runs": 0,
                 "detail": str(exc)[:80]}
 
@@ -380,7 +381,7 @@ async def guardian_watch_check_once(
         await safe_send_message(
             application, chat_id, build_wa_alert_text(data, services)
         )
-    except Exception as exc:  # noqa: BLE001 — alarm tak boleh mematikan loop
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — alarm tak boleh mematikan loop
         logger.warning("Kirim peringatan WA gagal: %s", exc)
     return fired
 
@@ -402,7 +403,7 @@ async def guardian_wa_watchdog_loop(application: Any) -> None:
         await asyncio.sleep(interval)
         try:
             await guardian_watch_check_once(application, state)
-        except Exception as exc:  # noqa: BLE001 — watchdog jangan bipak bot
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — watchdog jangan bipak bot
             logger.warning("Penjaga WA putaran gagal (diabaikan): %s", exc)
 
 
@@ -503,6 +504,6 @@ def schedule_daily_guardian_task(enabled: bool = True, interval_minutes: int = 1
             user_id=int(user_id), chat_id=int(chat_id),
             enabled=enabled, interval_minutes=interval_minutes,
         )
-    except Exception as exc:  # noqa: BLE001 — scheduler refleksif gagal-lembut
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as exc:  # noqa: BLE001 — scheduler refleksif gagal-lembut
         logger.exception("schedule_daily_guardian_task gagal")
         return {"status": "error", "message": str(exc)[:120]}

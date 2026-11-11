@@ -72,7 +72,7 @@ def proactive_system_guardian_config(
             "status": "error",
             "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}
 
 
@@ -140,5 +140,5 @@ def proactive_ambient_agent_config(
             "status": "error",
             "message": f"Action '{action}' tidak dikenal. Gunakan: status, enable, disable.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Proactive config error: {str(e)}"}

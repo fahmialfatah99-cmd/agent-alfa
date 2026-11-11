@@ -84,7 +84,7 @@ def git_worktree_sandbox_create(
             "worktree_path": worktree_path,
             "message": f"Worktree sandbox terisolasi berhasil dibuat di '{worktree_path}' (branch '{branch_name}').",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Git worktree create error: {str(e)}"}
 
 
@@ -174,7 +174,7 @@ def git_worktree_sandbox_verify_and_merge(
             "merged_into": target_branch,
             "message": f"Perubahan sandbox '{clean_task}' berhasil diverifikasi dan di-merge ke branch '{target_branch}'! Sandbox dibersihkan.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Git verify & merge error: {str(e)}"}
 
 
@@ -204,7 +204,7 @@ def git_worktree_sandbox_rollback(task_name: str) -> dict[str, Any]:
             "task_name": clean_task,
             "message": f"Rollback instan berhasil! Sandbox branch '{branch_name}' dan direktori '{worktree_path}' telah dimusnahkan. Repositori utama tetap 100% bersih.",
         }
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": f"Git rollback error: {str(e)}"}
 
 
@@ -225,5 +225,5 @@ def git_worktree_sandbox_list() -> dict[str, Any]:
                     }
                 )
         return {"status": "success", "total_sandboxes": len(trees), "sandboxes": trees}
-    except Exception as e:
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
         return {"status": "error", "message": str(e)}

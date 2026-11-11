@@ -108,7 +108,7 @@ def main():
                     for line in f
                     if line.strip() and not line.startswith("#")
                 ]
-        except Exception as e:
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:
             logger.error(f"Error reading URL file: {e}")
             sys.exit(1)
 
