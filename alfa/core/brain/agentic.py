@@ -4,7 +4,10 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 from typing import Any
+
+import httpx
 
 from alfa.core.brain.config import MAX_ITERATIONS, TOOL_EXEC_TIMEOUT
 from alfa.core.brain.convo import _compact_convo
@@ -13,6 +16,27 @@ from alfa.core.brain.tool_schema import build_openai_tools
 from alfa.core.tuning import tool_temperature
 
 logger = logging.getLogger("MainBrain")
+
+#: Error realistis saat memuat helper prompt / menulis meta model.
+_PROMPT_ERR = (
+    ImportError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    KeyError,
+    RuntimeError,
+)
+_META_ERR = (*_PROMPT_ERR, sqlite3.Error)
+_STREAM_ERR = (
+    httpx.HTTPError,
+    ValueError,
+    KeyError,
+    IndexError,
+    TypeError,
+    RuntimeError,
+    AttributeError,
+)
+
 
 # Pesan penolakan ketika tool dipanggil tanpa approval gate yang tersambung.
 # Deny-by-default: pemanggil WAJIB menyambungkan gate (interaktif Telegram,
@@ -295,7 +319,7 @@ async def run_openai_agentic_turn(
             from alfa.core.brain.learning_loop import format_learned_skills_prompt
 
             learned_skills_prompt = format_learned_skills_prompt(user_text)
-        except Exception as e:
+        except _PROMPT_ERR as e:
             logger.debug("Learning loop prompt format bypass: %s", e)
 
         full_sys_inst = system_instruction + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
@@ -376,7 +400,7 @@ async def run_openai_agentic_turn(
                                 cooldown_seconds=delay,
                                 reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
                             )
-                        except Exception as exc:
+                        except _META_ERR as exc:
                             logger.debug("Kegagalan tak terduga di run_openai_agentic_turn: %s", exc)
                     if raw_errors:
                         return None  # pemanggil swarm: teruskan ke fallback provider
@@ -508,7 +532,7 @@ async def run_openai_agentic_turn(
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as wrap_err:
                 logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - SDK LLM bisa raise apa pun
         logger.error(f"[MainBrain:{provider}] error: {e!r}")
         return None
 
@@ -680,7 +704,7 @@ async def run_openai_agentic_turn_streaming(
             from alfa.core.brain.learning_loop import format_learned_skills_prompt
 
             learned_skills_prompt = format_learned_skills_prompt(user_text)
-        except Exception as e:
+        except _PROMPT_ERR as e:
             logger.debug("Learning loop prompt format bypass: %s", e)
 
         full_sys_inst = system_instruction + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
@@ -764,7 +788,7 @@ async def run_openai_agentic_turn_streaming(
                                         cooldown_seconds=delay,
                                         reason=f"HTTP {res.status_code} ({provider}): {err_text[:80]}",
                                     )
-                                except Exception as exc:
+                                except _META_ERR as exc:
                                     logger.debug("Kegagalan tak terduga di run_openai_agentic_turn_streaming: %s", exc)
                             # fallback if streaming completely fails at connection
                             raise Exception(f"HTTP {res.status_code}")
@@ -814,7 +838,7 @@ async def run_openai_agentic_turn_streaming(
                                 except (ValueError, KeyError, IndexError, TypeError):
                                     pass
 
-                except Exception as stream_err:
+                except _STREAM_ERR as stream_err:
                     logger.warning(
                         f"[MainBrain] streaming err: {stream_err!r}, falling back to non-streaming"
                     )
@@ -920,7 +944,7 @@ async def run_openai_agentic_turn_streaming(
                 logger.warning(f"[MainBrain] wrap-up gagal: {wrap_err!r}")
             return
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - SDK LLM bisa raise apa pun
         logger.error(f"[MainBrain:{provider}] streaming error: {e!r}")
         # fallback
         from alfa.core.brain.agentic import run_openai_agentic_turn

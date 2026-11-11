@@ -503,6 +503,20 @@ def _fake_update(data, user_id=0, answer=None, edit=None):
     return update, query
 
 
+_PENDING_MISSING = "tidak ada permintaan pending untuk chat {chat_id}"
+
+
+def _pending_req_id(g, chat_id: int) -> str:
+    """Ambil req_id milik chat tertentu.
+
+    Jangan pakai `next(iter(_PENDING))`: entri basi dari test lain bisa lebih
+    dulu masuk dan membuat test ini menunggu event yang salah.
+    """
+    for req_id, entry in g._PENDING.items():
+        if entry.get("chat_id") == chat_id:
+            return req_id
+    raise AssertionError(_PENDING_MISSING.format(chat_id=chat_id))
+
 class TestInteractiveApproval:
     async def test_approve_once_allows(self, isolated_db, monkeypatch):
         import asyncio
@@ -515,10 +529,12 @@ class TestInteractiveApproval:
         )
         for _ in range(100):
             await asyncio.sleep(0.05)
-            if g._PENDING:
+            if any(v.get("chat_id") == 4242301 for v in g._PENDING.values()):
                 break
-        assert g._PENDING, "approval request tidak terkirim"
-        req_id = next(iter(g._PENDING))
+        assert any(
+            v.get("chat_id") == 4242301 for v in g._PENDING.values()
+        ), "approval request tidak terkirim"
+        req_id = _pending_req_id(g, 4242301)
         update, _query = _fake_update(f"perm|{req_id}|once", user_id=4242301)
         await g.handle_permission_callback(update, None)
         assert await asyncio.wait_for(task, timeout=5) is None
@@ -534,9 +550,9 @@ class TestInteractiveApproval:
         )
         for _ in range(100):
             await asyncio.sleep(0.05)
-            if g._PENDING:
+            if any(v.get("chat_id") == 4242302 for v in g._PENDING.values()):
                 break
-        req_id = next(iter(g._PENDING))
+        req_id = _pending_req_id(g, 4242302)
         update, _query = _fake_update(f"perm|{req_id}|deny", user_id=4242302)
         await g.handle_permission_callback(update, None)
         result = await asyncio.wait_for(task, timeout=5)
@@ -574,9 +590,9 @@ class TestInteractiveApproval:
         )
         for _ in range(100):
             await asyncio.sleep(0.05)
-            if g._PENDING:
+            if any(v.get("chat_id") == 4242305 for v in g._PENDING.values()):
                 break
-        req_id = next(iter(g._PENDING))
+        req_id = _pending_req_id(g, 4242305)
         answered = AsyncMock()
         update, _query = _fake_update(
             f"perm|{req_id}|once", user_id=999999, answer=answered
@@ -602,9 +618,9 @@ class TestInteractiveApproval:
         )
         for _ in range(100):
             await asyncio.sleep(0.05)
-            if g._PENDING:
+            if any(v.get("chat_id") == 4242306 for v in g._PENDING.values()):
                 break
-        req_id = next(iter(g._PENDING))
+        req_id = _pending_req_id(g, 4242306)
 
         async def _boom(*args, **kwargs):
             raise RuntimeError("boom")

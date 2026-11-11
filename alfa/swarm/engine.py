@@ -98,6 +98,28 @@ from alfa.swarm.workspace_hygiene import (
 
 logger = logging.getLogger(__name__)
 
+#: Error realistis untuk agregasi wave & helper opsional.
+_WAVE_ERR = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    AttributeError,
+)
+_STEP_ERR = (AttributeError, KeyError, IndexError, TypeError, ValueError)
+_OPTIONAL_ERR = (
+    ImportError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    KeyError,
+    OSError,
+    RuntimeError,
+)
+
+
 _BUDGET_EXCEEDED = ""
 _PROVIDER_DEAD = ""
 _PROVIDER_DEAD_STREAK = 3
@@ -231,7 +253,7 @@ async def _execute_agents_parallel(
                     ],
                     return_exceptions=True,
                 )
-            except Exception as wave_err:
+            except _WAVE_ERR as wave_err:
                 logger.error(f"Wave execution error: {wave_err}")
                 wave_results = [wave_err] * len(wave)
 
@@ -357,7 +379,7 @@ async def _execute_agents_parallel(
                 ],
                 return_exceptions=True,
             )
-        except Exception as wave_err:
+        except _WAVE_ERR as wave_err:
             logger.error(f"Wave execution error: {wave_err}")
             wave_results = [wave_err] * len(wave)
 
@@ -486,7 +508,7 @@ async def _execute_agents_parallel(
                         pass
                 brief = (step_result.get("execution_summary") or "")[:180].replace("\n", " ")
                 ctx_lines.append(f"{step_result['agent_name']} -> {brief}")
-        except Exception as e:
+        except _STEP_ERR as e:
             logger.debug("Ringkasan eksekusi langkah swarm dilewati: %s", e)
 
     return False
@@ -544,7 +566,7 @@ async def conduct_multi_agent_meeting(
             target_folder=target_folder,
             session_id=session_id,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 - jalur rapat utama, error harus tertangkap
         _record_swarm_trace_safely(
             session_id,
             topic,
@@ -779,7 +801,7 @@ async def _conduct_multi_agent_meeting_impl(
                     "PLAN",
                     f"📊 Fact-Grounded War Room: Lembar Fakta Pra-Rapat siap ({len(pre_meeting_intel)} char).",
                 )
-        except Exception as e:
+        except _OPTIONAL_ERR as e:
             logger.debug("Fact-grounded war room dilewati: %s", e)
             pre_meeting_intel = ""
 
@@ -1251,7 +1273,7 @@ async def _conduct_multi_agent_meeting_impl(
             from alfa.swarm.deliberation import export_meeting_report_files
 
             export_meeting_report_files(final_result)
-        except Exception as e:
+        except _OPTIONAL_ERR as e:
             logger.debug("Export laporan rapat dilewati: %s", e)
 
     return final_result

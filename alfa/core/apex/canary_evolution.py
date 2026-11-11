@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,19 @@ from alfa.core.apex.hardware_governor import IMMUTABLE_PROTECTED_SERVICES
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("ApexCanaryEvolution")
+
+#: Error realistis per konteks (bukan Exception blanket).
+_RLIMIT_ERR = (ImportError, OSError, ValueError, AttributeError, RuntimeError)
+_COMPILE_ERR = (SyntaxError, ValueError, TypeError, MemoryError, RecursionError)
+_DB_ERR = (sqlite3.Error, TypeError, ValueError)
+_REGISTRY_ERR = (
+    ImportError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    KeyError,
+    RuntimeError,
+)
 
 DYNAMIC_TOOLS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "tools", "dynamic")
@@ -102,7 +116,7 @@ try:
     resource.setrlimit(resource.RLIMIT_AS, (1024 * 1024 * 1024, 1024 * 1024 * 1024))
     resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
     resource.setrlimit(resource.RLIMIT_FSIZE, (8 * 1024 * 1024, 8 * 1024 * 1024))
-except Exception:
+except _RLIMIT_ERR:
     pass
 
 payload = json.loads(sys.stdin.read())
@@ -356,7 +370,7 @@ def verify_code_via_canary_gate(
     # Stage 2: Compilation only (never exec in the main process).
     try:
         compile(tree, filename=f"<canary:{tool_name}>", mode="exec")
-    except Exception as e:
+    except _COMPILE_ERR as e:
         return {"passed": False, "stage": "STAGE_2_COMPILE", "error": f"Compilation failed: {e}"}
 
     # Stage 3: Optional smoke test in an isolated subprocess.
@@ -388,14 +402,17 @@ def _wrap_with_canary_rollback_guard(tool_name: str, fn: Callable) -> Callable:
         init_canary_tables()
         try:
             res = fn(*args, **kwargs)
-            with get_sync_db() as conn:
-                conn.execute(
-                    "UPDATE alfa_canary_evolutions SET execution_count = execution_count + 1, updated_at = CURRENT_TIMESTAMP WHERE tool_name = ?",
-                    (tool_name,),
-                )
-                conn.commit()
+            try:
+                with get_sync_db() as conn:
+                    conn.execute(
+                        "UPDATE alfa_canary_evolutions SET execution_count = execution_count + 1, updated_at = CURRENT_TIMESTAMP WHERE tool_name = ?",
+                        (tool_name,),
+                    )
+                    conn.commit()
+            except _DB_ERR as db_err:
+                logger.debug("Pencatatan eksekusi tool '%s' gagal: %s", tool_name, db_err)
             return res
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - kode tool disintesis bisa raise apa pun
             err_msg = f"{type(e).__name__}: {e}"
             logger.warning("Canary Guard caught exception in dynamic tool '%s': %s", tool_name, err_msg)
             with get_sync_db() as conn:
@@ -479,7 +496,7 @@ def synthesize_and_hotload_tool(
             from alfa.tools.registry import register_tool
             register_tool(category="apex_dynamic")(guarded_fn)
             hot_loaded = True
-        except Exception as e:
+        except _REGISTRY_ERR as e:
             logger.debug("Optional registry hot-bind note: %s", e)
 
     verification_status = "VERIFIED" if hot_loaded else "VERIFIED_HOTLOAD_DISABLED"

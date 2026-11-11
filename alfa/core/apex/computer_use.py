@@ -19,6 +19,11 @@ from typing import Any
 
 logger = logging.getLogger("ApexComputerUse")
 
+#: Error realistis untuk operasi subprocess & imaging.
+_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError)
+_IMG_ERR = (ImportError, OSError, ValueError, AttributeError, TypeError)
+_ACTION_ERR = (OSError, subprocess.SubprocessError, ValueError, TypeError, RuntimeError)
+
 SCREENSHOT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "sandbox_workspace", "computer_use_captures")
 )
@@ -58,7 +63,7 @@ def inspect_desktop_environment() -> dict[str, Any]:
                     if len(parts) >= 2:
                         resolution = parts[1]
                     break
-    except Exception as e:
+    except _PROC_ERR as e:
         logger.debug("Deteksi resolusi layar gagal: %s", e)
 
     windows: list[str] = []
@@ -73,7 +78,7 @@ def inspect_desktop_environment() -> dict[str, Any]:
             )
             if proc.returncode == 0:
                 windows = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()][:15]
-        except Exception as e:
+        except _PROC_ERR as e:
             logger.debug("Deteksi window manager gagal: %s", e)
 
     return {
@@ -120,7 +125,7 @@ def apply_coordinate_grid_overlay(image_path: str, grid_step: int = 200) -> str:
             out_path = f"{base}_grid{ext or '.png'}"
             combined.save(out_path)
             return out_path
-    except Exception as e:
+    except _IMG_ERR as e:
         logger.debug("Grid overlay skipped: %s", e)
         return image_path
 
@@ -146,7 +151,7 @@ def capture_desktop_for_vision(with_grid: bool = True) -> dict[str, Any]:
                 if r.returncode == 0 and os.path.isfile(raw_path):
                     captured = True
                     break
-            except Exception:
+            except _PROC_ERR:
                 continue
 
     if not captured:
@@ -159,7 +164,7 @@ def capture_desktop_for_vision(with_grid: bool = True) -> dict[str, Any]:
             d.text((40, 40), f"ALFA OS Virtual Vision Canvas ({ts})", fill=(56, 189, 248))
             img.save(raw_path)
             captured = True
-        except Exception as e:
+        except _IMG_ERR as e:
             return {"status": "error", "message": f"Screen capture failed: {e}"}
 
     final_path = apply_coordinate_grid_overlay(raw_path) if with_grid else raw_path
@@ -240,5 +245,5 @@ def execute_gui_action(
             "command": " ".join(cmd),
             "coordinates": {"x": x, "y": y} if x is not None else None,
         }
-    except Exception as e:
+    except _ACTION_ERR as e:
         return {"status": "error", "message": str(e)}

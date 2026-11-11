@@ -3,7 +3,10 @@
 import asyncio
 import json
 import os
+import sqlite3
 import uuid
+
+from telegram.error import TelegramError
 
 from alfa.core.perm.constants import (
     _LABELS,
@@ -28,6 +31,19 @@ from alfa.core.perm.store import (
     update_tier_trust,
     update_trust_score,
 )
+
+#: Error yang realistis dari API Telegram (TelegramError + bot belum init),
+#: import modul, dan konversi argumen. Sengaja sempit — bukan Exception blanket.
+_TG_ERR = (
+    TelegramError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    ImportError,
+)
+#: Error penulisan audit/trust ke SQLite.
+_DB_ERR = (sqlite3.Error, TypeError, ValueError)
 
 
 def get_tool_tier(tool_name: str) -> RiskTier:
@@ -237,7 +253,7 @@ def _record(
             args_json,
             rt,
         )
-    except Exception as exc:  # noqa: BLE001
+    except _DB_ERR as exc:
         logger.debug("Kegagalan tak terduga di _record: %s", exc)
     # Hanya keputusan manusia EKSPLISIT yang mengubah trust. Auto-approve
     # tidak pernah menambah skor — kalau tidak, satu tool LOW yang
@@ -253,7 +269,7 @@ def _record(
             update_trust_score(
                 int(chat_id), was_safe=(tier == RiskTier.LOW), response_time=rt
             )
-        except Exception as exc:  # noqa: BLE001
+        except _DB_ERR as exc:
             logger.debug("Kegagalan tak terduga di _record: %s", exc)
     elif decision == "deny":
         # Penolakan eksplisit menurunkan trust tier tsb (bukan sistem deny).
@@ -264,7 +280,7 @@ def _record(
                 was_safe=False,
                 response_time=rt,
             )
-        except Exception as exc:  # noqa: BLE001
+        except _DB_ERR as exc:
             logger.debug("Kegagalan tak terduga di _record: %s", exc)
 
 
@@ -349,7 +365,7 @@ async def request_approval(
             ),
             reply_markup=markup,
         )
-    except Exception as e:
+    except _TG_ERR as e:
         _PENDING.pop(req_id, None)
         # 2) Tidak ada kanal approval (mis. Web Dashboard tanpa bot Telegram).
         #    Dulu selalu fail-closed -> agent benar-benar tidak bisa bergerak.
@@ -424,7 +440,7 @@ async def request_approval(
                     text=f"{base_text}\n\n→ Status: {label}",
                     reply_markup=timeout_markup,
                 )
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug(f"edit pesan izin timeout gagal (abaikan): {e}")
     elif sent_message is not None:
         # Fallback jika belum sempat diedit via callback query handler
@@ -440,7 +456,7 @@ async def request_approval(
                         message_id=sent_message.message_id,
                         text=f"{base_text}\n\n→ Status: {label}",
                     )
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug(f"edit pesan izin fallback gagal (abaikan): {e}")
 
     if decision == "always":
@@ -474,7 +490,7 @@ async def handle_permission_callback(update, context) -> None:
             await query.answer(
                 "Permintaan izin ini sudah selesai diproses.", show_alert=False
             )
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug("Permission callback: gagal menjawab perm_done: %s", e)
         return
 
@@ -483,7 +499,7 @@ async def handle_permission_callback(update, context) -> None:
     except ValueError:
         try:
             await query.answer()
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug("Permission callback: gagal menjawab callback tidak valid: %s", e)
         return
 
@@ -493,7 +509,7 @@ async def handle_permission_callback(update, context) -> None:
             await query.answer(
                 "Permintaan sudah kedaluwarsa atau telah diproses.", show_alert=False
             )
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug("Permission callback: gagal menjawab permintaan kedaluwarsa: %s", e)
         return
 
@@ -510,7 +526,7 @@ async def handle_permission_callback(update, context) -> None:
     if requester_id != entry["chat_id"]:
         try:
             await query.answer("Bukan permintaan untuk kamu.", show_alert=True)
-        except Exception as e:
+        except _TG_ERR as e:
             logger.debug("[Gate] gagal menjawab penolakan non-pemilik: %s", e)
         return
 
@@ -536,7 +552,7 @@ async def handle_permission_callback(update, context) -> None:
     # 1. Beri feedback respons instan ke Telegram (toast alert)
     try:
         await query.answer(f"Pilihan disimpan: {status_btn}")
-    except Exception as e:
+    except _TG_ERR as e:
         logger.debug(f"query.answer gagal: {e}")
 
     # 2. Perbarui tampilan teks pesan dan ganti tombol menjadi status final
@@ -549,7 +565,7 @@ async def handle_permission_callback(update, context) -> None:
 
         new_text = f"{base_text}\n\n→ Status: {label}"
         await query.edit_message_text(text=new_text, reply_markup=updated_markup)
-    except Exception as e:
+    except _TG_ERR as e:
         logger.debug(f"edit_message_text pada callback gagal: {e}")
 
 

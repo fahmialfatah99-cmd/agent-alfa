@@ -27,6 +27,7 @@ import os
 import re
 import shlex
 import socketserver
+import sqlite3
 import subprocess
 import threading
 import urllib.error
@@ -37,6 +38,22 @@ from typing import Any
 from alfa.core.db.connection import get_sync_db
 
 logger = logging.getLogger("ApexSoftwareFactory")
+
+#: Error realistis per konteks (bukan Exception blanket).
+_HTTP_ERR = (OSError, ValueError, UnicodeDecodeError)
+_AST_ERR = (ValueError, TypeError, RecursionError, MemoryError)
+_DB_ERR = (sqlite3.Error, TypeError, ValueError)
+_JSON_ERR = (json.JSONDecodeError, TypeError, ValueError)
+_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError)
+_REGISTRY_ERR = (
+    ImportError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    KeyError,
+    OSError,
+    RuntimeError,
+)
 
 # Matches `OUTPUTS_DIR/websites` in `alfa/tools/system/sites.py` so `/sites` sees every build immediately
 DEFAULT_FACTORY_SITES_DIR = os.path.expanduser("~/Dokumen/ALFA_SWARM_OUTPUTS/websites")
@@ -375,7 +392,7 @@ def _run_live_http_smoke_test(app_dir: str, entry_rel: str = "index.html") -> di
                     status_code = exc.code
                     try:
                         body = exc.read().decode("utf-8", errors="ignore")
-                    except Exception:  # pragma: no cover - defensive
+                    except _HTTP_ERR:  # pragma: no cover - defensive
                         body = ""
                 return {
                     "passed": status_code == 200 and len(body) > 20,
@@ -387,7 +404,7 @@ def _run_live_http_smoke_test(app_dir: str, entry_rel: str = "index.html") -> di
             finally:
                 httpd.shutdown()
                 worker.join(timeout=3)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - pipeline build multi-langkah
         return {
             "passed": False,
             "http_status": 0,
@@ -420,7 +437,7 @@ def _audit_python_files(root: str, issues: list[str], passed: list[str], score_b
                     {"file": rel_f, "line": exc.lineno or 1, "symbol": "SyntaxError", "lang": "python"}
                 )
                 score_box[0] -= 40
-            except Exception as exc:
+            except _AST_ERR as exc:
                 issues.append(f"Failed to parse {rel_f}: {exc}")
                 score_box[0] -= 20
     return locations
@@ -616,7 +633,7 @@ def build_and_verify_fullstack_app(
     """
     try:
         init_software_factory_tables()
-    except Exception as exc:
+    except _DB_ERR as exc:
         return {"status": "error", "message": f"DB initialization failed: {exc}"}
 
     slug_clean = re.sub(r"[^a-z0-9_\-]", "-", app_slug.strip().lower()).strip("-") or "alfa-app"
@@ -679,7 +696,7 @@ def build_and_verify_fullstack_app(
 
             reg = refresh_registry()
             sites_registered = slug_clean in reg
-        except Exception as exc:
+        except _REGISTRY_ERR as exc:
             logger.debug("Optional sites registry sync note: %s", exc)
     else:
         logger.info(
@@ -812,7 +829,7 @@ def build_and_verify_multifile_repo(
     """
     try:
         init_software_factory_tables()
-    except Exception as exc:
+    except _DB_ERR as exc:
         return {"status": "error", "message": f"DB initialization failed: {exc}"}
 
     slug_clean = re.sub(r"[^a-z0-9_\-]", "-", repo_slug.strip().lower()).strip("-") or "alfa-repo"
@@ -882,7 +899,7 @@ def build_and_verify_multifile_repo(
                 try:
                     json.loads(raw)
                     passed_checks.append(f"JSON Valid: {rel_f}")
-                except Exception as je:
+                except _JSON_ERR as je:
                     issues.append(f"Invalid JSON in {rel_f}: {je}")
                     score_box[0] -= 25
         _audit_html_files(repo_dir, issues, passed_checks, score_box)
@@ -916,7 +933,7 @@ def build_and_verify_multifile_repo(
                     )
                     test_output = f"TimeoutExpired after {TEST_COMMAND_TIMEOUT}s"
                     score_box[0] -= 45
-                except Exception as exc:
+                except _PROC_ERR as exc:
                     issues.append(f"Test command could not be executed: {exc}")
                     test_output = str(exc)
                     score_box[0] -= 45
@@ -944,7 +961,7 @@ def build_and_verify_multifile_repo(
             if (issues and atomic_rollback_on_failure)
             else "NEEDS_REPAIR"
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - pipeline build multi-langkah
         fatal_error = f"Multi-file repo build error: {exc}"
         issues.append(fatal_error)
         score_box[0] = 0
@@ -980,7 +997,7 @@ def build_and_verify_multifile_repo(
 
                 reg = refresh_registry()
                 sites_registered = slug_clean in reg
-            except Exception as e:
+            except _REGISTRY_ERR as e:
                 logger.debug("Registrasi /sites dilewati untuk '%s': %s", slug_clean, e)
         else:
             logger.info(
@@ -1063,7 +1080,7 @@ def get_software_factory_metrics() -> dict[str, Any]:
                 FROM alfa_software_factory_builds
                 """
             ).fetchone()
-    except Exception as exc:
+    except _DB_ERR as exc:
         logger.warning("Software factory metrics unavailable: %s", exc)
         return empty
     return {

@@ -16,6 +16,20 @@ from alfa.core.tuning import truncate_middle
 
 logger = logging.getLogger("MainBrain")
 
+#: Error realistis saat memuat helper opsional (import + pemanggilan).
+_HELPER_ERR = (
+    ImportError,
+    AttributeError,
+    TypeError,
+    ValueError,
+    KeyError,
+    IndexError,
+    RuntimeError,
+    OSError,
+)
+#: Error saat mencatat artefak/context runtime.
+_ARTIFACT_ERR = (AttributeError, RuntimeError, ValueError, TypeError, ImportError)
+
 # Pool eksekusi tool yang dipakai ulang antar-panggilan.
 #
 # Sebelumnya tiap tool call membuat `ThreadPoolExecutor` baru di dalam blok
@@ -164,7 +178,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                 h = generate_self_heal_hint(name, str(e))
                 if h:
                     hint = f"\n{h}"
-            except Exception as hint_err:
+            except _HELPER_ERR as hint_err:
                 logger.debug("Self-heal hint gagal dibuat untuk '%s': %s", name, hint_err)
             return f"[ERROR tool] {e}{hint}"
 
@@ -200,7 +214,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                         v = raw.get(k)
                         if isinstance(v, str) and os.path.exists(v):
                             record_turn_artifact(v)
-            except Exception as artifact_err:
+            except _ARTIFACT_ERR as artifact_err:
                 logger.debug("Pencatatan artefak tool '%s' gagal: %s", name, artifact_err)
         try:
             from alfa.core.metrics import note_tool_call
@@ -231,7 +245,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
             h = generate_self_heal_hint(name, raw)
             if h:
                 raw = f"{raw}\n{h}"
-        except Exception as hint_err:
+        except _HELPER_ERR as hint_err:
             logger.debug("Self-heal hint akhir gagal untuk '%s': %s", name, hint_err)
 
     if _span:

@@ -17,6 +17,18 @@ from typing import Any
 
 logger = logging.getLogger("Core.Notification")
 
+#: Error realistis saat memanggil provider/adapter opsional.
+_PROVIDER_ERR = (
+    ImportError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    ValueError,
+    TypeError,
+)
+#: Error untuk impor lazy yang boleh gagal (modul bot tidak termuat).
+_IMPORT_ERR = (ImportError, AttributeError)
+
 # ── Registry (dipasang oleh sisi bot) ────────────────────────────────────────
 _send_message: Callable[..., Awaitable[dict[str, Any]]] | None = None
 _templates_provider: Callable[[], dict[str, Any]] | None = None
@@ -56,14 +68,14 @@ def get_swarm_templates() -> dict[str, Any]:
     if _templates_provider is not None:
         try:
             return _templates_provider() or {}
-        except Exception as e:
+        except _PROVIDER_ERR as e:
             logger.debug(f"templates provider gagal: {e}")
     # Fallback lazy (satu-satunya subsys yang tetap boleh lazy)
     try:
         from alfa.bot.mode_commands import SWARM_TEMPLATES
 
         return SWARM_TEMPLATES
-    except Exception:
+    except _IMPORT_ERR:
         return {}
 
 
@@ -75,13 +87,13 @@ def get_telegram_runtime() -> tuple[Any, Any]:
     if _app_provider is not None:
         try:
             return _app_provider(), _loop_provider() if _loop_provider else None
-        except Exception as e:
+        except _PROVIDER_ERR as e:
             logger.debug(f"runtime provider gagal: {e}")
     try:
         from alfa.swarm import subagents
 
         return subagents.get_telegram_app(), subagents.get_telegram_loop()
-    except Exception:
+    except _IMPORT_ERR:
         return None, None
 
 
@@ -99,14 +111,14 @@ async def safe_send_message(
     if _send_message is not None:
         try:
             return await _send_message(application, chat_id, text, reply_markup)
-        except Exception as e:
+        except _PROVIDER_ERR as e:
             logger.debug(f"adapter send_message gagal: {e}")
             # adiabatik: coba jalur sub-loop bot bila ada runtime aktif
     try:
         from alfa.bot.helpers import safe_send_message as _helpers_send
 
         res: dict[str, Any] = await _helpers_send(application, chat_id, text, reply_markup)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - adapter bot bisa raise apa pun
         logger.warning(f"send_message gagal total: {e}")
         return {"status": "error", "message": str(e)}
     else:

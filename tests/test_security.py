@@ -542,6 +542,8 @@ class TestHardeningAndRobustness:
         call_kwargs = query.edit_message_text.call_args.kwargs
         assert "→ Status: ✅ Diizinkan" in call_kwargs["text"]
         assert call_kwargs["reply_markup"] is not None
+        # Bersihkan entri pending agar tidak mengotori test lain (urutan file).
+        perm_gate._PENDING.pop(req_id, None)
 
         # Test perm_done
         query_done = MagicMock()
