@@ -22,6 +22,9 @@ from alfa.bot.config import (
     UI_UX_PRO_MAX_BLOCK,
 )
 
+#: Error realistis untuk konteks memori/graph (SQLite + query).
+_CTX_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError, KeyError)
+
 logger = logging.getLogger("ContextBuilder")
 
 # SQL recall arsip material (bandit B608-safe: konstanta polos, interpolasi
@@ -334,7 +337,7 @@ def build_memory_block(
                         "menyinggung mandor yang pernah dicatat sebelumnya (agar TIDAK ADA mandor atau rincian material yang terlewat):\n"
                         + "\n".join(mat_lines)
                     )
-        except Exception as mat_err:
+        except _CTX_DB_ERR as mat_err:
             logger.debug(f"[material_recall] gagal: {mat_err}")
 
     # 3. KNOWLEDGE GRAPH RECALL (GRAPHRAG PRE-FETCH):
@@ -347,7 +350,7 @@ def build_memory_block(
         )
         if graph_facts:
             memory_context_parts.append(graph_facts)
-    except Exception as graph_err:  # noqa: BLE001
+    except _CTX_DB_ERR as graph_err:  # noqa: BLE001
         logger.debug(f"[graph_rag_recall] gagal: {graph_err}")
 
     memory_block = ""
@@ -439,14 +442,14 @@ async def build_system_instruction(
             from alfa.core.brain.learning_loop import format_learned_skills_prompt
 
             learned_skills_prompt = format_learned_skills_prompt(user_prompt)
-        except Exception as e:
+        except _CTX_DB_ERR as e:
             logger.debug("Learning loop prompt format bypass: %s", e)
 
         try:
             from alfa.core.apex.temporal_graphrag import format_temporal_graphrag_prompt
 
             graphrag_prompt = format_temporal_graphrag_prompt(user_prompt)
-        except Exception as e:
+        except _CTX_DB_ERR as e:
             logger.debug("Temporal GraphRAG prompt format bypass: %s", e)
 
     full_system_instruction = (

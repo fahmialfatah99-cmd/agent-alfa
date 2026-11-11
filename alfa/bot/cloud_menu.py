@@ -23,6 +23,12 @@ from alfa.integrations.gdrive import (
     gdrive_status,
 )
 
+#: Error realistis saat mem-parse tanggal.
+_CM_DT_ERR = (ValueError, TypeError)
+
+#: Error realistis untuk API Drive/Sheets & operasi lokal.
+_CM_API_ERR = (OSError, RuntimeError, ValueError, TypeError, KeyError, AttributeError, TimeoutError)
+
 logger = logging.getLogger("TelegramAIAgent.CloudMenu")
 
 _PAGE_ITEMS = 6
@@ -80,7 +86,7 @@ def _fmt_time(ts_str: str) -> str:
         clean = ts_str.replace("Z", "+00:00")
         dt = datetime.datetime.fromisoformat(clean)
         return dt.strftime("%d/%m/%y %H:%M")
-    except Exception:
+    except _CM_DT_ERR:
         return ts_str[:16].replace("T", " ")
 
 
@@ -145,7 +151,7 @@ async def render_cloud_hub(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             if meta.get("status") == "success":
                 sheets_title = meta.get("title", "-")
                 tabs_count = meta.get("total_tabs", 0)
-        except Exception as exc:
+        except _CM_API_ERR as exc:
             logger.debug("Kegagalan tak terduga di render_cloud_hub: %s", exc)
 
     # Drive summary
@@ -156,7 +162,7 @@ async def render_cloud_hub(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if dst.get("status") == "success" and dst.get("connected"):
             drive_conn = "🟢 Terhubung"
             drive_user = dst.get("user", {}).get("displayName") or dst.get("user", {}).get("emailAddress", "OK")
-    except Exception as exc:
+    except _CM_API_ERR as exc:
         logger.debug("Kegagalan tak terduga di render_cloud_hub: %s", exc)
 
     text = (
@@ -899,7 +905,7 @@ async def handle_cloud_callback(update: Update, context: ContextTypes.DEFAULT_TY
         if domain == "noop":
             pass
 
-    except Exception as e:
+    except _CM_API_ERR as e:
         logger.warning(f"[cloud_menu] Callback error for '{data}': {e}")
 
     return True

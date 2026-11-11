@@ -8,6 +8,9 @@ import os
 import re
 from typing import Any
 
+#: Error realistis saat mem-parse JSON.
+_PL_JSON_ERR = (json.JSONDecodeError, TypeError, ValueError)
+
 logger = logging.getLogger("AgentTools.Web.Browser")
 
 # ── LLM planner (sinkron, dipanggil dari thread tool) ───────────────────────
@@ -115,14 +118,14 @@ def _parse_json_obj(text: str) -> dict[str, Any] | None:
     try:
         obj = json.loads(t)
         return obj if isinstance(obj, dict) else None
-    except Exception as exc:  # noqa: BLE001
+    except _PL_JSON_ERR as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di _parse_json_obj: %s", exc)
     m = re.search(r"\{.*\}", t, re.DOTALL)
     if m:
         try:
             obj = json.loads(m.group(0))
             return obj if isinstance(obj, dict) else None
-        except Exception:  # noqa: BLE001
+        except _PL_JSON_ERR:  # noqa: BLE001
             return None
     return None
 

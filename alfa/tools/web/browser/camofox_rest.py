@@ -20,6 +20,11 @@ import logging
 import os
 from typing import Any
 
+import httpx
+
+#: Error realistis untuk panggilan HTTP (Camofox REST).
+_CAM_HTTP_ERR = (httpx.HTTPError, OSError, ValueError, TypeError, KeyError, TimeoutError)
+
 logger = logging.getLogger("AgentTools.Web.Browser.Rest")
 
 
@@ -63,7 +68,7 @@ def server_available(timeout: float = 3.0) -> bool:
             timeout=timeout,
         )
         return bool(r.status_code < 500)
-    except Exception:  # noqa: BLE001
+    except _CAM_HTTP_ERR:  # noqa: BLE001
         return False
 
 
@@ -92,7 +97,7 @@ def _get_or_create_tab(url: str, timeout: float = 30.0) -> str:
             if tabs and isinstance(tabs[0], dict) and tabs[0].get("tabId"):
                 _REST_TAB = str(tabs[0]["tabId"])
                 return _REST_TAB
-    except Exception as exc:  # noqa: BLE001
+    except _CAM_HTTP_ERR as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di _get_or_create_tab: %s", exc)
     r = httpx.post(
         f"{base}/tabs",
@@ -127,7 +132,7 @@ def rest_open_url(url: str, timeout: float = 45.0) -> dict[str, Any]:
                 headers=_headers(),
                 timeout=timeout,
             )
-        except Exception as e:  # noqa: BLE001
+        except _CAM_HTTP_ERR as e:  # noqa: BLE001
             logger.debug("REST navigate gagal, coba buat tab baru: %s", e)
             _REST_TAB = None
             tab_id = _get_or_create_tab(url, timeout=timeout)
@@ -148,7 +153,7 @@ def rest_open_url(url: str, timeout: float = 45.0) -> dict[str, Any]:
             "tabId": tab_id,
             "interactive_elements": text,
         }
-    except Exception as e:  # noqa: BLE001
+    except _CAM_HTTP_ERR as e:  # noqa: BLE001
         _REST_TAB = None
         return {"status": "error", "message": f"Camofox REST error: {e}"}
 
@@ -167,7 +172,7 @@ def rest_close_tab() -> dict[str, Any]:
             headers=_headers(),
             timeout=10.0,
         )
-    except Exception as exc:  # noqa: BLE001
+    except _CAM_HTTP_ERR as exc:  # noqa: BLE001
         logger.debug("Kegagalan tak terduga di rest_close_tab: %s", exc)
     _REST_TAB = None
     return {"status": "success", "message": "Tab REST ditutup."}
