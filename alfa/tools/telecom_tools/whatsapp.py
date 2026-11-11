@@ -129,7 +129,11 @@ def reconcile_whatsapp_material_group(
 
         # 1. Hubungi WhatsApp API live (port 3000)
         try:
-            req = urllib.request.urlopen("http://127.0.0.1:3000/api/chats", timeout=3)  # nosec B310 - API bot WA lokal
+            # Minta daftar chat yang lengkap: default bot hanya 15 chat teratas,
+            # sedangkan grup material (lahat/curup/lampung) bisa di luar viewport.
+            req = urllib.request.urlopen(  # nosec B310 - API bot WA lokal
+                "http://127.0.0.1:3000/api/chats?limit=200", timeout=5
+            )
             chats_data = json.loads(req.read().decode("utf-8")).get("chats", [])
             target = group_name_or_id.lower().strip()
             for c in chats_data:

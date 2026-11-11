@@ -23,6 +23,19 @@ Ringkasan (detail per fase di bawah):
   schema tool disatukan + anotasi string diresolusi (35 parameter).
 
 ### Fase 4 — persempit blind except Exception di modul kritis (2026-11-11)
+- **Bridge WhatsApp dipulihkan (insiden 6 Nov 2026).** Akar masalah ada di
+  repo `wa-sheets-bot`: (1) WhatsApp Web memblokir Chrome **headless**
+  (halaman "browser tidak didukung") → klien macet di `INITIALIZING`,
+  watchdog autoRecover tiap 5 menit, API live 503; (2) race di
+  `whatsapp-web.js` — event `ready` hanya terbit saat transisi
+  `change:hasSynced`, yang sudah lewat bila sesi ter-sinkron lebih dulu.
+  Perbaikan: mode headful (Xvfb) + `nudgeReadyIfAlreadySynced()`. Sesi
+  **tidak** dihapus/di-reset — bot kembali `READY` tanpa scan QR.
+- **Sisi ALFA**: rekap material kini meminta daftar chat lengkap
+  (`/api/chats?limit=200`); default bot hanya 15 chat teratas sehingga grup
+  material (lahat/curup/lampung) di luar viewport dan data basi terpakai.
+- **Guard kesegaran data** (lihat entri di bawah) kini melaporkan
+  `bridge_ready=True` + sumber live setelah perbaikan.
 - **Guard kesegaran data rekap WhatsApp.** `reconcile_whatsapp_material_group`
   kini menghitung `data_freshness` (live/arsip, umur pesan terakhir, status
   bridge) dan **menandai rekap basi** (>24 jam) dengan peringatan eksplisit —
