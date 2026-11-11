@@ -11,6 +11,18 @@ from typing import Any
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
 
+#: Error realistis saat mem-parse header CSV.
+_MD_CSV_ERR = (ValueError, TypeError, AttributeError)
+
+#: Error realistis saat mem-parse JSON.
+_MD_JSON_ERR = (json.JSONDecodeError, TypeError, ValueError)
+
+#: Error realistis untuk konversi berkas.
+_MD_FILE_ERR = (OSError, ValueError, TypeError, RuntimeError, UnicodeError)
+
+#: Error realistis saat membuat grafik.
+_MD_CHART_ERR = (OSError, ValueError, TypeError, RuntimeError)
+
 logger = logging.getLogger("AgentTools.Media.Documents")
 
 
@@ -51,7 +63,7 @@ def generate_excel_spreadsheet(
                     headers_list = [str(x) for x in parsed_h]
                 else:
                     headers_list = [h.strip() for h in headers.split(",") if h.strip()]
-            except Exception:
+            except _MD_CSV_ERR:
                 headers_list = [h.strip() for h in headers.split(",") if h.strip()]
         elif isinstance(headers, (list, tuple)):
             headers_list = [str(h) for h in headers]
@@ -61,7 +73,7 @@ def generate_excel_spreadsheet(
         if isinstance(rows_json, str):
             try:
                 rows_data = json.loads(rows_json)
-            except Exception:
+            except _MD_JSON_ERR:
                 rows_data = []
         elif isinstance(rows_json, list):
             rows_data = rows_json
@@ -132,7 +144,7 @@ def generate_excel_spreadsheet(
             "message": f"Spreadsheet Excel '{safe_name}' berhasil dibuat dan akan dikirim ke Telegram.",
             "file_path": target_path,
         }
-    except Exception as e:
+    except _MD_FILE_ERR as e:
         return {"status": "error", "message": f"Gagal membuat Excel: {str(e)}"}
 
 
@@ -184,7 +196,7 @@ def generate_presentation_pptx(
             "message": f"Presentasi PowerPoint '{safe_name}' berhasil dibuat dan akan dikirim ke Telegram.",
             "file_path": target_path,
         }
-    except Exception as e:
+    except _MD_FILE_ERR as e:
         return {"status": "error", "message": f"Gagal membuat PPTX: {str(e)}"}
 
 
@@ -303,7 +315,7 @@ def analyze_dataset_csv_json(
             "chart_generated": "dataset_analysis_chart.png",
             "message": f"Analisis dataset '{os.path.basename(expanded)}' selesai. Grafik '{chart_type}' berhasil dibuat dan akan dikirim ke Telegram.",
         }
-    except Exception as e:
+    except _MD_CHART_ERR as e:
         return {"status": "error", "message": f"Dataset analysis error: {str(e)}"}
 
 
@@ -348,7 +360,7 @@ def translate_text(
             "source_language": source_lang,
             "target_language": target_lang,
         }
-    except Exception as e:
+    except _MD_FILE_ERR as e:
         return {"status": "error", "message": f"Gagal menerjemahkan: {str(e)}"}
 
 

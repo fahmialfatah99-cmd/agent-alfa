@@ -15,6 +15,9 @@ from typing import Any
 
 from alfa.memory.vector import _resolve_db_path
 
+#: Error realistis untuk operasi graph-RAG (SQLite + komunitas).
+_GRAG_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError, KeyError)
+
 logger = logging.getLogger("GraphRAG")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -233,7 +236,7 @@ def extract_triples_with_llm(
                         results.append((src, rel, tgt, ev[:200]))
             if results:
                 return results
-    except Exception as exc:  # noqa: BLE001
+    except _GRAG_DB_ERR as exc:  # noqa: BLE001
         logger.debug("LLM Graph extraction fallback to regex: %s", exc)
     return []
 
@@ -418,7 +421,7 @@ def extract_and_index_document_graph(
     # Community detection
     try:
         detect_and_save_communities(user_id=user_id, doc_title=doc_title, db_path=target_db)
-    except Exception as comm_err:  # noqa: BLE001
+    except _GRAG_DB_ERR as comm_err:  # noqa: BLE001
         logger.debug("Community detection pass skipped: %s", comm_err)
 
     return {
@@ -1127,7 +1130,7 @@ def consolidate_memory_sleep_cycle(
                 )
 
         conn.commit()
-    except Exception as exc:  # noqa: BLE001
+    except _GRAG_DB_ERR as exc:  # noqa: BLE001
         logger.exception("Error during memory consolidation")
         return {"status": "error", "error": str(exc), "user_id": user_id}
     finally:
@@ -1137,7 +1140,7 @@ def consolidate_memory_sleep_cycle(
         try:
             comms = detect_and_save_communities(user_id=user_id, db_path=target_db)
             communities_detected = len(comms)
-        except Exception as exc:  # noqa: BLE001
+        except _GRAG_DB_ERR as exc:  # noqa: BLE001
             logger.warning("Re-clustering during consolidation skipped: %s", exc)
 
     return {

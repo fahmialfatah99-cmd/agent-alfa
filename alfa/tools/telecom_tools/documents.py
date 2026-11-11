@@ -12,6 +12,12 @@ from typing import Any
 
 from alfa.tools.registry import register_tool
 
+#: Error realistis saat mengekstrak teks berkas.
+_TD_TEXT_ERR = (UnicodeError, ValueError, TypeError, AttributeError)
+
+#: Error realistis saat membaca berkas lokal.
+_TD_FILE_ERR = (OSError, ValueError, TypeError)
+
 logger = logging.getLogger("AgentTools.Telecom")
 
 def _transcribe_local_whisper_fallback(fpath: str, cluster_hint: str = "") -> dict[str, Any] | None:
@@ -247,7 +253,7 @@ def parse_delivery_order_document(
                         t = page.extract_text() or ""
                         if t:
                             extracted_text += "\n" + t
-            except Exception as e:
+            except _TD_TEXT_ERR as e:
                 logger.debug("pdfplumber text extraction failed: %s", e)
 
         # 2. Jika digital text berhasil diekstrak (>60 karakter)
@@ -437,7 +443,7 @@ def inspect_field_surat_jalan_image(
             else:
                 with open(clean_path, "rb") as f:
                     img_bytes = f.read()
-        except Exception as e:
+        except _TD_FILE_ERR as e:
             return {"status": "error", "message": f"Gagal membaca byte gambar: {e}"}
 
         vision_prompt = (

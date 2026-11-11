@@ -24,6 +24,15 @@ from alfa.core.cli.constants import (
     print_status,
 )
 
+#: Error realistis untuk operasi berkas sesi.
+_CLI_FILE_ERR = (OSError, ValueError, RuntimeError, TypeError)
+
+#: Error realistis untuk baca berkas JSON.
+_CLI_JSON_ERR = (OSError, ValueError, json.JSONDecodeError, TypeError)
+
+#: Error realistis untuk permintaan HTTP ke server lokal.
+_CLI_HTTP_ERR = (requests.exceptions.RequestException, OSError, ValueError, TypeError)
+
 logger = logging.getLogger(__name__)
 
 if READLINE_AVAILABLE:
@@ -102,7 +111,7 @@ class CliSessionMixin:
             return
         try:
             readline.write_history_file(HISTORY_FILE)
-        except Exception as exc:
+        except _CLI_FILE_ERR as exc:
             logger.debug("Kegagalan tak terduga di _save_history: %s", exc)
 
     def _load_config(self):
@@ -111,7 +120,7 @@ class CliSessionMixin:
             try:
                 with open(CONFIG_FILE) as f:
                     return json.load(f)
-            except Exception as exc:
+            except _CLI_JSON_ERR as exc:
                 logger.debug("Kegagalan tak terduga di _load_config: %s", exc)
         return {
             "theme": "default",
@@ -126,7 +135,7 @@ class CliSessionMixin:
         try:
             with open(CONFIG_FILE, "w") as f:
                 json.dump(self.config, f, indent=2)
-        except Exception as e:
+        except _CLI_FILE_ERR as e:
             print_status(f"Gagal menyimpan config: {e}", "error")
 
     def _load_session(self):
@@ -152,7 +161,7 @@ class CliSessionMixin:
                             "warning",
                         )
                         self._clear_session()
-            except Exception:
+            except _CLI_FILE_ERR:
                 self._clear_session()
 
     def _save_session(self):
@@ -169,7 +178,7 @@ class CliSessionMixin:
                 # Set permission aman (hanya user yang bisa baca)
                 if platform.system() != "Windows":
                     os.chmod(SESSION_FILE, 0o600)
-            except Exception as e:
+            except _CLI_FILE_ERR as e:
                 print_status(f"Gagal menyimpan session: {e}", "error")
 
     def _clear_session(self):
@@ -180,7 +189,7 @@ class CliSessionMixin:
         if SESSION_FILE.exists():
             try:
                 SESSION_FILE.unlink()
-            except Exception as exc:
+            except _CLI_FILE_ERR as exc:
                 logger.debug("Kegagalan tak terduga di _clear_session: %s", exc)
 
     def _update_prompt(self):
@@ -236,7 +245,7 @@ class CliSessionMixin:
         except requests.exceptions.Timeout:
             print_status("Request timeout. Server mungkin sedang sibuk.", "error")
             return None
-        except Exception as e:
+        except _CLI_HTTP_ERR as e:
             print_status(f"Error request: {e}", "error")
             return None
 

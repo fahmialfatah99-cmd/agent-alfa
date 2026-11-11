@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import sqlite3
 import tempfile
 import time
 from typing import Any
@@ -31,6 +32,18 @@ from alfa.bot.handlers._state import (
     ensure_upload_cache_dir,
 )
 
+#: Error realistis untuk baca/tulis berkas JSON.
+_DOC_JSON_ERR = (OSError, ValueError, TypeError, json.JSONDecodeError)
+
+#: Error realistis untuk operasi berkas dokumen.
+_DOC_FILE_ERR = (OSError, ValueError, UnicodeError, KeyError, TypeError)
+
+#: Error realistis untuk akses SQLite.
+_DOC_DB_ERR = (sqlite3.Error, TypeError, ValueError)
+
+#: Error realistis untuk fast-path terkompilasi.
+_DOC_FAST_ERR = (RuntimeError, KeyError, TypeError, ValueError)
+
 logger = logging.getLogger("TelegramAIAgent")
 
 def _save_recent_docs_cache() -> None:
@@ -40,7 +53,7 @@ def _save_recent_docs_cache() -> None:
         serializable = {str(k): v for k, v in _RECENT_DOCS.items() if isinstance(v, dict)}
         with open(_RECENT_DOCS_CACHE_PATH, "w", encoding="utf-8") as f:
             json.dump(serializable, f, ensure_ascii=False)
-    except Exception as e:
+    except _DOC_JSON_ERR as e:
         logger.debug(f"[_save_recent_docs_cache] Gagal menyimpan cache dokumen: {e}")
 
 def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any] | None:
@@ -58,7 +71,7 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                     _RECENT_DOCS[int(k)] = v
             if chat_id in _RECENT_DOCS:
                 return _RECENT_DOCS[chat_id]
-        except Exception as e:
+        except _DOC_JSON_ERR as e:
             logger.debug(f"[_get_or_recover_recent_doc] Gagal membaca disk cache: {e}")
 
     # 2. Fallback Auto-Recovery dari tabel chat_history SQLite jika service baru di-restart
@@ -130,7 +143,7 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                                     f"[SPREADSHEET EXCEL: {file_name}]\n"
                                 )
                                 txt_ctx = f"{path_hdr}\n{fresh_excel}".strip()
-                        except Exception as exc:
+                        except _DOC_FILE_ERR as exc:
                             logger.debug("Kegagalan tak terduga di _get_or_recover_recent_doc: %s", exc)
                 elif m_tag:
                     file_name = m_tag.group(1).strip()
@@ -152,13 +165,13 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                     f"[_get_or_recover_recent_doc] Berhasil memulihkan dokumen '{file_name}' untuk chat_id={chat_id} dari chat_history (id={msg_id})."
                 )
                 return recovered
-    except Exception as e:
+    except _DOC_FILE_ERR as e:
         logger.warning(f"[_get_or_recover_recent_doc] Gagal memulihkan dari SQLite: {e}")
     finally:
         if conn is not None:
             try:
                 conn.close()
-            except Exception as exc:
+            except _DOC_DB_ERR as exc:
                 logger.debug("Kegagalan tak terduga di _get_or_recover_recent_doc: %s", exc)
 
     return None
@@ -288,7 +301,7 @@ async def handle_doc_action_callback(
                         executed_tools=["generate_excel_spreadsheet"],
                     )
                     return True
-        except Exception as fast_err:
+        except _DOC_FAST_ERR as fast_err:
             logger.warning(f"[handle_doc_action_callback] Fast-builder fallback ke LLM: {fast_err}")
 
     # Pangkas txt_ctx jika terlalu besar agar putaran LLM tetap hemat token (<16 KB)
@@ -570,7 +583,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         local_resolved_path = os.path.join(upload_cache_dir, safe_fname)
         with open(local_resolved_path, "wb") as uf:
             uf.write(doc_bytes)
-    except Exception as e:
+    except _DOC_FILE_ERR as e:
         logger.warning(f"[handle_document] Unduh cloud gagal untuk '{file_name}' ({e}); mencari di penyimpanan lokal...")
         # Fallback Cerdas: Cari berkas dengan nama yang sama di folder lokal laptop (Unduhan, Desktop, Dokumen, Home)
         search_roots = [
