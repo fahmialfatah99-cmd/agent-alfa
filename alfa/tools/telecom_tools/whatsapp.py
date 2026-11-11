@@ -51,7 +51,7 @@ def reconcile_whatsapp_material_group(
 
         # 1. Hubungi WhatsApp API live (port 3000)
         try:
-            req = urllib.request.urlopen("http://127.0.0.1:3000/api/chats", timeout=3)
+            req = urllib.request.urlopen("http://127.0.0.1:3000/api/chats", timeout=3)  # nosec B310 - API bot WA lokal
             chats_data = json.loads(req.read().decode("utf-8")).get("chats", [])
             target = group_name_or_id.lower().strip()
             for c in chats_data:
@@ -75,7 +75,7 @@ def reconcile_whatsapp_material_group(
         if chat_jid:
             try:
                 url = f"http://127.0.0.1:3000/api/messages?chat={chat_jid}&limit=500"
-                req = urllib.request.urlopen(url, timeout=5)
+                req = urllib.request.urlopen(url, timeout=5)  # nosec B310 - API bot WA lokal
                 data = json.loads(req.read().decode("utf-8"))
                 messages = data.get("messages", [])
             except Exception as e:

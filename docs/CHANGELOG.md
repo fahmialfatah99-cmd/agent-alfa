@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-10)
+### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-11)
 - **Boot guard: unrestricted wajib punya whitelist spesifik.**
   `ALFA_UNRESTRICTED=true` dengan `ALLOWED_USER_IDS` kosong/wildcard kini
   DITOLAK saat start (sebelumnya hanya peringatan) — tanpa whitelist, siapa
@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `except Exception: pass` (6 handler di `plugins/` ikut diperbaiki).
 - **Backup `.env` pindah keluar repo** (`~/.config/alfa/env-backup-*.bak`).
 - **Budget lint turun** 988 → 986 instans (pesan guard dipindah ke konstanta).
+- **Bandit kembali 0 Medium/High**: cache unggahan dokumen dipindah ke folder
+  privat per-user (`/tmp/alfa_uploads_<uid>`, mode 0700, bukan `/tmp` global),
+  dan 10 temuan Medium diberi anotasi `# nosec` *berserta alasannya*
+  (query placeholder-`?`, `urlopen` localhost, `exec` opt-in).
 
 ### Fase 2 overhaul — secret keluar repo, monolit dipecah, E2E test (2026-11-10)
 - **Secret privat benar-benar dipindah.** 30 kunci dari `.env` repo

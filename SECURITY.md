@@ -150,8 +150,11 @@ datang dari LLM **tidak** dieksekusi mentah:
 - **Budget lint TRY/BLE tidak boleh tumbuh** (`scripts/lint_budget.py`)
 - Security scanning with Bandit (`bandit -r alfa plugins -ll -q` = 0 Medium/High):
   - `alfa/core/db/tasks.py`: kueri SQL cron job menggunakan tuple statis berparameter (`?`) tanpa interpolasi f-string (bebas B608).
+  - `alfa/core/apex/temporal_graphrag.py`: query multi-hop membentuk **hanya placeholder `?`** lewat f-string; semua nilai dikirim sebagai parameter — ditandai `# nosec B608` per baris.
   - `alfa/mcp/client.py` (`_http`, `_post_form`): setiap pemanggilan `urllib.request.urlopen` didahului `_validate_http_url()` yang menolak skema selain `http`/`https` (mencegah SSRF skema `file://`); ditandai `# nosec B310` karena Bandit memindai `urlopen` secara statis.
   - `alfa/tools/system/sites.py` (`_wait_http`): health-check proses lokal memvalidasi `parsed.scheme in ("http", "https")` sebelum `urllib.request.urlopen`; ditandai `# nosec B310`.
+  - Panggilan `urlopen` lain (bot WA lokal `127.0.0.1:3000`, server lokal software factory) memakai URL statis tanpa input user — ditandai `# nosec B310`.
+  - `alfa/core/apex/canary_evolution.py`: satu `exec()` yang tersisa adalah **hot-load opt-in** (`ALFA_ALLOW_DYNAMIC_TOOLS=true`, default nonaktif) — ditandai `# nosec B102`.
 - Pre-commit hooks for code review
 
 ## Best Practices for Users

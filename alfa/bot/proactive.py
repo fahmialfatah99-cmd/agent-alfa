@@ -830,7 +830,7 @@ async def proactive_ecosystem_watchdog_loop(application: Application):
                                         try:
                                             url = "http://127.0.0.1:3000/api/incoming?limit=100&sync_chats=1"
                                             req = urllib.request.Request(url, headers={"User-Agent": "ALFA-SyncWorker"})
-                                            with urllib.request.urlopen(req, timeout=5) as resp:
+                                            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310 - URL localhost statis
                                                 if resp.status == 200:
                                                     data = json.loads(resp.read().decode("utf-8"))
                                                     incoming = data.get("incoming", [])

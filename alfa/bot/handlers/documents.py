@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+import tempfile
 import time
 from typing import Any
 
@@ -27,6 +28,7 @@ from alfa.bot.handlers._state import (
     _HANDLER_ERR,
     _RECENT_DOCS,
     _RECENT_DOCS_CACHE_PATH,
+    ensure_upload_cache_dir,
 )
 
 logger = logging.getLogger("TelegramAIAgent")
@@ -46,7 +48,7 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
     if chat_id in _RECENT_DOCS:
         return _RECENT_DOCS[chat_id]
 
-    # 1. Coba muat dari disk cache (/tmp/alfa_uploads/recent_docs_cache.json)
+    # 1. Coba muat dari disk cache (folder privat per-user)
     if os.path.exists(_RECENT_DOCS_CACHE_PATH):
         try:
             with open(_RECENT_DOCS_CACHE_PATH, encoding="utf-8") as f:
@@ -561,9 +563,9 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
         doc_bytes_io = io.BytesIO()
         await doc_file.download_to_memory(doc_bytes_io)
         doc_bytes = doc_bytes_io.getvalue()
-        # Simpan salinan lokal di /tmp/alfa_uploads agar tool REA / bash / installer memiliki path fisik
-        upload_cache_dir = "/tmp/alfa_uploads"
-        os.makedirs(upload_cache_dir, exist_ok=True)
+        # Simpan salinan lokal di folder cache per-user agar tool REA / bash /
+        # installer memiliki path fisik (folder privat mode 0700).
+        upload_cache_dir = ensure_upload_cache_dir()
         safe_fname = os.path.basename(file_name)
         local_resolved_path = os.path.join(upload_cache_dir, safe_fname)
         with open(local_resolved_path, "wb") as uf:
@@ -577,7 +579,7 @@ async def handle_document_message(update: Update, context: ContextTypes.DEFAULT_
             os.path.expanduser("~/Desktop"),
             os.path.expanduser("~/Dokumen"),
             os.path.expanduser("~"),
-            "/tmp",
+            tempfile.gettempdir(),
         ]
         safe_fname = os.path.basename(file_name)
         # Hanya file yang BARU SAJA dibuat (user baru saja mengirimnya). Tanpa

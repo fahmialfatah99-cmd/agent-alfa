@@ -240,7 +240,7 @@ def _materialize_callable(tool_name: str, code_source: str) -> Callable:
     """
     namespace: dict[str, Any] = {"__builtins__": __builtins__}
     compiled = compile(code_source, filename=f"<canary:{tool_name}>", mode="exec")
-    exec(compiled, namespace)  # noqa: S102 - opt-in only, documented hot-load boundary
+    exec(compiled, namespace)  # noqa: S102  # nosec B102 - opt-in only, documented hot-load boundary
     fn_obj = namespace.get(tool_name)
     if not callable(fn_obj):
         raise TypeError(f"Function '{tool_name}' is not callable")  # noqa: TRY003

@@ -368,7 +368,7 @@ def _run_live_http_smoke_test(app_dir: str, entry_rel: str = "index.html") -> di
             try:
                 url = f"http://127.0.0.1:{port}/{url_path}"
                 try:
-                    with urllib.request.urlopen(url, timeout=2.5) as resp:  # noqa: S310
+                    with urllib.request.urlopen(url, timeout=2.5) as resp:  # noqa: S310  # nosec B310 - server lokal ephemeral
                         status_code = resp.status
                         body = resp.read().decode("utf-8", errors="ignore")
                 except urllib.error.HTTPError as exc:

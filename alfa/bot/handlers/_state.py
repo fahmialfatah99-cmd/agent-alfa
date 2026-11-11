@@ -7,6 +7,8 @@ Dipisah dari logika agar semua sub-modul memakai objek yang sama
 from __future__ import annotations
 
 import asyncio
+import os
+import tempfile
 from typing import Any
 
 from telegram.error import TelegramError
@@ -40,7 +42,25 @@ _GREETING_EXACT = {
 
 #: Cache dokumen terakhir per chat.
 _RECENT_DOCS: dict[int, dict[str, Any]] = {}
-_RECENT_DOCS_CACHE_PATH = "/tmp/alfa_uploads/recent_docs_cache.json"
+
+#: Folder cache unggahan dokumen. Dipisah per-user (bukan /tmp global) agar
+#: tidak bisa ditambi/sybil oleh proses lain di mesin yang sama.
+UPLOAD_CACHE_DIR = os.path.join(
+    tempfile.gettempdir(), f"alfa_uploads_{os.getuid() if hasattr(os, 'getuid') else 'user'}"
+)
+
+
+def ensure_upload_cache_dir() -> str:
+    """Buat folder cache unggahan dengan izin 0700 (anti symlink/sybil)."""
+    os.makedirs(UPLOAD_CACHE_DIR, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(UPLOAD_CACHE_DIR, 0o700)
+    except OSError:
+        pass
+    return UPLOAD_CACHE_DIR
+
+
+_RECENT_DOCS_CACHE_PATH = os.path.join(UPLOAD_CACHE_DIR, "recent_docs_cache.json")
 
 #: Batch forward yang sedang berjalan.
 _FORWARD_BATCHES: dict[int, dict[str, Any]] = {}

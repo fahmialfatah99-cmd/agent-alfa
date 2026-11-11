@@ -275,16 +275,14 @@ def query_temporal_graphrag(query: str, max_hops: int = 2, limit: int = 10) -> d
         if seed_names:
             placeholders = ",".join("?" for _ in seed_names)
             params = list(seed_names) + list(seed_names)
-            h1_rows = conn.execute(
-                f"""
+            query_h1 = f"""
                 SELECT source_entity, relation_type, target_entity, weight, context_snippet
                 FROM alfa_graph_relations
                 WHERE active = 1 AND (source_entity IN ({placeholders}) OR target_entity IN ({placeholders}))
                 ORDER BY weight DESC
                 LIMIT ?
-                """,
-                (*params, limit),
-            ).fetchall()
+                """  # nosec B608 - f-string hanya berisi placeholder '?'; nilainya via parameter
+            h1_rows = conn.execute(query_h1, (*params, limit)).fetchall()
 
             frontier_nodes: set[str] = set()
             for r in h1_rows:
@@ -299,16 +297,14 @@ def query_temporal_graphrag(query: str, max_hops: int = 2, limit: int = 10) -> d
             if max_hops >= 2 and frontier_nodes:
                 fp_place = ",".join("?" for _ in frontier_nodes)
                 f_params = list(frontier_nodes) + list(frontier_nodes)
-                h2_rows = conn.execute(
-                    f"""
+                query_h2 = f"""
                     SELECT source_entity, relation_type, target_entity, weight, context_snippet
                     FROM alfa_graph_relations
                     WHERE active = 1 AND (source_entity IN ({fp_place}) OR target_entity IN ({fp_place}))
                     ORDER BY weight DESC
                     LIMIT ?
-                    """,
-                    (*f_params, limit),
-                ).fetchall()
+                    """  # nosec B608 - f-string hanya berisi placeholder '?'; nilainya via parameter
+                h2_rows = conn.execute(query_h2, (*f_params, limit)).fetchall()
 
                 used_rust_bridge = False
                 if _HAS_RUST_ACCEL:
