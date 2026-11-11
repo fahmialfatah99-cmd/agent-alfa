@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] — 2026-11-12
+
+Rilis kualitas: utang exception dipersempit per-konteks di seluruh lapisan.
+
+- **Blind `except Exception`: 670 → 101** (budget lint TRY/BLE **988 → 505**).
+  Narrowing dilakukan per-konteks (berkas/JSON, SQLite, HTTP/httpx/requests,
+  Google API, Telegram, subprocess, LLM) — 5 batch, masing-masing diverifikasi
+  dengan seluruh test suite.
+- **Sisa 101 handler** sengaja dibiarkan lebar: jalur LLM, browser/Playwright,
+  GUI/display, dan SDK yang bisa raise apa pun. Semuanya kini punya alasan
+  eksplisit (`# noqa: BLE001 - ...`) dan **beku** oleh gate `lint_budget.py`.
+- **Mock test yang tidak realistis diperbaiki**: `Exception` generik →
+  `telegram.error.TimedOut`, `httpx.ConnectError`, `urllib.error.HTTPError`,
+  `ConnectionError` — test kini mensimulasikan kegagalan yang benar-benar
+  terjadi di produksi.
+- **Error contract video seragam**: kegagalan ffmpeg mengembalikan dict error.
+
 ## [2.8.0] — 2026-11-11
 
 Rilis kedua overhaul: jembatan WhatsApp dipulihkan, monolit dipecah, utang

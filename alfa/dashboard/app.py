@@ -243,7 +243,7 @@ def create_app() -> FastAPI:
             "Features 173 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
             "and external webhook automation integration."
         ),
-        version="2.8.0",
+        version="2.9.0",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/api/openapi.json",
@@ -412,7 +412,7 @@ def create_app() -> FastAPI:
         return HealthCheckResponse(
             status="healthy" if db_status == "connected" else "degraded",
             service="alfa-sovereign-ai",
-            version="2.8.0",
+            version="2.9.0",
             database=db_status,
             database_tables=table_count,
             uptime_seconds=round(time.time() - _START_TIME, 2),
@@ -445,7 +445,7 @@ def create_app() -> FastAPI:
 
         return SystemMetricsResponse(
             service="alfa-sovereign-ai",
-            version="2.8.0",
+            version="2.9.0",
             timestamp=datetime.now(timezone.utc).isoformat(),
             system={
                 "cpu_percent": cpu_pct,
