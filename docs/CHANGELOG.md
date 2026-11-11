@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-11-11
+
+Rilis overhaul: keamanan runtime diperketat, secret dipindah keluar repo,
+tiga monolit dipecah, dan gate baru mencegah regresi.
+
+Ringkasan (detail per fase di bawah):
+- **Keamanan**: canary tanpa `exec()` in-process, permission gate fail-closed,
+  boot guard whitelist, secret privat di `~/.config/alfa/secrets.env`,
+  Bandit 0 Medium/High, 0 handler exception senyap.
+- **Struktur**: `telecom_tools` (3.537 baris), `system/integrations` (1.073),
+  dan `bot/handlers` (2.839) dipecah menjadi paket — import path publik
+  tidak berubah.
+- **Kualitas**: 1.664 test, coverage 60,82%, 6 E2E test lintas-lapis,
+  schema tool disatukan + anotasi string diresolusi (35 parameter).
+
 ### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-11)
 - **Boot guard: unrestricted wajib punya whitelist spesifik.**
   `ALFA_UNRESTRICTED=true` dengan `ALLOWED_USER_IDS` kosong/wildcard kini
