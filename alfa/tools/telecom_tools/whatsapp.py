@@ -15,16 +15,26 @@ from alfa.tools.registry import register_tool
 logger = logging.getLogger("AgentTools.Telecom")
 
 def _wa_bridge_status() -> dict[str, Any]:
-    """Status jembatan bot WhatsApp (live). Kosong bila tidak terjangkau."""
+    """Status jembatan bot WhatsApp (live). Kosong bila tidak terjangkau.
+
+    Endpoint ``/health`` pada bot WA bersifat read-only (tanpa efek samping)
+    dan mengembalikan status klien (``READY``/``AUTHENTICATED``/
+    ``INITIALIZING``/``QR_READY``).
+    """
     try:
         import urllib.request
 
         req = urllib.request.urlopen(  # nosec B310 - API bot WA lokal
-            "http://127.0.0.1:3000/api/status", timeout=3
+            "http://127.0.0.1:3000/health", timeout=3
         )
         data = json.loads(req.read().decode("utf-8"))
         if isinstance(data, dict):
-            return data
+            status = str(data.get("status") or "UNKNOWN")
+            return {
+                "client_status": status,
+                "is_ready": status in ("READY", "AUTHENTICATED"),
+                "uptime": data.get("uptime"),
+            }
     except Exception as e:  # noqa: BLE001 - status bersifat opsional
         logger.debug("WA bridge status tidak terjangkau: %s", e)
     return {}
