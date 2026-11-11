@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] — 2026-11-11
+
+Rilis kedua overhaul: jembatan WhatsApp dipulihkan, monolit dipecah, utang
+exception dibersihkan, dan jalur berisiko diberi tes.
+
+- **Jembatan WhatsApp dipulihkan** (detail di entri "Fase 4" di bawah) —
+  bot WA kembali `READY` tanpa scan QR; rekap material kembali memakai data
+  live (`/api/chats?limit=200`) dan menandai data basi secara eksplisit.
+- **Monolit dipecah**: `alfa/bot/advanced_commands.py` (1.464 baris) →
+  paket `_common`/`_compat`/`wa`/`sites`/`commands`; import path publik tetap.
+  `alfa/swarm/engine.py` **sengaja tidak** dipecah: namespace modulnya adalah
+  kontrak yang dipakai 25 titik patch di test (`_cancel_requested`,
+  `_execute_agent_step`, `_CHECKPOINT_AVAILABLE`, dll).
+- **Utang exception**: budget TRY/BLE turun **988 → 629**; 353 blind catch
+  dipersempit ke tuple tipe konkret (DB/subprocess/HTTP/JSON/import/indexing).
+  Modul dengan SDK heterogen (playwright/httpx/LLM/telegram) sengaja
+  dibiarkan — dan dibekukan agar tidak tumbuh lagi.
+- **Tes jalur berisiko**: `tests/test_risky_paths.py` (web search, orkestrator
+  video, parser payload video) — coverage orkestrator video 12% → 63%,
+  total coverage 60,8% → **61,1%**.
+- **Error contract video seragam**: kegagalan ffmpeg kini mengembalikan dict
+  error (sebelumnya melempar RuntimeError ke pemanggil).
+
 ## [2.7.0] — 2026-11-11
 
 Rilis overhaul: keamanan runtime diperketat, secret dipindah keluar repo,
