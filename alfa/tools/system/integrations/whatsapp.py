@@ -2,11 +2,17 @@
 import json
 import logging
 import os
+import sqlite3
 from typing import Any
 
 from alfa.tools.registry import register_tool
 
 logger = logging.getLogger("AgentTools.Integrations")
+
+#: Error realistis untuk akses arsip/DB bot WA.
+_WA_DB_ERR = (sqlite3.Error, TypeError, ValueError, AttributeError, ImportError)
+_WA_READ_ERR = (sqlite3.Error, OSError, TypeError, ValueError, AttributeError)
+
 
 @register_tool(category="system")
 def wa_get_chats(
@@ -97,7 +103,7 @@ def wa_get_messages(
                 )
 
                 read_ids = get_read_wa_msg_ids_sync(msg_ids)
-            except Exception:
+            except _WA_DB_ERR:
                 read_ids = set()
 
             for m in msgs:
@@ -128,7 +134,7 @@ def wa_get_messages(
                         record_wa_messages_read_sync(to_mark)
                         for m in to_mark:
                             m["is_read"] = True
-                    except Exception as exc:
+                    except _WA_DB_ERR as exc:
                         logger.debug("Kegagalan tak terduga di wa_get_messages: %s", exc)
 
             res["messages"] = msgs
@@ -150,7 +156,7 @@ def wa_search_messages(query: str, search_live_wa: bool = True) -> dict[str, Any
         from alfa.core.db.wa_tracking import search_wa_archive_sync
 
         local_hits = search_wa_archive_sync(query=query, limit=20)
-    except Exception:
+    except _WA_DB_ERR:
         local_hits = []
 
     live_hits: list[dict[str, Any]] = []
@@ -201,7 +207,7 @@ def wa_get_history_archive(chat: str = "", query: str = "", sender: str = "", li
             "query": query,
             "messages": records,
         }
-    except Exception as e:
+    except _WA_READ_ERR as e:
         return {"status": "error", "message": f"Gagal membaca arsip WA: {e}"}
 
 @register_tool(category="system")
@@ -288,7 +294,7 @@ def wa_get_incoming(
             from alfa.core.db.wa_tracking import archive_wa_messages_sync
 
             archive_wa_messages_sync(filtered)
-        except Exception as exc:
+        except _WA_DB_ERR as exc:
             logger.debug("Kegagalan tak terduga di wa_get_incoming: %s", exc)
 
         # Check read status in SQLite

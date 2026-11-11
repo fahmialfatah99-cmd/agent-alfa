@@ -27,6 +27,10 @@ from alfa.tools.system.constants import (
 
 logger = logging.getLogger("AgentTools.System")
 
+#: Error realistis untuk operasi proses (kill/getpgid/communicate).
+_PROC_ERR = (OSError,)
+_COMM_ERR = (subprocess.TimeoutExpired, OSError, ValueError)
+
 
 def _get_subprocess():
     mod = sys.modules.get("alfa.tools.system_tools")
@@ -267,13 +271,13 @@ def execute_bash_command(
                                     os.killpg(pgid, _sig.SIGKILL)
                                 else:
                                     proc.kill()
-                            except Exception:
+                            except _PROC_ERR:
                                 proc.kill()
-                    except Exception as exc:
+                    except _PROC_ERR as exc:
                         logger.debug("Kegagalan tak terduga di execute_bash_command: %s", exc)
                     try:
                         out, errout = proc.communicate(timeout=5)
-                    except Exception:
+                    except _COMM_ERR:
                         out, errout = "", ""
                     return {
                         "status": "error",
@@ -324,7 +328,7 @@ def execute_bash_command(
             "message": f"Command execution timed out ({timeout_secs}s).",
             "isolation": isolation,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - jaring pengaman terakhir eksekusi
         return {"status": "error", "message": str(e), "isolation": "none"}
 
 
@@ -495,13 +499,13 @@ def execute_python_sandbox(code: str) -> dict[str, Any]:
                                     os.killpg(pgid, _sig.SIGKILL)
                                 else:
                                     proc.kill()
-                            except Exception:
+                            except _PROC_ERR:
                                 proc.kill()
-                    except Exception as exc:
+                    except _PROC_ERR as exc:
                         logger.debug("Kegagalan tak terduga di execute_python_sandbox: %s", exc)
                     try:
                         out, errout = proc.communicate(timeout=5)
-                    except Exception:
+                    except _COMM_ERR:
                         out, errout = "", ""
                     return {
                         "status": "error",
