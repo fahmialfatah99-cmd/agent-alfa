@@ -5,6 +5,7 @@ import asyncio
 import io
 import logging
 import os
+import sqlite3
 import time
 
 from telegram import Update, constants
@@ -41,6 +42,18 @@ from alfa.bot.helpers import should_reply_with_text_instead_of_voice
 from alfa.core import database
 from alfa.media import tts_engine
 
+#: Error realistis untuk menyimpan riwayat chat.
+_MSG_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError)
+
+#: Error realistis untuk deteksi learning-loop.
+_MSG_LEARN_ERR = (RuntimeError, ValueError, TypeError, KeyError, OSError)
+
+#: Error realistis untuk fast-path terkompilasi.
+_MSG_FP_ERR = (RuntimeError, KeyError, TypeError, ValueError)
+
+#: Error realistis untuk tasks swarm (asyncio).
+_MSG_SWARM_ERR = (RuntimeError, ValueError, TypeError, asyncio.TimeoutError, OSError)
+
 logger = logging.getLogger("TelegramAIAgent")
 
 async def try_handle_fast_wa(update: Update, context: ContextTypes.DEFAULT_TYPE, user_text: str) -> bool:
@@ -62,7 +75,7 @@ async def try_handle_fast_wa(update: Update, context: ContextTypes.DEFAULT_TYPE,
             uid = update.effective_user.id if update.effective_user else 0
             await database.save_chat_message(uid, "user", user_text)
             await database.save_chat_message(uid, "model", "[Pesan WhatsApp masuk diperiksa via fast-path /wamasuk]")
-        except Exception as dbe:
+        except _MSG_DB_ERR as dbe:
             logger.debug(f"[fast_wa] save_chat_message error: {dbe}")
         return True
 
@@ -81,7 +94,7 @@ async def try_handle_fast_wa(update: Update, context: ContextTypes.DEFAULT_TYPE,
             uid = update.effective_user.id if update.effective_user else 0
             await database.save_chat_message(uid, "user", user_text)
             await database.save_chat_message(uid, "model", msg)
-        except Exception as dbe:
+        except _MSG_DB_ERR as dbe:
             logger.debug(f"[fast_wa] save_chat_message error: {dbe}")
         return True
 
@@ -350,7 +363,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 feedback="positive",
             )
             logger.info("Autonomous learning loop received positive reinforcement")
-    except Exception as e:
+    except _MSG_LEARN_ERR as e:
         logger.debug("Auto-learning detection bypass: %s", e)
 
     # Sapaan murni → jawab instan, JANGAN lewat agent (hemat token + anti tool nyasar).
@@ -384,7 +397,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 pass
             await safe_send_message(context, chat_id, fp_reply)
             return
-    except Exception as e:
+    except _MSG_FP_ERR as e:
         logger.debug("Apex fast-path bypass: %s", e)
 
     # Fast-Path WhatsApp: eksekusi sub-detik tanpa membebani antrean LLM cloud.
@@ -486,7 +499,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 request_cancel_swarm()
                 try:
                     await reporter.stop("⏹ Misi dibatalkan pengguna.")
-                except Exception as exc:
+                except _MSG_SWARM_ERR as exc:
                     logger.debug("Kegagalan tak terduga di handle_text_message: %s", exc)
                 logger.info(f"[handle_text:swarm] Swarm task untuk chat_id={chat_id} dibatalkan pengguna.")
                 # Notifikasi user DULU, baru teruskan cancellation (kontrak asyncio:
@@ -497,7 +510,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                         chat_id,
                         "⏹ **Misi swarm telah dihentikan atas permintaan Anda.**",
                     )
-                except Exception as exc:
+                except _MSG_SWARM_ERR as exc:
                     logger.debug("Kegagalan tak terduga di handle_text_message: %s", exc)
                 raise
             except _HANDLER_ERR as e:

@@ -11,6 +11,28 @@ from alfa.tools.desktop.capture import capture_desktop_screenshot
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
 
+#: Error realistis saat membuka aplikasi lewat opener.
+_IA_FILE_ERR = (OSError, ValueError, TypeError, AttributeError)
+
+try:  # pyautogui butuh display; di server tanpa X boleh gagal
+    from pyautogui import PyAutoGUIException as _PyAutoGUIError
+except Exception:  # pragma: no cover - display tidak tersedia
+    _PyAutoGUIError = RuntimeError
+
+#: Error realistis dari pyautogui/otool (GUI automation).
+_IA_AUTOM_ERR = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    ImportError,
+    _PyAutoGUIError,
+)
+
+#: Error realistis saat menjalankan perintah bantu.
+_IA_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError, TimeoutError)
+
 logger = logging.getLogger("AgentTools.Desktop")
 
 
@@ -94,7 +116,7 @@ def open_url_in_default_browser(url: str) -> tuple[bool, str]:
             logger.info(f"Opener '{opener}' gagal (rc={proc.returncode}): {detail}")
         except FileNotFoundError:
             continue
-        except Exception as e:  # noqa: BLE001 - lanjut ke opener berikutnya
+        except _IA_FILE_ERR as e:  # noqa: BLE001 - lanjut ke opener berikutnya
             logger.info(f"Opener '{opener}' error: {e}")
     return (
         False,
@@ -187,7 +209,7 @@ def desktop_click_coordinate(
             "status": "success",
             "message": f"Mouse berhasil diklik via PyAutoGUI pada ({x}, {y}).",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - GUI/display error bisa apa saja
         return {"status": "error", "message": f"Gagal melakukan klik mouse: {str(e)}"}
 
 
@@ -230,7 +252,7 @@ def desktop_type_keys(text: str = "", hotkey: str = "") -> dict[str, Any]:
             }
 
         return {"status": "error", "message": "Harus menyertakan text atau hotkey."}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - GUI/display error bisa apa saja
         return {"status": "error", "message": f"Gagal mengetik tombol: {str(e)}"}
 
 
@@ -292,7 +314,7 @@ def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
             try:
                 _raw = proc.stderr.read() if proc.stderr else b""
                 stderr_txt = (_raw or b"").decode("utf-8", "replace").strip()
-            except Exception:
+            except _IA_PROC_ERR:
                 stderr_txt = ""
             if rc != 0:
                 return {
@@ -312,7 +334,7 @@ def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
                 timeout=3,
             )
             pids = [p for p in probe.stdout.split() if p.strip()]
-        except Exception:
+        except _IA_PROC_ERR:
             pids = []
 
         if rc is None or pids:
@@ -331,7 +353,7 @@ def desktop_launch_app(app_name_or_command: str) -> dict[str, Any]:
             ),
             "confidence": "low",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - GUI/display error bisa apa saja
         return {"status": "error", "message": f"Gagal meluncurkan aplikasi: {str(e)}"}
 
 
@@ -481,5 +503,5 @@ def vision_click_target(
             "status": "error",
             "message": f"Gagal menemukan '{target_description}' setelah {attempts} percobaan vision loop.",
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - GUI/display error bisa apa saja
         return {"status": "error", "message": f"Vision loop error: {str(e)}"}

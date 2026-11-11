@@ -8,10 +8,14 @@ import time
 from typing import Any
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, constants
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from alfa.core import database
 from alfa.tools import SANDBOX_DIR
+
+#: Error realistis untuk interaksi API Telegram.
+_HELP_TG_ERR = (TelegramError, RuntimeError, ValueError, TypeError, TimeoutError, OSError)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -410,13 +414,13 @@ async def safe_send_message(
             chunks = chunks[1:]
             if not chunks:
                 return
-        except Exception:
+        except _HELP_TG_ERR:
             try:
                 await query.edit_message_text(text=chunks[0], reply_markup=markup)
                 chunks = chunks[1:]
                 if not chunks:
                     return
-            except Exception as exc:
+            except _HELP_TG_ERR as exc:
                 logger.debug("Kegagalan tak terduga di safe_send_message: %s", exc)  # gagal edit (mis. teks identik/kelamaan) → kirim biasa
 
     for i, chunk in enumerate(chunks):
@@ -430,7 +434,7 @@ async def safe_send_message(
                 reply_to_message_id=reply_id,
                 reply_markup=markup,
             )
-        except Exception:
+        except _HELP_TG_ERR:
             try:
                 # Fallback to plain text without parse mode
                 await context.bot.send_message(
@@ -439,7 +443,7 @@ async def safe_send_message(
                     reply_to_message_id=reply_id,
                     reply_markup=markup,
                 )
-            except Exception:
+            except _HELP_TG_ERR:
                 try:
                     # Last resort: tanpa markup sama sekali (tombol URL invalid
                     # tidak boleh membuat pesan hilang total)
@@ -448,7 +452,7 @@ async def safe_send_message(
                         text=chunk,
                         reply_to_message_id=reply_id,
                     )
-                except Exception as e:
+                except _HELP_TG_ERR as e:
                     logger.error(f"Failed to send message chunk: {e}")
 
 
@@ -462,7 +466,7 @@ async def send_typing_loop(
     while not stop_event.is_set():
         try:
             await context.bot.send_chat_action(chat_id=chat_id, action=action)
-        except Exception as exc:
+        except _HELP_TG_ERR as exc:
             logger.debug("Kegagalan tak terduga di send_typing_loop: %s", exc)
         await asyncio.sleep(4)
 

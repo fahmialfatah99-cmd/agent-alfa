@@ -392,7 +392,7 @@ class TestHandleTextMessageStreamingIntegration:
         update.effective_chat.id = 222
 
         mock_context.bot.send_message.side_effect = [
-            Exception("Cannot send placeholder"),  # Streamer.start() fails
+            TimedOut("Cannot send placeholder"),  # Streamer.start() gagal
             MagicMock(message_id=888),  # Fallback safe_send_message
         ]
 
@@ -500,7 +500,7 @@ class TestRunAgentTurnStreaming:
         """If generate_content_stream fails, it falls back to non-streaming generate_content."""
         mock_gemini = MagicMock()
         mock_gemini.aio.models.generate_content_stream = AsyncMock(
-            side_effect=Exception("Stream connection reset")
+            side_effect=ConnectionError("Stream connection reset")
         )
 
         mock_resp = MagicMock()

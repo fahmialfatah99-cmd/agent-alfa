@@ -57,6 +57,18 @@ from alfa.tools import (
     current_user_prompt_var,
 )
 
+#: Error realistis untuk fast-path terkompilasi.
+_TE_FP_ERR = (RuntimeError, KeyError, TypeError, ValueError)
+
+#: Error realistis saat approval gate (fail-closed).
+_TE_GATE_ERR = (RuntimeError, ValueError, TypeError, asyncio.TimeoutError, OSError)
+
+#: Error realistis untuk streaming & pemanggilan tool.
+_TE_STREAM_ERR = (RuntimeError, ValueError, TypeError, KeyError, asyncio.TimeoutError, OSError)
+
+#: Error realistis untuk menyimpan riwayat.
+_TE_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError)
+
 logger = logging.getLogger("TelegramAIAgent")
 
 # Lazily-initialized shared Gemini client (set on first turn via _resolve).
@@ -165,7 +177,7 @@ async def _run_agent_turn_impl(
                         f"[FastPath:TurnExecutor] Handled {fast_res.get('tool_name')} in {fast_res.get('execution_time_ms', 0)}ms"
                     )
                     return str(reply_text)
-        except Exception as fp_err:
+        except _TE_FP_ERR as fp_err:
             logger.debug(f"[FastPath:TurnExecutor] Error: {fp_err}")
 
     # Permission Gate (human-in-the-loop) utk tool berbahaya.
@@ -352,7 +364,7 @@ async def _run_agent_turn_impl(
                             )
                         try:
                             denial = await approval_gate(fc.name, args_json)
-                        except Exception as gate_err:  # noqa: BLE001 - fail-closed
+                        except _TE_GATE_ERR as gate_err:  # noqa: BLE001 - fail-closed
                             logger.exception(
                                 "[GatePath] gate error (fail-closed) for %s",
                                 fc.name,
@@ -475,7 +487,7 @@ async def _run_agent_turn_impl(
                     response = last_chunk
                     reply_text = streamed_text
 
-                except Exception as stream_err:
+                except _TE_STREAM_ERR as stream_err:
                     logger.warning(
                         f"generate_content_stream error on {model_name}: {stream_err}. Falling back to generate_content."
                     )
@@ -581,7 +593,7 @@ async def _run_agent_turn_impl(
             await _db.save_chat_message(user_id, "model", reply_text)
             return str(reply_text)
 
-        except Exception as e:
+        except _TE_DB_ERR as e:
             logger.warning(f"Model {model_name} failed: {e}. Trying next candidate...")
             last_error = e
             err_msg = str(e)
@@ -649,7 +661,7 @@ async def run_agent_turn(
             override_key_id=override_key_id,
             streamer=streamer,
         )
-    except Exception:
+    except _TE_STREAM_ERR:
         note_turn_finished(False)
         raise
     note_turn_finished(ok=not result.startswith(("❌", "⚠️")))

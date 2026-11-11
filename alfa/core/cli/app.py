@@ -10,6 +10,7 @@ import cmd
 import getpass
 import logging
 import os
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -38,6 +39,21 @@ from alfa.core.cli.direct_ai import (
     DirectAIClient,
 )
 from alfa.core.cli.session import CliSessionMixin
+
+#: Error realistis untuk menulis berkas env/konfigurasi.
+_CLI_FILE_ERR = (OSError, ValueError, TypeError)
+
+#: Error realistis untuk sinkronisasi kunci ke vault.
+_CLI_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError)
+
+#: Error realistis saat querying RAG/vector store.
+_CLI_RAG_ERR = (RuntimeError, ValueError, TypeError, KeyError, OSError)
+
+#: Error realistis untuk pemanggilan proses/server.
+_CLI_PROC_ERR = (OSError, subprocess.SubprocessError, ValueError, RuntimeError, TimeoutError)
+
+#: Error realistis saat ping server lokal.
+_CLI_HTTP_ERR = (requests.exceptions.RequestException, OSError, ValueError, TimeoutError)
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +250,7 @@ def run_config_wizard() -> None:
                 new_lines.append(f"{api_key_env}={new_key}")
             env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             print_status("Kunci tersimpan juga ke .env", "success")
-        except Exception as exc:
+        except _CLI_FILE_ERR as exc:
             logger.debug("Kegagalan tak terduga di run_config_wizard: %s", exc)
 
     # Sinkronkan ke Database SQLite Web Vault (agent_data.db)
@@ -256,7 +272,7 @@ def run_config_wizard() -> None:
             print_status(
                 "API Key berhasil disinkronkan ke Web Dashboard Vault!", "success"
             )
-    except Exception as exc:
+    except _CLI_DB_ERR as exc:
         logger.debug("Kegagalan tak terduga di run_config_wizard: %s", exc)
 
     print_status("Konfigurasi berhasil disimpan!", "success")
@@ -328,7 +344,7 @@ def _handle_web_mention(message: str) -> tuple[str, str]:
                     f"- {title.get_text(strip=True) if title else ''}: {snippet.get_text(strip=True)}"
                 )
         return query, "\n".join(snippets) if snippets else "Tidak ada hasil."
-    except Exception as e:
+    except _CLI_RAG_ERR as e:
         return query, f"Pencarian web gagal: {e}"
 
 
@@ -420,7 +436,7 @@ def handle_ask_command(args: argparse.Namespace) -> None:
                 cli.console.print(Markdown(resp))
             else:
                 print(resp)
-    except Exception as e:
+    except _CLI_PROC_ERR as e:
         print_status(f"Error AI: {e}", "error")
         sys.exit(1)
 
@@ -445,7 +461,7 @@ def handle_run_command(args: argparse.Namespace) -> None:
     except subprocess.TimeoutExpired:
         print_status("Perintah timeout setelah 120 detik.", "error")
         sys.exit(124)
-    except Exception as e:
+    except _CLI_PROC_ERR as e:
         print_status(f"Error eksekusi: {e}", "error")
         sys.exit(1)
 
@@ -654,7 +670,7 @@ Examples:
             from alfa.core.cli.server_manager import auto_start_all_servers
 
             auto_start_all_servers(verbose=True)
-        except Exception as e:
+        except _CLI_PROC_ERR as e:
             print_status(f"Server autostart info: {e}", "info")
 
     # Cek koneksi server jika mode auto atau server
@@ -669,7 +685,7 @@ Examples:
                 print_status(
                     f"Server ALFA merespons status code: {r.status_code}", "warning"
                 )
-        except Exception:
+        except _CLI_HTTP_ERR:
             if chosen_mode == "server":
                 print_status(
                     f"Tidak dapat terhubung ke server di {target_server}.", "error"

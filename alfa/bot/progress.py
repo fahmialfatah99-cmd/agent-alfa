@@ -14,7 +14,16 @@ import os
 import time
 from typing import Any
 
-from telegram.error import BadRequest, RetryAfter
+from telegram.error import BadRequest, RetryAfter, TelegramError
+
+#: Error realistis untuk pesan progres Telegram.
+_PRG_TG_ERR = (TelegramError, RuntimeError, ValueError, TypeError, TimeoutError, OSError)
+
+#: Error realistis untuk path live-feed.
+_PRG_FILE_ERR = (ImportError, AttributeError, OSError, ValueError, TypeError)
+
+#: Error realistis untuk task background.
+_PRG_TASK_ERR = (RuntimeError, ValueError, TypeError, asyncio.TimeoutError, OSError)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -79,7 +88,7 @@ class SwarmProgressReporter:
                 parse_mode="Markdown",
             )
             self.message_id = getattr(msg, "message_id", None)
-        except Exception as e:
+        except _PRG_TG_ERR as e:
             logger.warning(f"[progress] gagal kirim status awal: {e}")
             return
         self._last_edit = time.monotonic()
@@ -107,12 +116,12 @@ class SwarmProgressReporter:
             from alfa.swarm.workspace_hygiene import _get_swarm_output_dir
 
             return os.path.join(_get_swarm_output_dir(), "live_meeting_feed.jsonl")
-        except Exception:
+        except _PRG_FILE_ERR:
             try:
                 from alfa.swarm.workspace_hygiene import LIVE_FEED_FILE
 
                 return LIVE_FEED_FILE
-            except Exception:
+            except _PRG_FILE_ERR:
                 return ""
 
     def _feed_size(self) -> int:
@@ -226,7 +235,7 @@ class SwarmProgressReporter:
             else:
                 self._last_sent = text
             return
-        except Exception as e:
+        except _PRG_TG_ERR as e:
             logger.debug(f"[progress] edit gagal: {e}")
             return
         # Fallback tanpa Markdown bila parse gagal diam-diam (BadRequest sudah ditangani)
@@ -246,7 +255,7 @@ class SwarmProgressReporter:
             await self._edit(self._render(), force=True)
         except asyncio.CancelledError:
             pass
-        except Exception as e:
+        except _PRG_TASK_ERR as e:
             logger.debug(f"[progress] loop berhenti: {e}")
 
 
