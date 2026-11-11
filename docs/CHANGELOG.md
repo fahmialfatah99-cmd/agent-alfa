@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.0] — 2026-11-12
+
+Rilis struktur & coverage: dua monolit terakhir dipecah, jalur pesan utama bot
+kini terlindungi test.
+
+- **`alfa/memory/graph_rag.py` (1.298 baris) → paket 9 modul** — `_db`, `_llm`,
+  `extract`, `query`, `communities`, `context`, `consolidation`, `export`.
+- **`alfa/core/apex/software_factory.py` (1.090 baris) → paket 6 modul** —
+  `_heal`, `_db`, `_audit`, `_verify`, `_build`. Import path publik tetap.
+- **File >1.000 baris tersisa hanya 1**: `alfa/swarm/engine.py` (1.327) yang
+  **sengaja** tidak dipecah (namespace modulnya = kontrak 25 titik patch di test).
+- **Coverage jalur pesan utama bot**: `bot/handlers/messages.py` 39% → **50%**
+  lewat `tests/test_handlers_messages.py` (fast-path WA, sapaan instan, kartu
+  rekap + catatan basi, pesan normal via agent turn, voice note gagal).
+  Coverage total 61,2% → **61,4%**.
+- Test mock yang menyamar jadi benar: patch diarahkan ke atribut paket yang
+  dipakai lapisan `_compat` (`_is_authorized`, `_run_agent_turn`) — sebelumnya
+  test bisa hijau tanpa benar-benar menguji jalur yang dimaksud.
+
 ## [2.9.0] — 2026-11-12
 
 Rilis kualitas: utang exception dipersempit per-konteks di seluruh lapisan.
