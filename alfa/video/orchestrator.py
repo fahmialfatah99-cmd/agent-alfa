@@ -271,7 +271,17 @@ def generate_video_from_images(
         ]
 
     logger.info(f"Executing FFmpeg render: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True, timeout=600)
+    try:
+        subprocess.run(cmd, check=True, timeout=600)
+    except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as render_err:
+        # Kontrak error seragam dengan jalur cloud: kembalikan dict, jangan lempar.
+        logger.exception("Render FFmpeg gagal")
+        return {
+            "status": "error",
+            "engine": "local_pro_compositor",
+            "product_name": product_name,
+            "message": f"Render video gagal: {type(render_err).__name__}: {render_err}",
+        }
 
     duration_ms = round((time.time() - start_t) * 1000, 1)
     file_size_mb = round(os.path.getsize(final_video_path) / (1024 * 1024), 2)
