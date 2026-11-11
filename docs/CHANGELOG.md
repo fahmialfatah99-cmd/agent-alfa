@@ -24,6 +24,24 @@ Ringkasan (detail per fase di bawah):
 - **Kualitas**: 1.664 test, coverage 60,82%, 6 E2E test lintas-lapis,
   schema tool disatukan + anotasi string diresolusi (35 parameter).
 
+### Fase 4 — persempit blind except Exception di modul kritis (2026-11-11)
+- **Blind `except Exception` di modul kritis dipersempit** ke tuple error
+  spesifik per konteks (Telegram API, SQLite, subprocess, HTTP LLM, import):
+  `core/perm/gate.py`, `core/brain/{tool_exec,agentic,learning_loop}.py`,
+  `core/apex/{canary_evolution,software_factory,computer_use}.py`,
+  `core/db/{connection,tasks}.py`, `core/{metrics,notification,token_usage}.py`,
+  `swarm/{engine,llm_client,step_executor}.py`,
+  `tools/system/{execution,integrations/whatsapp}.py`.
+  Handler yang **wajib** luas (kode tool arbitrer, SDK LLM) diberi alasan
+  eksplisit, bukan dihapus.
+- **Budget lint TRY/BLE turun 988 → 899 instans** (dibekukan lewat
+  `scripts/lint_budget.py --apply`).
+- **Bug pollusi test yang sudah ada sebelumnya diperbaiki:**
+  `tests/test_security.py` meninggalkan entri `_PENDING` basi sehingga
+  `tests/test_critical_paths.py` gagal bila urutan file dibalik. Suite kini
+  tidak bergantung urutan.
+- **Rilis v2.7.0** (versi aplikasi 2.6.0 → 2.7.0) + tag `v2.7.0` di-push.
+
 ### Fase 3 overhaul — guard whitelist, config pack, gate exception senyap (2026-11-11)
 - **Boot guard: unrestricted wajib punya whitelist spesifik.**
   `ALFA_UNRESTRICTED=true` dengan `ALLOWED_USER_IDS` kosong/wildcard kini
