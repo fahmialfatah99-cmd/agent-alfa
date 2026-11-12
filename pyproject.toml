@@ -211,7 +211,11 @@ ignore = ["E501", "B006"]
 "alfa/scrapers/large_scale.py" = ["TRY400"]  # n=TRY400:1
 "alfa/security/net_guard.py" = ["TRY003"]  # n=TRY003:1
 "alfa/security/vault.py" = ["TRY003", "TRY400"]  # n=TRY003:7,TRY400:3
-"alfa/swarm/engine.py" = ["TRY400"]  # n=TRY400:2
+"alfa/swarm/engine/_state.py" = ["TRY003"]  # n=TRY003:1
+"alfa/swarm/engine/modes.py" = ["TRY003"]  # n=TRY003:1
+"alfa/swarm/engine/orchestrator.py" = ["TRY003"]  # n=TRY003:1
+"alfa/swarm/engine/parallel.py" = ["TRY003", "TRY400"]  # n=TRY003:1,TRY400:2
+"alfa/swarm/engine/tracing.py" = ["TRY003"]  # n=TRY003:1
 "alfa/swarm/llm_client.py" = ["TRY400"]  # n=TRY400:5
 "alfa/swarm/queue.py" = ["TRY003"]  # n=TRY003:1
 "alfa/swarm/step_executor.py" = ["TRY300"]  # n=TRY300:1
@@ -322,7 +326,13 @@ ignore = ["E501", "B006"]
 
 
 
+
+
+
 "alfa/bot/telegram_bot.py" = ["F401", "BLE001"]  # n=BLE001:2
+
+
+
 
 
 

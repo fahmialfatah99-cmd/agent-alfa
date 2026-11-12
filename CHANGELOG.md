@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] — 2026-11-12
+
+Rilis struktur: **monolit terakhir** (`alfa/swarm/engine.py`, 1.327 baris) dipecah
+menjadi paket tanpa merusak kontrak patch.
+
+- **`alfa/swarm/engine.py` → paket `alfa/swarm/engine/`** (`_state`, `modes`,
+  `tracing`, `parallel`, `orchestrator`).
+- **Kontrak patch test tetap utuh.** 26 nama yang dipatch di test
+  (`_cancel_requested`, `_execute_agent_step`, `_CHECKPOINT_AVAILABLE`,
+  `_SwarmCheckpoint`, `log_live`, `_MISSION_START`, ...) kini dibaca lewat
+  accessor/wrapper yang selalu meneruskan ke paket `alfa.swarm.engine`, sehingga
+  `patch("alfa.swarm.engine.X")` tetap memengaruhi pemanggil internal.
+  (Catatan: PEP 562 `__getattr__` ternyata **tidak** berlaku untuk lookup
+  global di dalam fungsi — dipakai wrapper eksplisit.)
+- **Tidak ada file >1.000 baris lagi** di `alfa/`; yang terbesar sekarang
+  `tools/telecom_tools/whatsapp.py` (996 baris).
+- Coverage `bot/handlers/messages.py` 39% -> 50%, `core/brain/agentic.py`
+  40% -> 70%, `tools/filesystem/universal_file_extractor.py` 46% -> 61%,
+  `tools/media/documents.py` 52% -> 62% (total 61,9%).
+
 ## [2.10.0] — 2026-11-12
 
 Rilis struktur & coverage: dua monolit terakhir dipecah, jalur pesan utama bot
