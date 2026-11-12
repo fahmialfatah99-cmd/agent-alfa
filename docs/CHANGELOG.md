@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.0] — 2026-11-12
+
+Rilis perbaikan: **dua bug produksi pada aksi dokumen 1-klik** diperbaiki dan
+dikunci dengan tes, plus jalur pemulihan dokumen yang kini tahan DB rusak.
+
+### Perbaikan
+
+- **Tombol "Buat Excel" tidak pernah berfungsi** (`alfa/bot/handlers/documents.py`):
+  kode mengimpor `alfa.tools.data.office_suite` yang **tidak ada** (modul nyata:
+  `alfa.tools.media.documents`), dan memakai parameter `headers_json` padahal
+  fungsi aslinya menerima `headers`. Setiap penekanan tombol jatuh ke jalur
+  error. Kini memakai modul & parameter yang benar.
+- **Impor builder gagal tidak lagi mematikan callback**: `ImportError`
+  ditambahkan ke `_DOC_FAST_ERR`, sehingga kegagalan fast-path selalu jatuh ke
+  jalur LLM (degradasi anggun) alih-alih melempar ke router.
+- **Pemulihan dokumen tahan DB hilang/rusak**: `_get_or_recover_recent_doc`
+  kini menangkap `sqlite3.Error`; sebelumnya DB baru/korup membuat handler
+  melempar `OperationalError` alih-alih mengembalikan `None`.
+
+### Tes
+
+- **`tests/test_handlers_documents.py` (27 tes baru, hermetik)**: cache
+  RAM/disk/SQLite (termasuk penanda batch), parser ringkasan→tabel, aksi
+  `docact:*` (PDF & Excel instan 0-token, fallback LLM, pembersihan sandbox,
+  prompt batch, pemotongan konteks panjang), eksekutor batch (satu/banyak
+  dokumen, multimodal, kegagalan LLM).
+- Coverage `alfa/bot/handlers/documents.py`: **41,5% → 71,1%**.
+- Total coverage repo: **62,9% → 63,1%**; total test **1.780 → 1.807**.
+
 ## [2.12.0] — 2026-11-12
 
 Rilis kualitas: **UI cloud (Sheets/Drive) kini 100% teruji** — permukaan yang

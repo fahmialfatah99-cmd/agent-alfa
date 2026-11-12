@@ -42,7 +42,8 @@ _DOC_FILE_ERR = (OSError, ValueError, UnicodeError, KeyError, TypeError)
 _DOC_DB_ERR = (sqlite3.Error, TypeError, ValueError)
 
 #: Error realistis untuk fast-path terkompilasi.
-_DOC_FAST_ERR = (RuntimeError, KeyError, TypeError, ValueError)
+#: Error realistis untuk fast-path terkompilasi (termasuk impor builder).
+_DOC_FAST_ERR = (RuntimeError, KeyError, TypeError, ValueError, ImportError)
 
 logger = logging.getLogger("TelegramAIAgent")
 
@@ -165,7 +166,7 @@ def _get_or_recover_recent_doc(chat_id: int, user_id: int = 0) -> dict[str, Any]
                     f"[_get_or_recover_recent_doc] Berhasil memulihkan dokumen '{file_name}' untuk chat_id={chat_id} dari chat_history (id={msg_id})."
                 )
                 return recovered
-    except _DOC_FILE_ERR as e:
+    except _DOC_FILE_ERR + _DOC_DB_ERR as e:
         logger.warning(f"[_get_or_recover_recent_doc] Gagal memulihkan dari SQLite: {e}")
     finally:
         if conn is not None:
@@ -278,13 +279,13 @@ async def handle_doc_action_callback(
                     )
                     return True
             elif action == "excel" and parsed_table:
-                from alfa.tools.data.office_suite import generate_excel_spreadsheet
+                from alfa.tools.media.documents import generate_excel_spreadsheet
 
                 out_xlsx_name = f"Rekap_Resmi_{base_stem}.xlsx"
                 res = generate_excel_spreadsheet(
                     filename=out_xlsx_name,
                     sheet_title="Rekap Dokumen",
-                    headers_json=json.dumps(parsed_table[0], ensure_ascii=False),
+                    headers=[str(h) for h in parsed_table[0]],
                     rows_json=json.dumps(parsed_table[1:], ensure_ascii=False),
                 )
                 if res.get("status") == "success":
