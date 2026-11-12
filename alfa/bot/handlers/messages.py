@@ -372,7 +372,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await database.save_chat_message(user_id, "user", user_text)
             await database.save_chat_message(user_id, "model", fast)
-        except _HANDLER_ERR as db_err:
+        except _MSG_DB_ERR as db_err:
             logger.debug(f"[greeting] simpan riwayat gagal: {db_err}")
         await safe_send_message(context, chat_id, fast)
         return
@@ -393,7 +393,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             try:
                 await database.save_chat_message(user_id, "user", user_text)
                 await database.save_chat_message(user_id, "model", fp_reply)
-            except _HANDLER_ERR:
+            except _MSG_DB_ERR:
                 pass
             await safe_send_message(context, chat_id, fp_reply)
             return
@@ -715,7 +715,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                         user_id, "user", f'[PESAN SUARA: "{transcription_text}"]'
                     )
                     await db_mod.save_chat_message(user_id, "model", fast)
-                except _HANDLER_ERR:
+                except _MSG_DB_ERR:
                     pass
                 reply = fast
             else:

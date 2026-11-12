@@ -23,7 +23,7 @@ class TestHealthAndOpenAPI:
             data = resp.json()
             assert data["status"] in ("healthy", "degraded")
             assert data["service"] == "alfa-sovereign-ai"
-            assert data["version"] == "2.14.0"
+            assert data["version"] == "2.15.0"
             assert "uptime_seconds" in data
             assert "memory_rss_mb" in data
 
@@ -42,7 +42,7 @@ class TestHealthAndOpenAPI:
         assert resp.status_code == 200
         schema = resp.json()
         assert schema["info"]["title"] == "ALFA Sovereign Command Center Pro-Max"
-        assert schema["info"]["version"] == "2.14.0"
+        assert schema["info"]["version"] == "2.15.0"
         assert "/api/v1/webhook/trigger" in schema["paths"]
         assert "/api/health" in schema["paths"]
 

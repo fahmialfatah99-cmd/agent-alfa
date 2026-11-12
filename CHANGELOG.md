@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] — 2026-11-12
+
+Rilis perbaikan + kualitas: **router pesan utama 94% teruji** dan satu kelas
+bug "pengguna tidak dibalas saat SQLite gagal" dibereskan.
+
+### Perbaikan
+
+- **Balasan tidak lagi hilang saat penyimpanan riwayat gagal**
+  (`alfa/bot/handlers/messages.py`): jalur sapaan instan, Apex fast-path, dan
+  sapaan hasil transkripsi voice memakai `except _HANDLER_ERR` yang **tidak**
+  mencakup `sqlite3.Error`. Saat DB terkunci/korup, exception lolos dan
+  pengguna tidak menerima balasan sama sekali. Kini memakai `_MSG_DB_ERR`
+  (mencakup `sqlite3.Error`) sehingga balasan tetap terkirim.
+
+### Tes
+
+- **`tests/test_handlers_messages_flows.py` (37 tes baru, hermetik)**:
+  batching pesan terusan (debounce, merge, pemakaian sekali, kedaluwarsa),
+  kartu rekap Lahat/Curup & briefing (sukses/gagal), pintasan menu/hub/status,
+  learning loop (koreksi, reinforcement, error ditelan), Apex fast-path,
+  reset kuota, mode SWARM (sukses, pendek→single, cancelled, gagal, cancel
+  paksa), kegagalan turn tunggal, fallback typing/streamer, mode balasan suara
+  (TTS, error, pembersihan berkas), dan seluruh jalur voice note
+  (transkripsi sukses/gagal/greeting/generic).
+- Coverage `alfa/bot/handlers/messages.py`: **50,3% → 94,2%**.
+- Total coverage repo: **63,4% → 63,9%**; total test **1.840 → 1.877**.
+
 ## [2.14.0] — 2026-11-12
 
 Rilis kualitas: **mesin giliran agent (`bot/turn_executor.py`) kini 96% teruji**
