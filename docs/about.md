@@ -6,7 +6,7 @@
 
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA%20OS-Level%205%2B%20Cognitive%20Apex-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
 [![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
-![Tests Passing](https://img.shields.io/badge/Tests-1465%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Tests Passing](https://img.shields.io/badge/Tests-1726%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
 ![Neuro Symbolic](https://img.shields.io/badge/Hallucination%20Guard-Neuro--Symbolic%20AST%20Prover-F59E0B?style=for-the-badge)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
@@ -22,6 +22,50 @@
 [Arsitektur Level 5+](#-arsitektur-sistem-level-5-cognitive-apex) • [5 Pilar Cognitive Apex](#-5-pilar-level-5-sovereign-cognitive-apex) • [Fitur Unggulan](#-fitur-unggulan) • [Struktur Proyek](#-struktur-direktori-proyek) • [Panduan Multi-OS](#-panduan-instalasi--menjalankan-multi-os) • [Perintah Telegram](#-daftar-perintah-telegram)
 
 </div>
+
+---
+
+## ✅ Status Terverifikasi & Batasan Jujur
+
+Bagian ini sengaja memisahkan **yang terukur** dari **yang klaim saja**.
+Semua angka di bawah dapat direproduksi di mesin ini.
+
+### Terverifikasi (reproduksi lokal, 2026-11-12 · rilis v2.10.0)
+
+| Aspek | Angka | Cara verifikasi |
+|---|---|---|
+| Test | **1.726 passed** (100%) | `venv/bin/python -m pytest -q` |
+| Coverage | **61,9%** (gate repo 55%) | `pytest --cov=alfa` |
+| Type safety | `mypy` **0 issue** di 332 file | `venv/bin/mypy alfa` |
+| Lint | `ruff` **bersih** (gate CI) | `venv/bin/ruff check .` |
+| Keamanan statis | `bandit -ll` **0 Medium/High** | `venv/bin/bandit -r alfa plugins -ll` |
+| Utang exception | budget TRY/BLE **505** (dari 988) + **0** `except Exception: pass` | `scripts/lint_budget.py --check`, `scripts/check_silent_exceptions.py` |
+| Secret | **0** di dalam repo (30 kunci privat di `~/.config/alfa/secrets.env`, mode 600) | `ls ~/.config/alfa/` |
+| Jembatan WhatsApp | live, `client_status=READY` | `curl http://127.0.0.1:3000/health` |
+
+### Batasan yang jujur kami nyatakan
+
+1. **Coverage 61,9%** — 38% sisanya adalah UI dashboard, kode scraping/
+   browser, dan koneksi ke pihak ketiga. Jalur kritikal (permission gate,
+   pesan utama bot, ekstraksi dokumen, orkestrator video) sudah diuji; sisanya
+   belum.
+2. **Multi-agent & model** — kualitas jawaban bergantung pada LLM dan
+  eterministic; angka *offline* (`evals/`) menguji **routing**, bukan mutu
+   jawaban. Belum ada perbandingan kuantitatif dengan framework lain.
+3. **Arsitektur** — satu mesin, satu berkas SQLite (72 tabel), tanpa HA,
+   tanpa isolasi multi-tenant, tanpa DR otomatis. Cocok untuk **satu operator**;
+   bukan produk multi-penyewa.
+4. **WhatsApp Web Automation** — memakai Puppeteer + `whatsapp-web.js`. WhatsApp
+   Web **menolak** browser headless (per 11 Nov 2026) → bot WA harus berjalan
+   *headful* (di sini lewat Xvfb) dan **perlu dipelihara** saat WhatsApp
+   memperbarui web client-nya.
+5. **Mode `ALFA_UNRESTRICTED=true`** — di produksi masih aktif (disadari
+   eksplisit operator). Boot guard menolak mode ini bila `ALLOWED_USER_IDS`
+   kosong/wildcard, jadi risikonya dibatasi whitelist.
+6. **Sisa technical debt yang disengaja** — `alfa/swarm/engine.py` (1.327 baris)
+   tetap monolit karena namespace modulnya dipakai 25 titik patch di test;
+   101 handler `except Exception` tersisa di jalur LLM/browser/GUI/display yang
+   memang bisa melempar error apa pun (semuanya **beku** oleh gate CI).
 
 ---
 

@@ -8,13 +8,17 @@ reasoning, memory, safety, system, media, agent). Dua mode:
 - **Live** (pakai kuota Gemini): prompt dieksekusi via `bot.run_agent_turn`,
   dinilai `checks` (contains/regex/length/refusal).
 
-## Hasil terakhir (2026-10-14, terverifikasi lokal)
+## Hasil terakhir (2026-11-12, terverifikasi lokal)
 
 - Offline: **20/20 PASS** (`python evals/run_evals.py`)
 - Suite `alfa.eval`: ToolSelection 2 + MemoryRetrieval 1 + AgenticLoop 1 +
   ScenarioFile 20 skenario
-- Unit/integrasi: **780 passed** (`pytest`), ruff + bandit (`-ll`) + `pip-audit`
-  bersih, mypy 1.8.0 = 7 ≤ budget 33
+- Unit/integrasi: **1.726 test passed** (`pytest`), coverage **61,9%**
+  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 332 file,
+  `bandit -ll` **0 Medium/High**, `pip-audit` bersih
+- Gerbang Debt: budget TRY/BLE **505 instans** (dari 988 saat overhaul
+  dimulai) & 0 handler `except Exception: pass` (gate CI)
+- Rilis: **v2.10.0**
 
 ## Reproduksi
 
