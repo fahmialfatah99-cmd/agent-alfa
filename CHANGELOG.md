@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] — 2026-11-12
+
+Rilis kualitas: **UI cloud (Sheets/Drive) kini 100% teruji** — permukaan yang
+paling sering dipakai operator dan sebelumnya hanya 39% coverage.
+
+- **`tests/test_cloud_menu_render.py` (54 tes baru, hermetik)**:
+  - helper & format (ikon semua tipe, truncation, cache sticky/TTL),
+  - render Cloud Hub, Sheets (home/tab/semua/selection), Drive
+    (home/cloud files/detail), mount lokal (files/detail/paginasi),
+  - `_edit_or_send` untuk 4 jalur (edit sukses, "not modified", `RetryAfter`,
+    error tak terduga → fallback kirim),
+  - router `cx|*` (auth ditolak, semua domain, `set` sheet, error render
+    tertangkap & tidak dilempar), slash command `/sheets` `/drive` `/cloud`.
+- Coverage `alfa/bot/cloud_menu.py`: **39% → 100%**.
+- Total coverage repo: **61,9% → 62,9%**; total test **1.726 → 1.780**.
+
 ## [2.11.0] — 2026-11-12
 
 Rilis struktur: **monolit terakhir** (`alfa/swarm/engine.py`, 1.327 baris) dipecah
