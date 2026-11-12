@@ -16,6 +16,8 @@ gate, router model, dan pipeline. Yang diuji adalah *kontrak perilaku*:
 
 from __future__ import annotations
 
+import asyncio
+import os
 import sqlite3
 import time
 from types import SimpleNamespace
@@ -296,6 +298,11 @@ class TestToolLoop:
         reply = await te._run_agent_turn_impl(42, "baca file", chat_id=99)
         assert reply == "Selesai membaca"
         assert env.brain.executed == [("baca_file", '{"path": "/x"}')]
+        from alfa.core.runtime_ctx import get_current_executed_tool_calls
+
+        assert get_current_executed_tool_calls() == [
+            {"tool": "baca_file", "args": '{"path": "/x"}'}
+        ]
         # respons fungsi dikirim kembali ke model pada panggilan kedua
         second_parts = env.models.calls[1]["contents"][-1].parts
         assert second_parts[0].function_response.name == "baca_file"
@@ -658,6 +665,63 @@ class TestWrapperMetrics:
         with pytest.raises(_ModelDownError):
             await te.run_agent_turn(42, "halo")
         assert finished == [False]
+
+    async def test_artifact_guard_flags_unpersisted_claim(
+        self, monkeypatch, tmp_path
+    ):
+        finished = []
+        monkeypatch.setattr("alfa.core.metrics.note_turn_started", lambda: None)
+        monkeypatch.setattr(
+            "alfa.core.metrics.note_turn_finished", lambda ok: finished.append(ok)
+        )
+        path = tmp_path / "rekap.txt"
+        path.write_text("lama", encoding="utf-8")
+        old = time.time() - 600
+        os.utime(path, (old, old))
+        claim = f"File master sudah selesai aku perbarui di `{path}`."
+        monkeypatch.setattr(
+            te, "_run_agent_turn_impl", AsyncMock(return_value=claim)
+        )
+
+        result = await te.run_agent_turn(42, "update", chat_id=99)
+
+        assert result.startswith(claim)
+        assert "Verifikasi otomatis" in result
+        assert finished == [False]
+
+    async def test_same_chat_turns_are_serialized(self, monkeypatch):
+        order: list[str] = []
+
+        async def impl(*_a, **_k):
+            order.append("start")
+            await asyncio.sleep(0.05)
+            order.append("end")
+            return "ok"
+
+        monkeypatch.setattr(te, "_run_agent_turn_impl", impl)
+        await asyncio.gather(
+            te.run_agent_turn(42, "a", chat_id=7),
+            te.run_agent_turn(42, "b", chat_id=7),
+        )
+        assert order == ["start", "end", "start", "end"]
+
+    async def test_different_chats_run_in_parallel(self, monkeypatch):
+        both_started = asyncio.Event()
+        count = 0
+
+        async def impl(*_a, **_k):
+            nonlocal count
+            count += 1
+            if count == 2:
+                both_started.set()
+            await asyncio.wait_for(both_started.wait(), timeout=1.0)
+            return "ok"
+
+        monkeypatch.setattr(te, "_run_agent_turn_impl", impl)
+        await asyncio.gather(
+            te.run_agent_turn(42, "a", chat_id=1),
+            te.run_agent_turn(42, "b", chat_id=2),
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

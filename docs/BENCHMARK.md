@@ -13,12 +13,14 @@ reasoning, memory, safety, system, media, agent). Dua mode:
 - Offline: **20/20 PASS** (`python evals/run_evals.py`)
 - Suite `alfa.eval`: ToolSelection 2 + MemoryRetrieval 1 + AgenticLoop 1 +
   ScenarioFile 20 skenario
-- Unit/integrasi: **1.901 test passed** (`pytest`), coverage **64,3%**
-  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 332 file,
+- Unit/integrasi: **1.919 test passed** (`pytest`), coverage **64,4%**
+  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 338 file,
   `bandit -ll` **0 Medium/High**, `pip-audit` bersih
-- Gerbang Debt: budget TRY/BLE **505 instans** (dari 988 saat overhaul
+- Guard kepercayaan: klaim mutasi file diverifikasi (keberadaan, `mtime`,
+  sheet Excel) sebelum balasan dikirim; turn per-chat diserialisasi.
+- Gerbang Debt: budget TRY/BLE **510 instans** (dari 988 saat overhaul
   dimulai) & 0 handler `except Exception: pass` (gate CI)
-- Rilis: **v2.16.0**
+- Rilis: **v2.17.0**
 
 ## Reproduksi
 

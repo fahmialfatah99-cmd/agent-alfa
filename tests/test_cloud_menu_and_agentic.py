@@ -124,10 +124,15 @@ class TestAgenticGateFailClosed:
 
     async def test_run_tool_calls_preserves_order(self):
         from alfa.core.brain import agentic
+        from alfa.core.runtime_ctx import (
+            get_current_executed_tool_calls,
+            reset_turn_context,
+        )
 
         async def _allow(name, args):
             return None
 
+        reset_turn_context()
         calls = [
             {"function": {"name": "a", "arguments": "{}"}},
             {"function": {"name": "b", "arguments": "{}"}},
@@ -135,6 +140,10 @@ class TestAgenticGateFailClosed:
         with patch.object(agentic, "_execute_tool", side_effect=lambda n, a: f"out-{n}"):
             out = await agentic._run_tool_calls(_allow, calls)
         assert out == ["out-a", "out-b"]
+        assert get_current_executed_tool_calls() == [
+            {"tool": "a", "args": "{}"},
+            {"tool": "b", "args": "{}"},
+        ]
 
 
 class TestAgenticHelpers:

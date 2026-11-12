@@ -6,7 +6,7 @@
 
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA%20OS-Level%205%2B%20Cognitive%20Apex-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
 [![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
-![Tests Passing](https://img.shields.io/badge/Tests-1901%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Tests Passing](https://img.shields.io/badge/Tests-1919%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
 ![Neuro Symbolic](https://img.shields.io/badge/Hallucination%20Guard-Neuro--Symbolic%20AST%20Prover-F59E0B?style=for-the-badge)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
@@ -30,16 +30,16 @@
 Bagian ini sengaja memisahkan **yang terukur** dari **yang klaim saja**.
 Semua angka di bawah dapat direproduksi di mesin ini.
 
-### Terverifikasi (reproduksi lokal, 2026-11-12 · rilis v2.10.0)
+### Terverifikasi (reproduksi lokal, 2026-11-12 · rilis v2.17.0)
 
 | Aspek | Angka | Cara verifikasi |
 |---|---|---|
-| Test | **1.901 passed** (100%) | `venv/bin/python -m pytest -q` |
-| Coverage | **64,3%** (gate repo 55%) | `pytest --cov=alfa` |
-| Type safety | `mypy` **0 issue** di 332 file | `venv/bin/mypy alfa` |
+| Test | **1.919 passed** (100%) | `venv/bin/python -m pytest -q` |
+| Coverage | **64,4%** (gate repo 55%) | `pytest --cov=alfa` |
+| Type safety | `mypy` **0 issue** di 338 file | `venv/bin/mypy alfa` |
 | Lint | `ruff` **bersih** (gate CI) | `venv/bin/ruff check .` |
 | Keamanan statis | `bandit -ll` **0 Medium/High** | `venv/bin/bandit -r alfa plugins -ll` |
-| Utang exception | budget TRY/BLE **505** (dari 988) + **0** `except Exception: pass` | `scripts/lint_budget.py --check`, `scripts/check_silent_exceptions.py` |
+| Utang exception | budget TRY/BLE **510** (dari 988) + **0** `except Exception: pass` | `scripts/lint_budget.py --check`, `scripts/check_silent_exceptions.py` |
 | Secret | **0** di dalam repo (30 kunci privat di `~/.config/alfa/secrets.env`, mode 600) | `ls ~/.config/alfa/` |
 | Jembatan WhatsApp | live, `client_status=READY` | `curl http://127.0.0.1:3000/health` |
 
@@ -200,7 +200,7 @@ agent-alfa/
 │       ├── system/               # Telemetri RAM, WhatsApp bridge, REA v6.7.0 & Android ADB
 │       └── web/                  # Live web search, Crawl4AI, Scrapling, deep scrapers
 ├── docs/                    # Dokumentasi instalasi dan arsitektur
-├── tests/                   # 1.465+ unit dan integration test suite (termasuk Level 5+ Apex)
+├── tests/                   # 1.900+ unit dan integration test suite (termasuk Level 5+ Apex)
 ├── AGENTS.md                # Aturan mutlak pengembangan & Zero Regression policy
 ├── setup.sh / run.sh        # Skrip inisialisasi & startup runner otomatis
 └── pyproject.toml           # Konfigurasi dependensi Python & pytest

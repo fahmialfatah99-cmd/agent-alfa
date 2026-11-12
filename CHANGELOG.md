@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-11-12
+
+Rilis kepercayaan: **klaim "file sudah diperbarui" kini diverifikasi**, dua
+giliran tidak lagi berjalan tumpang tindih, dan audit trail menyimpan argumen
+tool (teredaksi).
+
+### Perbaikan
+
+- **Guard verifikasi artefak** (`alfa/core/brain/artifact_verify.py`):
+  sebelum balasan dikirim, klaim mutasi file diverifikasi secara deterministik
+  — file harus ada, `mtime` harus berada di dalam jendela giliran, dan sheet
+  Excel yang diklaim harus benar-benar ada. Jika tidak terbukti, balasan diberi
+  peringatan tegas. Guard fail-safe (error verifikasi tidak mematikan turn) dan
+  idempoten (aman dipanggil di dua lapisan).
+- **Serialisasi giliran per chat** (`alfa/bot/turn_executor.py`): lock per
+  `chat_id` mencegah dua turn (mis. dua foto berurutan) menulis/membalas
+  bersamaan. Lock dipisah per event loop agar aman di tes.
+- **Audit trail argumen tool** (`alfa/core/runtime_ctx.py`, `agentic.py`,
+  `tool_exec.py`, `turn_executor.py`): `agent_trajectories.tool_calls_json`
+  kini menyimpan `{"tool": ..., "args": ...}` dengan redaksi rahasia dan
+  pemotongan 400 karakter. Jalur Gemini dan OpenAI-compatible sama-sama
+  tercatat.
+- **Guard lapis kedua** (`alfa/bot/handlers/common.py`): peringatan verifikasi
+  tetap dipertahankan bila audit learning-loop mengganti teks balasan.
+
+### Kualitas
+
+- `tests/test_artifact_verify.py` (10 tes), `tests/test_runtime_ctx.py` (5 tes),
+  3 tes baru di `tests/test_turn_executor.py`, plus asersi audit args di
+  `tests/test_cloud_menu_and_agentic.py`.
+- Total test: **1.901 → 1.919**; coverage `alfa/`: **64,3% → 64,4%**.
+- `artifact_verify.py` 88,8%; `runtime_ctx.py` 94,9%; `turn_executor.py` 96,4%.
+- `ruff` bersih, `mypy` 0 issue di 338 file, `bandit -ll` 0 Medium/High,
+  budget TRY/BLE tetap **510**, 0 `except Exception: pass`.
+
 ## [2.16.0] — 2026-11-12
 
 Rilis kualitas: **dokumen lapangan telecom 92% teruji** — alur bisnis inti

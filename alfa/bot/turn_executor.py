@@ -9,7 +9,9 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from typing import Any
+from weakref import WeakKeyDictionary
 
 from alfa.bot.config import (
     MEETING_INTENT_KEYWORDS,
@@ -50,6 +52,7 @@ from alfa.bot.streamer import TelegramStreamer
 from alfa.core import brain as main_brain
 from alfa.core import database, token_usage
 from alfa.core import permissions as permission_gate
+from alfa.core.brain.artifact_verify import apply_artifact_guard
 from alfa.core.runtime_ctx import reset_turn_context
 from alfa.tools import (
     current_chat_id_var,
@@ -401,7 +404,10 @@ async def _run_agent_turn_impl(
 
                     for fc in fcs:
                         _executed.append(fc.name)
-                        record_executed_tool(fc.name)
+                        _fc_args = json.dumps(
+                            dict(fc.args or {}), ensure_ascii=False, default=str
+                        )
+                        record_executed_tool(fc.name, _fc_args)
                     from alfa.core.brain.agentic import _parallel_tools_allowed
                     from alfa.core.tuning import truncate_middle
 
@@ -634,6 +640,28 @@ async def _run_agent_turn_impl(
 
 
 # ═════ PUBLIC ENTRY + OBSERVABILITY TURN METRICS ══════════════════════════════
+#: Kunci per-chat agar dua giliran (mis. dua foto berurutan) tidak berjalan
+#: bersamaan dan menghasilkan balasan yang saling tumpang tindih. Kunci
+#: dipisah per event loop supaya aman dipakai ulang di beberapa loop (tes).
+_TURN_LOCKS: WeakKeyDictionary[
+    asyncio.AbstractEventLoop, dict[int, asyncio.Lock]
+] = WeakKeyDictionary()
+
+
+def _get_turn_lock(chat_key: int) -> asyncio.Lock:
+    """Ambil (atau buat) lock giliran untuk satu chat pada loop aktif."""
+    loop = asyncio.get_running_loop()
+    locks = _TURN_LOCKS.get(loop)
+    if locks is None:
+        locks = {}
+        _TURN_LOCKS[loop] = locks
+    lock = locks.get(chat_key)
+    if lock is None:
+        lock = asyncio.Lock()
+        locks[chat_key] = lock
+    return lock
+
+
 async def run_agent_turn(
     user_id: int,
     user_prompt: str,
@@ -645,27 +673,34 @@ async def run_agent_turn(
 ) -> str:
     """Jalankan satu giliran agent (dokumen lengkap di `_run_agent_turn_impl`).
 
-    Wrapper publik menambahkan telemetri turn (mulai/selesai/gagal) yang
-    terekspose via ``/api/metrics`` → ``alfa.core.metrics.snapshot()``.
+    Wrapper publik menambahkan:
+    - serialisasi per-chat (mencegah dua giliran tumpang tindih),
+    - telemetri turn (mulai/selesai/gagal) via ``/api/metrics``,
+    - verifikasi klaim artefak sebelum balasan dikembalikan.
     """
     from alfa.core.metrics import note_turn_finished, note_turn_started
 
-    note_turn_started()
-    try:
-        result = await _run_agent_turn_impl(
-            user_id,
-            user_prompt,
-            multimodal_parts=multimodal_parts,
-            chat_id=chat_id,
-            override_model=override_model,
-            override_key_id=override_key_id,
-            streamer=streamer,
-        )
-    except _TE_STREAM_ERR:
-        note_turn_finished(False)
-        raise
-    note_turn_finished(ok=not result.startswith(("❌", "⚠️")))
-    return result
+    chat_key = chat_id if chat_id is not None else user_id
+    lock = _get_turn_lock(chat_key)
+    async with lock:
+        turn_started_at = time.time()
+        note_turn_started()
+        try:
+            result = await _run_agent_turn_impl(
+                user_id,
+                user_prompt,
+                multimodal_parts=multimodal_parts,
+                chat_id=chat_id,
+                override_model=override_model,
+                override_key_id=override_key_id,
+                streamer=streamer,
+            )
+        except _TE_STREAM_ERR:
+            note_turn_finished(False)
+            raise
+        result, issues = apply_artifact_guard(result, turn_started_at)
+        note_turn_finished(ok=not issues and not result.startswith(("❌", "⚠️")))
+        return result
 
 
 __all__ = [

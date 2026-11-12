@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import time
 
 from telegram.ext import ContextTypes
 
@@ -50,6 +51,7 @@ def _is_authorized(user_id: int) -> bool:
     return is_authorized(user_id)
 
 async def _run_agent_turn(*args, **kwargs):
+    turn_started_at = time.time()
     mod = bot_module()
     if mod and hasattr(mod, "run_agent_turn"):
         raw_res = await mod.run_agent_turn(*args, **kwargs)
@@ -63,10 +65,14 @@ async def _run_agent_turn(*args, **kwargs):
             audit_against_learned_skills,
             record_trajectory,
         )
-        from alfa.core.runtime_ctx import get_current_executed_tools
+        from alfa.core.runtime_ctx import (
+            get_current_executed_tool_calls,
+            get_current_executed_tools,
+        )
 
         user_p = kwargs.get("user_prompt") or (args[1] if len(args) > 1 else "")
         exec_tools = get_current_executed_tools()
+        exec_tool_calls = get_current_executed_tool_calls()
         if isinstance(raw_res, str):
             is_valid, msg, corrected = audit_against_learned_skills(user_p, raw_res)
             if not is_valid and corrected:
@@ -74,13 +80,23 @@ async def _run_agent_turn(*args, **kwargs):
                 raw_res = corrected
             record_trajectory(
                 user_prompt=user_p,
-                tool_calls=[{"tool": t} for t in exec_tools],
+                tool_calls=exec_tool_calls or [{"tool": t} for t in exec_tools],
                 result_summary=raw_res[:200],
                 success=True,
             )
             ingest_text_to_temporal_graph(raw_res)
     except Exception as e:
         logger.debug("Learning loop audit bypass: %s", e)
+
+    # Guard lapis kedua: pastikan peringatan verifikasi artefak tidak hilang
+    # bila audit learning-loop mengganti teks balasan di atas.
+    try:
+        from alfa.core.brain.artifact_verify import apply_artifact_guard
+
+        if isinstance(raw_res, str):
+            raw_res, _ = apply_artifact_guard(raw_res, turn_started_at)
+    except Exception as e:  # noqa: BLE001 - guard tidak boleh mematikan turn
+        logger.debug("Artifact guard bypass: %s", e)
 
     return raw_res
 

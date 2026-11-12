@@ -78,7 +78,14 @@ async def _run_tool_calls(approval_gate, tool_calls: list[dict]) -> list[str]:
     async def _one(tc: dict) -> str:
         fn = tc.get("function", {}) or {}
         name = fn.get("name", "")
-        out = await _resolve_tool_outcome(approval_gate, name, fn.get("arguments", "{}"))
+        raw_args = fn.get("arguments", "{}")
+        try:
+            from alfa.core.runtime_ctx import record_executed_tool
+
+            record_executed_tool(name, raw_args)
+        except (ImportError, AttributeError, TypeError):
+            pass
+        out = await _resolve_tool_outcome(approval_gate, name, raw_args)
         logger.info(f"[MainBrain] tool {name} -> {str(out)[:80]}")
         return out
 

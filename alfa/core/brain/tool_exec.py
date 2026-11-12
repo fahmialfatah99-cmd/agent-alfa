@@ -208,7 +208,7 @@ def _execute_tool(name: str, arguments_json: str) -> str:
                     record_executed_tool,
                     record_turn_artifact,
                 )
-                record_executed_tool(name)
+                record_executed_tool(name, arguments_json)
                 if isinstance(raw, dict):
                     for k in ("file_path", "output_path", "zip_path", "target_path", "image_path", "pdf_path"):
                         v = raw.get(k)
