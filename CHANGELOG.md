@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] — 2026-11-12
+
+Rilis kualitas: **mesin giliran agent (`bot/turn_executor.py`) kini 96% teruji**
+(sebelumnya 50,7%) — jalur yang dilalui SETIAP pesan pengguna.
+
+- **`tests/test_turn_executor.py` (33 tes baru, hermetik)**: kunci API hilang,
+  provider non-Gemini + fallback-nya, fast-path konversi berkas (0 token),
+  pemangkasan riwayat panjang, kegagalan compaction, tool loop (eksekusi,
+  penolakan gate, gate error fail-closed, tanpa gate, paralel, timeout,
+  exception tool jadi payload error), streaming + fallback, wrap-up saat model
+  bisu, fallback kunci vault, penandaan circuit breaker 429, dan telemetri
+  wrapper `run_agent_turn`.
+- Coverage `alfa/bot/turn_executor.py`: **50,7% → 96,1%**.
+- Total coverage repo: **63,1% → 63,4%**; total test **1.807 → 1.840**.
+
 ## [2.13.0] — 2026-11-12
 
 Rilis perbaikan: **dua bug produksi pada aksi dokumen 1-klik** diperbaiki dan
