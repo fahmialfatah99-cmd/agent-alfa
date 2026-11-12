@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] — 2026-11-12
+
+Rilis kualitas: **dokumen lapangan telecom 92% teruji** — alur bisnis inti
+(Surat Jalan/DO, voice note mandor, inspeksi foto) yang sebelumnya 37%.
+
+- **`tests/test_telecom_documents.py` (24 tes baru, hermetik)**:
+  - transkripsi voice note: kunci Gemini, JSON ber-fence, JSON rusak, fallback
+    faster-whisper lokal, error berlapis;
+  - ekstraksi entitas fallback lokal (kabel meter, tiang, FDT/FAT, kendala);
+  - Delivery Order: PDF teks digital (nomor/tanggal/tujuan/item), PDF rusak,
+    OCR vision gambar, tanpa kunci, JSON vision rusak, pencocokan BOQ
+    (`SUFFICIENT`/`PARTIAL`/`EXTRA`);
+  - inspeksi surat jalan: berkas hilang, ekstensi tak didukung, berkas tak
+    terbaca, vision sukses, fallback heuristik, input PDF via fitz.
+- Coverage `alfa/tools/telecom_tools/documents.py`: **37% → 91,8%**.
+- Total coverage repo: **63,9% → 64,3%**; total test **1.877 → 1.901**.
+
 ## [2.15.0] — 2026-11-12
 
 Rilis perbaikan + kualitas: **router pesan utama 94% teruji** dan satu kelas
