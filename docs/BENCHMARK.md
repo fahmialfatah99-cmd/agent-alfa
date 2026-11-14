@@ -13,18 +13,25 @@ reasoning, memory, safety, system, media, agent). Dua mode:
 - Offline: **20/20 PASS** (`python evals/run_evals.py`)
 - Suite `alfa.eval`: ToolSelection 2 + MemoryRetrieval 1 + AgenticLoop 1 +
   ScenarioFile 20 skenario
-- Unit/integrasi: **1.943 test passed** (`pytest`), coverage **64,62%**
-  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 339 file,
+- Unit/integrasi: **1.975 test passed** (`pytest`), coverage **64,93%**
+  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 342 file,
   `bandit -ll` **0 Medium/High**, `pip-audit` bersih
 - Guard kepercayaan: klaim mutasi file diverifikasi (keberadaan, `mtime`,
   sheet Excel) sebelum balasan dikirim; turn per-chat diserialisasi; klaim
   atribusi tool/library di-grounding ke catatan eksekusi turn.
+- Evidence ledger: setiap tool yang menyentuh artefak mencatat path, SHA-256,
+  ukuran, status, dan `turn_id`; mode default `shadow`, retensi 90 hari /
+  100.000 baris, dan API read-only `GET /api/v1/trust/*`.
 - Edit Excel: `update_excel_sheet` menulis atomik (temp + replace), membuat
   backup, membuka ulang workbook, dan memverifikasi sheet/header/jumlah baris
-  sebelum melaporkan sukses; file asli dipulihkan bila verifikasi gagal.
+  sebelum melaporkan sukses; `dry_run=True` memberi diff deterministik tanpa
+  menulis, `keep_backup=True` + `restore_excel_backup` menyediakan undo.
+- Context governor: kompaksi legacy dipertahankan; mode `on` menambah
+  head+tail adaptif, hard budget, dan pemangkasan output tool baru. Statistik
+  penghematan karakter/estimasi token tersedia via `/api/v1/trust/context`.
 - Gerbang Debt: budget TRY/BLE **510 instans** (dari 988 saat overhaul
   dimulai) & 0 handler `except Exception: pass` (gate CI)
-- Rilis: **v2.18.0**
+- Rilis: **v2.19.0**
 
 ## Reproduksi
 

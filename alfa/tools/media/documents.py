@@ -3,6 +3,7 @@ Office documents (Excel, PowerPoint), dataset analysis/charts, and text translat
 """
 
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -34,6 +35,13 @@ class _ExcelRowsTypeError(TypeError):
 
     def __init__(self) -> None:
         super().__init__("rows_json harus berupa array JSON.")
+
+
+class _ExcelRestoreError(ValueError):
+    """Workbook hasil restore tidak lolos verifikasi."""
+
+    def __init__(self) -> None:
+        super().__init__("workbook hasil restore tidak memiliki sheet")
 
 
 #: Error realistis saat membaca/menulis workbook Excel.
@@ -233,6 +241,174 @@ def _normalize_excel_rows(raw_rows: list[Any], headers: list[str]) -> list[list[
     return normalized
 
 
+def _xl_json_safe(value: Any) -> Any:
+    """Nilai JSON-safe untuk preview diff (tanpa objek openpyxl)."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+def _xl_sha256(path: Path) -> tuple[str, int]:
+    """Hash + ukuran file untuk preview (tanpa membaca seluruh file raksasa)."""
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return "", 0
+    if size > 64 * 1024 * 1024:
+        return "", size
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return "", size
+    return digest.hexdigest(), size
+
+
+def _excel_snapshot(
+    path: Path,
+    sheet_name: str,
+    max_rows: int = 300,
+) -> dict[str, Any]:
+    """Snapshot read-only workbook untuk dry-run (tidak pernah menulis)."""
+    import openpyxl
+
+    snapshot: dict[str, Any] = {
+        "_path": str(path),
+        "exists": path.exists(),
+        "sheets": [],
+        "sheet_exists": False,
+        "headers": [],
+        "rows": [],
+        "max_row": 0,
+        "max_column": 0,
+        "has_content": False,
+    }
+    if not snapshot["exists"]:
+        return snapshot
+    wb = openpyxl.load_workbook(
+        path,
+        read_only=True,
+        data_only=False,
+        keep_vba=path.suffix.lower() == ".xlsm",
+    )
+    try:
+        snapshot["sheets"] = list(wb.sheetnames)
+        if sheet_name not in wb.sheetnames:
+            return snapshot
+        ws = wb[sheet_name]
+        rows: list[list[Any]] = []
+        for index, row in enumerate(ws.iter_rows(values_only=True), 1):
+            if index > max_rows:
+                break
+            rows.append([_xl_json_safe(value) for value in row])
+        snapshot["sheet_exists"] = True
+        snapshot["rows"] = rows
+        snapshot["max_row"] = int(ws.max_row or len(rows))
+        snapshot["max_column"] = int(ws.max_column or 0)
+        snapshot["headers"] = list(rows[0]) if rows else []
+        first_cell = rows[0][0] if rows and rows[0] else None
+        snapshot["has_content"] = (
+            snapshot["max_row"] > 1
+            or snapshot["max_column"] > 1
+            or first_cell not in (None, "")
+        )
+        return snapshot
+    finally:
+        wb.close()
+
+
+def _build_excel_diff(
+    snapshot: dict[str, Any],
+    sheet_name: str,
+    headers: list[str],
+    rows_data: list[list[Any]],
+    mode: str,
+    title: str,
+) -> dict[str, Any]:
+    """Diff deterministik berbasis nilai (bukan estimasi LLM)."""
+    safe_rows = [
+        [_xl_json_safe(value) for value in row] for row in rows_data
+    ]
+    existing_rows = list(snapshot.get("rows") or [])
+    sheet_exists = bool(snapshot.get("sheet_exists"))
+    has_content = bool(snapshot.get("has_content"))
+    title_text = str(title or "").strip()
+
+    if not sheet_exists:
+        action = "create_sheet"
+    elif mode == "append" and has_content:
+        action = "append_rows"
+    else:
+        action = "replace_sheet"
+
+    if action == "append_rows":
+        headers_after = headers or list(snapshot.get("headers") or [])
+        rows_added = len(safe_rows)
+        projected_tail = (existing_rows + safe_rows)[-5:]
+        rows_removed = 0
+    else:
+        headers_after = headers
+        rows_added = len(safe_rows)
+        existing_data = existing_rows[1:] if existing_rows else []
+        rows_removed = max(0, len(existing_data) - len(safe_rows))
+        projected_tail = safe_rows[-5:]
+
+    projected: list[list[Any]] = []
+    if title_text:
+        projected.append([title_text])
+    if headers_after:
+        projected.append([_xl_json_safe(value) for value in headers_after])
+    projected.extend(safe_rows)
+
+    if action == "append_rows":
+        changed = bool(safe_rows or title_text)
+    elif sheet_exists:
+        changed = projected != existing_rows
+    else:
+        changed = bool(projected)
+
+    summary_parts = []
+    if action == "create_sheet":
+        summary_parts.append(f"buat sheet baru '{sheet_name}'")
+    elif action == "append_rows":
+        summary_parts.append(f"tambah {rows_added} baris ke sheet '{sheet_name}'")
+    else:
+        summary_parts.append(f"ganti isi sheet '{sheet_name}'")
+    if headers:
+        summary_parts.append(f"header {len(headers)} kolom")
+    if title_text:
+        summary_parts.append("tambah baris judul")
+    if rows_removed:
+        summary_parts.append(f"±{rows_removed} baris lama tergantikan")
+    if not changed:
+        summary_parts.append("tidak ada perubahan nilai terdeteksi")
+
+    sha256, size_bytes = ("", 0)
+    if snapshot.get("_path"):
+        sha256, size_bytes = _xl_sha256(Path(str(snapshot["_path"])))
+    return {
+        "action": action,
+        "sheet": sheet_name,
+        "mode": mode,
+        "changed": changed,
+        "file_exists": bool(snapshot.get("exists")),
+        "sheet_existed": sheet_exists,
+        "file_sha256": sha256,
+        "file_size_bytes": int(size_bytes),
+        "sheets_before": list(snapshot.get("sheets") or []),
+        "headers_before": list(snapshot.get("headers") or []),
+        "headers_after": list(headers_after),
+        "row_count_before": int(snapshot.get("max_row") or 0),
+        "rows_added": rows_added,
+        "rows_removed": rows_removed,
+        "sample_before": existing_rows[-5:],
+        "sample_after": projected_tail,
+        "summary": ", ".join(summary_parts),
+    }
+
+
 def _verify_excel_sheet(
     path: Path,
     sheet_name: str,
@@ -284,6 +460,8 @@ def update_excel_sheet(
     rows_json: str = "",
     mode: str = "upsert",
     title: str = "",
+    dry_run: bool = False,
+    keep_backup: bool = False,
 ) -> dict[str, Any]:
     """Add or update a sheet in an existing .xlsx workbook, then verify it.
 
@@ -301,6 +479,11 @@ def update_excel_sheet(
         mode: "upsert" (replace sheet content), "replace" (recreate sheet), or
             "append" (append rows after existing content).
         title: Optional title row placed above the header.
+        dry_run: If true, only read the workbook and return a deterministic
+            diff (sheet action, headers, row counts, samples, file hash)
+            without writing anything. Use this before risky edits.
+        keep_backup: If true, keep the pre-write .bak file and return its path
+            so the change can be undone with restore_excel_backup.
     """
     try:
         import openpyxl
@@ -358,11 +541,44 @@ def update_excel_sheet(
             "message": "Tidak ada data: isi headers, rows_json, atau title.",
         }
 
+    if dry_run:
+        try:
+            snapshot = _excel_snapshot(path, sheet_name)
+        except _XL_ERR as exc:
+            return {
+                "status": "error",
+                "message": f"Gagal membaca workbook untuk dry-run: {exc}",
+                "dry_run": True,
+            }
+        diff = _build_excel_diff(
+            snapshot, sheet_name, headers_list, rows_data, mode, title
+        )
+        return {
+            "status": "preview",
+            "message": (
+                f"Dry-run: {diff['summary']}. Tidak ada perubahan yang ditulis."
+            ),
+            "file_path": str(path),
+            "sheet": sheet_name,
+            "mode": mode,
+            "dry_run": True,
+            "applied": False,
+            "diff": diff,
+            "sheets": list(snapshot.get("sheets") or []),
+        }
+
     existed = path.exists()
     backup: Path | None = None
     tmp: Path | None = None
     wb: Any = None
     replaced = False
+    verified_ok = False
+    result: dict[str, Any] = {
+        "status": "error",
+        "message": "Update Excel tidak dijalankan.",
+        "file_path": str(path),
+        "verified": False,
+    }
     try:
         if existed:
             backup = path.with_name(
@@ -500,7 +716,8 @@ def update_excel_sheet(
                 "sheet": sheet_name,
             }
 
-        return {
+        verified_ok = True
+        result = {
             "status": "success",
             "message": (
                 f"Sheet '{sheet_name}' berhasil diperbarui dan terverifikasi "
@@ -514,6 +731,11 @@ def update_excel_sheet(
             "sheets": sheets,
             "verified": True,
         }
+        if keep_backup and backup is not None and backup.exists():
+            result["backup_path"] = str(backup)
+            result["undo_hint"] = (
+                "Batalkan dengan restore_excel_backup(file_path, backup_path)."
+            )
     except _XL_ERR as exc:
         if replaced:
             if backup is not None and backup.exists():
@@ -521,7 +743,7 @@ def update_excel_sheet(
                 backup = None
             elif not existed:
                 path.unlink(missing_ok=True)
-        return {"status": "error", "message": f"Gagal update Excel: {exc}"}
+        result = {"status": "error", "message": f"Gagal update Excel: {exc}"}
     finally:
         if wb is not None:
             try:
@@ -533,11 +755,157 @@ def update_excel_sheet(
                 tmp.unlink()
             except OSError:
                 pass
-        if backup is not None and backup.exists():
+        if (
+            backup is not None
+            and backup.exists()
+            and not (keep_backup and verified_ok)
+        ):
             try:
                 backup.unlink()
             except OSError:
                 pass
+    return result
+
+
+@register_tool(category="office")
+def restore_excel_backup(
+    file_path: str,
+    backup_path: str = "",
+) -> dict[str, Any]:
+    """Restore an .xlsx/.xlsm workbook from a backup made by update_excel_sheet.
+
+    Safety rules: the backup must live in the same directory as the target and
+    its name must match the ``.<target>.bak-*`` pattern produced by
+    ``update_excel_sheet``. The current target is copied to a pre-restore
+    safety file first; if verification fails, the safety file is restored.
+    """
+    try:
+        import openpyxl
+    except ImportError as exc:
+        return {"status": "error", "message": f"openpyxl tidak tersedia: {exc}"}
+
+    raw_path = str(file_path or "").strip()
+    if not raw_path:
+        return {"status": "error", "message": "file_path wajib diisi."}
+    path = Path(os.path.expanduser(raw_path)).resolve()
+    if path.suffix.lower() not in {".xlsx", ".xlsm"}:
+        return {
+            "status": "error",
+            "message": "file_path harus berekstensi .xlsx atau .xlsm.",
+        }
+    if not path.exists():
+        return {
+            "status": "error",
+            "message": f"File target tidak ditemukan: {path}",
+        }
+    if not path.parent.exists():
+        return {
+            "status": "error",
+            "message": f"Folder induk tidak ditemukan: {path.parent}",
+        }
+
+    raw_backup = str(backup_path or "").strip()
+    if raw_backup:
+        candidate = Path(os.path.expanduser(raw_backup)).resolve()
+    else:
+        matches = sorted(
+            path.parent.glob(f".{path.name}.bak-*"),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        if not matches:
+            return {
+                "status": "error",
+                "message": (
+                    "Tidak ada backup yang cocok. Jalankan update_excel_sheet "
+                    "dengan keep_backup=True terlebih dahulu."
+                ),
+            }
+        candidate = matches[0].resolve()
+
+    expected_prefix = f".{path.name}.bak-"
+    if (
+        candidate.parent != path.parent
+        or not candidate.name.startswith(expected_prefix)
+        or not candidate.is_file()
+    ):
+        return {
+            "status": "error",
+            "message": (
+                "backup_path tidak valid: harus file .bak-* di folder yang "
+                "sama dengan target dan berasal dari update_excel_sheet."
+            ),
+        }
+
+    safety: Path | None = None
+    tmp: Path | None = None
+    result: dict[str, Any] = {
+        "status": "error",
+        "message": "Restore Excel tidak dijalankan.",
+        "file_path": str(path),
+        "verified": False,
+    }
+    try:
+        with open(candidate, "rb") as probe_handle:
+            probe = openpyxl.load_workbook(
+                probe_handle, read_only=True, data_only=True
+            )
+            probe.close()
+        safety = path.with_name(
+            f".{path.name}.pre-restore-{os.getpid()}-{time.time_ns()}"
+        )
+        shutil.copy2(path, safety)
+        tmp = path.with_name(
+            f".{path.name}.restore-{os.getpid()}-{time.time_ns()}.xlsx"
+        )
+        shutil.copy2(candidate, tmp)
+        if path.exists():
+            shutil.copymode(path, tmp)
+        os.replace(tmp, path)
+        tmp = None
+        check = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        try:
+            sheets = list(check.sheetnames)
+        finally:
+            check.close()
+        if not sheets:
+            raise _ExcelRestoreError
+        if safety is not None and safety.exists():
+            safety.unlink(missing_ok=True)
+            safety = None
+        result = {
+            "status": "success",
+            "message": f"Workbook berhasil dipulihkan dari backup: {candidate}",
+            "file_path": str(path),
+            "restored_from": str(candidate),
+            "sheets": sheets,
+            "verified": True,
+        }
+    except _XL_ERR as exc:
+        if safety is not None and safety.exists():
+            try:
+                os.replace(safety, path)
+                safety = None
+            except OSError:
+                pass
+        result = {
+            "status": "error",
+            "message": f"Gagal restore Excel: {exc}",
+            "file_path": str(path),
+            "verified": False,
+        }
+    finally:
+        if tmp is not None and tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        if safety is not None and safety.exists():
+            try:
+                safety.unlink()
+            except OSError:
+                pass
+    return result
 
 
 @register_tool(category="office")

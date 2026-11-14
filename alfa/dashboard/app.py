@@ -69,6 +69,7 @@ from alfa.dashboard.routes.system import (
 )
 from alfa.dashboard.routes.tools import categorize_tool, tools_router
 from alfa.dashboard.routes.trace import trace_router
+from alfa.dashboard.routes.trust import trust_router
 from alfa.dashboard.routes.webauthn_auth import webauthn_router
 from alfa.dashboard.routes.webhook import webhook_router
 from alfa.dashboard.schemas import HealthCheckResponse, SystemMetricsResponse
@@ -240,10 +241,10 @@ def create_app() -> FastAPI:
         title="ALFA Sovereign Command Center Pro-Max",
         description=(
             "The Autonomous Sovereign AI Operating System & Command Center API.\n\n"
-            "Features 173 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
+            "Features 243 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
             "and external webhook automation integration."
         ),
-        version="2.18.0",
+        version="2.19.0",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/api/openapi.json",
@@ -412,7 +413,7 @@ def create_app() -> FastAPI:
         return HealthCheckResponse(
             status="healthy" if db_status == "connected" else "degraded",
             service="alfa-sovereign-ai",
-            version="2.18.0",
+            version="2.19.0",
             database=db_status,
             database_tables=table_count,
             uptime_seconds=round(time.time() - _START_TIME, 2),
@@ -445,7 +446,7 @@ def create_app() -> FastAPI:
 
         return SystemMetricsResponse(
             service="alfa-sovereign-ai",
-            version="2.18.0",
+            version="2.19.0",
             timestamp=datetime.now(timezone.utc).isoformat(),
             system={
                 "cpu_percent": cpu_pct,
@@ -494,6 +495,7 @@ def create_app() -> FastAPI:
     app_instance.include_router(system_router)
     app_instance.include_router(webhook_router)
     app_instance.include_router(trace_router)
+    app_instance.include_router(trust_router)
     app_instance.include_router(websocket_router)
 
     return app_instance
@@ -555,4 +557,5 @@ __all__ = [
     "ConnectionManager",
     "webhook_router",
     "trace_router",
+    "trust_router",
 ]

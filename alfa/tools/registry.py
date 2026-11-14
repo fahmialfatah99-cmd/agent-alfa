@@ -109,6 +109,7 @@ TOOL_DOMAINS: dict[str, list[str]] = {
     "office": [
         "generate_excel_spreadsheet",
         "update_excel_sheet",
+        "restore_excel_backup",
         "generate_presentation_pptx",
         "record_material_to_sheets",
         "boq_consolidate_master_workbook",

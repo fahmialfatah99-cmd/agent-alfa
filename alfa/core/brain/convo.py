@@ -5,6 +5,8 @@ from typing import Any
 
 from alfa.core.brain.config import _TOOL_KEEP_RECENT as _DEFAULT_KEEP
 from alfa.core.brain.config import TOOL_CONTEXT_BUDGET as _DEFAULT_BUDGET
+from alfa.core.brain.context_governor import compact_tool_output as compact_tool_output
+from alfa.core.brain.context_governor import govern_convo as _govern_convo
 
 logger = logging.getLogger("MainBrain")
 
@@ -37,24 +39,22 @@ def _compact_convo(convo: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     Pesan 'tool' terakhir dijaga utuh; yang lebih tua dipotong menjadi
     penanda ringkas agar loop panjang tetap muat dalam jendela konteks.
-    Mutasi in-place; mengembalikan convo yang sama.
+    Detail strategi (legacy/shadow/on) dikelola
+    ``alfa.core.brain.context_governor``. Mutasi in-place; mengembalikan
+    convo yang sama.
     """
     try:
         budget, keep = _live_budget()
-        if _convo_size(convo) <= budget:
-            return convo
-        tool_idx = [i for i, m in enumerate(convo) if m.get("role") == "tool"]
-        if len(tool_idx) <= keep:
-            return convo
-        for i in tool_idx[:-keep]:
-            c = convo[i].get("content") or ""
-            if len(c) > 220:
-                convo[i]["content"] = (
-                    "[output tool dipangkas utk hemat konteks] " + c[:180] + " ..."
-                )
-        logger.debug(
-            f"[MainBrain] kompaksi konteks: ukuran sekarang {_convo_size(convo)}"
-        )
+        stats = _govern_convo(convo, _convo_size, budget, keep)
+        if stats.get("saved"):
+            logger.debug(
+                "[MainBrain] kompaksi konteks: %s -> %s karakter "
+                "(%s pesan tool, mode %s)",
+                stats.get("before"),
+                stats.get("after"),
+                stats.get("compacted"),
+                stats.get("mode"),
+            )
     except (TypeError, ValueError, KeyError, AttributeError) as e:
         logger.warning(f"[MainBrain] kompaksi gagal (abaikan): {e!r}")
     return convo

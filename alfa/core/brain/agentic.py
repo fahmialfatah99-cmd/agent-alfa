@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 
 from alfa.core.brain.config import MAX_ITERATIONS, TOOL_EXEC_TIMEOUT
-from alfa.core.brain.convo import _compact_convo
+from alfa.core.brain.convo import _compact_convo, compact_tool_output
 from alfa.core.brain.tool_exec import _execute_tool
 from alfa.core.brain.tool_schema import build_openai_tools
 from alfa.core.tuning import tool_temperature
@@ -493,7 +493,7 @@ async def run_openai_agentic_turn(
                         {
                             "role": "tool",
                             "tool_call_id": tc["id"],
-                            "content": out,
+                            "content": compact_tool_output(out),
                         }
                     )
 
@@ -911,7 +911,7 @@ async def run_openai_agentic_turn_streaming(
                         {
                             "role": "tool",
                             "tool_call_id": tc["id"],
-                            "content": out,
+                            "content": compact_tool_output(out),
                         }
                     )
 

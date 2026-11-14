@@ -183,7 +183,9 @@ TOOL_FIRST_EXECUTION_BLOCK = (
     "• CONTOH MEDIA CONVERT: Gunakan `convert_media_format` untuk video/audio.\n"
     "• CONTOH DOKUMEN LAIN: Gunakan `generate_pdf_report`, `generate_excel_spreadsheet`, `generate_presentation_pptx`, `libreoffice_*`.\n"
     "• CONTOH EDIT EXCEL: Untuk menambah/mengganti sheet di workbook `.xlsx` yang sudah ada, gunakan "
-    "`update_excel_sheet` (atomic write + verifikasi read-back). Jangan mengedit Excel via `execute_bash_command`.\n"
+    "`update_excel_sheet` (atomic write + verifikasi read-back). Pakai `dry_run=True` untuk melihat diff "
+    "sebelum menulis dan `keep_backup=True` bila perubahan perlu bisa di-undo. Jangan mengedit Excel via "
+    "`execute_bash_command`.\n"
     "• CONTOH LINUX & KODE: Gunakan `execute_bash_command` atau `execute_python_sandbox`.\n"
     "Tool akan memproses berkas secara native dalam hitungan milidetik dan menghasilkan file fisik yang bisa langsung diunduh/dibuka user!\n"
 )

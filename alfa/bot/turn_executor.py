@@ -55,7 +55,10 @@ from alfa.core import permissions as permission_gate
 from alfa.core.brain.artifact_verify import apply_artifact_guard
 from alfa.core.brain.claim_grounding import apply_attribution_guard
 from alfa.core.runtime_ctx import (
+    begin_turn,
+    ensure_turn_id,
     get_current_executed_tool_calls,
+    get_current_turn_id,
     reset_turn_context,
 )
 from alfa.tools import (
@@ -160,6 +163,7 @@ async def _run_agent_turn_impl(
     current_chat_id_var.set(chat_id or user_id)
     current_user_prompt_var.set(user_prompt or "")
     reset_turn_context()
+    ensure_turn_id()
 
     display_user_text = user_prompt or "[Lampiran Media]"
 
@@ -688,6 +692,7 @@ async def run_agent_turn(
     lock = _get_turn_lock(chat_key)
     async with lock:
         turn_started_at = time.time()
+        turn_id = begin_turn()
         note_turn_started()
         try:
             result = await _run_agent_turn_impl(
@@ -706,6 +711,14 @@ async def run_agent_turn(
         result, attribution_issues = apply_attribution_guard(
             result, get_current_executed_tool_calls()
         )
+        try:
+            from alfa.core.db.evidence import decorate_with_evidence
+
+            result = decorate_with_evidence(
+                result, turn_id or get_current_turn_id()
+            )
+        except (ImportError, AttributeError, RuntimeError, ValueError, TypeError, OSError):
+            logger.debug("Evidence ledger tidak tersedia pada giliran ini", exc_info=True)
         note_turn_finished(
             ok=(
                 not issues

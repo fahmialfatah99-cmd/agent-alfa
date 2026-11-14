@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] — 2026-11-14
+
+Rilis P0 **Trustworthy & Efficient**: setiap eksekusi tool yang menyentuh
+artefak kini punya bukti deterministik (path + SHA-256), edit Excel punya
+preview/undo, dan konteks percakapan dijaga oleh governor biaya — semuanya
+aditif, ber-feature-flag, dan default `shadow` agar tidak mengubah perilaku.
+
+### Ditambahkan
+
+- **Evidence Ledger** (`alfa/core/db/evidence.py`): tabel SQLite aditif
+  `evidence_ledger` mencatat `turn_id`, chat, tool, status
+  (`success`/`preview`/`error`), path artefak nyata, SHA-256 + ukuran file,
+  cuplikan output teredaksi, dan metadata. Hanya tool yang menyentuh
+  artefak/mutasi yang dicatat agar ledger tidak membengkak oleh tool baca.
+  Retensi default 90 hari / 100.000 baris dengan prune oportunistik tiap 100
+  tulisan (`ALFA_EVIDENCE_RETENTION_DAYS`, `ALFA_EVIDENCE_MAX_ROWS`). Selalu
+  fail-soft dan tidak pernah mengganggu jalur tool.
+- **Turn ID per giliran** (`alfa/core/runtime_ctx.py`,
+  `alfa/bot/turn_executor.py`): setiap giliran mendapat `turn_id` unik yang
+  mengikat tool call, bukti, dan balasan. Mode `ALFA_EVIDENCE_LEDGER`:
+  `off`/`shadow` (default, hanya log) / `on` (menambahkan blok
+  "Bukti eksekusi" yang idempoten ke balasan).
+- **Excel dry-run + undo** (`alfa/tools/media/documents.py`):
+  `update_excel_sheet` menerima `dry_run=True` untuk diff deterministik
+  (aksi sheet, header sebelum/sesudah, jumlah baris, sampel, SHA-256 file;
+  tidak menulis apa pun) dan `keep_backup=True` untuk menyimpan `.bak-*`
+  beserta `backup_path`/`undo_hint`. Tool baru `restore_excel_backup`
+  memulihkan dari backup yang dijaga ketat (harus `.bak-*` di folder yang
+  sama), menyalin safety file lebih dulu, dan memverifikasi workbook hasil
+  restore. Risk tier `MEDIUM`.
+- **Context & Cost Governor** (`alfa/core/brain/context_governor.py`):
+  perluasan `_compact_convo` dengan mode `ALFA_CONTEXT_GOVERNOR` =
+  `off`/`shadow`/`on` (default `shadow`). Mode `on` menambahkan kompaksi
+  head+tail adaptif, hard budget (`ALFA_CONTEXT_HARD_BUDGET`), dan
+  pemangkasan output tool baru sebelum masuk riwayat. Statistik karakter
+  dihemat, estimasi token, dan jumlah pesan tool diekspos untuk observability.
+- **Trust API read-only** (`alfa/dashboard/routes/trust.py`):
+  `GET /api/v1/trust/summary`, `/evidence`, `/evidence/{turn_id}`, dan
+  `/context` untuk panel Trust Center (bukti terbaru, ringkasan status/tool,
+  statistik governor).
+- **Panduan prompt**: `update_excel_sheet` menyarankan `dry_run` sebelum
+  menulis dan `keep_backup` bila perubahan perlu di-undo; tool baru terdaftar
+  di domain `office` dan dipilih Tool-RAG untuk permintaan undo/restore.
+
+### Kualitas
+
+- Tes baru: `tests/test_evidence_ledger.py` (13),
+  `tests/test_context_governor.py` (8), `tests/test_trust_api.py` (4), plus
+  7 tes dry-run/backup/restore di `tests/test_update_excel_sheet.py`.
+- Total test: **1.943 → 1.975**; coverage `alfa/`: **64,62% → 64,93%**.
+- `ruff` bersih, `mypy` 0 issue di **342 file**, `bandit -ll` 0 Medium/High,
+  budget TRY/BLE tetap **510**, 0 `except Exception: pass`.
+- Default aman: evidence ledger & governor berjalan `shadow` (tidak mengubah
+  balasan/perilaku); aktifkan `on` setelah observasi.
+
 ## [2.18.0] — 2026-11-14
 
 Rilis kepercayaan lanjutan: **edit Excel deterministik dengan verifikasi

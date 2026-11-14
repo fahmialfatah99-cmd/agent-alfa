@@ -20,6 +20,7 @@ from alfa.tools.media.documents import (
     analyze_dataset_csv_json,
     generate_excel_spreadsheet,
     generate_presentation_pptx,
+    restore_excel_backup,
     translate_text,
     update_excel_sheet,
 )
@@ -75,6 +76,7 @@ __all__ = [
     # documents
     "generate_excel_spreadsheet",
     "update_excel_sheet",
+    "restore_excel_backup",
     "generate_presentation_pptx",
     "analyze_dataset_csv_json",
     "translate_text",

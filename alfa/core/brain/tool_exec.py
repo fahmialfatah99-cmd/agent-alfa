@@ -252,6 +252,20 @@ def _execute_tool(name: str, arguments_json: str) -> str:
         _status = "error" if raw.startswith("[ERROR") else "success"
         _span.finish(status=_status)
 
+    # Evidence ledger: catat bukti deterministik (tool, path, sha256, output).
+    # Debt: modul evidence sudah fail-soft; catch di sini hanya untuk import.
+    try:
+        from alfa.core.db.evidence import record_tool_evidence
+
+        record_tool_evidence(
+            name,
+            arguments=arguments_json,
+            output=raw,
+            status="error" if raw.startswith("[ERROR") else "success",
+        )
+    except _ARTIFACT_ERR as evidence_err:
+        logger.debug("Pencatatan evidence tool '%s' gagal: %s", name, evidence_err)
+
     # Laporkan hasil ke live feed juga
     try:
         from alfa.swarm import live_logger as _ll

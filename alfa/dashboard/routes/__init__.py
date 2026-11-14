@@ -5,6 +5,7 @@ from alfa.dashboard.routes.chat import chat_router
 from alfa.dashboard.routes.swarm import swarm_router
 from alfa.dashboard.routes.system import system_router
 from alfa.dashboard.routes.tools import tools_router
+from alfa.dashboard.routes.trust import trust_router
 from alfa.dashboard.routes.webhook import webhook_router
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "swarm_router",
     "system_router",
     "tools_router",
+    "trust_router",
     "webhook_router",
 ]

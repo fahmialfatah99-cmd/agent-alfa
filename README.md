@@ -28,29 +28,30 @@
 Bagian ini sengaja memisahkan **yang terukur** dari **yang klaim saja**.
 Semua angka di bawah dapat direproduksi di mesin ini.
 
-### Terverifikasi (reproduksi lokal, 2026-11-14 · rilis v2.18.0)
+### Terverifikasi (reproduksi lokal, 2026-11-14 · rilis v2.19.0)
 
 | Aspek | Angka | Cara verifikasi |
 |---|---|---|
-| Test | **1.943 passed** (100%) | `venv/bin/python -m pytest -q` |
-| Coverage | **64,62%** (gate repo 55%) | `pytest --cov=alfa` |
-| Type safety | `mypy` **0 issue** di 339 file | `venv/bin/mypy alfa` |
+| Test | **1.975 passed** (100%) | `venv/bin/python -m pytest -q` |
+| Coverage | **64,93%** (gate repo 55%) | `pytest --cov=alfa` |
+| Type safety | `mypy` **0 issue** di 342 file | `venv/bin/mypy alfa` |
 | Lint | `ruff` **bersih** (gate CI) | `venv/bin/ruff check .` |
 | Keamanan statis | `bandit -ll` **0 Medium/High** | `venv/bin/bandit -r alfa plugins -ll` |
 | Utang exception | budget TRY/BLE **510** (dari 988) + **0** `except Exception: pass` | `scripts/lint_budget.py --check`, `scripts/check_silent_exceptions.py` |
+| Jejak bukti | **evidence ledger** aktif `shadow` (path + SHA-256 per tool mutasi) | `GET /api/v1/trust/summary` |
 | Secret | **0** di dalam repo (30 kunci privat di `~/.config/alfa/secrets.env`, mode 600) | `ls ~/.config/alfa/` |
 | Jembatan WhatsApp | live, `client_status=READY` | `curl http://127.0.0.1:3000/health` |
 
 ### Batasan yang jujur kami nyatakan
 
-1. **Coverage 64,62%** — 35% sisanya adalah UI dashboard, kode scraping/
+1. **Coverage 64,93%** — 35% sisanya adalah UI dashboard, kode scraping/
    browser, dan koneksi ke pihak ketiga. Jalur kritikal (permission gate,
    pesan utama bot, ekstraksi dokumen, orkestrator video) sudah diuji; sisanya
    belum.
 2. **Multi-agent & model** — kualitas jawaban bergantung pada LLM dan
   eterministic; angka *offline* (`evals/`) menguji **routing**, bukan mutu
    jawaban. Belum ada perbandingan kuantitatif dengan framework lain.
-3. **Arsitektur** — satu mesin, satu berkas SQLite (72 tabel), tanpa HA,
+3. **Arsitektur** — satu mesin, satu berkas SQLite (73 tabel), tanpa HA,
    tanpa isolasi multi-tenant, tanpa DR otomatis. Cocok untuk **satu operator**;
    bukan produk multi-penyewa.
 4. **WhatsApp Web Automation** — memakai Puppeteer + `whatsapp-web.js`. WhatsApp

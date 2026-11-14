@@ -180,6 +180,7 @@ AVAILABLE_TOOLS = [
     generate_promo_video_from_images,
     generate_excel_spreadsheet,
     update_excel_sheet,
+    restore_excel_backup,
     boq_consolidate_master_workbook,
     boq_compare_and_diff,
     boq_reconcile_with_field_reports,

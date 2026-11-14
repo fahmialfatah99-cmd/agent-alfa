@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
@@ -182,3 +183,119 @@ def test_failed_verification_removes_new_file(tmp_path, monkeypatch):
 
     assert result["status"] == "error"
     assert not path.exists()
+
+
+def test_dry_run_previews_append_without_writing(tmp_path):
+    path = _make_workbook(tmp_path / "rekap.xlsx", sheet="Stok", rows=())
+    documents.update_excel_sheet(
+        str(path), "Stok", headers=["Item", "Qty"], rows_json='[["A", 1]]'
+    )
+    before = path.read_bytes()
+
+    result = documents.update_excel_sheet(
+        str(path),
+        "Stok",
+        rows_json='[["B", 2]]',
+        mode="append",
+        dry_run=True,
+    )
+
+    assert result["status"] == "preview"
+    assert result["dry_run"] is True
+    assert result["applied"] is False
+    diff = result["diff"]
+    assert diff["action"] == "append_rows"
+    assert diff["rows_added"] == 1
+    assert diff["changed"] is True
+    assert diff["file_sha256"]
+    assert ["B", 2] in diff["sample_after"]
+    assert path.read_bytes() == before
+    rows = _sheet_rows(path, "Stok", max_row=3)
+    assert rows[0][:2] == ("Item", "Qty")
+    assert rows[1][:2] == ("A", 1)
+
+
+def test_dry_run_does_not_create_missing_workbook(tmp_path):
+    path = tmp_path / "belum-ada.xlsx"
+
+    result = documents.update_excel_sheet(
+        str(path),
+        "Baru",
+        headers=["A"],
+        rows_json='[["isi"]]',
+        dry_run=True,
+    )
+
+    assert result["status"] == "preview"
+    assert result["diff"]["action"] == "create_sheet"
+    assert result["diff"]["file_exists"] is False
+    assert not path.exists()
+
+
+def test_dry_run_replace_reports_replaced_sheet(tmp_path):
+    path = _make_workbook(
+        tmp_path / "rekap.xlsx", sheet="S", rows=(("lama", 1),)
+    )
+    result = documents.update_excel_sheet(
+        str(path), "S", headers=["Baru"], rows_json='[["isi"]]', dry_run=True
+    )
+
+    assert result["status"] == "preview"
+    assert result["diff"]["action"] == "replace_sheet"
+    assert result["diff"]["sheet_existed"] is True
+    assert result["diff"]["headers_before"] == ["lama", 1]
+    assert result["diff"]["headers_after"] == ["Baru"]
+
+
+def test_keep_backup_then_restore_excel_backup(tmp_path):
+    path = _make_workbook(tmp_path / "rekap.xlsx", sheet="S", rows=(("lama",),))
+    updated = documents.update_excel_sheet(
+        str(path),
+        "S",
+        headers=["Baru"],
+        rows_json='[["baru"]]',
+        keep_backup=True,
+    )
+
+    assert updated["status"] == "success"
+    backup = updated["backup_path"]
+    assert backup and Path(backup).exists()
+    assert _sheet_rows(path, "S", max_row=2)[1][0] == "baru"
+
+    restored = documents.restore_excel_backup(str(path), backup)
+
+    assert restored["status"] == "success"
+    assert restored["verified"] is True
+    rows = _sheet_rows(path, "S", max_row=2)
+    assert rows[0][0] == "lama"
+
+
+def test_default_write_deletes_backup(tmp_path):
+    path = _make_workbook(tmp_path / "rekap.xlsx", sheet="S", rows=(("lama",),))
+    result = documents.update_excel_sheet(
+        str(path), "S", headers=["Baru"], rows_json='[["baru"]]'
+    )
+
+    assert result["status"] == "success"
+    assert "backup_path" not in result
+    assert list(tmp_path.glob(".rekap.xlsx.bak-*")) == []
+
+
+def test_restore_rejects_untrusted_backup(tmp_path):
+    path = _make_workbook(tmp_path / "rekap.xlsx")
+    other = tmp_path / "lain.xlsx"
+    other.write_bytes(path.read_bytes())
+
+    result = documents.restore_excel_backup(str(path), str(other))
+
+    assert result["status"] == "error"
+    assert "tidak valid" in result["message"]
+
+
+def test_restore_without_backup_returns_error(tmp_path):
+    path = _make_workbook(tmp_path / "rekap.xlsx")
+
+    result = documents.restore_excel_backup(str(path))
+
+    assert result["status"] == "error"
+    assert "Tidak ada backup" in result["message"]

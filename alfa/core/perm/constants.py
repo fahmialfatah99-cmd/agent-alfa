@@ -230,6 +230,10 @@ TOOL_CLASSIFICATION = {
         RiskTier.MEDIUM,
         "Update sheet workbook Excel - atomic write + verifikasi read-back",
     ),
+    "restore_excel_backup": (
+        RiskTier.MEDIUM,
+        "Restore workbook Excel dari backup .bak-* terverifikasi",
+    ),
     "generate_pdf_report": (RiskTier.MEDIUM, "Buat file PDF"),
     "generate_presentation_pptx": (RiskTier.MEDIUM, "Buat file presentasi"),
     "generate_promo_video_from_images": (RiskTier.MEDIUM, "Buat video promosi"),

@@ -6,9 +6,11 @@ can use it without importing tools.py (avoiding cycles).
 """
 
 import re
+import uuid
 from contextvars import ContextVar
 
 current_user_id_var: ContextVar[int] = ContextVar("current_user_id", default=0)
+current_turn_id_var: ContextVar[str] = ContextVar("current_turn_id", default="")
 current_chat_id_var: ContextVar[int] = ContextVar("current_chat_id", default=0)
 current_user_prompt_var: ContextVar[str] = ContextVar("current_user_prompt", default="")
 current_executed_tools_var: ContextVar[list[str] | None] = ContextVar(
@@ -39,19 +41,51 @@ def get_current_user_prompt() -> str:
     return current_user_prompt_var.get() or ""
 
 
+def begin_turn() -> str:
+    """Mulai giliran baru dan kembalikan ``turn_id`` unik.
+
+    ``turn_id`` dipakai evidence ledger untuk mengikat bukti tool ke satu
+    giliran chat. Nilainya sengaja TIDAK direset oleh ``reset_turn_context``
+    agar wrapper turn dan tool yang dieksekusi tetap melihat id yang sama.
+    """
+    turn_id = uuid.uuid4().hex
+    current_turn_id_var.set(turn_id)
+    return turn_id
+
+
+def ensure_turn_id() -> str:
+    """Pastikan ada ``turn_id`` aktif (dibuat bila belum ada)."""
+    current = current_turn_id_var.get()
+    return current if current else begin_turn()
+
+
+def get_current_turn_id() -> str:
+    """Get active turn id for evidence/audit correlation."""
+    return current_turn_id_var.get() or ""
+
+
+def summarize_tool_args(args: str | None, limit: int = 400) -> str:
+    """Ringkas argumen tool + redaksi rahasia (publik, dipakai audit)."""
+    return _summarize_tool_args(args, limit=limit)
+
+
 _SECRET_RE = re.compile(
     r"(?i)(api[_-]?key|access[_-]?token|token|password|secret|authorization)"
     r"([\"']?\s*[:=]\s*[\"']?)([^\"'\s,}]+)"
 )
 
 
-def _summarize_tool_args(args: str | None) -> str:
-    """Ringkas argumen tool dan redaksi nilai rahasia (maks. 400 char)."""
-    if not args:
+def redact_sensitive(text: str | None, limit: int = 400) -> str:
+    """Redaksi nilai rahasia dan potong teks (audit/evidence safe)."""
+    if not text:
         return ""
-    text = str(args)
-    text = _SECRET_RE.sub(r"\1\2***", text)
-    return text[:400]
+    redacted = _SECRET_RE.sub(r"\1\2***", str(text))
+    return redacted[: max(0, int(limit))]
+
+
+def _summarize_tool_args(args: str | None, limit: int = 400) -> str:
+    """Ringkas argumen tool dan redaksi nilai rahasia."""
+    return redact_sensitive(args, limit=limit)
 
 
 def record_executed_tool(name: str, args: str | None = None) -> None:
@@ -118,12 +152,18 @@ __all__ = [
     "current_user_id_var",
     "current_chat_id_var",
     "current_user_prompt_var",
+    "current_turn_id_var",
     "current_executed_tools_var",
     "current_executed_tool_calls_var",
     "current_turn_artifacts_var",
     "get_current_user_id",
     "get_current_chat_id",
     "get_current_user_prompt",
+    "begin_turn",
+    "ensure_turn_id",
+    "get_current_turn_id",
+    "summarize_tool_args",
+    "redact_sensitive",
     "record_executed_tool",
     "get_current_executed_tools",
     "get_current_executed_tool_calls",
