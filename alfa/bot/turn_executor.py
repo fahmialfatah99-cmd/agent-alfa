@@ -53,7 +53,11 @@ from alfa.core import brain as main_brain
 from alfa.core import database, token_usage
 from alfa.core import permissions as permission_gate
 from alfa.core.brain.artifact_verify import apply_artifact_guard
-from alfa.core.runtime_ctx import reset_turn_context
+from alfa.core.brain.claim_grounding import apply_attribution_guard
+from alfa.core.runtime_ctx import (
+    get_current_executed_tool_calls,
+    reset_turn_context,
+)
 from alfa.tools import (
     current_chat_id_var,
     current_user_id_var,
@@ -699,7 +703,16 @@ async def run_agent_turn(
             note_turn_finished(False)
             raise
         result, issues = apply_artifact_guard(result, turn_started_at)
-        note_turn_finished(ok=not issues and not result.startswith(("❌", "⚠️")))
+        result, attribution_issues = apply_attribution_guard(
+            result, get_current_executed_tool_calls()
+        )
+        note_turn_finished(
+            ok=(
+                not issues
+                and not attribution_issues
+                and not result.startswith(("❌", "⚠️"))
+            )
+        )
         return result
 
 

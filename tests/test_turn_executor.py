@@ -689,6 +689,50 @@ class TestWrapperMetrics:
         assert "Verifikasi otomatis" in result
         assert finished == [False]
 
+    async def test_attribution_guard_flags_unexecuted_tool_claim(
+        self, monkeypatch
+    ):
+        finished = []
+        monkeypatch.setattr("alfa.core.metrics.note_turn_started", lambda: None)
+        monkeypatch.setattr(
+            "alfa.core.metrics.note_turn_finished", lambda ok: finished.append(ok)
+        )
+
+        async def impl(*_a, **_k):
+            from alfa.core.runtime_ctx import (
+                record_executed_tool,
+                reset_turn_context,
+            )
+
+            reset_turn_context()
+            record_executed_tool("inspect_field_surat_jalan_image", "{}")
+            return "Berhasil aku ekstrak dengan OCR tesseract."
+
+        monkeypatch.setattr(te, "_run_agent_turn_impl", impl)
+        result = await te.run_agent_turn(42, "baca", chat_id=100)
+
+        assert "Catatan atribusi" in result
+        assert "inspect_field_surat_jalan_image" in result
+        assert finished == [False]
+
+    async def test_attribution_guard_accepts_grounded_claim(self, monkeypatch):
+        async def impl(*_a, **_k):
+            from alfa.core.runtime_ctx import (
+                record_executed_tool,
+                reset_turn_context,
+            )
+
+            reset_turn_context()
+            record_executed_tool(
+                "execute_bash_command", "tesseract surat.png hasil.txt"
+            )
+            return "Berhasil aku ekstrak dengan OCR tesseract."
+
+        monkeypatch.setattr(te, "_run_agent_turn_impl", impl)
+        result = await te.run_agent_turn(42, "baca", chat_id=101)
+
+        assert "Catatan atribusi" not in result
+
     async def test_same_chat_turns_are_serialized(self, monkeypatch):
         order: list[str] = []
 

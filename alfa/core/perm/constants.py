@@ -226,6 +226,10 @@ TOOL_CLASSIFICATION = {
     "upscale_image_hd": (RiskTier.MEDIUM, "Upscale gambar - tulis file"),
     "extract_audio_from_video": (RiskTier.MEDIUM, "Ekstrak audio dari video"),
     "generate_excel_spreadsheet": (RiskTier.MEDIUM, "Buat file spreadsheet"),
+    "update_excel_sheet": (
+        RiskTier.MEDIUM,
+        "Update sheet workbook Excel - atomic write + verifikasi read-back",
+    ),
     "generate_pdf_report": (RiskTier.MEDIUM, "Buat file PDF"),
     "generate_presentation_pptx": (RiskTier.MEDIUM, "Buat file presentasi"),
     "generate_promo_video_from_images": (RiskTier.MEDIUM, "Buat video promosi"),

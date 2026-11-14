@@ -56,6 +56,7 @@ TOOL_DESCRIPTIONS = {
     "firecrawl_scrape_and_crawl": "FIRECRAWL SUITE: Intelligent web scraper and crawler optimized for LLM RAG pipelines.",
     "generate_codebase_repomap": "Aider-style Repository Map Generator: Peta simbol arsitektur codebase (AST outlines, class, function signatures) terkompresi untuk seluruh modul dalam repositori.",
     "generate_excel_spreadsheet": "Generate an Excel (.xlsx) spreadsheet with styled headers, borders, and auto-adjusted columns, automatically sent to Telegram.",
+    "update_excel_sheet": "Add or update a sheet inside an existing .xlsx workbook (upsert/replace/append), then reopen and verify the sheet, headers, and row count before reporting success. Use this instead of execute_bash_command for Excel edits.",
     "generate_daily_executive_briefing": "Ringkasan eksekutif harian proyek (pagi/sore) untuk Telegram: total tarikan kabel, tiang tertanam, FAT, status cluster mandek, kendala lapangan, dan kesehatan server.",
     "generate_pdf_report": "Generate a modern, beautifully styled PDF document report with ReportLab and automatically send it to Telegram.",
     "generate_presentation_pptx": "Generate a clean PowerPoint presentation (.pptx) and send it directly to Telegram.",

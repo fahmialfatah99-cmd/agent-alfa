@@ -88,15 +88,20 @@ async def _run_agent_turn(*args, **kwargs):
     except Exception as e:
         logger.debug("Learning loop audit bypass: %s", e)
 
-    # Guard lapis kedua: pastikan peringatan verifikasi artefak tidak hilang
-    # bila audit learning-loop mengganti teks balasan di atas.
+    # Guard lapis kedua: pastikan peringatan verifikasi artefak/atribusi tidak
+    # hilang bila audit learning-loop mengganti teks balasan di atas.
     try:
         from alfa.core.brain.artifact_verify import apply_artifact_guard
+        from alfa.core.brain.claim_grounding import apply_attribution_guard
+        from alfa.core.runtime_ctx import get_current_executed_tool_calls
 
         if isinstance(raw_res, str):
             raw_res, _ = apply_artifact_guard(raw_res, turn_started_at)
+            raw_res, _ = apply_attribution_guard(
+                raw_res, get_current_executed_tool_calls()
+            )
     except Exception as e:  # noqa: BLE001 - guard tidak boleh mematikan turn
-        logger.debug("Artifact guard bypass: %s", e)
+        logger.debug("Artifact/attribution guard bypass: %s", e)
 
     return raw_res
 

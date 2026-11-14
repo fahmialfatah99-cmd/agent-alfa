@@ -4,7 +4,7 @@
 
 ![ALFA Sovereign AI](https://img.shields.io/badge/ALFA%20OS-Level%205%2B%20Cognitive%20Apex-06B6D4?style=for-the-badge&logo=probot&logoColor=white)
 [![CI](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml/badge.svg)](https://github.com/fahmialfatah99-cmd/agent-alfa/actions/workflows/ci.yml)
-![Tests Passing](https://img.shields.io/badge/Tests-1919%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
+![Tests Passing](https://img.shields.io/badge/Tests-1943%2B%20Passed%20%28100%25%29-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)
 ![Neuro Symbolic](https://img.shields.io/badge/Hallucination%20Guard-Neuro--Symbolic%20AST%20Prover-F59E0B?style=for-the-badge)
 ![Cross Platform](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows-8B5CF6?style=for-the-badge&logo=linux&logoColor=white)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python&logoColor=white)
@@ -28,13 +28,13 @@
 Bagian ini sengaja memisahkan **yang terukur** dari **yang klaim saja**.
 Semua angka di bawah dapat direproduksi di mesin ini.
 
-### Terverifikasi (reproduksi lokal, 2026-11-12 · rilis v2.17.0)
+### Terverifikasi (reproduksi lokal, 2026-11-14 · rilis v2.18.0)
 
 | Aspek | Angka | Cara verifikasi |
 |---|---|---|
-| Test | **1.919 passed** (100%) | `venv/bin/python -m pytest -q` |
-| Coverage | **64,4%** (gate repo 55%) | `pytest --cov=alfa` |
-| Type safety | `mypy` **0 issue** di 338 file | `venv/bin/mypy alfa` |
+| Test | **1.943 passed** (100%) | `venv/bin/python -m pytest -q` |
+| Coverage | **64,62%** (gate repo 55%) | `pytest --cov=alfa` |
+| Type safety | `mypy` **0 issue** di 339 file | `venv/bin/mypy alfa` |
 | Lint | `ruff` **bersih** (gate CI) | `venv/bin/ruff check .` |
 | Keamanan statis | `bandit -ll` **0 Medium/High** | `venv/bin/bandit -r alfa plugins -ll` |
 | Utang exception | budget TRY/BLE **510** (dari 988) + **0** `except Exception: pass` | `scripts/lint_budget.py --check`, `scripts/check_silent_exceptions.py` |
@@ -43,7 +43,7 @@ Semua angka di bawah dapat direproduksi di mesin ini.
 
 ### Batasan yang jujur kami nyatakan
 
-1. **Coverage 62,9%** — 37% sisanya adalah UI dashboard, kode scraping/
+1. **Coverage 64,62%** — 35% sisanya adalah UI dashboard, kode scraping/
    browser, dan koneksi ke pihak ketiga. Jalur kritikal (permission gate,
    pesan utama bot, ekstraksi dokumen, orkestrator video) sudah diuji; sisanya
    belum.

@@ -21,6 +21,7 @@ from alfa.tools.media.documents import (
     generate_excel_spreadsheet,
     generate_presentation_pptx,
     translate_text,
+    update_excel_sheet,
 )
 from alfa.tools.media.pdf_builder import (
     generate_pdf_report,
@@ -73,6 +74,7 @@ __all__ = [
     "play_youtube_music",
     # documents
     "generate_excel_spreadsheet",
+    "update_excel_sheet",
     "generate_presentation_pptx",
     "analyze_dataset_csv_json",
     "translate_text",

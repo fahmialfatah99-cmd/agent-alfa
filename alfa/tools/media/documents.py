@@ -6,7 +6,13 @@ import csv
 import json
 import logging
 import os
+import shutil
+import time
+from pathlib import Path
 from typing import Any
+from zipfile import BadZipFile
+
+from openpyxl.utils.exceptions import InvalidFileException
 
 from alfa.tools.registry import register_tool
 from alfa.tools.system_tools import SANDBOX_DIR
@@ -22,6 +28,27 @@ _MD_FILE_ERR = (OSError, ValueError, TypeError, RuntimeError, UnicodeError)
 
 #: Error realistis saat membuat grafik.
 _MD_CHART_ERR = (OSError, ValueError, TypeError, RuntimeError)
+
+class _ExcelRowsTypeError(TypeError):
+    """Tipe ``rows_json`` tidak didukung."""
+
+    def __init__(self) -> None:
+        super().__init__("rows_json harus berupa array JSON.")
+
+
+#: Error realistis saat membaca/menulis workbook Excel.
+_XL_ERR = (
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    IndexError,
+    RuntimeError,
+    UnicodeError,
+    BadZipFile,
+    InvalidFileException,
+    ImportError,
+)
 
 logger = logging.getLogger("AgentTools.Media.Documents")
 
@@ -146,6 +173,371 @@ def generate_excel_spreadsheet(
         }
     except _MD_FILE_ERR as e:
         return {"status": "error", "message": f"Gagal membuat Excel: {str(e)}"}
+
+
+def _xl_text(value: Any) -> str:
+    """Representasi teks aman untuk pengukuran lebar kolom."""
+    return "" if value is None else str(value)
+
+
+def _parse_excel_headers(headers: list[str] | None) -> list[str]:
+    """Normalisasi header dari list, JSON array, atau teks CSV."""
+    if headers is None:
+        return []
+    if isinstance(headers, str):
+        text = headers.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed]
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+        return [item.strip() for item in text.split(",") if item.strip()]
+    return [str(item) for item in headers]
+
+
+def _parse_excel_rows(rows_json: str | list | tuple | dict | None) -> list[Any]:
+    """Normalisasi baris dari JSON string/list/dict."""
+    if rows_json is None:
+        return []
+    rows = rows_json
+    if isinstance(rows, str):
+        if not rows.strip():
+            return []
+        rows = json.loads(rows)
+    if isinstance(rows, dict):
+        return [rows]
+    if not isinstance(rows, (list, tuple)):
+        raise _ExcelRowsTypeError
+    return list(rows)
+
+
+def _normalize_excel_rows(raw_rows: list[Any], headers: list[str]) -> list[list[Any]]:
+    """Ubah baris dict/list menjadi list nilai sesuai urutan header."""
+    normalized: list[list[Any]] = []
+    for item in raw_rows:
+        if isinstance(item, dict):
+            lower = {str(k).strip().lower(): v for k, v in item.items()}
+            normalized.append(
+                [
+                    item.get(h, lower.get(str(h).strip().lower(), ""))
+                    for h in headers
+                ]
+            )
+        elif isinstance(item, (list, tuple)):
+            normalized.append(list(item))
+        else:
+            normalized.append([item])
+    return normalized
+
+
+def _verify_excel_sheet(
+    path: Path,
+    sheet_name: str,
+    headers: list[str],
+    header_row: int,
+    expected_last_row: int,
+) -> tuple[bool, str, list[str]]:
+    """Buka ulang workbook dan pastikan sheet/header/baris benar-benar ada."""
+    import openpyxl
+
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=False)
+    try:
+        sheets = list(wb.sheetnames)
+        if sheet_name not in wb.sheetnames:
+            return False, f"sheet '{sheet_name}' tidak ditemukan", sheets
+        ws = wb[sheet_name]
+        if headers and header_row:
+            actual = next(
+                ws.iter_rows(
+                    min_row=header_row, max_row=header_row, values_only=True
+                ),
+                (),
+            )
+            actual_norm = [_xl_text(value).strip() for value in list(actual)[: len(headers)]]
+            expected = [str(header).strip() for header in headers]
+            if actual_norm != expected:
+                return (
+                    False,
+                    f"header tidak cocok: {actual_norm} != {expected}",
+                    sheets,
+                )
+        actual_last_row = ws.max_row or 0
+        if actual_last_row < expected_last_row:
+            return (
+                False,
+                f"jumlah baris kurang: {actual_last_row} < {expected_last_row}",
+                sheets,
+            )
+        return True, "ok", sheets
+    finally:
+        wb.close()
+
+
+@register_tool(category="office")
+def update_excel_sheet(
+    file_path: str,
+    sheet_name: str,
+    headers: list[str] | None = None,
+    rows_json: str = "",
+    mode: str = "upsert",
+    title: str = "",
+) -> dict[str, Any]:
+    """Add or update a sheet in an existing .xlsx workbook, then verify it.
+
+    This is the preferred tool for editing an existing spreadsheet. It writes
+    atomically (temp file + replace), reopens the workbook, and only reports
+    success when the target sheet, headers, and row count are present.
+    Use this instead of execute_bash_command for Excel edits.
+
+    Args:
+        file_path: Absolute path or ~ path to the .xlsx/.xlsm workbook. If it
+            does not exist yet, a new workbook is created (parent dir must exist).
+        sheet_name: Sheet to create or update (1-31 chars, no []:*?/\\).
+        headers: Column headers as a list (or JSON array / comma-separated string).
+        rows_json: Data rows as a JSON array of arrays (or array of objects).
+        mode: "upsert" (replace sheet content), "replace" (recreate sheet), or
+            "append" (append rows after existing content).
+        title: Optional title row placed above the header.
+    """
+    try:
+        import openpyxl
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError as exc:
+        return {"status": "error", "message": f"openpyxl tidak tersedia: {exc}"}
+
+    sheet_name = str(sheet_name or "").strip()
+    if not sheet_name or len(sheet_name) > 31:
+        return {
+            "status": "error",
+            "message": "sheet_name wajib diisi dan maksimal 31 karakter.",
+        }
+    if any(char in sheet_name for char in "[]:*?/\\"):
+        return {
+            "status": "error",
+            "message": "sheet_name mengandung karakter terlarang Excel.",
+        }
+
+    mode = str(mode or "upsert").strip().lower()
+    if mode not in {"upsert", "replace", "append"}:
+        return {
+            "status": "error",
+            "message": "mode harus salah satu dari: upsert, replace, append.",
+        }
+
+    raw_path = str(file_path or "").strip()
+    if not raw_path:
+        return {"status": "error", "message": "file_path wajib diisi."}
+    path = Path(os.path.expanduser(raw_path)).resolve()
+    if path.suffix.lower() not in {".xlsx", ".xlsm"}:
+        return {
+            "status": "error",
+            "message": "file_path harus berekstensi .xlsx atau .xlsm.",
+        }
+    if not path.parent.exists():
+        return {
+            "status": "error",
+            "message": f"Folder induk tidak ditemukan: {path.parent}",
+        }
+
+    try:
+        headers_list = _parse_excel_headers(headers)
+        raw_rows = _parse_excel_rows(rows_json)
+        if not headers_list and raw_rows and isinstance(raw_rows[0], dict):
+            headers_list = [str(key) for key in raw_rows[0]]
+        rows_data = _normalize_excel_rows(raw_rows, headers_list)
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        return {"status": "error", "message": f"Data tidak valid: {exc}"}
+
+    if not headers_list and not rows_data and not str(title or "").strip():
+        return {
+            "status": "error",
+            "message": "Tidak ada data: isi headers, rows_json, atau title.",
+        }
+
+    existed = path.exists()
+    backup: Path | None = None
+    tmp: Path | None = None
+    wb: Any = None
+    replaced = False
+    try:
+        if existed:
+            backup = path.with_name(
+                f".{path.name}.bak-{os.getpid()}-{time.time_ns()}"
+            )
+            shutil.copy2(path, backup)
+            wb = openpyxl.load_workbook(
+                path, keep_vba=path.suffix.lower() == ".xlsm"
+            )
+        else:
+            wb = openpyxl.Workbook()
+
+        if sheet_name in wb.sheetnames:
+            if mode in {"upsert", "replace"}:
+                index = wb.sheetnames.index(sheet_name)
+                wb.remove(wb[sheet_name])
+                ws = wb.create_sheet(sheet_name, index)
+            else:
+                ws = wb[sheet_name]
+        else:
+            ws = wb.create_sheet(sheet_name)
+            if not existed and "Sheet" in wb.sheetnames and len(wb.sheetnames) > 1:
+                wb.remove(wb["Sheet"])
+
+        has_content = (
+            ws.max_row > 1
+            or ws.max_column > 1
+            or ws["A1"].value not in (None, "")
+        )
+        write_title = bool(str(title or "").strip()) and not (
+            mode == "append" and has_content
+        )
+        start_row = 1
+        if write_title:
+            ws.cell(row=1, column=1, value=str(title).strip()).font = Font(
+                bold=True, size=12
+            )
+            start_row = 2
+
+        if mode == "append" and has_content:
+            start_row = max(start_row, ws.max_row + 1)
+            write_headers = False
+        else:
+            write_headers = bool(headers_list)
+
+        header_row = 0
+        if write_headers:
+            header_row = start_row
+            for col, header in enumerate(headers_list, 1):
+                ws.cell(row=header_row, column=col, value=header)
+            start_row += 1
+
+        for row_offset, data_row in enumerate(rows_data):
+            for col, value in enumerate(data_row, 1):
+                ws.cell(row=start_row + row_offset, column=col, value=value)
+
+        if rows_data:
+            expected_last_row = start_row + len(rows_data) - 1
+        elif header_row:
+            expected_last_row = header_row
+        else:
+            expected_last_row = 1
+
+        if header_row:
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill("solid", start_color="1E3A8A")
+            thin = Side(style="thin", color="CBD5E1")
+            border = Border(left=thin, right=thin, top=thin, bottom=thin)
+            for col in range(1, max(len(headers_list), 1) + 1):
+                cell = ws.cell(row=header_row, column=col)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(
+                    horizontal="center", vertical="center"
+                )
+                cell.border = border
+            ws.freeze_panes = f"A{header_row + 1}"
+
+        data_border = Border(
+            left=Side(style="thin", color="E2E8F0"),
+            right=Side(style="thin", color="E2E8F0"),
+            top=Side(style="thin", color="E2E8F0"),
+            bottom=Side(style="thin", color="E2E8F0"),
+        )
+        data_start = header_row + 1 if header_row else (2 if write_title else 1)
+        for row in range(data_start, expected_last_row + 1):
+            for col in range(1, max(len(headers_list), 1) + 1):
+                ws.cell(row=row, column=col).border = data_border
+
+        max_col = max(
+            len(headers_list),
+            max((len(row) for row in rows_data), default=0),
+            1,
+        )
+        for col in range(1, max_col + 1):
+            longest = max(
+                (
+                    len(_xl_text(ws.cell(row=row, column=col).value))
+                    for row in range(1, expected_last_row + 1)
+                ),
+                default=0,
+            )
+            letter = get_column_letter(col)
+            current_width = ws.column_dimensions[letter].width or 0
+            ws.column_dimensions[letter].width = max(
+                current_width, min(max(longest + 4, 12), 60)
+            )
+
+        tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}-{time.time_ns()}.xlsx")
+        wb.save(tmp)
+        wb.close()
+        wb = None
+        if existed:
+            shutil.copymode(path, tmp)
+        else:
+            os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+        tmp = None
+        replaced = True
+
+        verified, detail, sheets = _verify_excel_sheet(
+            path, sheet_name, headers_list, header_row, expected_last_row
+        )
+        if not verified:
+            if backup is not None:
+                os.replace(backup, path)
+                backup = None
+            elif not existed:
+                path.unlink(missing_ok=True)
+            return {
+                "status": "error",
+                "message": f"Verifikasi gagal: {detail}",
+                "verified": False,
+                "file_path": str(path),
+                "sheet": sheet_name,
+            }
+
+        return {
+            "status": "success",
+            "message": (
+                f"Sheet '{sheet_name}' berhasil diperbarui dan terverifikasi "
+                f"({len(rows_data)} baris data)."
+            ),
+            "file_path": str(path),
+            "sheet": sheet_name,
+            "mode": mode,
+            "rows_written": len(rows_data),
+            "total_rows": expected_last_row,
+            "sheets": sheets,
+            "verified": True,
+        }
+    except _XL_ERR as exc:
+        if replaced:
+            if backup is not None and backup.exists():
+                os.replace(backup, path)
+                backup = None
+            elif not existed:
+                path.unlink(missing_ok=True)
+        return {"status": "error", "message": f"Gagal update Excel: {exc}"}
+    finally:
+        if wb is not None:
+            try:
+                wb.close()
+            except (OSError, ValueError, TypeError):
+                pass
+        if tmp is not None and tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        if backup is not None and backup.exists():
+            try:
+                backup.unlink()
+            except OSError:
+                pass
 
 
 @register_tool(category="office")

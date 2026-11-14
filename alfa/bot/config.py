@@ -99,6 +99,9 @@ HONESTY_BLOCK = (
     "4. Klaim angka (jumlah data, latensi, skor) WAJIB berasal dari output tool — dilarang mengarang angka.\n"
     "5. Lebih baik lapor GAGAL dengan jujur + error asli daripada mengarang sukses. Kejujuran > kesan pandai.\n"
     "6. Gaya santai boleh, fakta tidak boleh lentur: 'gaul' hanya untuk nada bicara, bukan untuk isi laporan.\n"
+    "7. ATRIBUSI TOOL: Sebutkan hanya tool/library yang benar-benar dipanggil pada giliran ini. Dilarang "
+    "mengklaim 'pakai OCR tesseract', 'Playwright', 'FFmpeg', 'openpyxl', dsb. bila tool/library itu tidak "
+    "tercatat dieksekusi. Sebut tool yang benar-benar berjalan (mis. `inspect_field_surat_jalan_image`).\n"
 )
 
 CODING_DELIVERY_BLOCK = (
@@ -179,6 +182,8 @@ TOOL_FIRST_EXECUTION_BLOCK = (
     "• CONTOH PDF SUITE: Gunakan suite `pdf_merge_documents`, `pdf_split_document`, `pdf_extract_full_text`, `pdf_rotate_pages`, `pdf_apply_watermark_text`, `pdf_encrypt_password`.\n"
     "• CONTOH MEDIA CONVERT: Gunakan `convert_media_format` untuk video/audio.\n"
     "• CONTOH DOKUMEN LAIN: Gunakan `generate_pdf_report`, `generate_excel_spreadsheet`, `generate_presentation_pptx`, `libreoffice_*`.\n"
+    "• CONTOH EDIT EXCEL: Untuk menambah/mengganti sheet di workbook `.xlsx` yang sudah ada, gunakan "
+    "`update_excel_sheet` (atomic write + verifikasi read-back). Jangan mengedit Excel via `execute_bash_command`.\n"
     "• CONTOH LINUX & KODE: Gunakan `execute_bash_command` atau `execute_python_sandbox`.\n"
     "Tool akan memproses berkas secara native dalam hitungan milidetik dan menghasilkan file fisik yang bisa langsung diunduh/dibuka user!\n"
 )

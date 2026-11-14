@@ -8,19 +8,23 @@ reasoning, memory, safety, system, media, agent). Dua mode:
 - **Live** (pakai kuota Gemini): prompt dieksekusi via `bot.run_agent_turn`,
   dinilai `checks` (contains/regex/length/refusal).
 
-## Hasil terakhir (2026-11-12, terverifikasi lokal)
+## Hasil terakhir (2026-11-14, terverifikasi lokal)
 
 - Offline: **20/20 PASS** (`python evals/run_evals.py`)
 - Suite `alfa.eval`: ToolSelection 2 + MemoryRetrieval 1 + AgenticLoop 1 +
   ScenarioFile 20 skenario
-- Unit/integrasi: **1.919 test passed** (`pytest`), coverage **64,4%**
-  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 338 file,
+- Unit/integrasi: **1.943 test passed** (`pytest`), coverage **64,62%**
+  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 339 file,
   `bandit -ll` **0 Medium/High**, `pip-audit` bersih
 - Guard kepercayaan: klaim mutasi file diverifikasi (keberadaan, `mtime`,
-  sheet Excel) sebelum balasan dikirim; turn per-chat diserialisasi.
+  sheet Excel) sebelum balasan dikirim; turn per-chat diserialisasi; klaim
+  atribusi tool/library di-grounding ke catatan eksekusi turn.
+- Edit Excel: `update_excel_sheet` menulis atomik (temp + replace), membuat
+  backup, membuka ulang workbook, dan memverifikasi sheet/header/jumlah baris
+  sebelum melaporkan sukses; file asli dipulihkan bila verifikasi gagal.
 - Gerbang Debt: budget TRY/BLE **510 instans** (dari 988 saat overhaul
   dimulai) & 0 handler `except Exception: pass` (gate CI)
-- Rilis: **v2.17.0**
+- Rilis: **v2.18.0**
 
 ## Reproduksi
 

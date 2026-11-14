@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-11-14
+
+Rilis kepercayaan lanjutan: **edit Excel deterministik dengan verifikasi
+read-back** dan **grounding atribusi tool** — agen tidak lagi bisa mengklaim
+`OCR tesseract` (atau tool/library lain) yang tidak benar-benar dieksekusi pada
+giliran tersebut.
+
+### Ditambahkan
+
+- **Tool `update_excel_sheet`** (`alfa/tools/media/documents.py`): menambah
+  atau mengganti sheet di workbook `.xlsx/.xlsm` yang sudah ada, dengan mode
+  `upsert`, `replace`, dan `append`; header/rows menerima list atau JSON;
+  styling header, freeze panes, dan auto-width. Penulisan bersifat atomik
+  (temp file + `os.replace`), membuat backup otomatis, dan **membuka ulang
+  workbook** untuk memverifikasi sheet, header, serta jumlah baris sebelum
+  melaporkan sukses. Bila verifikasi gagal, file asli dipulihkan. Tool
+  terdaftar di domain `office` dengan risk tier `MEDIUM`.
+- **Guard grounding atribusi** (`alfa/core/brain/claim_grounding.py`):
+  memeriksa klaim library yang dikurasi (tesseract/pytesseract, whisper,
+  ffmpeg, playwright, openpyxl, pandas, libreoffice, dll.) dan nama tool yang
+  ditulis dalam backtick terhadap catatan eksekusi turn. Hanya konteks klaim
+  yang ditandai; negasi, kalimat kondisional, dan fenced code block diabaikan.
+  Peringatan `Catatan atribusi` mencantumkan tool yang benar-benar tercatat,
+  bersifat idempoten, dan fail-safe.
+- **Prompt hardening**: aturan atribusi tool di `HONESTY_BLOCK` dan panduan
+  penggunaan `update_excel_sheet` (bukan `execute_bash_command`) di
+  `TOOL_FIRST_EXECUTION_BLOCK`.
+
+### Kualitas
+
+- `tests/test_update_excel_sheet.py` (9 tes) mencakup create, upsert,
+  append, replace, dict rows, input invalid, file korup, dan restore saat
+  verifikasi gagal; `tests/test_claim_grounding.py` (13 tes) mencakup klaim
+  palsu, grounded via argumen bash, negasi/kondisional, code block, tool
+  backtick, deduplikasi, idempotensi, dan fail-safe; 2 tes integrasi baru di
+  `tests/test_turn_executor.py`.
+- Total test: **1.919 → 1.943**; coverage `alfa/`: **64,4% → 64,62%**.
+- `ruff` bersih, `mypy` 0 issue di 339 file, `bandit -ll` 0 Medium/High,
+  budget TRY/BLE tetap **510**, 0 `except Exception: pass`.
+
 ## [2.17.0] — 2026-11-12
 
 Rilis kepercayaan: **klaim "file sudah diperbarui" kini diverifikasi**, dua
