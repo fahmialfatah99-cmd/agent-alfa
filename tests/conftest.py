@@ -55,6 +55,11 @@ import urllib.request as _urllib_request  # noqa: E402
 
 _TEST_DB_DIR = tempfile.mkdtemp(prefix="alfa_testdb_")
 _TEST_DB_PATH = os.path.join(_TEST_DB_DIR, "agent_data_test.db")
+# Test tidak boleh menulis snapshot ke ~/.alfa/backups produksi. Sebelum guard
+# ini, test apex maintenance membuat snapshot DB test di direktori backup asli
+# sehingga manifest menyesatkan (insiden backup 16 Nov 2026).
+os.environ["ALFA_BACKUP_DIR"] = os.path.join(_TEST_DB_DIR, "backups")
+os.environ.pop("ALFA_BACKUP_OFFSITE_REMOTE", None)
 _PROTECTED_DB_PATHS = {
     os.path.realpath(p)
     for p in (

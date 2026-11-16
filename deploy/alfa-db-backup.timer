@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily verified backup of ALFA SQLite database
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

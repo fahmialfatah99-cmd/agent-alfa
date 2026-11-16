@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Ditambahkan
+
+- **Backup DB terjadwal** (`scripts/backup_db.py` +
+  `deploy/alfa-db-backup.service`/`.timer`): snapshot hot-safe harian pukul
+  03:00 dengan verifikasi SHA-256 manifest, sidecar jumlah tabel/baris,
+  pengecekan monoton terhadap DB sumber, retensi 7 snapshot harian + 4
+  mingguan, dan sinkron offsite `rclone` yang fail-soft (kegagalan offsite
+  tidak menggagalkan backup lokal). Perintah `verify <archive>` dan
+  `restore-drill` menguji arsip ke DB sementara tanpa menyentuh produksi.
+- **Isolasi backup test**: `tests/conftest.py` mengarahkan `ALFA_BACKUP_DIR`
+  ke direktori sementara, sehingga test tidak lagi menulis snapshot DB test ke
+  `~/.alfa/backups` produksi. `tests/test_backup_ops.py` mengunci perilaku
+  snapshot, sidecar, drill, kegagalan sumber, dan isolasi direktori.
+
+### Diperbaiki
+
+- Inspeksi backup memuat ekstensi `sqlite_vss` bila tersedia dan mencatat
+  tabel virtual yang tidak dapat dihitung sebagai `skipped`, bukan gagal
+  seluruh backup.
+
 ## [2.20.0] — 2026-11-16
 
 Rilis P1/P2 **Durable, Reusable & Trustworthy**: giliran agent kini punya

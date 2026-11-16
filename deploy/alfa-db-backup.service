@@ -1,0 +1,17 @@
+[Unit]
+Description=ALFA verified SQLite backup (snapshot + retention + offsite)
+Documentation=file://%h/telegram-ai-bot/scripts/backup_db.py
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/telegram-ai-bot
+Environment=ALFA_BACKUP_DIR=%h/.alfa/backups
+Environment=ALFA_BACKUP_OFFSITE_REMOTE=gdrive1:alfa-backups
+# Verifikasi lokal wajib sukses (exit 1 = unit gagal). Kegagalan offsite
+# hanya warning agar backup lokal tetap dianggap berhasil.
+ExecStart=%h/telegram-ai-bot/venv/bin/python3 scripts/backup_db.py run
+Nice=10
+IOSchedulingClass=best-effort
+TimeoutStartSec=20min
