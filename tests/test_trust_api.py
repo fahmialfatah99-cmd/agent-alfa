@@ -22,6 +22,9 @@ def trust_client(tmp_path, monkeypatch):
     monkeypatch.setenv("ALFA_DB_PATH", str(tmp_path / "trust_api.db"))
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("ALFA_EVIDENCE_LEDGER", "on")
+    monkeypatch.setenv("ALFA_CAPABILITY_SECURITY", "shadow")
+    monkeypatch.setenv("ALFA_DURABLE_TASKS", "shadow")
+    monkeypatch.setenv("ALFA_SKILL_COMPILER", "shadow")
     monkeypatch.setenv("ALFA_INSECURE_LOCAL", "true")
     from alfa.dashboard import app as pkg_app
     from alfa.dashboard.routes import auth as auth_mod
@@ -93,3 +96,76 @@ def test_trust_context_endpoint(trust_client):
     assert data["status"] == "ok"
     assert "context_governor" in data
     assert "limits" in data["context_governor"]
+
+
+def test_trust_capabilities_endpoint(trust_client):
+    from alfa.core.perm.capabilities import grant_capability_sync
+
+    granted = grant_capability_sync(
+        4242, "execute_bash_command", user_id=4242, ttl_minutes=30
+    )
+    assert granted is not None
+
+    response = trust_client.get(
+        "/api/v1/trust/capabilities", params={"chat_id": 4242}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["mode"] == "shadow"
+    assert data["count"] == 1
+    assert data["capabilities"][0]["grant_id"] == granted["grant_id"]
+
+
+def test_trust_tasks_endpoint(trust_client):
+    from alfa.core.db.durable_tasks import create_task_sync
+
+    created = create_task_sync("task-trust-api", user_id=1, prompt="uji trust")
+    assert created is not None
+
+    response = trust_client.get("/api/v1/trust/tasks")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["mode"] == "shadow"
+    assert data["count"] >= 1
+    assert any(item["task_id"] == "task-trust-api" for item in data["tasks"])
+
+
+def test_trust_skills_endpoint(trust_client):
+    from alfa.core.brain.learning_loop import record_trajectory
+    from alfa.core.brain.skill_compiler import compile_skills_sync
+
+    for idx in range(2):
+        record_trajectory(
+            user_prompt="rekap material lahat",
+            tool_calls=[
+                {"tool": "read_local_file"},
+                {"tool": "update_excel_sheet"},
+            ],
+            success=True,
+            turn_id=f"skill-api-{idx}",
+        )
+    compiled = compile_skills_sync(min_support=2)
+    assert compiled["compiled"] == 1
+
+    response = trust_client.get("/api/v1/trust/skills")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["mode"] == "shadow"
+    assert data["count"] == 1
+    assert data["skills"][0]["active"] == 0
+
+
+def test_spa_contains_trust_center_panel(trust_client):
+    html = trust_client.get("/").text
+
+    assert 'id="trust-center-panel"' in html
+    assert 'id="trust-hours"' in html
+    assert 'id="trust-evidence-body"' in html
+    assert 'id="trust-capability-body"' in html
+    assert 'id="trust-task-body"' in html
+    assert 'id="trust-skill-body"' in html
+    # Tidak boleh menambah <button> baru (menjaga snapshot Playwright).
+    assert "fetchTrustCenter(); return false;" in html

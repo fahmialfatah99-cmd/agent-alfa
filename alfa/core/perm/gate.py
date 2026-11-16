@@ -301,6 +301,42 @@ async def request_approval(
     tier = get_tool_tier(tool_name)
     started = _time.time()
 
+    # 0) P2 Capability Security: grant berlingkup dapat menggantikan prompt
+    #    interaktif. Default shadow tidak mengubah keputusan apa pun.
+    try:
+        from alfa.core.perm.capabilities import check_capability_for_tool
+
+        cap = check_capability_for_tool(chat_id, tool_name, arguments_json)
+    except (ImportError, AttributeError, RuntimeError, ValueError, TypeError, OSError) as cap_err:
+        logger.debug("Capability security dilewati (fail-soft): %s", cap_err)
+        cap = {"action": "none", "reason": "error"}
+    if cap.get("action") == "allow":
+        _record(
+            chat_id,
+            tool_name,
+            tier,
+            "auto_approved:capability",
+            arguments_json,
+            started,
+        )
+        logger.info(f"[Gate] {tool_name} -> CAPABILITY GRANT (chat {chat_id})")
+        return None
+    if cap.get("action") == "deny":
+        _record(
+            chat_id,
+            tool_name,
+            tier,
+            "deny:capability_required",
+            arguments_json,
+            started,
+        )
+        return (
+            f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) memerlukan "
+            "capability grant yang valid. Minta operator membuat grant via "
+            "`/capability grant "
+            f"{tool_name}` terlebih dahulu."
+        )
+
     # 1) Skor kepercayaan: tool LOW selalu lolos, MEDIUM lolos bila trust cukup
     auto_ok, auto_reason = should_auto_approve(chat_id, tool_name)
     if auto_ok:
@@ -460,7 +496,37 @@ async def request_approval(
             logger.debug(f"edit pesan izin fallback gagal (abaikan): {e}")
 
     if decision == "always":
-        save_always_allow(int(chat_id), tool_name)
+        # P2 Capability Security: pada mode `on`, "Izinkan Selalu" menjadi
+        # grant berbatas waktu/pakai (bukan izin permanen). Mode shadow tetap
+        # mempertahankan perilaku lama + mencatat grant untuk observability.
+        cap_mode = "off"
+        grant_capability = None
+        try:
+            from alfa.core.perm import capabilities as _caps
+
+            cap_mode = _caps.capability_mode()
+            grant_capability = _caps.grant_capability_sync
+        except (ImportError, AttributeError, RuntimeError, ValueError, TypeError) as exc:
+            logger.debug("Capability grant pada always dilewati: %s", exc)
+            grant_capability = None
+        if cap_mode == "on" and grant_capability is not None:
+            granted = grant_capability(
+                int(chat_id),
+                tool_name,
+                source="always_approval",
+                note="Persetujuan 'Izinkan Selalu' via Telegram.",
+            )
+            if granted is None:
+                save_always_allow(int(chat_id), tool_name)
+        else:
+            save_always_allow(int(chat_id), tool_name)
+            if cap_mode == "shadow" and grant_capability is not None:
+                grant_capability(
+                    int(chat_id),
+                    tool_name,
+                    source="shadow_always",
+                    note="Shadow grant dari 'Izinkan Selalu' (tidak enforced).",
+                )
         _record(chat_id, tool_name, tier, "always", arguments_json, started)
         logger.info(f"[Gate] {tool_name} -> ALWAYS ALLOW utk chat {chat_id}")
         return None

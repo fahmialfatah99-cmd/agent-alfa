@@ -17,6 +17,7 @@ MODULE_FILES = [
     "scraper.js",
     "gdrive.js",
     "pipelines_sites.js",
+    "trust_center.js",
 ]
 
 

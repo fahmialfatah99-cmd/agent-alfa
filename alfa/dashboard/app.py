@@ -132,6 +132,24 @@ async def lifespan(app: FastAPI):
             logger.info(f"GDrive secret migrasi plaintext→vault: {report}")
     except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.debug(f"GDrive secret migration dilewati: {e}")
+    try:
+        from alfa.core.db.durable_tasks import recover_stale_tasks_sync
+
+        recovered = await asyncio.to_thread(recover_stale_tasks_sync)
+        if recovered:
+            logger.info(
+                f"[durable] {recovered} tugas lama ditandai interrupted "
+                "dan siap dilanjutkan manual."
+            )
+    except (
+        ImportError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+        sqlite3.Error,
+    ) as e:
+        logger.debug(f"Durable task recovery startup dilewati: {e}")
     asyncio.create_task(_pipeline_trigger_scheduler())
     asyncio.create_task(_malloc_trim_loop())
     yield
@@ -244,7 +262,7 @@ def create_app() -> FastAPI:
             "Features 243 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
             "and external webhook automation integration."
         ),
-        version="2.19.0",
+        version="2.20.0",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/api/openapi.json",
@@ -413,7 +431,7 @@ def create_app() -> FastAPI:
         return HealthCheckResponse(
             status="healthy" if db_status == "connected" else "degraded",
             service="alfa-sovereign-ai",
-            version="2.19.0",
+            version="2.20.0",
             database=db_status,
             database_tables=table_count,
             uptime_seconds=round(time.time() - _START_TIME, 2),
@@ -446,7 +464,7 @@ def create_app() -> FastAPI:
 
         return SystemMetricsResponse(
             service="alfa-sovereign-ai",
-            version="2.19.0",
+            version="2.20.0",
             timestamp=datetime.now(timezone.utc).isoformat(),
             system={
                 "cpu_percent": cpu_pct,

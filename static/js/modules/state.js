@@ -10,6 +10,7 @@ import { initTelemetryChart, startTelemetryPolling } from './telemetry.js';
 import { fetchSwarmLive } from '../terminal.js';
 import { allToolsData, fetchTools } from '../tools.js';
 import { fetchPasskeyStatus, fetchVaultSecrets } from './vault_security.js';
+import { fetchTrustCenter } from './trust_center.js';
 /**
  * ==============================================================================
  * ALFA COMMAND CENTER - STATE & SESSION STORE MODULE (state.js)
@@ -270,7 +271,10 @@ export function switchTab(tabId) {
         fetchArtifacts();
         if (!wsInit._done) { wsInit._done = true; wsInit(); }
     }
-    if (tabId === 'guardian' ) fetchGuardian();
+    if (tabId === 'guardian' ) {
+        fetchGuardian();
+        fetchTrustCenter();
+    }
     if (tabId === 'swarm') {
         fetchAgents();
         fetchKeys();

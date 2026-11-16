@@ -631,6 +631,39 @@ async def skills_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(user_id):
         return
 
+    args = context.args if context and context.args else []
+    if args and str(args[0]).strip().lower() in {"compile", "kompilasi"}:
+        from alfa.core.brain.skill_compiler import compile_skills_sync
+
+        result = await asyncio.to_thread(compile_skills_sync)
+        if result.get("status") == "disabled":
+            await safe_send_message(
+                context,
+                chat_id,
+                "ℹ️ Skill Compiler nonaktif. Setel `ALFA_SKILL_COMPILER=shadow` "
+                "atau `on` untuk mengompilasi trajectory.",
+            )
+            return
+        if result.get("status") == "error":
+            await safe_send_message(
+                context,
+                chat_id,
+                f"⚠️ Kompilasi gagal: {result.get('error', 'error tidak diketahui')}",
+            )
+            return
+        await safe_send_message(
+            context,
+            chat_id,
+            "🧩 *SKILL COMPILER SELESAI*\n"
+            f"• Mode: `{result.get('mode')}`\n"
+            f"• Trajectory dipindai: `{result.get('scanned', 0)}`\n"
+            f"• Grup urutan tool: `{result.get('groups', 0)}`\n"
+            f"• Workflow dikompilasi: `{result.get('compiled', 0)}`\n"
+            f"• Diaktifkan: `{result.get('activated', 0)}`\n"
+            f"• Minimum support: `{result.get('min_support', 0)}`",
+        )
+        return
+
     from alfa.core.brain.learning_loop import get_learning_loop_metrics
 
     m = get_learning_loop_metrics()
@@ -659,10 +692,18 @@ async def skills_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"   └ \"_{rule_preview}_\""
         )
 
+    try:
+        from alfa.core.brain.skill_compiler import format_compiled_skills_status
+
+        card_lines.insert(6, format_compiled_skills_status())
+    except (ImportError, OSError, ValueError, TypeError, RuntimeError) as exc:
+        logger.debug("Status skill compiler dilewati: %s", exc)
+
     card_lines.append(
         "\n⚡ *Cara Mengajari Agen:*\n"
         "• *Auto-Reflexion:* Cukup katakan _'salah, harusnya...'_, agen otomatis mengekstrak dan menyimpan aturan baru.\n"
-        "• *Manual Seed:* Gunakan format pesan untuk mengajari aturan kapan saja."
+        "• *Manual Seed:* Gunakan format pesan untuk mengajari aturan kapan saja.\n"
+        "• *Kompilasi Workflow:* Ketik `/skills compile` untuk mengubah trajectory sukses menjadi skill workflow."
     )
     await safe_send_message(context, chat_id, "\n".join(card_lines))
 

@@ -436,6 +436,7 @@ async def build_system_instruction(
     )
 
     learned_skills_prompt = ""
+    compiled_skills_prompt = ""
     graphrag_prompt = ""
     if user_prompt:
         try:
@@ -444,6 +445,15 @@ async def build_system_instruction(
             learned_skills_prompt = format_learned_skills_prompt(user_prompt)
         except _CTX_DB_ERR as e:
             logger.debug("Learning loop prompt format bypass: %s", e)
+
+        try:
+            from alfa.core.brain.skill_compiler import (
+                format_compiled_skills_prompt,
+            )
+
+            compiled_skills_prompt = format_compiled_skills_prompt(user_prompt)
+        except (ImportError, OSError, *_CTX_DB_ERR) as e:
+            logger.debug("Skill compiler prompt format bypass: %s", e)
 
         try:
             from alfa.core.apex.temporal_graphrag import format_temporal_graphrag_prompt
@@ -457,6 +467,7 @@ async def build_system_instruction(
         + active_identity_block
         + memory_block
         + (f"\n\n{learned_skills_prompt}" if learned_skills_prompt else "")
+        + (f"\n\n{compiled_skills_prompt}" if compiled_skills_prompt else "")
         + (f"\n\n{graphrag_prompt}" if graphrag_prompt else "")
         + ENFORCEMENT_BLOCK
         + HONESTY_BLOCK

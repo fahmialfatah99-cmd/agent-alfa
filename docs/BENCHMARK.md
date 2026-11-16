@@ -8,13 +8,13 @@ reasoning, memory, safety, system, media, agent). Dua mode:
 - **Live** (pakai kuota Gemini): prompt dieksekusi via `bot.run_agent_turn`,
   dinilai `checks` (contains/regex/length/refusal).
 
-## Hasil terakhir (2026-11-14, terverifikasi lokal)
+## Hasil terakhir (2026-11-16, terverifikasi lokal)
 
 - Offline: **20/20 PASS** (`python evals/run_evals.py`)
 - Suite `alfa.eval`: ToolSelection 2 + MemoryRetrieval 1 + AgenticLoop 1 +
   ScenarioFile 20 skenario
-- Unit/integrasi: **1.975 test passed** (`pytest`), coverage **64,93%**
-  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 342 file,
+- Unit/integrasi: **2.000 test passed** (`pytest`), coverage **64,95%**
+  (gate repo 55%), `ruff` bersih, `mypy` 0 issue di 347 file,
   `bandit -ll` **0 Medium/High**, `pip-audit` bersih
 - Guard kepercayaan: klaim mutasi file diverifikasi (keberadaan, `mtime`,
   sheet Excel) sebelum balasan dikirim; turn per-chat diserialisasi; klaim
@@ -31,7 +31,18 @@ reasoning, memory, safety, system, media, agent). Dua mode:
   penghematan karakter/estimasi token tersedia via `/api/v1/trust/context`.
 - Gerbang Debt: budget TRY/BLE **510 instans** (dari 988 saat overhaul
   dimulai) & 0 handler `except Exception: pass` (gate CI)
-- Rilis: **v2.19.0**
+- Durable Task Runtime: status/checkpoint per giliran tersimpan di tabel
+  `durable_tasks`; `/runs` + `/lanjut` (mode `ALFA_DURABLE_TASKS=on`) untuk
+  melanjutkan tugas terputus. Default `shadow` (hanya mencatat).
+- Skill Compiler: trajectory sukses (>= 2 tool, support >= 2) dikompilasi
+  menjadi workflow reusable; default `shadow` (inactive), mode `on`
+  mengaktifkan dan menyuntikkan panduan ke prompt.
+- Capability Security: grant per chat/tool dengan TTL + batas pakai; default
+  `shadow`, mode `on` menegakkan grant dan `ALFA_CAPABILITY_REQUIRED` menolak
+  tool HIGH/CRITICAL tanpa grant.
+- Trust Center UI: panel read-only di tab Guardian untuk evidence, context
+  governor, capability, durable task, dan workflow terkompilasi.
+- Rilis: **v2.20.0**
 
 ## Reproduksi
 

@@ -17,6 +17,7 @@ all components from specialized submodules:
 import asyncio
 import logging
 import os
+import sqlite3
 import sys
 
 from telegram import Update
@@ -38,6 +39,7 @@ from alfa.bot.commands import (
     apex_command,
     budget_command,
     cancel_command,
+    capability_command,
     cekagen_command,
     clear_command,
     cloud_command,
@@ -46,6 +48,7 @@ from alfa.bot.commands import (
     drive_command,
     id_command,
     keys_command,
+    lanjut_command,
     memory_command,
     menu_command,
     mode_command,
@@ -55,6 +58,7 @@ from alfa.bot.commands import (
     ram_command,
     rapat_command,
     resume_swarm_command,
+    runs_command,
     setsheet_command,
     sheets_command,
     single_command,
@@ -163,6 +167,20 @@ async def post_init(application: Application):
     """Post initialization hook."""
     await database.init_db()
 
+    # P1 Durable Task Runtime: klasifikasikan giliran yang terputus saat
+    # proses berhenti. Tidak menjalankan ulang apa pun (resume eksplisit).
+    try:
+        from alfa.core.db.durable_tasks import recover_stale_tasks_sync
+
+        recovered = await asyncio.to_thread(recover_stale_tasks_sync)
+        if recovered:
+            logger.info(
+                f"[durable] {recovered} tugas lama ditandai interrupted "
+                "dan siap dilanjutkan manual."
+            )
+    except (ImportError, OSError, RuntimeError, ValueError, TypeError, sqlite3.Error) as exc:
+        logger.debug(f"[durable] recovery startup dilewati: {exc}")
+
     # Connect Subagent swarm to Telegram app instance
     from alfa.swarm import subagents as subagents
 
@@ -189,6 +207,9 @@ async def post_init(application: Application):
                 BotCommand("tools", "Daftar tools aktif"),
                 BotCommand("pipeline", "Workflow pipeline"),
                 BotCommand("tugas", "Tugas latar & checkpoint"),
+                BotCommand("runs", "Riwayat giliran durable"),
+                BotCommand("lanjut", "Lanjutkan giliran terputus"),
+                BotCommand("capability", "Grant keamanan berlingkup"),
                 BotCommand("keys", "API key vault"),
                 BotCommand("cekagen", "Audit konfigurasi agen"),
                 BotCommand("cron", "Tugas berulang"),
@@ -323,6 +344,10 @@ def main():
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("skills", skills_command))
     application.add_handler(CommandHandler("learn", skills_command))
+    application.add_handler(CommandHandler("runs", runs_command))
+    application.add_handler(CommandHandler("lanjut", lanjut_command))
+    application.add_handler(CommandHandler("capability", capability_command))
+    application.add_handler(CommandHandler("capabilities", capability_command))
     application.add_handler(CommandHandler("apex", apex_command))
     application.add_handler(CommandHandler("level5", apex_command))
     application.add_handler(CommandHandler("cron", cron_command))

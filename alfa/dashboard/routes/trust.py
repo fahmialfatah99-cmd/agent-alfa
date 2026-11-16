@@ -65,3 +65,67 @@ async def get_turn_evidence(turn_id: str) -> dict[str, Any]:
 async def context_governor_status() -> dict[str, Any]:
     """Statistik kompaksi konteks terakhir + batas aktif."""
     return {"status": "ok", "context_governor": governor_stats()}
+
+
+@trust_router.get("/capabilities")
+async def capability_grants(
+    chat_id: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict[str, Any]:
+    """Daftar capability grant (read-only) + mode keamanan aktif."""
+    from alfa.core.perm.capabilities import (
+        capability_mode,
+        capability_required,
+        list_capabilities_sync,
+    )
+
+    grants = list_capabilities_sync(chat_id=chat_id, limit=limit)
+    valid = [item for item in grants if item.get("valid")]
+    return {
+        "status": "ok",
+        "mode": capability_mode(),
+        "required": capability_required(),
+        "count": len(grants),
+        "valid_count": len(valid),
+        "capabilities": grants,
+    }
+
+
+@trust_router.get("/tasks")
+async def durable_task_status(
+    limit: int = Query(default=25, ge=1, le=200),
+) -> dict[str, Any]:
+    """Ringkasan durable task runtime (read-only)."""
+    from alfa.core.db.durable_tasks import (
+        durable_mode,
+        list_tasks_sync,
+        task_count_sync,
+    )
+
+    rows = list_tasks_sync(limit=limit)
+    return {
+        "status": "ok",
+        "mode": durable_mode(),
+        "count": task_count_sync(),
+        "tasks": rows,
+    }
+
+
+@trust_router.get("/skills")
+async def compiled_skill_status(
+    active_only: bool = Query(default=False),
+    limit: int = Query(default=25, ge=1, le=200),
+) -> dict[str, Any]:
+    """Ringkasan skill compiler (read-only)."""
+    from alfa.core.brain.skill_compiler import (
+        compiler_mode,
+        list_compiled_skills_sync,
+    )
+
+    rows = list_compiled_skills_sync(active_only=active_only, limit=limit)
+    return {
+        "status": "ok",
+        "mode": compiler_mode(),
+        "count": len(rows),
+        "skills": rows,
+    }

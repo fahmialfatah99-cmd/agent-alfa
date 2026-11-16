@@ -17,6 +17,7 @@ from alfa.bot.advanced_commands._common import (
     _get_bot_module,
     _is_authorized,
 )
+from alfa.bot.advanced_commands.capability import capability_command
 from alfa.bot.advanced_commands.commands import (
     agents_command,
     apex_command,
@@ -29,6 +30,7 @@ from alfa.bot.advanced_commands.commands import (
     skills_command,
     swarm_command,
 )
+from alfa.bot.advanced_commands.durable import lanjut_command, runs_command
 from alfa.bot.advanced_commands.sites import (
     handle_sites_callback,
     sites_command,
@@ -64,13 +66,16 @@ __all__ = [
     "_is_authorized",
     "agents_command",
     "apex_command",
+    "capability_command",
     "dashboard_command",
     "handle_sites_callback",
     "is_authorized",
     "keys_command",
+    "lanjut_command",
     "rapat_command",
     "ram_command",
     "resume_swarm_command",
+    "runs_command",
     "safe_send_message",
     "setsheet_command",
     "sites_command",

@@ -2042,6 +2042,107 @@ Siap digunakan! Coba cari "travel agency", "fintech crypto", "minimalist portfol
                     </button>
                 </form>
             </div>
+
+            <!-- TRUST CENTER & OBSERVABILITY (P2) — read-only, muat saat tab Guardian dibuka -->
+            <div id="trust-center-panel" class="glass-card p-6 rounded-2xl space-y-5 w-full">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2 font-mono">
+                            <i data-lucide="scan-eye" class="w-5 h-5 text-emerald-400"></i> TRUST CENTER & OBSERVABILITY
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">Evidence ledger, context governor, capability grant, durable task, dan workflow terkompilasi — read-only.</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label for="trust-hours" class="text-slate-400">Rentang</label>
+                        <select id="trust-hours" onchange="fetchTrustCenter()" class="bg-dark-950 border border-white/10 rounded-lg px-2 py-1.5 text-slate-200">
+                            <option value="1">1 jam</option>
+                            <option value="6">6 jam</option>
+                            <option value="24" selected>24 jam</option>
+                            <option value="72">3 hari</option>
+                            <option value="168">7 hari</option>
+                            <option value="720">30 hari</option>
+                        </select>
+                        <a href="#" onclick="fetchTrustCenter(); return false;" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold hover:bg-emerald-500/20">Refresh</a>
+                    </div>
+                </div>
+
+                <div id="trust-error"></div>
+                <div id="trust-loading" class="text-xs text-slate-500"></div>
+                <div id="trust-summary-cards" class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 text-slate-500">Menunggu data…</div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <h4 class="font-bold text-slate-200">Evidence per Status</h4>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] uppercase text-slate-500">
+                                <tr><th class="px-3 py-1">Status</th><th class="px-3 py-1 text-right">Jumlah</th></tr>
+                            </thead>
+                            <tbody id="trust-status-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <h4 class="font-bold text-slate-200">Top Tools</h4>
+                        <div id="trust-tools-list" class="text-slate-500">Menunggu data…</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <h4 class="font-bold text-slate-200">Context Governor</h4>
+                        <div id="trust-context-body" class="text-slate-500">Menunggu data…</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <h4 class="font-bold text-slate-200">Capability Security</h4>
+                            <div id="trust-capability-meta" class="flex items-center gap-1 flex-wrap"></div>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] uppercase text-slate-500">
+                                <tr><th class="px-3 py-1">Tool</th><th class="px-3 py-1">Grant</th><th class="px-3 py-1 text-right">Pakai</th><th class="px-3 py-1 text-right">Status</th></tr>
+                            </thead>
+                            <tbody id="trust-capability-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <h4 class="font-bold text-slate-200">Durable Task Runtime</h4>
+                            <div id="trust-task-meta" class="flex items-center gap-1 flex-wrap"></div>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] uppercase text-slate-500">
+                                <tr><th class="px-3 py-1">Task</th><th class="px-3 py-1">Status</th><th class="px-3 py-1 text-right">Langkah</th><th class="px-3 py-1">Prompt</th></tr>
+                            </thead>
+                            <tbody id="trust-task-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <h4 class="font-bold text-slate-200">Skill Compiler</h4>
+                            <div id="trust-skill-meta" class="flex items-center gap-1 flex-wrap"></div>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] uppercase text-slate-500">
+                                <tr><th class="px-3 py-1">Workflow</th><th class="px-3 py-1">Status</th><th class="px-3 py-1 text-right">Support</th><th class="px-3 py-1 text-right">Hits</th></tr>
+                            </thead>
+                            <tbody id="trust-skill-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-dark-950 border border-white/5 space-y-2 text-xs">
+                    <h4 class="font-bold text-slate-200">Evidence Terbaru (50)</h4>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="text-[10px] uppercase text-slate-500">
+                                <tr><th class="px-3 py-1">Waktu</th><th class="px-3 py-1">Tool</th><th class="px-3 py-1">Status</th><th class="px-3 py-1">Path</th><th class="px-3 py-1">Turn</th></tr>
+                            </thead>
+                            <tbody id="trust-evidence-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </section>
 
 

@@ -79,7 +79,79 @@ _TE_STREAM_ERR = (RuntimeError, ValueError, TypeError, KeyError, asyncio.Timeout
 #: Error realistis untuk menyimpan riwayat.
 _TE_DB_ERR = (sqlite3.Error, RuntimeError, ValueError, TypeError)
 
+#: Error realistis untuk pencatatan durable task (selalu fail-soft).
+_TE_DURABLE_ERR = (
+    sqlite3.Error,
+    OSError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    ImportError,
+    UnicodeError,
+)
+
 logger = logging.getLogger("TelegramAIAgent")
+
+
+def _durable_start_turn(
+    turn_id: str,
+    *,
+    user_id: int,
+    chat_id: int,
+    prompt: str,
+    model: str = "",
+) -> None:
+    """Daftarkan giliran ke durable task runtime (best-effort)."""
+    try:
+        from alfa.core.db.durable_tasks import create_task_sync
+
+        create_task_sync(
+            turn_id,
+            turn_id=turn_id,
+            user_id=int(user_id or 0),
+            chat_id=int(chat_id or 0),
+            kind="turn",
+            prompt=str(prompt or ""),
+            model=str(model or ""),
+            max_attempts=2,
+            payload={"source": "agent_turn"},
+        )
+    except _TE_DURABLE_ERR as exc:
+        logger.debug("Durable task start dilewati: %s", exc)
+
+
+def _durable_checkpoint_turn(turn_id: str, tools: list[str]) -> None:
+    """Simpan progres langkah tool terakhir (best-effort)."""
+    if not turn_id:
+        return
+    try:
+        from alfa.core.db.durable_tasks import checkpoint_task_sync
+
+        unique_tools = list(dict.fromkeys(tools))
+        checkpoint_task_sync(
+            turn_id,
+            step_index=len(tools),
+            payload={
+                "tool_count": len(tools),
+                "last_tools": unique_tools[-8:],
+            },
+        )
+    except _TE_DURABLE_ERR as exc:
+        logger.debug("Durable task checkpoint dilewati: %s", exc)
+
+
+def _durable_finish_turn(turn_id: str, status: str, error: str = "") -> None:
+    """Tutup durable task giliran (best-effort)."""
+    if not turn_id:
+        return
+    try:
+        from alfa.core.db.durable_tasks import finish_task_sync
+
+        finish_task_sync(turn_id, status=status, error=error)
+    except _TE_DURABLE_ERR as exc:
+        logger.debug("Durable task finish dilewati: %s", exc)
 
 # Lazily-initialized shared Gemini client (set on first turn via _resolve).
 gemini_client: Any = None
@@ -447,6 +519,8 @@ async def _run_agent_turn_impl(
                         )
                     # Semua respons fungsi paralel dikirim dalam SATU Content.
                     _contents.append(types.Content(role="user", parts=_parts))
+                    # P1 Durable Task Runtime: simpan progres tool terakhir.
+                    _durable_checkpoint_turn(get_current_turn_id(), _executed)
                     resp = await gemini_client.aio.models.generate_content(
                         model=_model, contents=_contents, config=cfg
                     )
@@ -694,39 +768,60 @@ async def run_agent_turn(
         turn_started_at = time.time()
         turn_id = begin_turn()
         note_turn_started()
-        try:
-            result = await _run_agent_turn_impl(
-                user_id,
-                user_prompt,
-                multimodal_parts=multimodal_parts,
-                chat_id=chat_id,
-                override_model=override_model,
-                override_key_id=override_key_id,
-                streamer=streamer,
-            )
-        except _TE_STREAM_ERR:
-            note_turn_finished(False)
-            raise
-        result, issues = apply_artifact_guard(result, turn_started_at)
-        result, attribution_issues = apply_attribution_guard(
-            result, get_current_executed_tool_calls()
+        _durable_start_turn(
+            turn_id,
+            user_id=user_id,
+            chat_id=chat_key or 0,
+            prompt=user_prompt,
+            model=override_model or "",
         )
+        durable_status = "failed"
+        durable_error = ""
         try:
-            from alfa.core.db.evidence import decorate_with_evidence
+            try:
+                result = await _run_agent_turn_impl(
+                    user_id,
+                    user_prompt,
+                    multimodal_parts=multimodal_parts,
+                    chat_id=chat_id,
+                    override_model=override_model,
+                    override_key_id=override_key_id,
+                    streamer=streamer,
+                )
+            except asyncio.CancelledError:
+                durable_status = "interrupted"
+                durable_error = "Giliran dibatalkan sebelum selesai."
+                raise
+            except _TE_STREAM_ERR:
+                durable_error = "Stream/tool error sebelum giliran selesai."
+                note_turn_finished(False)
+                raise
+            except Exception as exc:  # noqa: BLE001 - durable finish lalu re-raise
+                durable_error = str(exc)
+                raise
+            result, issues = apply_artifact_guard(result, turn_started_at)
+            result, attribution_issues = apply_attribution_guard(
+                result, get_current_executed_tool_calls()
+            )
+            try:
+                from alfa.core.db.evidence import decorate_with_evidence
 
-            result = decorate_with_evidence(
-                result, turn_id or get_current_turn_id()
+                result = decorate_with_evidence(
+                    result, turn_id or get_current_turn_id()
+                )
+            except (ImportError, AttributeError, RuntimeError, ValueError, TypeError, OSError):
+                logger.debug("Evidence ledger tidak tersedia pada giliran ini", exc_info=True)
+            note_turn_finished(
+                ok=(
+                    not issues
+                    and not attribution_issues
+                    and not result.startswith(("❌", "⚠️"))
+                )
             )
-        except (ImportError, AttributeError, RuntimeError, ValueError, TypeError, OSError):
-            logger.debug("Evidence ledger tidak tersedia pada giliran ini", exc_info=True)
-        note_turn_finished(
-            ok=(
-                not issues
-                and not attribution_issues
-                and not result.startswith(("❌", "⚠️"))
-            )
-        )
-        return result
+            durable_status = "completed"
+            return result
+        finally:
+            _durable_finish_turn(turn_id, durable_status, durable_error)
 
 
 __all__ = [

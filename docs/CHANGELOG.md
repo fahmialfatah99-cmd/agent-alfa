@@ -9,6 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.0] — 2026-11-16
+
+Rilis P1/P2 **Durable, Reusable & Trustworthy**: giliran agent kini punya
+checkpoint yang bisa dipulihkan, trajectory sukses bisa dikompilasi menjadi
+workflow reusable, izin tool punya grant berlingkup/time-bound, dan Trust
+Center menampilkan seluruh jejak tersebut di dashboard. Semua fitur aditif,
+ber-feature-flag, dan default `shadow` agar perilaku lama tidak berubah.
+
+### Ditambahkan
+
+- **Durable Task Runtime** (`alfa/core/db/durable_tasks.py`): tabel SQLite
+  aditif `durable_tasks` menyimpan status setiap giliran (`running`,
+  `completed`, `failed`, `interrupted`, `paused`), prompt, model, langkah tool
+  terakhir, attempt, dan error. `run_agent_turn` mencatat checkpoint per
+  putaran tool dan menutup status di `finally`; startup bot/dashboard
+  menandai tugas `running` yang basi sebagai `interrupted` (tanpa menjalankan
+  ulang). Resume **eksplisit** via `/lanjut <task_id>` hanya aktif pada mode
+  `ALFA_DURABLE_TASKS=on`; `/runs` menampilkan riwayat. Retensi default 30
+  hari / 5.000 baris (`ALFA_DURABLE_RETENTION_DAYS`, `ALFA_DURABLE_MAX_ROWS`).
+- **Skill Compiler** (`alfa/core/brain/skill_compiler.py`): mengompilasi
+  urutan tool dari `agent_trajectories` yang sukses (minimal 2 tool, support
+  default 2) menjadi workflow terstruktur di tabel aditif
+  `alfa_compiled_skills`. Mode `ALFA_SKILL_COMPILER`: `off`/`shadow` (default,
+  tersimpan **inactive**)/`on` (aktif + blok workflow disuntikkan ke prompt
+  bila relevan). Perintah `/skills compile` menjalankan kompilasi idempoten;
+  `ALFA_SKILL_COMPILER_MIN_SUPPORT`/`LOOKBACK_DAYS`/`PROMPT` mengatur ambang
+  dan injeksi.
+- **Capability Security** (`alfa/core/perm/capabilities.py`): tabel aditif
+  `capability_grants` menyimpan grant per chat/tool dengan `expires_at`,
+  `max_uses`, scope, dan audit `uses`. Layer ini duduk di atas permission gate:
+  mode `off`/`shadow` (default, hanya mencatat)/`on` (grant valid
+  auto-approve, sekali pakai berkurang atomik). `ALFA_CAPABILITY_REQUIRED=true`
+  membuat tool HIGH/CRITICAL tanpa grant ditolak (fail-closed). Pada mode
+  `on`, tombol "Izinkan Selalu" menjadi grant berbatas waktu, bukan izin
+  permanen. Perintah `/capability [status|grant|revoke]`; Trust API
+  read-only tersedia di `/api/v1/trust/capabilities`.
+- **Trust Center UI** (`templates/index.html`, `static/js/modules/trust_center.js`):
+  panel read-only di dalam tab Guardian menampilkan ringkasan evidence,
+  status per tool, context governor, capability grant, durable task, workflow
+  terkompilasi, dan 50 evidence terbaru. Memuat otomatis saat tab Guardian
+  dibuka; tanpa `<button>` baru agar snapshot Playwright tetap identik.
+  Endpoint read-only baru: `GET /api/v1/trust/capabilities`, `/tasks`,
+  `/skills`.
+- **Konfigurasi**: variabel `.env.example` untuk `ALFA_DURABLE_*`,
+  `ALFA_SKILL_COMPILER_*`, dan `ALFA_CAPABILITY_*`, semuanya default `shadow`
+  atau nilai aman.
+
+### Kualitas
+
+- Tes baru: `tests/test_durable_tasks.py` (8),
+  `tests/test_skill_compiler.py` (6),
+  `tests/test_capability_security.py` (7), plus 4 tes Trust API/SPA baru di
+  `tests/test_trust_api.py`.
+- Total test: **1.975 → 2.000**; coverage `alfa/`: **64,93% → 64,95%**.
+- `ruff` bersih, `mypy` 0 issue di **347 file**, `bandit -ll` 0 Medium/High,
+  budget TRY/BLE tetap **510**, 0 `except Exception: pass`.
+- Playwright snapshot 375/768/1024/1440 tetap lolos tanpa regenerasi baseline.
+- Default aman: seluruh fitur baru berjalan `shadow`; aktifkan `on` setelah
+  observasi di Trust Center.
+
 ## [2.19.0] — 2026-11-14
 
 Rilis P0 **Trustworthy & Efficient**: setiap eksekusi tool yang menyentuh
