@@ -8,7 +8,7 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=%h/telegram-ai-bot
 Environment=ALFA_BACKUP_DIR=%h/.alfa/backups
-Environment=ALFA_BACKUP_OFFSITE_REMOTE=gdrive1:alfa-backups
+Environment=ALFA_BACKUP_OFFSITE_REMOTE=gdrive1-alfa-crypt:
 # Verifikasi lokal wajib sukses (exit 1 = unit gagal). Kegagalan offsite
 # hanya warning agar backup lokal tetap dianggap berhasil.
 ExecStart=%h/telegram-ai-bot/venv/bin/python3 scripts/backup_db.py run

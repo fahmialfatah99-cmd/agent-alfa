@@ -67,7 +67,7 @@ def safe_ast_math_eval(expr: str) -> float | int | None:
     if _HAS_RUST_ACCEL:
         try:
             return cast("float | int | None", alfa_accel.safe_ast_math_eval(expr))
-        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+        except (RuntimeError, TypeError, ValueError, AttributeError, NameError) as e:
             logger.debug("alfa_accel safe_ast_math_eval failed (%s), fallback to Python AST", e)
 
     if not expr or not expr.strip():
@@ -107,7 +107,7 @@ def verify_arithmetic_equations_in_text(text: str) -> tuple[str, list[dict[str, 
                 "tuple[str, list[dict[str, Any]]]",
                 alfa_accel.verify_arithmetic_equations_in_text(text),
             )
-        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+        except (RuntimeError, TypeError, ValueError, AttributeError, NameError) as e:
             logger.debug("alfa_accel verify_arithmetic_equations_in_text failed (%s), fallback to Python", e)
 
     findings: list[dict[str, Any]] = []

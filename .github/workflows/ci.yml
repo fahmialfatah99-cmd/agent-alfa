@@ -48,6 +48,10 @@ jobs:
           python-version: "3.12"
       - name: Install mypy
         run: pip install "mypy==1.8.0" # disematkan ke pre-commit; latest (2.x) jauh lebih ketat
+      - name: Install typed dependencies
+        # Tanpa SDK nyata, mypy menganggap type-ignore tertentu "unused"
+        # sehingga budget 0 gagal di CI padahal lokal hijau.
+        run: pip install "google-genai==1.65.0" "mcp==1.30.0"
       - name: Run type checking on core modules
         run: |
           mypy --ignore-missing-imports alfa/ || echo "Type checking completed with warnings"
@@ -159,8 +163,8 @@ jobs:
         run: |
           pip install maturin
           cd crates/alfa_accel
-          maturin develop --release || echo "::warning::Rust accelerator compilation skipped, using Python fallback"
-          cd ../..
+          maturin build --release --out dist
+          pip install --force-reinstall dist/*.whl
       - name: Jalankan seluruh suite dengan coverage (threshold gate)
         # Threshold dinaikkan dari 44% ke 50% (terukur 51.62% per 2026-10-19).
         run: pytest -v --cov=alfa --cov=. --cov-report=xml --cov-report=html --cov-fail-under=50

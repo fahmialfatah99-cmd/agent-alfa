@@ -22,6 +22,25 @@ from alfa.dashboard.app import (  # noqa: E402
 )
 
 
+def test_orphan_session_is_not_auto_admin():
+    """Sesi user yang tidak ada harus ditolak; hanya admin_local lokal yang sah."""
+    from alfa.core.db.connection import init_db_sync
+    from alfa.dashboard.routes.auth import init_auth_db
+
+    init_db_sync()
+    init_auth_db()
+    orphan = _create_session_token(999999, "attacker")
+    store_session(999999, orphan)
+    assert validate_session(orphan) is None
+
+    local = _create_session_token(0, "admin_local")
+    store_session(0, local)
+    validated = validate_session(local)
+    assert validated is not None
+    assert validated["user_id"] == 0
+    assert validated["is_admin"] is True
+
+
 def test_auth_system():
     print("=" * 60)
     print("TEST SISTEM AUTENTIKASI DASHBOARD")

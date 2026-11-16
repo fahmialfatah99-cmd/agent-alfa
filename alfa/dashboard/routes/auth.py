@@ -294,26 +294,34 @@ def validate_session(token: str) -> dict[str, Any] | None:
     conn = db.get_connection_pool().acquire()
     try:
         cursor = conn.cursor()
-        fallback_username = session_data.get("username", "admin_local")
         cursor.execute(
             """
-            SELECT s.user_id, COALESCE(u.username, ?), COALESCE(u.is_admin, 1), s.expires_at
+            SELECT s.user_id, u.username, u.is_admin, s.expires_at, u.is_active
             FROM dashboard_sessions s
             LEFT JOIN dashboard_users u ON s.user_id = u.id
             WHERE s.token_hash = ? AND s.is_valid = 1 AND s.expires_at > CURRENT_TIMESTAMP
         """,
-            (fallback_username, token_hash),
+            (token_hash,),
         )
         row = cursor.fetchone()
 
         if row:
-            expiry_val = row[3]
+            user_id, username, is_admin, expiry_val, is_active = row
+            # Sesi lokal (user_id=0) hanya sah bila token membawa identitas
+            # admin_local yang ditandatangani server. Sesi orphan lain DITOLAK:
+            # jangan pernah memberi admin hanya karena user tidak ditemukan.
+            if username is None:
+                if user_id != 0 or session_data.get("username") != "admin_local":
+                    return None
+                username, is_admin = "admin_local", True
+            elif not is_active:
+                return None
             if isinstance(expiry_val, str):
                 expiry_val = datetime.fromisoformat(expiry_val)
             return {
-                "user_id": row[0],
-                "username": row[1],
-                "is_admin": bool(row[2]),
+                "user_id": user_id,
+                "username": username,
+                "is_admin": bool(is_admin),
                 "expiry": expiry_val,
             }
         return None

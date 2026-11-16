@@ -333,7 +333,7 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     if _HAS_RUST_ACCEL:
         try:
             return float(alfa_accel.cosine_similarity(vec_a, vec_b))
-        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+        except (RuntimeError, TypeError, ValueError, AttributeError, NameError) as e:
             logger.debug("alfa_accel cosine_similarity fallback to NumPy (%s)", e)
 
     a: Any = np.array(vec_a, dtype=np.float32)
@@ -482,7 +482,7 @@ def _calculate_bm25_scores(corpus_texts: list[str], query: str) -> list[float]:
     if _HAS_RUST_ACCEL:
         try:
             return [float(s) for s in alfa_accel.calculate_bm25_scores(corpus_texts, query)]
-        except (RuntimeError, TypeError, ValueError, AttributeError) as e:
+        except (RuntimeError, TypeError, ValueError, AttributeError, NameError) as e:
             logger.debug("alfa_accel calculate_bm25_scores fallback to Python (%s)", e)
 
     q_tokens = [t.lower() for t in re.findall(r"\b\w+\b", query) if len(t) > 1]

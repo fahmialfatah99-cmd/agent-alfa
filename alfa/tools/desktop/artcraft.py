@@ -92,6 +92,7 @@ def artcraft_get_capabilities() -> dict[str, Any]:
     CLI yang siap dieksekusi secara otonom.
     """
     mapped_apps: dict[str, Any] = {}
+    installed_versions: dict[str, str] = {}
     try:
         # Cek versi terpasang via flatpak
         res = subprocess.run(
@@ -100,28 +101,30 @@ def artcraft_get_capabilities() -> dict[str, Any]:
             text=True,
             timeout=10,
         )
-        installed_versions: dict[str, str] = {}
         if res.returncode == 0:
             for line in res.stdout.splitlines():
                 parts = line.strip().split()
                 if len(parts) >= 2:
                     installed_versions[parts[0]] = parts[1]
-
-        for key, meta in ARTCRAFT_APPS.items():
-            app_id = meta["app_id"]
-            ver = installed_versions.get(app_id, "uninstalled")
-            mapped_apps[key] = {
-                "name": meta["name"],
-                "app_id": app_id,
-                "installed": ver != "uninstalled",
-                "version": ver,
-                "description": meta["description"],
-                "formats_read": meta["formats_read"],
-                "formats_write": meta["formats_write"],
-                "cli_subcommands": meta["cli_subcommands"],
-            }
     except (OSError, subprocess.SubprocessError) as err:
         logger.warning(f"Gagal memeriksa kemampuan ArtCraft: {err}")
+
+    # Daftar kemampuan tetap lengkap walau flatpak tidak tersedia (mis. CI),
+    # dengan status installed=False. Test/katalog tidak boleh bergantung pada
+    # paket desktop yang terpasang di host.
+    for key, meta in ARTCRAFT_APPS.items():
+        app_id = meta["app_id"]
+        ver = installed_versions.get(app_id, "uninstalled")
+        mapped_apps[key] = {
+            "name": meta["name"],
+            "app_id": app_id,
+            "installed": ver != "uninstalled",
+            "version": ver,
+            "description": meta["description"],
+            "formats_read": meta["formats_read"],
+            "formats_write": meta["formats_write"],
+            "cli_subcommands": meta["cli_subcommands"],
+        }
 
     # Tambahkan launcher
     launcher_path = shutil.which("artcraft-launcher") or os.path.expanduser("~/.local/bin/artcraft-launcher")

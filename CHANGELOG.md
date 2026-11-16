@@ -26,6 +26,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inspeksi backup memuat ekstensi `sqlite_vss` bila tersedia dan mencatat
   tabel virtual yang tidak dapat dihitung sebagai `skipped`, bukan gagal
   seluruh backup.
+- **Sesi orphan tidak lagi otomatis admin**: `validate_session` hanya
+  mengizinkan `user_id=0` bila token bertanda `admin_local` yang ditandatangani
+  server; user yang tidak ada atau nonaktif ditolak.
+- **Fallback Rust benar-benar graceful**: `NameError`/`ImportError` saat modul
+  `alfa_accel` atau `camoufox` tidak tersedia kini ditangkap dan dialihkan ke
+  implementasi Python, bukan menggagalkan tool.
+- **CI**: build Rust memakai `maturin build` + wheel (bukan `maturin develop`
+  yang butuh venv), type-check memasang `google-genai`/`mcp`, dan kapabilitas
+  ArtCraft tetap lengkap saat `flatpak` tidak tersedia.
+
+### Keamanan
+
+- **Cleanup residu dashboard**: 946 akun non-operator dihapus (947 → 1 user,
+  832 → 1 admin), seluruh sesi lama di-invalidasi, dan 183 kunci 9router tidak
+  aktif dihapus (190 → 7 kunci). Backup terverifikasi dibuat sebelum cleanup;
+  manifest tersimpan di `~/.alfa/quarantine/`.
+- **Backup offsite terenkripsi**: remote `gdrive1-alfa-crypt:` (rclone crypt)
+  menggantikan salinan plaintext; salinan plaintext lama di Drive sudah
+  dihapus. Kunci recovery disimpan di `~/.config/alfa/secrets.env`
+  (`ALFA_BACKUP_CRYPT_PASSWORD`), tidak di repo.
 
 ## [2.20.0] — 2026-11-16
 

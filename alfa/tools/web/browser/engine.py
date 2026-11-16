@@ -122,7 +122,7 @@ def _ensure_page():
                 _AT_EXIT_DONE = True
             logger.info("Camoufox engine diluncurkan (headless=%s)", _headless())
             return page
-        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
+        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, ImportError) as e:  # noqa: BLE001
             logger.error("Gagal meluncurkan Camoufox: %s", e)
             _STATE["ctx"] = None
             _STATE["page"] = None

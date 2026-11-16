@@ -33,7 +33,14 @@ jobs:
             psutil httpx fastapi uvicorn pillow pypdf tabulate cryptography numpy \
             pydantic click rich pyyaml jinja2 aiofiles websockets pygments ddgs
           pip install pytest pytest-cov pytest-asyncio ruff "mypy==1.8.0" black
-      
+
+      - name: Build Rust Acceleration Module (alfa_accel)
+        run: |
+          pip install maturin
+          cd crates/alfa_accel
+          maturin build --release --out dist
+          pip install --force-reinstall dist/*.whl
+
       - name: Generate coverage report
         run: |
           pytest --cov=alfa --cov=. --cov-report=xml --cov-report=html

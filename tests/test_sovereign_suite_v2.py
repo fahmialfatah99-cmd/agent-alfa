@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from alfa.tools import (
@@ -120,6 +122,7 @@ class TestMediaGenerateSubtitlesSrt:
         assert "tidak ditemukan" in res["message"]
 
     def test_mocked_transcription_srt_and_vtt(self, tmp_path):
+        pytest.importorskip("faster_whisper")
         dummy_audio = tmp_path / "meeting_record.wav"
         dummy_audio.write_bytes(b"RIFFdummywavdata")
 

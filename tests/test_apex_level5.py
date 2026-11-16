@@ -726,6 +726,7 @@ def test_swarm_adaptive_dual_persona_and_smart_routing():
 
 def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path):
     import os
+    import sqlite3
 
     from alfa.core.apex import ingest_text_to_temporal_graph
     from alfa.core.db.backup_manager import (
@@ -795,15 +796,29 @@ def test_fact_grounded_war_room_meeting_export_and_db_snapshot_manager(tmp_path)
 
     # 3. Verified SQLite Snapshot & Auto-Rotation Manager
     bkp_dir = str(tmp_path / "backups")
-    health = verify_sqlite_integrity()
+    # Sumber snapshot eksplisit: test tidak boleh bergantung pada ada/tidaknya
+    # agent_data.db produksi di host CI.
+    seed_db = tmp_path / "snapshot_source.db"
+    seed_conn = sqlite3.connect(seed_db)
+    seed_conn.execute("CREATE TABLE snapshot_probe (id INTEGER PRIMARY KEY, label TEXT)")
+    seed_conn.execute("INSERT INTO snapshot_probe (label) VALUES ('probe')")
+    seed_conn.commit()
+    seed_conn.close()
+    health = verify_sqlite_integrity(str(seed_db))
     assert health["healthy"] is True
 
-    snap1 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
+    snap1 = create_verified_db_snapshot(
+        db_path=str(seed_db), backup_dir=bkp_dir, max_backups=2
+    )
     assert snap1["status"] == "success"
     assert os.path.exists(snap1["snapshot_path"])
 
-    snap2 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
-    snap3 = create_verified_db_snapshot(backup_dir=bkp_dir, max_backups=2)
+    snap2 = create_verified_db_snapshot(
+        db_path=str(seed_db), backup_dir=bkp_dir, max_backups=2
+    )
+    snap3 = create_verified_db_snapshot(
+        db_path=str(seed_db), backup_dir=bkp_dir, max_backups=2
+    )
     assert snap2["status"] == "success"
     assert snap3["status"] == "success"
 
