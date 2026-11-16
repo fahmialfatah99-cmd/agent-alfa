@@ -86,7 +86,7 @@ def browser_open_url(url: str) -> dict[str, Any]:
             "interactive_elements": snap["interactive_elements"],
             "page_content_preview": snap["page_content_preview"],
         }
-    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError) as e:  # noqa: BLE001
+    except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, ImportError) as e:  # noqa: BLE001
         return {"status": "error", "message": f"Browser open error: {str(e)}"}
 
 

@@ -32,8 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mengizinkan `user_id=0` bila token bertanda `admin_local` yang ditandatangani
   server; user yang tidak ada atau nonaktif ditolak.
 - **Fallback Rust benar-benar graceful**: `NameError`/`ImportError` saat modul
-  `alfa_accel` atau `camoufox` tidak tersedia kini ditangkap dan dialihkan ke
-  implementasi Python, bukan menggagalkan tool.
+  `alfa_accel`, `camoufox`, atau ekstra stealth `scrapling` tidak tersedia kini
+  ditangkap dan dialihkan ke implementasi Python/error terstruktur, bukan
+  menggagalkan tool.
 - **CI**: build Rust memakai `maturin build` + wheel (bukan `maturin develop`
   yang butuh venv), type-check memasang `google-genai`/`mcp`, dan kapabilitas
   ArtCraft tetap lengkap saat `flatpak` tidak tersedia.

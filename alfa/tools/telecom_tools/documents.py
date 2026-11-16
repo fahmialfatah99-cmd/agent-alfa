@@ -488,10 +488,12 @@ def inspect_field_surat_jalan_image(
                 client = genai.Client(api_key=api_key, http_options={"timeout": 60000})
                 mime_type = "image/png" if is_pdf or ext == ".png" else "image/jpeg"
                 img_part = types.Part.from_bytes(data=img_bytes, mime_type=mime_type)
-                # Tuple heterogen SDK genai (Part + str).
+                # SDK genai menerima campuran Part + str; diberi tipe Any agar
+                # tidak bergantung versi stub (type: ignore bisa "unused").
+                contents_payload: Any = [img_part, str(vision_prompt)]
                 resp = client.models.generate_content(
                     model=model or "gemini-2.5-flash",
-                    contents=[img_part, str(vision_prompt)],  # type: ignore[arg-type]
+                    contents=contents_payload,
                 )
                 raw_text = (getattr(resp, "text", "") or "").strip()
                 clean_json = re.sub(r"^```json\s*|^```\s*|```$", "", raw_text, flags=re.MULTILINE).strip()
