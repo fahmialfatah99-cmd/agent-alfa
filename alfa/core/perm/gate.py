@@ -98,22 +98,91 @@ def check_headless_approval(
 ) -> str | None:
     """Persetujuan non-interaktif untuk eksekusi dashboard-direct dan MCP.
 
-    Tidak ada prompt Telegram, jadi berlaku kebijakan NO_CHANNEL_POLICY yang
-    sama seperti cabang tanpa-kanal di request_approval (bukan trust score):
-    batas keamanannya adalah auth dashboard / operator lokal.
+    Tidak ada prompt Telegram, tetapi keputusan tetap menghormati keputusan
+    operator yang sudah ada: allowlist ``tool_permissions``, capability grant,
+    dan trust score per tier. Tool HIGH/CRITICAL tanpa grant/trust jatuh ke
+    kebijakan ``NO_CHANNEL_POLICY`` (default menolak), bukan digantung.
     Return None bila diizinkan; pesan penolakan bila ditolak.
     """
     import time as _time
 
     if not PERMISSION_GATE_ENABLED:
         return None
-    if chat_id is None:
-        chat_id = 0
+    ident = int(chat_id or 0)
     tier = get_tool_tier(tool_name)
     started = _time.time()
+
+    # 1) Operator sudah mengecualikan tool ini (always/session allow).
+    if ident and is_always_allowed(ident, tool_name):
+        _record(
+            ident,
+            tool_name,
+            tier,
+            "auto_approved:headless_always",
+            arguments_json,
+            started,
+        )
+        return None
+
+    # 2) Capability grant berlingkup (layer yang sama dengan gate interaktif).
+    if ident:
+        try:
+            from alfa.core.perm.capabilities import check_capability_for_tool
+
+            cap = check_capability_for_tool(ident, tool_name, arguments_json)
+        except (
+            ImportError,
+            AttributeError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            OSError,
+        ) as cap_err:
+            logger.debug("Capability security headless dilewati: %s", cap_err)
+            cap = {"action": "none", "reason": "error"}
+        if cap.get("action") == "allow":
+            _record(
+                ident,
+                tool_name,
+                tier,
+                "auto_approved:capability",
+                arguments_json,
+                started,
+            )
+            return None
+        if cap.get("action") == "deny":
+            _record(
+                ident,
+                tool_name,
+                tier,
+                "deny:capability_required",
+                arguments_json,
+                started,
+            )
+            return (
+                f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) memerlukan "
+                "capability grant yang valid. Minta operator membuat grant via "
+                f"`/capability grant {tool_name}` terlebih dahulu."
+            )
+
+    # 3) Trust score per tier: HIGH/CRITICAL hanya lolos bila sangat tinggi.
+    if ident:
+        auto_ok, auto_reason = should_auto_approve(ident, tool_name)
+        if auto_ok:
+            _record(
+                ident,
+                tool_name,
+                tier,
+                auto_reason or "auto_approved:headless_trust",
+                arguments_json,
+                started,
+            )
+            return None
+
+    # 4) Kebijakan tanpa kanal: LOW/MEDIUM tetap jalan secara default.
     if _no_channel_allows(tier):
         _record(
-            chat_id,
+            ident,
             tool_name,
             tier,
             "auto_approved:headless",
@@ -121,7 +190,7 @@ def check_headless_approval(
             started,
         )
         return None
-    _record(chat_id, tool_name, tier, "deny:headless_tier", arguments_json, started)
+    _record(ident, tool_name, tier, "deny:headless_tier", arguments_json, started)
     return (
         f"[DITOLAK] Tool '{tool_name}' (tier {tier.value}) tidak diizinkan tanpa "
         f"kanal approval (kebijakan NO_CHANNEL_POLICY={NO_CHANNEL_POLICY}). "
@@ -153,13 +222,51 @@ async def _allow_all_gate(tool_name: str, arguments_json: str = "{}") -> str | N
 ALLOW_ALL_GATE = _allow_all_gate
 
 
+class HeadlessGate:
+    """Gate non-interaktif yang terikat identitas operator (tanpa prompt).
+
+    Bandingkan dengan ``isinstance(gate, HeadlessGate)`` — bukan ``is`` —
+    karena setiap identitas mendapat instance sendiri agar allowlist, grant,
+    dan trust score operator tetap dihormati.
+    """
+
+    __slots__ = ("chat_id",)
+
+    def __init__(self, chat_id: int | None = None):
+        self.chat_id = chat_id
+
+    async def __call__(
+        self, tool_name: str, arguments_json: str = "{}"
+    ) -> str | None:
+        return check_headless_approval(self.chat_id, tool_name, arguments_json)
+
+    def __repr__(self) -> str:  # pragma: no cover - bantuan debug
+        return f"HeadlessGate(chat_id={self.chat_id!r})"
+
+
+#: Sentinel gate headless tanpa identitas; keputusan murni tier policy.
+HEADLESS_GATE = HeadlessGate(None)
+
+
 def gate_is_interactive(gate) -> bool:
     """True bila gate benar-benar meminta persetujuan manusia.
 
-    ``None`` dan :data:`ALLOW_ALL_GATE` berarti tidak ada kanal approval
-    interaktif (operator mematikan gate, atau tidak ada chat id).
+    ``None``, :data:`ALLOW_ALL_GATE`, dan seluruh :class:`HeadlessGate` berarti
+    tidak ada kanal approval interaktif (operator mematikan gate, tidak ada
+    chat id, atau eksekusi dashboard tanpa Telegram).
     """
-    return gate is not None and gate is not ALLOW_ALL_GATE
+    return (
+        gate is not None
+        and gate is not ALLOW_ALL_GATE
+        and not isinstance(gate, HeadlessGate)
+    )
+
+
+def make_headless_gate(chat_id: int | None = None):
+    """Gate dashboard-direct: non-interaktif, menghormati grant/trust + tier."""
+    if chat_id is None:
+        return HEADLESS_GATE
+    return HeadlessGate(int(chat_id))
 
 
 def make_gate(chat_id: int | None):

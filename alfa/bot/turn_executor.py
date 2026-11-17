@@ -193,6 +193,7 @@ async def _run_agent_turn_impl(
     override_model: str | None = None,
     override_key_id: int | None = None,
     streamer: TelegramStreamer | None = None,
+    approval_gate_override: Any = None,
 ) -> str:
     """Executes an autonomous agent turn with memory context, real tool calling, and multimodal inputs.
 
@@ -267,10 +268,20 @@ async def _run_agent_turn_impl(
     # `make_gate` mengembalikan None saat operator mematikan gate; pada kasus
     # itu kita pakai ALLOW_ALL_GATE (permissive) sehingga brain tidak
     # menolaknya dengan deny-by-default.
-    approval_gate = _pg.make_gate(chat_id or user_id) or _pg.ALLOW_ALL_GATE
+    approval_gate = (
+        approval_gate_override
+        if approval_gate_override is not None
+        else (_pg.make_gate(chat_id or user_id) or _pg.ALLOW_ALL_GATE)
+    )
 
-    # 1. Fetch recent chat history from SQLite (24 pesan = 12 giliran lengkap)
-    history_rows = await _db.get_recent_chat_history(user_id, limit=24)
+    # 1. Fetch recent chat history from SQLite (24 pesan = 12 giliran lengkap).
+    # Thread dashboard memakai jendela lebih besar dan TIDAK memakai kompaksi
+    # global user-level agar percakapan tidak saling bocor.
+    from alfa.core.runtime_ctx import get_current_conversation_id
+
+    _conversation_id = get_current_conversation_id()
+    _history_limit = 40 if _conversation_id else 24
+    history_rows = await _db.get_recent_chat_history(user_id, limit=_history_limit)
     for _hr in history_rows:
         _hc = _hr.get("content") or ""
         if _hr.get("role") == "user" and len(_hc) > 5000:
@@ -281,8 +292,14 @@ async def _run_agent_turn_impl(
             )
 
     # 1b. Compaction: ringkas riwayat lama jadi memori rolling (hemat token).
+    # Hanya untuk kanal global; thread dashboard sudah terisolasi per topik.
     try:
-        _compaction_block = await _maybe_compact_history(_db, user_id, gemini_client=gemini_client)
+        if _conversation_id:
+            _compaction_block = ""
+        else:
+            _compaction_block = await _maybe_compact_history(
+                _db, user_id, gemini_client=gemini_client
+            )
     except _TURN_EXEC_ERR as _ce:
         logger.debug(f"compaction dilewati: {_ce}")
         _compaction_block = ""
@@ -752,6 +769,7 @@ async def run_agent_turn(
     override_model: str | None = None,
     override_key_id: int | None = None,
     streamer: TelegramStreamer | None = None,
+    approval_gate: Any = None,
 ) -> str:
     """Jalankan satu giliran agent (dokumen lengkap di `_run_agent_turn_impl`).
 
@@ -787,6 +805,7 @@ async def run_agent_turn(
                     override_model=override_model,
                     override_key_id=override_key_id,
                     streamer=streamer,
+                    approval_gate_override=approval_gate,
                 )
             except asyncio.CancelledError:
                 durable_status = "interrupted"

@@ -9,9 +9,379 @@ import { safeMarkdown, showToast } from './modules/state.js';
 // ==================== MULTIMODAL LIVE AI CONSOLE CONTROLLER ====================
 let attachedChatFiles = [];
 
-export async function clearWebChatHistory() {
-    if (!confirm('Apakah kamu yakin ingin menghapus seluruh riwayat percakapan dari layar dan database memori?')) return;
+// ==================== CONVERSATION THREADS (Claude-style history) ====================
+let currentConversationId = null;
+let activeChatController = null;
+let activeChatRequestId = null;
+let chatStreamActive = false;
+let regenerateMode = false;
+let editModeMessageId = null;
+let conversationSearchTimer = null;
+
+function escapeChatText(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function chatTimeLabel(value) {
+    if (!value) {
+        return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+    const raw = String(value).replace('T', ' ');
+    const match = raw.match(/(\d{2}:\d{2})/);
+    return match ? match[1] : raw.slice(0, 16);
+}
+
+function setChatStreamUi(active) {
+    chatStreamActive = !!active;
+    const stopBtn = document.getElementById('chat-stop-btn');
+    if (stopBtn) {
+        stopBtn.classList.toggle('hidden', !active);
+        stopBtn.classList.toggle('flex', !!active);
+    }
+}
+
+function buildUserBubbleHTML(content, timeLabel, attachmentsHTML = '', messageId = '') {
+    return `
+        <div class="flex justify-end items-start gap-2.5 my-2" data-chat-role="user" data-message-id="${escapeChatText(messageId)}">
+            <div class="max-w-[85%] sm:max-w-xl p-3.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-700 text-white shadow-md space-y-1">
+                <div class="flex items-center justify-between gap-3 text-[10px] text-cyan-200 font-mono">
+                    <span class="font-bold">Fahmi</span>
+                    <span class="flex items-center gap-1.5">
+                        <span>${escapeChatText(timeLabel)}</span>
+                        <button type="button" onclick="editChatMessage(this)" class="p-0.5 rounded hover:bg-white/20 opacity-70 hover:opacity-100 transition-all" title="Edit pesan &amp; buat ulang balasan setelahnya">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        </button>
+                    </span>
+                </div>
+                ${content ? `<div data-chat-content class="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap">${escapeChatText(content)}</div>` : ''}
+                ${attachmentsHTML}
+            </div>
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold font-mono text-xs flex-shrink-0 shadow-md">F</div>
+        </div>
+    `;
+}
+
+function buildAssistantBubbleHTML(content, metadata = {}) {
+    const meta = metadata && typeof metadata === 'object' ? metadata : {};
+    const model = meta.model || 'default';
+    const tools = Array.isArray(meta.tools) ? meta.tools : [];
+    const toolNames = tools
+        .map(t => (typeof t === 'string' ? t : t && t.name))
+        .filter(Boolean);
+    const toolChips = toolNames.length
+        ? `<div class="flex flex-wrap gap-1 items-center text-[10px] font-mono text-emerald-300 pt-1 border-t border-white/5"><span class="text-slate-400 font-bold">Tools:</span>${toolNames.map(name => `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">${escapeChatText(name)}</span>`).join('')}</div>`
+        : '';
+    return `
+        <div class="flex justify-start items-start gap-2.5 my-3 w-full" data-chat-role="model">
+            <div class="w-8 h-8 rounded-xl bg-cyan-700 flex items-center justify-center text-white font-black font-mono text-xs flex-shrink-0">α</div>
+            <div class="flex-1 min-w-0 space-y-2 w-full">
+                <div class="p-4 sm:p-5 rounded-xl bg-dark-900 border border-white/10 text-slate-100 leading-relaxed space-y-2 w-full">
+                    <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-[11px] font-mono text-slate-400">
+                        <span class="text-cyan-400 font-bold flex items-center gap-1.5"><i data-lucide="bot" class="w-3.5 h-3.5"></i> ALFA // ${escapeChatText(model)}</span>
+                        <span class="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono font-bold">tersimpan</span>
+                    </div>
+                    <div data-chat-content class="prose prose-invert max-w-none text-xs sm:text-[13px] space-y-2 leading-relaxed">${safeMarkdown(content)}</div>
+                    ${toolChips}
+                </div>
+                <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400 pl-1">
+                    <button type="button" data-chat-action="speak" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Dengarkan Suara"><i data-lucide="volume-2" class="w-3.5 h-3.5 text-cyan-400"></i> Suara</button>
+                    <button type="button" data-chat-action="copy" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Salin Jawaban"><i data-lucide="copy" class="w-3.5 h-3.5"></i> Salin</button>
+                    <button type="button" onclick="regenerateLastTurn()" class="px-2 py-1 rounded-lg hover:bg-white/5 hover:text-cyan-300 transition-all flex items-center gap-1" title="Generate Ulang"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Ulang</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function wireAssistantBubbleActions(scope) {
+    if (!scope) return;
+    scope.querySelectorAll('[data-chat-action="copy"]').forEach(btn => {
+        btn.onclick = function () {
+            const bubble = this.closest('[data-chat-role="model"]');
+            const contentEl = bubble ? bubble.querySelector('[data-chat-content]') : null;
+            copyTextMessage(contentEl ? contentEl.innerText : '', this);
+        };
+    });
+    scope.querySelectorAll('[data-chat-action="speak"]').forEach(btn => {
+        btn.onclick = function () {
+            const bubble = this.closest('[data-chat-role="model"]');
+            const contentEl = bubble ? bubble.querySelector('[data-chat-content]') : null;
+            speakTextMessage(contentEl ? contentEl.innerText : '');
+        };
+    });
+}
+
+function renderConversationList(items) {
+    const list = document.getElementById('chat-conversation-list');
+    const counter = document.getElementById('chat-conversation-count');
+    if (counter) counter.innerText = `${items.length} thread`;
+    if (!list) return;
+    if (!items.length) {
+        list.innerHTML = `<p class="text-[11px] text-slate-500 font-mono text-center py-6 leading-relaxed">Belum ada percakapan.<br>Kirim pesan untuk membuat thread pertama.</p>`;
+        return;
+    }
+    list.innerHTML = items.map(item => {
+        const active = item.id === currentConversationId;
+        const pinned = Number(item.pinned || 0) === 1;
+        const preview = String(item.last_message || '').replace(/\s+/g, ' ').slice(0, 90);
+        return `
+            <div onclick="openChatConversation('${escapeChatText(item.id)}')" class="group flex items-start gap-1.5 p-2 rounded-xl border ${active ? 'border-cyan-500/50 bg-cyan-500/10' : 'border-white/5 hover:border-white/15 hover:bg-white/5'} cursor-pointer transition-all">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1">
+                        ${pinned ? '<i data-lucide="pin" class="w-3 h-3 text-amber-300 flex-shrink-0"></i>' : ''}
+                        <span class="truncate text-[11px] ${active ? 'text-cyan-200 font-bold' : 'text-slate-200 font-medium'}">${escapeChatText(item.title || 'Obrolan Baru')}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 font-mono truncate mt-0.5">${Number(item.message_count || 0)} pesan · ${escapeChatText(String(item.updated_at || '').slice(0, 16))}</div>
+                    ${preview ? `<div class="text-[10px] text-slate-500/80 truncate mt-0.5">${escapeChatText(preview)}</div>` : ''}
+                </div>
+                <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <button type="button" onclick="event.stopPropagation(); togglePinChatConversation('${escapeChatText(item.id)}', ${pinned ? 0 : 1})" class="p-1 rounded hover:bg-amber-500/20 text-slate-400 hover:text-amber-300" title="${pinned ? 'Lepas pin' : 'Pin percakapan'}">
+                        <i data-lucide="pin" class="w-3 h-3"></i>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); renameChatConversation('${escapeChatText(item.id)}')" class="p-1 rounded hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-300" title="Ganti nama">
+                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                    </button>
+                    <button type="button" onclick="event.stopPropagation(); deleteChatConversation('${escapeChatText(item.id)}')" class="p-1 rounded hover:bg-rose-500/20 text-slate-400 hover:text-rose-300" title="Hapus percakapan">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    lucide.createIcons();
+}
+
+export async function loadChatConversations(query = '') {
+    const list = document.getElementById('chat-conversation-list');
     try {
+        const res = await fetch(`/api/chat/conversations?q=${encodeURIComponent(query || '')}&limit=100`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderConversationList(Array.isArray(data.conversations) ? data.conversations : []);
+    } catch (err) {
+        if (list) {
+            list.innerHTML = `<p class="text-[11px] text-rose-300 font-mono text-center py-6">Gagal memuat riwayat: ${escapeChatText(err.message)}</p>`;
+        }
+    }
+}
+
+export function scheduleLoadChatConversations(value) {
+    if (conversationSearchTimer) clearTimeout(conversationSearchTimer);
+    conversationSearchTimer = setTimeout(() => {
+        loadChatConversations(value || '');
+    }, 250);
+}
+
+export function toggleChatHistoryPanel(force) {
+    const panel = document.getElementById('chat-history-panel');
+    const backdrop = document.getElementById('chat-history-backdrop');
+    if (!panel || !backdrop) return;
+    const willOpen = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !willOpen);
+    backdrop.classList.toggle('hidden', !willOpen);
+    if (willOpen) {
+        const search = document.getElementById('chat-conversation-search');
+        loadChatConversations(search ? search.value : '');
+    }
+}
+
+function renderThreadMessages(messages) {
+    const box = document.getElementById('chat-messages-box');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!messages.length) {
+        box.innerHTML = `
+            <div class="p-4 rounded-xl bg-dark-900 border border-cyan-500/20 text-slate-300 text-xs font-sans">
+                Percakapan ini masih kosong. Kirim pesan untuk memulai.
+            </div>
+        `;
+        return;
+    }
+    const parts = [];
+    for (const msg of messages) {
+        const role = msg.role === 'user' ? 'user' : 'model';
+        const content = msg.content || '';
+        const timeLabel = chatTimeLabel(msg.timestamp);
+        if (role === 'user') {
+            parts.push(buildUserBubbleHTML(content, timeLabel, '', msg.id || ''));
+        } else {
+            parts.push(buildAssistantBubbleHTML(content, msg.metadata || {}));
+        }
+    }
+    box.innerHTML = parts.join('');
+    wireAssistantBubbleActions(box);
+    enhanceCodeBlocks(box);
+    decorateArtifactCards(box);
+    lucide.createIcons();
+    box.scrollTop = box.scrollHeight;
+}
+
+export async function openChatConversation(conversationId) {
+    if (!conversationId) return;
+    if (chatStreamActive) {
+        showToast('Hentikan generasi yang sedang berjalan sebelum membuka thread lain.', 'warning');
+        return;
+    }
+    try {
+        const res = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}?messages=1`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        currentConversationId = data.conversation.id;
+        activeChatRequestId = null;
+        lastUserMessage = '';
+        lastUserFiles = [];
+        const rows = Array.isArray(data.messages) ? data.messages : [];
+        const lastUser = [...rows].reverse().find(m => m.role === 'user');
+        if (lastUser) lastUserMessage = String(lastUser.content || '');
+        renderThreadMessages(rows);
+        toggleChatHistoryPanel(false);
+        loadChatConversations(document.getElementById('chat-conversation-search')?.value || '');
+        showToast(`Percakapan dibuka: ${data.conversation.title || 'Obrolan Baru'}`, 'info');
+    } catch (err) {
+        showToast('Gagal membuka percakapan: ' + err.message, 'error');
+    }
+}
+
+export async function renameChatConversation(conversationId) {
+    try {
+        let currentTitle = '';
+        try {
+            const detailRes = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}?messages=0`);
+            if (detailRes.ok) {
+                const detail = await detailRes.json();
+                currentTitle = detail?.conversation?.title || '';
+            }
+        } catch (detailErr) {
+            console.warn('Gagal membaca judul percakapan:', detailErr);
+        }
+        const title = window.prompt('Nama baru untuk percakapan ini:', currentTitle);
+        if (title === null) return;
+        const clean = title.trim();
+        if (!clean) {
+            showToast('Nama percakapan tidak boleh kosong.', 'warning');
+            return;
+        }
+        const res = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: clean })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast('Nama percakapan diperbarui.', 'success');
+        loadChatConversations(document.getElementById('chat-conversation-search')?.value || '');
+    } catch (err) {
+        showToast('Gagal mengganti nama: ' + err.message, 'error');
+    }
+}
+
+export async function togglePinChatConversation(conversationId, pinned) {
+    try {
+        const res = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pinned: !!pinned })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast(pinned ? 'Percakapan dipin ke atas.' : 'Pin percakapan dilepas.', 'info');
+        loadChatConversations(document.getElementById('chat-conversation-search')?.value || '');
+    } catch (err) {
+        showToast('Gagal mengubah pin: ' + err.message, 'error');
+    }
+}
+
+export async function deleteChatConversation(conversationId) {
+    if (!confirm('Hapus percakapan ini beserta seluruh pesannya? Tindakan ini tidak bisa dibatalkan.')) return;
+    try {
+        const res = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
+        if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+        if (currentConversationId === conversationId) {
+            startNewChatSession();
+        }
+        showToast('Percakapan dihapus.', 'success');
+        loadChatConversations(document.getElementById('chat-conversation-search')?.value || '');
+    } catch (err) {
+        showToast('Gagal menghapus percakapan: ' + err.message, 'error');
+    }
+}
+
+export function editChatMessage(trigger) {
+    const wrapper = trigger && trigger.closest
+        ? trigger.closest('[data-chat-role="user"]')
+        : document.querySelector('[data-chat-role="user"]');
+    if (!wrapper) return;
+    if (chatStreamActive) {
+        showToast('Hentikan generasi dulu sebelum mengedit pesan.', 'warning');
+        return;
+    }
+    const messageId = wrapper.dataset.messageId || '';
+    if (!messageId) {
+        showToast('Pesan ini belum tersimpan sebagai thread. Kirim pesan baru untuk memakai fitur edit.', 'info');
+        return;
+    }
+    const contentEl = wrapper.querySelector('[data-chat-content]');
+    const original = contentEl ? contentEl.innerText : '';
+    const next = window.prompt('Edit pesan (balasan setelah pesan ini akan dibuat ulang):', original);
+    if (next === null) return;
+    const clean = next.trim();
+    if (!clean) {
+        showToast('Pesan tidak boleh kosong.', 'warning');
+        return;
+    }
+    const box = document.getElementById('chat-messages-box');
+    if (box) {
+        const children = [...box.children];
+        const idx = children.indexOf(wrapper);
+        if (idx >= 0) children.slice(idx).forEach(node => node.remove());
+    }
+    editModeMessageId = messageId;
+    regenerateMode = false;
+    const input = document.getElementById('chat-input-text');
+    if (input) {
+        input.value = clean;
+        autoGrowChatInput(input);
+    }
+    document.getElementById('chat-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+}
+
+export async function stopChatGeneration() {
+    if (!chatStreamActive && !activeChatController) return;
+    const payload = {
+        request_id: activeChatRequestId || '',
+        conversation_id: currentConversationId || ''
+    };
+    try {
+        await fetch('/api/chat/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (err) {
+        console.warn('Stop request gagal:', err);
+    }
+    if (activeChatController) {
+        try { activeChatController.abort(); } catch (err) { console.warn(err); }
+    }
+    showToast('Permintaan berhenti dikirim...', 'info');
+}
+
+export async function clearWebChatHistory() {
+    try {
+        // Thread aktif: hapus thread itu saja agar percakapan lain tidak ikut hilang.
+        if (currentConversationId) {
+            if (!confirm('Hapus percakapan yang sedang terbuka beserta seluruh pesannya?')) return;
+            const res = await fetch(`/api/chat/conversations/${encodeURIComponent(currentConversationId)}`, { method: 'DELETE' });
+            if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+            startNewChatSession();
+            loadChatConversations();
+            showToast('Percakapan aktif berhasil dihapus.', 'success');
+            return;
+        }
+        if (!confirm('Apakah kamu yakin ingin menghapus seluruh riwayat percakapan dari layar dan database memori?')) return;
         const res = await fetch('/api/chat/history', { method: 'DELETE' });
         const data = await res.json();
         const box = document.getElementById('chat-messages-box');
@@ -365,7 +735,10 @@ function copyTextMessage(text, btnEl = null) {
 export async function exportCurrentChat(format = 'markdown') {
     try {
         showToast('Menyiapkan berkas ekspor percakapan...', 'info');
-        window.location.href = `/api/chat/export?format=${format}`;
+        const scope = currentConversationId
+            ? `&conversation_id=${encodeURIComponent(currentConversationId)}`
+            : '';
+        window.location.href = `/api/chat/export?format=${format}${scope}`;
     } catch (err) {
         showToast('Gagal mengekspor: ' + err.message, 'error');
     }
@@ -517,8 +890,12 @@ export async function executeInteractiveCode(btn, preId, lang, outputId) {
 export async function sendWebChat(e) {
     e.preventDefault();
     const input = document.getElementById('chat-input-text');
+    const isRegenerate = regenerateMode;
+    const editingMessageId = editModeMessageId;
+    regenerateMode = false;
+    editModeMessageId = null;
     const msg = input.value.trim();
-    const currentFiles = [...attachedChatFiles];
+    const currentFiles = isRegenerate ? [] : [...attachedChatFiles];
 
     const modelSelector = document.getElementById('chat-model-selector');
     const selectedModel = modelSelector ? modelSelector.value : '';
@@ -526,7 +903,7 @@ export async function sendWebChat(e) {
     const selectedKeyId = selectedOpt ? selectedOpt.getAttribute('data-key-id') : null;
     const modelDisplayName = selectedOpt ? selectedOpt.text.replace(/^[✨🌐⚡]\s*/, '') : 'Gemini';
 
-    if (!msg && currentFiles.length === 0) return;
+    if (!msg && currentFiles.length === 0 && !isRegenerate) return;
 
     // Hide welcome hero on first message
     const welcomeCard = document.getElementById('chat-welcome-card');
@@ -559,22 +936,10 @@ export async function sendWebChat(e) {
         `;
     }
 
-    // USER CHAT BUBBLE
-    box.innerHTML += `
-        <div class="flex justify-end items-start gap-2.5 my-2">
-            <div class="max-w-[85%] sm:max-w-xl p-3.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-700 text-white shadow-md space-y-1">
-                <div class="flex items-center justify-between gap-3 text-[10px] text-cyan-200 font-mono">
-                    <span class="font-bold">Fahmi</span>
-                    <span>${nowTime}</span>
-                </div>
-                ${msg ? `<div class="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap">${msg}</div>` : ''}
-                ${attachmentsHTML}
-            </div>
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold font-mono text-xs flex-shrink-0 shadow-md">
-                F
-            </div>
-        </div>
-    `;
+    // USER CHAT BUBBLE (regenerate memakai bubble pengguna yang sudah ada)
+    if (!isRegenerate) {
+        box.innerHTML += buildUserBubbleHTML(msg, nowTime, attachmentsHTML);
+    }
 
     input.value = '';
     autoGrowChatInput(input);
@@ -667,6 +1032,11 @@ export async function sendWebChat(e) {
         }
     }, 100);
 
+    let streamedText = '';
+    let bubbleWrapper = null;
+    let responseId = null;
+    let bodyEl = null;
+
     try {
         // Prepend Expert Persona Instruction if set
         let finalPrompt = cleanMsg;
@@ -680,16 +1050,25 @@ export async function sendWebChat(e) {
             finalPrompt = personaPrefixes[effectiveExpertMode] + finalPrompt;
         }
 
+        activeChatController = new AbortController();
+        setChatStreamUi(true);
+
+        const requestPayload = {
+            message: isRegenerate ? '' : finalPrompt,
+            attachments: currentFiles,
+            selected_model: selectedModel,
+            key_id: selectedKeyId,
+            expert_mode: effectiveExpertMode,
+            conversation_id: currentConversationId
+        };
+        if (isRegenerate) requestPayload.regenerate = true;
+        if (editingMessageId) requestPayload.edit_message_id = editingMessageId;
+
         const res = await fetch('/api/chat/stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: finalPrompt,
-                attachments: currentFiles,
-                selected_model: selectedModel,
-                key_id: selectedKeyId,
-                expert_mode: effectiveExpertMode
-            })
+            body: JSON.stringify(requestPayload),
+            signal: activeChatController.signal
         });
 
         if (!res.ok) {
@@ -699,10 +1078,6 @@ export async function sendWebChat(e) {
         const reader = res.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
-        let streamedText = '';
-        let bubbleWrapper = null;
-        let responseId = null;
-        let bodyEl = null;
 
         function ensureBubbleWrapper(customModel) {
             if (!bubbleWrapper) {
@@ -760,8 +1135,14 @@ export async function sendWebChat(e) {
                 if (!block.trim()) continue;
                 const line = block.trim();
                 if (line.startsWith('data: ')) {
+                    let data;
                     try {
-                        const data = JSON.parse(line.slice(6));
+                        data = JSON.parse(line.slice(6));
+                    } catch (parseErr) {
+                        console.warn('Stream chunk parse error:', parseErr);
+                        continue;
+                    }
+                    {
                         if (data.type === 'progress') {
                             const s2Text = document.getElementById(`${pendingId}-step2-text`);
                             if (s2Text) s2Text.innerText = data.step;
@@ -776,7 +1157,23 @@ export async function sendWebChat(e) {
                                 rBody.appendChild(safeStep);
                             }
                         } else if (data.type === 'start') {
+                            if (data.conversation_id) currentConversationId = data.conversation_id;
+                            if (data.request_id) activeChatRequestId = data.request_id;
                             ensureBubbleWrapper(data.model);
+                        } else if (data.type === 'tool') {
+                            ensureBubbleWrapper();
+                            const rBox = document.getElementById(`${responseId}-reasoning`);
+                            const rBody = document.getElementById(`${responseId}-reasoning-body`);
+                            const rStatus = document.getElementById(`${responseId}-reasoning-status`);
+                            if (rBox && rBody) {
+                                rBox.classList.remove('hidden');
+                                const toolDiv = document.createElement('div');
+                                toolDiv.className = 'text-emerald-300 flex items-start gap-1.5 py-0.5';
+                                const argsPreview = data.args ? ` <span class="text-slate-500 break-all">${escapeChatText(String(data.args).slice(0, 180))}</span>` : '';
+                                toolDiv.innerHTML = `<span class="text-emerald-400 font-bold">🔧</span><span><span class="font-bold">${escapeChatText(data.name || 'tool')}</span>${argsPreview}</span>`;
+                                rBody.appendChild(toolDiv);
+                                if (rStatus) rStatus.innerText = `${rBody.children.length} steps`;
+                            }
                         } else if (data.type === 'token') {
                             ensureBubbleWrapper();
                             streamedText += data.chunk;
@@ -808,7 +1205,13 @@ export async function sendWebChat(e) {
                                 }
                             }
 
-                            const finalReply = streamedText.trim() || data.reply || '';
+                            if (data.conversation_id) currentConversationId = data.conversation_id;
+                            if (data.user_message_id) {
+                                const userBubbles = [...box.querySelectorAll('[data-chat-role="user"]')];
+                                const lastUserBubble = userBubbles[userBubbles.length - 1];
+                                if (lastUserBubble) lastUserBubble.dataset.messageId = String(data.user_message_id);
+                            }
+                            const finalReply = (data.reply || streamedText || '').trim();
                             if (bodyEl && finalReply) {
                                 bodyEl.innerHTML = safeMarkdown(finalReply);
                             }
@@ -828,11 +1231,35 @@ export async function sendWebChat(e) {
                             }
                             lucide.createIcons();
                             box.scrollTop = box.scrollHeight;
+                        } else if (data.type === 'stopped') {
+                            ensureBubbleWrapper();
+                            clearInterval(timerInterval);
+                            document.getElementById(pendingId)?.remove();
+                            const partialReply = (data.reply || streamedText || '').trim();
+                            if (bodyEl && partialReply) {
+                                bodyEl.innerHTML = safeMarkdown(partialReply);
+                            }
+                            const stoppedBadge = document.getElementById(`${responseId}-elapsed`);
+                            if (stoppedBadge) stoppedBadge.innerText = '⏹ Dihentikan';
+                            const stoppedToolbar = document.getElementById(`${responseId}-toolbar`);
+                            if (stoppedToolbar) {
+                                stoppedToolbar.classList.remove('hidden');
+                                const stoppedSpk = stoppedToolbar.querySelector('.btn-speak');
+                                const stoppedCpy = stoppedToolbar.querySelector('.btn-copy');
+                                if (stoppedSpk) stoppedSpk.onclick = () => speakTextMessage(partialReply);
+                                if (stoppedCpy) stoppedCpy.onclick = function () { copyTextMessage(partialReply, this); };
+                            }
+                            if (bubbleWrapper) {
+                                enhanceCodeBlocks(bubbleWrapper);
+                                decorateArtifactCards(bubbleWrapper);
+                            }
+                            showToast(data.message || 'Generasi dihentikan.', 'info');
+                            loadChatConversations();
+                            lucide.createIcons();
+                            box.scrollTop = box.scrollHeight;
                         } else if (data.type === 'error') {
                             throw new Error(data.message || 'Error dalam streaming jawaban.');
                         }
-                    } catch (parseErr) {
-                        console.warn('Stream chunk parse error:', parseErr);
                     }
                 }
             }
@@ -840,15 +1267,36 @@ export async function sendWebChat(e) {
     } catch (err) {
         clearInterval(timerInterval);
         document.getElementById(pendingId)?.remove();
-        box.innerHTML += `
-            <div class="p-4 bg-rose-950/40 border border-rose-500/40 rounded-xl text-rose-300 space-y-1 shadow-sm max-w-xl">
-                <div class="flex items-center gap-2 font-bold font-mono text-xs">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i> Gagal Memproses Permintaan
+        if (err && err.name === 'AbortError') {
+            if (bodyEl) {
+                bodyEl.innerHTML = safeMarkdown(streamedText || '⏹ Generasi dihentikan.');
+            }
+            if (responseId) {
+                const abortedBadge = document.getElementById(`${responseId}-elapsed`);
+                if (abortedBadge) abortedBadge.innerText = '⏹ Dihentikan';
+                const abortedToolbar = document.getElementById(`${responseId}-toolbar`);
+                if (abortedToolbar) abortedToolbar.classList.remove('hidden');
+            }
+            if (bubbleWrapper) {
+                enhanceCodeBlocks(bubbleWrapper);
+                decorateArtifactCards(bubbleWrapper);
+            }
+            showToast('Generasi dihentikan.', 'info');
+            loadChatConversations();
+        } else {
+            box.innerHTML += `
+                <div class="p-4 bg-rose-950/40 border border-rose-500/40 rounded-xl text-rose-300 space-y-1 shadow-sm max-w-xl">
+                    <div class="flex items-center gap-2 font-bold font-mono text-xs">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i> Gagal Memproses Permintaan
+                    </div>
+                    <p class="text-xs">${escapeChatText(err.message)}</p>
                 </div>
-                <p class="text-xs">${err.message}</p>
-            </div>
-        `;
+            `;
+        }
     } finally {
+        activeChatController = null;
+        activeChatRequestId = null;
+        setChatStreamUi(false);
         sendBtn.disabled = false;
         sendBtn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> <span>Kirim</span>';
         box.scrollTop = box.scrollHeight;
@@ -858,6 +1306,15 @@ export async function sendWebChat(e) {
 
 // Start New Clean Chat Session
 export function startNewChatSession() {
+    if (chatStreamActive) {
+        stopChatGeneration();
+    }
+    currentConversationId = null;
+    activeChatRequestId = null;
+    regenerateMode = false;
+    editModeMessageId = null;
+    lastUserMessage = '';
+    lastUserFiles = [];
     const box = document.getElementById('chat-messages-box');
     if (box) {
         box.innerHTML = `
@@ -874,15 +1331,47 @@ export function startNewChatSession() {
             </div>
         `;
     }
-    document.getElementById('chat-input-text').value = '';
+    const input = document.getElementById('chat-input-text');
+    if (input) input.value = '';
     attachedChatFiles = [];
     renderChatAttachmentsPreview();
+    loadChatConversations(document.getElementById('chat-conversation-search')?.value || '');
     showToast('Sesi obrolan baru siap! 🌟', 'info');
     lucide.createIcons();
 }
 
-// Regenerate Last Turn
+// Regenerate Last Turn (thread-aware: backend memakai pesan user terakhir)
 export function regenerateLastTurn() {
+    if (chatStreamActive) {
+        showToast('Hentikan generasi yang sedang berjalan dulu.', 'warning');
+        return;
+    }
+    if (currentConversationId) {
+        const box = document.getElementById('chat-messages-box');
+        const userBubbles = box ? [...box.querySelectorAll('[data-chat-role="user"]')] : [];
+        const lastUserBubble = userBubbles[userBubbles.length - 1];
+        if (!lastUserBubble) {
+            showToast('Tidak ada pesan pengguna untuk dibuat ulang.', 'info');
+            return;
+        }
+        // Buang balasan setelah pesan pengguna terakhir; backend menghapus
+        // pesan user lama lalu menyimpannya ulang dengan id baru.
+        if (box) {
+            const children = [...box.children];
+            const idx = children.indexOf(lastUserBubble);
+            if (idx >= 0) children.slice(idx + 1).forEach(node => node.remove());
+        }
+        const originalEl = lastUserBubble.querySelector('[data-chat-content]');
+        if (!lastUserMessage && originalEl) lastUserMessage = originalEl.innerText;
+        const input = document.getElementById('chat-input-text');
+        if (input) input.value = lastUserMessage;
+        attachedChatFiles = [];
+        renderChatAttachmentsPreview();
+        regenerateMode = true;
+        editModeMessageId = null;
+        document.getElementById('chat-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        return;
+    }
     if (!lastUserMessage && lastUserFiles.length === 0) {
         showToast('Tidak ada pesan sebelumnya untuk diulang.', 'info');
         return;
@@ -1003,8 +1492,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Load available models for Chat Agent on init
+    // Load available models + daftar thread percakapan saat dashboard dibuka.
     loadChatAvailableModels();
+    loadChatConversations();
 });
 
 
@@ -1012,17 +1502,26 @@ document.addEventListener("DOMContentLoaded", () => {
 window.autoGrowChatInput = autoGrowChatInput;
 window.clearWebChatHistory = clearWebChatHistory;
 window.copyCodeSnippet = copyCodeSnippet;
+window.deleteChatConversation = deleteChatConversation;
+window.editChatMessage = editChatMessage;
 window.executeInteractiveCode = executeInteractiveCode;
 window.exportCurrentChat = exportCurrentChat;
 window.handleChatFilesSelected = handleChatFilesSelected;
 window.handleChatKeyDown = handleChatKeyDown;
 window.handleSlashCommandInput = handleSlashCommandInput;
 window.insertSlashCommand = insertSlashCommand;
+window.loadChatConversations = loadChatConversations;
 window.onChatModelChanged = onChatModelChanged;
+window.openChatConversation = openChatConversation;
 window.regenerateLastTurn = regenerateLastTurn;
 window.removeChatAttachment = removeChatAttachment;
+window.renameChatConversation = renameChatConversation;
+window.scheduleLoadChatConversations = scheduleLoadChatConversations;
 window.sendPresetChat = sendPresetChat;
 window.sendWebChat = sendWebChat;
 window.setChatExpertMode = setChatExpertMode;
 window.startNewChatSession = startNewChatSession;
+window.stopChatGeneration = stopChatGeneration;
+window.toggleChatHistoryPanel = toggleChatHistoryPanel;
+window.togglePinChatConversation = togglePinChatConversation;
 window.toggleVoiceRecording = toggleVoiceRecording;

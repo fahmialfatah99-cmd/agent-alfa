@@ -147,3 +147,24 @@ Pantau akun Threads publik `@xalf._1` (Fase A — baca publik, tanpa login):
 - **Fase B (posting aktif)**: hanya lewat Threads API resmi Meta
   (token di vault terenkripsi, KADALUWARSA: rate 250 post/24 jam).
   Fase A tidak pernah posting apa pun.
+
+## 12. Chat multi-thread dashboard — `alfa/core/db/conversations.py`
+
+Additive-only; kanal Telegram/WhatsApp tidak berubah.
+
+- **Schema**: tabel `conversations` (id TEXT PK, user_id, title, model, pinned,
+  archived, created_at, updated_at) + kolom nullable
+  `chat_history.conversation_id` dan `chat_history.metadata`. Migrasi idempoten
+  lewat `ensure_chat_schema_sync()` dan `init_db_sync()`.
+- **Isolasi**: `conversation_id IS NULL` = riwayat kanal global (legacy).
+  Thread dashboard memakai id eksplisit; `get_recent_chat_history()` memfilter
+  sesuai runtime context, dan `run_agent_turn` memakai jendela 40 pesan tanpa
+  kompaksi user-level untuk thread.
+- **API**: `GET/POST /api/chat/conversations`,
+  `GET/PATCH/DELETE /api/chat/conversations/{id}`,
+  `POST /api/chat/stream` (event `start`/`tool`/`token`/`stopped`/`done`),
+  `POST /api/chat/stop`. Ekspor/hapus menerima `conversation_id` opsional;
+  tanpa parameter, perilaku lama (riwayat global) dipertahankan.
+- **Gate**: eksekusi dashboard memakai `make_headless_gate(uid)` —
+  non-interaktif, menghormati allowlist/capability/trust operator, lalu jatuh
+  ke tier `NO_CHANNEL_POLICY`; tidak pernah menunggu Telegram.

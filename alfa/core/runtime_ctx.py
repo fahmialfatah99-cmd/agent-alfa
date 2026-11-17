@@ -5,14 +5,24 @@ gdrive_suite, bot). Placed in a neutral module so decomposed monoliths
 can use it without importing tools.py (avoiding cycles).
 """
 
+import logging
 import re
 import uuid
 from contextvars import ContextVar
+from typing import Any
+
+logger = logging.getLogger("RuntimeCtx")
 
 current_user_id_var: ContextVar[int] = ContextVar("current_user_id", default=0)
 current_turn_id_var: ContextVar[str] = ContextVar("current_turn_id", default="")
 current_chat_id_var: ContextVar[int] = ContextVar("current_chat_id", default=0)
+current_conversation_id_var: ContextVar[str] = ContextVar(
+    "current_conversation_id", default=""
+)
 current_user_prompt_var: ContextVar[str] = ContextVar("current_user_prompt", default="")
+current_tool_event_cb_var: ContextVar[Any] = ContextVar(
+    "current_tool_event_cb", default=None
+)
 current_executed_tools_var: ContextVar[list[str] | None] = ContextVar(
     "current_executed_tools", default=None
 )
@@ -34,6 +44,21 @@ def get_current_chat_id() -> int:
     """Get active Telegram Chat ID for the current agent turn."""
     cid = current_chat_id_var.get()
     return cid if cid else get_current_user_id()
+
+
+def get_current_conversation_id() -> str:
+    """Get active dashboard conversation/thread id ('' untuk kanal non-dashboard)."""
+    return current_conversation_id_var.get() or ""
+
+
+def set_tool_event_callback(callback: Any) -> Any:
+    """Pasang callback sinkron (nama_tool, args_teredaksi) untuk event UI.
+
+    Callback dipanggil dari event loop yang sama; implementasi harus tidak
+    memblokir (mis. ``queue.put_nowait``). ``None`` mematikan callback.
+    Return token ContextVar yang bisa dipakai untuk ``reset``.
+    """
+    return current_tool_event_cb_var.set(callback)
 
 
 def get_current_user_prompt() -> str:
@@ -113,6 +138,13 @@ def record_executed_tool(name: str, args: str | None = None) -> None:
         entry["args"] = summary
     calls.append(entry)
 
+    cb = current_tool_event_cb_var.get()
+    if cb is not None:
+        try:
+            cb(tool_name, summary)
+        except Exception as cb_err:  # noqa: BLE001 - UI callback tidak boleh mematikan tool
+            logger.debug("tool event callback gagal: %s", cb_err)
+
 
 def get_current_executed_tools() -> list[str]:
     """Get the list of tools executed in the current turn."""
@@ -151,13 +183,17 @@ def reset_turn_context() -> None:
 __all__ = [
     "current_user_id_var",
     "current_chat_id_var",
+    "current_conversation_id_var",
     "current_user_prompt_var",
     "current_turn_id_var",
     "current_executed_tools_var",
     "current_executed_tool_calls_var",
     "current_turn_artifacts_var",
+    "current_tool_event_cb_var",
     "get_current_user_id",
     "get_current_chat_id",
+    "get_current_conversation_id",
+    "set_tool_event_callback",
     "get_current_user_prompt",
     "begin_turn",
     "ensure_turn_id",

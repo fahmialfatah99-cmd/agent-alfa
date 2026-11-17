@@ -23,11 +23,13 @@ from alfa.core.perm.constants import (
 )
 from alfa.core.perm.gate import (
     ALLOW_ALL_GATE,
+    HEADLESS_GATE,
     gate_is_interactive,
     get_tool_tier,
     handle_permission_callback,
     is_enabled,
     make_gate,
+    make_headless_gate,
     request_approval,
     should_auto_approve,
     wrap_tool_for_afc,
@@ -47,6 +49,7 @@ from alfa.core.perm.store import (
 __all__ = [
     "APPROVAL_TIMEOUT",
     "ALLOW_ALL_GATE",
+    "HEADLESS_GATE",
     "DB_PATH",
     "DEFAULT_TIER",
     "FAIL_MODE",
@@ -75,6 +78,7 @@ __all__ = [
     "handle_permission_callback",
     "is_enabled",
     "make_gate",
+    "make_headless_gate",
     "request_approval",
     "should_auto_approve",
     "wrap_tool_for_afc",

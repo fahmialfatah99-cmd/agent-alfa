@@ -163,6 +163,16 @@ def init_db_sync():
                 content TEXT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS conversations (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                title TEXT NOT NULL DEFAULT 'Obrolan Baru',
+                model TEXT DEFAULT '',
+                pinned INTEGER DEFAULT 0,
+                archived INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS knowledge_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -487,6 +497,13 @@ def init_db_sync():
             # semua user lain.
             "ALTER TABLE api_token_usage ADD COLUMN user_id INTEGER DEFAULT 0",
             "CREATE INDEX IF NOT EXISTS idx_atu_user_ts ON api_token_usage(user_id, ts)",
+            # Dashboard conversation threads: additive, NULL = legacy/global.
+            "ALTER TABLE chat_history ADD COLUMN conversation_id TEXT",
+            "ALTER TABLE chat_history ADD COLUMN metadata TEXT DEFAULT '{}'",
+            "CREATE INDEX IF NOT EXISTS idx_chat_history_conv "
+            "ON chat_history(user_id, conversation_id, id)",
+            "CREATE INDEX IF NOT EXISTS idx_conversations_user "
+            "ON conversations(user_id, pinned DESC, updated_at DESC)",
         ):
             try:
                 conn.execute(_ddl)

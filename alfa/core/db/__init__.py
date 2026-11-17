@@ -28,6 +28,23 @@ from alfa.core.db.connection import (
     init_db,
     init_db_sync,
 )
+from alfa.core.db.conversations import (
+    create_conversation,
+    delete_conversation,
+    delete_messages_from,
+    derive_title,
+    ensure_chat_schema_sync,
+    get_conversation,
+    get_last_user_message,
+    list_conversations,
+    rename_conversation,
+    set_pinned,
+    touch_conversation,
+    update_message_metadata,
+)
+from alfa.core.db.conversations import (
+    get_messages as get_conversation_messages,
+)
 from alfa.core.db.crypto import (
     _ENC_PREFIX,
     _get_aesgcm,
@@ -106,6 +123,20 @@ __all__ = [
     "get_sync_db",
     "init_db_sync",
     "init_db",
+    # conversations
+    "create_conversation",
+    "list_conversations",
+    "get_conversation",
+    "get_conversation_messages",
+    "rename_conversation",
+    "set_pinned",
+    "delete_conversation",
+    "delete_messages_from",
+    "get_last_user_message",
+    "update_message_metadata",
+    "touch_conversation",
+    "derive_title",
+    "ensure_chat_schema_sync",
     # crypto
     "_ENC_PREFIX",
     "_get_aesgcm",

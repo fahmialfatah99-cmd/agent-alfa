@@ -2,6 +2,7 @@
 Long-Term Knowledge Memory, Semantic Knowledge Graph, Chat History & Settings.
 """
 
+import json
 import logging
 import sqlite3
 from datetime import datetime
@@ -10,52 +11,141 @@ from typing import Any
 import aiosqlite
 
 from alfa.core.db.connection import _get_db_path, get_sync_db
+from alfa.core.db.conversations import derive_title, ensure_chat_schema_sync
+from alfa.core.runtime_ctx import get_current_conversation_id
 
 logger = logging.getLogger("DB.Memory")
 
 
 # --- Chat History Functions ---
-async def save_chat_message(user_id: int, role: str, content: str):
-    """Save a chat message to history."""
+async def save_chat_message(
+    user_id: int,
+    role: str,
+    content: str,
+    conversation_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> int | None:
+    """Save a chat message to history.
+
+    ``conversation_id`` mengisolasi thread dashboard. Bila tidak diberikan,
+    nilai diambil dari runtime context; kanal Telegram/WhatsApp tidak pernah
+    mensetnya sehingga tetap memakai riwayat global (NULL).
+    """
+    ensure_chat_schema_sync()
+    raw_cid = (
+        conversation_id if conversation_id is not None else get_current_conversation_id()
+    )
+    cid: str | None = str(raw_cid or "").strip() or None
+    try:
+        meta_json = json.dumps(metadata or {}, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        meta_json = "{}"
+
+    now_local = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(_get_db_path()) as db:
-        await db.execute(
-            "INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)",
-            (user_id, role, content),
+        if cid:
+            # Pastikan thread ada (mis. pesan pertama setelah reload/restart).
+            title = derive_title(content) if role == "user" else "Obrolan Baru"
+            await db.execute(
+                "INSERT OR IGNORE INTO conversations "
+                "(id, user_id, title, model, pinned, archived, created_at, updated_at) "
+                "VALUES (?, ?, ?, '', 0, 0, ?, ?)",
+                (cid, user_id, title, now_local, now_local),
+            )
+        cursor = await db.execute(
+            "INSERT INTO chat_history (user_id, role, content, conversation_id, metadata) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (user_id, role, content, cid, meta_json),
         )
+        if cid:
+            await db.execute(
+                "UPDATE conversations SET updated_at = ?, "
+                "title = CASE WHEN ? = 'user' AND (title = '' OR title = 'Obrolan Baru') "
+                "THEN ? ELSE title END WHERE id = ? AND user_id = ?",
+                (now_local, role, derive_title(content), cid, user_id),
+            )
         await db.commit()
+        return int(cursor.lastrowid or 0) or None
 
 
 async def get_recent_chat_history(
-    user_id: int, limit: int = 15
-) -> list[dict[str, str]]:
-    """Get the most recent messages for a user in chronological order."""
+    user_id: int,
+    limit: int = 15,
+    conversation_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Get the most recent messages for a user/thread in chronological order."""
+    ensure_chat_schema_sync()
+    cid = conversation_id if conversation_id is not None else get_current_conversation_id()
+    cid = str(cid or "").strip()
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """
-            SELECT id, role, content FROM chat_history
-            WHERE user_id = ?
-            ORDER BY id DESC LIMIT ?
-            """,
-            (user_id, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [
-                {"id": row["id"], "role": row["role"], "content": row["content"]}
-                for row in reversed(list(rows))
-            ]
-
-
-async def clear_user_chat_history(user_id: int):
-    """Clear chat history for a user."""
-    async with aiosqlite.connect(_get_db_path()) as db:
-        await db.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
-        try:
-            await db.execute(
-                "DELETE FROM chat_compactions WHERE user_id = ?", (user_id,)
+        if cid:
+            sql = (
+                "SELECT id, role, content, timestamp, "
+                "COALESCE(metadata, '{}') AS metadata FROM chat_history "
+                "WHERE user_id = ? AND conversation_id = ? "
+                "ORDER BY id DESC LIMIT ?"
             )
-        except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
-            logger.debug("chat_compactions tidak dihapus untuk user %s: %s", user_id, e)
+            params: tuple[Any, ...] = (user_id, cid, limit)
+        else:
+            # Riwayat kanal global. Pesan dashboard ber-conversation_id tidak
+            # boleh bocor ke konteks Telegram/WhatsApp.
+            sql = (
+                "SELECT id, role, content, timestamp, "
+                "COALESCE(metadata, '{}') AS metadata FROM chat_history "
+                "WHERE user_id = ? AND conversation_id IS NULL "
+                "ORDER BY id DESC LIMIT ?"
+            )
+            params = (user_id, limit)
+        async with db.execute(sql, params) as cursor:
+            rows = await cursor.fetchall()
+        out: list[dict[str, Any]] = []
+        for row in reversed(list(rows)):
+            try:
+                meta = json.loads(row["metadata"] or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                meta = {}
+            out.append(
+                {
+                    "id": row["id"],
+                    "role": row["role"],
+                    "content": row["content"],
+                    "timestamp": row["timestamp"],
+                    "metadata": meta if isinstance(meta, dict) else {},
+                }
+            )
+        return out
+
+
+async def clear_user_chat_history(
+    user_id: int, conversation_id: str | None = None
+) -> None:
+    """Clear chat history for a user, or only one dashboard thread."""
+    ensure_chat_schema_sync()
+    cid = conversation_id if conversation_id is not None else get_current_conversation_id()
+    cid = str(cid or "").strip()
+    async with aiosqlite.connect(_get_db_path()) as db:
+        if cid:
+            await db.execute(
+                "DELETE FROM chat_history WHERE user_id = ? AND conversation_id = ?",
+                (user_id, cid),
+            )
+        else:
+            await db.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
+            try:
+                # Thread dashboard hanya berisi pesan yang baru saja dihapus;
+                # hapus juga metadatanya supaya tidak tersisa thread kosong.
+                await db.execute(
+                    "DELETE FROM conversations WHERE user_id = ?", (user_id,)
+                )
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
+                logger.debug("conversations tidak dihapus untuk user %s: %s", user_id, e)
+            try:
+                await db.execute(
+                    "DELETE FROM chat_compactions WHERE user_id = ?", (user_id,)
+                )
+            except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
+                logger.debug("chat_compactions tidak dihapus untuk user %s: %s", user_id, e)
         await db.commit()
 
 

@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Ditambahkan
 
+- **Chat workspace multi-thread ala Claude** (`alfa/core/db/conversations.py`,
+  `alfa/dashboard/routes/chat.py`, `static/js/chat.js`, `templates/index.html`):
+  tabel aditif `conversations` + kolom nullable `chat_history.conversation_id`
+  dan `chat_history.metadata`. Dashboard kini punya panel riwayat dengan
+  pencarian judul/isi, pin, rename, hapus, dan tombol percakapan baru. Setiap
+  thread terisolasi: riwayat kanal Telegram/WhatsApp tetap memakai
+  `conversation_id IS NULL`, sedangkan thread dashboard memakai jendela 40
+  pesan tanpa kompaksi global. Mendukung edit pesan, regenerate balasan,
+  ekspor per thread, dan hapus per thread.
+- **Streaming token nyata di dashboard**: `POST /api/chat/stream` meneruskan
+  token LLM (`streamer`), event `tool`, `start`, `progress`, `stopped`, dan
+  `done` lewat SSE. Endpoint `POST /api/chat/stop` membatalkan giliran aktif;
+  respons `done` membawa `conversation_id`, `request_id`, `user_message_id`,
+  `message_id`, `tools_called`, dan metadata.
+- **Headless approval gate** (`alfa/core/perm/gate.py`): gate non-interaktif
+  untuk eksekusi dashboard-direct. Allowlist `tool_permissions`, capability
+  grant, dan trust score operator tetap dihormati; tool HIGH/CRITICAL tanpa
+  grant/trust jatuh ke kebijakan `NO_CHANNEL_POLICY` (default menolak). Tidak
+  pernah menunggu prompt Telegram, sehingga streaming tidak tertahan.
 - **Backup DB terjadwal** (`scripts/backup_db.py` +
   `deploy/alfa-db-backup.service`/`.timer`): snapshot hot-safe harian pukul
   03:00 dengan verifikasi SHA-256 manifest, sidecar jumlah tabel/baris,
@@ -23,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Diperbaiki
 
+- **Wipe global chat ikut membersihkan thread**: `clear_user_chat_history`
+  tanpa `conversation_id` kini menghapus baris `conversations` milik user,
+  sehingga tidak menyisakan thread kosong setelah riwayat dibersihkan.
+  Penghapusan berlingkup (`conversation_id` diisi) tetap mempertahankan
+  metadata thread.
 - Inspeksi backup memuat ekstensi `sqlite_vss` bila tersedia dan mencatat
   tabel virtual yang tidak dapat dihitung sebagai `skipped`, bukan gagal
   seluruh backup.
