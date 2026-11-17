@@ -138,36 +138,51 @@ async def list_conversations(
     ensure_chat_schema_sync()
     limit = max(1, min(int(limit or 50), 200))
     q = re.sub(r"\s+", " ", str(query or "")).strip()
-    like = f"%{q}%"
-    where = "c.user_id = ? AND c.archived = 0"
     params: list[Any] = [int(user_id)]
+
+    # Dua query statis (bukan interpolasi SQL) supaya aman & lolos Bandit B608.
+    sql_plain = """
+        SELECT c.id, c.user_id, c.title, c.model, c.pinned, c.archived,
+               c.created_at, c.updated_at,
+               (SELECT COUNT(*) FROM chat_history h
+                WHERE h.conversation_id = c.id AND h.user_id = c.user_id)
+                   AS message_count,
+               COALESCE((SELECT h.content FROM chat_history h
+                WHERE h.conversation_id = c.id AND h.user_id = c.user_id
+                ORDER BY h.id DESC LIMIT 1), '') AS last_message
+        FROM conversations c
+        WHERE c.user_id = ? AND c.archived = 0
+        ORDER BY c.pinned DESC, c.updated_at DESC
+        LIMIT ?
+    """
+    sql_search = """
+        SELECT c.id, c.user_id, c.title, c.model, c.pinned, c.archived,
+               c.created_at, c.updated_at,
+               (SELECT COUNT(*) FROM chat_history h
+                WHERE h.conversation_id = c.id AND h.user_id = c.user_id)
+                   AS message_count,
+               COALESCE((SELECT h.content FROM chat_history h
+                WHERE h.conversation_id = c.id AND h.user_id = c.user_id
+                ORDER BY h.id DESC LIMIT 1), '') AS last_message
+        FROM conversations c
+        WHERE c.user_id = ? AND c.archived = 0
+          AND (c.title LIKE ? OR EXISTS (
+              SELECT 1 FROM chat_history h
+              WHERE h.conversation_id = c.id AND h.user_id = c.user_id
+                AND h.content LIKE ?))
+        ORDER BY c.pinned DESC, c.updated_at DESC
+        LIMIT ?
+    """
     if q:
-        where += (
-            " AND (c.title LIKE ? OR EXISTS ("
-            "SELECT 1 FROM chat_history h WHERE h.conversation_id = c.id "
-            "AND h.user_id = c.user_id AND h.content LIKE ?))"
-        )
-        params.extend([like, like])
+        sql = sql_search
+        params.extend([f"%{q}%", f"%{q}%"])
+    else:
+        sql = sql_plain
     params.append(limit)
+
     async with aiosqlite.connect(_get_db_path()) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            f"""
-            SELECT c.id, c.user_id, c.title, c.model, c.pinned, c.archived,
-                   c.created_at, c.updated_at,
-                   (SELECT COUNT(*) FROM chat_history h
-                    WHERE h.conversation_id = c.id AND h.user_id = c.user_id)
-                       AS message_count,
-                   COALESCE((SELECT h.content FROM chat_history h
-                    WHERE h.conversation_id = c.id AND h.user_id = c.user_id
-                    ORDER BY h.id DESC LIMIT 1), '') AS last_message
-            FROM conversations c
-            WHERE {where}
-            ORDER BY c.pinned DESC, c.updated_at DESC
-            LIMIT ?
-            """,
-            params,
-        ) as cursor:
+        async with db.execute(sql, params) as cursor:
             rows = await cursor.fetchall()
     return [
         {
