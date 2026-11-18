@@ -81,6 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI**: build Rust memakai `maturin build` + wheel (bukan `maturin develop`
   yang butuh venv), type-check memasang `google-genai`/`mcp`, dan kapabilitas
   ArtCraft tetap lengkap saat `flatpak` tidak tersedia.
+- **CI Dependency Check deterministik**: `scripts/check_dependency_audit.py`
+  memindai `requirements-lock.txt` (bukan seluruh environment runner) dan
+  hanya menggagalkan job bila advisory punya versi perbaikan; advisory tanpa
+  fix tetap dicatat sebagai warning. Artifact `safety-report.json` kini JSON
+  bersih dan selalu diunggah, termasuk saat job gagal.
 
 ### Keamanan
 

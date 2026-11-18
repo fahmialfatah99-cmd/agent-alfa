@@ -127,12 +127,16 @@ jobs:
           python-version: "3.12"
       
       - name: Install safety
-        run: pip install safety
+        run: pip install "safety==3.8.1"
       
       - name: Check dependencies for vulnerabilities
-        run: safety check --json > safety-report.json
+        run: |
+          python scripts/check_dependency_audit.py \
+            --requirements requirements-lock.txt \
+            --report safety-report.json
       
       - name: Upload dependency report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dependency-scan-results
