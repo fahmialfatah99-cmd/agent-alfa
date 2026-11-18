@@ -703,6 +703,57 @@ def mcp_call(server: str, tool: str, args_json: str = "{}") -> dict[str, Any]:
 
 
 @register_tool(category="system")
+def mcp_list_tools(server: str = "lottiefiles", refresh: bool = False) -> dict[str, Any]:
+    """
+    Daftar tool yang tersedia di server MCP remote (cache lokal, cepat).
+
+    Args:
+        server: ID server MCP, mis. 'lottiefiles'.
+        refresh: True = ambil ulang dari server (butuh jaringan) sebelum listing.
+    """
+    try:
+        from alfa.core.brain import mcp_bridge
+
+        if refresh:
+            return mcp_bridge.refresh_tools(server)
+        cached = mcp_bridge.cached_tools(server)
+        return {
+            "status": "success",
+            "server": str(server or "").strip().lower(),
+            "total_tools": len(cached),
+            "tools": [
+                {
+                    "name": tool.get("name"),
+                    "dynamic_name": tool.get("dynamic_name"),
+                    "description": tool.get("description"),
+                }
+                for tool in cached
+            ],
+            "hint": "Set refresh=True untuk memperbarui cache dari server.",
+        }
+    except _MGMT_ERR as e:
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
+def mcp_refresh_tools(server: str = "") -> dict[str, Any]:
+    """
+    Segarkan cache tool MCP dari server terhubung (atau satu server).
+
+    Args:
+        server: ID server MCP; kosong = semua server yang connected.
+    """
+    try:
+        from alfa.core.brain import mcp_bridge
+
+        if str(server or "").strip():
+            return mcp_bridge.refresh_tools(server)
+        return mcp_bridge.refresh_connected()
+    except _MGMT_ERR as e:
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(category="system")
 def system_clean_memory_and_cache(recycle_wa_if_needed: bool = False) -> dict[str, Any]:
     """
     Diagnostik dan optimasi pembersihan RAM & cache sistem (ALFA bot, Chromium, & WA Sheets Bot).

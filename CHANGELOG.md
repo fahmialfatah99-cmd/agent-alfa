@@ -28,6 +28,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grant, dan trust score operator tetap dihormati; tool HIGH/CRITICAL tanpa
   grant/trust jatuh ke kebijakan `NO_CHANNEL_POLICY` (default menolak). Tidak
   pernah menunggu prompt Telegram, sehingga streaming tidak tertahan.
+- **Adapter Anthropic native** (`alfa/core/brain/anthropic_native.py`,
+  `alfa/bot/pipeline/provider_adapter.py`): provider `anthropic`/`claude` kini
+  memakai Messages API asli — `system` terpisah, konversi skema tool ke
+  `input_schema`, loop `tool_use`/`tool_result`, streaming SSE, pencatatan
+  token, dan fallback ke rantai Gemini bila gagal total. Jalur OpenAI-compatible
+  untuk provider lain tidak berubah.
+- **Routing model sadar kapabilitas** (`alfa/core/brain/model_router.py`,
+  `alfa/bot/turn_executor.py`): kandidat model diurutkan berdasarkan kebutuhan
+  `tools`/`vision`/`streaming` tanpa membuang model yang tidak cocok (hanya
+  dipindah ke fallback terakhir). Tanpa kebutuhan kapabilitas, urutan lama
+  dipertahankan persis.
+- **Tool MCP dinamis** (`alfa/core/brain/mcp_bridge.py`,
+  `mcp_list_tools`/`mcp_refresh_tools`): cache tool MCP berizin 0600, skema
+  `mcp__<server>__<tool>` hanya disuntikkan bila
+  `ALFA_MCP_DYNAMIC_TOOLS=true`, dan eksekusinya tetap melewati permission
+  gate (nama dinamis = HIGH/fail-closed). Cache dibaca tanpa network saat
+  giliran agent.
+- **Coding worktree API** (`alfa/dashboard/routes/coding.py`): endpoint
+  admin-only `GET/POST /api/coding/worktrees` serta merge/rollback eksplisit
+  untuk sandbox `git_worktree_sandbox_*`. Mode coder di dashboard kini
+  mengarahkan perubahan berisiko ke worktree terisolasi, tanpa auto-merge.
 - **Backup DB terjadwal** (`scripts/backup_db.py` +
   `deploy/alfa-db-backup.service`/`.timer`): snapshot hot-safe harian pukul
   03:00 dengan verifikasi SHA-256 manifest, sidecar jumlah tabel/baris,

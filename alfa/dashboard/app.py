@@ -61,6 +61,7 @@ from alfa.dashboard.routes.auth import (
     validate_session,
 )
 from alfa.dashboard.routes.chat import chat_router
+from alfa.dashboard.routes.coding import coding_router
 from alfa.dashboard.routes.swarm import _parse_ai_sections, swarm_router
 from alfa.dashboard.routes.system import (
     _safe_workspace_path,
@@ -508,6 +509,7 @@ def create_app() -> FastAPI:
     app_instance.include_router(auth_router)
     app_instance.include_router(webauthn_router)
     app_instance.include_router(chat_router)
+    app_instance.include_router(coding_router)
     app_instance.include_router(tools_router)
     app_instance.include_router(swarm_router)
     app_instance.include_router(system_router)
@@ -574,6 +576,7 @@ __all__ = [
     "ws_manager",
     "ConnectionManager",
     "webhook_router",
+    "coding_router",
     "trace_router",
     "trust_router",
 ]

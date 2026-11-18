@@ -1042,7 +1042,7 @@ export async function sendWebChat(e) {
         let finalPrompt = cleanMsg;
         const personaPrefixes = {
             'swarm': '[MODE SPESIALIS: AUTONOMOUS MULTI-AGENT SWARM ORCHESTRATOR. Anda memimpin tim agen cerdas otonom ALFA. Analisis kebutuhan tugas ini, susun strategi terperinci, lalu delegasikan dan gunakan tools sistem (file writing, web search, sandbox testing, dan visual tools) untuk mengeksekusi seluruh hasil secara tuntas, mandiri, dan terverifikasi.]\n\n',
-            'coder': '[MODE SPESIALIS: SENIOR SOFTWARE ARCHITECT. Buat kode rapi, robust, gunakan sandbox bila perlu, dan jelaskan langkah teknis secara presisi.]\n\n',
+            'coder': '[MODE SPESIALIS: SENIOR SOFTWARE ARCHITECT. Buat kode rapi, robust, dan jelaskan langkah teknis secara presisi. Untuk perubahan berisiko, WAJIB bekerja di git worktree terisolasi: git_worktree_sandbox_create -> ubah & uji di path sandbox -> git_worktree_sandbox_verify_and_merge (dengan run_tests_cmd) atau git_worktree_sandbox_rollback bila gagal. Jangan pernah merge otomatis tanpa verifikasi.]\n\n',
             'researcher': '[MODE SPESIALIS: DEEP ACADEMIC & WEB RESEARCHER. Lakukan riset menyeluruh, gunakan web search / arXiv, berikan fakta konkret dan sitasi jelas.]\n\n',
             'data': '[MODE SPESIALIS: DATA ANALYST & PDF MAESTRO. Fokus pada analisis data, visualisasi, dan pemrosesan berkas PDF/Excel secara deterministik.]\n\n'
         };

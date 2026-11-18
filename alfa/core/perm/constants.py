@@ -408,6 +408,8 @@ TOOL_CLASSIFICATION = {
     "gdrive_list_mounted_files": (RiskTier.LOW, "Daftar file Drive (mount) - read-only"),
     "gdrive_status": (RiskTier.LOW, "Status integrasi Drive - read-only"),
     "mcp_status": (RiskTier.LOW, "Status MCP server - read-only"),
+    "mcp_list_tools": (RiskTier.LOW, "Daftar tool MCP dari cache - read-only"),
+    "mcp_refresh_tools": (RiskTier.LOW, "Refresh cache daftar tool MCP"),
     "check_subagent_status": (RiskTier.LOW, "Status subagent - read-only"),
     "lsp_analyze_module_hierarchy": (RiskTier.LOW, "Analisis hierarki modul - read-only"),
     "generate_codebase_repomap": (RiskTier.LOW, "Peta arsitektur repositori - read-only"),

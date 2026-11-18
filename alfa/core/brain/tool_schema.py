@@ -78,6 +78,23 @@ def build_openai_tools(safe_only: bool = False) -> list[dict[str, Any]]:
             converted.append(_fn_to_openai_tool(fn))
         except (ValueError, TypeError, AttributeError):
             continue
+    if not safe_only:
+        # Tool MCP dinamis hanya muncul bila operator mengaktifkannya dan
+        # sudah menjalankan refresh; pembacaan cache tidak menyentuh network.
+        try:
+            from alfa.core.brain.mcp_bridge import build_tool_schemas
+
+            known = {
+                str((item.get("function") or {}).get("name") or "")
+                for item in converted
+            }
+            for item in build_tool_schemas():
+                fname = str((item.get("function") or {}).get("name") or "")
+                if fname and fname not in known:
+                    known.add(fname)
+                    converted.append(item)
+        except (ImportError, AttributeError, TypeError, ValueError, KeyError) as exc:
+            logger.debug("MCP dynamic tools dilewati: %s", exc)
     return converted
 
 

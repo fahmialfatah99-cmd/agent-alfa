@@ -106,6 +106,20 @@ def _clean_json_args(raw_json: str) -> dict[str, Any]:
 
 
 def _execute_tool(name: str, arguments_json: str) -> str:
+    # Tool MCP dinamis (mcp__server__tool) tidak ada di registry Python;
+    # teruskan ke bridge yang membaca cache + memanggil server remote.
+    if str(name or "").startswith("mcp__"):
+        try:
+            from alfa.core.brain.mcp_bridge import call_dynamic
+
+            args = _clean_json_args(arguments_json)
+            output = call_dynamic(name, args)
+        except (ImportError, ValueError, TypeError, KeyError, OSError) as exc:
+            return f"[ERROR MCP] {type(exc).__name__}: {exc}"
+        else:
+            logger.info("[MCPBridge] tool %s -> %s", name, str(output)[:80])
+            return output
+
     fn = _find_tool(name)
     if fn is None:
         try:

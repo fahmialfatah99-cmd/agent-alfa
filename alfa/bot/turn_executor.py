@@ -359,14 +359,23 @@ async def _run_agent_turn_impl(
         if m.strip()
     ]
 
-    from alfa.core.brain.model_router import route_candidate_models
+    from alfa.core.brain.model_router import (
+        required_capabilities,
+        route_candidate_models,
+    )
 
     brain_model_override = _db.get_main_brain_model() if hasattr(_db, "get_main_brain_model") else None
+    _required_caps = required_capabilities(
+        user_prompt or "", has_images=bool(multimodal_parts)
+    )
+    if streamer is not None:
+        _required_caps.add("streaming")
     models_to_try = route_candidate_models(
         user_prompt=user_prompt or "",
         base_model=current_active_model,
         fallback_chain=fallback_chain,
         override_model=override_model or brain_model_override,
+        required_capabilities=_required_caps,
     )
 
     last_error = None

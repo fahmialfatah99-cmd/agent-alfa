@@ -81,6 +81,93 @@ DEFAULT_HEAVY_MODELS = [
     "gemini-2.0-flash",
 ]
 
+#: Kapabilitas per prefix model. Urutan penting: prefix paling spesifik dulu.
+#: Unknown sengaja optimistis pada ``tools``/``streaming`` tetapi TIDAK pada
+#: ``vision`` — model teks yang dipaksa membaca gambar akan gagal total.
+_MODEL_CAPABILITY_RULES: tuple[tuple[tuple[str, ...], set[str]], ...] = (
+    (
+        ("gemini", "gemma-3", "gemma3"),
+        {"tools", "vision", "streaming", "long_context"},
+    ),
+    (("claude",), {"tools", "vision", "streaming", "long_context"}),
+    (
+        ("gpt-4o", "gpt-4.1", "gpt-5", "o3", "o4"),
+        {"tools", "vision", "streaming", "long_context"},
+    ),
+    (("gpt-3.5",), {"tools", "streaming", "long_context"}),
+    (("o1",), {"tools", "streaming", "long_context"}),
+    (
+        (
+            "gemma",
+            "codellama",
+            "code-llama",
+            "deepseek-coder",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "qwen2.5-coder",
+            "qwen-2.5-coder",
+            "phi-3",
+            "phi3",
+            "mistral-7b",
+            "llama-2",
+            "llama2",
+            "llama-3.1-8b",
+            "command-r",
+        ),
+        {"tools", "streaming"},
+    ),
+)
+
+
+def model_capabilities(model: str) -> set[str]:
+    """Perkiraan kapabilitas model dari nama/prefix-nya (fail-open)."""
+    name = (model or "").strip().lower()
+    for prefixes, caps in _MODEL_CAPABILITY_RULES:
+        if name.startswith(prefixes):
+            return set(caps)
+    return {"tools", "streaming"}
+
+
+def required_capabilities(
+    user_prompt: str,
+    *,
+    has_images: bool = False,
+    tools_expected: bool = True,
+) -> set[str]:
+    """Kapabilitas minimum untuk satu giliran.
+
+    Routing hanya MENDAHULUKAN model yang cocok; model lain tetap disimpan
+    sebagai fallback terakhir supaya tidak ada model yang hilang dari rantai.
+    """
+    caps: set[str] = set()
+    if tools_expected or (user_prompt or "").strip():
+        caps.add("tools")
+    if has_images:
+        caps.add("vision")
+    return caps
+
+
+def order_models_by_capability(
+    models: list[str], required: set[str] | None
+) -> list[str]:
+    """Stable-partition: model yang memenuhi semua kapabilitas didahulukan."""
+    if not required:
+        return list(models)
+    supported: list[str] = []
+    unsupported: list[str] = []
+    for model in models:
+        if required.issubset(model_capabilities(model)):
+            supported.append(model)
+        else:
+            unsupported.append(model)
+    if unsupported:
+        logger.info(
+            "[ModelRouter] Kapabilitas %s tidak dipenuhi: %s -> fallback terakhir",
+            sorted(required),
+            unsupported,
+        )
+    return supported + unsupported
+
 
 def classify_prompt_intent(user_prompt: str) -> str:
     """Classify prompt as 'LIGHT', 'HEAVY', or 'BALANCED'."""
@@ -103,14 +190,20 @@ def route_candidate_models(
     base_model: str,
     fallback_chain: list[str],
     override_model: str | None = None,
+    required_capabilities: set[str] | None = None,
 ) -> list[str]:
     """Dynamically determine the optimal sequence of candidate models.
 
-    Takes into account user intent, override_model, and circuit breaker status.
+    Takes into account user intent, override_model, optional capability
+    requirements (tools/vision/streaming), and circuit breaker status.
+    ``required_capabilities=None`` preserves the legacy ordering exactly.
     """
     if override_model:
         candidates = [override_model] + [m for m in fallback_chain if m != override_model]
-        return get_available_models(list(dict.fromkeys(candidates)))
+        deduped = list(dict.fromkeys(candidates))
+        return get_available_models(
+            order_models_by_capability(deduped, required_capabilities)
+        )
 
     intent = classify_prompt_intent(user_prompt)
     logger.debug(f"[ModelRouter] Prompt intent classified as: {intent}")
@@ -149,6 +242,8 @@ def route_candidate_models(
                 ordered.append(lm)
 
     deduped = list(dict.fromkeys(ordered))
+    if required_capabilities:
+        deduped = order_models_by_capability(deduped, required_capabilities)
     # Filter through Circuit Breaker to avoid dead/exhausted endpoints
     available = get_available_models(deduped)
     logger.info(f"[ModelRouter] Routed models for ({intent}): {available}")

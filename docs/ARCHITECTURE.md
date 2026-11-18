@@ -168,3 +168,26 @@ Additive-only; kanal Telegram/WhatsApp tidak berubah.
 - **Gate**: eksekusi dashboard memakai `make_headless_gate(uid)` —
   non-interaktif, menghormati allowlist/capability/trust operator, lalu jatuh
   ke tier `NO_CHANNEL_POLICY`; tidak pernah menunggu Telegram.
+
+## 13. Parity model/agent — Anthropic, routing, MCP, worktree
+
+Semua jalur baru bersifat aditif; provider default Gemini tidak berubah.
+
+- **Anthropic native** (`alfa/core/brain/anthropic_native.py`): Messages API
+  (`/v1/messages`), `system` terpisah, tool schema `input_schema`, loop
+  `tool_use`/`tool_result`, streaming SSE, dan `token_usage.from_anthropic_json`.
+  Dipanggil dari `provider_adapter` hanya bila provider `anthropic`/`claude`;
+  kegagalan mengembalikan `None`/`""` sehingga fallback Gemini tetap jalan.
+- **Capability routing** (`model_router.py`): `required_capabilities()` +
+  `order_models_by_capability()` mendahulukan model yang mendukung
+  `tools`/`vision`; model lain tetap ada sebagai fallback terakhir.
+  `required_capabilities=None` = urutan lama tanpa perubahan.
+- **MCP dinamis** (`mcp_bridge.py`): `mcp_refresh_tools` menarik daftar tool
+  server MCP ke cache `~/.alfa/mcp_tools_cache.json` (0600, tanpa network saat
+  giliran). `ALFA_MCP_DYNAMIC_TOOLS=true` menyuntikkan skema
+  `mcp__<server>__<tool>`; eksekusi lewat `tool_exec` -> `call_dynamic` dan
+  tetap melewati permission gate (HIGH/fail-closed).
+- **Coding worktree** (`/api/coding/worktrees`): admin-only; create/merge/
+  rollback memakai `git_worktree_sandbox_*` dengan headless gate. Mode coder
+  di frontend menginstruksikan agent bekerja di sandbox dan memverifikasi
+  sebelum merge; tidak ada auto-merge.

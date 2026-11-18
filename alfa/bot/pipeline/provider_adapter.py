@@ -15,6 +15,57 @@ from alfa.core.perm.gate import gate_is_interactive
 
 logger = logging.getLogger("ProviderAdapter")
 
+
+def _is_anthropic(provider: str | None) -> bool:
+    """True untuk provider yang memakai Messages API native (bukan OpenAI)."""
+    return (provider or "").strip().lower() in {"anthropic", "claude"}
+
+
+async def _anthropic_turn(
+    brain: dict,
+    preferred_model: str,
+    system_instruction: str,
+    user_text: str,
+    history_msgs: list,
+    approval_gate: Any,
+    streamer: Any,
+    *,
+    timeout: float = 180.0,
+) -> str:
+    """Jalankan giliran native Anthropic; return "" bila gagal total."""
+    from alfa.core.brain import anthropic_native
+
+    kwargs: dict[str, Any] = {
+        "api_key": brain.get("api_key") or "",
+        "model": brain.get("model") or preferred_model,
+        "system_instruction": system_instruction,
+        "user_text": user_text,
+        "history": history_msgs,
+        "base_url": brain.get("base_url") or "",
+        "key_id": brain.get("key_id"),
+        "key_label": brain.get("label") or "anthropic",
+        "context": "telegram_chat:anthropic",
+        "approval_gate": approval_gate,
+        "timeout": timeout,
+    }
+    if streamer and not gate_is_interactive(approval_gate):
+        chunks: list[str] = []
+        try:
+            async for chunk in anthropic_native.run_anthropic_agentic_turn_streaming(
+                **kwargs
+            ):
+                chunks.append(chunk)
+                await streamer.push_chunk(chunk)
+            text = "".join(chunks)
+            if text.strip():
+                return text
+            logger.info("[Anthropic] streaming kosong -> fallback non-stream")
+        except _PROVIDER_ERR as exc:
+            logger.warning("[Anthropic] streaming gagal, fallback non-stream: %s", exc)
+    return (
+        await anthropic_native.run_anthropic_agentic_turn(**kwargs)
+    ) or ""
+
 _PROVIDER_ERR: tuple[type[BaseException], ...] = (
     OSError,
     ValueError,
@@ -57,52 +108,60 @@ async def openai_compat_turn(
     # `gate_on` = ada kanal persetujuan manusia interaktif. Gate permisif
     # (ALLOW_ALL_GATE / None) tidak menambah satu langkah dialog.
     gate_on = gate_is_interactive(approval_gate)
-    reply_text = ""
-    if streamer and not gate_on and hasattr(mb, "run_openai_agentic_turn_streaming"):
-        try:
-            streamed_text = ""
-            async for chunk in mb.run_openai_agentic_turn_streaming(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
-            ):
-                streamed_text += chunk
-                await streamer.push_chunk(chunk)
-            reply_text = streamed_text
-        except _PROVIDER_ERR as e:
-            logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
-            reply_text = await mb.run_openai_agentic_turn(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
+
+    async def _invoke(text: str) -> str:
+        """Pilih jalur native Anthropic atau OpenAI-compatible."""
+        if _is_anthropic(brain.get("provider")):
+            return await _anthropic_turn(
+                brain,
+                preferred_model,
+                system_instruction,
+                text,
+                history_msgs,
+                approval_gate,
+                streamer,
             )
-    else:
-        reply_text = await mb.run_openai_agentic_turn(
+        if (
+            streamer
+            and not gate_on
+            and hasattr(mb, "run_openai_agentic_turn_streaming")
+        ):
+            try:
+                streamed_text = ""
+                async for chunk in mb.run_openai_agentic_turn_streaming(
+                    provider=brain["provider"],
+                    base_url=brain["base_url"],
+                    api_key=brain["api_key"],
+                    model=brain["model"] or preferred_model,
+                    system_instruction=system_instruction,
+                    user_text=text,
+                    history=history_msgs,
+                    key_id=brain["key_id"],
+                    key_label=brain["label"],
+                    approval_gate=approval_gate,
+                ):
+                    streamed_text += chunk
+                    await streamer.push_chunk(chunk)
+                if str(streamed_text).strip():
+                    return streamed_text
+                logger.info("[ProviderAdapter] streaming kosong -> non-stream")
+            except _PROVIDER_ERR as e:
+                logger.warning(f"Streaming failed for OpenAI compatible, fallback: {e}")
+        result = await mb.run_openai_agentic_turn(
             provider=brain["provider"],
             base_url=brain["base_url"],
             api_key=brain["api_key"],
             model=brain["model"] or preferred_model,
             system_instruction=system_instruction,
-            user_text=compat_text,
+            user_text=text,
             history=history_msgs,
             key_id=brain["key_id"],
             key_label=brain["label"],
             approval_gate=approval_gate,
         )
+        return str(result or "")
+
+    reply_text = await _invoke(compat_text)
 
     new_meetings = _meetings_count() - meetings_before
     if meeting_intent and new_meetings == 0 and reply_text:
@@ -111,17 +170,8 @@ async def openai_compat_turn(
             mk in low for mk in MEETING_FABRICATION_MARKERS
         ):
             logger.warning("[AUDIT-compat] klaim rapat tanpa tool -> pass koreksi")
-            corrected = await mb.run_openai_agentic_turn(
-                provider=brain["provider"],
-                base_url=brain["base_url"],
-                api_key=brain["api_key"],
-                model=brain["model"] or preferred_model,
-                system_instruction=system_instruction,
-                user_text=compat_text + "\n\n" + AUDIT_CORRECTION_TEXT,
-                history=history_msgs,
-                key_id=brain["key_id"],
-                key_label=brain["label"],
-                approval_gate=approval_gate,
+            corrected = await _invoke(
+                compat_text + "\n\n" + AUDIT_CORRECTION_TEXT
             )
             if corrected:
                 reply_text = corrected
@@ -186,20 +236,37 @@ async def try_alt_provider_keys(
                 f"[Fallback] mencoba {prov} ({key.get('name')}) model "
                 f"{key.get('default_model')}"
             )
-            reply_text = await mb.run_openai_agentic_turn(
-                provider=prov,
-                base_url=key.get("base_url") or "",
-                api_key=key["api_key"].strip(),
-                model=key.get("default_model") or "",
-                system_instruction=system_instruction,
-                user_text=user_prompt,
-                history=history_msgs,
-                timeout=60.0,
-                key_id=key.get("id"),
-                key_label=key.get("name", f"{prov}-fallback"),
-                context="telegram_chat:fallback",
-                approval_gate=approval_gate,
-            )
+            if _is_anthropic(prov):
+                from alfa.core.brain import anthropic_native
+
+                reply_text = await anthropic_native.run_anthropic_agentic_turn(
+                    api_key=key["api_key"].strip(),
+                    model=key.get("default_model") or "",
+                    system_instruction=system_instruction,
+                    user_text=user_prompt,
+                    history=history_msgs,
+                    base_url=key.get("base_url") or "",
+                    timeout=60.0,
+                    key_id=key.get("id"),
+                    key_label=key.get("name", f"{prov}-fallback"),
+                    context="telegram_chat:fallback",
+                    approval_gate=approval_gate,
+                )
+            else:
+                reply_text = await mb.run_openai_agentic_turn(
+                    provider=prov,
+                    base_url=key.get("base_url") or "",
+                    api_key=key["api_key"].strip(),
+                    model=key.get("default_model") or "",
+                    system_instruction=system_instruction,
+                    user_text=user_prompt,
+                    history=history_msgs,
+                    timeout=60.0,
+                    key_id=key.get("id"),
+                    key_label=key.get("name", f"{prov}-fallback"),
+                    context="telegram_chat:fallback",
+                    approval_gate=approval_gate,
+                )
             if reply_text:
                 logger.info(
                     f"[Fallback] sukses via {prov}/{key.get('default_model')}"

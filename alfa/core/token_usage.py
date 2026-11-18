@@ -81,6 +81,32 @@ def from_gemini_response(
         logger.debug(f"from_gemini_response skipped: {e}")
 
 
+def from_anthropic_json(
+    data: dict,
+    provider: str = "anthropic",
+    model: str = "",
+    key_id=None,
+    key_label: str = "",
+    context: str = "",
+):
+    """Ekstrak ``usage`` dari respons native Anthropic Messages API."""
+    try:
+        usage = (data or {}).get("usage") or {}
+        if not usage:
+            return
+        record(
+            provider=provider,
+            model=model or str((data or {}).get("model") or ""),
+            key_id=key_id,
+            key_label=key_label,
+            context=context,
+            prompt_tokens=usage.get("input_tokens", 0) or 0,
+            completion_tokens=usage.get("output_tokens", 0) or 0,
+        )
+    except _USAGE_ERR as e:
+        logger.debug(f"from_anthropic_json skipped: {e}")
+
+
 def from_openai_json(
     data: dict,
     provider: str = "",
