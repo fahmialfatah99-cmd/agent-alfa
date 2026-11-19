@@ -688,3 +688,50 @@ html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
 }
 
 
+
+/* ==========================================================================
+   6. ACCESSIBILITY (skip link, fokus keyboard, reduced motion)
+   ========================================================================== */
+.skip-link {
+    position: fixed;
+    left: 1rem;
+    top: -100px;
+    z-index: 10000;
+    padding: 0.6rem 1rem;
+    border-radius: 0.75rem;
+    background: #06b6d4;
+    color: #04121a;
+    font-weight: 700;
+    font-size: 0.8rem;
+    box-shadow: 0 10px 30px -10px rgba(6, 182, 212, 0.8);
+    transition: top 0.15s ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+    top: 1rem;
+}
+
+:focus-visible {
+    outline: 2px solid #22d3ee;
+    outline-offset: 2px;
+}
+
+#main-content:focus {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html:focus-within {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

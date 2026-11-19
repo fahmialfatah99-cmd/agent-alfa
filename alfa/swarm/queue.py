@@ -61,6 +61,22 @@ def _connect(db_path: str | None = None) -> sqlite3.Connection:
     return conn
 
 
+def queue_stats(db_path: str | None = None) -> dict[str, int]:
+    """Jumlah misi per status (aditif; dipakai readiness/metrics)."""
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT status, COUNT(*) FROM swarm_missions GROUP BY status"
+        ).fetchall()
+    finally:
+        conn.close()
+    stats = {status: 0 for status in STATUSES}
+    for status, count in rows:
+        stats[str(status)] = int(count)
+    stats["total"] = sum(stats[status] for status in STATUSES)
+    return stats
+
+
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d = dict(row)
     for key in ("participants_json", "result_json"):

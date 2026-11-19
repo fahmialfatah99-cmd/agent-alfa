@@ -351,6 +351,46 @@ def invalidate_session(token: str) -> bool:
         db.get_connection_pool().release(conn)
 
 
+def _session_retention_days() -> int:
+    """Batas retensi sesi dashboard; 0 = nonaktif (default 30 hari)."""
+    raw = os.getenv("ALFA_DASHBOARD_SESSION_RETENTION_DAYS", "30")
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        days = 30
+    return max(0, min(days, 3650))
+
+
+def prune_dashboard_sessions_sync(retention_days: int | None = None) -> int:
+    """Hapus sesi invalid/kedaluwarsa yang lebih tua dari retensi.
+
+    Sesi yang masih valid dan belum kedaluwarsa TIDAK disentuh. Dipanggil saat
+    startup dashboard (bukan pada setiap request) agar tabel tidak tumbuh
+    tanpa batas. Return jumlah baris yang dihapus.
+    """
+    days = _session_retention_days() if retention_days is None else max(0, retention_days)
+    if days <= 0:
+        return 0
+    init_auth_db()
+    from alfa.core import database as db
+
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    conn = db.get_connection_pool().acquire()
+    try:
+        cursor = conn.execute(
+            """
+            DELETE FROM dashboard_sessions
+            WHERE (is_valid = 0 AND created_at <= ?)
+               OR (expires_at <= ?)
+            """,
+            (cutoff, cutoff),
+        )
+        conn.commit()
+        return int(cursor.rowcount or 0)
+    finally:
+        db.get_connection_pool().release(conn)
+
+
 def require_admin(request: Request) -> dict[str, Any]:
     """Dependency ringan untuk endpoint sensitif: hanya admin.
 
@@ -564,6 +604,8 @@ class DashboardAuthMiddleware(BaseHTTPMiddleware):
             "/healthz",
             "/api/health",
             "/api/healthz",
+            "/readyz",
+            "/api/readyz",
             # CATATAN: /api/metrics TIDAK lagi publik — endpoint ini
             # membocorkan CPU/RAM/disk, RSS proses, jumlah thread, dan
             # statistik connection pool ke siapa pun yang bisa menjangkau.

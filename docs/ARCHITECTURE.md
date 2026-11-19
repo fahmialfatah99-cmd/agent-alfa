@@ -191,3 +191,41 @@ Semua jalur baru bersifat aditif; provider default Gemini tidak berubah.
   rollback memakai `git_worktree_sandbox_*` dengan headless gate. Mode coder
   di frontend menginstruksikan agent bekerja di sandbox dan memverifikasi
   sebelum merge; tidak ada auto-merge.
+
+## 14. Platform produksi — readiness, tracing, retensi, SBOM
+
+Semua tambahan bersifat aditif; kontrak `/healthz` dan API lama tidak berubah.
+
+- **Readiness** (`alfa/dashboard/health.py`): `/readyz` dan `/api/readyz`
+  mengembalikan 200 hanya bila `SELECT 1`, hitung tabel, dan direktori DB
+  writable sehat; selain itu 503 dengan detail per komponen. Statistik antrean
+  dan jumlah turn chat aktif ikut dilaporkan sebagai informasi (tidak
+  menggagalkan readiness). Endpoint ini publik-untuk-probe dan tidak masuk
+  OpenAPI.
+- **Request tracing** (`alfa/dashboard/observability.py`): setiap response
+  membawa `X-Request-ID`. Nilai klien hanya diterima bila cocok
+  `[A-Za-z0-9._-]{8,64}` (anti log-injection); selain itu dibuat UUID baru.
+  Access log memuat method, path tanpa query string, status, durasi, dan
+  request-id — tanpa header `Authorization`/cookie.
+- **Rate limit chat** (`alfa/dashboard/ratelimit.py`): sliding window per IP
+  untuk `POST /api/chat*` generasi, default 20 req/60 s
+  (`ALFA_CHAT_RATE_LIMIT`, `ALFA_CHAT_RATE_WINDOW_SEC`; `0` = nonaktif).
+  Respons 429 membawa `Retry-After` dan header `X-RateLimit-*`. Bucket dibatasi
+  agar memori tidak tumbuh tanpa batas.
+- **Graceful shutdown** (`app.py` lifespan): scheduler dan malloc-trim
+  dibatalkan, seluruh turn chat aktif dibatalkan lewat `cancel_active_turns()`,
+  lalu connection pool SQLite ditutup. Unit systemd memakai
+  `TimeoutStopSec=30`; compose memakai `stop_grace_period: 30s`.
+- **Metrik operasional**: `/api/metrics` (admin) menambahkan
+  `operational.db_size_mb`, `db_wal_size_mb`, antrean per status
+  (`queue_stats`), dan `active_chat_turns`. `queue_stats` membaca tabel
+  `swarm_missions` tanpa mengubah skema.
+- **Retensi sesi dashboard**: `prune_dashboard_sessions_sync()` berjalan saat
+  startup, menghapus baris invalid/kedaluwarsa lebih tua dari
+  `ALFA_DASHBOARD_SESSION_RETENTION_DAYS` (default 30, `0` = nonaktif). Sesi
+  valid tidak disentuh.
+- **SBOM**: `scripts/generate_sbom.py` menghasilkan CycloneDX 1.5
+  deterministik dari `requirements-lock.txt`; CI Code Quality mengunggahnya
+  sebagai artifact `sbom-cyclonedx`.
+- **Versi**: `FastAPI(version=...)`, `/healthz`, `/api/metrics`, dan SBOM
+  memakai satu sumber `alfa.__version__`.

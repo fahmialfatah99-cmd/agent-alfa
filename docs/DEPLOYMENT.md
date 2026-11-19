@@ -127,9 +127,10 @@ Jika menginginkan efisiensi performa maksimal dengan konsumsi RAM di bawah 200 M
    [Service]
    Type=simple
    WorkingDirectory=%h/agent-alfa
-   ExecStart=%h/agent-alfa/venv/bin/python bot.py
+   ExecStart=%h/agent-alfa/venv/bin/python -m alfa.bot.telegram_bot
    Restart=always
    RestartSec=5
+   TimeoutStopSec=30
    MemoryMax=2G
    StandardOutput=journal
    StandardError=journal
@@ -147,9 +148,10 @@ Jika menginginkan efisiensi performa maksimal dengan konsumsi RAM di bawah 200 M
    [Service]
    Type=simple
    WorkingDirectory=%h/agent-alfa
-   ExecStart=%h/agent-alfa/venv/bin/python web_dashboard.py
+   ExecStart=%h/agent-alfa/venv/bin/python -m alfa.dashboard.app
    Restart=always
    RestartSec=5
+   TimeoutStopSec=30
    MemoryMax=1G
    StandardOutput=journal
    StandardError=journal
@@ -257,14 +259,47 @@ sudo certbot --nginx -d alfa.domainkamu.com
 ## 6. Health Check, Monitoring & Pemeliharaan Database
 
 ### Endpoint Pemantauan Otomatis:
-- `GET /health`: Mengembalikan status HTTP 200 `{ "status": "healthy", "service": "alfa-command-center" }`.
-- `GET /metrics`: Metrik internal (CPU, Memory, Swarm Execution Steps, Active Sessions).
+- `GET /healthz` (atau `/health`, `/api/health`): liveness — HTTP 200 selama
+  proses hidup, dengan versi, status DB, uptime, dan RSS.
+- `GET /readyz` (atau `/api/readyz`): readiness — HTTP 200 hanya bila DB dan
+  direktori data sehat; HTTP 503 dengan detail `checks.database`,
+  `checks.disk`, `checks.queue`, dan `active_chat_turns`. Gunakan endpoint ini
+  untuk load balancer/orchestrator, bukan `/healthz`.
+- `GET /api/metrics` (butuh auth admin): CPU/RAM/disk host, RSS proses,
+  statistik pool DB, metrik agent, dan `operational` (ukuran DB/WAL, antrean
+  swarm per status, turn chat aktif).
+
+Setiap response membawa `X-Request-ID`; sertakan nilai itu saat melaporkan
+insiden agar log bisa dikorelasikan. Endpoint generasi chat dibatasi
+20 permintaan/60 detik/IP secara default (`ALFA_CHAT_RATE_LIMIT`,
+`ALFA_CHAT_RATE_WINDOW_SEC`).
+
+### Graceful Shutdown:
+Unit systemd memakai `TimeoutStopSec=30` dan compose memakai
+`stop_grace_period: 30s`. Saat berhenti, dashboard membatalkan turn chat aktif,
+menghentikan task background, lalu menutup pool SQLite. Jangan menurunkan
+timeout di bawah 10 detik agar turn yang sedang menulis riwayat tidak terpotong.
 
 ### Backup Database SQLite Otomatis:
-Jalankan backup berkala `agent_data.db` via cron:
+Gunakan skrip operasional (snapshot hot-safe + verifikasi SHA-256 + retensi):
 ```bash
-# Tambahkan di crontab (crontab -e):
-0 3 * * * sqlite3 ~/agent-alfa/agent_data.db ".backup '/home/fahmial/backups/alfa_db_$(date +\%F).db'"
+# Timer systemd (disarankan)
+systemctl --user enable --now alfa-db-backup.timer
+
+# Atau manual
+venv/bin/python scripts/backup_db.py run
+venv/bin/python scripts/backup_db.py verify <archive>
+venv/bin/python scripts/backup_db.py restore-drill
 ```
+
+### SBOM & audit dependensi:
+```bash
+venv/bin/python scripts/generate_sbom.py \
+  --requirements requirements-lock.txt --output sbom.cdx.json
+python scripts/check_dependency_audit.py --requirements requirements-lock.txt
+```
+CI Code Quality mengunggah `sbom-cyclonedx` setiap run. Dependency gate gagal
+hanya bila advisory punya versi perbaikan; advisory tanpa fix dicatat sebagai
+peringatan.
 
 Dengan konfigurasi ini, server ALFA Sovereign AI Anda beroperasi 24/7 dengan keandalan enterprise, waktu henti minimal, dan keamanan tingkat tinggi.

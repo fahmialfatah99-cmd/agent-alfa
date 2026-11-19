@@ -2,41 +2,43 @@
 
 This document tracks code quality metrics for the ALFA Agent project.
 
-## Current Status (v3.5.0, 2026-10-20)
+## Current Status (v3.5.0, 2026-11-19)
 
 ### Test Coverage
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | 80% | **57.00%** | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00%) |
+| Overall Coverage | 80% | **65.20%** (43.331 statement, 15.080 belum tercover) | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00% → 65,20%) |
 | Security-critical modules | 90% | 85–95% (perm gate, sandbox, vault, command policy) | 🟢 |
 | Integration Tests | Critical paths | Covered | 🟢 OK |
 
-**Note:** Run `pytest --cov=alfa --cov-report=html` to generate current coverage report.
+**Note:** Jalankan `pytest --cov=alfa --cov-report=html` untuk laporan lokal.
+Gate CI `fail_under` saat ini **55%**; angka 65,20% memberi ruang di atas gate.
+Kenaikan terakhir berasal dari suite Phase 3/4 (readiness, tracing, rate limit,
+shutdown, retensi sesi, SBOM, a11y) dan penghapusan versi hardcoded pada tes.
 
 ### Gap analysis — area yang masih belum tercover
 
-Target 80% belum tercapai. Berikut peta area yang paling besar masih
-belum ada test-nya, urut dari satu-satunya celah yang paling，恶ah
-(sorted by missing statements):
+Target 80% belum tercapai. Berikut area dengan statement belum tercover
+terbanyak (diurutkan dari coverage JSON terakhir):
 
 | Area | Missing | Alasan / langkah berikutnya |
 |------|---------|------------------------------|
-| `alfa/bot/discord_bot.py` | ~600 | `main()` butuh klien Discord nyata; sisanya sudah dipecah jadi helper yang teruji |
-| `alfa/bot/handlers.py` | ~550 | Handler Telegram butuh `Update`/`Context` nyata; butuh integrasi mock yang lebih besar |
-| `alfa/bot/proactive.py` | ~450 | Loop background (`asyncio.sleep` tak terfinite); perlu fake clock |
-| `alfa/swarm/engine.py` | ~450 | `conduct_multi_agent_meeting` penuh butuh LLM nyata; jalur terstruktur sudah teruji terpisah |
-| `alfa/core/cli/*` | ~600 | CLI interaktif (Rich/prompt) — butuh PTY palsu |
-| `alfa/tools/media/*`, `alfa/video/*` | ~500 | Butuh ffmpeg/ffmpeg-python terpasang |
-| `alfa/scrapers/fast.py` | ~180 | Butuh `camoufox`/`playwright` browser |
-| `alfa/mcp/client.py` | ~120 | Jalur HTTP sudah teruji; sisanya butuh server MCP sungguhan |
+| `alfa/bot/discord_bot.py` | 562 | `main()` butuh klien Discord nyata; helper sudah teruji terpisah |
+| `alfa/bot/proactive.py` | 432 | Loop background (`asyncio.sleep` tak terfinite); perlu fake clock |
+| `alfa/integrations/google_sheets.py` | 230 | Butuh kredensial/Sheets nyata; jalur parse bisa di-mock lebih dalam |
+| `alfa/tools/system/management.py` | 227 | Tool manajemen sistem bergantung host; perlu sandbox mock |
+| `alfa/swarm/llm_client.py` | 215 | Panggilan LLM nyata; fokus pada parsing/fallback |
+| `alfa/swarm/step_executor.py` | 214 | Eksekusi langkah swarm butuh LLM; beberapa jalur sudah diuji |
+| `alfa/dashboard/routes/system/settings_admin.py` | 204 | Route admin; tambah test dengan DB terisolasi |
+| `alfa/core/cli/chat.py` | 201 | CLI interaktif (Rich/prompt) — butuh PTY palsu |
 
 ### Test Suite Statistics
 
 | Metric | Count |
 |--------|-------|
-| Test Files | 66 |
-| Test Functions | 1.345 |
+| Test Files | 125 |
+| Test Functions | 1.506 |
 | Fixtures | 20+ |
 | Custom Markers | 5 |
 
@@ -46,16 +48,21 @@ belum ada test-nya, urut dari satu-satunya celah yang paling，恶ah
 |------|--------|--------|
 | Ruff | ✅ Clean | 0 errors (alfa + tests) |
 | Black | ✅ Configured | Formatted |
-| MyPy | ✅ Clean | 0 error / 250 file |
-| Lint budget (TRY/BLE) | ✅ Ratchet | 785 instans (tidak boleh bertambah) |
+| MyPy | ✅ Clean | 0 error / 354 source file |
+| Lint budget (TRY/BLE) | ✅ Ratchet | 510 instans di 175 file (tidak boleh bertambah) |
 
 ### Security Scanning
 
 | Scanner | Frequency | Status |
 |---------|-----------|--------|
-| Bandit | Every CI run | ✅ Integrated |
-| Safety (deps) | Every CI run | ✅ Integrated |
+| Bandit | Every CI run | ✅ Integrated (artifact `security-scan-results`) |
+| Safety (lockfile) | Every CI run | ✅ Integrated, deterministik — gagal hanya bila advisory punya fix |
+| SBOM CycloneDX | Every CI run | ✅ Artifact `sbom-cyclonedx` |
 | Manual audit | Per release | 📋 Scheduled |
+
+Catatan dependency: `requirements-lock.txt` saat ini memiliki 7 advisory
+**tanpa versi perbaikan** (browser-use, filelock×3, mako, markitdown, twisted).
+Gate sengaja lulus dengan peringatan; advisory yang punya fix akan menggagalkan CI.
 
 ## Quality Gates
 
@@ -71,14 +78,16 @@ All commits must pass:
 All PRs must pass:
 - ✅ All unit tests
 - ✅ Integration tests (non-slow)
-- ✅ Code coverage threshold (>80%)
-- ✅ Security scanning (no critical issues)
-- ✅ Dependency vulnerability check (no high/critical)
+- ✅ Code coverage threshold (gate `fail_under=55`, aktual 65,20%)
+- ✅ Security scanning (Bandit, no high/critical)
+- ✅ Dependency audit deterministik (gagal hanya bila advisory punya fix)
+- ✅ Docs strict (`mkdocs build --strict`)
+- ✅ Lint budget & silent-exception check
 
 ### Release Criteria
 
 Before each release:
-- ✅ >80% overall test coverage
+- 🟡 Overall test coverage di atas gate dan tidak turun (target jangka panjang 80%)
 - ✅ All security tests passing
 - ✅ No critical linting issues
 - ✅ All integration tests passing

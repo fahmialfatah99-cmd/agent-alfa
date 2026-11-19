@@ -28,10 +28,11 @@ def _agent_snapshot() -> dict:
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from alfa import __version__
 from alfa.core.config import ensure_env_loaded
 from alfa.dashboard.common import (
     DASHBOARD_AUTH_TOKEN,
@@ -44,6 +45,9 @@ from alfa.dashboard.common import (
     logger,
     safe_int,
 )
+from alfa.dashboard.health import operational_snapshot, readiness_snapshot
+from alfa.dashboard.observability import RequestContextMiddleware
+from alfa.dashboard.ratelimit import ChatRateLimitMiddleware
 from alfa.dashboard.routes.auth import (
     DashboardAuthMiddleware,
     _create_session_token,
@@ -126,6 +130,22 @@ async def lifespan(app: FastAPI):
     except (TypeError, ValueError, KeyError, IndexError, AttributeError, RuntimeError, OSError, ArithmeticError, UnicodeError, sqlite3.Error) as e:
         logger.error(f"Gagal inisialisasi auth database di lifespan startup: {e}")
     try:
+        from alfa.dashboard.routes.auth import prune_dashboard_sessions_sync
+
+        purged = await asyncio.to_thread(prune_dashboard_sessions_sync)
+        if purged:
+            logger.info(f"[retention] {purged} sesi dashboard lama dibersihkan.")
+    except (
+        ImportError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+        sqlite3.Error,
+    ) as e:
+        logger.debug(f"Retensi sesi dashboard dilewati: {e}")
+    try:
         from alfa.integrations.gdrive import secret_store as _gs
 
         report = _gs.migrate_legacy_plaintext()
@@ -151,10 +171,29 @@ async def lifespan(app: FastAPI):
         sqlite3.Error,
     ) as e:
         logger.debug(f"Durable task recovery startup dilewati: {e}")
-    asyncio.create_task(_pipeline_trigger_scheduler())
-    asyncio.create_task(_malloc_trim_loop())
-    yield
-    logger.info("ALFA Sovereign Command Center shutting down...")
+    scheduler_task = asyncio.create_task(_pipeline_trigger_scheduler())
+    trim_task = asyncio.create_task(_malloc_trim_loop())
+    try:
+        yield
+    finally:
+        for task in (scheduler_task, trim_task):
+            task.cancel()
+        await asyncio.gather(scheduler_task, trim_task, return_exceptions=True)
+        try:
+            from alfa.dashboard.routes.chat import cancel_active_turns
+
+            cancelled = cancel_active_turns()
+            if cancelled:
+                logger.info("[shutdown] %s turn chat aktif dibatalkan.", cancelled)
+        except (ImportError, AttributeError, RuntimeError, TypeError, ValueError) as exc:
+            logger.debug("[shutdown] pembatalan turn chat dilewati: %s", exc)
+        try:
+            from alfa.core import database as db
+
+            db.get_connection_pool().close_all()
+        except (ImportError, AttributeError, RuntimeError, OSError, sqlite3.Error) as exc:
+            logger.debug("[shutdown] penutupan DB pool dilewati: %s", exc)
+        logger.info("ALFA Sovereign Command Center shutting down...")
 
 
 _ERR_INSECURE_LOCAL_PUBLIC = (
@@ -263,7 +302,7 @@ def create_app() -> FastAPI:
             "Features 243 native tools, Swarm Multi-Agent War Room, Dual Telegram/Web interface, "
             "and external webhook automation integration."
         ),
-        version="2.20.0",
+        version=__version__,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/api/openapi.json",
@@ -294,6 +333,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Urutan middleware Starlette: yang terakhir ditambahkan berjalan paling
+    # luar. RequestContext harus paling luar agar X-Request-ID juga menempel
+    # pada response 429 dari rate limiter.
+    app_instance.add_middleware(ChatRateLimitMiddleware)
+    app_instance.add_middleware(RequestContextMiddleware)
 
     # Mount static files
     if os.path.exists(STATIC_DIR):
@@ -432,13 +476,29 @@ def create_app() -> FastAPI:
         return HealthCheckResponse(
             status="healthy" if db_status == "connected" else "degraded",
             service="alfa-sovereign-ai",
-            version="2.20.0",
+            version=__version__,
             database=db_status,
             database_tables=table_count,
             uptime_seconds=round(time.time() - _START_TIME, 2),
             memory_rss_mb=round(memory_info.rss / (1024 * 1024), 2),
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
+
+    @app_instance.get(
+        "/readyz",
+        tags=["Monitoring"],
+        include_in_schema=False,
+    )
+    @app_instance.get(
+        "/api/readyz",
+        tags=["Monitoring"],
+        include_in_schema=False,
+    )
+    async def readiness_check():
+        """Readiness probe: DB + disk harus sehat; queue hanya informasi."""
+        snapshot = await asyncio.to_thread(readiness_snapshot)
+        status_code = 200 if snapshot.get("status") == "ready" else 503
+        return JSONResponse(status_code=status_code, content=snapshot)
 
     @app_instance.get(
         "/api/metrics",
@@ -465,7 +525,7 @@ def create_app() -> FastAPI:
 
         return SystemMetricsResponse(
             service="alfa-sovereign-ai",
-            version="2.20.0",
+            version=__version__,
             timestamp=datetime.now(timezone.utc).isoformat(),
             system={
                 "cpu_percent": cpu_pct,
@@ -481,6 +541,7 @@ def create_app() -> FastAPI:
             },
             database_pool=db_pool_stats,
             agent=_agent_snapshot(),
+            operational=await asyncio.to_thread(operational_snapshot),
         )
 
     @app_instance.get(

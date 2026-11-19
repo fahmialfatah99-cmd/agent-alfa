@@ -10,6 +10,7 @@ WorkingDirectory=%h/telegram-ai-bot
 ExecStart=%h/telegram-ai-bot/venv/bin/python3 -m alfa.bot.telegram_bot
 Restart=always
 RestartSec=5
+TimeoutStopSec=30
 # Naikkan bila sandbox Docker sering dipakai paralel
 MemoryMax=2G
 

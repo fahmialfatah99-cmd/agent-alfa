@@ -8,6 +8,8 @@ services:
       dockerfile: Dockerfile
     container_name: alfa_dashboard
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
     ports:
       - "${DASHBOARD_PORT:-8080}:8080"
     environment:
@@ -36,7 +38,9 @@ services:
       dockerfile: Dockerfile
     container_name: alfa_telegram_bot
     restart: unless-stopped
-    command: ["python3", "bot.py"]
+    init: true
+    stop_grace_period: 30s
+    command: ["python3", "-m", "alfa.bot.telegram_bot"]
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}

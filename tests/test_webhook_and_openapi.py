@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+import alfa
 from alfa.dashboard.app import app
 
 
@@ -23,7 +24,7 @@ class TestHealthAndOpenAPI:
             data = resp.json()
             assert data["status"] in ("healthy", "degraded")
             assert data["service"] == "alfa-sovereign-ai"
-            assert data["version"] == "2.20.0"
+            assert data["version"] == alfa.__version__
             assert "uptime_seconds" in data
             assert "memory_rss_mb" in data
 
@@ -42,7 +43,7 @@ class TestHealthAndOpenAPI:
         assert resp.status_code == 200
         schema = resp.json()
         assert schema["info"]["title"] == "ALFA Sovereign Command Center Pro-Max"
-        assert schema["info"]["version"] == "2.20.0"
+        assert schema["info"]["version"] == alfa.__version__
         assert "/api/v1/webhook/trigger" in schema["paths"]
         assert "/api/health" in schema["paths"]
 

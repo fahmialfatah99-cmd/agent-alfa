@@ -32,6 +32,21 @@ _ACTIVE_TURNS: dict[str, asyncio.Task[Any]] = {}
 #: Indeks cepat conversation_id -> request_id untuk tombol Stop.
 _ACTIVE_BY_CONVERSATION: dict[str, str] = {}
 
+
+def active_turn_count() -> int:
+    """Jumlah turn dashboard yang sedang berjalan (read-only, aman)."""
+    return len(_ACTIVE_TURNS)
+
+
+def cancel_active_turns() -> int:
+    """Batalkan seluruh turn aktif saat shutdown; return jumlah yang dibatalkan."""
+    tasks = list(_ACTIVE_TURNS.values())
+    for task in tasks:
+        task.cancel()
+    _ACTIVE_TURNS.clear()
+    _ACTIVE_BY_CONVERSATION.clear()
+    return len(tasks)
+
 _SSE_HEADERS = {
     "Cache-Control": "no-cache",
     "Connection": "keep-alive",

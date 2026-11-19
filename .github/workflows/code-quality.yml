@@ -108,6 +108,16 @@ jobs:
       
       - name: Run Bandit security scan
         run: bandit -r alfa/ -ll -f json -o bandit-report.json
+
+      - name: Generate CycloneDX SBOM
+        run: python scripts/generate_sbom.py --requirements requirements-lock.txt --output sbom.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 7
       
       - name: Upload security report
         uses: actions/upload-artifact@v4

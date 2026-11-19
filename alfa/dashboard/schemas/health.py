@@ -39,3 +39,7 @@ class SystemMetricsResponse(BaseModel):
         default_factory=dict,
         description="Metrik runtime agent: turns, tool-calls, latensi p50/p95",
     )
+    operational: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metrik operasional: ukuran DB/WAL, antrean durable, turn aktif",
+    )

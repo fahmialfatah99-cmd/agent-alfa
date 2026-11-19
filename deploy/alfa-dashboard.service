@@ -9,6 +9,7 @@ Environment=DASHBOARD_PORT=8080
 ExecStart=%h/telegram-ai-bot/venv/bin/python3 -m alfa.dashboard.app
 Restart=always
 RestartSec=5
+TimeoutStopSec=30
 
 [Install]
 WantedBy=default.target

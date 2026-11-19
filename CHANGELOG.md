@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Ditambahkan
 
+- **Readiness probe + graceful shutdown** (`alfa/dashboard/health.py`,
+  `alfa/dashboard/app.py`): `/readyz` dan `/api/readyz` memeriksa `SELECT 1`,
+  jumlah tabel, direktori DB writable, serta melaporkan antrean dan turn chat
+  aktif; DB/disk tidak sehat → HTTP 503. Saat shutdown, dashboard membatalkan
+  scheduler, malloc-trim, seluruh turn chat aktif, lalu menutup pool SQLite.
+  Unit systemd memakai `TimeoutStopSec=30`, compose `stop_grace_period: 30s`.
+- **Request tracing & access log** (`alfa/dashboard/observability.py`): setiap
+  response membawa `X-Request-ID` tervalidasi (anti log-injection); log memuat
+  method, path tanpa query string, status, durasi, dan request-id, tanpa
+  header sensitif.
+- **Rate limit generasi chat** (`alfa/dashboard/ratelimit.py`): sliding window
+  per IP, default 20 permintaan/60 detik (`ALFA_CHAT_RATE_LIMIT`,
+  `ALFA_CHAT_RATE_WINDOW_SEC`, `0` = nonaktif) dengan `Retry-After` dan
+  `X-RateLimit-*`.
+- **Metrik operasional** (`/api/metrics`, `alfa/swarm/queue.py`): ukuran
+  DB/WAL, statistik antrean swarm per status (`queue_stats`), dan jumlah turn
+  chat aktif tanpa mengubah skema.
+- **Retensi sesi dashboard** (`alfa/dashboard/routes/auth.py`): pembersihan
+  sesi invalid/kedaluwarsa saat startup, default 30 hari
+  (`ALFA_DASHBOARD_SESSION_RETENTION_DAYS`, `0` = nonaktif).
+- **SBOM CycloneDX** (`scripts/generate_sbom.py`): dokumen 1.5 deterministik
+  dari `requirements-lock.txt`, diunggah CI Code Quality sebagai artifact
+  `sbom-cyclonedx`.
+- **Dokumen operasi & privasi** (`docs/OPERATIONS.md`, `docs/PRIVACY.md`):
+  runbook insiden, retensi data, dan inventaris data pihak ketiga.
+- **Aksesibilitas dashboard**: skip-link ke konten utama, landmark
+  `main#main-content`, `aria-live` pada riwayat chat, `:focus-visible`, dan
+  dukungan `prefers-reduced-motion`.
+
+### Diperbaiki
+
+- **Entrypoint bot di Docker Compose**: `command` kini memanggil
+  `python3 -m alfa.bot.telegram_bot` (sebelumnya `bot.py` yang tidak ada).
+- **Satu sumber versi**: OpenAPI, `/healthz`, `/api/metrics`, dan SBOM memakai
+  `alfa.__version__`; tes tidak lagi mengunci versi hardcoded.
+
 - **Chat workspace multi-thread ala Claude** (`alfa/core/db/conversations.py`,
   `alfa/dashboard/routes/chat.py`, `static/js/chat.js`, `templates/index.html`):
   tabel aditif `conversations` + kolom nullable `chat_history.conversation_id`

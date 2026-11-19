@@ -39,6 +39,8 @@ nav:
       - Peta File & Runbook: ARCHITECTURE.md
   - Config Pack: CONFIG_PACKS.md
   - Keamanan: security.md
+  - Operasi: OPERATIONS.md
+  - Privasi: PRIVACY.md
   - Testing: TESTING.md
   - Kualitas Kode: CODE_QUALITY.md
   - Benchmark: BENCHMARK.md
@@ -59,5 +61,5 @@ markdown_extensions:
 
 strict: true
 not_in_nav: |
-  docs/superpowers/
+  superpowers/
   history/

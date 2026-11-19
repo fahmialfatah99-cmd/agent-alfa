@@ -43,4 +43,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Default command starts the Web Command Center; can be overridden in docker-compose
-CMD ["python3", "web_dashboard.py"]
+CMD ["python3", "-m", "alfa.dashboard.app"]
