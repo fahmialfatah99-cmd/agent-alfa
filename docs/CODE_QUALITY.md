@@ -8,14 +8,32 @@ This document tracks code quality metrics for the ALFA Agent project.
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | 80% | **65.20%** (43.331 statement, 15.080 belum tercover) | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00% → 65,20%) |
+| Overall Coverage | 80% | **67.84%** (43.331 statement, 13.937 belum tercover) | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00% → 65,20% → 67,84%) |
 | Security-critical modules | 90% | 85–95% (perm gate, sandbox, vault, command policy) | 🟢 |
 | Integration Tests | Critical paths | Covered | 🟢 OK |
 
 **Note:** Jalankan `pytest --cov=alfa --cov-report=html` untuk laporan lokal.
-Gate CI `fail_under` saat ini **55%**; angka 65,20% memberi ruang di atas gate.
+Gate CI `fail_under` saat ini **55%**; angka 67,84% memberi ruang di atas gate.
 Kenaikan terakhir berasal dari suite Phase 3/4 (readiness, tracing, rate limit,
-shutdown, retensi sesi, SBOM, a11y) dan penghapusan versi hardcoded pada tes.
+shutdown, retensi sesi, SBOM, a11y), suite Phase 5 (144 tes hermetic), dan
+penghapusan versi hardcoded pada tes.
+
+### Phase 5 — coverage hardening modul kritis
+
+Lima modul berisiko tinggi dinaikkan coverage-nya dengan tes hermetic
+(SQLite sementara, HTTP/LLM/tool di-mock, subprocess tidak menyentuh layanan):
+
+| Modul | Sebelum | Sesudah | Missing |
+|-------|---------|---------|---------|
+| `alfa/dashboard/routes/system/settings_admin.py` | 37,2% | **88,6%** | 37 |
+| `alfa/swarm/step_executor.py` | 33,1% | **85,9%** | 45 |
+| `alfa/bot/proactive.py` | 16,4% | **86,1%** | 72 |
+| `alfa/tools/system/sites.py` | 38,1% | **90,9%** | 32 |
+| `alfa/integrations/google_sheets.py` | ~60% | **91,2%** | 39 |
+
+Tes Phase 5 juga menemukan bug query `system_settings ... ORDER BY id`
+pada pembacaan spreadsheet ID; diperbaiki menjadi `ORDER BY rowid` agar
+konfigurasi dari dashboard benar-benar terbaca.
 
 ### Gap analysis — area yang masih belum tercover
 
@@ -25,20 +43,26 @@ terbanyak (diurutkan dari coverage JSON terakhir):
 | Area | Missing | Alasan / langkah berikutnya |
 |------|---------|------------------------------|
 | `alfa/bot/discord_bot.py` | 562 | `main()` butuh klien Discord nyata; helper sudah teruji terpisah |
-| `alfa/bot/proactive.py` | 432 | Loop background (`asyncio.sleep` tak terfinite); perlu fake clock |
-| `alfa/integrations/google_sheets.py` | 230 | Butuh kredensial/Sheets nyata; jalur parse bisa di-mock lebih dalam |
 | `alfa/tools/system/management.py` | 227 | Tool manajemen sistem bergantung host; perlu sandbox mock |
 | `alfa/swarm/llm_client.py` | 215 | Panggilan LLM nyata; fokus pada parsing/fallback |
-| `alfa/swarm/step_executor.py` | 214 | Eksekusi langkah swarm butuh LLM; beberapa jalur sudah diuji |
-| `alfa/dashboard/routes/system/settings_admin.py` | 204 | Route admin; tambah test dengan DB terisolasi |
 | `alfa/core/cli/chat.py` | 201 | CLI interaktif (Rich/prompt) — butuh PTY palsu |
+| `alfa/tools/filesystem/universal_file_extractor.py` | 196 | Ekstraksi dokumen butuh berkas nyata; sebagian sudah diuji |
+| `alfa/core/cli/slash/developer.py` | 194 | Slash command developer; butuh harness CLI |
+| `alfa/dashboard/routes/chat.py` | 184 | Streaming SSE & turn aktif; butuh event-loop harness |
+| `alfa/tools/filesystem/office_convert.py` | 181 | Konversi Office bergantung LibreOffice |
+| `alfa/core/cli/basic_commands.py` | 174 | CLI interaktif; butuh PTY palsu |
+| `alfa/memory/vector.py` | 170 | Embedding/vektor; perlu model atau fake deterministik |
+
+Modul target Phase 5 sudah keluar dari daftar gap utama: `proactive.py` (72),
+`google_sheets.py` (39), `step_executor.py` (45), dan `settings_admin.py` (37)
+kini di atas 85%.
 
 ### Test Suite Statistics
 
 | Metric | Count |
 |--------|-------|
-| Test Files | 125 |
-| Test Functions | 1.506 |
+| Test Files | 131 |
+| Test Functions | 2.198 (termasuk parameterisasi) |
 | Fixtures | 20+ |
 | Custom Markers | 5 |
 
@@ -78,7 +102,7 @@ All commits must pass:
 All PRs must pass:
 - ✅ All unit tests
 - ✅ Integration tests (non-slow)
-- ✅ Code coverage threshold (gate `fail_under=55`, aktual 65,20%)
+- ✅ Code coverage threshold (gate `fail_under=55`, aktual 67,84%)
 - ✅ Security scanning (Bandit, no high/critical)
 - ✅ Dependency audit deterministik (gagal hanya bila advisory punya fix)
 - ✅ Docs strict (`mkdocs build --strict`)
@@ -96,7 +120,16 @@ Before each release:
 
 ## Metrics History
 
-### Version 2.5.0 (Current)
+### Version 3.5.0 — Phase 5 Coverage Hardening (2026-11-19)
+
+**Improvements:**
+- 144 tes hermetic baru untuk settings admin, step executor swarm,
+  proactive loops, sites registry, Google Sheets, dan smoke route dashboard.
+- Overall coverage 65,20% → **67,84%** (+1.143 statement tercover).
+- Lima modul kritis kini 85,9–91,2%.
+- Bug `ORDER BY id` pada pembacaan spreadsheet ID diperbaiki (`rowid`).
+
+### Version 2.5.0
 
 **Improvements:**
 - Added comprehensive test fixtures (conftest.py)

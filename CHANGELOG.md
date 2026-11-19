@@ -37,8 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Aksesibilitas dashboard**: skip-link ke konten utama, landmark
   `main#main-content`, `aria-live` pada riwayat chat, `:focus-visible`, dan
   dukungan `prefers-reduced-motion`.
+- **Phase 5 coverage hardening** (`tests/test_phase5_*.py`): 144 tes hermetic
+  untuk settings admin (redaksi rahasia, model per-key, update env), step
+  executor swarm (planner/verifier/forced-JSON/scrape gate), loop proaktif
+  (reminder, cron, digest, guardian, ambient, watchdog WA), registry situs,
+  integrasi Google Sheets, dan smoke route dashboard. Lima modul kritis naik
+  ke 85,9–91,2%; overall coverage 65,20% → **67,84%**. Semua tes memakai DB
+  SQLite sementara dan tidak menyentuh layanan produksi/WhatsApp.
 
 ### Diperbaiki
+
+- **Pembacaan spreadsheet ID dari database** (`alfa/integrations/google_sheets.py`):
+  query `system_settings` memakai `ORDER BY id` padahal tabel hanya punya
+  `key`/`value`, sehingga konfigurasi dari dashboard selalu jatuh ke default.
+  Kini memakai `ORDER BY rowid`; ID yang disetel lewat dashboard benar-benar
+  terbaca.
 
 - **Entrypoint bot di Docker Compose**: `command` kini memanggil
   `python3 -m alfa.bot.telegram_bot` (sebelumnya `bot.py` yang tidak ada).

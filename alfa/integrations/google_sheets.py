@@ -104,7 +104,7 @@ def get_spreadsheet_id() -> str:
     try:
         with database.get_sync_db() as conn:
             row = conn.execute(
-                "SELECT value FROM system_settings WHERE key = 'material_spreadsheet_id' OR key = 'wa_spreadsheet_id' ORDER BY id DESC LIMIT 1"
+                "SELECT value FROM system_settings WHERE key = 'material_spreadsheet_id' OR key = 'wa_spreadsheet_id' ORDER BY rowid DESC LIMIT 1"
             ).fetchone()
             if row and row[0] and str(row[0]).strip():
                 return str(row[0]).strip()
