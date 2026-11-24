@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable, Optional
+from typing import Any
 
 import discord
+import pytest
 from discord import app_commands
-from discord.interactions import Interaction
 
 
 @dataclass
@@ -33,15 +33,15 @@ class FakeGuild:
 class FakeChannel:
     id: int = 111222333
     name: str = "test-channel"
-    guild: Optional[FakeGuild] = field(default_factory=FakeGuild)
+    guild: FakeGuild | None = field(default_factory=FakeGuild)
     _messages: list[FakeMessage] = field(default_factory=list, repr=False)
 
-    async def send(self, content: str = "", **kwargs: Any) -> "FakeMessage":
+    async def send(self, content: str = "", **kwargs: Any) -> FakeMessage:
         msg = FakeMessage(content=content, channel=self, **kwargs)
         self._messages.append(msg)
         return msg
 
-    def get_messages(self) -> list["FakeMessage"]:
+    def get_messages(self) -> list[FakeMessage]:
         return list(self._messages)
 
     def clear_messages(self) -> None:
@@ -54,7 +54,7 @@ class FakeMessage:
     id: int = field(default_factory=lambda: 0)
     content: str = ""
     author: FakeUser = field(default_factory=FakeUser)
-    guild: Optional[FakeGuild] = None
+    guild: FakeGuild | None = None
     _reactions: list[str] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
@@ -62,7 +62,7 @@ class FakeMessage:
             FakeMessage._next_id += 1
             self.id = FakeMessage._next_id
 
-    async def reply(self, content: str = "", **kwargs: Any) -> "FakeMessage":
+    async def reply(self, content: str = "", **kwargs: Any) -> FakeMessage:
         return await self.channel.send(content, **kwargs)
 
     async def add_reaction(self, emoji: str) -> None:
@@ -80,8 +80,8 @@ FakeMessage._next_id = 0
 class FakeInteraction:
     id: int = 999
     user: FakeUser = field(default_factory=FakeUser)
-    guild: Optional[FakeGuild] = field(default_factory=FakeGuild)
-    channel: Optional[FakeChannel] = field(default_factory=FakeChannel)
+    guild: FakeGuild | None = field(default_factory=FakeGuild)
+    channel: FakeChannel | None = field(default_factory=FakeChannel)
     data: dict = field(default_factory=dict)
     _response_sent: bool = False
     _response_content: str = ""
@@ -107,22 +107,22 @@ class FakeInteraction:
 class FakeCommandTree(app_commands.CommandTree):
     """CommandTree yang bisa di-trigger manual tanpa HTTP."""
 
-    def __init__(self, client: "FakeDiscordClient"):
+    def __init__(self, client: FakeDiscordClient):
         super().__init__(client)
         self._client = client
 
     async def call_command(
         self,
         command_name: str,
-        user: Optional[FakeUser] = None,
-        channel: Optional[FakeChannel] = None,
-        guild: Optional[FakeGuild] = None,
+        user: FakeUser | None = None,
+        channel: FakeChannel | None = None,
+        guild: FakeGuild | None = None,
         **options: Any,
     ) -> FakeInteraction:
         """Panggil slash command secara langsung."""
         cmd = self.get_command(command_name)
         if not cmd:
-            raise ValueError(f"Command '{command_name}' tidak ditemukan")
+            raise ValueError("Command not found")
 
         interaction = FakeInteraction(user=user, channel=channel, guild=guild)
         interaction.data = {"name": command_name, "options": []}
@@ -141,7 +141,7 @@ class FakeDiscordClient(discord.Client):
     def __init__(
         self,
         *,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
+        loop: asyncio.AbstractEventLoop | None = None,
         **kwargs: Any,
     ):
         # discord.py 2.0+ requires intents
@@ -183,18 +183,18 @@ class FakeDiscordClient(discord.Client):
         self._guilds[guild.id] = guild
         return guild
 
-    def create_channel(self, guild: Optional[FakeGuild] = None, **kwargs: Any) -> FakeChannel:
+    def create_channel(self, guild: FakeGuild | None = None, **kwargs: Any) -> FakeChannel:
         channel = FakeChannel(guild=guild, **kwargs)
         self._channels[channel.id] = channel
         return channel
 
-    def get_channel(self, channel_id: int) -> Optional[FakeChannel]:
+    def get_channel(self, channel_id: int) -> FakeChannel | None:
         return self._channels.get(channel_id)
 
-    def get_guild(self, guild_id: int) -> Optional[FakeGuild]:
+    def get_guild(self, guild_id: int) -> FakeGuild | None:
         return self._guilds.get(guild_id)
 
-    def get_user(self, user_id: int) -> Optional[FakeUser]:
+    def get_user(self, user_id: int) -> FakeUser | None:
         return self._users.get(user_id)
 
     # --- Helpers untuk tes ---
@@ -211,8 +211,6 @@ class FakeDiscordClient(discord.Client):
 
 
 # --- Fixture pytest ---
-
-import pytest
 
 
 @pytest.fixture

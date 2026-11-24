@@ -13,7 +13,7 @@ hanya tes hook & handler yang diuji langsung.
 import asyncio
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -23,6 +23,7 @@ os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
 
 # Import modul target
 import alfa.bot.telegram_bot as tg_bot
+
 
 # Patch check_runtime_security di module asalnya
 @pytest.fixture(autouse=True)
@@ -42,7 +43,6 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def fake_application(monkeypatch):
     """Mock Application builder & instance."""
-    from tests.harness.ptb_app import TestApplication, make_mock_update
 
     mock_app = MagicMock()
     mock_app.bot = MagicMock()
@@ -86,7 +86,6 @@ class TestPostInitShutdown:
         mock_bot.set_my_commands.assert_awaited_once()
 
     async def test_post_init_handles_durable_recovery(self, monkeypatch):
-        mock_recover = AsyncMock(return_value=3)
         monkeypatch.setattr(
             "alfa.core.db.durable_tasks.recover_stale_tasks_sync",
             MagicMock(return_value=3),
@@ -151,7 +150,6 @@ class TestMainLauncher:
     def test_main_exits_if_no_token(self, capsys, monkeypatch):
         """Tes logika validasi token langsung (bukan via main())."""
         # Test logic: token kosong -> exit
-        from alfa.bot.config import TELEGRAM_BOT_TOKEN
         # Just verify the validation logic exists
         assert True  # Placeholder - main() test requires module reload
 
@@ -196,12 +194,11 @@ class TestNotificationPort:
 
         # Trigger registration by calling the registration code directly
         from alfa.bot.telegram_bot import _notify_safe_send, _notify_swarm_templates
-        
+
         # These should be callable
         assert callable(_notify_safe_send)
         assert callable(_notify_swarm_templates)
-        
-        import asyncio
+
         mock_app = MagicMock()
         asyncio.run(_notify_safe_send(mock_app, 123, "hello"))
         templates = _notify_swarm_templates()
@@ -213,7 +210,11 @@ class TestHarnessIntegration:
 
     async def test_test_application_feeds_update(self):
         """TestApplication bisa feed update ke handler."""
-        from tests.harness.ptb_app import TestApplication, make_mock_update, make_mock_message
+        from tests.harness.ptb_app import (
+            TestApplication,
+            make_mock_message,
+            make_mock_update,
+        )
 
         async with TestApplication.create(handlers=[]) as app:
             msg = make_mock_message(text="/start")
@@ -223,8 +224,13 @@ class TestHarnessIntegration:
 
     async def test_test_application_with_command_handler(self):
         """TestApplication memproses CommandHandler."""
-        from tests.harness.ptb_app import TestApplication, make_mock_update, make_mock_message
         from telegram.ext import CommandHandler
+
+        from tests.harness.ptb_app import (
+            TestApplication,
+            make_mock_message,
+            make_mock_update,
+        )
 
         called = []
 

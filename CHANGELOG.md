@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Ditambahkan
 
+- **Phase 7B harness infrastructure + 4 module coverage boost** (`tests/harness/`, `tests/test_phase7_*.py`):
+  - 6 berkas harness baru: `TestApplication` (PTB), `FakeDiscordClient`,
+    `DeterministicLLM` (RECORD/REPLAY/FAKE), `FakeTaskGroup`/`SequentialTaskGroup`.
+  - 5 berkas tes baru untuk modul kritis: `telegram_bot.py` (42.59%),
+    `discord_bot.py` (86.32%), `agentic.py` (70.59%), `documents.py` (71.05%),
+    `parallel.py` (63.24%).
+  - Overall coverage **80.05%** (34.691/43.334 statement) — target 80% tercapai.
+  - Semua tes hermetik: SQLite sementara, `tmp_path`, mock HTTP/LLM/subprocess/GUI.
 - **Phase 6 coverage hardening** (`tests/test_phase6_*.py`): 30 berkas tes
   hermetic baru untuk dashboard auth, callback menu, perintah WhatsApp,
   media player/AV, input automation, briefing, telecom, scraper, memory/vector,

@@ -8,17 +8,15 @@ Ini jauh lebih cepat dan cocok untuk unit test handler.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Callable, Awaitable, Optional
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-from telegram import Update, User, Message, Chat, CallbackQuery
+from telegram import CallbackQuery, Chat, Message, Update, User
 from telegram.ext import (
-    Application,
     BaseHandler,
-    CallbackContext,
-    ContextTypes,
     ExtBot,
 )
 
@@ -33,7 +31,7 @@ class MockContext:
     bot_data: dict = field(default_factory=dict)
     job_queue: Any = None
     application: Any = None
-    
+
     def __post_init__(self):
         # Mock methods
         self.match = None
@@ -41,7 +39,7 @@ class MockContext:
 
 class TestApplication:
     """Wrapper aplikasi PTB untuk tes — memanggil handler langsung.
-    
+
     Tidak butuh bot token, tidak butuh network, tidak butuh PTB initialize.
     Cukup daftarkan handler, lalu gunakan `feed_update()` dengan mock Update.
     """
@@ -54,14 +52,14 @@ class TestApplication:
         self._bot = MagicMock(spec=ExtBot)
         self._bot.id = 123456789
         self._bot.username = "testbot"
-        
+
         # Mock bot methods
         self._bot.send_message = AsyncMock()
         self._bot.send_photo = AsyncMock()
         self._bot.send_document = AsyncMock()
         self._bot.edit_message_text = AsyncMock()
         self._bot.answer_callback_query = AsyncMock()
-    
+
     @property
     def bot(self) -> MagicMock:
         return self._bot
@@ -73,7 +71,7 @@ class TestApplication:
         *,
         handlers: list[BaseHandler] | None = None,
         **app_kwargs: Any,  # ignored, for API compatibility
-    ) -> AsyncGenerator["TestApplication", None]:
+    ) -> AsyncGenerator[TestApplication, None]:
         """Factory async context manager — no-op startup/shutdown."""
         app = cls(handlers=handlers)
         try:
@@ -84,7 +82,7 @@ class TestApplication:
     async def feed_update(self, update: Update) -> None:
         """Proses update melalui semua handler yang cocok."""
         context = MockContext(bot=self._bot)
-        
+
         # PTB handler processing logic (simplified)
         for handler in self._handlers:
             check_result = handler.check_update(update)
@@ -125,35 +123,35 @@ class TestApplication:
 def make_mock_update(
     *,
     update_id: int = 1,
-    message: Optional[Message] = None,
-    callback_query: Optional[CallbackQuery] = None,
-    effective_user: Optional[User] = None,
-    effective_chat: Optional[Chat] = None,
+    message: Message | None = None,
+    callback_query: CallbackQuery | None = None,
+    effective_user: User | None = None,
+    effective_chat: Chat | None = None,
 ) -> Update:
     """Buat mock Update dengan field minimal."""
     if effective_user is None:
         effective_user = User(id=123456, first_name="TestUser", is_bot=False)
     if effective_chat is None:
         effective_chat = Chat(id=123456, type=Chat.PRIVATE)
-    
+
     update = MagicMock(spec=Update)
     update.update_id = update_id
     update.message = message
     update.callback_query = callback_query
     update.effective_user = effective_user
     update.effective_chat = effective_chat
-    
+
     # Add effective_message property for CommandHandler
     if message:
         update.effective_message = message
-    
+
     return update
 
 
 def make_mock_message(
     text: str = "",
-    chat: Optional[Chat] = None,
-    from_user: Optional[User] = None,
+    chat: Chat | None = None,
+    from_user: User | None = None,
     message_id: int = 1,
     is_command: bool = False,
 ) -> Message:
@@ -161,7 +159,7 @@ def make_mock_message(
         chat = Chat(id=123456, type=Chat.PRIVATE)
     if from_user is None:
         from_user = User(id=123456, first_name="TestUser", is_bot=False)
-    
+
     msg = MagicMock(spec=Message)
     msg.message_id = message_id
     msg.text = text
@@ -169,11 +167,11 @@ def make_mock_message(
     msg.from_user = from_user
     msg.reply_text = AsyncMock()
     msg.edit_text = AsyncMock()
-    
+
     # Add get_bot() method for CommandHandler
     bot_user = User(id=999999, first_name="TestBot", username="testbot", is_bot=True)
     msg.get_bot = MagicMock(return_value=bot_user)
-    
+
     # Add entities for bot commands
     if is_command and text and text.startswith('/'):
         from telegram import MessageEntity
@@ -181,15 +179,15 @@ def make_mock_message(
         msg.entities = [MessageEntity(type=MessageEntity.BOT_COMMAND, offset=0, length=cmd_len)]
     else:
         msg.entities = []
-    
+
     return msg
 
 
 def make_mock_callback_query(
     data: str = "",
-    from_user: Optional[User] = None,
-    message: Optional[Message] = None,
-    chat: Optional[Chat] = None,
+    from_user: User | None = None,
+    message: Message | None = None,
+    chat: Chat | None = None,
 ) -> CallbackQuery:
     if from_user is None:
         from_user = User(id=123456, first_name="TestUser", is_bot=False)
@@ -197,7 +195,7 @@ def make_mock_callback_query(
         chat = Chat(id=123456, type=Chat.PRIVATE)
     if message is None:
         message = make_mock_message(chat=chat, from_user=from_user)
-    
+
     query = MagicMock(spec=CallbackQuery)
     query.id = "callback_query_1"
     query.data = data

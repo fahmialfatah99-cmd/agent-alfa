@@ -1,6 +1,5 @@
 """Smoke test untuk memastikan harness fixtures tersedia."""
 
-import pytest
 
 
 def test_fake_llm_fixture(fake_llm):
@@ -25,28 +24,28 @@ def test_discord_channel_fixture(discord_channel):
     assert msg.content == "hello"
 
 
-def test_fake_task_group_fixture(fake_task_group):
-    assert fake_task_group is not None
+def test_fake_task_group_fixture(fake_task_group_fixture):
+    assert fake_task_group_fixture is not None
 
 
-def test_sequential_task_group_fixture(sequential_task_group):
-    assert sequential_task_group is not None
+def test_sequential_task_group_fixture(sequential_task_group_fixture):
+    assert sequential_task_group_fixture is not None
 
 
 def test_ptb_app_fixture(ptb_app_factory):
     import asyncio
-    
+
     async def _test():
         async with ptb_app_factory(handlers=[]) as app:
             assert app is not None
             assert hasattr(app, "bot")
             # Test feed_update
-            from tests.harness.ptb_app import make_mock_update, make_mock_message
+            from tests.harness.ptb_app import make_mock_message, make_mock_update
             msg = make_mock_message(text="/start")
             upd = make_mock_update(message=msg)
             await app.feed_update(upd)
             return app
-    
+
     app = asyncio.run(_test())
     assert app is not None
 

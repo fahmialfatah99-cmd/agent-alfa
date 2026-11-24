@@ -8,9 +8,7 @@ Fokus pada:
 Menggunakan ``FakeDiscordClient`` harness agar tidak butuh bot token/jaringan.
 """
 
-import asyncio
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -63,7 +61,7 @@ class TestDiscordBotEvents:
         """Tes on_ready mengatur presence bot."""
         # Mock change_presence
         discord_client.change_presence = AsyncMock()
-        
+
         # Get on_ready handler
         # Note: discord_bot uses @client.event decorator
         # We need to find the registered handler
@@ -75,13 +73,13 @@ class TestDiscordBotEvents:
     @pytest.mark.asyncio
     async def test_on_message_ignores_bot(self, discord_client):
         """Tes on_message mengabaikan pesan dari bot."""
-        from tests.harness.discord_client import FakeUser, FakeMessage, FakeChannel
-        
+        from tests.harness.discord_client import FakeMessage, FakeUser
+
         # Create a bot user
         bot_user = FakeUser(id=999, name="TestBot", bot=True)
         channel = discord_client.create_channel()
         msg = FakeMessage(channel=channel, author=bot_user, content="hello")
-        
+
         # Get on_message handler
         if hasattr(dc_bot, 'on_message'):
             # Should return early for bot messages
@@ -91,16 +89,16 @@ class TestDiscordBotEvents:
     @pytest.mark.asyncio
     async def test_on_message_processes_commands(self, discord_client, monkeypatch):
         """Tes on_message memproses command."""
-        from tests.harness.discord_client import FakeUser, FakeMessage, FakeChannel
-        
+        from tests.harness.discord_client import FakeMessage
+
         user = discord_client.create_user()
         channel = discord_client.create_channel()
         msg = FakeMessage(channel=channel, author=user, content="!ping")
-        
+
         # Mock process_commands
         mock_process = AsyncMock()
         monkeypatch.setattr(discord_client, 'process_commands', mock_process)
-        
+
         if hasattr(dc_bot, 'on_message'):
             await dc_bot.on_message(msg)
             # Should call process_commands for non-bot messages
@@ -122,7 +120,7 @@ class TestDiscordBotHelpers:
         """Tes get_system_stats untuk discord."""
         mock_stats = {"cpu": "10%", "ram": "50%", "disk": "30%"}
         monkeypatch.setattr("alfa.tools.get_system_stats", lambda: mock_stats)
-        
+
         if hasattr(dc_bot, 'get_system_stats_discord'):
             result = dc_bot.get_system_stats_discord()
             assert "cpu" in result.lower() or "CPU" in result
@@ -135,7 +133,7 @@ class TestDiscordBotMain:
         """Tes main() keluar jika token tidak ada."""
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "")
         monkeypatch.setenv("DISCORD_GUILD_ID", "123")
-        
+
         # main() should validate token
         if hasattr(dc_bot, 'main'):
             with pytest.raises(SystemExit):
@@ -146,7 +144,7 @@ class TestDiscordBotMain:
         """Tes main() keluar jika guild ID tidak ada."""
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "test.token")
         monkeypatch.setenv("DISCORD_GUILD_ID", "")
-        
+
         if hasattr(dc_bot, 'main'):
             with pytest.raises(SystemExit):
                 dc_bot.main()
@@ -163,7 +161,7 @@ class TestDiscordBotHarnessIntegration:
         @discord_client.tree.command(name="test", description="Test command")
         async def test_cmd(interaction):
             await interaction.response_send_message("OK")
-        
+
         # Call the command
         interaction = await discord_client.tree.call_command("test")
         assert interaction._response_sent
@@ -174,12 +172,12 @@ class TestDiscordBotHarnessIntegration:
         """Tes channel message handling."""
         channel = discord_client.create_channel()
         user = discord_client.create_user()
-        
+
         msg = await channel.send("Hello from " + user.name)
         assert msg.content == "Hello from TestUser"
         assert msg.author == user
         assert msg.channel == channel
-        
+
         messages = channel.get_messages()
         assert len(messages) == 1
         assert messages[0].content == "Hello from TestUser"
@@ -188,12 +186,12 @@ class TestDiscordBotHarnessIntegration:
     async def test_fake_client_interaction_response(self, discord_client):
         """Tes interaction response."""
         from tests.harness.discord_client import FakeInteraction
-        
+
         interaction = FakeInteraction()
         await interaction.response_send_message("Test response")
         assert interaction._response_sent
         assert interaction._response_content == "Test response"
-        
+
         await interaction.followup_send("Followup")
         assert "Followup" in interaction._response_content
 

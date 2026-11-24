@@ -9,13 +9,13 @@ Menyediakan `DeterministicLLM` dengan mode:
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Optional
+from typing import Any
 
 import pytest
 
@@ -97,7 +97,7 @@ class ReplayBackend(LLMBackend):
 
     def _load(self) -> None:
         if not self._fixture_path.exists():
-            raise FileNotFoundError(f"Fixture tidak ditemukan: {self._fixture_path}")
+            raise FileNotFoundError("Fixture not found")
         with self._fixture_path.open(encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -106,10 +106,7 @@ class ReplayBackend(LLMBackend):
 
     async def complete(self, request: LLMRequest) -> LLMResponse:
         if self._index >= len(self._records):
-            raise IndexError(
-                f"Fixture habis ({len(self._records)} record), "
-                f"request ke-{self._index + 1}: {request.prompt[:80]}"
-            )
+            raise IndexError("Fixture exhausted")
         record = self._records[self._index]
         self._index += 1
 
@@ -215,7 +212,7 @@ def llm_mode(
     elif mode == LLMMode.FAKE:
         backend = FakeBackend(fake_template)
     else:
-        raise ValueError(f"Mode tidak dikenal: {mode}")
+        raise ValueError("Unknown mode")
 
     llm = DeterministicLLM(backend)
     try:

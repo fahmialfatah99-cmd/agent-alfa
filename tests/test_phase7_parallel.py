@@ -11,8 +11,7 @@ Menggunakan ``SequentialTaskGroup`` harness untuk deterministik.
 """
 
 import asyncio
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -44,10 +43,7 @@ class TestExecuteAgentsParallel:
         """Setup common mocks for _execute_agents_parallel tests."""
         if step_results is None:
             step_results = []
-        
-        # Create a mock that returns step results with agent_name
-        call_count = {"count": 0}
-        
+
         async def mock_execute_step(*args, **kwargs):
             if step_results:
                 result = step_results.pop(0)
@@ -55,7 +51,7 @@ class TestExecuteAgentsParallel:
                 agent_name = args[0].get("name", "Unknown") if args else "Unknown"
                 result = _make_step_result(agent_name)
             return result
-        
+
         monkeypatch.setattr(parallel_mod, "_execute_agent_step", mock_execute_step)
         monkeypatch.setattr(parallel_mod, "_budget_exceeded", lambda steps: None)
         monkeypatch.setattr(parallel_mod, "_provider_dead_streak", lambda steps: None)
@@ -80,9 +76,9 @@ class TestExecuteAgentsParallel:
         execution_steps = []
         ctx_lines = []
         failed_steps = []
-        
+
         self._setup_common_mocks(monkeypatch)
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=participants,
             subtask_map={},
@@ -94,7 +90,7 @@ class TestExecuteAgentsParallel:
             ctx_lines=ctx_lines,
             failed_steps=failed_steps,
         )
-        
+
         # Should complete without error
         assert result is False  # False = completed normally
         assert len(execution_steps) == 2
@@ -110,7 +106,7 @@ class TestExecuteAgentsParallel:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "log_live", MagicMock())
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=[{"name": "Agent1"}],
             subtask_map={},
@@ -122,7 +118,7 @@ class TestExecuteAgentsParallel:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         # Should return True (early exit)
         assert result is True
 
@@ -137,7 +133,7 @@ class TestExecuteAgentsParallel:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "log_live", MagicMock())
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=[{"name": "Agent1"}],
             subtask_map={},
@@ -149,7 +145,7 @@ class TestExecuteAgentsParallel:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         assert result is True
 
     @pytest.mark.asyncio
@@ -163,7 +159,7 @@ class TestExecuteAgentsParallel:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "log_live", MagicMock())
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=[{"name": "Agent1"}],
             subtask_map={},
@@ -175,7 +171,7 @@ class TestExecuteAgentsParallel:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         assert result is True
 
     @pytest.mark.asyncio
@@ -186,13 +182,13 @@ class TestExecuteAgentsParallel:
             {"name": "Agent2"},
             {"name": "Agent3"},
         ]
-        
+
         self._setup_common_mocks(monkeypatch)
-        
+
         execution_steps = []
         ctx_lines = []
         failed_steps = []
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=participants,
             subtask_map={},
@@ -204,7 +200,7 @@ class TestExecuteAgentsParallel:
             ctx_lines=ctx_lines,
             failed_steps=failed_steps,
         )
-        
+
         assert result is False
         assert len(execution_steps) == 3  # All 3 agents executed
 
@@ -228,11 +224,11 @@ class TestDependencyResolution:
         subtask_map = {
             "AgentB": {"depends_on": ["AgentA"]},
         }
-        
+
         async def mock_execute_step(*args, **kwargs):
             agent_name = args[0].get("name", "Unknown") if args else "Unknown"
             return _make_step_result(agent_name)
-        
+
         monkeypatch.setattr(parallel_mod, "_execute_agent_step", mock_execute_step)
         monkeypatch.setattr(parallel_mod, "_budget_exceeded", lambda steps: None)
         monkeypatch.setattr(parallel_mod, "_provider_dead_streak", lambda steps: None)
@@ -247,11 +243,9 @@ class TestDependencyResolution:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "_record_step_error", MagicMock())
         monkeypatch.setattr(parallel_mod, "_build_task_desc", MagicMock(return_value="task"))
-        
+
         execution_steps = []
-        ctx_lines = []
-        failed_steps = []
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=participants,
             subtask_map=subtask_map,
@@ -263,7 +257,7 @@ class TestDependencyResolution:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         assert result is False
         # Both agents should execute
         assert len(execution_steps) == 2
@@ -280,11 +274,11 @@ class TestDependencyResolution:
             "AgentA": {"depends_on": ["AgentB"]},
             "AgentB": {"depends_on": ["AgentA"]},
         }
-        
+
         async def mock_execute_step(*args, **kwargs):
             agent_name = args[0].get("name", "Unknown") if args else "Unknown"
             return _make_step_result(agent_name)
-        
+
         monkeypatch.setattr(parallel_mod, "_execute_agent_step", mock_execute_step)
         monkeypatch.setattr(parallel_mod, "_budget_exceeded", lambda steps: None)
         monkeypatch.setattr(parallel_mod, "_provider_dead_streak", lambda steps: None)
@@ -299,9 +293,9 @@ class TestDependencyResolution:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "_record_step_error", MagicMock())
         monkeypatch.setattr(parallel_mod, "_build_task_desc", MagicMock(return_value="task"))
-        
+
         execution_steps = []
-        
+
         # Should complete without hanging (circular deps treated as no deps)
         result = await parallel_mod._execute_agents_parallel(
             participants=participants,
@@ -314,7 +308,7 @@ class TestDependencyResolution:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         assert result is False
         assert len(execution_steps) == 2
 
@@ -326,19 +320,19 @@ class TestCancelHandling:
     async def test_cancel_during_execution(self, monkeypatch):
         """Cancel during execution stops gracefully."""
         cancel_state = {"requested": False}
-        
+
         def mock_cancel(sid):
             return cancel_state["requested"]
-        
+
         call_count = {"count": 0}
-        
+
         async def mock_execute_step(*args, **kwargs):
             call_count["count"] += 1
             if call_count["count"] == 2:
                 cancel_state["requested"] = True
             agent_name = args[0].get("name", "Unknown") if args else "Unknown"
             return _make_step_result(agent_name)
-        
+
         monkeypatch.setattr(parallel_mod, "_execute_agent_step", mock_execute_step)
         monkeypatch.setattr(parallel_mod, "_budget_exceeded", lambda steps: None)
         monkeypatch.setattr(parallel_mod, "_provider_dead_streak", lambda steps: None)
@@ -353,9 +347,9 @@ class TestCancelHandling:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", MagicMock())
         monkeypatch.setattr(parallel_mod, "_record_step_error", MagicMock())
         monkeypatch.setattr(parallel_mod, "_build_task_desc", MagicMock(return_value="task"))
-        
+
         execution_steps = []
-        
+
         result = await parallel_mod._execute_agents_parallel(
             participants=[{"name": f"Agent{i}"} for i in range(4)],
             subtask_map={},
@@ -367,7 +361,7 @@ class TestCancelHandling:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         # Should stop early due to cancel
         assert result is True
         assert len(execution_steps) <= 2
@@ -381,12 +375,12 @@ class TestCheckpointIntegration:
         """Checkpoint saved after each step when available."""
         mock_checkpoint = MagicMock()
         mock_checkpoint.save = AsyncMock()
-        
+
         # Need to return proper step_result with agent_name
         async def mock_execute_step(*args, **kwargs):
             agent_name = args[0].get("name", "Unknown") if args else "Unknown"
             return _make_step_result(agent_name)
-        
+
         monkeypatch.setattr(parallel_mod, "_execute_agent_step", mock_execute_step)
         monkeypatch.setattr(parallel_mod, "_budget_exceeded", lambda steps: None)
         monkeypatch.setattr(parallel_mod, "_provider_dead_streak", lambda steps: None)
@@ -401,9 +395,9 @@ class TestCheckpointIntegration:
         monkeypatch.setattr(parallel_mod, "_swarm_checkpoint", lambda: mock_checkpoint)
         monkeypatch.setattr(parallel_mod, "_record_step_error", MagicMock())
         monkeypatch.setattr(parallel_mod, "_build_task_desc", MagicMock(return_value="task"))
-        
+
         execution_steps = []
-        
+
         await parallel_mod._execute_agents_parallel(
             participants=[{"name": "Agent1"}, {"name": "Agent2"}],
             subtask_map={},
@@ -415,7 +409,7 @@ class TestCheckpointIntegration:
             ctx_lines=[],
             failed_steps=[],
         )
-        
+
         # Checkpoint save should be called for each agent
         assert mock_checkpoint.save.call_count == 2
 
@@ -427,16 +421,16 @@ class TestHarnessIntegration:
     async def test_sequential_task_group_execution(self):
         """SequentialTaskGroup runs tasks sequentially."""
         from tests.harness.worker_pool import SequentialTaskGroup
-        
+
         async with SequentialTaskGroup() as group:
             async def task1():
                 return "task1"
             async def task2():
                 return "task2"
-            
+
             group.create_task(task1(), name="task1")
             group.create_task(task2(), name="task2")
-        
+
         records = group.get_records()
         assert len(records) == 2
         assert records[0].name == "task1"
@@ -449,16 +443,16 @@ class TestHarnessIntegration:
     async def test_sequential_task_group_fail_fast(self):
         """SequentialTaskGroup stops on exception when fail_fast=True."""
         from tests.harness.worker_pool import SequentialTaskGroup
-        
+
         async with SequentialTaskGroup(fail_fast=True) as group:
             async def good():
                 return "good"
             async def bad():
                 raise ValueError("bad")
-            
+
             group.create_task(good(), name="good")
             group.create_task(bad(), name="bad")
-        
+
         records = group.get_records()
         assert len(records) == 2
         assert records[0].result == "good"
@@ -470,12 +464,11 @@ class TestPatchParallelTaskGroup:
 
     def test_patch_parallel_task_group(self, monkeypatch):
         """patch_parallel_task_group replaces asyncio.TaskGroup."""
-        from tests.harness.worker_pool import patch_parallel_task_group, FakeTaskGroup
-        
+        from tests.harness.worker_pool import FakeTaskGroup, patch_parallel_task_group
+
         patch_parallel_task_group(monkeypatch, FakeTaskGroup)
-        
+
         # Now asyncio.TaskGroup should be our FakeTaskGroup context manager
-        import asyncio
         assert asyncio.TaskGroup is not None  # patched to context manager returning FakeTaskGroup
 
 

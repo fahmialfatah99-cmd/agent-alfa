@@ -8,9 +8,10 @@ memudahkan assertion urutan & error handling.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator, Coroutine
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
@@ -35,7 +36,7 @@ class FakeTaskGroup:
         self._fail_fast = fail_fast
         self._entered = False
 
-    async def __aenter__(self) -> "FakeTaskGroup":
+    async def __aenter__(self) -> FakeTaskGroup:
         self._entered = True
         return self
 
@@ -50,7 +51,7 @@ class FakeTaskGroup:
         name: str | None = None,
     ) -> asyncio.Task:
         if not self._entered:
-            raise RuntimeError("FakeTaskGroup.create_task() dipanggil di luar context manager")
+            raise RuntimeError("Task group not entered")
 
         task_name = name or getattr(coro, "__name__", "anonymous")
         record = TaskRecord(
@@ -66,13 +67,14 @@ class FakeTaskGroup:
             record.started_at = time.monotonic()
             try:
                 result = await coro
-                record.result = result
-                return result
             except BaseException as e:
                 record.exception = e
                 if self._fail_fast:
                     raise
                 return None
+            else:
+                record.result = result
+                return result
             finally:
                 record.finished_at = time.monotonic()
 
@@ -158,13 +160,13 @@ async def sequential_task_group(fail_fast: bool = True) -> AsyncGenerator[Sequen
 # --- Pytest Fixtures ---
 
 @pytest.fixture
-def fake_task_group() -> FakeTaskGroup:
+def fake_task_group_fixture() -> FakeTaskGroup:
     """FakeTaskGroup fixture — gunakan via `async with`."""
     return FakeTaskGroup()
 
 
 @pytest.fixture
-def sequential_task_group() -> SequentialTaskGroup:
+def sequential_task_group_fixture() -> SequentialTaskGroup:
     return SequentialTaskGroup()
 
 

@@ -11,9 +11,8 @@ Menggunakan ``fake_llm`` harness (REPLAY/FAKE mode) untuk deterministik.
 """
 
 import asyncio
-import json
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -43,7 +42,6 @@ class TestParallelToolsAllowed:
     def test_parallel_with_gate_import_error(self, monkeypatch):
         # When gate_is_interactive import fails, returns False
         monkeypatch.setenv("ALFA_PARALLEL_TOOLS", "true")
-        import sys
         # Remove the module to trigger ImportError
         if "alfa.core.perm.gate" in sys.modules:
             del sys.modules["alfa.core.perm.gate"]
@@ -69,7 +67,7 @@ class TestResolveToolOutcome:
         """Gate mengembalikan string -> denial."""
         async def denying_gate(name, args):
             return "Owner menolak"
-        
+
         result = await agentic_mod._resolve_tool_outcome(
             approval_gate=denying_gate,
             name="test_tool",
@@ -81,8 +79,8 @@ class TestResolveToolOutcome:
     async def test_approval_gate_error_fail_closed(self):
         """Gate melempar error -> deny (fail-closed)."""
         async def error_gate(name, args):
-            raise RuntimeError("gate broken")
-        
+            raise RuntimeError("Err")
+
         result = await agentic_mod._resolve_tool_outcome(
             approval_gate=error_gate,
             name="test_tool",
@@ -96,7 +94,7 @@ class TestResolveToolOutcome:
         """Tool tidak ditemukan -> error message."""
         async def allowing_gate(name, args):
             return None
-        
+
         result = await agentic_mod._resolve_tool_outcome(
             approval_gate=allowing_gate,
             name="nonexistent_tool_xyz",
@@ -109,7 +107,7 @@ class TestResolveToolOutcome:
         """Argumen JSON tidak valid -> error (tapi tool lookup dulu)."""
         async def allowing_gate(name, args):
             return None
-        
+
         # Tool lookup happens before JSON parsing, so returns tool not found
         # unless we use an existing tool name
         result = await agentic_mod._resolve_tool_outcome(
@@ -128,22 +126,22 @@ class TestRunToolCalls:
         """Sequential execution order preserved when parallel disabled."""
         import os
         os.environ["ALFA_PARALLEL_TOOLS"] = "false"
-        
+
         async def allowing_gate(name, args):
             return None
-        
+
         tool_calls = [
             {"function": {"name": "tool_a", "arguments": '{}'}},
             {"function": {"name": "tool_b", "arguments": '{}'}},
         ]
-        
+
         # Since we can't easily mock the tool registry, test with nonexistent tools
         # which will return error messages in order
         results = await agentic_mod._run_tool_calls(
             approval_gate=allowing_gate,
             tool_calls=tool_calls
         )
-        
+
         # Should execute in order (both return tool not found errors)
         assert len(results) == 2
         assert all("[ERROR] Tool" in r for r in results)
@@ -153,16 +151,16 @@ class TestRunToolCalls:
         """Single tool call executes."""
         async def allowing_gate(name, args):
             return None
-        
+
         tool_calls = [
             {"function": {"name": "nonexistent", "arguments": '{}'}},
         ]
-        
+
         results = await agentic_mod._run_tool_calls(
             approval_gate=allowing_gate,
             tool_calls=tool_calls
         )
-        
+
         assert len(results) == 1
         assert "[ERROR] Tool 'nonexistent' tidak ditemukan" in results[0]
 
@@ -171,11 +169,11 @@ class TestRunToolCalls:
         """CancelledError should propagate."""
         async def cancelling_gate(name, args):
             raise asyncio.CancelledError()
-        
+
         tool_calls = [
             {"function": {"name": "tool_a", "arguments": '{}'}},
         ]
-        
+
         with pytest.raises(asyncio.CancelledError):
             await agentic_mod._run_tool_calls(
                 approval_gate=cancelling_gate,
@@ -191,7 +189,7 @@ class TestRunOpenAIAgenticTurn:
         """Rate limit HARUS di-enforce (bukan hanya log)."""
         monkeypatch.setattr("alfa.core.rate_limiter.check_rate_limit",
                            lambda user_id, provider: (False, "quota exceeded"))
-        
+
         result = await agentic_mod.run_openai_agentic_turn(
             provider="gemini",
             base_url="http://test",
@@ -201,14 +199,14 @@ class TestRunOpenAIAgenticTurn:
             user_text="hello",
             approval_gate=lambda n, a: None,
         )
-        
+
         assert "Kuota harian tercapai" in result
         assert "quota exceeded" in result
 
     @pytest.mark.asyncio
     async def test_greeting_fast_path(self, monkeypatch):
         """Greeting sederhana -> tools_schema=[] tapi tetap butuh LLM call.
-        
+
         Kita mock httpx untuk return greeting response.
         """
         # Mock httpx response for greeting
@@ -228,7 +226,7 @@ class TestRunOpenAIAgenticTurn:
                 def raise_for_status(self):
                     pass
             return MockResponse()
-        
+
         with patch("httpx.AsyncClient.post", new=mock_post):
             result = await agentic_mod.run_openai_agentic_turn(
                 provider="gemini",
@@ -239,7 +237,7 @@ class TestRunOpenAIAgenticTurn:
                 user_text="halo",
                 approval_gate=lambda n, a: None,
             )
-        
+
         assert result is not None
         assert any(w in result.lower() for w in ["halo", "hai", "hello", "ada yang bisa"])
 
@@ -262,7 +260,7 @@ class TestRunOpenAIAgenticTurn:
                 def raise_for_status(self):
                     pass
             return MockResponse()
-        
+
         with patch("httpx.AsyncClient.post", new=mock_post):
             result = await agentic_mod.run_openai_agentic_turn(
                 provider="gemini",
@@ -273,7 +271,7 @@ class TestRunOpenAIAgenticTurn:
                 user_text="makasih",
                 approval_gate=lambda n, a: None,
             )
-        
+
         assert result is not None
 
 
@@ -292,14 +290,14 @@ class TestCompactConvo:
     def test_compact_convo_basic(self):
         """Basic compaction test."""
         from alfa.core.brain.convo import _compact_convo
-        
+
         messages = [
             {"role": "user", "content": "hello"},
             {"role": "assistant", "content": "hi"},
             {"role": "user", "content": "how are you"},
             {"role": "assistant", "content": "good"},
         ]
-        
+
         result = _compact_convo(messages)
         assert isinstance(result, list)
         assert len(result) <= len(messages)

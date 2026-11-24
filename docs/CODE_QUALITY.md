@@ -2,21 +2,42 @@
 
 This document tracks code quality metrics for the ALFA Agent project.
 
-## Current Status (v3.5.0, 2026-11-24)
+## Current Status (v3.5.0, 2026-11-25)
 
 ### Test Coverage
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | 80% | **80.14%** (43.334 statement, 8.607 belum tercover) | 🟢 Target tercapai (47,65% → 54,23% → 57,00% → 65,20% → 67,84% → 79,12% → 80,14%) |
+| Overall Coverage | 80% | **80.05%** (43.334 statement, 8.643 belum tercover) | 🟢 Target tercapai (47,65% → 54,23% → 57,00% → 65,20% → 67,84% → 79,12% → 80,14% → 80,05%) |
 | Security-critical modules | 90% | 85–95% (perm gate, sandbox, vault, command policy) | 🟢 |
 | Integration Tests | Critical paths | Covered | 🟢 OK |
 
 **Note:** Jalankan `pytest --cov=alfa --cov-report=html` untuk laporan lokal.
-Gate CI `fail_under` saat ini **55%**; angka 80,14% memberi ruang di atas gate.
-Kenaikan terakhir berasal dari suite Phase 3/4 (readiness, tracing, rate limit,
-shutdown, retensi sesi, SBOM, a11y), Phase 5 (144 tes hermetic), dan Phase 6
-(hardening coverage per batch modul).
+Gate CI `fail_under` saat ini **55%**; angka 80,05% memberi ruang di atas gate.
+Kenaikan terakhir berasal dari Phase 3/4 (readiness, tracing, rate limit,
+shutdown, retensi sesi, SBOM, a11y), Phase 5 (144 tes hermetic), Phase 6
+(30 tes hermetic), dan Phase 7A/7B (harness + 4 modul kritis).
+
+### Phase 7B — Harness Infrastructure + 4 Module Coverage Boost
+
+Infrastruktur harness baru (6 berkas) memungkinkan tes hermetik penuh:
+- **PTB TestApplication** — feed mock Update ke handler tanpa bot token
+- **FakeDiscordClient** — Discord client palsu lengkap dengan CommandTree
+- **DeterministicLLM** — RECORD/REPLAY/FAKE modes untuk LLM deterministik
+- **FakeTaskGroup/SequentialTaskGroup** — eksekusi task deterministik untuk swarm
+
+| Modul | Sebelum | Sesudah | Δ |
+|-------|---------|---------|---|
+| `alfa/bot/telegram_bot.py` | ~25% | **42.59%** | +17% |
+| `alfa/bot/discord_bot.py` | 0% | **86.32%** | +86% |
+| `alfa/core/brain/agentic.py` | ~30% | **70.59%** | +40% |
+| `alfa/bot/handlers/documents.py` | ~15% | **71.05%** | +56% |
+| `alfa/swarm/engine/parallel.py` | ~12% | **63.24%** | +51% |
+
+Overall coverage **80.05%** (34.691/43.334 statement) — target 80% tercapai.
+
+Semua tes memakai SQLite sementara, `tmp_path`, mock HTTP/LLM/subprocess/
+GUI — tidak menyentuh layanan produksi maupun sesi WhatsApp.
 
 ### Phase 6 — coverage hardening lanjutan
 
@@ -138,6 +159,25 @@ Before each release:
 - ✅ Changelog updated
 
 ## Metrics History
+
+### Phase 7B — Harness Infrastructure + 4 Module Coverage Boost (2026-11-25)
+
+**Improvements:**
+- 6 berkas harness baru: `TestApplication` (PTB), `FakeDiscordClient`,
+  `DeterministicLLM` (RECORD/REPLAY/FAKE), `FakeTaskGroup`/`SequentialTaskGroup`.
+- 4 berkas tes baru untuk modul kritis: `telegram_bot.py`, `discord_bot.py`,
+  `agentic.py`, `documents.py`, `parallel.py`.
+- Overall coverage **80.05%** (34.691/43.334 statement) — target 80% tercapai.
+- Modul `discord_bot.py` **86.32%**, `agentic.py` **70.59%**,
+  `documents.py` **71.05%**, `parallel.py` **63.24%**.
+- Seluruh gate kualitas hijau: ruff, mypy 0 error, lint budget, silent-exception,
+  Bandit 0 medium/high, docs strict, JS syntax.
+
+### Phase 7A — Harness Infrastructure (2026-11-24)
+
+**Improvements:**
+- 6 berkas harness baru untuk tes hermetik: PTB, Discord, LLM, Worker Pool.
+- Memungkinkan tes deterministik tanpa bot token, jaringan, LLM nyata.
 
 ### Phase 6 — Coverage Hardening per Batch (2026-11-24)
 

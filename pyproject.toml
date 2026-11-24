@@ -329,7 +329,9 @@ ignore = ["E501", "B006"]
 
 
 
+
 "alfa/bot/telegram_bot.py" = ["F401", "BLE001"]  # n=BLE001:2
+
 
 
 
@@ -346,6 +348,16 @@ ignore = ["E501", "B006"]
 
 # App factory reads env (ensure_env_loaded) before importing env-dependent routers — order is intentional
 "alfa/dashboard/app.py" = ["E402", "BLE001", "TRY003"]  # n=BLE001:8
+
+# Test harness files — allow TRY003 for test fixtures
+"tests/harness/discord_client.py" = ["TRY003"]  # n=TRY003:1
+
+"tests/harness/fake_llm.py" = ["TRY003"]  # n=TRY003:3
+
+"tests/harness/ptb_app.py" = ["BLE001"]  # n=BLE001:1
+
+"tests/harness/worker_pool.py" = ["BLE001", "TRY003", "TRY300"]  # n=BLE001:1,TRY003:1
+
 
 
 

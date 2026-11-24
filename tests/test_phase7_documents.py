@@ -12,9 +12,7 @@ Menggunakan ``fake_os`` + ``tmp_path`` untuk isolasi filesystem.
 
 import asyncio
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -31,13 +29,13 @@ def mock_env(monkeypatch, tmp_path):
     mock_db.save_recent_doc = AsyncMock()
     monkeypatch.setattr("alfa.core.database.get_recent_docs", mock_db.get_recent_docs)
     monkeypatch.setattr("alfa.core.database.save_recent_doc", mock_db.save_recent_doc)
-    
+
     # Mock safe_send_message
     monkeypatch.setattr("alfa.bot.handlers.documents.safe_send_message", AsyncMock())
-    
+
     # Mock _check_and_send_media_artifacts
     monkeypatch.setattr("alfa.bot.handlers.documents._check_and_send_media_artifacts", AsyncMock())
-    
+
     return tmp_path
 
 
@@ -79,7 +77,7 @@ class TestParseSummaryIntoTable:
         """Empty input returns empty list."""
         result = docs_mod._parse_summary_into_table("")
         assert result == []
-        
+
         result = docs_mod._parse_summary_into_table("   ")
         assert result == []
 
@@ -96,7 +94,7 @@ class TestGetOrRecoverRecentDoc:
         """Get existing document from cache."""
         # Set up in-memory cache
         docs_mod._RECENT_DOCS[123] = {"file_id": "doc123", "file_name": "test.pdf"}
-        
+
         result = docs_mod._get_or_recover_recent_doc(123, 456)
         assert result is not None
         assert result["file_id"] == "doc123"
@@ -107,10 +105,10 @@ class TestGetOrRecoverRecentDoc:
         doc_file = tmp_path / "recent_docs.json"
         doc_data = {"123": {"file_id": "doc123", "file_name": "test.pdf"}}
         doc_file.write_text(json.dumps(doc_data))
-        
+
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS_CACHE_PATH", str(doc_file))
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS", {})
-        
+
         result = docs_mod._get_or_recover_recent_doc(123, 456)
         assert result is not None
         assert result["file_id"] == "doc123"
@@ -122,12 +120,12 @@ class TestSaveRecentDocsCache:
     def test_save_cache(self, tmp_path, monkeypatch):
         """Save cache to file."""
         cache_file = tmp_path / "cache.json"
-        
+
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS_CACHE_PATH", str(cache_file))
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS", {"123": {"file_id": "doc123"}})
-        
+
         docs_mod._save_recent_docs_cache()
-        
+
         assert cache_file.exists()
         data = json.loads(cache_file.read_text())
         assert "123" in data
@@ -136,7 +134,7 @@ class TestSaveRecentDocsCache:
         """Handle write errors gracefully."""
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS_CACHE_PATH", "/invalid/path/cache.json")
         monkeypatch.setattr(docs_mod, "_RECENT_DOCS", {"123": {"file_id": "doc123"}})
-        
+
         # Should not raise
         docs_mod._save_recent_docs_cache()
         assert True
@@ -151,7 +149,7 @@ class TestExecuteDocumentBatch:
         mock_batches = {}
         monkeypatch.setattr(docs_mod, "_DOC_BATCHES", mock_batches)
         monkeypatch.setattr(docs_mod, "_DOC_BATCH_LOCK", asyncio.Lock())
-        
+
         chat_id = 12345
         # Simulate batch creation (as done in handle_document_message)
         async with docs_mod._DOC_BATCH_LOCK:
@@ -160,7 +158,7 @@ class TestExecuteDocumentBatch:
                     "files": [],
                     "future": asyncio.Future(),
                 }
-        
+
         assert chat_id in docs_mod._DOC_BATCHES
         batch = docs_mod._DOC_BATCHES[chat_id]
         assert "files" in batch
@@ -174,7 +172,7 @@ class TestDocumentCache:
         """Verify in-memory cache structure."""
         # _RECENT_DOCS is a dict mapping chat_id -> doc info
         assert isinstance(docs_mod._RECENT_DOCS, dict)
-        
+
     def test_recent_docs_cache_path(self):
         """Verify cache path is set."""
         assert hasattr(docs_mod, "_RECENT_DOCS_CACHE_PATH")
