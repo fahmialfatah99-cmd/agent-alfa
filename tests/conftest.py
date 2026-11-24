@@ -324,3 +324,85 @@ def _ensure_single_telegram_mode():
     except Exception:
         pass
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HARNESS FIXTURES (Phase 7) — auto-discovered via tests.harness submodules
+# ──────────────────────────────────────────────────────────────────────────────
+
+# PTB Application Harness
+pytest_plugins = [
+    "tests.harness.ptb_app",
+    "tests.harness.discord_client",
+    "tests.harness.fake_llm",
+    "tests.harness.worker_pool",
+]
+
+
+# Re-export fixture agar bisa dipakai langsung tanpa import
+@pytest.fixture
+def ptb_app_factory():
+    """Factory TestApplication untuk tes PTB — return callable yang menghasilkan TestApplication."""
+    from tests.harness.ptb_app import build_test_application
+    return build_test_application
+
+
+# Discord Client Harness fixtures sudah auto-registered via pytest_plugins
+# (discord_client, discord_channel, discord_guild, discord_user)
+
+# Fake LLM Harness fixtures sudah auto-registered
+# (fake_llm, recording_llm, replay_llm, patch_llm_module)
+
+# Worker Pool Harness fixtures sudah auto-registered
+# (fake_task_group, sequential_task_group, patch_parallel_task_group)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HELPER FIXTURES untuk Phase 7B
+# ──────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def fake_os(monkeypatch, tmp_path):
+    """Proxy os/os.path dengan expanduser → tmp_path. Return tmp_path (Path)."""
+    import os as real_os
+    import sys
+
+    class _PathProxy:
+        def __init__(self, real_mod):
+            self._real = real_mod
+
+        def __getattr__(self, name):
+            if name == "path":
+                return _PathProxy(self._real.path)
+            if name == "expanduser":
+                return lambda p: str(tmp_path / p.lstrip("~/"))
+            return getattr(self._real, name)
+
+    proxy = _PathProxy(real_os)
+    # Patch os module in sys.modules so all imports see it
+    sys.modules["os"] = proxy
+    sys.modules["os.path"] = proxy.path
+    # Also patch in current test module
+    import __main__
+    if hasattr(__main__, "os"):
+        monkeypatch.setattr(__main__, "os", proxy, raising=False)
+    return tmp_path
+
+
+@pytest.fixture
+def sched_env(monkeypatch):
+    """Environment bersih untuk scheduler/cron tests."""
+    # alfa.core.scheduler mungkin tidak ada di semua build
+    try:
+        import alfa.core.scheduler as sched_mod
+        monkeypatch.setattr(sched_mod, "_jobs", {}, raising=False)
+        monkeypatch.setattr(sched_mod, "_running", False, raising=False)
+    except ImportError:
+        pass
+    yield
+    try:
+        import alfa.core.scheduler as sched_mod
+        monkeypatch.setattr(sched_mod, "_jobs", {}, raising=False)
+        monkeypatch.setattr(sched_mod, "_running", False, raising=False)
+    except ImportError:
+        pass
+
