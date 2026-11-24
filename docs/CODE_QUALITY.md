@@ -2,21 +2,39 @@
 
 This document tracks code quality metrics for the ALFA Agent project.
 
-## Current Status (v3.5.0, 2026-11-19)
+## Current Status (v3.5.0, 2026-11-24)
 
 ### Test Coverage
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| Overall Coverage | 80% | **67.84%** (43.331 statement, 13.937 belum tercover) | 🟡 Below target (naik dari 47,65% → 54,23% → 57,00% → 65,20% → 67,84%) |
+| Overall Coverage | 80% | **80.14%** (43.334 statement, 8.607 belum tercover) | 🟢 Target tercapai (47,65% → 54,23% → 57,00% → 65,20% → 67,84% → 79,12% → 80,14%) |
 | Security-critical modules | 90% | 85–95% (perm gate, sandbox, vault, command policy) | 🟢 |
 | Integration Tests | Critical paths | Covered | 🟢 OK |
 
 **Note:** Jalankan `pytest --cov=alfa --cov-report=html` untuk laporan lokal.
-Gate CI `fail_under` saat ini **55%**; angka 67,84% memberi ruang di atas gate.
+Gate CI `fail_under` saat ini **55%**; angka 80,14% memberi ruang di atas gate.
 Kenaikan terakhir berasal dari suite Phase 3/4 (readiness, tracing, rate limit,
-shutdown, retensi sesi, SBOM, a11y), suite Phase 5 (144 tes hermetic), dan
-penghapusan versi hardcoded pada tes.
+shutdown, retensi sesi, SBOM, a11y), Phase 5 (144 tes hermetic), dan Phase 6
+(hardening coverage per batch modul).
+
+### Phase 6 — coverage hardening lanjutan
+
+Suite hermetic baru (30 berkas tes) menaikkan overall coverage 67,84% →
+**80,14%**. Modul yang selesai hingga **100%**:
+
+| Modul | Fokus |
+|-------|-------|
+| `alfa/bot/handlers/menus.py` | Seluruh callback menu, rekap material Lahat/Curup, briefing, ekspor/eksekusi rapat, fallback perintah |
+| `alfa/bot/advanced_commands/wa.py` | Status/QR WhatsApp, riwayat chat, pesan masuk, kirim, format, laporan, digest, pencarian |
+| `alfa/dashboard/routes/auth.py` | Login, sesi, magic-link, middleware Bearer/Basic/legacy, default-deny router |
+| `alfa/tools/media/player.py` | Unduh/cache/putar track, fallback backend |
+| `alfa/tools/media/av.py` | Konversi audio/video, probe, error handling |
+| `alfa/tools/desktop/input_automation.py` | Klik, ketik, hotkey, scroll, validasi koordinat |
+| `alfa/tools/telecom_tools/briefing.py` | Shift briefing, rekap, format kartu |
+
+Semua tes memakai SQLite sementara, `tmp_path`, dan mock HTTP/LLM/subprocess/
+GUI — tidak menyentuh layanan produksi maupun sesi WhatsApp.
 
 ### Phase 5 — coverage hardening modul kritis
 
@@ -37,32 +55,33 @@ konfigurasi dari dashboard benar-benar terbaca.
 
 ### Gap analysis — area yang masih belum tercover
 
-Target 80% belum tercapai. Berikut area dengan statement belum tercover
+Target 80% sudah tercapai. Berikut area dengan statement belum tercover
 terbanyak (diurutkan dari coverage JSON terakhir):
 
 | Area | Missing | Alasan / langkah berikutnya |
 |------|---------|------------------------------|
-| `alfa/bot/discord_bot.py` | 562 | `main()` butuh klien Discord nyata; helper sudah teruji terpisah |
-| `alfa/tools/system/management.py` | 227 | Tool manajemen sistem bergantung host; perlu sandbox mock |
-| `alfa/swarm/llm_client.py` | 215 | Panggilan LLM nyata; fokus pada parsing/fallback |
-| `alfa/core/cli/chat.py` | 201 | CLI interaktif (Rich/prompt) — butuh PTY palsu |
-| `alfa/tools/filesystem/universal_file_extractor.py` | 196 | Ekstraksi dokumen butuh berkas nyata; sebagian sudah diuji |
-| `alfa/core/cli/slash/developer.py` | 194 | Slash command developer; butuh harness CLI |
-| `alfa/dashboard/routes/chat.py` | 184 | Streaming SSE & turn aktif; butuh event-loop harness |
-| `alfa/tools/filesystem/office_convert.py` | 181 | Konversi Office bergantung LibreOffice |
-| `alfa/core/cli/basic_commands.py` | 174 | CLI interaktif; butuh PTY palsu |
-| `alfa/memory/vector.py` | 170 | Embedding/vektor; perlu model atau fake deterministik |
+| `alfa/bot/telegram_bot.py` | 122 | Entrypoint & wiring PTB butuh harness aplikasi |
+| `alfa/core/brain/agentic.py` | 100 | Loop agentic/LLM nyata; fokus parsing & fallback |
+| `alfa/bot/handlers/documents.py` | 99 | Batch dokumen & cache; perlu skenario multi-file |
+| `alfa/swarm/engine/parallel.py` | 99 | Eksekusi paralel; butuh event-loop & worker fake |
+| `alfa/tools/system/network.py` | 94 | Perintah jaringan bergantung host |
+| `alfa/tools/media/pdf_builder.py` | 93 | Render PDF butuh backend grafis |
+| `alfa/tools/filesystem/lsp_code_intelligence.py` | 93 | LSP server eksternal |
+| `alfa/bot/verify_bot_install.py` | 93 | Skrip verifikasi instalasi (dijalankan manual) |
+| `alfa/bot/pipeline/context_builder.py` | 92 | Perakitan konteks pipeline; perlu data sintetis |
+| `alfa/tools/web/scrapers.py` | 90 | Situs target berubah-ubah; butuh fixture HTML |
 
-Modul target Phase 5 sudah keluar dari daftar gap utama: `proactive.py` (72),
-`google_sheets.py` (39), `step_executor.py` (45), dan `settings_admin.py` (37)
-kini di atas 85%.
+Modul target Phase 5/6 sudah keluar dari daftar gap utama: `proactive.py`,
+`google_sheets.py`, `step_executor.py`, `settings_admin.py`, `menus.py`,
+`wa.py`, `dashboard/routes/auth.py`, serta modul media/desktop/telecom kini
+100% atau di atas 85%.
 
 ### Test Suite Statistics
 
 | Metric | Count |
 |--------|-------|
-| Test Files | 131 |
-| Test Functions | 2.198 (termasuk parameterisasi) |
+| Test Files | 161 |
+| Test Functions | 3.189 (termasuk parameterisasi) |
 | Fixtures | 20+ |
 | Custom Markers | 5 |
 
@@ -102,7 +121,7 @@ All commits must pass:
 All PRs must pass:
 - ✅ All unit tests
 - ✅ Integration tests (non-slow)
-- ✅ Code coverage threshold (gate `fail_under=55`, aktual 67,84%)
+- ✅ Code coverage threshold (gate `fail_under=55`, aktual 80,14%)
 - ✅ Security scanning (Bandit, no high/critical)
 - ✅ Dependency audit deterministik (gagal hanya bila advisory punya fix)
 - ✅ Docs strict (`mkdocs build --strict`)
@@ -111,7 +130,7 @@ All PRs must pass:
 ### Release Criteria
 
 Before each release:
-- 🟡 Overall test coverage di atas gate dan tidak turun (target jangka panjang 80%)
+- ✅ Overall test coverage di atas gate dan target 80% (aktual 80,14%)
 - ✅ All security tests passing
 - ✅ No critical linting issues
 - ✅ All integration tests passing
@@ -119,6 +138,18 @@ Before each release:
 - ✅ Changelog updated
 
 ## Metrics History
+
+### Phase 6 — Coverage Hardening per Batch (2026-11-24)
+
+**Improvements:**
+- 30 berkas tes hermetic baru untuk dashboard auth, callback menu, perintah
+  WhatsApp, media player/AV, input automation, briefing, telecom, scraper,
+  memory/vector, dan route dashboard.
+- Overall coverage 67,84% (akhir Phase 5) → **80,14%** (34.727/43.334 statement).
+- Modul `menus.py`, `wa.py`, `dashboard/routes/auth.py`, `media/player.py`,
+  `media/av.py`, `input_automation.py`, dan `briefing.py` mencapai **100%**.
+- Seluruh gate kualitas hijau: ruff, mypy 0 error, lint budget, silent-exception,
+  Bandit 0 medium/high, docs strict, dan JS syntax.
 
 ### Version 3.5.0 — Phase 5 Coverage Hardening (2026-11-19)
 

@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Ditambahkan
 
+- **Phase 6 coverage hardening** (`tests/test_phase6_*.py`): 30 berkas tes
+  hermetic baru untuk dashboard auth, callback menu, perintah WhatsApp,
+  media player/AV, input automation, briefing, telecom, scraper, memory/vector,
+  dan route dashboard. Overall coverage naik dari 67,84% (akhir Phase 5) ke
+  **80,14%** (34.727/43.334 statement). `menus.py`, `wa.py`,
+  `dashboard/routes/auth.py`, `media/player.py`, `media/av.py`,
+  `input_automation.py`, dan `briefing.py` mencapai 100%. Semua tes memakai
+  SQLite sementara/patch `ALFA_DB_PATH` serta mock HTTP/LLM/subprocess/GUI,
+  tanpa menyentuh layanan produksi atau sesi WhatsApp.
 - **Readiness probe + graceful shutdown** (`alfa/dashboard/health.py`,
   `alfa/dashboard/app.py`): `/readyz` dan `/api/readyz` memeriksa `SELECT 1`,
   jumlah tabel, direktori DB writable, serta melaporkan antrean dan turn chat

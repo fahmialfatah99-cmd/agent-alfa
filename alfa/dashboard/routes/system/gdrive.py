@@ -82,6 +82,7 @@ async def gdrive_set_default_folder(payload: dict[str, Any]):
             "INSERT INTO system_settings (key, value) VALUES ('gdrive_default_folder_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (f"https://drive.google.com/drive/folders/{folder_id}",),
         )
+        conn.commit()
 
     return {
         "status": "success",
@@ -157,6 +158,7 @@ async def gdrive_delete_credentials():
         conn.execute(
             "DELETE FROM system_settings WHERE key = 'gdrive_credentials_json'"
         )
+        conn.commit()
     return {"status": "success", "message": "Kredensial Google Drive berhasil dihapus."}
 
 

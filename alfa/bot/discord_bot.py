@@ -677,7 +677,7 @@ def main() -> None:
                     else:
                         res = serve_site(action="start", slug=slug)
                     await msg.reply(str(json.dumps(res, ensure_ascii=False))[:1900])
-                elif low.startswith("!stop"):
+                elif low.startswith("!stop") and not low.startswith("!stopvc"):
                     from alfa.tools import serve_site
 
                     slug = text[5:].strip()

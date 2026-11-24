@@ -14,6 +14,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
+@pytest.fixture(autouse=True)
+def _offline_llm(monkeypatch):
+    """Pastikan tes graph RAG tidak pernah memanggil API LLM sungguhan."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+
 @pytest.fixture
 def vec_db(tmp_path):
     return str(tmp_path / "vector.db")
