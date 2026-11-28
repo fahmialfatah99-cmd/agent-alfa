@@ -12,6 +12,8 @@ venv
 env
 node_modules
 devcli
+crates/*/target
+crates/*/dist
 tests
 .coverage
 htmlcov

@@ -44,9 +44,11 @@ def read_cpu_temperature_celsius() -> float:
     """Read physical CPU temperature from Linux sysfs thermal zones or psutil."""
     if _HAS_RUST_ACCEL:
         try:
-            _, _, _, rust_temp = alfa_accel.read_host_hardware_telemetry()
-            if 15.0 <= rust_temp <= 115.0:
-                return float(rust_temp)
+            telemetry = alfa_accel.read_host_hardware_telemetry()
+            if telemetry is not None:
+                _, _, _, rust_temp = telemetry
+                if 15.0 <= rust_temp <= 115.0:
+                    return float(rust_temp)
         except _GOV_ERRORS as e:
             logger.debug(f"Rust telemetry temperature fallback: {e}")
 
@@ -94,9 +96,9 @@ def get_hardware_governor_state() -> dict[str, Any]:
 
     if _HAS_RUST_ACCEL:
         try:
-            cpu_pct, ram_used_pct, ram_avail_mb, temp_c = (
-                alfa_accel.read_host_hardware_telemetry()
-            )
+            telemetry = alfa_accel.read_host_hardware_telemetry()
+            if telemetry is not None:
+                cpu_pct, ram_used_pct, ram_avail_mb, temp_c = telemetry
         except _GOV_ERRORS as e:
             logger.debug(f"Rust hardware telemetry fallback: {e}")
             cpu_pct = None

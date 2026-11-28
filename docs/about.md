@@ -129,12 +129,12 @@ ALFA OS melampaui agen reaktif konvensional melalui 5 pilar otonomi tingkat lanj
 
 ### 1. 🧮 Neuro-Symbolic Verification Engine (`neuro_symbolic.py`)
 * **Jaminan 0% Halusinasi Angka:** Menggabungkan fleksibilitas bahasa LLM dengan mesin pembuktian simbolik deterministik (`safe_ast_math_eval`).
-* **Akselerasi Native Rust:** Evaluasi ekspresi numerik dan verifikasi in-flight didukung biner Rust via PyO3 (`crates/alfa_accel`), berjalan hingga **13.2× lebih cepat**.
+* **Akselerasi Native Rust:** Evaluasi ekspresi numerik dan verifikasi in-flight didukung biner Rust via PyO3 (`crates/alfa_accel`), sekitar **3–8× lebih cepat** pada benchmark reproducible (`venv/bin/python scripts/bench_rust_accel.py`).
 * **Koreksi Persamaan In-Flight:** Setiap persamaan matematika di dalam draf jawaban (misal `68 - 7 = 61` atau `63 + 94 + 1 + 2 = 160`) dan invarian stok logistik dibuktikan secara eksak sebelum pesan dikirim ke pengguna.
 
 ### 2. 💤 Offline "Dreaming Mode" & Deterministic Fast-Path Compiler (`dreaming_compiler.py`)
 * **Konsolidasi Memori Saat Idle:** Terinspirasi dari *DeepMind Dreamer/MuZero*, saat beban CPU rendah, sistem mengkompilasi aturan berkepercayaan tinggi (`confidence >= 90%`) menjadi jalur cepat deterministik (`alfa_compiled_fastpaths`).
-* **Eksekusi Sub-Milidetik (0 Token):** Didukung `FastPathEngine` native Rust (15× lebih cepat), pertanyaan operasional berulang dijawab instan **tanpa memakan kuota token API**.
+* **Eksekusi Sub-Milidetik (0 Token):** Didukung `FastPathEngine` native Rust (sekitar **2,5–3×** lebih cepat pada benchmark reproducible), pertanyaan operasional berulang dijawab instan **tanpa memakan kuota token API**.
 
 ### 3. 🔮 Predictive Operational World-Model (`world_model.py`)
 * **Deteksi Anomali Pre-Emptif:** Menganalisis aliran pesan lapangan secara kausal sebelum data masuk ke pembukuan. Otomatis mendeteksi laporan retur tanpa kuantitas angka (`UNQUANTIFIED_RETURN`) atau pengambilan material partai besar tanpa rincian spesifikasi (`MISSING_POLE_SPEC_BREAKDOWN`).

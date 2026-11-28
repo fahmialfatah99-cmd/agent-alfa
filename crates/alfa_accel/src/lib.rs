@@ -1,8 +1,8 @@
 use fancy_regex::Regex;
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum MathVal {
@@ -236,10 +236,7 @@ pub fn eval_math_str(expr: &str) -> Option<MathVal> {
     }
 
     // Normalized replacements
-    let normalized = trimmed
-        .replace('x', "*")
-        .replace('×', "*")
-        .replace('÷', "/");
+    let normalized = trimmed.replace(['x', '×'], "*").replace('÷', "/");
 
     // Allowed chars check: digits, operators, parentheses, dot, whitespace (matches Python AST whitelist)
     for c in normalized.chars() {
@@ -302,10 +299,8 @@ pub fn verify_arithmetic_equations_in_text<'py>(
     let mut result_text = String::with_capacity(text.len());
 
     let mut matches = Vec::new();
-    for m in EQUATION_RE.find_iter(text) {
-        if let Ok(mat) = m {
-            matches.push(mat);
-        }
+    for mat in EQUATION_RE.find_iter(text).flatten() {
+        matches.push(mat);
     }
 
     for mat in matches {
@@ -390,18 +385,27 @@ pub fn calc_cosine_similarity(vec_a: &[f32], vec_b: &[f32]) -> f64 {
 }
 
 #[pyfunction]
-pub fn cosine_similarity(vec_a: Vec<f32>, vec_b: Vec<f32>) -> f64 {
-    calc_cosine_similarity(&vec_a, &vec_b)
+pub fn cosine_similarity(py: Python<'_>, vec_a: Vec<f32>, vec_b: Vec<f32>) -> f64 {
+    // Lepas GIL: perhitungan CPU-bound tidak boleh memblokir event loop Python.
+    py.detach(|| calc_cosine_similarity(&vec_a, &vec_b))
 }
 
 #[pyfunction]
-pub fn batch_cosine_similarity(query: Vec<f32>, vectors: Vec<Vec<f32>>) -> Vec<f64> {
+pub fn batch_cosine_similarity(
+    py: Python<'_>,
+    query: Vec<f32>,
+    vectors: Vec<Vec<f32>>,
+) -> Vec<f64> {
+    py.detach(|| batch_cosine_similarity_impl(&query, &vectors))
+}
+
+fn batch_cosine_similarity_impl(query: &[f32], vectors: &[Vec<f32>]) -> Vec<f64> {
     if query.is_empty() {
         return vec![0.0; vectors.len()];
     }
 
     let mut sum_sq_q = 0.0f64;
-    for &x in &query {
+    for &x in query {
         let xf = x as f64;
         sum_sq_q += xf * xf;
     }
@@ -413,7 +417,7 @@ pub fn batch_cosine_similarity(query: Vec<f32>, vectors: Vec<Vec<f32>>) -> Vec<f
     let q_len = query.len();
     let mut results = Vec::with_capacity(vectors.len());
 
-    for vec_b in &vectors {
+    for vec_b in vectors {
         if vec_b.is_empty() {
             results.push(0.0);
             continue;
@@ -442,9 +446,8 @@ pub fn batch_cosine_similarity(query: Vec<f32>, vectors: Vec<Vec<f32>>) -> Vec<f
     results
 }
 
-static FASTPATH_REGEX_CACHE: LazyLock<Mutex<HashMap<String, Option<Regex>>>> = LazyLock::new(|| {
-    Mutex::new(HashMap::new())
-});
+static FASTPATH_REGEX_CACHE: LazyLock<Mutex<HashMap<String, Option<Regex>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub fn get_or_compile_fastpath_regex(pattern: &str) -> Option<Regex> {
     let mut cache = FASTPATH_REGEX_CACHE.lock().unwrap();
@@ -485,6 +488,12 @@ pub fn find_matching_fastpath_id(prompt: &str, candidates: Vec<(i64, String)>) -
 #[pyclass]
 pub struct FastPathEngine {
     patterns: Vec<(i64, Regex)>,
+}
+
+impl Default for FastPathEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[pymethods]
@@ -546,13 +555,17 @@ pub fn tokenize_for_bm25(text: &str) -> Vec<String> {
 }
 
 #[pyfunction]
-pub fn calculate_bm25_scores(corpus: Vec<String>, query: String) -> Vec<f64> {
+pub fn calculate_bm25_scores(py: Python<'_>, corpus: Vec<String>, query: String) -> Vec<f64> {
+    py.detach(|| calculate_bm25_scores_impl(&corpus, &query))
+}
+
+fn calculate_bm25_scores_impl(corpus: &[String], query: &str) -> Vec<f64> {
     let n_docs = corpus.len();
     if n_docs == 0 || query.trim().is_empty() {
         return vec![0.0; n_docs];
     }
 
-    let q_tokens = tokenize_for_bm25(&query);
+    let q_tokens = tokenize_for_bm25(query);
     if q_tokens.is_empty() {
         return vec![0.0; n_docs];
     }
@@ -561,7 +574,7 @@ pub fn calculate_bm25_scores(corpus: Vec<String>, query: String) -> Vec<f64> {
     let mut doc_lens = Vec::with_capacity(n_docs);
     let mut total_tokens = 0usize;
 
-    for text in &corpus {
+    for text in corpus {
         let tokens = tokenize_for_bm25(text);
         let len = tokens.len();
         doc_lens.push(len);
@@ -695,13 +708,21 @@ pub fn filter_hop2_bridges(
 }
 
 #[pyfunction]
-pub fn batch_cosine_from_json_strings(query: Vec<f32>, json_strings: Vec<String>) -> Vec<f64> {
+pub fn batch_cosine_from_json_strings(
+    py: Python<'_>,
+    query: Vec<f32>,
+    json_strings: Vec<String>,
+) -> Vec<f64> {
+    py.detach(|| batch_cosine_from_json_strings_impl(&query, &json_strings))
+}
+
+fn batch_cosine_from_json_strings_impl(query: &[f32], json_strings: &[String]) -> Vec<f64> {
     if query.is_empty() {
         return vec![0.0; json_strings.len()];
     }
 
     let mut sum_sq_q = 0.0f64;
-    for &x in &query {
+    for &x in query {
         let xf = x as f64;
         sum_sq_q += xf * xf;
     }
@@ -713,7 +734,7 @@ pub fn batch_cosine_from_json_strings(query: Vec<f32>, json_strings: Vec<String>
     let q_len = query.len();
     let mut results = Vec::with_capacity(json_strings.len());
 
-    for json_str in &json_strings {
+    for json_str in json_strings {
         if let Ok(vec_b) = serde_json::from_str::<Vec<f32>>(json_str) {
             if vec_b.is_empty() {
                 results.push(0.0);
@@ -743,10 +764,10 @@ pub fn batch_cosine_from_json_strings(query: Vec<f32>, json_strings: Vec<String>
     results
 }
 
-static CPU_STAT_PREV: LazyLock<Mutex<(u64, u64)>> = LazyLock::new(|| {
-    Mutex::new((0, 0))
-});
+#[cfg(target_os = "linux")]
+static CPU_STAT_PREV: LazyLock<Mutex<(u64, u64)>> = LazyLock::new(|| Mutex::new((0, 0)));
 
+#[cfg(target_os = "linux")]
 pub fn read_linux_cpu_percent() -> f64 {
     if let Ok(stat) = std::fs::read_to_string("/proc/stat") {
         if let Some(first_line) = stat.lines().next() {
@@ -780,6 +801,7 @@ pub fn read_linux_cpu_percent() -> f64 {
     10.0
 }
 
+#[cfg(target_os = "linux")]
 pub fn read_linux_memory() -> (f64, f64) {
     let mut total_kb = 0.0f64;
     let mut avail_kb = 0.0f64;
@@ -812,6 +834,7 @@ pub fn read_linux_memory() -> (f64, f64) {
     }
 }
 
+#[cfg(target_os = "linux")]
 pub fn read_linux_cpu_temp() -> f64 {
     let mut max_temp = 0.0f64;
     if let Ok(entries) = std::fs::read_dir("/sys/class/thermal") {
@@ -834,12 +857,26 @@ pub fn read_linux_cpu_temp() -> f64 {
     }
 }
 
+/// True hanya di Linux; OS lain harus memakai fallback psutil di Python.
 #[pyfunction]
-pub fn read_host_hardware_telemetry() -> (f64, f64, f64, f64) {
-    let cpu_pct = read_linux_cpu_percent();
-    let (ram_pct, ram_avail_mb) = read_linux_memory();
-    let temp_c = read_linux_cpu_temp();
-    (cpu_pct, ram_pct, ram_avail_mb, temp_c)
+pub fn is_hardware_telemetry_supported() -> bool {
+    cfg!(target_os = "linux")
+}
+
+#[pyfunction]
+pub fn read_host_hardware_telemetry() -> Option<(f64, f64, f64, f64)> {
+    #[cfg(target_os = "linux")]
+    {
+        let cpu_pct = read_linux_cpu_percent();
+        let (ram_pct, ram_avail_mb) = read_linux_memory();
+        let temp_c = read_linux_cpu_temp();
+        Some((cpu_pct, ram_pct, ram_avail_mb, temp_c))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Jangan kembalikan angka palsu: Python akan fallback ke psutil.
+        None
+    }
 }
 
 #[pymodule]
@@ -856,6 +893,7 @@ fn alfa_accel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calculate_bm25_scores, m)?)?;
     m.add_function(wrap_pyfunction!(find_seed_entity_indices, m)?)?;
     m.add_function(wrap_pyfunction!(filter_hop2_bridges, m)?)?;
+    m.add_function(wrap_pyfunction!(is_hardware_telemetry_supported, m)?)?;
     m.add_function(wrap_pyfunction!(read_host_hardware_telemetry, m)?)?;
     Ok(())
 }
@@ -873,7 +911,7 @@ mod tests {
 
         let empty: Vec<f32> = vec![];
         assert_eq!(calc_cosine_similarity(&empty, &a), 0.0);
-        assert_eq!(calc_cosine_similarity(&vec![0.0, 0.0], &vec![0.0, 0.0]), 0.0);
+        assert_eq!(calc_cosine_similarity(&[0.0, 0.0], &[0.0, 0.0]), 0.0);
 
         let c = vec![0.0, 1.0, 0.0];
         assert!((calc_cosine_similarity(&a, &c)).abs() < 1e-6);
@@ -907,16 +945,25 @@ mod tests {
     #[test]
     fn test_fastpath_pattern_matching() {
         let pattern = r"^\s*(?:berapa|cek|info|total|rekap)?\s*(?:jumlah\s+|total\s+)?tiang\s+(?:bersih\s+|net\s+)?(?:cluster\s+)?lahat\s*\??\s*$";
-        assert!(match_fastpath_pattern("berapa total tiang bersih lahat?", pattern));
+        assert!(match_fastpath_pattern(
+            "berapa total tiang bersih lahat?",
+            pattern
+        ));
         assert!(match_fastpath_pattern("total tiang lahat", pattern));
-        assert!(!match_fastpath_pattern("salah bukan begitu total tiang", pattern));
+        assert!(!match_fastpath_pattern(
+            "salah bukan begitu total tiang",
+            pattern
+        ));
 
-        let candidates = vec![
-            (10, r"^\s*halo\s*$".to_string()),
-            (20, pattern.to_string()),
-        ];
-        assert_eq!(find_matching_fastpath_id("berapa total tiang bersih lahat?", candidates.clone()), Some(20));
-        assert_eq!(find_matching_fastpath_id("halo", candidates.clone()), Some(10));
+        let candidates = vec![(10, r"^\s*halo\s*$".to_string()), (20, pattern.to_string())];
+        assert_eq!(
+            find_matching_fastpath_id("berapa total tiang bersih lahat?", candidates.clone()),
+            Some(20)
+        );
+        assert_eq!(
+            find_matching_fastpath_id("halo", candidates.clone()),
+            Some(10)
+        );
         assert_eq!(find_matching_fastpath_id("selamat pagi", candidates), None);
     }
 
@@ -928,10 +975,10 @@ mod tests {
             "Baking delicious chocolate cakes and sweet pastries".to_string(),
         ];
         let query = "Rust programming safety".to_string();
-        let scores = calculate_bm25_scores(corpus, query);
+        let scores = calculate_bm25_scores_impl(&corpus, &query);
         assert_eq!(scores.len(), 3);
         assert_eq!(scores[1], 1.0); // Best match should be normalized to 1.0
-        assert!(scores[0] > 0.0);   // Matches 'programming'
+        assert!(scores[0] > 0.0); // Matches 'programming'
         assert_eq!(scores[2], 0.0); // No matching tokens
     }
 
@@ -965,7 +1012,7 @@ mod tests {
             "[-1.0, 0.0, 0.0]".to_string(),
             "invalid_json".to_string(),
         ];
-        let sims = batch_cosine_from_json_strings(q, jsons);
+        let sims = batch_cosine_from_json_strings_impl(&q, &jsons);
         assert_eq!(sims.len(), 4);
         assert!((sims[0] - 1.0).abs() < 1e-5);
         assert!((sims[1] - 0.0).abs() < 1e-5);
@@ -975,10 +1022,16 @@ mod tests {
 
     #[test]
     fn test_host_hardware_telemetry() {
-        let (cpu, ram, avail, temp) = read_host_hardware_telemetry();
-        assert!(cpu >= 0.0 && cpu <= 100.0);
-        assert!(ram >= 0.0 && ram <= 100.0);
-        assert!(avail >= 0.0);
-        assert!(temp >= 15.0 && temp <= 115.0);
+        assert_eq!(is_hardware_telemetry_supported(), cfg!(target_os = "linux"));
+        let telemetry = read_host_hardware_telemetry();
+        if cfg!(target_os = "linux") {
+            let (cpu, ram, avail, temp) = telemetry.expect("telemetri Linux harus tersedia");
+            assert!((0.0..=100.0).contains(&cpu));
+            assert!((0.0..=100.0).contains(&ram));
+            assert!(avail >= 0.0);
+            assert!((15.0..=115.0).contains(&temp));
+        } else {
+            assert!(telemetry.is_none());
+        }
     }
 }

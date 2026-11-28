@@ -1,17 +1,25 @@
 """
 Unit Tests for ALFA OS Rust Acceleration Module (alfa_accel via PyO3).
 
-Guarantees 100% equivalence between Rust native acceleration and Python fallback,
-validating Zero Regression (Rule 1 of ALFA OS).
+Memvalidasi paritas Rust vs Python pada kasus representatif (Zero Regression,
+Rule 1 ALFA OS). Modul ini otomatis di-skip bila wheel Rust belum dibangun,
+sehingga suite tetap bisa dijalankan dengan fallback Python murni.
 """
 
 import json
+
+import pytest
 
 import alfa.core.apex.dreaming_compiler as dc
 import alfa.core.apex.hardware_governor as hg
 import alfa.core.apex.neuro_symbolic as ns
 import alfa.core.apex.temporal_graphrag as tg
 import alfa.memory.vector as vm
+
+pytest.importorskip(
+    "alfa_accel",
+    reason="Modul Rust belum dibangun; lihat docs/INSTALL.md bagian akselerasi Rust",
+)
 
 
 def test_rust_acceleration_loaded():
@@ -239,8 +247,13 @@ def test_batch_cosine_from_json_strings_equivalence():
 def test_hardware_governor_rust_acceleration():
     import alfa_accel
 
-    # Direct Rust telemetry call
-    cpu_pct, ram_used_pct, ram_avail_mb, temp_c = alfa_accel.read_host_hardware_telemetry()
+    # Telemetri native hanya didukung di Linux; OS lain wajib fallback psutil.
+    telemetry = alfa_accel.read_host_hardware_telemetry()
+    assert alfa_accel.is_hardware_telemetry_supported() is (telemetry is not None)
+    if telemetry is None:
+        pytest.skip("Telemetri native hanya tersedia di Linux")
+
+    cpu_pct, ram_used_pct, ram_avail_mb, temp_c = telemetry
     assert 0.0 <= cpu_pct <= 100.0
     assert 0.0 <= ram_used_pct <= 100.0
     assert ram_avail_mb >= 0.0

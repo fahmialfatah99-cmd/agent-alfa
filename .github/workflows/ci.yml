@@ -23,6 +23,27 @@ jobs:
       - name: "Ban silent exception handlers (except Exception: pass)"
         run: python scripts/check_silent_exceptions.py
 
+  rust:
+    name: Rust (fmt, clippy, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/alfa_accel
+      - name: Format check
+        working-directory: crates/alfa_accel
+        run: cargo fmt --check
+      - name: Clippy (deny warnings)
+        working-directory: crates/alfa_accel
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Unit tests
+        working-directory: crates/alfa_accel
+        run: cargo test --release
+
   docs:
     name: Docs (mkdocs strict)
     runs-on: ubuntu-latest
@@ -161,7 +182,7 @@ jobs:
             "google-auth-oauthlib>=1.2.0,<2.0.0" "google-auth-httplib2"
       - name: Build Rust Acceleration Module (alfa_accel)
         run: |
-          pip install maturin
+          pip install "maturin>=1.7,<2.0"
           cd crates/alfa_accel
           maturin build --release --out dist
           pip install --force-reinstall dist/*.whl

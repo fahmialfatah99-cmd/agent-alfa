@@ -44,12 +44,38 @@ reasoning, memory, safety, system, media, agent). Dua mode:
   governor, capability, durable task, dan workflow terkompilasi.
 - Rilis: **v2.20.0**
 
+## Benchmark akselerasi Rust (2026-11-28, terverifikasi lokal)
+
+Modul native `alfa_accel` (PyO3) diukur dengan
+`venv/bin/python scripts/bench_rust_accel.py` — median 3 pengulangan,
+setelah warm-up, pada satu mesin Linux x86-64 (Python 3.14). Pembanding
+adalah fallback Python/NumPy yang sama dengan jalur produksi.
+
+| Operasi | Rust | Python/NumPy | Speedup |
+|---|---:|---:|---:|
+| Math 20.000 ekspresi | 0,024–0,025 s | 0,196–0,198 s | **7,8–8,8×** |
+| Cosine 1 pasang 768d ×20.000 | 0,397–0,401 s | 1,401–1,420 s | **3,5–3,6×** |
+| Batch cosine dari JSON 5.000×768 | 0,283–0,298 s | 1,810–1,826 s | **6,1–6,4×** |
+| BM25 30×300 dokumen | 0,280–0,285 s | 0,774–0,806 s | **2,7–2,9×** |
+| FastPath 5.000 prompt ×50 pola | 0,019 s | 0,049–0,053 s | **2,5–2,8×** |
+
+Rentang di atas berasal dari beberapa run representatif pada mesin yang sama;
+variasi antar-run sekitar ±10%.
+
+Angka ini bergantung pada CPU, ukuran data, dan versi dependensi; jangan
+dikutip sebagai jaminan universal. Yang penting: jalur Rust tidak lebih
+lambat daripada fallback pada beban batch produksi, dan `cargo test` menjaga
+paritas hasil. Build wheel sengaja portabel (tanpa `target-cpu=native`);
+optimasi khusus mesin lokal dapat dilakukan manual dengan
+`RUSTFLAGS="-C target-cpu=native"`.
+
 ## Reproduksi
 
 ```bash
 python evals/run_evals.py                 # offline
 python evals/run_evals.py --live --output-json storage/eval_runs/x.json
 venv/bin/python -m pytest -q
+venv/bin/python scripts/bench_rust_accel.py   # butuh wheel alfa_accel
 ```
 
 ## Live terjadwal

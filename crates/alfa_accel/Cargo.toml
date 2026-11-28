@@ -2,6 +2,9 @@
 name = "alfa_accel"
 version = "0.1.0"
 edition = "2021"
+description = "Native Rust acceleration for ALFA OS (PyO3)"
+license = "MIT"
+authors = ["Fahmi Alfatah <fahmialfatah99@example.com>"]
 
 [lib]
 name = "alfa_accel"
@@ -17,5 +20,6 @@ serde_json = "1.0"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
-panic = "abort"
+# Jangan pakai panic = "abort": PyO3 perlu unwind agar panic Rust menjadi
+# PanicException, bukan mematikan seluruh proses Python (service 24/7).
 strip = true

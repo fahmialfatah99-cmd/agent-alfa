@@ -23,6 +23,7 @@ Dari nol sampai bot siap dipakai di Telegram. Ikuti berurutan, ±15 menit.
 |---|---|---|---|
 | Python | 3.10+ | ✅ Wajib | `python3 --version` |
 | Git | any | ✅ Wajib | `git --version` |
+| **Rust toolchain + maturin** | stable | ⚠️ Opsional (disarankan) | `cargo --version` |
 | **Docker** | any | ⚠️ Sangat disarankan | `docker ps` |
 | FFmpeg | any | Opsional (media/audio) | `ffmpeg -version` |
 | LibreOffice | any | Opsional (konversi dokumen) | `libreoffice --version` |
@@ -99,6 +100,38 @@ cd agent-alfa
   powershell -ExecutionPolicy Bypass -File .\setup.ps1
   ```
 - Setelah setup selesai, cukup **Klik 2x `run.bat`** untuk meluncurkan sistem.
+
+### Akselerasi Rust (opsional, disarankan)
+
+Bot tetap berjalan tanpa Rust (fallback Python/NumPy), tetapi modul native
+`alfa_accel` mempercepat evaluasi matematika, BM25, FastPath, dan batch cosine.
+`./setup.sh` mencoba membangunnya otomatis bila `cargo` tersedia; set
+`ALFA_SKIP_RUST=1` untuk melewati. Build Docker juga melakukannya otomatis
+lewat multi-stage.
+
+**Linux / macOS:**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+source "$HOME/.cargo/env"
+./venv/bin/pip install "maturin>=1.7,<2.0"
+cd crates/alfa_accel
+../../venv/bin/maturin build --release --out dist
+cd ../..
+./venv/bin/pip install --force-reinstall crates/alfa_accel/dist/*.whl
+./venv/bin/python -c "import alfa_accel; print('Rust aktif:', alfa_accel.is_rust_accelerated())"
+```
+
+**Windows (PowerShell):** pasang Rust dari <https://rustup.rs>, lalu:
+```powershell
+.\venv\Scripts\pip install "maturin>=1.7,<2.0"
+cd crates\alfa_accel
+..\..\venv\Scripts\maturin build --release --out dist
+cd ..\..
+.\venv\Scripts\pip install --force-reinstall crates\alfa_accel\dist\*.whl
+```
+
+Tes `tests/test_rust_acceleration.py` otomatis di-skip bila wheel belum
+dibangun, jadi suite tetap bisa dijalankan dengan fallback Python murni.
 
 ---
 

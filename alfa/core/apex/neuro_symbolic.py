@@ -66,7 +66,7 @@ def safe_ast_math_eval(expr: str) -> float | int | None:
     """
     if _HAS_RUST_ACCEL:
         try:
-            return cast("float | int | None", alfa_accel.safe_ast_math_eval(expr))
+            return alfa_accel.safe_ast_math_eval(expr)
         except (RuntimeError, TypeError, ValueError, AttributeError, NameError) as e:
             logger.debug("alfa_accel safe_ast_math_eval failed (%s), fallback to Python AST", e)
 

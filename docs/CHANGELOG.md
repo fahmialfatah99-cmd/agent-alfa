@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Ditambahkan
 
+- **Hardening integrasi Rust `alfa_accel`** (`crates/alfa_accel/`, CI, Docker):
+  - Gate CI baru `rust` menjalankan `cargo fmt --check`,
+    `cargo clippy --all-targets -- -D warnings`, dan `cargo test --release`.
+  - Dockerfile multi-stage membangun wheel Rust dengan Python 3.12 yang sama
+    dengan runtime, lalu memasangnya di image akhir; `.dockerignore`
+    mengecualikan `target/` dan `dist/`.
+  - `scripts/setup.sh` membangun wheel secara opsional (opt-out
+    `ALFA_SKIP_RUST=1`, gagal build tidak fatal); `docs/INSTALL.md` memuat
+    prasyarat dan langkah Linux/macOS/Windows.
+  - Benchmark reproducible `scripts/bench_rust_accel.py`: math **7,8–8,8×**,
+    cosine batch JSON **6,1–6,4×**, cosine 1 pasang **3,5–3,6×**, BM25
+    **2,7–2,9×**, FastPath **2,5–2,8×** (rentang beberapa run lokal; bukan
+    jaminan universal).
+  - Metadata packaging (`pyproject.toml` maturin, type stub `.pyi`,
+    deskripsi/license/authors di `Cargo.toml`).
+- **Perbaikan perilaku native**: GIL dilepas (`Python::detach`) pada fungsi
+  CPU-bound (cosine, batch cosine, BM25) agar event loop tidak terblokir;
+  `panic = "abort"` dihapus supaya panic Rust menjadi `PanicException`, bukan
+  mematikan proses; `target-cpu=native` dihapus agar wheel portabel; telemetri
+  hardware Rust hanya Linux dan mengembalikan `None` di OS lain sehingga
+  `hardware_governor` fallback ke `psutil`.
 - **Phase 7B harness infrastructure + 4 module coverage boost** (`tests/harness/`, `tests/test_phase7_*.py`):
   - 6 berkas harness baru: `TestApplication` (PTB), `FakeDiscordClient`,
     `DeterministicLLM` (RECORD/REPLAY/FAKE), `FakeTaskGroup`/`SequentialTaskGroup`.

@@ -1,2 +1,5 @@
-[build]
-rustflags = ["-C", "target-cpu=native"]
+# Build default sengaja portabel: JANGAN memakai target-cpu=native di sini.
+# Wheel hasil build harus bisa dipasang di CPU lain (CI, Docker, mesin operator).
+#
+# Untuk optimasi khusus mesin lokal (tidak portabel), build manual dengan:
+#   RUSTFLAGS="-C target-cpu=native" maturin build --release --out dist

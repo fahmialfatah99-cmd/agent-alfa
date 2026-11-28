@@ -36,7 +36,7 @@ jobs:
 
       - name: Build Rust Acceleration Module (alfa_accel)
         run: |
-          pip install maturin
+          pip install "maturin>=1.7,<2.0"
           cd crates/alfa_accel
           maturin build --release --out dist
           pip install --force-reinstall dist/*.whl

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "alfa-accel"
+version = "0.1.0"
+description = "Native Rust acceleration for ALFA OS (PyO3)"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Fahmi Alfatah", email = "fahmialfatah99@example.com" }]
+
+[tool.maturin]
+module-name = "alfa_accel"

@@ -64,6 +64,29 @@ echo -e "${CYAN}[3/6] Menginstall & Memperbarui Dependensi Python...${NC}"
 ./venv/bin/pip install -r requirements.txt --quiet
 echo -e "   ${GREEN}✅ Seluruh dependensi python (Telegram, FastAPI, Gemini SDK, Tools) berhasil terpasang!${NC}"
 
+# 3b. Build native Rust acceleration (optional, recommended)
+echo ""
+echo -e "${CYAN}[3b/6] Membangun Akselerasi Native Rust (opsional)...${NC}"
+if [ "${ALFA_SKIP_RUST:-0}" = "1" ]; then
+    echo -e "   ${YELLOW}⏭️  Dilewati karena ALFA_SKIP_RUST=1 (fallback Python tetap aktif).${NC}"
+elif ! command -v cargo >/dev/null 2>&1; then
+    echo -e "   ${YELLOW}⚠️  Rust/cargo tidak ditemukan — memakai fallback Python.${NC}"
+    echo -e "   ${CYAN}   Lihat docs/INSTALL.md bagian 'Akselerasi Rust' untuk mengaktifkannya.${NC}"
+else
+    if [ ! -x "./venv/bin/maturin" ]; then
+        ./venv/bin/pip install --quiet "maturin>=1.7,<2.0" || true
+    fi
+    RUST_BUILD_LOG=$(mktemp)
+    if [ -x "./venv/bin/maturin" ] && (cd crates/alfa_accel && ../../venv/bin/maturin build --release --out dist >"$RUST_BUILD_LOG" 2>&1); then
+        ./venv/bin/pip install --force-reinstall --quiet crates/alfa_accel/dist/*.whl
+        echo -e "   ${GREEN}✅ alfa_accel terpasang (Rust aktif).${NC}"
+    else
+        echo -e "   ${YELLOW}⚠️  Build Rust gagal — memakai fallback Python (tidak fatal).${NC}"
+        tail -5 "$RUST_BUILD_LOG" 2>/dev/null || true
+    fi
+    rm -f "$RUST_BUILD_LOG"
+fi
+
 # 5. Interactive Configuration Setup (.env)
 echo ""
 echo -e "${CYAN}[4/6] Konfigurasi Kredensial & Kunci API (.env)...${NC}"
