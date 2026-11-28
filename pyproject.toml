@@ -381,7 +381,7 @@ exclude = ["tests/", "venv/", ".venv/", "build/", "dist/"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q"
+addopts = "-ra -q -p no:libtmux"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_functions = ["test_*"]
